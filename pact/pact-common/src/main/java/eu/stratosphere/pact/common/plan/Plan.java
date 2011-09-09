@@ -20,7 +20,7 @@ import java.util.Calendar;
 import java.util.Collection;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
 
 /**
  * 
@@ -30,7 +30,7 @@ public class Plan implements Visitable<Contract> {
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
 	 */
-	protected final Collection<FileDataSinkContract<?, ?>> sinks;
+	protected final Collection<DataSinkContract<?, ?>> sinks;
 
 	/**
 	 * The name of the pact job.
@@ -41,32 +41,25 @@ public class Plan implements Visitable<Contract> {
 	 * The maximal number of machines to use in the job.
 	 */
 	protected int maxNumberMachines;
-	
-	/**
-	 * The plan's configuration 
-	 */
-	protected PlanConfiguration planConfiguration;
 
 	// ------------------------------------------------------------------------
 
-	public Plan(Collection<FileDataSinkContract<?, ?>> sinks, String jobName) {
+	public Plan(Collection<DataSinkContract<?, ?>> sinks, String jobName) {
 		this.sinks = sinks;
 		this.jobName = jobName;
-		this.planConfiguration = new PlanConfiguration();
 	}
 
-	public Plan(FileDataSinkContract<?, ?> sink, String jobName) {
-		this.sinks = new ArrayList<FileDataSinkContract<?, ?>>();
+	public Plan(DataSinkContract<?, ?> sink, String jobName) {
+		this.sinks = new ArrayList<DataSinkContract<?, ?>>();
 		this.sinks.add(sink);
 		this.jobName = jobName;
-		this.planConfiguration = new PlanConfiguration();
 	}
 
-	public Plan(Collection<FileDataSinkContract<?, ?>> sinks) {
+	public Plan(Collection<DataSinkContract<?, ?>> sinks) {
 		this(sinks, "PACT Job at " + Calendar.getInstance().getTime());
 	}
 
-	public Plan(FileDataSinkContract<?, ?> sink) {
+	public Plan(DataSinkContract<?, ?> sink) {
 		this(sink, "PACT Job at " + Calendar.getInstance().getTime());
 	}
 
@@ -78,7 +71,7 @@ public class Plan implements Visitable<Contract> {
 	 * @param sink
 	 *        The data sink to add.
 	 */
-	public void addDataSink(FileDataSinkContract<?, ?> sink) {
+	public void addDataSink(DataSinkContract<?, ?> sink) {
 		if (!sinks.contains(sink)) {
 			sinks.add(sink);
 		}
@@ -89,7 +82,7 @@ public class Plan implements Visitable<Contract> {
 	 * 
 	 * @return All sinks of the program.
 	 */
-	public Collection<FileDataSinkContract<?, ?>> getDataSinks() {
+	public Collection<DataSinkContract<?, ?>> getDataSinks() {
 		return sinks;
 	}
 
@@ -100,13 +93,6 @@ public class Plan implements Visitable<Contract> {
 	 */
 	public String getJobName() {
 		return this.jobName;
-	}
-	
-	/**
-	 * Gets the plans configuration
-	 */
-	public PlanConfiguration getPlanConfiguration() {
-		return this.planConfiguration;
 	}
 
 	/**
@@ -137,7 +123,7 @@ public class Plan implements Visitable<Contract> {
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {
-		for (FileDataSinkContract<?, ?> sink : sinks) {
+		for (DataSinkContract<?, ?> sink : sinks) {
 			sink.accept(visitor);
 		}
 	}

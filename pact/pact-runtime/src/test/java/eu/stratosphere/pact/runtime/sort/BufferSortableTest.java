@@ -36,6 +36,7 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -109,7 +110,7 @@ public class BufferSortableTest {
 			int writtenBytes = 0;
 			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
 			while (buffer.write(pair)) {
-				writtenBytes += generator.sizeOf(pair);
+				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
 				writtenPairs++;
 				pair = generator.next();
 			}
@@ -123,9 +124,10 @@ public class BufferSortableTest {
 		{
 			Buffer.Input buffer = new Buffer.Input(memory);
 			buffer.reset(pos);
+			IntegerRecord intRec = new IntegerRecord();
 			KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
 				new TestData.Key(), new TestData.Value());
-			while (buffer.read(pair)) {
+			while (buffer.read(intRec) && buffer.read(pair)) {
 				readPairs++;
 			}
 			LOG.debug("Read " + readPairs + " pairs from buffer.");
@@ -155,7 +157,7 @@ public class BufferSortableTest {
 			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
 			while (buffer.write(pair)) {
 				LOG.debug("<- " + pair);
-				writtenBytes += generator.sizeOf(pair);
+				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
 				writtenPairs++;
 				pair = generator.next();
 			}
@@ -169,9 +171,10 @@ public class BufferSortableTest {
 		{
 			Buffer.Input buffer = new Buffer.Input(memory);
 			buffer.reset(limit);
+			IntegerRecord rec = new IntegerRecord();
 			KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
 				new TestData.Key(), new TestData.Value());
-			while (buffer.read(pair)) {
+			while (buffer.read(rec) && buffer.read(pair)) {
 				LOG.debug("-> " + pair);
 				readPairs++;
 			}
@@ -199,7 +202,7 @@ public class BufferSortableTest {
 			int writtenBytes = 0;
 			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
 			while (buffer.write(pair)) {
-				writtenBytes += generator.sizeOf(pair);
+				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
 				pair = generator.next();
 			}
 			LOG.debug("Occupied " + writtenBytes + " of " + MEMORY_SIZE + " bytes.");
@@ -317,7 +320,7 @@ public class BufferSortableTest {
 			int writtenBytes = 0;
 			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
 			while (buffer.write(pair)) {
-				writtenBytes += generator.sizeOf(pair);
+				writtenBytes += generator.sizeOf(pair) + Integer.SIZE / 8;
 				writtenPairs++;
 				pair = generator.next();
 			}

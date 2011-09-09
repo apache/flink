@@ -26,7 +26,10 @@ import eu.stratosphere.nephele.services.iomanager.Deserializer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Serializer;
-
+import eu.stratosphere.pact.common.type.base.PactDouble;
+import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
  * Serialization factory for {@link IOReadableWritable}s.
@@ -35,7 +38,6 @@ import eu.stratosphere.nephele.services.iomanager.Serializer;
  * @author Stephan Ewen
  * @param <T>
  */
-@SuppressWarnings("unused")
 public class WritableSerializationFactory<T extends IOReadableWritable> implements SerializationFactory<T> {
 	private final Class<T> clazz;
 
@@ -115,12 +117,12 @@ public class WritableSerializationFactory<T extends IOReadableWritable> implemen
 	private static final Map<Class<? extends IOReadableWritable>, RawComparator> rawComparators = 
 		new HashMap<Class<? extends IOReadableWritable>, RawComparator>(10);
 
-//	static {
-//		rawComparators.put(PactInteger.class, new PactIntergerBigEndianComparator());
-//		rawComparators.put(PactLong.class, new PactLongBigEndianComparator());
-//		rawComparators.put(PactDouble.class, new PactDoubleBigEndianComparator());
-//		rawComparators.put(PactString.class, new PactStringComparator());
-//	}
+	static {
+		rawComparators.put(PactInteger.class, new PactIntergerBigEndianComparator());
+		rawComparators.put(PactLong.class, new PactLongBigEndianComparator());
+		rawComparators.put(PactDouble.class, new PactDoubleBigEndianComparator());
+		rawComparators.put(PactString.class, new PactStringComparator());
+	}
 
 	private static final class PactIntergerBigEndianComparator implements RawComparator {
 		/*

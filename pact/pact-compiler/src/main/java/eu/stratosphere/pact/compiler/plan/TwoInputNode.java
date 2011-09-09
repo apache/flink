@@ -214,7 +214,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		pred2.addOutgoingConnection(conn2);
 
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
-		Configuration conf = getPactContract().getParameters();
+		Configuration conf = getPactContract().getStubParameters();
 		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {

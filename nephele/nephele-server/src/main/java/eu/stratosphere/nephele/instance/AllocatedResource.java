@@ -58,8 +58,7 @@ public class AllocatedResource {
 	 * @param allocationID
 	 *        the allocation ID identifying the allocated resources within the instance
 	 */
-	public AllocatedResource(final AbstractInstance instance, final InstanceType instanceType,
-			final AllocationID allocationID) {
+	public AllocatedResource(AbstractInstance instance, InstanceType instanceType, AllocationID allocationID) {
 		this.instance = instance;
 		this.instanceType = instanceType;
 		this.allocationID = allocationID;
@@ -96,7 +95,7 @@ public class AllocatedResource {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(final Object obj) {
+	public boolean equals(Object obj) {
 
 		if (obj instanceof AllocatedResource) {
 

@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Buffer;
@@ -51,12 +52,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	public static final int MINIMUM_NUMBER_OF_BUFFERS = 2;
 	
-	public static final int MIN_BUFFER_SIZE = 32 * 1024;
-	
-	/**
-	 * The minimum amount of memory that the spilling resettable iterator requires to work.
-	 */
-	public static final int MIN_TOTAL_MEMORY = MINIMUM_NUMBER_OF_BUFFERS * MIN_BUFFER_SIZE;
+	public static final int MIN_BUFFER_SIZE = 16 * 1024;
 	
 	// ------------------------------------------------------------------------
 
@@ -64,7 +60,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	protected final IOManager ioManager;
 
-	protected final Iterator<T> input;
+	protected final Reader<T> recordReader;
 	
 	protected final RecordDeserializer<T> deserializer;
 
@@ -101,13 +97,13 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	 * @param availableMemory
 	 * @throws MemoryAllocationException
 	 */
-	public SpillingResettableIterator(MemoryManager memoryManager, IOManager ioManager, Iterator<T> input,
+	public SpillingResettableIterator(MemoryManager memoryManager, IOManager ioManager, Reader<T> reader,
 			long availableMemory, RecordDeserializer<T> deserializer, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
-		this.input = input;
+		this.recordReader = reader;
 		this.deserializer = deserializer;
 
 		// allocate memory segments and open IO Buffers on them
@@ -116,8 +112,48 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		
 		this.currentBuffer = 0;
 		
-		if (LOG.isDebugEnabled())
-			LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
+		LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
+	}
+	
+	/**
+	 * Constructs a new <tt>ResettableIterator</tt>
+	 * 
+	 * @param memoryManager
+	 * @param ioManager
+	 * @param reader
+	 * @param availableMemory
+	 * @throws MemoryAllocationException
+	 */
+	public SpillingResettableIterator(MemoryManager memoryManager, IOManager ioManager, final Iterator<T> it,
+			long availableMemory, RecordDeserializer<T> deserializer, AbstractInvokable parentTask)
+	throws MemoryAllocationException
+	{
+		this.memoryManager = memoryManager;
+		this.ioManager = ioManager;
+		this.recordReader = new Reader<T>() {
+
+			@Override
+			public boolean hasNext() {
+				return it.hasNext();
+			}
+
+			@Override
+			public T next() throws IOException, InterruptedException {
+				T next = it.next();
+				return next;
+			}
+			
+		};
+		
+		this.deserializer = deserializer;
+
+		// allocate memory segments and open IO Buffers on them
+		this.memorySegments = this.memoryManager.allocate(parentTask, availableMemory, MINIMUM_NUMBER_OF_BUFFERS, MIN_BUFFER_SIZE);
+		this.numBuffers = this.memorySegments.size();
+		
+		this.currentBuffer = 0;
+		
+		LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
 	}
 
 	/**
@@ -141,8 +177,8 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		
 		// try to read data into memory
 		T nextRecord = null;
-		while (this.input.hasNext() && !this.abortFlag) {
-			nextRecord = this.input.next();
+		while (this.recordReader.hasNext() && !this.abortFlag) {
+			nextRecord = this.recordReader.next();
 			count++;
 			if (!outputBuffers.get(currentBuffer).write(nextRecord)) {
 				// buffer is full, switch to next buffer
@@ -162,9 +198,9 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			ChannelWriter writer = ioManager.createChannelWriter(bufferID, outputBuffers, true);
 			// serialize the unwritten element
 			writer.write(nextRecord);
-			while (input.hasNext() && !this.abortFlag) {
+			while (recordReader.hasNext() && !this.abortFlag) {
 				count++;
-				writer.write(input.next());
+				writer.write(recordReader.next());
 			}
 			writer.close();
 			// now open a reader on the channel

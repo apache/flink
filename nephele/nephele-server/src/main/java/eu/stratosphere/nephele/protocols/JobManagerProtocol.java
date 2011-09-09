@@ -80,5 +80,4 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 * @param jobID 
 	 */
 	void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID);
-
 }

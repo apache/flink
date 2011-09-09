@@ -98,8 +98,9 @@ public class CoGroupTask extends AbstractTask
 	 */
 	@Override
 	public void registerInputOutput() {
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Start registering input and output"));
+		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// initialize stub implementation
 		initStub();
@@ -110,8 +111,9 @@ public class CoGroupTask extends AbstractTask
 		// initialize output collector
 		typedInitOutputCollector(coGroup.getOutKeyType(), coGroup.getOutValueType());
 
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Finished registering input and output"));
+		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
 	/**
@@ -131,8 +133,9 @@ public class CoGroupTask extends AbstractTask
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 	
 	// ------------------------------------------------------------------------
@@ -389,8 +392,9 @@ public class CoGroupTask extends AbstractTask
 			Class<IK> ikClass, Class<IV1> iv1Class, Class<IV2> iv2Class, Class<OK> okClass, Class<OV> ovClass)
 	throws Exception
 	{
-		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code"));
+		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		final CoGroupStub<IK, IV1, IV2, OK, OV> coGroup = getCoGroupStub();
 		final OutputCollector<OK, OV> collector = getOutputCollector();
@@ -403,10 +407,13 @@ public class CoGroupTask extends AbstractTask
 			// open CoGroupTaskIterator
 			coGroupIterator.open();
 			
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Iterator obtained"));
-				LOG.debug(getLogString("Start processing"));
-			}
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+			LOG.debug("Start processing: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 			// open stub implementation
 			coGroup.open();
@@ -421,8 +428,9 @@ public class CoGroupTask extends AbstractTask
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				if (LOG.isErrorEnabled())
-					LOG.error(getLogString("Unexpected ERROR in PACT code"));
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 				throw ex;
 			}
 		}
@@ -440,21 +448,24 @@ public class CoGroupTask extends AbstractTask
 				coGroup.close();
 			}
 			catch (Throwable t) {
-				if (LOG.isErrorEnabled())
-					LOG.error(getLogString("Error while closing the CoGroup user function"), t);
+				LOG.error("Error while closing the CoGroup user function " 
+					+ this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
 			}
 			
 			// close output collector
 			collector.close();
 		}
 
-		if (!this.taskCanceled) {
-			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code"));
-		}
-		else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("PACT code cancelled"));
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		}
 	}
 
@@ -480,30 +491,5 @@ public class CoGroupTask extends AbstractTask
 	@SuppressWarnings("unchecked")
 	private final <K extends Key, V extends Value> OutputCollector<K, V> getOutputCollector() {
 		return (OutputCollector<K, V>) output;
-	}
-	
-	// ------------------------------------------------------------------------
-	//                               Utilities
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @return The string ready for logging.
-	 */
-	private String getLogString(String message)
-	{
-		StringBuilder bld = new StringBuilder(128);	
-		bld.append(message);
-		bld.append(':').append(' ');
-		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('(');
-		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
-		bld.append('/');
-		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
-		bld.append(')');
-		return bld.toString();
 	}
 }

@@ -21,7 +21,7 @@ import java.util.Set;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
@@ -73,8 +73,8 @@ public class ContextChecker implements Visitor<Contract> {
 		}
 
 		// apply the appropriate check method
-		if (node instanceof FileDataSinkContract<?, ?>) {
-			checkDataSink((FileDataSinkContract<?, ?>) node);
+		if (node instanceof DataSinkContract<?, ?>) {
+			checkDataSink((DataSinkContract<?, ?>) node);
 		} else if (node instanceof MapContract<?, ?, ?, ?>) {
 			checkSingleInputContract((MapContract<?, ?, ?, ?>) node);
 		} else if (node instanceof ReduceContract<?, ?, ?, ?>) {
@@ -107,7 +107,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 * @param dataSinkContract
 	 *        DataSinkContract that is checked.
 	 */
-	private void checkDataSink(FileDataSinkContract<?, ?> dataSinkContract) {
+	private void checkDataSink(DataSinkContract<?, ?> dataSinkContract) {
 
 		Contract input = dataSinkContract.getInput();
 

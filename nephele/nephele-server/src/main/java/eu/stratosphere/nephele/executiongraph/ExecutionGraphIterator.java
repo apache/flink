@@ -209,16 +209,14 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 			if (executionGraph.getNumberOfInputVertices(startStage) > 0) {
 
 				final TraversalEntry te = new TraversalEntry(executionGraph.getInputVertex(startStage, 0), 0, 0);
-				this.traversalStack.push(te);
-				this.alreadyVisited.add(te.getExecutionVertex());
+				traversalStack.push(te);
 
 			}
 		} else {
 			if (executionGraph.getNumberOfOutputVertices(startStage) > 0) {
 
 				final TraversalEntry te = new TraversalEntry(executionGraph.getOutputVertex(startStage, 0), 0, 0);
-				this.traversalStack.push(te);
-				this.alreadyVisited.add(te.getExecutionVertex());
+				traversalStack.push(te);
 			}
 
 		}
@@ -247,8 +245,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 		this.confinedToStage = false;
 
 		final TraversalEntry te = new TraversalEntry(startVertex, 0, 0);
-		this.traversalStack.push(te);
-		this.alreadyVisited.add(startVertex);
+		traversalStack.push(te);
 	}
 
 	/**
@@ -257,21 +254,21 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	@Override
 	public boolean hasNext() {
 
-		if (this.traversalStack.isEmpty()) {
+		if (traversalStack.isEmpty()) {
 
-			if (this.numVisitedEntryVertices < 0) {
+			if (numVisitedEntryVertices < 0) {
 				// User chose a specific starting vertex
 				return false;
 			}
 
-			++this.numVisitedEntryVertices;
+			numVisitedEntryVertices++;
 
-			if (this.forward) {
-				if (this.executionGraph.getNumberOfInputVertices(this.startStage) <= this.numVisitedEntryVertices) {
+			if (forward) {
+				if (executionGraph.getNumberOfInputVertices(this.startStage) <= numVisitedEntryVertices) {
 					return false;
 				}
 			} else {
-				if (this.executionGraph.getNumberOfOutputVertices(this.startStage) <= this.numVisitedEntryVertices) {
+				if (executionGraph.getNumberOfOutputVertices(this.startStage) <= numVisitedEntryVertices) {
 					return false;
 				}
 			}
@@ -286,50 +283,49 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	@Override
 	public ExecutionVertex next() {
 
-		if (this.traversalStack.isEmpty()) {
+		if (traversalStack.isEmpty()) {
 
-			if (this.numVisitedEntryVertices < 0) {
+			if (numVisitedEntryVertices < 0) {
 				// User chose a specific entry vertex
 				return null;
 			}
 
 			TraversalEntry newentry;
 
-			if (this.forward) {
-				newentry = new TraversalEntry(this.executionGraph.getInputVertex(this.startStage,
-					this.numVisitedEntryVertices),
+			if (forward) {
+				newentry = new TraversalEntry(executionGraph.getInputVertex(this.startStage, numVisitedEntryVertices),
 					0, 0);
 			} else {
-				newentry = new TraversalEntry(this.executionGraph.getOutputVertex(this.startStage,
-					this.numVisitedEntryVertices),
+				newentry = new TraversalEntry(executionGraph.getOutputVertex(this.startStage, numVisitedEntryVertices),
 					0, 0);
 			}
 
-			this.traversalStack.push(newentry);
-			this.alreadyVisited.add(newentry.getExecutionVertex());
+			traversalStack.push(newentry);
 		}
 
-		final ExecutionVertex returnVertex = this.traversalStack.peek().getExecutionVertex();
+		final ExecutionVertex returnVertex = traversalStack.peek().getExecutionVertex();
 
 		// Propose vertex to be visited next
 		do {
 
-			final TraversalEntry te = this.traversalStack.peek();
+			final TraversalEntry te = traversalStack.peek();
 
 			// Check if we can traverse deeper into the graph
 			final ExecutionVertex candidateVertex = getCandidateVertex(te, forward);
 			if (candidateVertex == null) {
 				// Pop it from the stack
-				this.traversalStack.pop();
+				traversalStack.pop();
 			} else {
 				// Create new entry and put it on the stack
 				final TraversalEntry newte = new TraversalEntry(candidateVertex, 0, 0);
-				this.traversalStack.push(newte);
-				this.alreadyVisited.add(candidateVertex);
+				traversalStack.add(newte);
 				break;
 			}
 
-		} while (!this.traversalStack.isEmpty());
+		} while (!traversalStack.isEmpty());
+
+		// Mark vertex as already visited
+		alreadyVisited.add(returnVertex);
 
 		return returnVertex;
 	}
@@ -369,13 +365,13 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 				} else {
 					final AbstractOutputChannel<? extends Record> outputChannel = te.getExecutionVertex()
 						.getEnvironment().getOutputGate(te.getCurrentGate()).getOutputChannel(te.getCurrentChannel());
-					final ExecutionVertex tmp = this.executionGraph.getVertexByChannelID(outputChannel
+					final ExecutionVertex tmp = executionGraph.getVertexByChannelID(outputChannel
 						.getConnectedChannelID());
 					if (tmp == null) {
 						LOG.error("Inconsistency in vertex map found (forward)!");
 					}
 					te.increaseCurrentChannel();
-					if (!this.alreadyVisited.contains(tmp)) {
+					if (!alreadyVisited.contains(tmp)) {
 						return tmp;
 					}
 				}
@@ -396,13 +392,13 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 				} else {
 					final AbstractInputChannel<? extends Record> inputChannel = te.getExecutionVertex()
 						.getEnvironment().getInputGate(te.getCurrentGate()).getInputChannel(te.getCurrentChannel());
-					final ExecutionVertex tmp = this.executionGraph.getVertexByChannelID(inputChannel
+					final ExecutionVertex tmp = executionGraph.getVertexByChannelID(inputChannel
 						.getConnectedChannelID());
 					if (tmp == null) {
 						LOG.error("Inconsistency in vertex map found (backward)!");
 					}
 					te.increaseCurrentChannel();
-					if (!this.alreadyVisited.contains(tmp)) {
+					if (!alreadyVisited.contains(tmp)) {
 						return tmp;
 					}
 				}
@@ -440,6 +436,38 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 
 		return true;
 	}
+
+	/*
+	 * private void increaseCurrentGate(TraversalEntry te) {
+	 * if(this.stage < 0) {
+	 * te.increaseCurrentGate();
+	 * return;
+	 * }
+	 * final ExecutionGroupVertex groupVertex = te.getExecutionVertex().getGroupVertex();
+	 * while(true) {
+	 * te.increaseCurrentGate();
+	 * if(this.forward) {
+	 * if(groupVertex.getNumberOfForwardLinks() >= te.getCurrentGate()) {
+	 * break;
+	 * }
+	 * //Skip the gate if it would lead to another stage
+	 * final ExecutionGroupEdge edge = groupVertex.getForwardEdge(te.getCurrentGate());
+	 * if(edge.getTargetVertex().getStageNumber() == groupVertex.getStageNumber()) {
+	 * break;
+	 * }
+	 * } else {
+	 * if(groupVertex.getNumberOfBackwardLinks() >= te.getCurrentGate()) {
+	 * break;
+	 * }
+	 * //Skip the gate if it would lead to another stage
+	 * final ExecutionGroupEdge edge = groupVertex.getBackwardEdge(te.getCurrentGate());
+	 * if(edge.getSourceVertex().getStageNumber() == groupVertex.getStageNumber()) {
+	 * break;
+	 * }
+	 * }
+	 * }
+	 * }
+	 */
 
 	/**
 	 * {@inheritDoc}

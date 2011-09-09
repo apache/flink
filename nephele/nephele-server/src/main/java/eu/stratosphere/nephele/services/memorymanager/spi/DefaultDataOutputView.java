@@ -139,6 +139,7 @@ public final class DefaultDataOutputView extends DefaultMemorySegmentView implem
 			for (int i = 0; i < sLen; i++) {
 				writeByte(s.charAt(i));
 			}
+			this.position += sLen;
 		} else {
 			throw new EOFException();
 		}

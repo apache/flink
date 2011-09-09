@@ -17,10 +17,8 @@ package eu.stratosphere.nephele.execution.librarycache;
 
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.MessageDigest;
@@ -127,13 +125,8 @@ public class LibraryCacheManager {
 
 		this.fs = FileSystem.getLocalFileSystem();
 
-		// Use the File object to the convert the path to a proper URI
-		final File path = new File(tmp + File.separator + LIBRARYCACHENAME);
-		final URI uri = path.toURI();
-
-		this.libraryCachePath = new Path(uri);
-
-		this.fs.mkdirs(this.libraryCachePath);
+		this.libraryCachePath = new Path(fs.getUri().getScheme() + ":" + tmp + "/" + LIBRARYCACHENAME);
+		this.fs.mkdirs(libraryCachePath);
 
 		// Create an MD5 message digest object we can use
 		try {

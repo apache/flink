@@ -56,9 +56,6 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 		case FAILED:
 			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(ee, ee.getExecutingThread());
 			break;
-		case RESTARTING:
-			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(ee, ee.getExecutingThread());
-			break;
 		default:
 			LOG.error("Unexpected state transition to " + newExecutionState + " for vertex " + this.executionVertexID);
 			break;

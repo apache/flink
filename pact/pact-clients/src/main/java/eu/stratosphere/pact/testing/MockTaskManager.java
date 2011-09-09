@@ -1,22 +1,6 @@
-/***********************************************************************************************************************
- *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- *
- **********************************************************************************************************************/
-
 package eu.stratosphere.pact.testing;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -45,7 +29,6 @@ import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.direct.DirectChannelManager;
 import eu.stratosphere.nephele.types.Record;
 
@@ -213,17 +196,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	public void logBufferUtilization() throws IOException {
 	}
 
-	@Override
-	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
-
-		final List<TaskSubmissionResult> resultList = new ArrayList<TaskSubmissionResult>();
-
-		for (final TaskSubmissionWrapper tsw : tasks) {
-			resultList.add(submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment()));
-		}
-
-		return resultList;
-	}
+	
 
 
 	@Override
@@ -234,8 +207,5 @@ class MockTaskManager implements TaskOperationProtocol {
 	public void recoverAll(ChannelID sourceChannelID) {
 	}
 
-	@Override
-	public void restart(ExecutionVertexID executionVertexID) {
-	}
 
 }

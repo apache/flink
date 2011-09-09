@@ -194,12 +194,4 @@ public class MemoryBuffer implements InternalBuffer {
 
 		return duplicatedMemoryBuffer;
 	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.channels.InternalBuffer#rewind()
-	 */
-	@Override
-	public void rewind() {
-		this.byteBuffer.rewind();
-	}
 }

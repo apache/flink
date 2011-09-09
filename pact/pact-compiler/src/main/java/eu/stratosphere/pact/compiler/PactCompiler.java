@@ -39,8 +39,8 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -48,7 +48,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.costs.FallbackCostEstimator;
 import eu.stratosphere.pact.compiler.plan.CoGroupNode;
 import eu.stratosphere.pact.compiler.plan.CrossNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
@@ -63,7 +63,6 @@ import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
-import eu.stratosphere.pact.runtime.task.HistogramTask;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -368,7 +367,7 @@ public class PactCompiler {
 	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
 	 */
 	public PactCompiler() {
-		this(null, new FixedSizeClusterCostEstimator());
+		this(null, new FallbackCostEstimator());
 	}
 
 	/**
@@ -383,7 +382,7 @@ public class PactCompiler {
 	 *        The statistics to be used to determine the input properties.
 	 */
 	public PactCompiler(DataStatistics stats) {
-		this(stats, new FixedSizeClusterCostEstimator());
+		this(stats, new FallbackCostEstimator());
 	}
 
 	/**
@@ -691,7 +690,6 @@ public class PactCompiler {
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
 		plan.setInstanceTypeName(instanceName);
-		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
 		
 		return plan;
 	}
@@ -707,10 +705,8 @@ public class PactCompiler {
 	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan) {
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, -1, -1, false);
 		pactPlan.accept(graphCreator);
-		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
-				pactPlan.getJobName());
-		optPlan.setPlanConfiguration(pactPlan.getPlanConfiguration());
-		return optPlan;
+		return new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
+			pactPlan.getJobName());
 	}
 
 	/**
@@ -778,12 +774,12 @@ public class PactCompiler {
 			OptimizerNode n = null;
 
 			// create a node for the pact (or sink or source) if we have not been here before
-			if (c instanceof FileDataSinkContract<?, ?>) {
-				DataSinkNode dsn = new DataSinkNode((FileDataSinkContract<?, ?>) c);
+			if (c instanceof DataSinkContract<?, ?>) {
+				DataSinkNode dsn = new DataSinkNode((DataSinkContract<?, ?>) c);
 				sinks.add(dsn);
 				n = dsn;
-			} else if (c instanceof FileDataSourceContract<?, ?>) {
-				DataSourceNode dsn = new DataSourceNode((FileDataSourceContract<?, ?>) c);
+			} else if (c instanceof DataSourceContract<?, ?>) {
+				DataSourceNode dsn = new DataSourceNode((DataSourceContract<?, ?>) c);
 				sources.add(dsn);
 				n = dsn;
 			} else if (c instanceof MapContract<?, ?, ?, ?>) {
@@ -1011,13 +1007,6 @@ public class PactCompiler {
 						node.setMemoryPerTask(memoryPerTask * consumerCount);
 						LOG.debug("Assigned "+(memoryPerTask * consumerCount)+" MB to "+node.getPactContract().getName());
 					}
-					
-					for (PactConnection conn : node.getOutgoingConnections()) {
-						if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-							node.getPactContract().getParameters().setInteger(HistogramTask.HISTOGRAM_MEMORY, memoryPerTask);
-							LOG.debug("Assigned "+(memoryPerTask)+" MB for histogram building during range partitioning");
-						}
-					}
 				}
 			}
 
@@ -1057,19 +1046,6 @@ public class PactCompiler {
 				}
 
 			}
-			
-			for (PactConnection conn : visitable.getOutgoingConnections()) {
-				if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-					// One memory consumer for the histogram
-					memoryConsumers += visitable.getInstancesPerMachine();
-					//Reduce available memory because of temp task to avoid spilling
-					this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY *
-					conn.getSourcePact().getDegreeOfParallelism();
-					//TODO: is this correct reducing memory per INSTANCE by multiplying required
-					//memory * the TOTAL DoP?
-					LOG.debug("Memory reduced to "+memoryPerInstance+ " due to TempTask");
-				}
-			}
 
 			if (visitable instanceof DataSinkNode) {
 				sinks.add((DataSinkNode) visitable);
@@ -1079,7 +1055,7 @@ public class PactCompiler {
 
 			// count the memory consumption
 			memoryConsumers += visitable.getMemoryConsumerCount() * visitable.getInstancesPerMachine();
-			
+
 			return true;
 		}
 
@@ -1484,7 +1460,7 @@ public class PactCompiler {
 				// instead of temping connection duplicate DataSourceNode
 				
 				// duplicate DataSourceNode
-				DataSourceNode duplicateDataSource = new DataSourceNode((FileDataSourceContract<?, ?>)sourcePact.getPactContract());
+				DataSourceNode duplicateDataSource = new DataSourceNode((DataSourceContract<?, ?>)sourcePact.getPactContract());
 				// create new connection
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				

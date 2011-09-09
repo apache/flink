@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelSetupException;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
@@ -297,6 +298,18 @@ public class ExecutionVertex {
 	}
 
 	/**
+	 * Prepares the channels of the execution vertex for the upcoming execution on the
+	 * assigned instance.
+	 * 
+	 * @throws ChannelSetupException
+	 *         thrown if an error occurs while setting up the channels
+	 */
+	public void prepareChannels() throws ChannelSetupException {
+
+		this.executionGraph.prepareChannelsForExecution(this);
+	}
+
+	/**
 	 * Returns the number of predecessors, i.e. the number of vertices
 	 * which connect to this vertex.
 	 * 
@@ -405,6 +418,15 @@ public class ExecutionVertex {
 				return result;
 			}
 
+			try {
+				// Prepare channels for execution
+				prepareChannels();
+			} catch (ChannelSetupException e) {
+				final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
+					AbstractTaskResult.ReturnCode.ERROR);
+				result.setDescription(StringUtils.stringifyException(e));
+				return result;
+			}
 			allocatedRes = this.allocatedResource;
 			env = this.environment;
 		}

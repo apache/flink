@@ -248,13 +248,4 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 
 		return new Buffer(this.internalBuffer.duplicate());
 	}
-
-
-
-	/**
-	 * Rewinds this buffer. The position is set to zero and the mark is discarded. 
-	 */
-	public void rewind() {
-		this.internalBuffer.rewind();
-	}
 }

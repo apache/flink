@@ -592,12 +592,4 @@ public class OutputGate<T extends Record> extends Gate<T> {
 			it.next().releaseResources();
 		}
 	}
-	
-	/**
-	 * Returns the channel selector that is used for by the output gate
-	 * @return channel selector of this output gate
-	 */
-	public ChannelSelector<T> getChannelSelector() {
-		return channelSelector;
-	}
 }

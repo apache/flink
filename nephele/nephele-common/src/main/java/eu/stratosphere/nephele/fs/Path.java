@@ -134,11 +134,6 @@ public class Path implements IOReadableWritable {
 				throw new IllegalArgumentException(e);
 			}
 		}
-
-		if (child.uri.getPath().startsWith(Path.SEPARATOR)) {
-			child = new Path(child.uri.getScheme(), child.uri.getAuthority(), child.uri.getPath().substring(1));
-		}
-
 		final URI resolved = parentUri.resolve(child.uri);
 		initialize(resolved.getScheme(), resolved.getAuthority(), normalizePath(resolved.getPath()));
 	}
@@ -251,6 +246,12 @@ public class Path implements IOReadableWritable {
 		// remove double slashes & backslashes
 		path = path.replace("//", "/");
 		path = path.replace("\\", "/");
+
+		// trim trailing slash from non-root path (ignoring windows drive)
+		final int minLength = hasWindowsDrive(path, true) ? 4 : 1;
+		if (path.length() > minLength && path.endsWith("/")) {
+			path = path.substring(0, path.length() - 1);
+		}
 
 		return path;
 	}

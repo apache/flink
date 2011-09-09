@@ -101,35 +101,6 @@ public class RecoveryThread extends Thread {
 			ExecutionVertex failed = vertexIter.next();
 			List<ExecutionVertex> restart = findRestarts(failed);
 			
-			//collect incoming channels
-//			for (int j = 0; j < failed.getEnvironment().getNumberOfInputGates(); j++) {
-//				InputGate<? extends Record> ingate = failed.getEnvironment().getInputGate(j);
-//				for (int k = 0; k < ingate.getNumberOfInputChannels(); k++) {
-//					 AbstractInputChannel<? extends Record> channel = ingate.getInputChannel(k);
-//					 channel.releaseResources();
-//					 channels.add(channel);
-//					
-//				}
-//			}
-//			for (int i = 0; i < failed.getNumberOfPredecessors(); i++) {
-//				ExecutionVertex predecessor = failed.getPredecessor(i);
-//				
-//				if(this.globalConsistentCheckpoint.contains(predecessor)){
-//					for (int j = 0; j < predecessor.getEnvironment().getNumberOfOutputGates(); j++) {
-//					OutputGate<? extends Record> outgate = predecessor.getEnvironment().getOutputGate(j);
-//					for (int k = 0; k < outgate.getNumberOfOutputChannels(); k++) {
-//						 AbstractOutputChannel<? extends Record> channel = outgate.getOutputChannel(k);
-//						 if(channels.contains(channel.getConnectedChannelID())){
-//							 predecessor.getAllocatedResource().getInstance().recover(channel.getID());
-//						 }
-//						
-//					}
-//				}
-//						
-//				}
-//
-//				
-//			}
 			
 			Iterator<ExecutionVertex> restartIterator = restart.iterator();
 			while(restartIterator.hasNext()){
@@ -144,28 +115,11 @@ public class RecoveryThread extends Thread {
 				
 				
 			}
-//			LOG.info("Checkpoints are");
-//			for(int k = 0; k< this.globalConsistentCheckpoint.size();k++){
-//				LOG.info(this.globalConsistentCheckpoint.get(k).getName());
-//			}
+
 		
 			Iterator<ExecutionVertex> checkpointIterator = this.globalConsistentCheckpoint.iterator();
 			while(checkpointIterator.hasNext()){
 				ExecutionVertex checkpoint = checkpointIterator.next();
-//				for (int i = 0; i < checkpoint.getNumberOfSuccessors(); i++) {
-//					ExecutionVertex vertex = checkpoint.getSuccessor(i);
-//					Environment ee = vertex.getEnvironment();
-//					for (int j = 0; j < ee.getNumberOfInputGates(); j++) {
-//						InputGate<? extends Record> ingate = ee.getInputGate(j);
-//						
-//						for (int k = 0; k < ingate.getNumberOfInputChannels(); k++) {
-//							ingate.replaceChannel(ingate.getInputChannel(k).getID(), ChannelType.FILE);
-//
-//						}
-//						
-//						
-//					}
-//				}
 				
 				AbstractInstance instance = checkpoint.getAllocatedResource().getInstance();
 

@@ -63,28 +63,7 @@
 	<property>
 		<key>instancemanager.cluster.defaulttype</key>
 		<value>1</value>
-	</property>
-
-	<!-- Definition of 64-bit standard instance types on Amazon EC2 -->
-	<property>
-		<key>instancemanager.ec2.type.1</key>
-		<value>t1.micro,2,1,613,8,3</value>
-	</property>
-	
-	<property>
-		<key>instancemanager.ec2.type.2</key>
-		<value>m1.large,4,2,7680,850,38</value>
-	</property>
-
-	<property>
-		<key>instancemanager.ec2.type.3</key>
-		<value>m1.xlarge,8,4,15360,1690,76</value>
-	</property>
-	
-	<property>
-		<key>instancemanager.ec2.defaulttype</key>
-		<value>1</value>
-	</property>
+	</property>	
 	
 	<!--  ========================================================================
 	                   Scheduler and Instance Manager Classes 
@@ -123,7 +102,7 @@
 	<!-- the default instance manager for cloud execution mode -->
 	<property>
 		<key>jobmanager.instancemanager.cloud.classname</key>
-		<value>eu.stratosphere.nephele.instance.ec2.EC2CloudManager</value>
+		<value>eu.stratosphere.nephele.instance.cloud.EC2CloudManager</value>
 	</property>
 	
 	<property>

@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.io.compression.library.lzma;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
 
 /**
@@ -34,10 +33,6 @@ public class LzmaDecompressor extends AbstractDecompressor {
 	 * private static final int UNCOMPRESSED_BLOCKSIZE_LENGTH = 4;
 	 * private static final int LZMA_PROPS_SIZE = 5;
 	 */
-
-	public LzmaDecompressor(AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
-	}
 
 	/**
 	 * {@inheritDoc}
@@ -63,10 +58,4 @@ public class LzmaDecompressor extends AbstractDecompressor {
 	native static void initIDs();
 
 	protected native int decompressBytesDirect(int offset);
-
-	@Override
-	protected void freeInternalResources() {
-		// TODO Auto-generated method stub
-
-	}
 }

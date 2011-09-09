@@ -15,59 +15,295 @@
 
 package eu.stratosphere.pact.compiler;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.fs.FSDataInputStream;
+import eu.stratosphere.nephele.fs.FileStatus;
+import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.LineReader;
+import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 
 /**
- * The collection of access methods that can be used to retrieve statistical information about the
- * data processed in a job. Currently this method acts as an entry point only for obtaining cached
- * statistics.
+ * The collection of access methods that can be used to retrieve statistical
+ * information about the data processed in a job.
  * <p>
- * This class is thread safe.
+ * Currently, only file size and number of records (key/value pairs) are determined. The later is only
+ * determined, when the file is read via a file-input format.
+ * <p>
+ * WARNING: The sampling that determines the average size of a record is very simple and in no way statistically robust,
+ * in cases where the sizes of the records follow strongly skewed distributions.
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class DataStatistics
-{
-	private final Map<String, BaseStatistics> baseStatisticsCache;
-	
-	// --------------------------------------------------------------------------------------------
-	
+public class DataStatistics {
+	// ------------------------------------------------------------------------
+	//                             Constants
+	// ------------------------------------------------------------------------
+
 	/**
-	 * Creates a new statistics object, with an empty cache. 
+	 * The log for the statistics.
 	 */
-	public DataStatistics()
-	{
-		this.baseStatisticsCache = new HashMap<String, BaseStatistics>();
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
+	private static final Log LOG = LogFactory.getLog(DataStatistics.class);
+
 	/**
-	 * Gets the base statistics for the input identified by the given identifier.
-	 *  
-	 * @param inputIdentifier The identifier for the input.
-	 * @return The statistics that were cached for this input.
+	 * A constant indicating a value is unknown.
 	 */
-	public BaseStatistics getBaseStatistics(String inputIdentifier)
-	{
-		synchronized (this.baseStatisticsCache) {
-			return this.baseStatisticsCache.get(inputIdentifier);
-		}
-	}
-	
+	public static final int UNKNOWN = -1;
+
 	/**
-	 * Caches the given statistics. They are later retrievable under the given identifier.
+	 * The default number of sample lines to consider when calculating the line width.
+	 */
+	private static final int DEFAULT_NUM_SAMPLES = 10;
+
+	// ------------------------------------------------------------------------
+	//                            Members
+	// ------------------------------------------------------------------------
+
+	private final Map<String, BasicFileStatistics> fileStatisticsCache;		// a cache for file statistics
+
+	private final int numLineSamples;										// the number of lines to sample
+
+	// ------------------------------------------------------------------------
+	//                      Constructor / Setup
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a new statistics object.
+	 */
+	public DataStatistics() {
+		this.fileStatisticsCache = new HashMap<String, DataStatistics.BasicFileStatistics>();
+
+		this.numLineSamples = DEFAULT_NUM_SAMPLES;
+	}
+
+	// ------------------------------------------------------------------------
+	// Accessors
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the size of the file that is identified by the given path.
+	 * The size of the file is given in bytes.
 	 * 
-	 * @param statistics The statistics to cache.
-	 * @param identifyer The identifier which may be later used to retrieve the statistics.
+	 * @param filePath
+	 *        The path to the file.
+	 * @return The size of the file, in bytes, or -1, if unknown, or -2, if an error occurred.
 	 */
-	public void cacheBaseStatistics(BaseStatistics statistics, String identifyer)
+	public BasicFileStatistics getFileStatistics(String filePath, InputFormat<?, ?> format) {
+		// check the cache
+		BasicFileStatistics stats = fileStatisticsCache.get(filePath);
+		if (stats == null) {
+			stats = new BasicFileStatistics(-1, UNKNOWN, UNKNOWN);
+		}
+
+		try {
+			final URI uri = new Path(filePath).toUri();
+			final Path file = new Path(uri.getPath());
+
+			// get the filesystem
+			final FileSystem fs = FileSystem.get(uri);
+			List<FileStatus> files = null;
+
+			// get the file info and check whether the cached statistics are still
+			// valid.
+			{
+				FileStatus status = fs.getFileStatus(file);
+
+				if (status.isDir()) {
+					FileStatus[] fss = fs.listStatus(file);
+					files = new ArrayList<FileStatus>(fss.length);
+					boolean unmodified = true;
+
+					for (FileStatus s : fss) {
+						if (!s.isDir()) {
+							files.add(s);
+							if (s.getModificationTime() > stats.fileModTime) {
+								stats.fileModTime = s.getModificationTime();
+								unmodified = false;
+							}
+						}
+					}
+
+					if (unmodified) {
+						return stats;
+					}
+				} else {
+					// check if the statistics are up to date
+					long modTime = status.getModificationTime();
+					
+					if (stats.getLastModificationTime() == modTime) {
+						return stats;
+					}
+
+					stats.fileModTime = modTime;
+					
+					files = new ArrayList<FileStatus>(1);
+					files.add(status);
+				}
+			}
+
+			stats.avgBytesPerRecord = -1.0f;
+			stats.fileSize = 0;
+			
+			// calculate the whole length
+			for (FileStatus s : files) {
+				stats.fileSize += s.getLen();
+			}
+			
+			// sanity check
+			if (stats.fileSize <= 0) {
+				stats.fileSize = UNKNOWN;
+				return stats;
+			}
+			
+			// ---------------------------------
+			// The sampling currently works only for text input formats
+			// ---------------------------------
+
+			// currently, the sampling only works on line separated data
+			if (format != null && format instanceof TextInputFormat<?, ?>) {
+				byte[] delimiter = ((TextInputFormat<?, ?>) format).getDelimiter();
+				if (! ((delimiter.length == 1 && delimiter[0] == '\n') ||
+					   (delimiter.length == 2 && delimiter[0] == '\r' && delimiter[1] == '\n')) )
+				{
+					return stats;
+				}
+			}
+			else {
+				return stats;
+			}
+			
+			// make the samples small for very small files
+			int numSamples = Math.min(numLineSamples, (int) (stats.fileSize / 1024));
+			if (numSamples < 2) {
+				numSamples = 2;
+			}
+
+			long offset = 0;
+			long bytes = 0; // one byte for the line-break
+			long stepSize = stats.fileSize / numSamples;
+
+			int fileNum = 0;
+			int samplesTaken = 0;
+
+			// take the samples
+			for (int sampleNum = 0; sampleNum < numSamples && fileNum < files.size(); sampleNum++) {
+				FileStatus currentFile = files.get(fileNum);
+				FSDataInputStream inStream = null;
+
+				try {
+					inStream = fs.open(currentFile.getPath());
+					LineReader lineReader = new LineReader(inStream, offset, currentFile.getLen() - offset, 1024);
+					byte[] line = lineReader.readLine();
+					lineReader.close();
+
+					if (line != null && line.length > 0) {
+						samplesTaken++;
+						bytes += line.length + 1; // one for the linebreak
+					}
+				} finally {
+					// make a best effort to close
+					if (inStream != null) {
+						try {
+							inStream.close();
+						} catch (Throwable t) {
+						}
+					}
+				}
+
+				offset += stepSize;
+
+				// skip to the next file, if necessary
+				while (fileNum < files.size() && offset >= (currentFile = files.get(fileNum)).getLen()) {
+					offset -= currentFile.getLen();
+					fileNum++;
+				}
+			}
+
+			stats.avgBytesPerRecord = bytes / (float) samplesTaken;
+		} catch (IOException ioex) {
+			LOG.warn("Could not determine complete statistics for file '" + filePath + "' due to an io error: "
+				+ ioex.getMessage());
+		} catch (Throwable t) {
+			LOG.error("Unexpected problen while getting the file statistics for file '" + filePath + "': "
+				+ t.getMessage(), t);
+		}
+
+		// cache the statistics
+		fileStatisticsCache.put(filePath, stats);
+
+		return stats;
+	}
+
+	// ------------------------------------------------------------------------
+	//                           Internal classes
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Encapsulation of the basic statistics the optimizer obtains about a file. Contained are
+	 * the size of the file and the average bytes of a single record. The statistics also
+	 * have a time-stamp that records the modification time of the file and indicates as such
+	 * for which time the statistics were valid.
+	 */
+	public static final class BasicFileStatistics
 	{
-		synchronized (this.baseStatisticsCache) {
-			this.baseStatisticsCache.put(identifyer, statistics);
+		private long fileModTime; // timestamp of the last modification
+
+		private long fileSize; // size of the file(s) in bytes
+
+		private float avgBytesPerRecord; // the average number of bytes for a record
+
+		/**
+		 * Creates a new statistics object.
+		 * 
+		 * @param fileModTime
+		 *        The timestamp of the latest modification of any of the involved files.
+		 * @param fileSize
+		 *        The size of the file, in bytes. <code>-1</code>, if unknown.
+		 * @param avgBytesPerRecord
+		 *        The average number of byte in a record, or <code>-1.0f</code>, if unknown.
+		 */
+		public BasicFileStatistics(long fileModTime, long fileSize, float avgBytesPerRecord) {
+			this.fileModTime = fileModTime;
+			this.fileSize = fileSize;
+			this.avgBytesPerRecord = avgBytesPerRecord;
+		}
+
+		/**
+		 * Gets the file size.
+		 * 
+		 * @return The fileSize.
+		 */
+		public long getFileSize() {
+			return fileSize;
+		}
+
+		/**
+		 * Gets the average number of bytes per record.
+		 * 
+		 * @return The average number of bytes per record.
+		 */
+		public float getAvgBytesPerRecord() {
+			return avgBytesPerRecord;
+		}
+
+		/**
+		 * Gets the timestamp of the last modification.
+		 * 
+		 * @return The timestamp of the last modification.
+		 */
+		public long getLastModificationTime() {
+			return fileModTime;
 		}
 	}
+
 }

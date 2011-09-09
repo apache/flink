@@ -81,7 +81,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private final File planDumpDirectory;				// the directory to dump the optimizer plans to
 
-	private final Map<Long, ProgramJobGraphPair> submittedJobs;	// map from UIDs to the running jobs
+	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
 
 	private final Random rand;							// random number generator for UIDs
 
@@ -93,7 +93,7 @@ public class JobSubmissionServlet extends HttpServlet {
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
-		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, ProgramJobGraphPair>());
+		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, JobGraph>());
 
 		this.rand = new Random(System.currentTimeMillis());
 	}
@@ -230,20 +230,7 @@ public class JobSubmissionServlet extends HttpServlet {
 						return;
 					}
 				} else {
-					try {
-						submittedJobs.put(uid, 
-							new ProgramJobGraphPair(pactProgram, client.getJobGraph(pactProgram, optPlan)));
-					}
-					catch (ProgramInvocationException piex) {
-						LOG.error("Error creating JobGraph from optimized plan.", piex);
-						showErrorPage(resp, piex.getMessage());
-						return;
-					}
-					catch (Throwable t) {
-						LOG.error("Error creating JobGraph from optimized plan.", t);
-						showErrorPage(resp, t.getMessage());
-						return;
-					}
+					submittedJobs.put(uid, client.getJobGraph(pactProgram, optPlan));
 				}
 
 				// redirect to the plan display page
@@ -280,7 +267,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			// get the retained job
-			ProgramJobGraphPair job = submittedJobs.remove(uid);
+			JobGraph job = submittedJobs.remove(uid);
 			if (job == null) {
 				resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
 					"No job with the given uid was retained for later submission.");
@@ -289,7 +276,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				client.run(job.getProgram(), job.getJobGraph());
+				client.run(job);
 			} catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
 				resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -435,29 +422,5 @@ public class JobSubmissionServlet extends HttpServlet {
 		}
 
 		return list;
-	}
-	
-	// ============================================================================================
-	
-	private static final class ProgramJobGraphPair
-	{
-		private final PactProgram program;
-		
-		private final JobGraph jobGraph;
-
-		
-		public ProgramJobGraphPair(PactProgram program, JobGraph jobGraph) {
-			this.program = program;
-			this.jobGraph = jobGraph;
-		}
-
-		
-		public PactProgram getProgram() {
-			return program;
-		}
-
-		public JobGraph getJobGraph() {
-			return jobGraph;
-		}
 	}
 }

@@ -27,6 +27,8 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 import java.lang.reflect.Method;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.junit.Before;
@@ -46,7 +48,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
-import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
@@ -58,7 +59,6 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.local.LocalInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 
 /**
@@ -74,9 +74,6 @@ public class QueueSchedulerTest {
 	private ExecutionGraph executionGraph;
 
 	@Mock
-	private ExecutionStage stage1;
-	
-	@Mock
 	private ExecutionVertex vertex1;
 
 	@Mock
@@ -90,6 +87,9 @@ public class QueueSchedulerTest {
 
 	@Mock
 	private Log loggerMock;
+
+	@Mock
+	private Deque<ExecutionGraph> queue;
 
 	/**
 	 * Setting up the mocks and necessary internal states
@@ -113,8 +113,6 @@ public class QueueSchedulerTest {
 		final HashMap<InstanceType, InstanceTypeDescription> availableInstances = new HashMap<InstanceType, InstanceTypeDescription>();
 		availableInstances.put(type, desc);
 
-		final DeploymentManager deploymentManager = new TestDeploymentManager();
-
 		try {
 			whenNew(HashMap.class).withNoArguments().thenReturn(requiredInstanceTypes);
 		} catch (Exception e) {
@@ -122,13 +120,10 @@ public class QueueSchedulerTest {
 		}
 
 		when(this.executionGraph.getNumberOfStages()).thenReturn(1);
-		when(this.executionGraph.getStage(0)).thenReturn(this.stage1);
-		when(this.executionGraph.getCurrentExecutionStage()).thenReturn(this.stage1);
 		when(this.instanceManager.getMapOfAvailableInstanceTypes()).thenReturn(availableInstances);
-		when(this.stage1.getExecutionGraph()).thenReturn(this.executionGraph);
 
 		// correct walk through method
-		final QueueScheduler toTest = new QueueScheduler(deploymentManager, this.instanceManager);
+		final QueueScheduler toTest = new QueueScheduler(this.instanceManager);
 		try {
 			toTest.schedulJob(this.executionGraph);
 			final Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
@@ -166,6 +161,45 @@ public class QueueSchedulerTest {
 	}
 
 	/**
+	 * Checks the behavior of the getVerticesReadyToBeExecuted() method
+	 */
+	@Test
+	public void testGetVerticesReadyToBeExecuted() {
+
+		final QueueScheduler toTest = new QueueScheduler(this.instanceManager);
+		final InstanceType type = new InstanceType();
+		final HashMap<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
+		requiredInstanceTypes.put(type, 3);
+		// mock iterator
+		final HashSet<ExecutionVertex> set = new HashSet<ExecutionVertex>();
+		try {
+			whenNew(ExecutionGraphIterator.class)
+				.withArguments(Matchers.any(ExecutionGraph.class), Matchers.anyInt(), Matchers.anyBoolean(),
+					Matchers.anyBoolean()).thenReturn(this.graphIterator);
+			whenNew(HashSet.class).withNoArguments().thenReturn(set);
+			whenNew(HashMap.class).withNoArguments().thenReturn(requiredInstanceTypes);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		when(this.graphIterator.next()).thenReturn(this.vertex1);
+		when(this.graphIterator.hasNext()).thenReturn(false, true, true, true, true, false);
+		when(this.vertex1.getExecutionState()).thenReturn(ExecutionState.ASSIGNED);
+
+		// no graphs in List, empty list return
+
+		Set<ExecutionVertex> output = toTest.getVerticesReadyToBeExecuted();
+		assertEquals(true, output.isEmpty());
+
+		// graph in list
+		this.queue = Whitebox.getInternalState(toTest, "jobQueue");
+		this.queue.add(this.executionGraph);
+		output = toTest.getVerticesReadyToBeExecuted();
+		verify(this.vertex1, times(4)).setExecutionState(ExecutionState.READY);
+		assertEquals(true, output.contains(this.vertex1));
+
+	}
+
+	/**
 	 * Checks the behavior of the resourceAllocated() method
 	 * 
 	 * @throws Exception
@@ -173,12 +207,10 @@ public class QueueSchedulerTest {
 	@Test
 	public void testResourceAllocated() throws Exception {
 
-		final DeploymentManager deploymentManager = new TestDeploymentManager();
-
-		final QueueScheduler toTest = spy(new QueueScheduler(deploymentManager, this.instanceManager));
-		final JobID jobid = mock(JobID.class);
-		final AllocatedResource resource = mock(AllocatedResource.class);
-		final InstanceType instanceType = new InstanceType();
+		QueueScheduler toTest = spy(new QueueScheduler(this.instanceManager));
+		JobID jobid = mock(JobID.class);
+		AllocatedResource resource = mock(AllocatedResource.class);
+		InstanceType instanceType = new InstanceType();
 		InstanceConnectionInfo instanceConnectionInfo = mock(InstanceConnectionInfo.class);
 		when(instanceConnectionInfo.toString()).thenReturn("");
 		LocalInstance instance = spy(new LocalInstance(instanceType, instanceConnectionInfo, null, null, null));

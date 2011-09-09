@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.InputSplitProvider;
+import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
@@ -106,6 +106,11 @@ public class Environment implements Runnable, IOReadableWritable {
 	private volatile Thread executingThread = null;
 
 	/**
+	 * List of input splits assigned to this environment.
+	 */
+	private final ArrayList<InputSplit> inputSplits = new ArrayList<InputSplit>();
+
+	/**
 	 * Current execution state of the task associated with this environment.
 	 */
 	private volatile ExecutionState executionState = ExecutionState.CREATED;
@@ -124,11 +129,6 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * The runtime configuration of the task encapsulated in the environment object.
 	 */
 	private Configuration runtimeConfiguration = null;
-
-	/**
-	 * The input split provider that can be queried for new input splits.
-	 */
-	private InputSplitProvider inputSplitProvider = null;
 
 	/**
 	 * The current number of subtasks the respective task is split into.
@@ -215,6 +215,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 *        the object to be notified for important events during the task execution
 	 */
 	public void registerExecutionListener(ExecutionListener executionListener) {
+
 		synchronized (this.executionListeners) {
 
 			if (!this.executionListeners.contains(executionListener)) {
@@ -345,7 +346,6 @@ public class Environment implements Runnable, IOReadableWritable {
 
 		// If the task has been canceled in the mean time, do not even start it
 		if (this.isCanceled) {
-			LOG.info("Task has been canceled in the mean time.");
 			changeExecutionState(ExecutionState.CANCELED, null);
 			return;
 		}
@@ -369,7 +369,7 @@ public class Environment implements Runnable, IOReadableWritable {
 					LOG.error(StringUtils.stringifyException(e2));
 				}
 			}
-			
+
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
 			
@@ -380,7 +380,6 @@ public class Environment implements Runnable, IOReadableWritable {
 			}
 			}
 			return;
-			
 		}
 
 		// Task finished running, but there may be unconsumed output data in some of the channels
@@ -493,7 +492,7 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * Creates a new thread for the Nephele task and starts it.
 	 */
 	public void startExecution() {
-		
+
 		if (this.executingThread == null) {
 			this.executingThread = new Thread(this, this.taskName);
 			this.executingThread.start();
@@ -504,9 +503,9 @@ public class Environment implements Runnable, IOReadableWritable {
 	 * Cancels the execution of the task (i.e. interrupts the execution thread).
 	 */
 	public void cancelExecution() {
-		LOG.info("Canceling Task " + this.taskName);
+
 		if (this.executingThread == null) {
-			LOG.error("cancelExecution for " + this.taskName+" called without having created an execution thread before");
+			LOG.error("cancelExecution called without having created an execution thread before");
 			return;
 		}
 
@@ -538,7 +537,6 @@ public class Environment implements Runnable, IOReadableWritable {
 			}
 		}
 	}
-	
 	public void restartExecution() {
 		this.restarting  = true;
 		changeExecutionState(ExecutionState.RESTARTING, null);
@@ -642,6 +640,32 @@ public class Environment implements Runnable, IOReadableWritable {
 			this.unboundInputGates.add(eig);
 		}
 
+		// Read input splits
+		final int numInputSplits = in.readInt();
+		for (int i = 0; i < numInputSplits; i++) {
+			final boolean isNotNull = in.readBoolean();
+			if (isNotNull) {
+				final String className = StringRecord.readString(in);
+				Class<? extends IOReadableWritable> c = null;
+				try {
+					c = (Class<? extends IOReadableWritable>) Class.forName(className, true, cl);
+				} catch (ClassNotFoundException cnfe) {
+					throw new IOException("Class " + className + " not found in one of the supplied jar files: "
+						+ StringUtils.stringifyException(cnfe));
+				}
+
+				try {
+					final InputSplit inputSplit = (InputSplit) c.newInstance();
+					inputSplit.read(in);
+					this.inputSplits.add(inputSplit);
+				} catch (InstantiationException e) {
+					throw new IOException(e);
+				} catch (IllegalAccessException e) {
+					throw new IOException(e);
+				}
+			}
+		}
+
 		// The configuration object
 		this.runtimeConfiguration = new Configuration();
 		this.runtimeConfiguration.read(in);
@@ -703,6 +727,19 @@ public class Environment implements Runnable, IOReadableWritable {
 		out.writeInt(getNumberOfInputGates());
 		for (int i = 0; i < getNumberOfInputGates(); i++) {
 			getInputGate(i).write(out);
+		}
+
+		// Write out number of input splits
+		out.writeInt(this.inputSplits.size());
+		for (int i = 0; i < this.inputSplits.size(); i++) {
+			final InputSplit inputSplit = this.inputSplits.get(i);
+			if (inputSplit == null) {
+				out.writeBoolean(false);
+			} else {
+				out.writeBoolean(true);
+				StringRecord.writeString(out, inputSplit.getClass().getName());
+				inputSplit.write(out);
+			}
 		}
 
 		// The configuration object
@@ -808,6 +845,31 @@ public class Environment implements Runnable, IOReadableWritable {
 	}
 
 	/**
+	 * Adds an input to the environment.
+	 * 
+	 * @param inputSplit
+	 *        the input split to be added
+	 */
+	public void addInputSplit(InputSplit inputSplit) {
+
+		this.inputSplits.add(inputSplit);
+	}
+
+	public InputSplit[] getInputSplits() {
+
+		return this.inputSplits.toArray(new InputSplit[0]);
+	}
+
+	/**
+	 * Returns the number of input splits assigned to this environment.
+	 * 
+	 * @return the number of input splits assigned to this environment
+	 */
+	public int getNumberOfInputSplits() {
+		return this.inputSplits.size();
+	}
+
+	/**
 	 * Returns a duplicate (deep copy) of this environment object. However, duplication
 	 * does not cover the gates arrays. They must be manually reconstructed.
 	 * 
@@ -821,6 +883,12 @@ public class Environment implements Runnable, IOReadableWritable {
 		final Environment duplicatedEnvironment = new Environment();
 		duplicatedEnvironment.invokableClass = this.invokableClass;
 		duplicatedEnvironment.executionState = this.executionState;
+		// Input splits should be immutable, so we do not create deep copies of them
+		duplicatedEnvironment.inputSplits.clear();
+		final Iterator<InputSplit> it = this.inputSplits.iterator();
+		while (it.hasNext()) {
+			duplicatedEnvironment.inputSplits.add(it.next());
+		}
 		duplicatedEnvironment.jobID = this.jobID;
 		duplicatedEnvironment.taskName = this.taskName;
 		duplicatedEnvironment.executingThread = this.executingThread;
@@ -936,7 +1004,7 @@ public class Environment implements Runnable, IOReadableWritable {
 			return;
 		}
 
-		LOG.info("ExecutionState set from " + this.executionState + " to " + newExecutionState + " for task "
+		LOG.info("ExecutionState set from " + executionState + " to " + newExecutionState + " for task "
 			+ this.getTaskName() + " (" + (this.getIndexInSubtaskGroup() + 1) + "/" + this.getCurrentNumberOfSubtasks()
 			+ ")");
 
@@ -1050,8 +1118,7 @@ public class Environment implements Runnable, IOReadableWritable {
 		synchronized (this.executionListeners) {
 			final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 			while (it.hasNext()) {
-				ExecutionListener lis = it.next();
-				lis.executionStateChanged(this, newExecutionState, optionalMessage);
+				it.next().executionStateChanged(this, newExecutionState, optionalMessage);
 			}
 		}
 	}
@@ -1073,25 +1140,6 @@ public class Environment implements Runnable, IOReadableWritable {
 	public String getTaskName() {
 
 		return this.taskName;
-	}
-
-	/**
-	 * Sets the input split provider for this environment.
-	 * 
-	 * @param inputSplitProvider
-	 *        the input split provider for this environment
-	 */
-	public void setInputSplitProvider(final InputSplitProvider inputSplitProvider) {
-		this.inputSplitProvider = inputSplitProvider;
-	}
-
-	/**
-	 * Returns the input split provider assigned to this environment.
-	 * 
-	 * @return the input split provider or <code>null</code> if no such provider has been assigned to this environment.
-	 */
-	public InputSplitProvider getInputSplitProvider() {
-		return this.inputSplitProvider;
 	}
 
 	/**

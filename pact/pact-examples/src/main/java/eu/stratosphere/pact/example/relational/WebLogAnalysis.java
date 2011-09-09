@@ -21,8 +21,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
@@ -248,22 +248,22 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		String output      = (args.length > 4 ? args[4] : "");
 
 		// Create DataSourceContract for documents relation
-		FileDataSourceContract<PactString, Tuple> docs = new FileDataSourceContract<PactString, Tuple>(
+		DataSourceContract<PactString, Tuple> docs = new DataSourceContract<PactString, Tuple>(
 				StringTupleDataInFormat.class, docsInput, "Documents");
-		docs.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		docs.setFormatParameter(TextInputFormat.FORMAT_PAIR_DELIMITER, "\n");
 		docs.setDegreeOfParallelism(noSubTasks);
 		docs.setOutputContract(UniqueKey.class);
 
 		// Create DataSourceContract for ranks relation
-		FileDataSourceContract<PactString, Tuple> ranks = new FileDataSourceContract<PactString, Tuple>(
+		DataSourceContract<PactString, Tuple> ranks = new DataSourceContract<PactString, Tuple>(
 				StringTupleDataInFormat.class, ranksInput, "Ranks");
-		ranks.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		ranks.setFormatParameter(TextInputFormat.FORMAT_PAIR_DELIMITER, "\n");
 		ranks.setDegreeOfParallelism(noSubTasks);
 
 		// Create DataSourceContract for visits relation
-		FileDataSourceContract<PactString, Tuple> visits = new FileDataSourceContract<PactString, Tuple>(
+		DataSourceContract<PactString, Tuple> visits = new DataSourceContract<PactString, Tuple>(
 				StringTupleDataInFormat.class, visitsInput, "Visits");
-		visits.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		visits.setFormatParameter(TextInputFormat.FORMAT_PAIR_DELIMITER, "\n");
 		visits.setDegreeOfParallelism(noSubTasks);
 
 		// Create MapContract for filtering the entries from the documents
@@ -273,14 +273,12 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		filterDocs.setDegreeOfParallelism(noSubTasks);
 		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
-		filterDocs.getCompilerHints().setAvgNumValuesPerKey(1.0f);
 
 		// Create MapContract for filtering the entries from the ranks relation
 		MapContract<PactString, Tuple, PactString, Tuple> filterRanks = new MapContract<PactString, Tuple, PactString, Tuple>(
 				FilterRanks.class, "Filter Ranks");
 		filterRanks.setDegreeOfParallelism(noSubTasks);
 		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
-		filterRanks.getCompilerHints().setAvgNumValuesPerKey(1.0f);
 
 		// Create MapContract for filtering the entries from the visits relation
 		MapContract<PactString, Tuple, PactString, PactNull> filterVisits = new MapContract<PactString, Tuple, PactString, PactNull>(
@@ -303,7 +301,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
-		FileDataSinkContract<PactString, Tuple> result = new FileDataSinkContract<PactString, Tuple>(
+		DataSinkContract<PactString, Tuple> result = new DataSinkContract<PactString, Tuple>(
 				StringTupleDataOutFormat.class, output, "Result");
 		result.setDegreeOfParallelism(noSubTasks);
 

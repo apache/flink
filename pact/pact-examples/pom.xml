@@ -7,12 +7,12 @@
   <parent>
     <artifactId>pact</artifactId>
     <groupId>eu.stratosphere</groupId>
-    <version>0.1.1</version>
+    <version>0.1</version>
   </parent>
 
   <groupId>eu.stratosphere</groupId>
   <artifactId>pact-examples</artifactId>
-  <version>0.1.1</version>
+  <version>0.1</version>
   <name>pact-examples</name>
   
   <packaging>jar</packaging>
@@ -45,7 +45,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
-        
       <!-- KMeansIteration -->
           <execution>
             <id>KMeansIteration</id>
@@ -70,25 +69,25 @@
             </configuration>
           </execution>
 
-	  <!-- Pairwise Shortest Paths -->
+	  <!-- All2All Shortest Paths -->
           <execution>
-            <id>PairwiseSP</id>
+            <id>All2AllSP</id>
             <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
             <configuration>
-              <classifier>PairwiseSP</classifier>
+              <classifier>All2AllSP</classifier>
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact.example.graph.PairwiseSP</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.graph.All2AllSP</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
               <includes>
-                <include>**/graph/PairwiseSP.class</include>
-                <include>**/graph/PairwiseSP$*.class</include>
+                <include>**/graph/All2AllSP.class</include>
+                <include>**/graph/All2AllSP$*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -139,30 +138,79 @@
               </includes>
             </configuration>
           </execution>
-          
-          <execution>
-            <id>TPCHQueryAsterix</id>
+
+		<execution>
+            <id>TPCHQuery4</id>
             <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
             <configuration>
-              <classifier>TPCHQueryAsterix</classifier>
+              <classifier>TPCHQuery4</classifier>
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQueryAsterix</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery4</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
               <includes>
-                <include>**/relational/TPCHQueryAsterix.class</include>
-                <include>**/relational/TPCHQueryAsterix$*.class</include>
+                <include>**/relational/TPCHQuery4.class</include>
+                <include>**/relational/contracts/tpch4/*.class</include>
                 <include>**/relational/util/*.class</include>
               </includes>
             </configuration>
           </execution>
 
+
+		<execution>
+            <id>TPCHQuery9</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQuery9</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery9</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQuery9.class</include>
+                <include>**/relational/contracts/tpch9/*.class</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+	
+
+      <!-- TPCHQuery10 -->
+          <execution>
+            <id>TPCHQuery10</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TPCHQuery10</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery10</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/relational/TPCHQuery10.class</include>
+                <include>**/relational/TPCHQuery10$*.class</include>
+                <include>**/relational/util/*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+          
       <!-- WebLogAnalysis -->
           <execution>
             <id>WebLogAnalysis</id>

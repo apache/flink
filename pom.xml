@@ -7,7 +7,7 @@
 
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>stratosphere</artifactId>
-	<version>0.1.1</version>
+	<version>0.1</version>
 
 	<name>stratosphere</name>
 	<packaging>pom</packaging>
@@ -260,12 +260,12 @@
 				</reportSets>
 			</plugin>
 
-			<!-- TEST ME -->
-			<plugin> 
-				<!-- generation of JavaDoc -->
+			<!--
+				<plugin> generation of JavaDoc
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId> <version>2.5</version>
-			</plugin>
+				</plugin>
+			-->
 
 			<plugin>
 				<!-- style checker -->
@@ -339,17 +339,12 @@
 						<goals>
 							<goal>aggregate-jar</goal>
 						</goals>
-						<!-- use "package" phase to include JavaDocs in build -->
 						<phase>site</phase>
 						<configuration>
 							<quiet>true</quiet>
 						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<!-- exclude example classes from JavaDoc -->
-					<excludePackageNames>eu.stratosphere.nephele.example.*:eu.stratosphere.pact.example.*</excludePackageNames>
-				</configuration> 
 			</plugin>
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
@@ -389,7 +384,7 @@
 					<dependency>
 						<groupId>eu.stratosphere</groupId>
 						<artifactId>build-tools</artifactId>
-						<version>0.1.1</version>
+						<version>0.1</version>
 					</dependency>
 				</dependencies>
 			</plugin>

@@ -39,7 +39,7 @@ import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -114,7 +114,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * A list of lists containing channel readers and writers that will be closed at shutdown.
 	 */
-	private final List<List<StreamChannelAccess<?, ?>>> channelsToDeleteAtShutdown;
+	private final List<List<StreamChannelAccess<?>>> channelsToDeleteAtShutdown;
 	
 	/**
 	 * The segments for the sort buffers.
@@ -149,7 +149,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	/**
 	 * The parent task that owns this sorter.
 	 */
-	protected final AbstractInvokable parent;
+	protected final AbstractTask parent;
 	
 	/**
 	 * The monitor which guards the iterator field.
@@ -227,7 +227,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator,
 			Reader<KeyValuePair<K, V>> reader,
-			AbstractInvokable parentTask,
+			AbstractTask parentTask,
 			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
@@ -263,7 +263,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			long totalMemory, long ioMemory,
 			int numSortBuffers, int maxNumFileHandles, SerializationFactory<K> keySerialization,
 			SerializationFactory<V> valueSerialization, Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractInvokable parentTask,
+			AbstractTask parentTask,
 			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
@@ -293,7 +293,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		this.parent = parentTask;
 		
 		this.memoryToReleaseAtShutdown = new ArrayList<List<MemorySegment>>();
-		this.channelsToDeleteAtShutdown = new ArrayList<List<StreamChannelAccess<?, ?>>>();
+		this.channelsToDeleteAtShutdown = new ArrayList<List<StreamChannelAccess<?>>>();
 		
 		// circular queues pass buffers between the threads
 		final CircularQueues circularQueues = new CircularQueues();
@@ -473,9 +473,9 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 			}
 		} finally {
 			// close all channel accesses
-			for (List<StreamChannelAccess<?, ?>> channels : this.channelsToDeleteAtShutdown)
+			for (List<StreamChannelAccess<?>> channels : this.channelsToDeleteAtShutdown)
 			{
-				for (StreamChannelAccess<?, ?> channel : channels) {
+				for (StreamChannelAccess<?> channel : channels) {
 					try {
 						if (!channel.isClosed()) {
 							channel.close();
@@ -519,7 +519,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * 
 	 * @param s The collection of readers/writers.
 	 */
-	public void registerChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?, ?>> channels) {
+	public void registerChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?>> channels) {
 		this.channelsToDeleteAtShutdown.add(channels);
 	}
 
@@ -528,7 +528,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * 
 	 * @param s The collection of readers/writers.
 	 */
-	public void unregisterChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?, ?>> channels) {
+	public void unregisterChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?>> channels) {
 		this.channelsToDeleteAtShutdown.remove(channels);
 	}
 
@@ -553,7 +553,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
-			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractInvokable parentTask,
+			eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues, AbstractTask parentTask,
 			long startSpillingBytes)
 	{
 		return new ReadingThread(exceptionHandler, reader, queues, parentTask, startSpillingBytes);
@@ -574,7 +574,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @return The sorting thread.
 	 */
 	protected ThreadBase getSortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			AbstractInvokable parentTask)
+			AbstractTask parentTask)
 	{
 		return new SortingThread(exceptionHandler, queues, parentTask);
 	}
@@ -595,7 +595,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 */
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractInvokable parentTask)
+			AbstractTask parentTask)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, writeMemSize,
 			readMemSize, parentTask);
@@ -674,7 +674,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	 * @throws IOException Thrown, if the readers encounter an I/O problem.
 	 */
 	protected final Iterator<KeyValuePair<K, V>> getMergingIterator(final List<Channel.ID> channelIDs,
-		final List<List<MemorySegment>> inputSegments, List<StreamChannelAccess<?, ?>> readerList)
+		final List<List<MemorySegment>> inputSegments, List<StreamChannelAccess<?>> readerList)
 	throws IOException
 	{
 		// create one iterator per channel id
@@ -767,7 +767,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 	throws IOException
 	{
 		// the list with the readers, to be closed at shutdown
-		List<StreamChannelAccess<?, ?>> channelAccesses = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
+		List<StreamChannelAccess<?>> channelAccesses = new ArrayList<StreamChannelAccess<?>>(channelIDs.size());
 		registerChannelsToBeRemovedAtShudown(channelAccesses);
 
 		// the list with the target iterators
@@ -914,7 +914,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		/**
 		 * The parent task at whom the thread needs to register.
 		 */
-		private final AbstractInvokable parentTask;
+		private final AbstractTask parentTask;
 
 		/**
 		 * The flag marking this thread as alive.
@@ -932,7 +932,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 *        The queues used to pass buffers between the threads.
 		 */
 		protected ThreadBase(ExceptionHandler<IOException> exceptionHandler, String name, CircularQueues queues,
-				AbstractInvokable parentTask)
+				AbstractTask parentTask)
 		{
 			// thread setup
 			super(name);
@@ -1054,7 +1054,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 */
 		public ReadingThread(ExceptionHandler<IOException> exceptionHandler,
 				eu.stratosphere.nephele.io.Reader<KeyValuePair<K, V>> reader, CircularQueues queues,
-				AbstractInvokable parentTask, long startSpillingBytes)
+				AbstractTask parentTask, long startSpillingBytes)
 		{
 			super(exceptionHandler, "SortMerger Reading Thread", queues, parentTask);
 
@@ -1257,7 +1257,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 		 *        The queues used to pass buffers between the threads.
 		 */
 		public SortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				AbstractInvokable parentTask) {
+				AbstractTask parentTask) {
 			super(exceptionHandler, "SortMerger sorting thread", queues, parentTask);
 
 			// members
@@ -1318,7 +1318,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
-				long writeMemSize, long readMemSize, AbstractInvokable parentTask)
+				long writeMemSize, long readMemSize, AbstractTask parentTask)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 
@@ -1502,7 +1502,7 @@ public class UnilateralSortMerger<K extends Key, V extends Value> implements Sor
 					registerSegmentsToBeFreedAtShutdown(allBuffers);
 					
 					// get the readers and register them to be released
-					List<StreamChannelAccess<?, ?>> readers = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
+					List<StreamChannelAccess<?>> readers = new ArrayList<StreamChannelAccess<?>>(channelIDs.size());
 					registerChannelsToBeRemovedAtShudown(readers);
 					setResultIterator(getMergingIterator(channelIDs, readBuffers, readers));
 				}

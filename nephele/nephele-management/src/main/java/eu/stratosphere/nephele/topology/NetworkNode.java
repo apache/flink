@@ -142,81 +142,8 @@ public class NetworkNode implements IOReadableWritable {
 		return this.parentNode;
 	}
 
-	/**
-	 * Returns the network topology that is associated with this network node.
-	 * 
-	 * @return the network topology that is associated with this network node
-	 */
 	public NetworkTopology getNetworkTopology() {
 		return this.networkTopology;
-	}
-
-	/**
-	 * Determines the distance to the given network node. The distance is determined as the number of internal network
-	 * nodes that must be traversed in order to send a packet from one node to the other plus one.
-	 * 
-	 * @param networkNode
-	 *        the node to determine the distance for
-	 * @return the distance to the given network node or <code>Integer.MAX_VALUE</code> if the given node is not part of
-	 *         this node's network topology
-	 */
-	public int getDistance(final NetworkNode networkNode) {
-
-		int steps = 0;
-		NetworkNode tmp = this;
-		while (tmp != null) {
-
-			final int distance = tmp.isPredecessorOrSelfOf(networkNode);
-			if (distance >= 0) {
-				return (steps + distance);
-			}
-
-			tmp = tmp.getParentNode();
-			++steps;
-		}
-
-		return Integer.MAX_VALUE;
-	}
-
-	/**
-	 * Checks whether this node is a predecessor or the identity (the node itself) of the given network node in the
-	 * network topology tree.
-	 * 
-	 * @param networkNode
-	 *        a potential child network node
-	 * @return If this node node is a predecessor of given node in the network topology tree, the return value
-	 *         indicates the distance between both nodes. If the given node equals this node, the
-	 *         return value is <code>0</code>. Otherwise the return value is <code>-1</code>.
-	 */
-	private int isPredecessorOrSelfOf(final NetworkNode networkNode) {
-
-		NetworkNode tmp = networkNode;
-		int steps = 0;
-		while (tmp != null) {
-
-			if (this.equals(tmp)) {
-				return steps;
-			}
-
-			tmp = tmp.getParentNode();
-			++steps;
-		}
-
-		return -1;
-	}
-
-	public int getDistance(final String nodeName) {
-
-		final NetworkNode networkNode = this.networkTopology.getNodeByName(nodeName);
-		if (networkNode == null) {
-			return Integer.MAX_VALUE;
-		}
-
-		if (this.equals(networkNode)) {
-			return 0;
-		}
-
-		return getDistance(networkNode);
 	}
 
 	/**

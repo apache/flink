@@ -9,15 +9,23 @@
         <value>6123</value>
     </property>
     <property>
-        <key>jobmanager.instancemanager.cloud.classname</key>
-        <value>eu.stratosphere.nephele.instance.ec2.EC2CloudManager</value>
+        <key>jobmanager.instancemanager.classname</key>
+        <value>de.tu_berlin.cit.nephele.instance.cloud.CloudManager</value>
     </property>
     <property>
-        <key>instancemanager.ec2.endpoint</key>
-        <value>cloud01.cit.tu-berlin.de:8773</value>
+        <key>cloud.ec2ws.secure</key>
+        <value>false</value>
     </property>
     <property>
-        <key>job.ec2.ami</key>
+        <key>cloud.ec2ws.server</key>
+        <value>cloud01.cit.tu-berlin.de</value>
+    </property>
+    <property>
+        <key>cloud.ec2ws.port</key>
+        <value>8773</value>
+    </property>
+    <property>
+        <key>ec2.image.id</key>
         <value>emi-E9B11C08</value>
     </property>
     <property>

@@ -67,6 +67,7 @@ import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
+import eu.stratosphere.nephele.execution.ExecutionFailureException;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -94,9 +95,8 @@ import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
+import eu.stratosphere.nephele.jobmanager.scheduler.Scheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
-import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.optimizer.Optimizer;
@@ -104,15 +104,12 @@ import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
-import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
-import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -128,10 +125,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-
-public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
-
+public class JobManager implements ExtendedManagementProtocol, JobManagerProtocol, ChannelLookupProtocol,
+		JobStatusListener{
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -143,13 +138,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final EventCollector eventCollector;
 
-	private final InputSplitManager inputSplitManager;
-
-	private final AbstractScheduler scheduler;
+	private final Scheduler scheduler;
 
 	private InstanceManager instanceManager;
 
 	private final int recommendedClientPollingInterval;
+
+	private final Set<ExecutionVertex> verticesReadyToRun = new HashSet<ExecutionVertex>();
 
 	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
@@ -195,12 +190,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Read the suggested client polling interval
 		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger("jobclient.polling.internval", 5);
 
-		// Load the job progress collector
-		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
-
-		// Load the input split manager
-		this.inputSplitManager = new InputSplitManager();
-
 		// Determine own RPC address
 		final InetSocketAddress rpcServerAddress = new InetSocketAddress(ipcAddress, ipcPort);
 
@@ -229,7 +218,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			try {
 				this.instanceManager = new LocalInstanceManager(configDir);
 			} catch (RuntimeException rte) {
-				LOG.fatal("Cannot instantiate local instance manager: " + StringUtils.stringifyException(rte));
+				LOG.fatal(rte);
 				System.exit(FAILURERETURNCODE);
 			}
 		} else {
@@ -247,7 +236,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		LOG.info("Trying to load " + schedulerClassName + " as scheduler");
 
 		// Try to get the instance manager class name
-		this.scheduler = JobManagerUtils.loadScheduler(schedulerClassName, this, this.instanceManager);
+		this.scheduler = JobManagerUtils.loadScheduler(schedulerClassName, this.instanceManager);
 		if (this.scheduler == null) {
 			LOG.error("Unable to load scheduler " + schedulerClassName);
 			System.exit(FAILURERETURNCODE);
@@ -283,6 +272,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.optimizer = null;
 			LOG.debug("Optimizer disabled");
 		}
+
+		// Load the job progress collector
+		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new JobManagerCleanUp(this));
@@ -332,7 +324,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				break;
 			}
 
-			// Do nothing here
+			// Run ready vertices
+			runVerticesReadyForExecution();
 		}
 	}
 
@@ -510,9 +503,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		}
 
-		// Register job with the dynamic input split assigner
-		this.inputSplitManager.registerJob(eg);
-
 		// Perform graph optimizations
 		if (this.optimizer != null) {
 			this.optimizer.optimize(eg);
@@ -543,7 +533,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * @param executionGraph
 	 *        the execution graph to remove from the job manager
 	 */
-	private void unregisterJob(final ExecutionGraph executionGraph) {
+	private void unregisterJob(ExecutionGraph executionGraph) {
 
 		// Remove job from profiler (if activated)
 		if (this.profiler != null
@@ -553,11 +543,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			if (this.eventCollector != null) {
 				this.profiler.unregisterFromProfilingData(executionGraph.getJobID(), this.eventCollector);
 			}
-		}
-
-		// Remove job from input split manager
-		if (this.inputSplitManager != null) {
-			this.inputSplitManager.unregisterJob(executionGraph);
 		}
 	}
 
@@ -580,6 +565,61 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			};
 
 			this.executorService.execute(heartBeatRunnable);
+		}
+	}
+
+	/**
+	 * Searches the current execution graph for execution vertices which have become
+	 * ready for execution and triggers their execution.
+	 */
+	void runVerticesReadyForExecution() {
+
+		final Set<ExecutionVertex> readyVertices = this.scheduler.getVerticesReadyToBeExecuted();
+
+		synchronized (this.verticesReadyToRun) {
+
+			this.verticesReadyToRun.addAll(readyVertices);
+
+			final Iterator<ExecutionVertex> it = this.verticesReadyToRun.iterator();
+			while (it.hasNext()) {
+
+				final ExecutionVertex vertex = it.next();
+
+				// Check vertex state
+				if (vertex.getExecutionState() != ExecutionState.READY) {
+					LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
+						+ vertex.getExecutionState());
+				}
+
+				/*
+				 * START modification FH
+				 */
+				if (vertex.isInputVertex() && vertex.getEnvironment().getInputSplits().length == 0
+					&& vertex.getGroupVertex().getStageNumber() == 0) {
+					try {
+						if (!InputSplitAssigner.assignInputSplits(vertex)) {
+							continue;
+						}
+					} catch (ExecutionFailureException e) {
+						LOG.error(e);
+					}
+				}
+				/*
+				 * END modification FH
+				 */
+
+				LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
+				final TaskSubmissionResult submissionResult = vertex.startTask();
+				it.remove(); // Remove task from ready set
+				if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+					// Change the execution state to failed and let the scheduler deal with the rest
+					vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED,
+						submissionResult.getDescription());
+				}
+
+				// TODO: Implement lazy initialization
+				// TODO: Check if vertex.prepare... is still required
+			}
 		}
 	}
 
@@ -673,7 +713,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
 			false, true);
 		while (it.hasNext()) {
-
+		
 			final ExecutionVertex vertex = it.next();
 			final TaskCancelResult result = vertex.cancelTask();
 			if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
@@ -714,23 +754,23 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		AbstractChannel sourceChannel = eg.getOutputChannelByID(sourceChannelID);
-		if (sourceChannel == null) {
+		if(sourceChannel == null) {
 			sourceChannel = eg.getInputChannelByID(sourceChannelID);
-			if (sourceChannel == null) {
+			if(sourceChannel == null) {
 				LOG.error("Cannot find source channel with ID " + sourceChannelID);
 				return ConnectionInfoLookupResponse.createReceiverNotFound();
 			}
 		}
-
+		
 		final ChannelID targetChannelID = sourceChannel.getConnectedChannelID();
-
+		
 		final ExecutionVertex vertex = eg.getVertexByChannelID(targetChannelID);
 		
 		if (vertex == null) {
 			LOG.error("Cannot resolve ID " + targetChannelID + " to a vertex for job " + jobID);
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
-
+		
 		final ExecutionState executionState = vertex.getExecutionState();
 		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
 			return ConnectionInfoLookupResponse.createReceiverNotReady();
@@ -739,6 +779,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// TODO: Start vertex if in lazy mode
 
 		final AbstractInstance assignedInstance = vertex.getAllocatedResource().getInstance();
+		System.out.println("-- " + assignedInstance.getName() + " found");
 		if (assignedInstance == null) {
 			LOG.debug("Cannot resolve lookup: vertex found for channel ID " + targetChannelID
 				+ " but no instance assigned");
@@ -943,7 +984,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		if (newJobStatus == InternalJobStatus.CANCELED || newJobStatus == InternalJobStatus.FAILED
 			|| newJobStatus == InternalJobStatus.FINISHED) {
-			// Unregister job for Nephele's monitoring, optimization components, and dynamic input split assignment
+			// Unregister job for Nephele's monitoring and optimization components
 			unregisterJob(executionGraph);
 		}
 		if(newJobStatus == InternalJobStatus.RECOVERING){
@@ -1017,126 +1058,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		
 		
 		
-	 //TODO (marrus) implement me
-		
+	 //TODO (marrus)
 	}
 
 
-	
+	@Override
 	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID) {
 		this.scheduler.reportPersistenCheckpoint(executionVertexID,jobID);
-	}
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void deploy(final JobID jobID, final AbstractInstance instance,
-			final List<ExecutionVertex> verticesToBeDeployed) {
-
-		if (verticesToBeDeployed.isEmpty()) {
-			LOG.error("Method 'deploy' called but list of vertices to be deployed is empty");
-			return;
-		}
-
-		// Create a new runnable and pass it the executor service
-		final Runnable deploymentRunnable = new Runnable() {
-
-			/**
-			 * {@inheritDoc}
-			 */
-			@Override
-			public void run() {
-
-				// Check if all required libraries are available on the instance
-				try {
-					instance.checkLibraryAvailability(jobID);
-				} catch (IOException ioe) {
-					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
-				}
-
-				final List<TaskSubmissionWrapper> submissionList = new SerializableArrayList<TaskSubmissionWrapper>();
-
-				// Check the consistency of the call
-				for (final ExecutionVertex vertex : verticesToBeDeployed) {
-
-					// Check vertex state
-					if (vertex.getExecutionState() != ExecutionState.READY) {
-						LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
-							+ vertex.getExecutionState());
-					}
-
-					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), vertex.getEnvironment(), vertex
-						.getExecutionGraph().getJobConfiguration()));
-
-					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
-				}
-
-				// TODO: Implement lazy initialization
-				List<TaskSubmissionResult> submissionResultList = null;
-
-				try {
-					submissionResultList = instance.submitTasks(submissionList);
-				} catch (final IOException ioe) {
-					final String errorMsg = StringUtils.stringifyException(ioe);
-					for (final ExecutionVertex vertex : verticesToBeDeployed) {
-						vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED, errorMsg);
-					}
-				}
-
-				if (verticesToBeDeployed.size() != submissionResultList.size()) {
-					LOG.error("size of submission result list does not match size of list with vertices to be deployed");
-				}
-
-				int count = 0;
-				for (final TaskSubmissionResult tsr : submissionResultList) {
-
-					ExecutionVertex vertex = verticesToBeDeployed.get(count++);
-					if (!vertex.getID().equals(tsr.getVertexID())) {
-						LOG.error("Expected different order of objects in task result list");
-						vertex = null;
-						for (final ExecutionVertex candVertex : verticesToBeDeployed) {
-							if (tsr.getVertexID().equals(candVertex.getID())) {
-								vertex = candVertex;
-								break;
-							}
-						}
-
-						if (vertex == null) {
-							LOG.error("Cannot find execution vertex for vertex ID " + tsr.getVertexID());
-							continue;
-						}
-					}
-
-					if (tsr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
-						// Change the execution state to failed and let the scheduler deal with the rest
-						vertex.getEnvironment().changeExecutionState(ExecutionState.FAILED, tsr.getDescription());
-					}
-				}
-			}
-		};
-
-		this.executorService.execute(deploymentRunnable);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public InputSplit requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID) throws IOException {
-
-		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
-		if (graph == null) {
-			LOG.error("Cannot find execution graph to job ID " + jobID);
-			return null;
-		}
-
-		final ExecutionVertex vertex = graph.getVertexByID(vertexID);
-		if (vertex == null) {
-			LOG.error("Cannot find execution vertex for vertex ID " + vertexID);
-			return null;
-		}
-
-		return this.inputSplitManager.getNextInputSplit(vertex);
 
 	}
 }

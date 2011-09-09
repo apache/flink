@@ -30,9 +30,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 /**
- * A factory to construct {@link HardwareDescription} objects. In particular,
- * the factory can automatically generate a {@link HardwareDescription} object
- * from the system it is executed on.
+ * A factory to construct {@link HardwareDescription} objects. In particular, the factory can automatically generate a
+ * {@link HardwareDescription} object from the system it is executed on.
  * <p>
  * This class is thread-safe.
  * 
@@ -43,8 +42,7 @@ public class HardwareDescriptionFactory {
 	/**
 	 * The log object used to report errors.
 	 */
-	private static final Log LOG = LogFactory
-			.getLog(HardwareDescriptionFactory.class);
+	private static final Log LOG = LogFactory.getLog(HardwareDescriptionFactory.class);
 
 	/**
 	 * The key to extract the operating system name from the system properties.
@@ -77,17 +75,14 @@ public class HardwareDescriptionFactory {
 	private static final String LINUX_MEMORY_INFO_PATH = "/proc/meminfo";
 
 	/**
-	 * The regular expression used to extract the size of the physical memory
-	 * under Linux.
+	 * The regular expression used to extract the size of the physical memory under Linux.
 	 */
-	private static final Pattern LINUX_MEMORY_REGEX = Pattern
-			.compile("^MemTotal:\\s*(\\d+)\\s+kB$");
+	private static final Pattern LINUX_MEMORY_REGEX = Pattern.compile("^MemTotal:\\s*(\\d+)\\s+kB$");
 
 	/**
 	 * The names of the tenured memory pool
 	 */
-	private static final String[] TENURED_POOL_NAMES = { "Tenured Gen",
-			"PS Old Gen", "CMS Old Gen" };
+	private static final String[] TENURED_POOL_NAMES = { "Tenured Gen", "PS Old Gen", "CMS Old Gen" };
 
 	/**
 	 * The operating system name.
@@ -104,8 +99,6 @@ public class HardwareDescriptionFactory {
 	 */
 	private static float RUNTIME_MEMORY_THRESHOLD = 0.7f;
 
-	private static boolean isNativeCodeLoaded = false;
-
 	/**
 	 * Private constructor, so class cannot be instantiated.
 	 */
@@ -115,8 +108,8 @@ public class HardwareDescriptionFactory {
 	/**
 	 * Extracts a hardware description object from the system.
 	 * 
-	 * @return the hardware description object or <code>null</code> if at least
-	 *         one value for the hardware description cannot be determined
+	 * @return the hardware description object or <code>null</code> if at least one value for the hardware description
+	 *         cannot be determined
 	 */
 	public static HardwareDescription extractFromSystem() {
 
@@ -132,50 +125,41 @@ public class HardwareDescriptionFactory {
 			return null;
 		}
 
-		return new HardwareDescription(numberOfCPUCores, sizeOfPhysicalMemory,
-				sizeOfFreeMemory);
+		return new HardwareDescription(numberOfCPUCores, sizeOfPhysicalMemory, sizeOfFreeMemory);
 	}
 
 	/**
 	 * Constructs a new hardware description object.
 	 * 
 	 * @param numberOfCPUCores
-	 *            the number of CPU cores available to the JVM on the compute
-	 *            node
+	 *        the number of CPU cores available to the JVM on the compute node
 	 * @param sizeOfPhysicalMemory
-	 *            the size of physical memory in bytes available on the compute
-	 *            node
+	 *        the size of physical memory in bytes available on the compute node
 	 * @param sizeOfFreeMemory
-	 *            the size of free memory in bytes available to the JVM on the
-	 *            compute node
+	 *        the size of free memory in bytes available to the JVM on the compute node
 	 * @return the hardware description object
 	 */
-	public static HardwareDescription construct(int numberOfCPUCores,
-			long sizeOfPhysicalMemory, long sizeOfFreeMemory) {
+	public static HardwareDescription construct(int numberOfCPUCores, long sizeOfPhysicalMemory, long sizeOfFreeMemory) {
 
-		return new HardwareDescription(numberOfCPUCores, sizeOfPhysicalMemory,
-				sizeOfFreeMemory);
+		return new HardwareDescription(numberOfCPUCores, sizeOfPhysicalMemory, sizeOfFreeMemory);
 	}
 
 	/**
 	 * Returns the size of free memory in bytes available to the JVM.
 	 * 
-	 * @return the size of the free memory in bytes available to the JVM or
-	 *         <code>-1</code> if the size cannot be determined
+	 * @return the size of the free memory in bytes available to the JVM or <code>-1</code> if the size cannot be
+	 *         determined
 	 */
 	private static long getSizeOfFreeMemory() {
 
-		// in order to prevent allocations of arrays that are too big for the
-		// JVM's different memory pools,
-		// make sure that the maximum segment size is 70% of the currently free
-		// tenure heap
+		// in order to prevent allocations of arrays that are too big for the JVM's different memory pools,
+		// make sure that the maximum segment size is 70% of the currently free tenure heap
 		final MemoryPoolMXBean tenuredpool = findTenuredGenPool();
 
 		if (tenuredpool != null) {
 			final MemoryUsage usage = tenuredpool.getUsage();
 			long tenuredSize = usage.getMax() - usage.getUsed();
-			LOG.info("Found Tenured Gen pool (max: " + tenuredSize + ", used: "
-					+ usage.getUsed() + ")");
+			LOG.info("Found Tenured Gen pool (max: " + tenuredSize + ", used: " + usage.getUsed() + ")");
 			// TODO: make the constant configurable
 			return (long) (tenuredSize * TENURED_POOL_THRESHOLD);
 		}
@@ -185,16 +169,14 @@ public class HardwareDescriptionFactory {
 		final long maximum = r.maxMemory();
 
 		// TODO: Make 0.7f configurable
-		return (long) (RUNTIME_MEMORY_THRESHOLD * (maximum - r.totalMemory() + r
-				.freeMemory()));
+		return (long) (RUNTIME_MEMORY_THRESHOLD * (maximum - r.totalMemory() + r.freeMemory()));
 
 	}
 
 	/**
 	 * Returns the tenured gen pool.
 	 * 
-	 * @return the tenured gen pool or <code>null</code> if so such pool can be
-	 *         found
+	 * @return the tenured gen pool or <code>null</code> if so such pool can be found
 	 */
 	private static MemoryPoolMXBean findTenuredGenPool() {
 		for (MemoryPoolMXBean pool : ManagementFactory.getMemoryPoolMXBeans()) {
@@ -202,10 +184,8 @@ public class HardwareDescriptionFactory {
 			for (String s : TENURED_POOL_NAMES) {
 				if (pool.getName().equals(s)) {
 					// seems that we found the tenured pool
-					// double check, if it MemoryType is HEAP and usageThreshold
-					// supported..
-					if (pool.getType() == MemoryType.HEAP
-							&& pool.isUsageThresholdSupported()) {
+					// double check, if it MemoryType is HEAP and usageThreshold supported..
+					if (pool.getType() == MemoryType.HEAP && pool.isUsageThresholdSupported()) {
 						return pool;
 					}
 				}
@@ -231,8 +211,7 @@ public class HardwareDescriptionFactory {
 	/**
 	 * Checks whether the operating system this JVM runs on is Windows.
 	 * 
-	 * @return <code>true</code> if the operating system this JVM runs on is
-	 *         Windows, <code>false</code> otherwise
+	 * @return <code>true</code> if the operating system this JVM runs on is Windows, <code>false</code> otherwise
 	 */
 	private static boolean isWindows() {
 
@@ -246,8 +225,7 @@ public class HardwareDescriptionFactory {
 	/**
 	 * Checks whether the operating system this JVM runs on is Linux.
 	 * 
-	 * @return <code>true</code> if the operating system this JVM runs on is
-	 *         Linux, <code>false</code> otherwise
+	 * @return <code>true</code> if the operating system this JVM runs on is Linux, <code>false</code> otherwise
 	 */
 	private static boolean isLinux() {
 
@@ -261,8 +239,7 @@ public class HardwareDescriptionFactory {
 	/**
 	 * Checks whether the operating system this JVM runs on is Windows.
 	 * 
-	 * @return <code>true</code> if the operating system this JVM runs on is
-	 *         Windows, <code>false</code> otherwise
+	 * @return <code>true</code> if the operating system this JVM runs on is Windows, <code>false</code> otherwise
 	 */
 	private static boolean isMac() {
 
@@ -276,8 +253,7 @@ public class HardwareDescriptionFactory {
 	/**
 	 * Checks whether the operating system this JVM runs on is FreeBSD.
 	 * 
-	 * @return <code>true</code> if the operating system this JVM runs on is
-	 *         FreeBSD, <code>false</code> otherwise
+	 * @return <code>true</code> if the operating system this JVM runs on is FreeBSD, <code>false</code> otherwise
 	 */
 	private static boolean isFreeBSD() {
 
@@ -287,19 +263,18 @@ public class HardwareDescriptionFactory {
 
 		return false;
 	}
-
+	
 	/**
 	 * Returns the size of the physical memory in bytes.
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
-	 *         the size could not be determined
+	 * @return the size of the physical memory in bytes or <code>-1</code> if the size could not be determined
 	 */
 	private static long getSizeOfPhysicalMemory() {
 
 		if (isLinux()) {
 			return getSizeOfPhysicalMemoryForLinux();
 		} else if (isWindows()) {
-			return getSizeOfPhysicalMemoryForWindows();
+			LOG.error("Cannot determine size of physical memory: Support for Windows is not yet implemented");
 		} else if (isMac()) {
 			return getSizeOfPhysicalMemoryForMac();
 		} else if (isFreeBSD()) {
@@ -312,11 +287,9 @@ public class HardwareDescriptionFactory {
 	}
 
 	/**
-	 * Returns the size of the physical memory in bytes on a Linux-based
-	 * operating system.
+	 * Returns the size of the physical memory in bytes on a Linux-based operating system.
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
-	 *         the size could not be determined
+	 * @return the size of the physical memory in bytes or <code>-1</code> if the size could not be determined
 	 */
 	private static long getSizeOfPhysicalMemoryForLinux() {
 
@@ -324,8 +297,7 @@ public class HardwareDescriptionFactory {
 
 		try {
 
-			lineReader = new BufferedReader(new FileReader(
-					LINUX_MEMORY_INFO_PATH));
+			lineReader = new BufferedReader(new FileReader(LINUX_MEMORY_INFO_PATH));
 
 			String line = lineReader.readLine();
 			while (line != null) {
@@ -334,10 +306,7 @@ public class HardwareDescriptionFactory {
 				if (matcher.matches()) {
 					final String totalMemory = matcher.group(1);
 					try {
-						return Long.parseLong(totalMemory) * 1024L; // Convert
-																	// from
-																	// kilobyte
-																	// to byte
+						return Long.parseLong(totalMemory) * 1024L; // Convert from kilobyte to byte
 					} catch (NumberFormatException nfe) {
 						LOG.error(nfe);
 						return -1;
@@ -365,11 +334,9 @@ public class HardwareDescriptionFactory {
 	}
 
 	/**
-	 * Returns the size of the physical memory in bytes on a Mac OS-based
-	 * operating system
+	 * Returns the size of the physical memory in bytes on a Mac OS-based operating system
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
-	 *         the size could not be determined
+	 * @return the size of the physical memory in bytes or <code>-1</code> if the size could not be determined
 	 */
 	private static long getSizeOfPhysicalMemoryForMac() {
 
@@ -378,8 +345,7 @@ public class HardwareDescriptionFactory {
 		try {
 			Process proc = Runtime.getRuntime().exec("sysctl hw.memsize");
 
-			bi = new BufferedReader(
-					new InputStreamReader(proc.getInputStream()));
+			bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
 			String line;
 
@@ -409,8 +375,7 @@ public class HardwareDescriptionFactory {
 	/**
 	 * Returns the size of the physical memory in bytes on FreeBSD.
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
-	 *         the size could not be determined
+	 * @return the size of the physical memory in bytes or <code>-1</code> if the size could not be determined
 	 */
 	private static long getSizeOfPhysicalMemoryForFreeBSD() {
 
@@ -419,8 +384,7 @@ public class HardwareDescriptionFactory {
 		try {
 			Process proc = Runtime.getRuntime().exec("sysctl hw.physmem");
 
-			bi = new BufferedReader(
-					new InputStreamReader(proc.getInputStream()));
+			bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
 			String line;
 
@@ -446,32 +410,5 @@ public class HardwareDescriptionFactory {
 		}
 		return -1;
 	}
-
-	/**
-	 * Returns the size of the physical memory in bytes on Windows.
-	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
-	 *         the size could not be determined
-	 */
-	private static synchronized long getSizeOfPhysicalMemoryForWindows() {
-
-		if (!isNativeCodeLoaded) {
-			// TODO: Get rid of absolute path here
-			System.load("C:\\Users\\warneke\\workspace\\stratosphere\\nephele\\nephele-server\\src\\main\\native\\HardwareDescriptionFactory.dll");
-
-			isNativeCodeLoaded = true;
-		}
-
-		return getPhysicalMemoryFromGlobalMemoryStatus();
-	}
-
-	/**
-	 * This is a wrapper to the native WIN32 call GlobalMemoryStatus. The
-	 * wrapper extracts the size of the physical memory on a Windows platform in
-	 * bytes.
-	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
-	 *         the size could not be determined
-	 */
-	private static native long getPhysicalMemoryFromGlobalMemoryStatus();
+	
 }

@@ -41,7 +41,7 @@ fi
 # Nephele JobManager
 constructJobManagerClassPath() {
 
-	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
+	for jarfile in `dir -d $NEPHELE_LIB_DIR/*.jar` ; do
 
 		add=0
 
@@ -53,19 +53,17 @@ constructJobManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'nephele-s3' ]]; then
-			add=1
 		elif [[ "$jarfile" =~ 'nephele-profiling' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-queuescheduler' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-clustermanager' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'nephele-ec2cloudmanager' ]]; then
-			add=1
 		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'commons-httpclient' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'typica' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-common' ]]; then
 			add=1
@@ -80,14 +78,6 @@ constructJobManagerClassPath() {
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'httpcore' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'httpclient' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
 			add=1
 		fi
 

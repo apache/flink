@@ -27,8 +27,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public class CompressionLoader {
@@ -37,51 +35,50 @@ public class CompressionLoader {
 
 	private static final Map<CompressionLevel, CompressionLibrary> compressionLibraries = new HashMap<CompressionLevel, CompressionLibrary>();
 
+	private static boolean finished = true;
+
+	private static boolean compressionLoaded = false;
+
 	private static final String NATIVELIBRARYCACHENAME = "nativeLibraryCache";
 
-	public static synchronized void init(final CompressionLevel compressionLevel) {
+	/**
+	 * Initialize the CompressionLoader and load all native compression libraries.
+	 * assumes that GlobalConfiguration was already loaded
+	 */
+	public static synchronized void init() {
 
-		// Return immediately, if implementation for compression level has already been loaded
-		if (compressionLibraries.containsKey(compressionLevel)) {
-			return;
+		if (!compressionLoaded) {
+
+			compressionLoaded = true;
+
+			final CompressionLevel[] compressionLevels = { CompressionLevel.LIGHT_COMPRESSION,
+				CompressionLevel.MEDIUM_COMPRESSION, CompressionLevel.HEAVY_COMPRESSION,
+				CompressionLevel.DYNAMIC_COMPRESSION };
+			final String[] keySuffix = { "lightClass", "mediumClass", "heavyClass", "dynamicClass" };
+
+			for (int i = 0; i < compressionLevels.length; i++) {
+
+				final String key = "channel.compression." + keySuffix[i];
+				final String libraryClass = GlobalConfiguration.getString(key, null);
+				if (libraryClass == null) {
+					LOG.warn("No library class for compression Level " + compressionLevels[i] + " configured");
+					continue;
+				}
+
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Trying to load compression library " + libraryClass);
+				}
+				final CompressionLibrary compressionLibrary = initCompressionLibrary(libraryClass);
+				if (compressionLibrary == null) {
+					LOG.error("Cannot load " + libraryClass);
+					continue;
+				}
+
+				compressionLibraries.put(compressionLevels[i], compressionLibrary);
+			}
 		}
 
-		String keySuffix = null;
-		switch (compressionLevel) {
-		case LIGHT_COMPRESSION:
-			keySuffix = "lightClass";
-			break;
-		case MEDIUM_COMPRESSION:
-			keySuffix = "mediumClass";
-			break;
-		case HEAVY_COMPRESSION:
-			keySuffix = "heavyClass";
-			break;
-		case DYNAMIC_COMPRESSION:
-			keySuffix = "dynamicClass";
-			break;
-		}
-
-		if (keySuffix == null) {
-			throw new RuntimeException("Cannot find keySuffix for compression level " + compressionLevel);
-		}
-
-		final String key = "channel.compression." + keySuffix;
-		final String libraryClass = GlobalConfiguration.getString(key, null);
-		if (libraryClass == null) {
-			throw new RuntimeException("No library class for compression Level " + compressionLevel + " configured");
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Trying to load compression library " + libraryClass);
-		}
-
-		final CompressionLibrary compressionLibrary = initCompressionLibrary(libraryClass);
-		if (compressionLibrary == null) {
-			throw new RuntimeException("Cannot load " + libraryClass);
-		}
-
-		compressionLibraries.put(compressionLevel, compressionLibrary);
+		finished = false;
 	}
 
 	/**
@@ -207,7 +204,10 @@ public class CompressionLoader {
 			return null;
 		}
 
-		init(level);
+		if (!compressionLoaded) {
+			// Lazy initialization
+			init();
+		}
 
 		final CompressionLibrary cl = compressionLibraries.get(level);
 		if (cl == null) {
@@ -218,14 +218,16 @@ public class CompressionLoader {
 		return cl;
 	}
 
-	public static synchronized Compressor getCompressorByCompressionLevel(final CompressionLevel level,
-			final AbstractByteBufferedOutputChannel<?> outputChannel) {
+	public static synchronized Compressor getCompressorByCompressionLevel(CompressionLevel level) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
 			return null;
 		}
 
-		init(level);
+		if (!compressionLoaded) {
+			// Lazy initialization
+			init();
+		}
 
 		try {
 
@@ -235,7 +237,7 @@ public class CompressionLoader {
 				return null;
 			}
 
-			return cl.getCompressor(outputChannel);
+			return cl.getCompressor();
 
 		} catch (CompressionException e) {
 			LOG.error("Cannot load native compressor: " + StringUtils.stringifyException(e));
@@ -243,14 +245,21 @@ public class CompressionLoader {
 		}
 	}
 
-	public static synchronized Decompressor getDecompressorByCompressionLevel(final CompressionLevel level,
-			final AbstractByteBufferedInputChannel<?> inputChannel) {
+	public static synchronized Decompressor getDecompressorByCompressionLevel(CompressionLevel level) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
 			return null;
 		}
 
-		init(level);
+		if (!compressionLoaded) {
+			// Lazy initialization
+			init();
+		}
+
+		if (finished) {
+			LOG.error("CompressionLoader already finished. Unable to construct more decompressors");
+			return null;
+		}
 
 		try {
 
@@ -260,7 +269,7 @@ public class CompressionLoader {
 				return null;
 			}
 
-			return cl.getDecompressor(inputChannel);
+			return cl.getDecompressor();
 
 		} catch (CompressionException e) {
 			LOG.error("Cannot load native decompressor: " + StringUtils.stringifyException(e));

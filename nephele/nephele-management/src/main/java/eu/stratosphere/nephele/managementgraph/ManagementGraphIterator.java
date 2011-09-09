@@ -206,16 +206,14 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 			if (managementGraph.getNumberOfInputVertices(startStage) > 0) {
 
 				final TraversalEntry te = new TraversalEntry(managementGraph.getInputVertex(startStage, 0), 0, 0);
-				this.traversalStack.push(te);
-				this.alreadyVisited.add(te.getManagementVertex());
+				traversalStack.push(te);
 
 			}
 		} else {
 			if (managementGraph.getNumberOfOutputVertices(startStage) > 0) {
 
 				final TraversalEntry te = new TraversalEntry(managementGraph.getOutputVertex(startStage, 0), 0, 0);
-				this.traversalStack.push(te);
-				this.alreadyVisited.add(te.getManagementVertex());
+				traversalStack.push(te);
 			}
 
 		}
@@ -245,8 +243,7 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 		this.confinedToStage = false;
 
 		final TraversalEntry te = new TraversalEntry(startVertex, 0, 0);
-		this.traversalStack.push(te);
-		this.alreadyVisited.add(te.getManagementVertex());
+		traversalStack.push(te);
 	}
 
 	/**
@@ -255,21 +252,21 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 	@Override
 	public boolean hasNext() {
 
-		if (this.traversalStack.isEmpty()) {
+		if (traversalStack.isEmpty()) {
 
-			if (this.numVisitedEntryVertices < 0) {
+			if (numVisitedEntryVertices < 0) {
 				// User chose a specific starting vertex
 				return false;
 			}
 
-			++this.numVisitedEntryVertices;
+			numVisitedEntryVertices++;
 
-			if (this.forward) {
-				if (this.managementGraph.getNumberOfInputVertices(this.startStage) <= this.numVisitedEntryVertices) {
+			if (forward) {
+				if (managementGraph.getNumberOfInputVertices(this.startStage) <= numVisitedEntryVertices) {
 					return false;
 				}
 			} else {
-				if (this.managementGraph.getNumberOfOutputVertices(this.startStage) <= this.numVisitedEntryVertices) {
+				if (managementGraph.getNumberOfOutputVertices(this.startStage) <= numVisitedEntryVertices) {
 					return false;
 				}
 			}
@@ -284,48 +281,49 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 	@Override
 	public ManagementVertex next() {
 
-		if (this.traversalStack.isEmpty()) {
+		if (traversalStack.isEmpty()) {
 
-			if (this.numVisitedEntryVertices < 0) {
+			if (numVisitedEntryVertices < 0) {
 				// User chose a specific entry vertex
 				return null;
 			}
 
 			TraversalEntry newentry;
 
-			if (this.forward) {
-				newentry = new TraversalEntry(this.managementGraph.getInputVertex(this.startStage, this.numVisitedEntryVertices),
+			if (forward) {
+				newentry = new TraversalEntry(managementGraph.getInputVertex(this.startStage, numVisitedEntryVertices),
 					0, 0);
 			} else {
 				newentry = new TraversalEntry(
-					managementGraph.getOutputVertex(this.startStage, this.numVisitedEntryVertices), 0, 0);
+					managementGraph.getOutputVertex(this.startStage, numVisitedEntryVertices), 0, 0);
 			}
 
-			this.traversalStack.push(newentry);
-			this.alreadyVisited.add(newentry.getManagementVertex());
+			traversalStack.push(newentry);
 		}
 
-		final ManagementVertex returnVertex = this.traversalStack.peek().getManagementVertex();
+		final ManagementVertex returnVertex = traversalStack.peek().getManagementVertex();
 
 		// Propose vertex to be visited next
 		do {
 
-			final TraversalEntry te = this.traversalStack.peek();
+			final TraversalEntry te = traversalStack.peek();
 
 			// Check if we can traverse deeper into the graph
-			final ManagementVertex candidateVertex = getCandidateVertex(te, this.forward);
+			final ManagementVertex candidateVertex = getCandidateVertex(te, forward);
 			if (candidateVertex == null) {
 				// Pop it from the stack
-				this.traversalStack.pop();
+				traversalStack.pop();
 			} else {
 				// Create new entry and put it on the stack
 				final TraversalEntry newte = new TraversalEntry(candidateVertex, 0, 0);
-				this.traversalStack.push(newte);
-				this.alreadyVisited.add(candidateVertex);
+				traversalStack.add(newte);
 				break;
 			}
 
-		} while (!this.traversalStack.isEmpty());
+		} while (!traversalStack.isEmpty());
+
+		// Mark vertex as already visited
+		alreadyVisited.add(returnVertex);
 
 		return returnVertex;
 	}
@@ -399,7 +397,7 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 						LOG.error("Inconsistency in vertex map found (backward)!");
 					}
 					te.increaseCurrentChannel();
-					if (!this.alreadyVisited.contains(source)) {
+					if (!alreadyVisited.contains(source)) {
 						return source;
 					}
 				}

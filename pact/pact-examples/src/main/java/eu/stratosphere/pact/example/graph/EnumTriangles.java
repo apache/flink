@@ -21,8 +21,8 @@ import java.util.StringTokenizer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
@@ -281,9 +281,9 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		String edgeInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
-		FileDataSourceContract<Edge, PactNull> edges = new FileDataSourceContract<Edge, PactNull>(EdgeListInFormat.class,
+		DataSourceContract<Edge, PactNull> edges = new DataSourceContract<Edge, PactNull>(EdgeListInFormat.class,
 			edgeInput);
-		edges.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		edges.setFormatParameter("delimiter", "\n");
 		edges.setDegreeOfParallelism(noSubTasks);
 		edges.setOutputContract(UniqueKey.class);
 
@@ -299,7 +299,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			CloseTriads.class, "Close Triads");
 		closeTriads.setDegreeOfParallelism(noSubTasks);
 
-		FileDataSinkContract<PactNull, EdgeList> triangles = new FileDataSinkContract<PactNull, EdgeList>(
+		DataSinkContract<PactNull, EdgeList> triangles = new DataSinkContract<PactNull, EdgeList>(
 			EdgeListOutFormat.class, output);
 		triangles.setDegreeOfParallelism(noSubTasks);
 

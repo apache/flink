@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -75,7 +75,7 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 			long totalMemory,
 			SerializationFactory<K> keySerialization, SerializationFactory<V> valueSerialization,
 			Comparator<K> keyComparator, Reader<KeyValuePair<K, V>> reader,
-			AbstractInvokable parentTask)
+			AbstractTask parentTask)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, totalMemory, 
@@ -101,7 +101,7 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractInvokable parentTask)
+			AbstractTask parentTask)
 	{
 		this.bufferIterator = new BufferQueueIterator(queues);
 		setResultIterator(this.bufferIterator);
@@ -142,7 +142,7 @@ public class AsynchronousPartialSorter<K extends Key, V extends Value> extends U
 				MemoryManager memoryManager, IOManager ioManager,
 				SerializationFactory<K> keySerializer, SerializationFactory<V> valSerializer,
 				long writeMemSize, long readMemSize,
-				AbstractInvokable parentTask)
+				AbstractTask parentTask)
 		{
 			super(exceptionHandler, "Partial Sorter Iterator Thread.", queues, parentTask);
 		}

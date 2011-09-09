@@ -28,8 +28,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
@@ -149,37 +149,37 @@ public class MatchITCase extends TestBase
 
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		FileDataSourceContract<PactString, PactString> input_left = new FileDataSourceContract<PactString, PactString>(
+		DataSourceContract<PactString, PactString> input_left = new DataSourceContract<PactString, PactString>(
 				MatchTestInFormat.class, pathPrefix + "/match_left");
-		input_left.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		input_left.setFormatParameter("delimiter", "\n");
 		input_left.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
-		FileDataSourceContract<PactString, PactString> input_right = new FileDataSourceContract<PactString, PactString>(
+		DataSourceContract<PactString, PactString> input_right = new DataSourceContract<PactString, PactString>(
 				MatchTestInFormat.class, pathPrefix + "/match_right");
-		input_right.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		input_right.setFormatParameter("delimiter", "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
 		MatchContract<PactString, PactString, PactString, PactString, PactInteger> testMatcher = new MatchContract<PactString, PactString, PactString, PactString, PactInteger>(
 				TestMatcher.class);
 		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
-		testMatcher.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testMatcher.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("MatchTest#LocalStrategy", ""));
 		if (config.getString("MatchTest#ShipStrategy", "").equals("BROADCAST_FIRST")) {
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
+			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
 					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
+			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
 					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
 		} else if (config.getString("MatchTest#ShipStrategy", "").equals("BROADCAST_SECOND")) {
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
+			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
 					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
+			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
 					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
 		} else {
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+			testMatcher.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
 					config.getString("MatchTest#ShipStrategy", ""));
 		}
 
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
+		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
 				MatchTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 

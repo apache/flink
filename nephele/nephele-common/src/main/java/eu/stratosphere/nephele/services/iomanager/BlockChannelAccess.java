@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -25,26 +25,18 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 /**
  * A base class for readers and writers that accept read or write requests for whole blocks.
  * The request is delegated to an asynchronous I/O thread. After completion of the I/O request, the memory
- * segment of the block is added to a collection to be returned.
- * <p>
- * The asynchrony of the access makes it possible to implement read-ahead or write-behind types of I/O accesses.
+ * segment of the block is added to a queue to be returned.
  * 
  * @author Stephan Ewen
- * 
- * @param <R> The type of request (e.g. <tt>ReadRequest</tt> or <tt>WriteRequest</tt> issued by this access to
- *            the I/O threads.
- * @param <C> The type of collection used to collect the segments from completed requests. Those segments are for
- *            example for write requests the written and reusable segments, and for read requests the now full
- *            and usable segments. The collection type may for example be a synchronized queue or an unsynchronized
- *            list. 
+ * @param <T> The buffer type used for the underlying IO operations.
  */
-public abstract class BlockChannelAccess<R extends IORequest, C extends Collection<MemorySegment>> extends ChannelAccess<MemorySegment, R>
+public abstract class BlockChannelAccess<T extends Buffer> extends ChannelAccess<T>
 {	
 	/**
 	 * The lock that is used during closing to synchronize the thread that waits for all
-	 * requests to be handled with the asynchronous I/O thread.
+	 * requests to be handled, and the asynchronous I/I thread.
 	 */
-	protected final Object closeLock = new Object();
+	private final Object closeLock = new Object();
 	
 	/**
 	 * An atomic integer that counts the number of buffers we still wait for to return.
@@ -52,9 +44,9 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	protected final AtomicInteger requestsNotReturned = new AtomicInteger(0);
 	
 	/**
-	 * The collection gathering the processed buffers that are ready to be (re)used.
+	 * The queue containing the empty buffers that are ready to be reused.
 	 */
-	protected final C returnBuffers;
+	protected final LinkedBlockingQueue<MemorySegment> returnBuffers;
 	
 	/**
 	 * Flag marking this channel as closed;
@@ -64,9 +56,9 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a new channel access to the path indicated by the given ID. The channel accepts buffers to be
-	 * read/written and hands them to the asynchronous I/O thread. After being processed, the buffers 
-	 * are returned by adding the to the given queue.
+	 * Creates a new channel to the path indicated by the given ID. The channel accepts buffers to be written
+	 * and hands them to the asynchronous I/O thread. After being processed, the buffers' memory segments are
+	 * returned by adding the to the given queue.
 	 * 
 	 * @param channelID The id describing the path of the file that the channel accessed.
 	 * @param requestQueue The queue that this channel hands its IO requests to.
@@ -75,8 +67,8 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	 *                     than in read-only mode.
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
-	protected BlockChannelAccess(Channel.ID channelID, RequestQueue<R> requestQueue,
-			C returnQueue, boolean writeEnabled)
+	protected BlockChannelAccess(Channel.ID channelID, RequestQueue<IORequest<T>> requestQueue,
+			LinkedBlockingQueue<MemorySegment> returnQueue, boolean writeEnabled)
 	throws IOException
 	{
 		super(channelID, requestQueue, writeEnabled);
@@ -89,16 +81,6 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Gets the queue (or list) to which the asynchronous reader adds its elements.
-	 * 
-	 * @return The queue (or list) to which the asynchronous reader adds its elements.
-	 */
-	public C getReturnQueue()
-	{
-		return this.returnBuffers;
-	}
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#isClosed()
@@ -113,9 +95,10 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#returnBuffer(eu.stratosphere.nephele.services.iomanager.Buffer)
 	 */
 	@Override
-	protected void returnBuffer(MemorySegment buffer)
+	protected void returnBuffer(T buffer)
 	{
-		this.returnBuffers.add(buffer);
+		final MemorySegment s = buffer.dispose();
+		this.returnBuffers.add(s);
 		
 		// decrement the number of missing buffers. If we are currently closing, notify the 
 		if (this.closed) {
@@ -132,9 +115,8 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	}
 	
 	/**
-	 * Closes the reader and waits until all pending asynchronous requests are
-	 * handled. Even if an exception interrupts the closing, the underlying <tt>FileChannel</tt> is
-	 * closed.
+	 * Closes the reader and waits until all asynchronous requests that have not yet been handled are
+	 * handled.
 	 * 
 	 * @throws IOException Thrown, if an I/O exception occurred while waiting for the buffers, or if
 	 *                     the closing was interrupted.
@@ -153,9 +135,8 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 				// only then is everything guaranteed to be consistent.{
 				while (this.requestsNotReturned.get() > 0) {
 					try {
-						// we add a timeout here, because it is not guaranteed that the
+						// we add a timeout here, because it is not completely guaranteed that the
 						// decrementing during buffer return and the check here are deadlock free.
-						// the deadlock situation is however unlikely and caught by the timeout
 						this.closeLock.wait(1000);
 						checkErroneous();
 					}
@@ -171,98 +152,5 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 				}
 			}
 		}
-	}
-	
-	/**
-	 * This method waits for all pending asynchronous requests to return. When the
-	 * last request has returned, the channel is closed and deleted.
-	 * 
-	 * Even if an exception interrupts the closing, such that not all request are handled,
-	 * the underlying <tt>FileChannel</tt> is closed and deleted.
-	 * 
-	 * @throws IOException Thrown, if an I/O exception occurred while waiting for the buffers, or if
-	 *                     the closing was interrupted.
-	 */
-	public void closeAndDelete() throws IOException
-	{
-		try {
-			close();
-		}
-		finally {
-			deleteChannel();
-		}
-	}
-	
-}
-
-//--------------------------------------------------------------------------------------------
-
-/**
- * Special read request that reads an entire memory segment from a block reader.
- */
-final class SegmentReadRequest implements ReadRequest
-{
-	private final BlockChannelAccess<ReadRequest, ?> channel;
-	
-	private final MemorySegment segment;
-	
-	protected SegmentReadRequest(BlockChannelAccess<ReadRequest, ?> targetChannel, MemorySegment segment)
-	{
-		this.channel = targetChannel;
-		this.segment = segment;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
-	 */
-	@Override
-	public void read() throws IOException
-	{
-		this.channel.fileChannel.read(this.segment.wrap(0, this.segment.size()));
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
-	 */
-	@Override
-	public void requestDone(IOException ioex)
-	{
-		this.channel.handleProcessedBuffer(this.segment, ioex);
-	}
-}
-
-//--------------------------------------------------------------------------------------------
-
-/**
- * Special write request that writes an entire memory segment to the block writer.
- */
-final class SegmentWriteRequest implements WriteRequest
-{
-	private final BlockChannelAccess<WriteRequest, ?> channel;
-	
-	private final MemorySegment segment;
-	
-	protected SegmentWriteRequest(BlockChannelAccess<WriteRequest, ?> targetChannel, MemorySegment segment)
-	{
-		this.channel = targetChannel;
-		this.segment = segment;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
-	 */
-	@Override
-	public void write() throws IOException
-	{
-		this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
-	 */
-	@Override
-	public void requestDone(IOException ioex)
-	{
-		this.channel.handleProcessedBuffer(this.segment, ioex);
 	}
 }

@@ -15,16 +15,14 @@
 
 package eu.stratosphere.nephele.io.compression.library.bzip2;
 
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.util.NativeCodeLoader;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class Bzip2Library extends AbstractCompressionLibrary {
+public class Bzip2Library implements CompressionLibrary {
 
 	/**
 	 * The file name of the native bzip2 library.
@@ -48,6 +46,18 @@ public class Bzip2Library extends AbstractCompressionLibrary {
 	}
 
 	@Override
+	public Compressor getCompressor() throws CompressionException {
+
+		return new Bzip2Compressor();
+	}
+
+	@Override
+	public Decompressor getDecompressor() throws CompressionException {
+
+		return new Bzip2Decompressor();
+	}
+
+	@Override
 	public int getUncompressedBufferSize(int compressedBufferSize) {
 
 		/*
@@ -60,19 +70,5 @@ public class Bzip2Library extends AbstractCompressionLibrary {
 	@Override
 	public String getLibraryName() {
 		return "BZIP2";
-	}
-
-	@Override
-	protected Compressor initNewCompressor(AbstractByteBufferedOutputChannel<?> outputChannel)
-			throws CompressionException {
-
-		return new Bzip2Compressor(this);
-	}
-
-	@Override
-	protected Decompressor initNewDecompressor(AbstractByteBufferedInputChannel<?> inputChannel)
-			throws CompressionException {
-
-		return new Bzip2Decompressor(this);
 	}
 }

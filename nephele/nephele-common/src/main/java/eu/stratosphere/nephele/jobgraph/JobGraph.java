@@ -766,7 +766,7 @@ public class JobGraph implements IOReadableWritable {
 	 */
 	public Path[] getJars() {
 
-		return userJars.toArray(new Path[userJars.size()]);
+		return userJars.toArray(new Path[0]);
 	}
 
 	/**

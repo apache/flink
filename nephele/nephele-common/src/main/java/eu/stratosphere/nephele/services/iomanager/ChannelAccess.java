@@ -32,7 +32,7 @@ import java.nio.channels.FileChannel;
  * 
  * @param <T> The buffer type used for the underlying IO operations.
  */
-public abstract class ChannelAccess<T, R extends IORequest>
+public abstract class ChannelAccess<T extends Buffer>
 {
 	/**
 	 * The ID of the underlying channel.
@@ -48,7 +48,7 @@ public abstract class ChannelAccess<T, R extends IORequest>
 	 * A request queue for submitting asynchronous requests to the corresponding
 	 * IO worker thread.
 	 */
-	protected final RequestQueue<R> requestQueue;
+	protected final RequestQueue<IORequest<T>> requestQueue;
 	
 	/**
 	 * An exception that was encountered by the asynchronous request handling thread.
@@ -68,7 +68,7 @@ public abstract class ChannelAccess<T, R extends IORequest>
 	 *                     than in read-only mode.
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
-	protected ChannelAccess(Channel.ID channelID, RequestQueue<R> requestQueue, boolean writeEnabled)
+	protected ChannelAccess(Channel.ID channelID, RequestQueue<IORequest<T>> requestQueue, boolean writeEnabled)
 	throws IOException
 	{
 		if (channelID == null || requestQueue == null) {
@@ -120,13 +120,12 @@ public abstract class ChannelAccess<T, R extends IORequest>
 	 * Deletes this channel by physically removing the file beneath it.
 	 * This method may only be called on a closed channel.
 	 */
-	public void deleteChannel()
-	{
+	public void deleteChannel() {
 		if (fileChannel.isOpen()) {
 			throw new IllegalStateException("Cannot delete a channel that is open.");
 		}
 	
-		// make a best effort to delete the file. Don't report exceptions.
+		// make a best effort to delete the file. Don't report exceptions
 		try {
 			File f = new File(this.id.getPath());
 			if (f.exists()) {
@@ -143,7 +142,7 @@ public abstract class ChannelAccess<T, R extends IORequest>
 	 * 
 	 * @param buffer The buffer to be processed.
 	 */
-	protected final void handleProcessedBuffer(T buffer, IOException ex) {
+	final void handleProcessedBuffer(T buffer, IOException ex) {
 		
 		if (ex != null && this.exception == null) {
 			this.exception = ex;
@@ -166,4 +165,27 @@ public abstract class ChannelAccess<T, R extends IORequest>
 		}
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * An wrapper class for submitting IO requests to a centralized asynchronous
+	 * IO worker thread. A request consists of an IO buffer to be processed and
+	 * a reference to the {@link StreamChannelAccess} object submitting the request.
+	 * 
+	 * @author Alexander Alexandrov
+	 * @param <T> The buffer type for this request.
+	 */
+	protected static final class IORequest<T extends Buffer>
+	{
+		protected final ChannelAccess<T> channel;
+
+		protected final T buffer;
+
+		protected IORequest(ChannelAccess<T> targetChannel, T buffer) {
+			this.channel = targetChannel;
+			this.buffer = buffer;
+		}
+		
+	}
+
 }

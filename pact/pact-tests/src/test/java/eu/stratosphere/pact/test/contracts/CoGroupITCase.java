@@ -30,8 +30,8 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -152,25 +152,25 @@ public class CoGroupITCase extends TestBase
 
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		FileDataSourceContract<PactString, PactString> input_left = new FileDataSourceContract<PactString, PactString>(
+		DataSourceContract<PactString, PactString> input_left = new DataSourceContract<PactString, PactString>(
 				CoGroupTestInFormat.class, pathPrefix + "/cogroup_left");
-		input_left.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		input_left.setFormatParameter("delimiter", "\n");
 		input_left.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		FileDataSourceContract<PactString, PactString> input_right = new FileDataSourceContract<PactString, PactString>(
+		DataSourceContract<PactString, PactString> input_right = new DataSourceContract<PactString, PactString>(
 				CoGroupTestInFormat.class, pathPrefix + "/cogroup_right");
-		input_right.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		input_right.setFormatParameter("delimiter", "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		CoGroupContract<PactString, PactString, PactString, PactString, PactInteger> testCoGrouper = new CoGroupContract<PactString, PactString, PactString, PactString, PactInteger>(
 				TestCoGrouper.class);
 		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
-		testCoGrouper.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testCoGrouper.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("CoGroupTest#LocalStrategy", ""));
-		testCoGrouper.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+		testCoGrouper.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
 				config.getString("CoGroupTest#ShipStrategy", ""));
 
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
+		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
 				CoGroupOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 

@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.instance.cluster;
 import java.io.File;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -253,13 +252,12 @@ public class ClusterManagerTest {
 			// now we should be able to request two instances of type small and one of type medium
 			final JobID jobID = new JobID();
 			final Configuration conf = new Configuration();
-			
-			Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
-			instanceMap.put(cm.getInstanceTypeByName(SMALL_INSTANCE_TYPE_NAME), 2);
-			instanceMap.put(cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME), 1);
 
 			try {
-				cm.requestInstance(jobID, conf, instanceMap, null);
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(SMALL_INSTANCE_TYPE_NAME));
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(SMALL_INSTANCE_TYPE_NAME));
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME));
+
 			} catch (InstanceException ie) {
 				fail(ie.getMessage());
 			}
@@ -286,9 +284,8 @@ public class ClusterManagerTest {
 
 			// Try to allocate more resources which must result in an error
 			try {
-				Map<InstanceType, Integer> instancem = new HashMap<InstanceType, Integer>();
-				instancem.put(cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME), 1);
-				cm.requestInstance(jobID, conf, instancem, null);
+
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(MEDIUM_INSTANCE_TYPE_NAME));
 
 				fail("ClusterManager allowed to request more instances than actually available");
 
@@ -309,9 +306,7 @@ public class ClusterManagerTest {
 
 			// Now further allocations should be possible
 			try {
-				Map<InstanceType, Integer> instancem = new HashMap<InstanceType, Integer>();
-				instancem.put(cm.getInstanceTypeByName(LARGE_INSTANCE_TYPE_NAME), 1);
-				cm.requestInstance(jobID, conf, instancem, null);
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(LARGE_INSTANCE_TYPE_NAME));
 			} catch (InstanceException ie) {
 				fail(ie.getMessage());
 			}
@@ -350,9 +345,7 @@ public class ClusterManagerTest {
 
 			try {
 
-				Map<InstanceType, Integer> instancem = new HashMap<InstanceType, Integer>();
-				instancem.put(cm.getInstanceTypeByName(LARGE_INSTANCE_TYPE_NAME), 1);
-				cm.requestInstance(jobID, conf, instancem, null);
+				cm.requestInstance(jobID, conf, cm.getInstanceTypeByName(LARGE_INSTANCE_TYPE_NAME));
 
 			} catch (InstanceException ie) {
 				fail(ie.getMessage());

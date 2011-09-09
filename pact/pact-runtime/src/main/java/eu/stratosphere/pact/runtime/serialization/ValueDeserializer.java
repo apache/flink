@@ -31,15 +31,15 @@ import eu.stratosphere.pact.common.type.Value;
  *
  * @param <V>
  */
-public class ValueDeserializer<V extends Value> implements RecordDeserializer<V> {
+public class ValueDeserializer<V extends Value> implements RecordDeserializer<Value> {
 
 	private ClassLoader classLoader;
-	private Class<V> valueClass;
+	private Class<Value> valueClass;
 
 	public ValueDeserializer() {
 	}
 
-	public ValueDeserializer(Class<V> valueClass) {
+	public ValueDeserializer(Class<Value> valueClass) {
 		this.valueClass = valueClass;
 	}
 
@@ -48,9 +48,9 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<V>
 	 * @see eu.stratosphere.nephele.io.RecordDeserializer#deserialize(java.io.DataInput)
 	 */
 	@Override
-	public V deserialize(DataInput in) {
+	public Value deserialize(DataInput in) {
 		try {
-			V value = getInstance();
+			Value value = getInstance();
 			value.read(in);
 			return value;
 		} catch (Exception e) {
@@ -63,7 +63,7 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<V>
 	 * @see eu.stratosphere.nephele.io.RecordDeserializer#getRecordType()
 	 */
 	@Override
-	public Class<V> getRecordType() {
+	public Class<Value> getRecordType() {
 		return valueClass;
 	}
 
@@ -75,7 +75,7 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<V>
 	@Override
 	public void read(DataInput in) throws IOException {
 		try {
-			this.valueClass = (Class<V>) Class.forName(StringRecord.readString(in), true, this.classLoader);
+			this.valueClass = (Class<Value>) Class.forName(StringRecord.readString(in), true, this.classLoader);
 		} catch (ClassNotFoundException e) {
 			throw new IOException(StringUtils.stringifyException(e));
 		}
@@ -105,7 +105,7 @@ public class ValueDeserializer<V extends Value> implements RecordDeserializer<V>
 	 * @see eu.stratosphere.nephele.io.RecordDeserializer#getInstance()
 	 */
 	@Override
-	public V getInstance() {
+	public Value getInstance() {
 		try {
 			return valueClass.newInstance();
 		} catch (Exception e) {

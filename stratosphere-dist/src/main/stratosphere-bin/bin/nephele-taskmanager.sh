@@ -34,7 +34,7 @@ fi
 # Nephele TaskManager
 constructTaskManagerClassPath() {
 
-	for jarfile in $NEPHELE_LIB_DIR/*.jar ; do
+	for jarfile in `dir -d $NEPHELE_LIB_DIR/*.jar` ; do
 
 		add=0
 
@@ -45,8 +45,6 @@ constructTaskManagerClassPath() {
 		elif [[ "$jarfile" =~ 'nephele-management' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-hdfs' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'nephele-s3' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-profiling' ]]; then
 			add=1
@@ -63,14 +61,6 @@ constructTaskManagerClassPath() {
 		elif [[ "$jarfile" =~ 'log4j' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'hadoop-core' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'httpcore' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'httpclient' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
-			add=1
-		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
 			add=1
 		fi
 

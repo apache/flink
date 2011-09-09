@@ -77,7 +77,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		
 		DataSourceTask testTask = new DataSourceTask();
 		
-		super.registerFileInputTask(testTask, MockInputFormat.class, "file://"+tempTestPath, "\n");
+		super.registerTask(testTask, MockInputFormat.class, "file://"+tempTestPath, "\n");
 		
 		try {
 			testTask.invoke();
@@ -134,7 +134,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		DataSourceTask testTask = new DataSourceTask();
 
 		
-		super.registerFileInputTask(testTask, MockFailingInputFormat.class, "file://"+tempTestPath, "\n");
+		super.registerTask(testTask, MockFailingInputFormat.class, "file://"+tempTestPath, "\n");
 		
 		boolean stubFailed = false;
 		
@@ -170,7 +170,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		
 		final DataSourceTask testTask = new DataSourceTask();
 		
-		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  "file://"+tempTestPath, "\n");
+		super.registerTask(testTask, MockDelayingInputFormat.class,  "file://"+tempTestPath, "\n");
 		
 		Thread taskRunner = new Thread() {
 			public void run() {

@@ -25,14 +25,15 @@ import java.util.Map;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.OutputContractConfigurable;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -62,8 +63,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public enum PactType {
 		Cogroup(CoGroupContract.class),
 		Cross(CrossContract.class),
-		DataSource(FileDataSourceContract.class),
-		DataSink(FileDataSinkContract.class),
+		DataSource(DataSourceContract.class),
+		DataSink(DataSinkContract.class),
 		Map(MapContract.class),
 		Match(MatchContract.class),
 		Reduce(ReduceContract.class);
@@ -645,7 +646,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 		// get all annotations on the class
 		if (oc == null) {
-			Class<?> stubClass = getPactContract().getUserCodeClass();
+			Class<? extends Stub<?, ?>> stubClass = getPactContract().getStubClass();
 			Annotation[] allAnnotations = stubClass.getAnnotations();
 
 			// for each annotation, see if it is a output contract annotation

@@ -18,8 +18,8 @@ package eu.stratosphere.pact.example.wordcount;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
@@ -154,7 +154,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
-		FileDataSourceContract<PactNull, PactString> data = new FileDataSourceContract<PactNull, PactString>(
+		DataSourceContract<PactNull, PactString> data = new DataSourceContract<PactNull, PactString>(
 				LineInFormat.class, dataInput, "Input Lines");
 		data.setDegreeOfParallelism(noSubTasks);
 
@@ -166,7 +166,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 				CountWords.class, "Count Words");
 		reducer.setDegreeOfParallelism(noSubTasks);
 
-		FileDataSinkContract<PactString, PactInteger> out = new FileDataSinkContract<PactString, PactInteger>(
+		DataSinkContract<PactString, PactInteger> out = new DataSinkContract<PactString, PactInteger>(
 				WordCountOutFormat.class, output, "Output");
 		out.setDegreeOfParallelism(noSubTasks);
 

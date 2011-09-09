@@ -29,6 +29,8 @@ import static org.junit.Assert.fail;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
@@ -48,6 +50,11 @@ public class EnvironmentTest {
 	 * The job ID to be used during the tests.
 	 */
 	private static final JobID JOB_ID = new JobID();
+
+	/**
+	 * The file path used for generating the test input splits
+	 */
+	private static final Path FILE_PATH = new Path("file:///test.txt");
 
 	/**
 	 * This enumeration defines three possible execution scenarios.
@@ -261,6 +268,7 @@ public class EnvironmentTest {
 			assertEquals(orig.getExecutionState(), copy.getExecutionState());
 			assertEquals(orig.getCurrentNumberOfSubtasks(), copy.getCurrentNumberOfSubtasks());
 			assertEquals(orig.getIndexInSubtaskGroup(), copy.getIndexInSubtaskGroup());
+			assertEquals(orig.getNumberOfInputSplits(), copy.getNumberOfInputSplits());
 
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
@@ -415,6 +423,12 @@ public class EnvironmentTest {
 
 		env.setCurrentNumberOfSubtasks(2);
 		env.setIndexInSubtaskGroup(0);
+
+		final FileInputSplit split1 = new FileInputSplit(FILE_PATH, 0, 100, null);
+		final FileInputSplit split2 = new FileInputSplit(FILE_PATH, 100, 200, null);
+
+		env.addInputSplit(split1);
+		env.addInputSplit(split2);
 
 		return env;
 	}

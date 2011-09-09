@@ -30,6 +30,7 @@ import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemoryBacked;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.services.memorymanager.RandomAccessView;
 import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
@@ -52,10 +53,6 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * |        heap       |       empty      |                  stack                   |
  * | pair | pair | pair | ... | ... | ... | ... | offset (4 bytes) | index (8 bytes) |
- * 
- * TODO: Rewrite this class to work with collections of small buffers. The buffers will be concatenated to form
- * two lists: One containing the records (preceded by the record length), the other one containing normalized keys
- * and pointers.
  * 
  * @author Erik Nijkamp
  * @param <K>
@@ -362,6 +359,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	
 	private HeapStackDataOutputView outputView;
 	
+	private RandomAccessView randomAccessView;
+	
 	private int position;
 	
 	private int pairsCount;
@@ -403,8 +402,9 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	public boolean bind(MemorySegment memory) {
 		if (super.bind(memory)) {
 			
-			this.outputView = new HeapStackDataOutputView(memory.getBackingArray(),
-				memory.translateOffset(0), memory.size());
+			this.outputView = new HeapStackDataOutputView(memory.randomAccessView.getBackingArray(),
+				memory.randomAccessView.translateOffset(0), memory.randomAccessView.size());
+			this.randomAccessView = memory.randomAccessView;
 
 			// reset counters
 			reset();
@@ -510,12 +510,12 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 			
 			// b. write offset (pointer into segment)
 			this.outputView.growStack(OFFSET_LEN);
-			this.memory.putInt(this.outputView.getStackEndRel(), offset);
+			this.memory.randomAccessView.putInt(this.outputView.getStackEndRel(), offset);
 
 			// c. write physical position (pointer to offset)
 			final int physicalPos = outputView.getStackEndRel();
 			this.outputView.growStack(OFFSET_POSITION_LEN);
-			this.memory.putInt(this.outputView.getStackEndRel(), physicalPos);
+			this.memory.randomAccessView.putInt(this.outputView.getStackEndRel(), physicalPos);
 
 			// 3). UPDATE WRITE POSITION
 			this.pairsCount++;
@@ -531,21 +531,21 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	
 	private final int readPairOffset(int physicalOffsetPosition)
 	{
-		return this.memory.getInt(physicalOffsetPosition);
+		return memory.randomAccessView.getInt(physicalOffsetPosition);
 	}
 	
 	private final void writeOffsetPosition(int logicalPosition, int offset)
 	{
 		final int stackoffset = (logicalPosition + 1) * STACK_ENTRY_SIZE;
 		final int memoryoffset = this.outputView.getSize() - stackoffset;
-		this.memory.putInt(memoryoffset, offset);
+		this.randomAccessView.putInt(memoryoffset, offset);
 	}
 	
 	private final int readOffsetPosition(int logicalPosition)
 	{
 		final int stackoffset = (logicalPosition + 1) * STACK_ENTRY_SIZE;
 		final int memoryoffset = this.outputView.getSize() - stackoffset;
-		return this.memory.getInt(memoryoffset);
+		return this.randomAccessView.getInt(memoryoffset);
 	}
 
 	// ------------------------------------------------------------------------
@@ -633,7 +633,7 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	@Override
 	public int compare(int i, int j)
 	{
-		final byte[] backingArray = this.memory.getBackingArray();
+		final byte[] backingArray = this.randomAccessView.getBackingArray();
 		
 		// offsets into index
 		final int offsetPositionI = readOffsetPosition(i);
@@ -644,8 +644,8 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		final int indexJ = readPairOffset(offsetPositionJ);
 		
 		return comparator.compare(backingArray, backingArray, 
-			this.memory.translateOffset(indexI),
-			this.memory.translateOffset(indexJ));
+			this.randomAccessView.translateOffset(indexI),
+			this.randomAccessView.translateOffset(indexJ));
 	}
 
 	@Override

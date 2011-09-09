@@ -28,8 +28,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.io.TextOutputFormat;
@@ -123,16 +123,16 @@ public class MapITCase extends TestBase
 	protected JobGraph getJobGraph() throws Exception {
 		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
 		
-		FileDataSourceContract<PactString, PactString> input = new FileDataSourceContract<PactString, PactString>(
+		DataSourceContract<PactString, PactString> input = new DataSourceContract<PactString, PactString>(
 			MapTestInFormat.class, pathPrefix+"/mapInput");
-		input.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		input.setFormatParameter("delimiter", "\n");
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		MapContract<PactString, PactString, PactString, PactInteger> testMapper = new MapContract<PactString, PactString, PactString, PactInteger>(
 			TestMapper.class);
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
+		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
 			MapTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 

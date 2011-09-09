@@ -12,7 +12,6 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-
 package eu.stratosphere.pact.testing;
 
 import java.io.IOException;

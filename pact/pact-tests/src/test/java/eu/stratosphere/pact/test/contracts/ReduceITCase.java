@@ -29,8 +29,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.TextInputFormat;
@@ -140,20 +140,20 @@ public class ReduceITCase extends TestBase
 	protected JobGraph getJobGraph() throws Exception {
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		FileDataSourceContract<PactString, PactString> input = new FileDataSourceContract<PactString, PactString>(
+		DataSourceContract<PactString, PactString> input = new DataSourceContract<PactString, PactString>(
 				ReduceTestInFormat.class, pathPrefix + "/reduceInput");
-		input.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		input.setFormatParameter("delimiter", "\n");
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
 		ReduceContract<PactString, PactString, PactString, PactInteger> testReducer = new ReduceContract<PactString, PactString, PactString, PactInteger>(
 				TestReducer.class);
 		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
-		testReducer.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testReducer.getStubParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("ReduceTest#LocalStrategy", ""));
-		testReducer.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+		testReducer.getStubParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
 				config.getString("ReduceTest#ShipStrategy", ""));
 
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
+		DataSinkContract<PactString, PactInteger> output = new DataSinkContract<PactString, PactInteger>(
 				ReduceTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 

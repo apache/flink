@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.io.compression;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 
 public interface Compressor {
 
@@ -67,12 +66,9 @@ public interface Compressor {
 	 *         or <code>0</code> for any other compression level.
 	 */
 	int getCurrentInternalCompressionLibraryIndex();
-
+	
 	/**
 	 * Stops the compressor and releases all allocated internal resources.
-	 * 
-	 * @param channelID
-	 *        the ID of the channel requesting the shut down
 	 */
-	void shutdown(ChannelID channelID);
+	void shutdown();
 }

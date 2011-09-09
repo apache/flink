@@ -215,41 +215,6 @@ public class CrossTaskTest extends TaskTestBase {
 		
 	}
 	
-	@Test
-	public void testEmptyCrossTask() {
-
-		int keyCnt1 = 10;
-		int valCnt1 = 1;
-		
-		int keyCnt2 = 0;
-		int valCnt2 = 0;
-		
-		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
-		
-		CrossTask testTask = new CrossTask();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
-		
-		super.registerTask(testTask, MockCrossStub.class);
-		
-		try {
-			testTask.invoke();
-		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
-		}
-		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
-		
-		outList.clear();
-		
-	}
-	
 	
 	
 	@Test

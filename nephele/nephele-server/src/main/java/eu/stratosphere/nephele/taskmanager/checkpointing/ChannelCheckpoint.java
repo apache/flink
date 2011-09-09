@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManag
 import eu.stratosphere.nephele.taskmanager.bytebuffered.CheckpointOutgoingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeDeserializer;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TransferEnvelopeSerializer;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -76,12 +75,12 @@ public class ChannelCheckpoint {
 		this.executionVertexID = executionVertexID;
 		this.sourceChannelID = sourceChannelID;
 		this.tmpDir = tmpDir;
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
 	}
 
 	public synchronized void addToCheckpoint(TransferEnvelope transferEnvelope) throws IOException {
 
 		if (transferEnvelope.getSequenceNumber() != this.expectedSequenceNumber) {
+		this.byteBufferedChannelManager = byteBufferedChannelManager;
 			throw new IOException("Expected envelope with sequence number " + this.expectedSequenceNumber
 				+ " but received " + transferEnvelope.getSequenceNumber());
 		}
@@ -97,6 +96,7 @@ public class ChannelCheckpoint {
 			this.writeEnvelopeToDisk(transferEnvelope);
 		} else {
 			if(!this.queuedEnvelopes.contains(transferEnvelope)){
+			//System.out.println("add transferenvelop " + transferEnvelope.getSequenceNumber());
 			// Queue the buffer until there is a checkpointing decision
 			this.queuedEnvelopes.add(transferEnvelope);
 			}
@@ -117,7 +117,7 @@ public class ChannelCheckpoint {
 		}
 		if (this.fileChannel == null) {
 
-			final FileOutputStream fos = new FileOutputStream(getFilename(), true);
+			final FileOutputStream fos = new FileOutputStream(getFilename());
 			this.fileChannel = fos.getChannel();
 		}
 
@@ -126,14 +126,15 @@ public class ChannelCheckpoint {
 		}
 
 		this.transferEnvelopeSerializer.setTransferEnvelope(duplicatTransferEnvelope);
+//		System.out.println("writing envelope " + duplicatTransferEnvelope.getSequenceNumber()); 
 		FileLock lock = this.fileChannel.lock();
 		while (this.transferEnvelopeSerializer.write(this.fileChannel));
-		this.fileChannel.force(true);
 		lock.release();
 		transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
 		if(this.finishCheckpoint){
 			transferEnvelope.getProcessingLog().setSentViaNetwork();
 		}
+		
 	}
 
 	public synchronized void makePersistent() throws IOException {
@@ -152,10 +153,7 @@ public class ChannelCheckpoint {
 		if (this.fileChannel != null) {
 			this.fileChannel.close();
 		}
-		LOG.debug("Checkpoint "+ getFilename() + " finished");
-		if(this.outgoingConnection != null){
-			this.outgoingConnection.reportCheckpointFinished();
-		}
+
 		this.checkpointFinished = true;
 	}
 
@@ -185,11 +183,15 @@ public class ChannelCheckpoint {
 		}
 	}
 
-	/**
-	 * Sends the serialized data from the ChannelCheckpoint to the receiver via network. 
-	 * @param byteBufferedChannelManager
-	 */
 	public synchronized void recover(ByteBufferedChannelManager byteBufferedChannelManager) {
+
+		if (!this.checkpointFinished) {
+			LOG.error("Checkpoint is not finished!");
+		}
+
+		if (this.fileChannel.isOpen()) {
+			LOG.error("File channel is still open!");
+		}
 
 		// The name of the file which contains the checkpoint
 		final String filename = getFilename();
@@ -214,37 +216,36 @@ public class ChannelCheckpoint {
 		}
 
 		this.fileInputChannel = fis.getChannel();
+		if(this.fileInputChannel == null ){
+			LOG.error("FileChannel is null");
+		}
 
 		// Start recovering
-		LOG.info("Recovering from " + filename);
-
-		if(this.outgoingConnection == null){
-			this.outgoingConnection = byteBufferedChannelManager.createOutgoingCheckpointConnection(byteBufferedChannelManager,
+		System.out.println("Recovering from " + filename);
+		//final CheckpointConnection incomingConnection = new CheckpointConnection(byteBufferedChannelManager,
+		//	this.fileInputChannel);
+		final CheckpointOutgoingConnection outgoingConnection = byteBufferedChannelManager.createOutgoingCheckpointConnection(byteBufferedChannelManager,
 			this.fileInputChannel, this.sourceChannelID);
-		}
 		try {
 			while (true) {
-				this.outgoingConnection.write();
+				outgoingConnection.write();
 			}
 		} catch (EOFException e) {
 			// EOF Exception is expected here
-			LOG.info("EOF. Checkpoint recovered.");
 		} catch (IOException e) {
 			e.printStackTrace();
-			//outgoingConnection.reportTransmissionProblem(e);
+			outgoingConnection.reportTransmissionProblem(e);
 			// TODO: Unregister external data source
 			return;
 		}
 
 		// TODO: Unregister external data source
 		try {
-			this.outgoingConnection.closeConnection();
+			outgoingConnection.closeConnection();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
-	
-	
 	public synchronized void read(ByteBufferedChannelManager byteBufferedChannelManager) {	  
 		if (!this.checkpointFinished) {
 			LOG.error("Checkpoint is not finished!");
@@ -297,7 +298,6 @@ public class ChannelCheckpoint {
 	 */
 	public void finishCheckpoint() {
 		this.finishCheckpoint = true;
-		
 	}
 	
 	public ChannelID getSourceChannelID(){

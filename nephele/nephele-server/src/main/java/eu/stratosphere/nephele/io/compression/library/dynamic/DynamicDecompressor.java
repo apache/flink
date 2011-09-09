@@ -18,8 +18,6 @@ package eu.stratosphere.nephele.io.compression.library.dynamic;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Decompressor;
@@ -30,13 +28,13 @@ public class DynamicDecompressor implements Decompressor {
 
 	private int selectedDecompressor = 0;
 
-	public DynamicDecompressor(final CompressionLibrary[] compressionLibraries,
-			final AbstractByteBufferedInputChannel<?> inputChannel) throws CompressionException {
+	public DynamicDecompressor(CompressionLibrary[] compressionLibraries)
+																			throws CompressionException {
 
 		// Initialize the different compressors
 		this.decompressors = new Decompressor[compressionLibraries.length];
 		for (int i = 0; i < this.decompressors.length; i++) {
-			this.decompressors[i] = compressionLibraries[i].getDecompressor(inputChannel);
+			this.decompressors[i] = compressionLibraries[i].getDecompressor();
 		}
 	}
 
@@ -98,10 +96,10 @@ public class DynamicDecompressor implements Decompressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown(final ChannelID channelID) {
+	public void shutdown() {
 
 		for (int i = 0; i < this.decompressors.length; i++) {
-			this.decompressors[i].shutdown(channelID);
+			this.decompressors[i].shutdown();
 		}
 	}
 }

@@ -18,12 +18,10 @@ package eu.stratosphere.pact.runtime.task.util;
 public interface MemoryBlockIterator<E> extends ResettableIterator<E> {
 
 	/**
-	 * Move the iterator to the next memory block. The next memory block starts at the first element that was not
-	 * in the block before. A special case is when no record was in the block before, which happens when this
-	 * function is invoked two times directly in a sequence, without calling hasNext() or next in between. Then
-	 * the block moves one element.
+	 * Move the iterator to the next memory block
 	 * 
 	 * @return true if a new memory block was loaded, false if there were no further records
 	 */
 	public boolean nextBlock();
+
 }

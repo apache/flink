@@ -126,7 +126,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		pred.addOutgoingConnection(conn);
 
 		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getParameters();
+		Configuration conf = getPactContract().getStubParameters();
 		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {

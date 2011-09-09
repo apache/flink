@@ -52,8 +52,6 @@ public class CompilerHints {
 
 	private float avgBytesPerRecord = -1.0f;
 
-	private Class<? extends DataDistribution> inputDistribution = null;
-
 	/**
 	 * Default constructor. Creates a new <tt>CompilerHints</tt> object
 	 * with the default values for the encapsulated fields.
@@ -81,23 +79,6 @@ public class CompilerHints {
 			throw new IllegalArgumentException("Key Cardinality must be >= 0!");
 		}
 		this.keyCardinality = keyCardinality;
-	}
-
-	/**
-	 * Gets the class that models the distribution of input data
-	 *
-	 * @return input distribution model class
-	 */
-	public Class<? extends DataDistribution> getInputDistributionClass() {
-		return inputDistribution;
-	}
-
-	/**
-	 * Set the class that models the distribution of the input data
-	 * @param cls input distribution model class
-	 */
-	public void setInputDistributionClass(Class<? extends DataDistribution> cls) {
-		this.inputDistribution = cls;
 	}
 
 	/**

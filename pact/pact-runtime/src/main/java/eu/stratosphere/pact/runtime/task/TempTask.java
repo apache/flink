@@ -32,14 +32,12 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
-import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -54,8 +52,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @author Fabian Hueske
  */
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class TempTask extends AbstractTask
-{
+public class TempTask extends AbstractTask {
+
 	// obtain TempTask logger
 	private static final Log LOG = LogFactory.getLog(TempTask.class);
 	
@@ -68,6 +66,9 @@ public class TempTask extends AbstractTask
 	// output writer
 	private RecordWriter<KeyValuePair<Key, Value>> writer;
 
+	// stub implementation of preceding PACT
+	private Stub stub;
+
 	// task configuration
 	private TaskConfig config;
 	
@@ -79,19 +80,15 @@ public class TempTask extends AbstractTask
 	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
-
-	private Class<Key> keyType;
-
-	private Class<Value> valueType;
 	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput()
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Start registering input and output"));
+	public void registerInputOutput() {
+		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// init stub of preceding PACT
 		initPrecedingStub();
@@ -102,24 +99,24 @@ public class TempTask extends AbstractTask
 		// init output writer
 		initOutputWriter();
 
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Finished registering input and output"));
+		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception
-	{
+	public void invoke() throws Exception {
 		// TODO: Replace SpillingResetableIterator by a strategy with a reading
 		// and a sending thread.
-		// --> A viable solution would be to have the spilling resettable iterator changed to receive and buffer records on the fly.
 		// Sending should start while records are read and buffered
 		// Order preserving and destroying strategies possible.
 
-		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code"));
+		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
@@ -129,22 +126,25 @@ public class TempTask extends AbstractTask
 		tempIterator = null;
 		try {
 			// obtain SpillingResettableIterator to dump pairs to disk and read again
-			tempIterator = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager, 
-					new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader),
-				this.availableMemory, new KeyValuePairDeserializer<Key, Value>(keyType, valueType),
+			tempIterator = new SpillingResettableIterator<KeyValuePair<Key, Value>>(memoryManager, ioManager, reader,
+				this.availableMemory, new KeyValuePairDeserializer<Key, Value>(stub.getOutKeyType(), stub.getOutValueType()),
 				this);
 
-			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Start temping records"));
+			LOG.debug("Start temping records: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 			// open SpillingResettableIterator
 			// all input pairs are consumed and written to disk.
 			tempIterator.open();
 			
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Finished temping records"));
-				LOG.debug(getLogString("Start serving records"));
-			}
+			LOG.debug("Finished temping records: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+			LOG.debug("Start serving records: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 			// all read pairs from SpillingResettableIterator (from disk)
 			while (!this.taskCanceled && tempIterator.hasNext()) {
@@ -154,43 +154,41 @@ public class TempTask extends AbstractTask
 				writer.emit(pair);
 			}
 
-			if (!this.taskCanceled) {
-				if (LOG.isDebugEnabled())
-					LOG.debug(getLogString("Finished serving records"));
+			if(!this.taskCanceled) {
+				LOG.debug("Finished serving records: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 			}
 
-		}
-		catch (MemoryAllocationException mae) {
+		} catch (MemoryAllocationException mae) {
 			throw new RuntimeException("Unable to obtain SpillingResettableIterator for TempTask", mae);
-		}
-		catch (ServiceException se) {
+		} catch (ServiceException se) {
 			throw new RuntimeException(se);
-		}
-		catch (IOException ioe) {
+		} catch (IOException ioe) {
 			throw new RuntimeException(ioe);
-		}
-		catch (Exception ie) {
-			if (!this.taskCanceled) {
+		} catch (Exception ie) {
+			if(!this.taskCanceled) {
 				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
 					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
 					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 				throw ie;
 			}
-		}
-		finally {
-			if (tempIterator != null) {
+		} finally {
+
+			if(tempIterator != null) {
 				// close SpillingResettableIterator
 				tempIterator.close();
 			}
 		}
 
-		if (!this.taskCanceled) {
-			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code"));
-		}
-		else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("Finished PACT code"));
+		if(!this.taskCanceled) {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		}
 	}
 	
@@ -206,8 +204,9 @@ public class TempTask extends AbstractTask
 		if(tempIterator != null) {
 			tempIterator.abort();
 		}
-		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
 	/**
@@ -234,23 +233,13 @@ public class TempTask extends AbstractTask
 		// obtain stub implementation class
 		// this is required to obtain the data type of the keys and values.
 		// Type are required for serialization and deserialization methods.
+		ClassLoader cl;
 		try {
 			// obtain stub class
-			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<?> userClass = config.getStubClass(Object.class, cl);
-			if(Stub.class.isAssignableFrom(userClass)) {
-				Stub stub = (Stub) userClass.newInstance();
-				keyType = stub.getOutKeyType();
-				valueType = stub.getOutValueType();
-			}
-			else if(InputFormat.class.isAssignableFrom(userClass)) {
-				InputFormat format = (InputFormat) userClass.newInstance();
-				KeyValuePair pair = format.createPair();
-				keyType = (Class<Key>) pair.getKey().getClass();
-				valueType = (Class<Value>) pair.getValue().getClass();
-			} else {
-				throw new RuntimeException("Unsupported task type " + userClass);
-			}
+			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			Class<? extends Stub> stubClass = config.getStubClass(Stub.class, cl);
+			// obtain stub instance
+			stub = stubClass.newInstance();
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -270,8 +259,8 @@ public class TempTask extends AbstractTask
 	 */
 	private void initInputReader() {
 		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(
-				keyType, valueType);
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(stub
+			.getOutKeyType(), stub.getOutValueType());
 
 		// determine distribution pattern from ship strategy
 		DistributionPattern dp = null;
@@ -297,7 +286,7 @@ public class TempTask extends AbstractTask
 		}
 
 		// create reader
-		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+		reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
 	}
 
 	/**
@@ -308,30 +297,7 @@ public class TempTask extends AbstractTask
 		OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(0));
 
 		// create Writer
-		this.writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
+		writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
 			(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-	}
-	
-	// ============================================================================================
-	
-	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @return The string ready for logging.
-	 */
-	private String getLogString(String message)
-	{
-		StringBuilder bld = new StringBuilder(128);	
-		bld.append(message);
-		bld.append(':').append(' ');
-		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('(');
-		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
-		bld.append('/');
-		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
-		bld.append(')');
-		return bld.toString();
 	}
 }

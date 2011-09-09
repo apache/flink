@@ -31,6 +31,7 @@ public final class EmptyIterator<E> implements Iterator<E> {
 	 */
 	private static final EmptyIterator<Object> INSTANCE = new EmptyIterator<Object>();
 	
+	
 	/**
 	 * Gets a singleton instance of the empty iterator.
 	 *  
@@ -42,6 +43,8 @@ public final class EmptyIterator<E> implements Iterator<E> {
 		Iterator<E> iter = (Iterator<E>) INSTANCE;
 		return iter;
 	}
+	
+	
 	
 	/**
 	 * Always returns false, since this iterator is empty.

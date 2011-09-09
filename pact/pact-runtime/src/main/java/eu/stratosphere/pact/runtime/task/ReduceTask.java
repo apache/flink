@@ -101,10 +101,10 @@ public class ReduceTask extends AbstractTask {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput()
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Start registering input and output"));
+	public void registerInputOutput() {
+		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// Initialize stub implementation
 		initStub();
@@ -115,8 +115,9 @@ public class ReduceTask extends AbstractTask {
 		// Initializes output writers and collector
 		initOutputCollector();
 
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Finished registering input and output"));
+		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
 	/**
@@ -125,31 +126,36 @@ public class ReduceTask extends AbstractTask {
 	@Override
 	public void invoke() throws Exception
 	{
-		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code"));
+		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Start obtaining iterator"));
+		LOG.debug("Start obtaining iterator: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		
 		// obtain grouped iterator
 		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
 		try {
 			sortedInputProvider = obtainInput();
 			
-			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Iterator obtained"));
+			LOG.debug("Iterator obtained: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	
 			// open stub implementation
 			stub.open();
 			
 			// run stub implementation
 			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
+
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				if (LOG.isErrorEnabled())
-					LOG.error(getLogString("Unexpected ERROR in PACT code"));
+				LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 				throw ex;
 			}
 		}
@@ -165,8 +171,10 @@ public class ReduceTask extends AbstractTask {
 				stub.close();
 			}
 			catch (Throwable t) {
-				if (LOG.isErrorEnabled())
-					LOG.error(getLogString("Error while closing the Reduce user function"), t);
+				LOG.error("Error while closing the Reduce user function " 
+					+ this.getEnvironment().getTaskName() + " ("
+					+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+					+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")", t);
 			}
 			
 			// close output collector
@@ -174,12 +182,13 @@ public class ReduceTask extends AbstractTask {
 		}
 		
 		if (this.taskCanceled) {
-			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("PACT code cancelled"));
-		}
-		else {
-			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code"));
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		}
 	}
 	
@@ -190,8 +199,9 @@ public class ReduceTask extends AbstractTask {
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
-		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
 	// ------------------------------------------------------------------------
@@ -456,30 +466,5 @@ public class ReduceTask extends AbstractTask {
 		while (!this.taskCanceled && iter.nextKey()) {
 			this.stub.reduce(iter.getKey(), iter.getValues(), out);
 		}
-	}
-	
-	// ------------------------------------------------------------------------
-	//                               Utilities
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @return The string ready for logging.
-	 */
-	private String getLogString(String message)
-	{
-		StringBuilder bld = new StringBuilder(128);	
-		bld.append(message);
-		bld.append(':').append(' ');
-		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('(');
-		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
-		bld.append('/');
-		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
-		bld.append(')');
-		return bld.toString();
 	}
 }

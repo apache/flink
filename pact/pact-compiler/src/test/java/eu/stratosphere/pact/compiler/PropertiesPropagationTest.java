@@ -29,14 +29,14 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.DataSinkContract;
+import eu.stratosphere.pact.common.contract.DataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.DataStatistics.BasicFileStatistics;
+import eu.stratosphere.pact.compiler.costs.FallbackCostEstimator;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
@@ -45,6 +45,7 @@ import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
+import eu.stratosphere.pact.compiler.util.MockDataStatistics;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -64,7 +65,7 @@ public class PropertiesPropagationTest {
 	
 	private static final String OUT_FILE_1 = "file///test/output";
 	
-	private static final int defaultParallelism = 8;
+	private static final int defalutParallelism = 8;
 	
 	// ------------------------------------------------------------------------
 	
@@ -81,11 +82,10 @@ public class PropertiesPropagationTest {
 			InetSocketAddress dummyAddress = new InetSocketAddress(InetAddress.getLocalHost(), 12345);
 			
 			// prepare the statistics
-			DataStatistics dataStats = new DataStatistics();
-			dataStats.cacheBaseStatistics(new TextInputFormat.FileBaseStatistics(1000, 128 * 1024 * 1024, 8.0f),
-				FileDataSourceContract.getInputIdentifier(DummyInputFormat.class, IN_FILE_1));
+			MockDataStatistics dataStats = new MockDataStatistics();
+			dataStats.setStatsForFile(IN_FILE_1, new BasicFileStatistics(1000, 128 * 1024 * 1024, 8.0f));
 			
-			this.compiler = new PactCompiler(dataStats, new FixedSizeClusterCostEstimator(), dummyAddress);
+			this.compiler = new PactCompiler(dataStats, new FallbackCostEstimator(), dummyAddress);
 		}
 		catch (Exception ex) {
 			ex.printStackTrace();
@@ -95,7 +95,7 @@ public class PropertiesPropagationTest {
 		// create the instance type description
 		InstanceType iType = InstanceTypeFactory.construct("standard", 6, 2, 4096, 100, 0);
 		HardwareDescription hDesc = HardwareDescriptionFactory.construct(2, 4096 * 1024 * 1024, 2000 * 1024 * 1024);
-		this.instanceType = InstanceTypeDescriptionFactory.construct(iType, hDesc, defaultParallelism * 2);
+		this.instanceType = InstanceTypeDescriptionFactory.construct(iType, hDesc, defalutParallelism * 2);
 	}
 	
 	
@@ -107,10 +107,10 @@ public class PropertiesPropagationTest {
 	@Test
 	public void checkPropertyHandlingWithIncreasingDegreeOfParallelism()
 	{
-		final int degOfPar = defaultParallelism;
+		final int degOfPar = defalutParallelism;
 		
 		// construct the plan
-		FileDataSourceContract<PactInteger, PactInteger> source = new FileDataSourceContract<PactInteger, PactInteger>(DummyInputFormat.class, IN_FILE_1, "Source");
+		DataSourceContract<PactInteger, PactInteger> source = new DataSourceContract<PactInteger, PactInteger>(DummyInputFormat.class, IN_FILE_1, "Source");
 		source.setDegreeOfParallelism(degOfPar);
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map1 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
@@ -129,7 +129,7 @@ public class PropertiesPropagationTest {
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
-		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
+		DataSinkContract<PactInteger, PactInteger> sink = new DataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
@@ -152,10 +152,10 @@ public class PropertiesPropagationTest {
 	@Test
 	public void checkPropertyHandlingWithDecreasingDegreeOfParallelism()
 	{
-		final int degOfPar = defaultParallelism;
+		final int degOfPar = defalutParallelism;
 		
 		// construct the plan
-		FileDataSourceContract<PactInteger, PactInteger> source = new FileDataSourceContract<PactInteger, PactInteger>(DummyInputFormat.class, IN_FILE_1, "Source");
+		DataSourceContract<PactInteger, PactInteger> source = new DataSourceContract<PactInteger, PactInteger>(DummyInputFormat.class, IN_FILE_1, "Source");
 		source.setDegreeOfParallelism(degOfPar * 2);
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map1 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
@@ -174,7 +174,7 @@ public class PropertiesPropagationTest {
 		reduce2.setDegreeOfParallelism(degOfPar);
 		reduce2.setInput(map2);
 		
-		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
+		DataSinkContract<PactInteger, PactInteger> sink = new DataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(degOfPar);
 		sink.setInput(reduce2);
 		

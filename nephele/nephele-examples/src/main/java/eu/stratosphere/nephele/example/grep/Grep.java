@@ -15,11 +15,11 @@
 
 package eu.stratosphere.nephele.example.grep;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.client.JobSubmissionResult;
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.util.JarFileCreator;
 
 public class Grep {
 
@@ -41,18 +40,16 @@ public class Grep {
 
 		JobFileInputVertex input = new JobFileInputVertex("Input 1", jobGraph);
 		input.setFileInputClass(FileLineReader.class);
-		input.setFilePath(new Path("file:///home/ec2-user/test.txt"));
-		input.setInstanceType("t1.micro");
-		
+		input.setFilePath(new Path("file:///Users/casp/test2.txt"));
+
 		JobTaskVertex task1 = new JobTaskVertex("Task 1", jobGraph);
 		task1.setTaskClass(GrepTask.class);
-		task1.setInstanceType("t1.micro");
 
-		
 		JobFileOutputVertex output = new JobFileOutputVertex("Output 1", jobGraph);
 		output.setFileOutputClass(FileLineWriter.class);
-		output.setFilePath(new Path("file:///tmp/"));
-		output.setInstanceType("t1.micro");
+		output.setFilePath(new Path("file:///Users/casp/output.txt"));
+
+		jobGraph.addJar(new Path("file:///Users/casp/GrepTask.jar"));
 
 		try {
 
@@ -63,49 +60,17 @@ public class Grep {
 			e.printStackTrace();
 		}
 
-		// Create jar file and attach it
-		final File jarFile = new File("/tmp/grepJob.jar");
-		final JarFileCreator jarFileCreator = new JarFileCreator(jarFile);
-		jarFileCreator.addClass(GrepTask.class);
-
-		try {
-			jarFileCreator.createJarFile();
-			System.out.println("done creating!!");
-		} catch (IOException ioe) {
-
-			if (jarFile.exists()) {
-				jarFile.delete();
-			}
-
-			System.out.println("ERROR creating jar");
-			return;
-		}
-
-		jobGraph.addJar(new Path("file://" + jarFile.getAbsolutePath()));
-
-		// Submit job
 		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
 
-		jobGraph.getJobConfiguration().setString("job.cloud.awsaccessid", "xxx");
-		jobGraph.getJobConfiguration().setString("job.cloud.awssecretkey", "xxx");
-		jobGraph.getJobConfiguration().setString("job.cloud.sshkeypair", "caspeu");
-		jobGraph.getJobConfiguration().setString("job.ec2.image.id", "ami-d64474a2");		
-
-		InetSocketAddress jobmanager = new InetSocketAddress("127.0.0.1", 6123);
-		
-		
+		conf.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, "6023");
 		try {
-			final JobClient jobClient = new JobClient(jobGraph, conf, jobmanager);
-			System.out.println("submitting");
-			jobClient.submitJobAndWait();
-			System.out.println("done.");
-		} catch (Exception e) {
-			System.out.println(e);
+			JobClient jobClient = new JobClient(jobGraph, conf);
+			JobSubmissionResult result = jobClient.submitJob();
+			System.out.println(result.getDescription());
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
 		}
 
-		if (jarFile.exists()) {
-			jarFile.delete();
-		}
 	}
-
 }

@@ -25,7 +25,7 @@ public class CheckpointRecoveryThread extends Thread {
 	private final ChannelCheckpoint channelCheckpoint;
 
 	private boolean reading = false;
-
+	
 	public CheckpointRecoveryThread(ByteBufferedChannelManager byteBufferedChannelManager,
 			ChannelCheckpoint channelCheckpoint, ChannelID sourceChannelID,boolean reading) {
 		super("CheckpointRecoveryThread for channel " + sourceChannelID);
@@ -48,5 +48,4 @@ public class CheckpointRecoveryThread extends Thread {
 		}
 		
 	}
-	
 }

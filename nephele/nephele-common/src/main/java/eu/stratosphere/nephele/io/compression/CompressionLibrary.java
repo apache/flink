@@ -15,14 +15,11 @@
 
 package eu.stratosphere.nephele.io.compression;
 
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-
 public interface CompressionLibrary {
 
-	Compressor getCompressor(final AbstractByteBufferedOutputChannel<?> outputChannel) throws CompressionException;
+	Compressor getCompressor() throws CompressionException;
 
-	Decompressor getDecompressor(AbstractByteBufferedInputChannel<?> inputChannel) throws CompressionException;
+	Decompressor getDecompressor() throws CompressionException;
 
 	int getUncompressedBufferSize(int compressedBufferSize);
 

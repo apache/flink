@@ -19,6 +19,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.template.IllegalConfigurationException;
+import eu.stratosphere.nephele.template.InputSplit;
+
 /**
  * An abstract base class for input vertices in Nephele.
  * 
@@ -57,4 +60,12 @@ public abstract class JobInputVertex extends AbstractJobVertex {
 	public void write(DataOutput out) throws IOException {
 		super.write(out);
 	}
+
+	/**
+	 * Returns the input splits generated from the assigned data source.
+	 * 
+	 * @return the input splits generated from the assigned data source
+	 */
+	public abstract InputSplit[] getInputSplits() throws IllegalConfigurationException;
+
 }

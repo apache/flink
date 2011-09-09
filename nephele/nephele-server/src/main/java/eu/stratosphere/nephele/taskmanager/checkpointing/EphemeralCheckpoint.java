@@ -237,6 +237,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		if (this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED) {
 			return;
 		}
+		LOG.info(this.checkpointingDecision);
 		LOG.info("Checkpoint Decision for " + this.executionVertexID + " requested ");
 		CheckpointProfilingData profilingData = null;
 		try {
@@ -355,10 +356,11 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		while(channelIDIterator.hasNext()){
 			
 			ChannelID channelID = channelIDIterator.next();
-			final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
-			this.channelCheckpoints.get(channelID), channelID, false);
-
-			thread.start();
+			recoverIndividualChannel(byteBufferedChannelManager, channelID);
+//			final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
+//			this.channelCheckpoints.get(channelID), channelID, false);
+//
+//			thread.start();
 		}
 	}
 	/**

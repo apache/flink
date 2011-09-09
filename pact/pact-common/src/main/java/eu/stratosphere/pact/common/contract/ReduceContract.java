@@ -78,7 +78,7 @@ public class ReduceContract<IK extends Key, IV extends Value, OK extends Key, OV
 	 * @return true if the ReduceContract is combinable, false otherwise.
 	 */
 	public boolean isCombinable() {
-		return (getUserCodeClass().getAnnotation(Combinable.class) != null);
+		return (super.clazz.getAnnotation(Combinable.class) != null);
 	}
 
 }

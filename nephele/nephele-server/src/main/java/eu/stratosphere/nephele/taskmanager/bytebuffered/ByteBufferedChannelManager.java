@@ -45,7 +45,6 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutp
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairRequest;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
-import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.types.Record;
 
 public class ByteBufferedChannelManager {
@@ -94,8 +93,6 @@ public class ByteBufferedChannelManager {
 
 	private final int numberOfWriteBuffers;
 
-	private TaskManager taskManager;
-
 	public ByteBufferedChannelManager(ChannelLookupProtocol channelLookupService, InetAddress incomingDataAddress,
 			int incomingDataPort, String tmpDir)
 												throws IOException {
@@ -114,7 +111,7 @@ public class ByteBufferedChannelManager {
 		this.canceledChannelSet = new CanceledChannelSet();
 
 		this.fileBufferManager = new FileBufferManager(this.canceledChannelSet);
-		this.taskManager = taskManager;
+
 		// Start the connection threads
 		this.outgoingConnectionThread = new OutgoingConnectionThread();
 		this.outgoingConnectionThread.start();
@@ -126,7 +123,7 @@ public class ByteBufferedChannelManager {
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
 		this.isSpillingAllowed = configuration.getBoolean("channel.network.allowSpilling", DEFAULT_ALLOW_SPILLING);
 
-		LOG.info("Starting ByteBufferedChannelManager with Spilling "
+		LOG.info("Starting NetworkChannelManager with Spilling "
 			+ (this.isSpillingAllowed ? "activated" : "deactivated"));
 
 		// Initialize buffers
@@ -518,11 +515,12 @@ public class ByteBufferedChannelManager {
 	}
 
 	/**
-	 * Shuts down the byte buffered channel manager and stops all its internal processes.
+	 * Shuts down the network channel manager and
+	 * stops all its internal processes.
 	 */
 	public void shutdown() {
 
-		LOG.info("Shutting down ByteBufferedChannelManager");
+		LOG.info("Shutting down network channel manager");
 
 		// Interrupt the threads we started
 		this.incomingConnectionThread.interrupt();
@@ -570,7 +568,7 @@ public class ByteBufferedChannelManager {
 			LOG.error("Cannot find network output channel with ID " + sourceChannelID);
 			return;
 		}
-		
+		//TODO (marrus) info to jobmanager
 		if(ioe instanceof java.net.ConnectException  ){
 			//maybe we are recovering and the adress changed
 			try {
@@ -580,17 +578,16 @@ public class ByteBufferedChannelManager {
 				if(this.connectionAddresses.get(sourceChannelID) != null && 
 						!response.getAddress().equals(this.connectionAddresses.get(sourceChannelID).getAddress())){
 					//out new address in the list
-					
+					LOG.info("Adress changed from "+ this.connectionAddresses.get(sourceChannelID).getHostName()+ "to " + connectionAddress.getHostName());
 					this.connectionAddresses.put(sourceChannelID, connectionAddress);
 					return;
 				}
+				//LOG.info("Adress did NOT change "+ this.connectionAddresses.get(sourceChannelID).getHostName()+ " still " + connectionAddress.getHostName());
 				
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		
-		//TODO (marrus) info to jobmanager?
 
 		InetSocketAddress address = this.connectionAddresses.remove(sourceChannelID);
 		this.outgoingConnections.remove(address);
@@ -692,10 +689,10 @@ public class ByteBufferedChannelManager {
 	}
 
 	/**
-	 * @param byteBufferedChannelManager 
-	 * @param fileInputChannel file to recover from
-	 * @param sourceChannelID channelID the checkpoint belongs to
-	 * @return CheckpointOutgoingConnection 
+	 * @param byteBufferedChannelManager
+	 * @param fileInputChannel
+	 * @param sourceChannelID 
+	 * @return
 	 */
 	public CheckpointOutgoingConnection createOutgoingCheckpointConnection(
 			ByteBufferedChannelManager byteBufferedChannelManager, FileChannel fileInputChannel, ChannelID sourceChannelID) {

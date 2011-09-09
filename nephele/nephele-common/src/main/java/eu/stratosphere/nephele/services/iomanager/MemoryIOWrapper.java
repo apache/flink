@@ -22,13 +22,12 @@ import java.io.IOException;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
-public class MemoryIOWrapper implements IOReadableWritable
-{
-	private final MemorySegment memory;
+public class MemoryIOWrapper implements IOReadableWritable {
+	public final MemorySegment memory;
 
-	private int offset;
+	public int offset;
 
-	private int length;
+	public int length;
 
 	public MemoryIOWrapper(MemorySegment memory) {
 		this.memory = memory;
@@ -41,11 +40,11 @@ public class MemoryIOWrapper implements IOReadableWritable
 
 	@Override
 	public void read(DataInput in) throws IOException {
-		this.memory.put(in, this.offset, this.length);
+		memory.randomAccessView.put(in, offset, length);
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		this.memory.get(out, this.offset, this.length);
+		memory.randomAccessView.get(out, offset, length);
 	}
 }

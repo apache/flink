@@ -21,10 +21,13 @@ import java.util.Iterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.fs.FSDataInputStream;
+import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.nephele.template.AbstractFileInputTask;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
@@ -35,18 +38,17 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * DataSourceTask which is executed by a Nephele task manager.
- * The task reads data and uses an InputFormat to create records from the input.
+ * The task reads data and uses an InputFormat to create KeyValuePairs from the read data.
+ * Currently, the distributed Hadoop Filesystem (HDFS) is the only supported data storage.
  * 
  * @see eu.stratosphere.pact.common.io.InputFormat
- * 
  * @author Moritz Kaufmann
  * @author Fabian Hueske
- * @author Stephan Ewen
  */
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
-public class DataSourceTask extends AbstractInputTask<InputSplit>
-{
+public class DataSourceTask extends AbstractFileInputTask {
+
 	// Obtain DataSourceTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
 
@@ -54,10 +56,10 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	private OutputCollector<Key, Value> output;
 
 	// InputFormat instance
-	private InputFormat<InputSplit, Key, Value> format;
+	private InputFormat<Key, Value> format;
 
 	// Task configuration
-	private TaskConfig config;
+	private DataSourceConfig config;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -66,10 +68,10 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerInputOutput()
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Start registering input and output"));
+	public void registerInputOutput() {
+		LOG.debug("Start registering input and output: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// Initialize InputFormat
 		initInputFormat();
@@ -77,88 +79,147 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		// Initialize OutputCollector
 		initOutputCollector();
 
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Finished registering input and output"));
+		LOG.debug("Finished registering input and output: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void invoke() throws Exception
-	{	
+	public void invoke() throws Exception {
+		
 		KeyValuePair<Key, Value> pair = null;
 
-		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code"));
+		LOG.info("Start PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
 		// get file splits to read
-		final Iterator<InputSplit> splitIterator = getInputSplits();
+		final Iterator<FileInputSplit> splitIterator = getFileInputSplits();
+
+		// set object creation policy to immutable
+		boolean immutable = config.getMutability() == DataSourceConfig.Mutability.IMMUTABLE;
 
 		// for each assigned input split
-		while (!this.taskCanceled && splitIterator.hasNext())
-		{
+		while (!this.taskCanceled && splitIterator.hasNext()) {
+
 			// get start and end
-			final InputSplit split = splitIterator.next();
+			final FileInputSplit split = splitIterator.next();
+			final long start = split.getStart();
+			final long length = split.getLength();
 
-			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Opening input split " + split.toString()));
+			LOG.debug("Opening input split " + split.getPath() + " : " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 
+			FSDataInputStream fdis = null;
 			
-			if (this.taskCanceled) {
-				return;
-			}
-			
-			final InputFormat format = this.format;
-			
+			InputSplitOpenThread isot = new InputSplitOpenThread(split);
+			isot.start();
 			try {
-				// open input format
-				format.open(split);
-	
-				if (LOG.isDebugEnabled())
-					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
-	
-				// as long as there is data to read
-				while (!this.taskCanceled && !format.reachedEnd()) {
-					pair = format.createPair();
-					// build next pair and ship pair if it is valid
-					if (format.nextRecord(pair)) {
-						this.output.collect(pair.getKey(), pair.getValue());
+				isot.join();
+			} catch (InterruptedException ie) {
+				// task has been canceled
+				if(isot.getFSDataInputStream() != null) {
+					// close file input stream
+					isot.getFSDataInputStream().close();
+				}
+			}
+
+			if (!this.taskCanceled) {
+
+				try {
+
+					// check if FSDataInputStream was obtained
+					if (!isot.fsDataInputStreamSuccessfullyObtained()) {
+						// forward exception
+						throw isot.getException();
+					}
+
+					// get FSDataInputStream
+					fdis = isot.getFSDataInputStream();
+
+					// set input stream of input format
+					format.setInput(fdis, start, length, (1024 * 1024));
+					
+					// open input format
+					format.open();
+
+					LOG.debug("Starting reader on file " + split.getPath() + " : "
+						+ this.getEnvironment().getTaskName() + " ("
+						+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+					// create mutable pair once
+					if (!immutable) {
+						pair = format.createPair();
+					}
+
+					// as long as there is data to read
+					while (!this.taskCanceled && !format.reachedEnd()) {
+
+						// create immutable pair
+						if (immutable) {
+							pair = format.createPair();
+						}
+
+						// build next pair
+						boolean valid = format.nextPair(pair);
+
+						// ship pair if it is valid
+						if (valid) {
+							output.collect(pair.getKey(), pair.getValue());
+						}
+					}
+
+					LOG.debug("Closing input split " + split.getPath() + " : " + this.getEnvironment().getTaskName()
+						+ " (" + (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+						+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+
+				} catch (Exception ex) {
+					// drop, if the task was canceled
+					if (!this.taskCanceled) {
+						LOG.error("Unexpected ERROR in PACT code: " + this.getEnvironment().getTaskName() + " ("
+							+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+							+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+						throw ex;
+					}
+					
+				} finally {
+					
+					if(format != null) {
+						try {
+							// close the input
+							format.closeInput();
+						} catch (IOException ioe) {
+							LOG.error("Exception caught while closing input of InputFormat");
+							throw ioe;
+						}
+						
+						try {
+							// close the format
+							format.close();
+						} catch (IOException ioe) {
+							LOG.error("Exception caught while closing InputFormat");
+							throw ioe;
+						}
 					}
 				}
-
-				// close. We close here such that a regular close throwing an exception marks a task as failed.
-				if (!this.taskCanceled) {
-					if (LOG.isDebugEnabled())
-						LOG.debug(getLogString("Closing input split " + split.toString()));
-					
-					format.close();
-				}
-			}
-			catch (Exception ex) {
-				// close the input, but do not report any exceptions, since we already have another root cause
-				try {
-					format.close();
-				}
-				catch (Throwable t) {}
-				
-				// drop exception, if the task was canceled
-				if (!this.taskCanceled) {
-					if (LOG.isErrorEnabled())
-						LOG.error(getLogString("Unexpected ERROR in PACT code"));
-					throw ex;
-				}	
 			}
 		}
 
 		if (!this.taskCanceled) {
-			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code"));
+			LOG.info("Finished PACT code: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
+		} else {
+			LOG.warn("PACT code cancelled: " + this.getEnvironment().getTaskName() + " ("
+				+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+				+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 		}
-		else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("PACT code cancelled"));
-		}
+
 	}
 
 	/*
@@ -166,11 +227,11 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception
-	{
+	public void cancel() throws Exception {
 		this.taskCanceled = true;
-		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+		LOG.warn("Cancelling PACT code: " + this.getEnvironment().getTaskName() + " ("
+			+ (this.getEnvironment().getIndexInSubtaskGroup() + 1) + "/"
+			+ this.getEnvironment().getCurrentNumberOfSubtasks() + ")");
 	}
 
 	/**
@@ -180,40 +241,28 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 *         Throws if instance of InputFormat implementation can not be
 	 *         obtained.
 	 */
-	private void initInputFormat()
-	{
+	private void initInputFormat() {
+
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getRuntimeConfiguration());
+		config = new DataSourceConfig(getRuntimeConfiguration());
 
 		// obtain stub implementation class
 		try {
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends InputFormat> formatClass = this.config.getStubClass(InputFormat.class, cl);
+			Class<? extends InputFormat> formatClass = config.getStubClass(InputFormat.class, cl);
 			// obtain instance of stub implementation
-			this.format = formatClass.newInstance();
+			format = formatClass.newInstance();
 			// configure stub implementation
-		}
-		catch (IOException ioe) {
+			format.configure(config.getStubParameters());
+
+		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-		}
-		catch (ClassNotFoundException cnfe) {
+		} catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("InputFormat implementation class was not found.", cnfe);
-		}
-		catch (InstantiationException ie) {
-			throw new RuntimeException("InputFormat implementation could not be instanciated. " +
-					"Likely reasons are either a missing nullary constructor, or that the class is abstract.", ie);
-		}
-		catch (IllegalAccessException iae) {
-			throw new RuntimeException("InputFormat implementation class or its nullary constructor are " +
-					"not accessible (private or protected).", iae);
-		}
-		
-		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
-		try {
-			this.format.configure(this.config.getStubParameters());
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
+		} catch (InstantiationException ie) {
+			throw new RuntimeException("InputFormat implementation could not be instanciated.", ie);
+		} catch (IllegalAccessException iae) {
+			throw new RuntimeException("InputFormat implementations nullary constructor is not accessible.", iae);
 		}
 	}
 
@@ -221,12 +270,12 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 * Creates a writer for each output. Creates an OutputCollector which
 	 * forwards its input to all writers.
 	 */
-	private void initOutputCollector()
-	{
+	private void initOutputCollector() {
+
 		boolean fwdCopyFlag = false;
 
 		// create output collector
-		this.output = new OutputCollector<Key, Value>();
+		output = new OutputCollector<Key, Value>();
 
 		// create a writer for each output
 		for (int i = 0; i < config.getNumOutputs(); i++) {
@@ -243,86 +292,113 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 			// TODO smarter decision are possible here, e.g. decide which channel may not need to copy, ...
 			output.addWriter(writer, fwdCopyFlag);
 			fwdCopyFlag = true;
+
 		}
 	}
-	
-	// ------------------------------------------------------------------------
-	//                              Input Split creation
-	// ------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInputTask#computeInputSplits(int)
-	 */
-	@Override
-	public InputSplit[] computeInputSplits(int requestedMinNumber) throws Exception
-	{
-		// we have to be sure that the format is instantiated at this point
-		if (this.format == null) {
-			throw new IllegalStateException("BUG: Input format hast not been instantiated, yet.");
-		}
-		
-		return this.format.createInputSplits(requestedMinNumber);
-	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInputTask#getInputSplitType()
-	 */
-	@Override
-	public Class<InputSplit> getInputSplitType()
-	{
-		// we have to be sure that the format is instantiated at this point
-		if (this.format == null) {
-			throw new IllegalStateException("BUG: Input format hast not been instantiated, yet.");
-		}
-		
-		return this.format.getInputSplitType();
-	}
-	
-	// ------------------------------------------------------------------------
-	//                             
-	// ------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#getMinimumNumberOfSubtasks()
-	 */
-	@Override
-	public int getMinimumNumberOfSubtasks()
-	{
-		return 1;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#getMaximumNumberOfSubtasks()
-	 */
-	@Override
-	public int getMaximumNumberOfSubtasks()
-	{
-		// since splits can in theory be arbitrarily small, we report a possible infinite number of subtasks.
-		return -1;
-	}
-
-	// ------------------------------------------------------------------------
-	//                               Utilities
-	// ------------------------------------------------------------------------
-	
 	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @return The string ready for logging.
+	 * Specialized configuration object that holds parameters specific to the
+	 * data-source configuration.
 	 */
-	private String getLogString(String message)
-	{
-		StringBuilder bld = new StringBuilder(128);	
-		bld.append(message);
-		bld.append(':').append(' ');
-		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('(');
-		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
-		bld.append('/');
-		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
-		bld.append(')');
-		return bld.toString();
+	public static final class DataSourceConfig extends TaskConfig {
+		public enum Mutability {
+			MUTABLE, IMMUTABLE
+		};
+
+		private static final String KEY_FILE_PATH = "inputPath";
+
+		private static final String KEY_MUTABILITY = "pairMutability";
+
+		private static final String KEY_FORMAT_PREFIX = "pact.datasource.format.";
+
+		public DataSourceConfig(Configuration config) {
+			super(config);
+		}
+
+		public void setFilePath(String filePath) {
+			config.setString(KEY_FILE_PATH, filePath);
+		}
+
+		public String getFilePath() {
+			return config.getString(KEY_FILE_PATH, null);
+		}
+
+		public void setMutability(Mutability mutability) {
+			config.setString(KEY_MUTABILITY, mutability.name());
+		}
+
+		public Mutability getMutability() {
+			return Mutability.valueOf(config.getString(KEY_MUTABILITY, Mutability.IMMUTABLE.name()));
+		}
+
+		public void setFormatParameter(String paramName, String value) {
+			config.setString(KEY_FORMAT_PREFIX + paramName, value);
+		}
+
+		public String getFormatParameter(String paramName, String defaultValue) {
+			return config.getString(KEY_FORMAT_PREFIX + paramName, defaultValue);
+		}
+
+		public void setFormatParameters(Configuration parameters) {
+			for (String key : parameters.keySet()) {
+				config.setString(KEY_FORMAT_PREFIX + key, parameters.getString(key, null));
+			}
+		}
+
+		public Configuration getFormatParameters() {
+			Configuration parameters = new Configuration();
+
+			for (String key : config.keySet()) {
+				if (key.startsWith(KEY_FORMAT_PREFIX)) {
+					parameters.setString(key.substring(KEY_FORMAT_PREFIX.length()), config.getString(key, null));
+				}
+			}
+			return parameters;
+		}
+	}
+
+	/**
+	 * Obtains a DataInputStream in an thread that is not interrupted.
+	 * The HDFS client is very sensitive to InterruptedExceptions.
+	 * 
+	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 */
+	public static class InputSplitOpenThread extends Thread {
+
+		private FileInputSplit split;
+
+		private FSDataInputStream fdis = null;
+
+		private boolean success = true;
+
+		private Exception exception = null;
+
+		public InputSplitOpenThread(FileInputSplit split) {
+			this.split = split;
+		}
+
+		@Override
+		public void run() {
+			try {
+				FileSystem fs = FileSystem.get(split.getPath().toUri());
+				fdis = fs.open(split.getPath());
+				
+			} catch (Exception t) {
+				this.success = false;
+				this.exception = t;
+			}
+		}
+
+		public FSDataInputStream getFSDataInputStream() {
+			return this.fdis;
+		}
+
+		public boolean fsDataInputStreamSuccessfullyObtained() {
+			return this.success;
+		}
+
+		public Exception getException() {
+			return this.exception;
+		}
 	}
 }
