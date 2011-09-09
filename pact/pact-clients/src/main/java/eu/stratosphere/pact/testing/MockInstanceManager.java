@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
@@ -128,6 +129,12 @@ class MockInstanceManager implements InstanceManager {
 	@Override
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 		return TYPE_DESCRIPTIONS;
+	}
+
+	@Override
+	public AbstractInstance getInstanceByName(String name) {
+		
+		return null;
 	}
 
 }
