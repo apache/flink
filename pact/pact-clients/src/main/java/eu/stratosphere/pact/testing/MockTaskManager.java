@@ -190,4 +190,10 @@ class MockTaskManager implements TaskOperationProtocol {
 		// TODO Auto-generated method stub
 		
 	}
+
+	@Override
+	public void killTaskManager() throws IOException {
+		// TODO Auto-generated method stub
+		
+	}
 }

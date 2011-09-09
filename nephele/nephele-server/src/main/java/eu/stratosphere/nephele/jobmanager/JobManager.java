@@ -915,8 +915,26 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@Override
 	public void killInstance(final StringRecord instanceName) throws IOException {
-		// TODO Auto-generated method stub
-		LOG.debug("Killing instance " + instanceName);
+
+		final AbstractInstance instance = this.instanceManager.getInstanceByName(instanceName.toString());
+		if (instance == null) {
+			LOG.error("Cannot find instance with name " + instanceName + " to kill it");
+		}
+
+		final Runnable runnable = new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					instance.killTaskManager();
+				} catch (IOException ioe) {
+					LOG.error(StringUtils.stringifyException(ioe));
+				}
+			}
+		};
+
+		// Hand it over to the executor service
+		this.executorService.execute(runnable);
 	}
 
 	/**

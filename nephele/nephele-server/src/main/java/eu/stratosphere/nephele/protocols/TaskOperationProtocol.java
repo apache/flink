@@ -108,9 +108,9 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
 
 	List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException;
-	
+
 	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
-	
+
 	/**
 	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
 	 * 
@@ -129,4 +129,12 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         throws if an error occurs while transmitting the request
 	 */
 	void logBufferUtilization() throws IOException;
+
+	/**
+	 * Kills the task manager. This method is mainly intended to test and debug Nephele's fault tolerance mechanisms.
+	 * 
+	 * @throws IOException
+	 *         throws if an error occurs during this remote procedure call
+	 */
+	void killTaskManager() throws IOException;
 }

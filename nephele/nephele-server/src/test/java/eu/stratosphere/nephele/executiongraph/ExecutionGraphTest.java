@@ -35,6 +35,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
@@ -93,8 +94,9 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void requestInstance(JobID jobID, Configuration conf, InstanceRequestMap instanceRequestMap,
-				List<String> splitAffinityList) throws InstanceException {
+		public void requestInstance(final JobID jobID, final Configuration conf,
+				final InstanceRequestMap instanceRequestMap,
+				final List<String> splitAffinityList) throws InstanceException {
 
 			throw new IllegalStateException("requestInstance called on TestInstanceManager");
 		}
@@ -103,7 +105,8 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void releaseAllocatedResource(JobID jobID, Configuration conf, AllocatedResource allocatedResource)
+		public void releaseAllocatedResource(final JobID jobID, final Configuration conf,
+				final AllocatedResource allocatedResource)
 				throws InstanceException {
 
 			throw new IllegalStateException("releaseAllocatedResource called on TestInstanceManager");
@@ -113,8 +116,8 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public InstanceType getSuitableInstanceType(int minNumComputeUnits, int minNumCPUCores, int minMemorySize,
-				int minDiskCapacity, int maxPricePerHour) {
+		public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
+				final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
 
 			throw new IllegalStateException("getSuitableInstanceType called on TestInstanceManager");
 		}
@@ -123,8 +126,8 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo,
-				HardwareDescription hardwareDescription) {
+		public void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
+				final HardwareDescription hardwareDescription) {
 
 			throw new IllegalStateException("reportHeartBeat called on TestInstanceManager");
 		}
@@ -133,7 +136,7 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public InstanceType getInstanceTypeByName(String instanceTypeName) {
+		public InstanceType getInstanceTypeByName(final String instanceTypeName) {
 
 			if (this.defaultInstanceType.getIdentifier().equals(instanceTypeName)) {
 				return this.defaultInstanceType;
@@ -152,7 +155,7 @@ public class ExecutionGraphTest {
 		}
 
 		@Override
-		public NetworkTopology getNetworkTopology(JobID jobID) {
+		public NetworkTopology getNetworkTopology(final JobID jobID) {
 
 			throw new IllegalStateException("getNetworkTopology called on TestInstanceManager");
 		}
@@ -161,7 +164,7 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void setInstanceListener(InstanceListener instanceListener) {
+		public void setInstanceListener(final InstanceListener instanceListener) {
 
 			throw new IllegalStateException("setInstanceListener called on TestInstanceManager");
 		}
@@ -182,6 +185,14 @@ public class ExecutionGraphTest {
 		public void shutdown() {
 
 			throw new IllegalStateException("shutdown called on TestInstanceManager");
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public AbstractInstance getInstanceByName(final String name) {
+			throw new IllegalStateException("getInstanceByName called on TestInstanceManager");
 		}
 
 	}

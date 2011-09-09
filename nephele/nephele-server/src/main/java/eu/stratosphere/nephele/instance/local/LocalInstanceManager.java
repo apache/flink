@@ -27,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
@@ -315,9 +316,10 @@ public class LocalInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public void requestInstance(final JobID jobID, final Configuration conf, final InstanceRequestMap instanceRequestMap,
+	public void requestInstance(final JobID jobID, final Configuration conf,
+			final InstanceRequestMap instanceRequestMap,
 			final List<String> splitAffinityList) throws InstanceException {
-		
+
 		// TODO: This can be implemented way simpler...
 		// Iterate over all instance types
 		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
@@ -344,7 +346,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 				final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>(1);
 				allocatedResources.add(this.allocatedResource);
-				
+
 				if (assignmentSuccessful) {
 					// Spawn a new thread to send the notification
 					new LocalInstanceNotifier(this.instanceListener, jobID, allocatedResources).start();
@@ -356,5 +358,26 @@ public class LocalInstanceManager implements InstanceManager {
 
 		}
 
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public AbstractInstance getInstanceByName(final String name) {
+
+		if (name == null) {
+			throw new IllegalArgumentException("Argument name must not be null");
+		}
+
+		synchronized (this.synchronizationObject) {
+
+			if (this.localInstance != null) {
+				if (name.equals(this.localInstance.getName())) {
+					return this.localInstance;
+				}
+			}
+		}
+		return null;
 	}
 }

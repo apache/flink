@@ -859,4 +859,14 @@ public class TaskManager implements TaskOperationProtocol {
 
 		this.byteBufferedChannelManager.reportCheckpointDecisions(checkpointDecisions);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void killTaskManager() throws IOException {
+		
+		// Simply kill the entire JVM
+		System.exit(0);
+	}
 }

@@ -289,8 +289,20 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
 	 */
-	public void logBufferUtilization() throws IOException {
+	public synchronized void logBufferUtilization() throws IOException {
 
 		getTaskManager().logBufferUtilization();
+	}
+
+	/**
+	 * Kills the task manager running on this instance. This method is mainly intended to test and debug Nephele's fault
+	 * tolerance mechanisms.
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the request
+	 */
+	public synchronized void killTaskManager() throws IOException {
+
+		getTaskManager().killTaskManager();
 	}
 }
