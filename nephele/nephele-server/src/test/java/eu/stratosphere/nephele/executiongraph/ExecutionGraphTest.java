@@ -1059,7 +1059,7 @@ public class ExecutionGraphTest {
 			final JobTaskVertex forward3 = new JobTaskVertex("Forward 3", jg);
 			forward3.setTaskClass(ForwardTask1Input1Output.class);
 			forward3.setNumberOfSubtasks(degreeOfParallelism);
-			
+
 			// output vertex
 			final JobFileOutputVertex output1 = new JobFileOutputVertex("Output 1", jg);
 			output1.setFileOutputClass(FileLineWriter.class);
@@ -1091,14 +1091,15 @@ public class ExecutionGraphTest {
 			assertEquals(5, stage.getNumberOfStageMembers());
 
 			// Check number of required instances
-			Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
-			stage.collectRequiredInstanceTypes(instanceMap, ExecutionState.CREATED);
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+			stage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
 			// First, we expect all required instances to be of the same type
-			assertEquals(1, instanceMap.size());
+			assertEquals(1, instanceRequestMap.size());
 
-			final Integer numberOfRequiredInstances = instanceMap.values().iterator().next();
-			assertEquals(degreeOfParallelism, numberOfRequiredInstances.intValue());
+			final int numberOfRequiredInstances = instanceRequestMap.getMinimumNumberOfInstances(INSTANCE_MANAGER
+				.getDefaultInstanceType());
+			assertEquals(degreeOfParallelism, numberOfRequiredInstances);
 
 		} catch (GraphConversionException e) {
 			fail(e.getMessage());
