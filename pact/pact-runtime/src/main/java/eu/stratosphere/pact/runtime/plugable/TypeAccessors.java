@@ -16,7 +16,10 @@
 package eu.stratosphere.pact.runtime.plugable;
 
 import java.util.Comparator;
+import java.util.List;
 
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.Key;
 
 
@@ -33,7 +36,21 @@ public interface TypeAccessors<T>
 	
 	public void copyTo(T from, T to);
 	
+	// --------------------------------------------------------------------------------------------
+	
+	public long serialize(T record, DataOutputView target, List<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther);
+	
+	// --------------------------------------------------------------------------------------------
+	
 	public int hash(T object);
 	
 	public int compare(T first, T second, Comparator<Key> comparator);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public boolean supportNormalizedKey();
+	
+	public int getNormalizeKeyLen();
+	
+	public void putNormalizedKey(byte[] target, int numBytes);
 }

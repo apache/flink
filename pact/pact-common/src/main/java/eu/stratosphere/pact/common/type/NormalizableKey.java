@@ -13,48 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.services.memorymanager;
-
-
-import java.io.DataOutput;
-import java.io.IOException;
+package eu.stratosphere.pact.common.type;
 
 
 /**
- * This interface defines a view over a {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment} that
- * can be used to sequentially write to the memory.
  *
- * @author Alexander Alexandrov
+ *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface DataOutputView extends DataOutput
-{
-	/**
-	 * Gets the current read position.
-	 * 
-	 * @return The current read position.
-	 */
-	public int getPosition();
+public interface NormalizableKey {
 
-	/**
-	 * Sets the current read position.
-	 */
-	public DataOutput setPosition(int position);
-
-	/**
-	 * Skips {@code size} memory.
-	 */
-	public DataOutputView skip(int size) throws IOException;
-
-	/**
-	 * Resets the position to zero.
-	 */
-	public DataOutputView reset();
-	
-	/**
-	 * Gets the number of bytes that remain in the view.
-	 * 
-	 * @return The number of remaining bytes.
-	 */
-	public int getRemainingBytes();
 }
