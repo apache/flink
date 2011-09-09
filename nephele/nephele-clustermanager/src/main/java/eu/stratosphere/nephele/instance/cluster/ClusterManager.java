@@ -755,7 +755,6 @@ public class ClusterManager implements InstanceManager {
 						this.instanceListener, slice);
 					clusterInstanceNotifier.start();
 				}
-				LOG.info("Created Slice on " + host.getName());
 				return;
 			}
 

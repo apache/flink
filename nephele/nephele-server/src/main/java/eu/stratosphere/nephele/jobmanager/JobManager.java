@@ -1008,22 +1008,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.executorService.execute(requestRunnable);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.JobManagerProtocol#reconnectChannel(eu.stratosphere.nephele.executiongraph.ExecutionVertex, eu.stratosphere.nephele.executiongraph.ExecutionVertex)
-	 */
-	@Override
-	public void reconnectChannel(ExecutionVertex failed, ExecutionVertex predecessor) {
-		
-		
-		
-	 //TODO (marrus)
-	}
 
 
 	@Override
 	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID) {
 		this.scheduler.reportPersistenCheckpoint(executionVertexID,jobID);
-
+	}
 	/**
 	 * {@inheritDoc}
 	 */

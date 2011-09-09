@@ -367,7 +367,9 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			
 			try {
 				LOG.info("Trying to allocate instance of type " + allocatedResource.getInstanceType().getIdentifier());
-				this.instanceManager.requestInstance(jobID, job.getJobConfiguration(),allocatedResource.getInstanceType());
+				Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
+				instanceMap.put(allocatedResource.getInstanceType(), 1);
+				this.getInstanceManager().requestInstance(jobID, job.getJobConfiguration(),instanceMap,null);
 			} catch (InstanceException e) {
 				e.printStackTrace();
 			}
@@ -407,7 +409,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	@Override
 	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID) {
 		getExecutionGraphByID(jobID).getVertexByID(executionVertexID).setCheckpoint();
-		
+	}
 
 	/**
 	 * {@inheritDoc}

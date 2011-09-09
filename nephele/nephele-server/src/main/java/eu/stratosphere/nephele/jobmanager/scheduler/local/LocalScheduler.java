@@ -342,7 +342,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 	@Override
 	public void reportPersistenCheckpoint(ExecutionVertexID executionVertexID, JobID jobID) {
 		getExecutionGraphByID(jobID).getVertexByID(executionVertexID).setCheckpoint();
-
+	}
 	/**
 	 * {@inheritDoc}
 	 */
