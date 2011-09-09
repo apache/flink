@@ -921,6 +921,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.error("Cannot find instance with name " + instanceName + " to kill it");
 		}
 
+		LOG.info("Killing task manager on instance " + instance);
+
 		final Runnable runnable = new Runnable() {
 
 			@Override

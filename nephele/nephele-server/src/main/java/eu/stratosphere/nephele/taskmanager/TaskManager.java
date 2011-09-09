@@ -25,6 +25,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -865,8 +867,18 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	@Override
 	public void killTaskManager() throws IOException {
-		
-		// Simply kill the entire JVM
-		System.exit(0);
+
+		// Kill the entire JVM after a delay of 10ms, so this RPC will finish properly before
+		final Timer timer = new Timer();
+		final TimerTask timerTask = new TimerTask() {
+
+			@Override
+			public void run() {
+
+				System.exit(0);
+			}
+		};
+
+		timer.schedule(timerTask, 10L);
 	}
 }

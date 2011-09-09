@@ -163,18 +163,18 @@ public class SWTTopologyCanvas extends Canvas implements PaintListener, Listener
 	}
 
 	@Override
-	public void cancelTask(ManagementVertexID id, String taskName) {
+	public void cancelTask(final ManagementVertexID id, final String taskName) {
 		// Nothing to do here
 	}
 
 	@Override
-	public void killInstance(String instanceName) {
+	public void killInstance(final String instanceName) {
 
 		this.jobTabItem.killInstance(instanceName);
 	}
 
 	@Override
-	public void switchToInstance(String instanceName) {
+	public void switchToInstance(final String instanceName) {
 		// Nothing to do here
 	}
 
