@@ -7,7 +7,7 @@ public class IntNode extends JsonNode {
 	 */
 	private static final long serialVersionUID = -4250062919293345310L;
 
-	final int value;
+	protected final int value;
 
 	public IntNode(final int v) {
 		this.value = v;
@@ -19,6 +19,10 @@ public class IntNode extends JsonNode {
 
 	public int getIntValue() {
 		return this.value;
+	}
+
+	public String toString() {
+		return String.valueOf(this.value);
 	}
 
 	@Override
