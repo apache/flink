@@ -5,22 +5,26 @@ import org.codehaus.jackson.node.BooleanNode;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
+@Name(verb = "select")
 public class Selection extends ElementaryOperator {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -7687925343684319311L;
 
-	private final BooleanExpression condition;
+	private EvaluationExpression condition = new ConstantExpression(true);
 
-	public Selection(final BooleanExpression condition, final JsonStream input) {
+	public Selection(final JsonStream input) {
 		super(input);
-		this.condition = condition;
 	}
 
 	@Override
@@ -34,8 +38,8 @@ public class Selection extends ElementaryOperator {
 		return super.equals(obj) && this.condition.equals(((Selection) obj).condition);
 	}
 
-	public BooleanExpression getCondition() {
-		return this.condition;
+	public EvaluationExpression getCondition() {
+		return condition;
 	}
 
 	@Override
@@ -44,6 +48,20 @@ public class Selection extends ElementaryOperator {
 		int result = super.hashCode();
 		result = prime * result + this.condition.hashCode();
 		return result;
+	}
+
+	@Property(preferred = true)
+	@Name(preposition = "where")
+	public void setCondition(EvaluationExpression condition) {
+		if (condition == null)
+			throw new NullPointerException("condition must not be null");
+
+		this.condition = condition;
+	}
+
+	public Selection withCondition(EvaluationExpression condition) {
+		setCondition(condition);
+		return this;
 	}
 
 	//

@@ -11,7 +11,9 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
@@ -24,40 +26,40 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 
+@Name(verb = "group")
 public class Grouping extends MultiSourceOperator<Grouping> {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1452280003631381562L;
 
-	private final static EvaluationExpression NO_GROUPING = new ConstantExpression(NullNode.getInstance());
+	private final static EvaluationExpression GROUP_ALL = new ConstantExpression(NullNode.getInstance());
 
-	private final EvaluationExpression projection;
+	private EvaluationExpression resultProjection = EvaluationExpression.VALUE;
 
-	public Grouping(final EvaluationExpression projection, final JsonStream... inputs) {
+	public Grouping(final JsonStream... inputs) {
 		super(inputs);
-		this.projection = projection;
 
-		this.setDefaultKeyProjection(NO_GROUPING);
+		this.setDefaultKeyProjection(GROUP_ALL);
 	}
 
-	public Grouping(final EvaluationExpression projection, final List<? extends JsonStream> inputs) {
+	public Grouping(final List<? extends JsonStream> inputs) {
 		super(inputs);
-		this.projection = projection;
 
-		this.setDefaultKeyProjection(NO_GROUPING);
+		this.setDefaultKeyProjection(GROUP_ALL);
 	}
 
 	@Override
 	protected Operator createElementaryOperations(final List<Operator> inputs) {
 		if (inputs.size() <= 1)
-			return new GroupProjection(this.projection, inputs.get(0));
+			return new GroupProjection(this.resultProjection, inputs.get(0));
 
 		if (inputs.size() == 2)
-			return new CoGroupProjection(this.projection, inputs.get(0), inputs.get(1));
+			return new CoGroupProjection(this.resultProjection, inputs.get(0), inputs.get(1));
 
 		final UnionAll union = new UnionAll(inputs);
-		return new GroupProjection(new PathExpression(new AggregationExpression(new ArrayUnion()), this.projection),
+		return new GroupProjection(new PathExpression(new AggregationExpression(new ArrayUnion()),
+			this.resultProjection),
 			union);
 	}
 
@@ -70,7 +72,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		if (this.getClass() != obj.getClass())
 			return false;
 		final Grouping other = (Grouping) obj;
-		return this.projection.equals(other.projection);
+		return this.resultProjection.equals(other.resultProjection);
 	}
 
 	@Override
@@ -85,17 +87,42 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		return new ArrayCreation(elements);
 	}
 
+	public EvaluationExpression getResultProjection() {
+		return resultProjection;
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + this.projection.hashCode();
+		result = prime * result + this.resultProjection.hashCode();
 		return result;
+	}
+
+	@Property(preferred = true)
+	@Name(preposition = "into")
+	public void setResultProjection(EvaluationExpression resultProjection) {
+		if (resultProjection == null)
+			throw new NullPointerException("resultProjection must not be null");
+
+		this.resultProjection = resultProjection;
+	}
+
+	public Grouping withResultProjection(EvaluationExpression resultProjection) {
+		setResultProjection(resultProjection);
+		return this;
+	}
+
+	@Property(preferred = true, input = true)
+	@Name(preposition = "by")
+	@Override
+	public void setKeyProjection(int inputIndex, EvaluationExpression keyProjection) {
+		super.setKeyProjection(inputIndex, keyProjection);
 	}
 
 	@Override
 	public String toString() {
-		return String.format("%s to %s", super.toString(), this.projection);
+		return String.format("%s to %s", super.toString(), this.resultProjection);
 	}
 
 	private static final class ArrayUnion extends TransitiveAggregationFunction {

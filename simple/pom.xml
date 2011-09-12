@@ -6,7 +6,7 @@
     <parent>
         <artifactId>stratosphere</artifactId>
         <groupId>eu.stratosphere</groupId>
-        <version>0.1</version>
+        <version>0.1.1</version>
     </parent>
 
     <groupId>eu.stratosphere</groupId>
@@ -14,7 +14,7 @@
 
     <packaging>pom</packaging>
 
-    <version>0.1</version>
+    <version>0.1.1</version>
     <name>simple</name>
 
     <inceptionYear>2011</inceptionYear>
@@ -52,7 +52,21 @@
     </dependencyManagement>
 
     <dependencies>
+                <dependency>
+                        <groupId>nl.jqno.equalsverifier</groupId>
+                        <artifactId>equalsverifier</artifactId>
+                        <version>1.0.1</version>
+                        <type>jar</type>
+                        <scope>test</scope>
+                </dependency>
     </dependencies>
+
+        <repositories>
+                <repository>
+                        <id>equalsverifier-repository</id>
+                        <url>http://equalsverifier.googlecode.com/svn/maven/</url>
+                </repository>
+        </repositories>
     
     <build>
 		<plugins>
@@ -81,6 +95,7 @@
 	</build>
 
     <modules>
+        <module>simple-common</module>
         <module>simple-jaql</module>
 
     </modules>

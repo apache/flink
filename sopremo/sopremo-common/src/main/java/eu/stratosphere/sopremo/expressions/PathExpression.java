@@ -118,6 +118,23 @@ public class PathExpression extends ContainerExpression {
 		return new PathExpression(expression);
 	}
 
+	public static EvaluationExpression valueOf(List<EvaluationExpression> expressions) {
+		switch (expressions.size()) {
+		case 0:
+			return EvaluationExpression.VALUE;
+			
+		case 1:
+			return expressions.get(0);
+
+		default:
+			return new PathExpression(expressions);
+		}
+	}
+	
+	public static EvaluationExpression valueOf(EvaluationExpression... expressions) {
+		return valueOf(Arrays.asList(expressions));
+	}
+
 	public static class Writable extends PathExpression implements WritableEvaluable {
 
 		/**

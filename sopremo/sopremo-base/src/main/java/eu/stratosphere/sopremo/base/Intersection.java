@@ -6,6 +6,7 @@ import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -13,6 +14,7 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
+@Name(verb = "intersect")
 public class Intersection extends MultiSourceOperator<Intersection> {
 	/**
 	 * 

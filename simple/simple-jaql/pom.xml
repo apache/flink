@@ -6,12 +6,10 @@
   <parent>
     <artifactId>simple</artifactId>
     <groupId>eu.stratosphere</groupId>
-    <version>0.1</version>
+    <version>0.1.1</version>
   </parent>
 
-  <groupId>eu.stratosphere</groupId>
   <artifactId>simple-jaql</artifactId>
-  <version>0.1</version>
   <name>simple-jaql</name>
 
   <packaging>jar</packaging>
@@ -24,6 +22,12 @@
       <artifactId>fastutil</artifactId>
       <version>5.0.9</version>
     </dependency>
+
+	<dependency>
+	 	<groupId>eu.stratosphere</groupId>
+		<artifactId>simple-common</artifactId>
+		<version>${project.version}</version>
+	</dependency>
     
     <dependency>
         <groupId>com.ibm</groupId>
@@ -33,6 +37,19 @@
         <systemPath>${project.basedir}/lib/jaql.jar</systemPath>
     </dependency>
     
+    <dependency>
+    	<groupId>org.antlr</groupId>
+    	<artifactId>antlr</artifactId>
+    	<version>3.3</version>
+    	<type>jar</type>
+    </dependency>
+    
+    <dependency>
+    	<groupId>org.antlr</groupId>
+    	<artifactId>antlr-runtime</artifactId>
+    	<version>3.3</version>
+    	<type>jar</type>
+    </dependency>
   </dependencies>
 
   <reporting>

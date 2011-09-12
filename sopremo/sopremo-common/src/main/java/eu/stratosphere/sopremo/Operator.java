@@ -1,5 +1,12 @@
 package eu.stratosphere.sopremo;
 
+import java.awt.Image;
+import java.beans.BeanDescriptor;
+import java.beans.BeanInfo;
+import java.beans.EventSetDescriptor;
+import java.beans.MethodDescriptor;
+import java.beans.PropertyDescriptor;
+import java.beans.SimpleBeanInfo;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,7 +14,6 @@ import java.util.List;
 import java.util.ListIterator;
 
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
  * Base class for all Sopremo operators. Every operator consumes and produces a specific number of {@link JsonStream}s.
@@ -19,7 +25,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * 
  * @author Arvid Heise
  */
-public abstract class Operator implements SerializableSopremoType, JsonStream, Cloneable {
+public abstract class Operator implements SerializableSopremoType, JsonStream, Cloneable, BeanInfo {
 	/**
 	 * 
 	 */
@@ -95,14 +101,14 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @return the {@link PactModule} representing this operator
 	 */
 	public abstract PactModule asPactModule(EvaluationContext context);
-	
+
 	public SopremoModule toElementaryOperators() {
-		SopremoModule module = new SopremoModule(getName(), getInputs().size(), getOutputs().size());
-		Operator clone = clone();
-		for (int index = 0; index < getInputs().size(); index++) 
+		SopremoModule module = new SopremoModule(this.getName(), this.getInputs().size(), this.getOutputs().size());
+		Operator clone = this.clone();
+		for (int index = 0; index < this.getInputs().size(); index++)
 			clone.setInput(index, module.getInput(index));
-		for (int index = 0; index < getOutputs().size(); index++)
-			module.getOutput(index).setInput(index, clone. getOutput(index));
+		for (int index = 0; index < this.getOutputs().size(); index++)
+			module.getOutput(index).setInput(index, clone.getOutput(index));
 		return module;
 	}
 
@@ -330,7 +336,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 			final Output other = (Output) obj;
 			return this.index == other.index && this.getOperator() == other.getOperator();
 		}
-		
+
 		/**
 		 * Returns the index of this output in the list of outputs of the associated operator.
 		 * 
@@ -367,6 +373,48 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 		public String toString() {
 			return String.format("%s@%d", this.getOperator(), this.index);
 		}
+	}
+
+	private BeanInfo simpleBeanInfo = new SimpleBeanInfo();
+
+	@Override
+	public BeanDescriptor getBeanDescriptor() {
+		return this.simpleBeanInfo.getBeanDescriptor();
+	}
+
+	@Override
+	public EventSetDescriptor[] getEventSetDescriptors() {
+		return this.simpleBeanInfo.getEventSetDescriptors();
+	}
+
+	@Override
+	public int getDefaultEventIndex() {
+		return this.simpleBeanInfo.getDefaultEventIndex();
+	}
+
+	@Override
+	public PropertyDescriptor[] getPropertyDescriptors() {
+		return this.simpleBeanInfo.getPropertyDescriptors();
+	}
+
+	@Override
+	public int getDefaultPropertyIndex() {
+		return this.simpleBeanInfo.getDefaultPropertyIndex();
+	}
+
+	@Override
+	public MethodDescriptor[] getMethodDescriptors() {
+		return this.simpleBeanInfo.getMethodDescriptors();
+	}
+
+	@Override
+	public BeanInfo[] getAdditionalBeanInfo() {
+		return this.simpleBeanInfo.getAdditionalBeanInfo();
+	}
+
+	@Override
+	public Image getIcon(int iconKind) {
+		return this.simpleBeanInfo.getIcon(iconKind);
 	}
 
 }

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javassist.expr.NewArray;
+
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NullNode;
@@ -15,6 +17,7 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
@@ -22,12 +25,13 @@ import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ArrayMerger;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -37,27 +41,57 @@ import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
+@Name(verb = "join")
 public class Join extends CompositeOperator {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 6428723643579047169L;
 
-	private final EvaluationExpression condition;
+	private EvaluationExpression condition = new ConstantExpression(true);
 
-	private final EvaluationExpression expression;
+	private EvaluationExpression resultProjection = ObjectCreation.CONCATENATION;
 
-	public Join(final EvaluationExpression expression, final EvaluationExpression condition, final JsonStream... inputs) {
+	public Join(final JsonStream... inputs) {
 		super(inputs);
-		this.condition = condition;
-		this.expression = expression;
+		this.condition = this.condition;
+		this.resultProjection = this.resultProjection;
 	}
 
-	public Join(final EvaluationExpression expression, final EvaluationExpression condition,
-			final List<? extends JsonStream> inputs) {
+	public Join(final List<? extends JsonStream> inputs) {
 		super(inputs);
-		this.condition = condition;
-		this.expression = expression;
+		this.condition = this.condition;
+		this.resultProjection = this.resultProjection;
+	}
+
+	public EvaluationExpression getResultProjection() {
+		return this.resultProjection;
+	}
+
+	@Name(preposition = "into")
+	public void setResultProjection(EvaluationExpression resultProjection) {
+		if (resultProjection == null)
+			throw new NullPointerException("resultProjection must not be null");
+
+		this.resultProjection = resultProjection;
+	}
+
+	@Name(preposition = "where")
+	public void setJoinCondition(EvaluationExpression joinCondition) {
+		if (joinCondition == null)
+			throw new NullPointerException("joinCondition must not be null");
+
+		this.condition = joinCondition;
+	}
+
+	public Join withResultProjection(EvaluationExpression resultProjection) {
+		setResultProjection(resultProjection);
+		return this;
+	}
+
+	public Join withJoinCondition(EvaluationExpression joinCondition) {
+		setJoinCondition(joinCondition);
+		return this;
 	}
 
 	@Override
@@ -65,7 +99,7 @@ public class Join extends CompositeOperator {
 
 		final int numInputs = this.getInputs().size();
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
-		
+
 		List<TwoSourceJoin> joins;
 		if (this.condition instanceof AndExpression)
 			joins = this.getInitialJoinOrder((AndExpression) this.condition, module);
@@ -77,26 +111,28 @@ public class Join extends CompositeOperator {
 			final EvaluationExpression[] elements = new EvaluationExpression[numInputs];
 			Arrays.fill(elements, EvaluationExpression.NULL);
 			elements[index] = EvaluationExpression.VALUE;
-			inputs.add(new Projection(new ArrayCreation(elements), module.getInput(index)));
+			inputs.add(new Projection(module.getInput(index)).
+				withValueTransformation(new ArrayCreation(elements)));
 		}
 
 		for (final TwoSourceJoin twoSourceJoin : joins) {
 			final List<Output> operatorInputs = twoSourceJoin.getInputs();
 			final Output[] actualInputs = new Output[2];
-			List<Source> moduleInput = Arrays.asList( module.getInputs());
+			List<Source> moduleInput = Arrays.asList(module.getInputs());
 			for (int index = 0; index < operatorInputs.size(); index++) {
 				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
 				actualInputs[index] = inputs.get(inputIndex).getSource();
 			}
 			for (int index = 0; index < operatorInputs.size(); index++) {
-				final int inputIndex =  moduleInput.indexOf(operatorInputs.get(index).getOperator());
+				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
 				inputs.set(inputIndex, twoSourceJoin);
 			}
 			twoSourceJoin.setInputs(actualInputs);
 		}
 
-		module.getOutput(0).setInput(0,
-			new Projection(EvaluationExpression.NULL, this.expression, joins.get(joins.size() - 1)));
+		module.getOutput(0).setInput(0, new Projection(joins.get(joins.size() - 1)).
+			withKeyTransformation(EvaluationExpression.NULL).
+			withValueTransformation(this.resultProjection));
 		return module;
 	}
 
@@ -109,7 +145,7 @@ public class Join extends CompositeOperator {
 		if (this.getClass() != obj.getClass())
 			return false;
 		return super.equals(obj) && this.condition.equals(((Join) obj).condition)
-			&& this.expression.equals(((Join) obj).expression);
+			&& this.resultProjection.equals(((Join) obj).resultProjection);
 	}
 
 	public EvaluationExpression getCondition() {
@@ -132,55 +168,23 @@ public class Join extends CompositeOperator {
 	private TwoSourceJoin getTwoSourceJoinForExpression(final EvaluationExpression condition, SopremoModule module) {
 		if (condition instanceof ComparativeExpression)
 			return new ComparisonJoin(
-				module.getInput(getInputIndex(((ComparativeExpression) condition).getExpr1())),
-				module.getInput(getInputIndex(((ComparativeExpression) condition).getExpr2())),
+				module.getInput(this.getInputIndex(((ComparativeExpression) condition).getExpr1())),
+				module.getInput(this.getInputIndex(((ComparativeExpression) condition).getExpr2())),
 				(ComparativeExpression) condition);
 		if (condition instanceof ElementInSetExpression)
 			return new ElementInSetJoin(
-				module.getInput(getInputIndex(((ElementInSetExpression) condition)				.getElementExpr())), 
-				module.getInput(getInputIndex(((ElementInSetExpression) condition).getSetExpr())),
+				module.getInput(this.getInputIndex(((ElementInSetExpression) condition).getElementExpr())),
+				module.getInput(this.getInputIndex(((ElementInSetExpression) condition).getSetExpr())),
 				(ElementInSetExpression) condition);
 		throw new UnsupportedOperationException("condition " + condition + " not supported");
 	}
-
-	// @Override
-	// public PactModule asPactModule(EvaluationContext context) {
-	// PactModule module = new PactModule(this.getInputOperators().size(), 1);
-	//
-	// ConditionalExpression condition = this.getCondition();
-	// if (condition.getCombination() != Combination.AND)
-	// throw new UnsupportedOperationException();
-	//
-	// List<TwoSourceJoin> joinOrder = this.getInitialJoinOrder(condition);
-	// List<Contract> inputs = SopremoUtil.wrapInputsWithArray(module, context);
-	//
-	// DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key,
-	// PactJsonObject> join = null;
-	// for (TwoSourceJoin twoSourceJoin : joinOrder) {
-	// join = twoSourceJoin.createJoinContract(module, context, inputs.get(twoSourceJoin.leftIndex),
-	// inputs.get(twoSourceJoin.rightIndex));
-	// inputs.set(twoSourceJoin.leftIndex, join);
-	// inputs.set(twoSourceJoin.rightIndex, join);
-	//
-	// SopremoUtil.setTransformationAndContext(join.getStubParameters(), new ArrayMerger(), context);
-	// }
-	//
-	// MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject> projectionMap = new
-	// MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
-	// Projection.ProjectionStub.class);
-	// module.getOutput(0).setInput(projectionMap);
-	// projectionMap.setInput(join);
-	// SopremoUtil.setTransformationAndContext(projectionMap.getStubParameters(), this.getKeyTransformation(), context);
-	//
-	// return module;
-	// }
 
 	@Override
 	public int hashCode() {
 		final int prime = 37;
 		int result = super.hashCode();
 		result = prime * result + this.condition.hashCode();
-		result = prime * result + this.expression.hashCode();
+		result = prime * result + this.resultProjection.hashCode();
 		return result;
 	}
 
@@ -425,12 +429,13 @@ public class Join extends CompositeOperator {
 		public SopremoModule asElementaryOperators() {
 			final SopremoModule sopremoModule = new SopremoModule(this.toString(), 2, 1);
 
-			final Projection leftProjection = new Projection(this.leftJoinKey, EvaluationExpression.VALUE,
-				sopremoModule.getInput(0));
-			final Projection rightProjection = new Projection(this.rightJoinKey, EvaluationExpression.VALUE,
-				sopremoModule.getInput(1));
+			final Projection leftProjection = new Projection(sopremoModule.getInput(0))
+				.withKeyTransformation(this.leftJoinKey);
+			final Projection rightProjection = new Projection(sopremoModule.getInput(1))
+				.withKeyTransformation(this.rightJoinKey);
 			final Operator joinAlgorithm = this.createJoinContract(leftProjection, rightProjection);
-			sopremoModule.getOutput(0).setInputs(new Projection(new ArrayMerger(), joinAlgorithm));
+			sopremoModule.getOutput(0).setInputs(
+				new Projection(joinAlgorithm).withValueTransformation(new ArrayMerger()));
 			return sopremoModule;
 		}
 

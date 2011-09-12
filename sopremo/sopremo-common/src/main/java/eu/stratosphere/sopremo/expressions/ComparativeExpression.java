@@ -173,6 +173,14 @@ public class ComparativeExpression extends BooleanExpression {
 		public String toString() {
 			return this.sign;
 		}
+		
+		public static BinaryOperator valueOfSymbol(String name) {
+			for (BinaryOperator operator : BinaryOperator.values()) 
+				if(operator.sign.equals(name))
+					return operator;
+			
+			return null;
+		}
 	}
 
 }

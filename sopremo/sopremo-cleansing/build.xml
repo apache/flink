@@ -16,7 +16,7 @@
 
 		<exec executable="/home/arv/workspace/private/stratosphere-dist/target/stratosphere-dist-0.1.1-bin/stratosphere-0.1.1/bin/run.sh" dir="/home/arv/workspace/private/stratosphere-dist/target/stratosphere-dist-0.1.1-bin/stratosphere-0.1.1/bin">
 			<arg value="0" />
-			<arg value="100" />
+			<arg value="11" />
 		</exec>
 	</target>
 

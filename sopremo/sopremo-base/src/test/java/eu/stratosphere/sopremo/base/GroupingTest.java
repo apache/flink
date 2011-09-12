@@ -18,7 +18,8 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class GroupingTest extends SopremoTest<Grouping> {
 	@Override
 	protected Grouping createDefaultInstance(final int index) {
-		final Grouping aggregation = new Grouping(new ConstantExpression(index), null, null);
+		final Grouping aggregation = new Grouping(null, null).
+			withResultProjection(new ConstantExpression(index));
 		return aggregation;
 	}
 
@@ -43,7 +44,8 @@ public class GroupingTest extends SopremoTest<Grouping> {
 					ArithmeticOperator.MULTIPLICATION, new ObjectAccess("count"))),
 				new AggregationExpression(BuiltinFunctions.SUM)));
 
-		final Grouping aggregation = new Grouping(transformation, sopremoPlan.getInputOperators(0, 3));
+		final Grouping aggregation = new Grouping(sopremoPlan.getInputOperators(0, 3)).
+			withResultProjection(transformation);
 		aggregation.setKeyProjection(0, createPath("dept"));
 		aggregation.setKeyProjection(1, createPath("did"));
 		aggregation.setKeyProjection(2, createPath("dept_id"));
@@ -96,7 +98,8 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		transformation.addMapping("numEmps",
 			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.COUNT)));
 
-		final Grouping aggregation = new Grouping(transformation, sopremoPlan.getInputOperators(0, 2));
+		final Grouping aggregation = new Grouping(sopremoPlan.getInputOperators(0, 2)).
+			withResultProjection(transformation);
 		aggregation.setKeyProjection(0, createPath("dept"));
 		aggregation.setKeyProjection(1, createPath("did"));
 
@@ -137,7 +140,8 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		transformation.addMapping("total",
 			new PathExpression(batch.add(BuiltinFunctions.SUM, new ObjectAccess("income"))));
 
-		final Grouping aggregation = new Grouping(transformation, sopremoPlan.getInputOperator(0));
+		final Grouping aggregation = new Grouping(sopremoPlan.getInputOperator(0)).
+			withResultProjection(transformation);
 		aggregation.setKeyProjection(0, createPath("dept"));
 
 		sopremoPlan.getOutputOperator(0).setInputs(aggregation);
@@ -163,8 +167,8 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
-		final Grouping aggregation = new Grouping(BuiltinFunctions.COUNT.asExpression(),
-			sopremoPlan.getInputOperator(0));
+		final Grouping aggregation = new Grouping(sopremoPlan.getInputOperator(0)).
+			withResultProjection(BuiltinFunctions.COUNT.asExpression());
 		sopremoPlan.getOutputOperator(0).setInputs(aggregation);
 
 		sopremoPlan.getInput(0).

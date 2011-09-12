@@ -43,13 +43,14 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 
 		final List<Operator> inputs = new ArrayList<Operator>();
 		for (int index = 0; index < numInputs; index++)
-			inputs.add(new Projection(this.getKeyProjection(index), this.getValueProjection(index), module
-				.getInput(index)));
+			inputs.add(new Projection(module.getInput(index)).
+				withKeyTransformation(this.getKeyProjection(index)).
+				withValueTransformation(this.getValueProjection(index)));
 
 		Operator lastOperator = this.createElementaryOperations(inputs);
 
 		if (resetKey)
-			lastOperator = new Projection(EvaluationExpression.NULL, EvaluationExpression.VALUE, lastOperator);
+			lastOperator = new Projection(lastOperator).withKeyTransformation(EvaluationExpression.NULL);
 		module.getOutput(0).setInput(0, lastOperator);
 
 		return module;

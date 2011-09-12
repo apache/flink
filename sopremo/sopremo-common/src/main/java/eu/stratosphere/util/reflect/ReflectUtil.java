@@ -44,8 +44,8 @@ public class ReflectUtil {
 	 *        the annotation type
 	 * @return the annotation or null
 	 */
-	public static Annotation getAnnotation(final Class<?> type, final Class<? extends Annotation> annotationType) {
-		Annotation annotation = null;
+	public static <A extends Annotation> A getAnnotation(final Class<?> type, final Class<A> annotationType) {
+		A annotation = null;
 		for (Class<?> t = type; annotation == null && t != null; t = t.getSuperclass())
 			annotation = t.getAnnotation(annotationType);
 		return annotation;

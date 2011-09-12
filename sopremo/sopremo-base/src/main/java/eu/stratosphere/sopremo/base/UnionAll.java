@@ -7,6 +7,7 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.StreamArrayNode;
@@ -15,6 +16,7 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
+@Name(verb = "union all")
 public class UnionAll extends CompositeOperator {
 	/**
 	 * 

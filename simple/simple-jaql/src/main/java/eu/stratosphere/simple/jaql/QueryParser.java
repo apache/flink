@@ -1,22 +1,23 @@
 package eu.stratosphere.simple.jaql;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import com.ibm.jaql.lang.Jaql;
+import org.antlr.runtime.ANTLRInputStream;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.RecognitionException;
+
 import com.ibm.jaql.lang.expr.core.CompareExpr;
 import com.ibm.jaql.lang.expr.core.ConstExpr;
 import com.ibm.jaql.lang.expr.core.CopyField;
 import com.ibm.jaql.lang.expr.core.CopyRecord;
 import com.ibm.jaql.lang.expr.core.Expr;
-import com.ibm.jaql.lang.expr.core.FilterExpr;
 import com.ibm.jaql.lang.expr.core.FixedRecordExpr;
 import com.ibm.jaql.lang.expr.core.NameValueBinding;
 import com.ibm.jaql.lang.expr.core.RecordExpr;
@@ -25,13 +26,10 @@ import com.ibm.jaql.lang.expr.path.PathExpr;
 import com.ibm.jaql.lang.expr.path.PathFieldValue;
 import com.ibm.jaql.lang.expr.path.PathReturn;
 
-import eu.stratosphere.simple.common.PlanCreator;
-import eu.stratosphere.simple.jaql.rewrite.RewriteEngine;
+import eu.stratosphere.simple.PlanCreator;
+import eu.stratosphere.simple.jaql.SJaqlParser.script_return;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoPlan;
-import eu.stratosphere.sopremo.base.Sink;
-import eu.stratosphere.sopremo.expressions.ConditionalExpression;
-import eu.stratosphere.sopremo.expressions.EvaluableExpression;
 import eu.stratosphere.util.dag.Navigator;
 
 public class QueryParser extends PlanCreator {
@@ -106,81 +104,21 @@ public class QueryParser extends PlanCreator {
 
 	Deque<List<Operator>> operatorInputs = new LinkedList<List<Operator>>();
 
-	private EvaluableExpressionParser pathParser = new EvaluableExpressionParser(this);
-
-	private OperatorParser operatorParser = new OperatorParser(this);
-
-	private ConditionParser conditionParser = new ConditionParser(this);
-
-	private ObjectCreationParser objectCreationParser = new ObjectCreationParser(this);
-
-	private SopremoPlan convert(Expr expr) {
-		// System.out.println(new ExprPrinter(expr).toString(new DirectedAcyclicGraphPrinter.NodePrinter<Expr>() {
-		// @Override
-		// public String toString(Expr node) {
-		// return node.getClass().getSimpleName();
-		// // return node.getClass().getSimpleName() + " "
-		// // + node.toString().replaceAll("system::", "").replaceAll("\n",
-		// // " ");
-		// }
-		// }, 30));
-		Operator operator = this.parseOperator(expr);
-
-		return new SopremoPlan(Arrays.asList((Sink) operator));
-	}
-
-	int findInputIndex(Operator input) {
-		if (this.operatorInputs.isEmpty())
-			return -1;
-		Iterator<List<Operator>> iterator = this.operatorInputs.descendingIterator();
-		while (iterator.hasNext()) {
-			List<Operator> inputs = iterator.next();
-
-			for (int index = 0; index < inputs.size(); index++)
-				if (inputs.get(index) == input)
-					return index;
-		}
-		return -1;
-	}
-
 	@Override
 	public SopremoPlan getPlan(InputStream stream) {
-		Expr expr = this.parseScript(stream);
-		return expr == null ? null : this.convert(expr);
-	}
-
-	ConditionalExpression parseCondition(FilterExpr expr) {
-		return this.conditionParser.parse(expr);
-	}
-
-	Operator parseOperator(Expr expr) {
-		return this.operatorParser.parse(expr);
-	}
-
-	EvaluableExpression parsePath(Expr expr) {
-		return this.pathParser.parse(expr);
-	}
-
-	Expr parseScript(InputStream stream) {
-		Jaql jaql = new Jaql() {
-			{
-				this.rewriter = new RewriteEngine();
-			}
-		};
-		// jaql.enableRewrite(false);
-		jaql.setInput("test", stream);
-		// jaql.setInput("test", new FileInputStream("scrub.jaql"));
-		Expr expr = null;
 		try {
-			expr = jaql.expr();
+			return tryParse(stream);
 		} catch (Exception e) {
-			throw new RuntimeException(e);
+			return null;
 		}
-		return expr;
 	}
 
-	EvaluableExpression parseObjectCreation(Expr expr) {
-		return this.objectCreationParser.parse(expr);
+	public SopremoPlan tryParse(InputStream stream) throws IOException, RecognitionException {
+		SJaqlLexer lexer = new SJaqlLexer(new ANTLRInputStream(stream));
+		CommonTokenStream tokens = new CommonTokenStream();
+		tokens.setTokenSource(lexer);
+		SJaqlParser parser = new SJaqlParser(tokens);
+		parser.setTreeAdaptor(new SopremoTreeAdaptor());
+		return parser.parse();
 	}
-
 }

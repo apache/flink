@@ -6,54 +6,34 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
+@Name(verb = "project")
 public class Projection extends ElementaryOperator {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 2170992457478875950L;
 
-	private final EvaluationExpression keyTransformation, valueTransformation;
+	private EvaluationExpression keyTransformation = EvaluationExpression.KEY,
+			valueTransformation = EvaluationExpression.VALUE;
 
-	public Projection(final EvaluationExpression keyTransformation, final EvaluationExpression valueTransformation,
-			final JsonStream input) {
+	public Projection(final JsonStream input) {
 		super(input);
-		if (valueTransformation == null || keyTransformation == null)
-			throw new NullPointerException();
-		this.keyTransformation = keyTransformation;
-		this.valueTransformation = valueTransformation;
-	}
-
-	public Projection(final EvaluationExpression valueTransformation, final JsonStream input) {
-		this(EvaluationExpression.KEY, valueTransformation, input);
 	}
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
 		if (this.keyTransformation == EvaluationExpression.KEY
 			&& this.valueTransformation == EvaluationExpression.VALUE)
-			return createShortCircuitModule();
+			return this.createShortCircuitModule();
 		return super.asPactModule(context);
 	}
-
-	//
-	// @Override
-	// public PactModule asPactModule(EvaluationContext context) {
-	// PactModule module = new PactModule(this.toString(), 1, 1);
-	// MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> projectionMap =
-	// new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
-	// ProjectionStub.class);
-	// module.getOutput(0).setInput(projectionMap);
-	// projectionMap.setInput(module.getInput(0));
-	// SopremoUtil.setContext(projectionMap.getStubParameters(), context);
-	// SopremoUtil.serialize(projectionMap.getStubParameters(), "keyTransformation", this.getKeyTransformation());
-	// SopremoUtil.serialize(projectionMap.getStubParameters(), "valueTransformation", this.getValueTransformation());
-	// return module;
-	// }
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -93,6 +73,32 @@ public class Projection extends ElementaryOperator {
 		result = prime * result + this.keyTransformation.hashCode();
 		result = prime * result + this.valueTransformation.hashCode();
 		return result;
+	}
+
+	public void setKeyTransformation(EvaluationExpression keyTransformation) {
+		if (keyTransformation == null)
+			throw new NullPointerException("keyTransformation must not be null");
+
+		this.keyTransformation = keyTransformation;
+	}
+
+	@Property(preferred = true)
+	@Name(preposition = "into")
+	public void setValueTransformation(EvaluationExpression valueTransformation) {
+		if (valueTransformation == null)
+			throw new NullPointerException("valueTransformation must not be null");
+
+		this.valueTransformation = valueTransformation;
+	}
+
+	public Projection withKeyTransformation(EvaluationExpression keyTransformation) {
+		setKeyTransformation(keyTransformation);
+		return this;
+	}
+
+	public Projection withValueTransformation(EvaluationExpression valueTransformation) {
+		setValueTransformation(valueTransformation);
+		return this;
 	}
 
 	@Override
