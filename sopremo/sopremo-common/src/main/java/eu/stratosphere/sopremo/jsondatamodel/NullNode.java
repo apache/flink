@@ -15,8 +15,9 @@ public class NullNode extends JsonNode {
 
 	private final static NullNode instance = new NullNode();
 
-	private NullNode() {
-	};
+	public NullNode() {
+
+	}
 
 	public static NullNode getInstance() {
 		return instance;
@@ -32,8 +33,14 @@ public class NullNode extends JsonNode {
 		return o == this;
 	}
 
+	@Override
 	public int getTypePos() {
 		return TYPES.NullNode.ordinal();
+	}
+
+	@Override
+	public NullNode canonicalize() {
+		return instance;
 	}
 
 	@Override

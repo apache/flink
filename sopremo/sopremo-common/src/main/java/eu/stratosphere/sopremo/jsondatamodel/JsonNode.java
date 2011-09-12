@@ -41,6 +41,10 @@ public abstract class JsonNode implements Serializable, Value {
 
 	public abstract int getTypePos();
 
+	public JsonNode canonicalize() {
+		return this;
+	}
+
 	@Override
 	public abstract void read(DataInput in) throws IOException;
 

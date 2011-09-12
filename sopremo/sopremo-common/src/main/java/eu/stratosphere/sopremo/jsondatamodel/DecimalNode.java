@@ -59,6 +59,7 @@ public class DecimalNode extends JsonNode {
 		return true;
 	}
 
+	@Override
 	public int getTypePos() {
 		return TYPES.DecimalNode.ordinal();
 	}

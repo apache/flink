@@ -95,35 +95,36 @@ public class ObjectNode extends JsonNode {
 		return true;
 	}
 
+	@Override
 	public int getTypePos() {
 		return TYPES.ObjectNode.ordinal();
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
-		int len = in.readInt();
+	public void read(final DataInput in) throws IOException {
+		final int len = in.readInt();
 
 		for (int i = 0; i < len; i++) {
 			JsonNode node;
-			String key = in.readUTF();
+			final String key = in.readUTF();
 
 			try {
 				node = TYPES.values()[in.readInt()].getClazz().newInstance();
 				node.read(in);
-				this.put(key, node);
-			} catch (InstantiationException e) {
+				this.put(key, node.canonicalize());
+			} catch (final InstantiationException e) {
 				e.printStackTrace();
-			} catch (IllegalAccessException e) {
+			} catch (final IllegalAccessException e) {
 				e.printStackTrace();
 			}
 		}
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.children.size());
 
-		for (Entry<String, JsonNode> entry : this.children.entrySet()) {
+		for (final Entry<String, JsonNode> entry : this.children.entrySet()) {
 			out.writeUTF(entry.getKey());
 			out.writeInt(entry.getValue().getTypePos());
 			entry.getValue().write(out);

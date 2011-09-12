@@ -60,7 +60,8 @@ public class DoubleNode extends JsonNode {
 			return false;
 		return true;
 	}
-	
+
+	@Override
 	public int getTypePos() {
 		return TYPES.DoubleNode.ordinal();
 	}

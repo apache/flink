@@ -14,6 +14,9 @@ public class ArrayNode extends JsonNode {
 
 	protected ArrayList<JsonNode> children = new ArrayList<JsonNode>();
 
+	public ArrayNode() {
+	}
+
 	public ArrayNode(final JsonNode... nodes) {
 		for (final JsonNode node : nodes)
 			this._add(node);
@@ -100,33 +103,34 @@ public class ArrayNode extends JsonNode {
 		return true;
 	}
 
+	@Override
 	public int getTypePos() {
 		return TYPES.ArrayNode.ordinal();
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
-		int len = in.readInt();
+	public void read(final DataInput in) throws IOException {
+		final int len = in.readInt();
 
 		for (int i = 0; i < len; i++) {
 			JsonNode node;
 			try {
 				node = TYPES.values()[in.readInt()].getClazz().newInstance();
 				node.read(in);
-				this.add(node);
-			} catch (InstantiationException e) {
+				this.add(node.canonicalize());
+			} catch (final InstantiationException e) {
 				e.printStackTrace();
-			} catch (IllegalAccessException e) {
+			} catch (final IllegalAccessException e) {
 				e.printStackTrace();
 			}
 		}
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.children.size());
 
-		for (JsonNode child : this.children) {
+		for (final JsonNode child : this.children) {
 
 			out.writeInt(child.getTypePos());
 			child.write(out);

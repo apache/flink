@@ -59,6 +59,7 @@ public class IntNode extends JsonNode {
 		return true;
 	}
 
+	@Override
 	public int getTypePos() {
 		return TYPES.IntNode.ordinal();
 	}

@@ -43,27 +43,33 @@ public class BooleanNode extends JsonNode {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + (value ? 1231 : 1237);
+		result = prime * result + (this.value ? 1231 : 1237);
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 
-		BooleanNode other = (BooleanNode) obj;
-		if (value != other.value)
+		final BooleanNode other = (BooleanNode) obj;
+		if (this.value != other.value)
 			return false;
 		return true;
 	}
-	
+
+	@Override
 	public int getTypePos() {
 		return TYPES.BooleanNode.ordinal();
+	}
+
+	@Override
+	public BooleanNode canonicalize() {
+		return this.value ? TRUE : FALSE;
 	}
 
 	@Override
