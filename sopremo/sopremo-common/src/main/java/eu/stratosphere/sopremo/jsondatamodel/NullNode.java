@@ -1,5 +1,11 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import eu.stratosphere.pact.common.type.base.PactNull;
+
 public class NullNode extends JsonNode {
 
 	/**
@@ -24,5 +30,19 @@ public class NullNode extends JsonNode {
 	@Override
 	public boolean equals(final Object o) {
 		return o == this;
+	}
+
+	public int getTypePos() {
+		return TYPES.NullNode.ordinal();
+	}
+
+	@Override
+	public void read(final DataInput in) throws IOException {
+		PactNull.getInstance().read(in);
+	}
+
+	@Override
+	public void write(final DataOutput out) throws IOException {
+		PactNull.getInstance().write(out);
 	}
 }

@@ -1,5 +1,8 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class ArrayNode extends JsonNode {
@@ -95,6 +98,39 @@ public class ArrayNode extends JsonNode {
 		if (!this.children.equals(other.children))
 			return false;
 		return true;
+	}
+
+	public int getTypePos() {
+		return TYPES.ArrayNode.ordinal();
+	}
+
+	@Override
+	public void read(DataInput in) throws IOException {
+		int len = in.readInt();
+
+		for (int i = 0; i < len; i++) {
+			JsonNode node;
+			try {
+				node = TYPES.values()[in.readInt()].getClazz().newInstance();
+				node.read(in);
+				this.add(node);
+			} catch (InstantiationException e) {
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	@Override
+	public void write(DataOutput out) throws IOException {
+		out.writeInt(this.children.size());
+
+		for (JsonNode child : this.children) {
+
+			out.writeInt(child.getTypePos());
+			child.write(out);
+		}
 	}
 
 }

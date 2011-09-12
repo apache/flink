@@ -1,7 +1,11 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 public class ObjectNode extends JsonNode {
 
@@ -89,6 +93,42 @@ public class ObjectNode extends JsonNode {
 		if (!this.children.equals(other.children))
 			return false;
 		return true;
+	}
+
+	public int getTypePos() {
+		return TYPES.ObjectNode.ordinal();
+	}
+
+	@Override
+	public void read(DataInput in) throws IOException {
+		int len = in.readInt();
+
+		for (int i = 0; i < len; i++) {
+			JsonNode node;
+			String key = in.readUTF();
+
+			try {
+				node = TYPES.values()[in.readInt()].getClazz().newInstance();
+				node.read(in);
+				this.put(key, node);
+			} catch (InstantiationException e) {
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	@Override
+	public void write(DataOutput out) throws IOException {
+		out.writeInt(this.children.size());
+
+		for (Entry<String, JsonNode> entry : this.children.entrySet()) {
+			out.writeUTF(entry.getKey());
+			out.writeInt(entry.getValue().getTypePos());
+			entry.getValue().write(out);
+		}
+
 	}
 
 }

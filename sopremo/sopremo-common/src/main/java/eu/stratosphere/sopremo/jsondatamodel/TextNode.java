@@ -1,5 +1,11 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import eu.stratosphere.pact.common.type.base.PactString;
+
 public class TextNode extends JsonNode {
 
 	/**
@@ -9,10 +15,14 @@ public class TextNode extends JsonNode {
 
 	final static TextNode EMPTY_STRING_NODE = new TextNode("");
 
-	protected String value;
+	protected PactString value;
+
+	public TextNode() {
+		this.value = new PactString();
+	}
 
 	public TextNode(final String v) {
-		this.value = v;
+		this.value = new PactString(v);
 	}
 
 	public static JsonNode valueOf(final String v) {
@@ -24,13 +34,13 @@ public class TextNode extends JsonNode {
 	}
 
 	public String getTextValue() {
-		return this.value;
+		return this.value.toString();
 	}
 
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
-		appendQuoted(sb, this.value);
+		appendQuoted(sb, this.value.toString());
 		return sb.toString();
 	}
 
@@ -61,6 +71,20 @@ public class TextNode extends JsonNode {
 		if (!this.value.equals(other.value))
 			return false;
 		return true;
+	}
+	
+	public int getTypePos() {
+		return TYPES.TextNode.ordinal();
+	}
+
+	@Override
+	public void read(final DataInput in) throws IOException {
+		this.value.read(in);
+	}
+
+	@Override
+	public void write(final DataOutput out) throws IOException {
+		this.value.write(out);
 	}
 
 }

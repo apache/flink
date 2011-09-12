@@ -1,14 +1,49 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.io.Serializable;
 
-public abstract class JsonNode implements Serializable {
+import eu.stratosphere.pact.common.type.Value;
+
+public abstract class JsonNode implements Serializable, Value {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 7164528435336585193L;
 
+	protected enum TYPES {
+		TextNode(TextNode.class),
+		IntNode(IntNode.class),
+		BooleanNode(BooleanNode.class),
+		DoubleNode(DoubleNode.class),
+		ArrayNode(ArrayNode.class),
+		ObjectNode(ObjectNode.class),
+		DecimalNode(DecimalNode.class),
+		NullNode(NullNode.class);
+
+		private final Class<? extends JsonNode> clazz;
+
+		private TYPES(final Class<? extends JsonNode> clazz) {
+			this.clazz = clazz;
+		}
+
+		public Class<? extends JsonNode> getClazz() {
+			return this.clazz;
+		}
+
+	};
+
 	@Override
 	public abstract boolean equals(Object o);
+
+	public abstract int getTypePos();
+
+	@Override
+	public abstract void read(DataInput in) throws IOException;
+
+	@Override
+	public abstract void write(DataOutput out) throws IOException;
 }

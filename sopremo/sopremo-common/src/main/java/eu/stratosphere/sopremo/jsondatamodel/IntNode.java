@@ -1,5 +1,11 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import eu.stratosphere.pact.common.type.base.PactInteger;
+
 public class IntNode extends JsonNode {
 
 	/**
@@ -7,10 +13,14 @@ public class IntNode extends JsonNode {
 	 */
 	private static final long serialVersionUID = -4250062919293345310L;
 
-	protected final int value;
+	protected final PactInteger value;
+
+	public IntNode() {
+		this.value = new PactInteger();
+	}
 
 	public IntNode(final int v) {
-		this.value = v;
+		this.value = new PactInteger(v);
 	}
 
 	public static IntNode valueOf(final int v) {
@@ -18,18 +28,19 @@ public class IntNode extends JsonNode {
 	}
 
 	public int getIntValue() {
-		return this.value;
+		return this.value.getValue();
 	}
 
+	@Override
 	public String toString() {
-		return String.valueOf(this.value);
+		return this.value.toString();
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + this.value;
+		result = prime * result + this.value.hashCode();
 		return result;
 	}
 
@@ -43,9 +54,23 @@ public class IntNode extends JsonNode {
 			return false;
 
 		final IntNode other = (IntNode) obj;
-		if (this.value != other.value)
+		if (!this.value.equals(other.value))
 			return false;
 		return true;
+	}
+
+	public int getTypePos() {
+		return TYPES.IntNode.ordinal();
+	}
+
+	@Override
+	public void read(final DataInput in) throws IOException {
+		this.value.read(in);
+	}
+
+	@Override
+	public void write(final DataOutput out) throws IOException {
+		this.value.write(out);
 	}
 
 }

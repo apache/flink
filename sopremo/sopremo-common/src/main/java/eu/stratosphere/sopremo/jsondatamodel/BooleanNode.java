@@ -1,5 +1,9 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 public class BooleanNode extends JsonNode {
 
 	/**
@@ -7,28 +11,68 @@ public class BooleanNode extends JsonNode {
 	 */
 	private static final long serialVersionUID = 9185727528566635632L;
 
-	public final static BooleanNode TRUE = new BooleanNode();
+	public final static BooleanNode TRUE = new BooleanNode(true);
 
-	public final static BooleanNode FALSE = new BooleanNode();
+	public final static BooleanNode FALSE = new BooleanNode(false);
 
-	private BooleanNode() {
+	protected boolean value;
+
+	public BooleanNode() {
+		this.value = false;
+	}
+
+	private BooleanNode(final boolean v) {
+		this.value = v;
 	};
 
-	public static BooleanNode valueOf(boolean b) {
+	public static BooleanNode valueOf(final boolean b) {
+
 		return b ? TRUE : FALSE;
 	}
 
 	public boolean getBooleanValue() {
-		return (this == TRUE);
+		return this == TRUE;
 	}
 
-	public String toString(){
+	@Override
+	public String toString() {
 		return this == TRUE ? "true" : "false";
 	}
-	
-	// TODO implement hashCode()
 
-	public boolean equals(Object o) {
-		return (this == o);
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (value ? 1231 : 1237);
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+
+		BooleanNode other = (BooleanNode) obj;
+		if (value != other.value)
+			return false;
+		return true;
+	}
+	
+	public int getTypePos() {
+		return TYPES.BooleanNode.ordinal();
+	}
+
+	@Override
+	public void read(final DataInput in) throws IOException {
+		this.value = in.readBoolean();
+	}
+
+	@Override
+	public void write(final DataOutput out) throws IOException {
+		out.writeBoolean(this.value);
 	}
 }
