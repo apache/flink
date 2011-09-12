@@ -1,0 +1,16 @@
+$fusedPersons = fuse $sponsor, $member in $linkedPersons
+	into { *@\label{line:fuse_into_start}@*
+		id: generateId('person'),
+		lastName: [vote(abbr), longest],
+		firstName: [vote(abbr), first],
+		addresses: MergeAddresses, ...
+		originalRecords: $[*].id, 
+	} *@\label{line:fuse_into_end}@*
+	using weights for { *@\label{line:fuse_weights_start}@*
+		$member: 0.99,
+		$sponsor: 0.99, 
+		$sponsor.addresses: 0.7, ...
+	} *@\label{line:fuse_weights_end}@*
+	update $.relative[*].id in $ with id;
+
+write $fusedPersons to hdfs('Persons.json');

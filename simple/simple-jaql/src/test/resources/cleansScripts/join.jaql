@@ -1,0 +1,16 @@
+join
+	$sponsor in $persons,
+	$relative in $persons,
+	$fund in $funds,
+	$recipient in $legal_entity,
+	$subsidary in $legal_entity
+	where
+	($relative.id in $sponsor.relatives[*].id
+	or $relative.id == $sponsor.id) and
+	 $fund.id in $sponsor.enacted_funds[*].id
+	($subsidiary.id in $recipient.subsidiaries[*].id 
+	or $subsidiary.id == $recipient.id) 
+	into {
+	$.*
+}
+	 

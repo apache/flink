@@ -1,0 +1,5 @@
+$input = read 'input.json';
+
+$result = project $input into {sum: $.a + $.b};
+
+write $result to 'output.json'; 

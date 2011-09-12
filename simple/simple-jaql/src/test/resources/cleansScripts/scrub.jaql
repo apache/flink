@@ -1,0 +1,13 @@
+$dirty_earmarks = read hdfs('UsEarmark.json');
+$nick_names = read hdfs('UsNickNames.json');
+
+$scrubbed_earmarks = scrub $dirty_earmarks {*@\label{line:scrub_start}@*
+	// normalization with built-in expressions
+	amount: [type decimal, $ * 1000],
+	// normalization with user-defined functions
+	$.sponsorLastName: [required, 
+		NormalizeName($)],
+	$.sponsorFirstName: [required, 
+		NormalizeName($), 
+		lookup $ in $nick_names default $],
+}  *@\label{line:scrub_end}@*
