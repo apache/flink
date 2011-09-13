@@ -25,6 +25,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -36,6 +38,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayManager;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -69,7 +74,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
-import eu.stratosphere.nephele.taskmanager.checkpointing.CheckpointManager;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -115,10 +119,10 @@ public class TaskManager implements TaskOperationProtocol {
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
 	/**
-	 * The instance of the {@link CheckpointManager} to restore
+	 * The instance of the {@link CheckpointReplayManager} to restore
 	 * previously written checkpoints.
 	 */
-	private final CheckpointManager checkpointManager;
+	private final CheckpointReplayManager checkpointManager;
 
 	/**
 	 * Instance of the task manager profile if profiling is enabled.
@@ -269,7 +273,7 @@ public class TaskManager implements TaskOperationProtocol {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 
 		// Initialize the checkpoint manager
-		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager);
+		this.checkpointManager = new CheckpointReplayManager(this.byteBufferedChannelManager);
 
 		// Determine hardware description
 		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
@@ -847,5 +851,34 @@ public class TaskManager implements TaskOperationProtocol {
 	public void logBufferUtilization() throws IOException {
 
 		this.byteBufferedChannelManager.logBufferUtilization();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions) throws IOException {
+
+		this.byteBufferedChannelManager.reportCheckpointDecisions(checkpointDecisions);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void killTaskManager() throws IOException {
+
+		// Kill the entire JVM after a delay of 10ms, so this RPC will finish properly before
+		final Timer timer = new Timer();
+		final TimerTask timerTask = new TimerTask() {
+
+			@Override
+			public void run() {
+
+				System.exit(0);
+			}
+		};
+
+		timer.schedule(timerTask, 10L);
 	}
 }

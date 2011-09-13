@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.checkpointing;
+package eu.stratosphere.nephele.checkpointing;
 
 import java.io.EOFException;
 import java.io.File;
@@ -72,13 +72,13 @@ class CheckpointReplayTask extends Thread {
 
 			// Try to locate the meta data file
 			final File metaDataFile = new File(this.checkpointDirectory + File.separator
-				+ CheckpointManager.METADATA_PREFIX + "_" + this.vertexID + "_" + metaDataIndex);
+				+ CheckpointReplayManager.METADATA_PREFIX + "_" + this.vertexID + "_" + metaDataIndex);
 
 			while (!metaDataFile.exists()) {
 
 				// Try to locate the final meta data file
 				final File finalMetaDataFile = new File(this.checkpointDirectory + File.separator
-					+ CheckpointManager.METADATA_PREFIX + "_" + this.vertexID + "_final");
+					+ CheckpointReplayManager.METADATA_PREFIX + "_" + this.vertexID + "_final");
 
 				if (finalMetaDataFile.exists()) {
 					return;

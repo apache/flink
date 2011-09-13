@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
@@ -27,7 +29,6 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
-import eu.stratosphere.nephele.taskmanager.CheckpointReplayResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -107,7 +108,9 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
 
 	List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException;
-	
+
+	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
+
 	/**
 	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
 	 * 
@@ -126,4 +129,12 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         throws if an error occurs while transmitting the request
 	 */
 	void logBufferUtilization() throws IOException;
+
+	/**
+	 * Kills the task manager. This method is mainly intended to test and debug Nephele's fault tolerance mechanisms.
+	 * 
+	 * @throws IOException
+	 *         throws if an error occurs during this remote procedure call
+	 */
+	void killTaskManager() throws IOException;
 }

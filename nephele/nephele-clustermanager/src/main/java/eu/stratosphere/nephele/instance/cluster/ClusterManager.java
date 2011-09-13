@@ -38,6 +38,7 @@ import org.apache.hadoop.util.StringUtils;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
@@ -499,7 +500,7 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InstanceType getInstanceTypeByName(String instanceTypeName) {
+	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
 
 		for (InstanceType it : availableInstanceTypes) {
 			if (it.getIdentifier().equals(instanceTypeName)) {
@@ -514,8 +515,8 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InstanceType getSuitableInstanceType(int minNumComputeUnits, int minNumCPUCores, int minMemorySize,
-			int minDiskCapacity, int maxPricePerHour) {
+	public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
+			final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
 
 		// the instances are sorted by price -> the first instance that
 		// fulfills/ the requirements is suitable and the cheapest
@@ -535,8 +536,8 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void releaseAllocatedResource(JobID jobID, Configuration conf,
-			AllocatedResource allocatedResource) throws InstanceException {
+	public synchronized void releaseAllocatedResource(final JobID jobID, final Configuration conf,
+			final AllocatedResource allocatedResource) throws InstanceException {
 
 		// release the instance from the host
 		final ClusterInstance clusterInstance = (ClusterInstance) allocatedResource.getInstance();
@@ -567,8 +568,8 @@ public class ClusterManager implements InstanceManager {
 	 *        the hardware description provided by the new instance
 	 * @return a new {@link ClusterInstance} object or <code>null</code> if the cluster instance could not be created
 	 */
-	private ClusterInstance createNewHost(InstanceConnectionInfo instanceConnectionInfo,
-			HardwareDescription hardwareDescription) {
+	private ClusterInstance createNewHost(final InstanceConnectionInfo instanceConnectionInfo,
+			final HardwareDescription hardwareDescription) {
 
 		// Check if there is a user-defined instance type for this IP address
 		InstanceType instanceType = this.ipToInstanceTypeMapping.get(instanceConnectionInfo.getAddress());
@@ -649,7 +650,7 @@ public class ClusterManager implements InstanceManager {
 	 *        the hardware description as reported by the instance
 	 * @return the best matching instance type or <code>null</code> if no matching instance type can be found
 	 */
-	private InstanceType matchHardwareDescriptionWithInstanceType(HardwareDescription hardwareDescription) {
+	private InstanceType matchHardwareDescriptionWithInstanceType(final HardwareDescription hardwareDescription) {
 
 		// Assumes that the available instance types are ordered by number of CPU cores in descending order
 		for (int i = 0; i < this.availableInstanceTypes.length; i++) {
@@ -680,8 +681,8 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo,
-			HardwareDescription hardwareDescription) {
+	public synchronized void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
+			final HardwareDescription hardwareDescription) {
 
 		ClusterInstance host = registeredHosts.get(instanceConnectionInfo);
 
@@ -709,7 +710,7 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void requestInstance(final JobID jobID, Configuration conf,
+	public synchronized void requestInstance(final JobID jobID, final Configuration conf,
 			final InstanceRequestMap instanceRequestMap,
 			final List<String> splitAffinityList) throws InstanceException {
 
@@ -793,7 +794,7 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkTopology getNetworkTopology(JobID jobID) {
+	public NetworkTopology getNetworkTopology(final JobID jobID) {
 
 		// TODO: Make topology job specific
 		return this.networkTopology;
@@ -803,7 +804,7 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setInstanceListener(InstanceListener instanceListener) {
+	public synchronized void setInstanceListener(final InstanceListener instanceListener) {
 		this.instanceListener = instanceListener;
 	}
 
@@ -964,7 +965,7 @@ public class ClusterManager implements InstanceManager {
 	 *        the index of the target instance type in the list of available instance types
 	 * @return the number of times the source type instance can be accommodated inside the target instance
 	 */
-	private int canBeAccommodated(int sourceTypeIndex, int targetTypeIndex) {
+	private int canBeAccommodated(final int sourceTypeIndex, final int targetTypeIndex) {
 
 		if (sourceTypeIndex >= this.availableInstanceTypes.length
 			|| targetTypeIndex >= this.availableInstanceTypes.length) {
@@ -973,5 +974,26 @@ public class ClusterManager implements InstanceManager {
 		}
 
 		return this.instanceAccommodationMatrix[targetTypeIndex][sourceTypeIndex];
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public synchronized AbstractInstance getInstanceByName(final String name) {
+
+		if (name == null) {
+			throw new IllegalArgumentException("Argument name must not be null");
+		}
+
+		final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
+		while (it.hasNext()) {
+			final AbstractInstance instance = it.next();
+			if (name.equals(instance.getName())) {
+				return instance;
+			}
+		}
+
+		return null;
 	}
 }

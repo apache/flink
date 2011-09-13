@@ -13,28 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.executiongraph;
+package eu.stratosphere.nephele.checkpointing;
 
-import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 
-/**
- * Classes implementing the {@link CheckpointStateListener} interface can register for notifications about state changes
- * of
- * a vertex's checkpoint.
- * 
- * @author warneke
- */
-public interface CheckpointStateListener {
+public class CheckpointReplayResult extends AbstractTaskResult {
 
 	/**
-	 * Called to notify a change in the vertex's checkpoint state
+	 * Constructs a new checkpoint replay result.
 	 * 
-	 * @param jobID
-	 *        the ID of the job the event belongs to
 	 * @param vertexID
-	 *        the ID of the vertex whose checkpoint state has changed
-	 * @param newCheckpointState
-	 *        the new state of the vertex's checkpoint
+	 *        the task ID this result belongs to
+	 * @param returnCode
+	 *        the return code of the submission
 	 */
-	void checkpointStateChanged(JobID jobID, ExecutionVertexID vertexID, CheckpointState newCheckpointState);
+	public CheckpointReplayResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
+		super(vertexID, returnCode);
+	}
+
+	/**
+	 * Constructs an empty checkpoint replay result.
+	 */
+	public CheckpointReplayResult() {
+		super();
+	}
 }

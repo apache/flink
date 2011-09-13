@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.checkpointing;
+package eu.stratosphere.nephele.checkpointing;
 
 import java.io.File;
 
@@ -24,9 +24,9 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
-public class CheckpointManager {
+public class CheckpointReplayManager {
 
-	private static final Log LOG = LogFactory.getLog(CheckpointManager.class);
+	private static final Log LOG = LogFactory.getLog(CheckpointReplayManager.class);
 
 	public static final String CHECKPOINT_DIRECTORY_KEY = "channel.checkpoint.directory";
 
@@ -41,7 +41,7 @@ public class CheckpointManager {
 
 	private final String checkpointDirectory;
 
-	public CheckpointManager(final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+	public CheckpointReplayManager(final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 

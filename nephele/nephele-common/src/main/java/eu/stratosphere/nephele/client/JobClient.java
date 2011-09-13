@@ -284,12 +284,15 @@ public class JobClient {
 			final IntegerRecord interval = this.jobSubmitClient.getRecommendedPollingInterval();
 			sleep = interval.getValue() * 1000;
 		} catch (IOException ioe) {
-			logErrorAndRethrow(StringUtils.stringifyException(ioe));
+			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
+			// Rethrow error
+			throw ioe;
 		}
 
 		try {
 			Thread.sleep(sleep / 2);
 		} catch (InterruptedException e) {
+			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 			logErrorAndRethrow(StringUtils.stringifyException(e));
 		}
 
@@ -301,7 +304,14 @@ public class JobClient {
 				logErrorAndRethrow("Job client has been interrupted");
 			}
 
-			final JobProgressResult jobProgressResult = getJobProgress();
+			JobProgressResult jobProgressResult = null;
+			try {
+				jobProgressResult = getJobProgress();
+			} catch (IOException ioe) {
+				Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
+				// Rethrow error
+				throw ioe;
+			}
 
 			if (jobProgressResult == null) {
 				logErrorAndRethrow("Returned job progress is unexpectedly null!");

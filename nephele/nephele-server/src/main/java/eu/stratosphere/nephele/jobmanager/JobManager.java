@@ -56,6 +56,10 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointDecisionCoordinator;
+import eu.stratosphere.nephele.checkpointing.CheckpointDecisionPropagator;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobProgressResult;
@@ -109,7 +113,6 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
-import eu.stratosphere.nephele.taskmanager.CheckpointReplayResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
@@ -133,7 +136,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author warneke
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
+		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, CheckpointDecisionPropagator {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -152,6 +155,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final MulticastManager multicastManager;
 
 	private InstanceManager instanceManager;
+
+	private final CheckpointDecisionCoordinator checkpointDecisionCoordinator;
 
 	private final int recommendedClientPollingInterval;
 
@@ -204,6 +209,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Load the input split manager
 		this.inputSplitManager = new InputSplitManager();
+
+		// Load the checkpoint decision coordinator
+		this.checkpointDecisionCoordinator = new CheckpointDecisionCoordinator(this);
 
 		// Determine own RPC address
 		final InetSocketAddress rpcServerAddress = new InetSocketAddress(ipcAddress, ipcPort);
@@ -499,6 +507,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		synchronized (eg) {
 
+			// Perform graph optimizations
+			if (this.optimizer != null) {
+				this.optimizer.optimize(eg);
+			}
+
 			// Check if profiling should be enabled for this job
 			boolean profilingEnabled = false;
 			if (this.profiler != null && job.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
@@ -522,10 +535,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			// Register job with the dynamic input split assigner
 			this.inputSplitManager.registerJob(eg);
 
-			// Perform graph optimizations
-			if (this.optimizer != null) {
-				this.optimizer.optimize(eg);
-			}
+			// Register with the checkpoint decision coordinator
+			this.checkpointDecisionCoordinator.registerJob(eg);
 
 			// Register for updates on the job status
 			eg.registerJobStatusListener(this);
@@ -904,8 +915,28 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@Override
 	public void killInstance(final StringRecord instanceName) throws IOException {
-		// TODO Auto-generated method stub
-		LOG.debug("Killing instance " + instanceName);
+
+		final AbstractInstance instance = this.instanceManager.getInstanceByName(instanceName.toString());
+		if (instance == null) {
+			LOG.error("Cannot find instance with name " + instanceName + " to kill it");
+		}
+
+		LOG.info("Killing task manager on instance " + instance);
+
+		final Runnable runnable = new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					instance.killTaskManager();
+				} catch (IOException ioe) {
+					LOG.error(StringUtils.stringifyException(ioe));
+				}
+			}
+		};
+
+		// Hand it over to the executor service
+		this.executorService.execute(runnable);
 	}
 
 	/**
@@ -1344,5 +1375,40 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
 		this.executorService.execute(taskStateChangeRunnable);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void propagateCheckpointDecisions(final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions) {
+
+		final Iterator<Map.Entry<AbstractInstance, List<CheckpointDecision>>> it = checkpointDecisions.entrySet()
+			.iterator();
+		while (it.hasNext()) {
+
+			final Map.Entry<AbstractInstance, List<CheckpointDecision>> entry = it.next();
+			final AbstractInstance instance = entry.getKey();
+			final List<CheckpointDecision> decisions = entry.getValue();
+
+			final Runnable runnable = new Runnable() {
+
+				/**
+				 * {@inheritDoc}
+				 */
+				@Override
+				public void run() {
+
+					try {
+						instance.propagateCheckpointDecisions(decisions);
+					} catch (IOException ioe) {
+						LOG.error(StringUtils.stringifyException(ioe));
+					}
+				}
+			};
+
+			this.executorService.execute(runnable);
+		}
+
 	}
 }
