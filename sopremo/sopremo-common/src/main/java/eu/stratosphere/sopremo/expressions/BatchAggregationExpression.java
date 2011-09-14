@@ -7,6 +7,7 @@ import java.util.List;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
@@ -55,7 +56,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		for (final Partial partial : this.partials)
 			partial.getFunction().initialize();
-		for (final JsonNode input : node)
+		for (final JsonNode input : ((ArrayNode)node))
 			for (final Partial partial : this.partials)
 				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, context), context);
 
@@ -63,7 +64,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		for (int index = 0; index < results.length; index++)
 			results[index] = this.partials.get(index).getFunction().getFinalAggregate();
 
-		return this.lastResult = JsonUtil.asArray(results);
+		return this.lastResult = new ArrayNode(results);
 	}
 
 	private class Partial extends AggregationExpression {

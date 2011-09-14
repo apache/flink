@@ -64,7 +64,7 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", field, node
 				.getClass().getSimpleName()));
 		}
-		JsonNode value = node.get(this.field);
+		JsonNode value = ((ObjectNode)node).get(this.field);
 		return value == null ? NullNode.getInstance() : value;
 	}
 

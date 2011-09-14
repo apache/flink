@@ -3,9 +3,11 @@ package eu.stratosphere.sopremo.jsondatamodel;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 public class ObjectNode extends JsonNode {
 
@@ -28,8 +30,48 @@ public class ObjectNode extends JsonNode {
 		return this;
 	}
 
-	// TODO implement more puts(String, int, double, ...)
+	public ObjectNode put(final String fieldName, final String value) {
+		if (value == null)
+			throw new NullPointerException();
 
+		this._put(fieldName, new TextNode(value));
+		return this;
+	}
+	
+	public ObjectNode put(final String fieldName, final Integer value) {
+		if (value == null)
+			throw new NullPointerException();
+
+		this._put(fieldName, new IntNode(value));
+		return this;
+	}
+	
+	public ObjectNode put(final String fieldName, final Double value) {
+		if (value == null)
+			throw new NullPointerException();
+
+		this._put(fieldName, new DoubleNode(value));
+		return this;
+	}
+	
+	public ObjectNode put(final String fieldName, final BigDecimal value) {
+		if (value == null)
+			throw new NullPointerException();
+
+		this._put(fieldName, new DecimalNode(value));
+		return this;
+	}
+	
+	public ObjectNode put(final String fieldName, final Boolean value) {
+		if (value == null)
+			throw new NullPointerException();
+
+		this._put(fieldName, value? BooleanNode.TRUE: BooleanNode.FALSE);
+		return this;
+	}
+	
+	
+	
 	public JsonNode get(final String fieldName) {
 		final JsonNode node = this.children.get(fieldName);
 		if (node != null)
@@ -132,4 +174,19 @@ public class ObjectNode extends JsonNode {
 
 	}
 
+	public Set<Entry<String, JsonNode>> getEntries(){
+		return this.children.entrySet();
+	}
+	
+	public ObjectNode putAll(ObjectNode jsonNode) {
+		for(Entry<String, JsonNode> entry : jsonNode.getEntries()){
+			this.put(entry.getKey(), entry.getValue());
+		}
+		return this;
+	}
+
+	public boolean isObject() {
+		return true;
+	}
+	
 }

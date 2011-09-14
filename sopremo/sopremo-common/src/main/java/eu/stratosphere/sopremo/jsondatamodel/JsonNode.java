@@ -50,4 +50,16 @@ public abstract class JsonNode implements Serializable, Value {
 
 	@Override
 	public abstract void write(DataOutput out) throws IOException;
+
+	public boolean isNull() {
+		return false;
+	}
+	
+	public boolean isObject() {
+		return false;
+	}
+
+	public boolean isArray() {
+		return false;
+	}
 }

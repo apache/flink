@@ -27,7 +27,7 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			final ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
+			final ObjectNode objectNode = new ObjectNode();
 			final Iterator<JsonNode> elements = node.getElements();
 			while (elements.hasNext()) {
 				final JsonNode jsonNode = elements.next();
@@ -74,7 +74,7 @@ public class ObjectCreation extends ContainerExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final ObjectNode transformedNode = JsonUtil.OBJECT_MAPPER.createObjectNode();
+		final ObjectNode transformedNode = new ObjectNode();
 		for (final Mapping mapping : this.mappings)
 			mapping.evaluate(transformedNode, node, context);
 		return transformedNode;

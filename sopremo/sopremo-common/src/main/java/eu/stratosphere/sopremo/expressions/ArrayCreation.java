@@ -52,7 +52,7 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final ArrayNode arrayNode = JsonUtil.NODE_FACTORY.arrayNode();
+		final ArrayNode arrayNode = new ArrayNode();
 		for (final SopremoExpression<EvaluationContext> expression : this.elements)
 			arrayNode.add(expression.evaluate(node, context));
 		return arrayNode;

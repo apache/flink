@@ -21,10 +21,10 @@ public class ArrayMerger extends EvaluationExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final Iterator<JsonNode> arrays = node.iterator();
-		final ArrayNode mergedArray = JsonUtil.NODE_FACTORY.arrayNode();
+		final Iterator<JsonNode> arrays = ((ArrayNode) node).iterator();
+		final ArrayNode mergedArray = new ArrayNode();
 		while (arrays.hasNext()) {
-			final JsonNode array = arrays.next();
+			final ArrayNode array = (ArrayNode) arrays.next();
 			for (int index = 0; index < array.size(); index++)
 				if (mergedArray.size() <= index)
 					mergedArray.add(array.get(index));

@@ -19,8 +19,6 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 
 	public static final String COLUMN_NAMES = "columnNames";
 
-	private CsvReader reader;
-
 	private char fieldDelimiter = ',';
 
 	private String[] keyNames;
@@ -71,7 +69,7 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 			reader.setDelimiter(fieldDelimiter);
 			try {
 				if (reader.readRecord()) {
-					ObjectNode node = new ObjectNode(JsonNodeFactory.instance);
+					ObjectNode node = new ObjectNode();
 					if(this.keyNames != null) {
 					for (int i = 0; i < this.keyNames.length; i++)
 						node.put(this.keyNames[i], reader.get(i));

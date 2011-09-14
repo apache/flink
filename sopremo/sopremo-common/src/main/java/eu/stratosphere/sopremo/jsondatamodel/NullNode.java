@@ -52,4 +52,9 @@ public class NullNode extends JsonNode {
 	public void write(final DataOutput out) throws IOException {
 		PactNull.getInstance().write(out);
 	}
+	
+	@Override
+	public boolean isNull(){
+		return true;
+	}
 }

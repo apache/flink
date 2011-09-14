@@ -4,8 +4,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 
-public class ArrayNode extends JsonNode {
+public class ArrayNode extends JsonNode implements Iterable<JsonNode>{
 
 	/**
 	 * 
@@ -137,4 +138,12 @@ public class ArrayNode extends JsonNode {
 		}
 	}
 
+	@Override
+	public Iterator<JsonNode> iterator() {
+		return this.children.iterator();
+	}
+
+	public boolean isArray() {
+		return true;
+	}
 }
