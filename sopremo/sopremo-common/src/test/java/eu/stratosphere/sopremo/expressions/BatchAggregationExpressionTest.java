@@ -8,6 +8,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
@@ -41,9 +42,9 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 		batch.add(BuiltinFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		JsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), this.context);
-		JsonNode[] expected = { JsonUtil.NODE_FACTORY.numberNode(1 + 2 + 3 + 4 + 5),
-			JsonUtil.NODE_FACTORY.numberNode((double)(1 + 2 + 3 + 4 + 5) / 5),
-			JsonUtil.NODE_FACTORY.numberNode((double)(1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5) };
+		JsonNode[] expected = { new DoubleNode(1 + 2 + 3 + 4 + 5),
+			new DoubleNode((double)(1 + 2 + 3 + 4 + 5) / 5),
+			new DoubleNode((double)(1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5) };
 		Assert.assertEquals(JsonUtil.asArray(expected), result);
 	}
 }

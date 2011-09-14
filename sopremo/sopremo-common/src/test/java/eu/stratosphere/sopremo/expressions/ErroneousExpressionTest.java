@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 
 public class ErroneousExpressionTest extends EvaluableExpressionTest<ErroneousExpression> {
 
@@ -14,7 +15,7 @@ public class ErroneousExpressionTest extends EvaluableExpressionTest<ErroneousEx
 
 	@Test(expected = EvaluationException.class)
 	public void shouldThrowException() {
-		new ErroneousExpression("TestExceptionMessage").evaluate(JsonUtil.NODE_FACTORY.nullNode(), this.context);
+		new ErroneousExpression("TestExceptionMessage").evaluate(NullNode.getInstance(), this.context);
 
 	}
 }

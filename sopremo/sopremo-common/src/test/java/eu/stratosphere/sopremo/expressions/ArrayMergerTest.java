@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 
 public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
@@ -56,8 +57,8 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 	public void shouldFillNullNodesWithValuesFromOtherArrays() {
 		final JsonNode result = new ArrayMerger().evaluate(
 			createArrayNode(
-				createArrayNode(JsonUtil.NODE_FACTORY.nullNode(), createObjectNode("fieldName", 2),
-					JsonUtil.NODE_FACTORY.nullNode()), createArrayNode(createObjectNode("fieldName", 1)),
+				createArrayNode(NullNode.getInstance(), createObjectNode("fieldName", 2),
+					NullNode.getInstance()), createArrayNode(createObjectNode("fieldName", 1)),
 				createArrayNode(null, null, createObjectNode("fieldName", 3))), this.context);
 		Assert.assertEquals(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 			createObjectNode("fieldName", 3)), result);
