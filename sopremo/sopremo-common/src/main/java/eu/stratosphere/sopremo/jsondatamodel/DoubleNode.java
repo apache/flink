@@ -6,7 +6,7 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 
-public class DoubleNode extends JsonNode {
+public class DoubleNode extends NumericNode {
 
 	/**
 	 * 

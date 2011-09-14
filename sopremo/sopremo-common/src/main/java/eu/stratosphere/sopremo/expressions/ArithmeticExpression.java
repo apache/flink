@@ -10,10 +10,12 @@ import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.NumberCoercer;
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
 import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
 import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for

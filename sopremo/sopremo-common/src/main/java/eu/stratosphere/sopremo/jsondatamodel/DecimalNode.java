@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-public class DecimalNode extends JsonNode {
+public class DecimalNode extends NumericNode {
 
 	/**
 	 * 
@@ -24,6 +24,8 @@ public class DecimalNode extends JsonNode {
 	}
 
 	public static DecimalNode valueOf(final BigDecimal v) {
+		if (v == null)
+			throw new NullPointerException();
 		return new DecimalNode(v);
 	}
 

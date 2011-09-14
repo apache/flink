@@ -6,6 +6,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.NumberCoercer;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 @OptimizerHints(scope = Scope.NUMBER)
 public class NumberCastingExpression extends EvaluationExpression {

@@ -9,10 +9,13 @@ import java.util.Map.Entry;
 
 import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
 
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
 import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
 import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.LongNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 public final class NumberCoercer {
 	private static final int NUMBER_TYPES_COUNT = NumberType.values().length;

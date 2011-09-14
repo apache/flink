@@ -18,6 +18,7 @@ import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperat
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.DivisionEvaluator;
 import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
 
 @RunWith(Parameterized.class)
 public class ArithmeticCrossTest {

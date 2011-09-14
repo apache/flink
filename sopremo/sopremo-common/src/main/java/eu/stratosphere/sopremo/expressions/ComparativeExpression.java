@@ -5,9 +5,10 @@ import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.NumberCoercer;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
 public class ComparativeExpression extends BooleanExpression {
 	/**

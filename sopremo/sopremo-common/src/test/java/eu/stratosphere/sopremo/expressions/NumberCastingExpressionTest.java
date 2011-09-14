@@ -4,8 +4,8 @@ import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 public class NumberCastingExpressionTest extends EvaluableExpressionTest<NumberCastingExpression> {
 
 	@Override

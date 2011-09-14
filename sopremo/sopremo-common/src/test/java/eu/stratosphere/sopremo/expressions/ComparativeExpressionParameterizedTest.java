@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 
 import java.util.Arrays;
 import java.util.List;
@@ -14,6 +13,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;

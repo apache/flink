@@ -6,10 +6,11 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.CoercionException;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 
 public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpression> {
 

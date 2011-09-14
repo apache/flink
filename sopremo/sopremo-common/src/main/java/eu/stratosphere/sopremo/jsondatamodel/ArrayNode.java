@@ -5,6 +5,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 public class ArrayNode extends JsonNode implements Iterable<JsonNode>{
 
@@ -145,5 +146,12 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode>{
 
 	public boolean isArray() {
 		return true;
+	}
+
+	public JsonNode addAll(List<JsonNode> blacklistedValues) {
+		for(JsonNode node : blacklistedValues){
+			this.add(node);
+		}
+		return this;
 	}
 }

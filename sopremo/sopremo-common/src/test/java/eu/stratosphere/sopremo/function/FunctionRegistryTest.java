@@ -11,6 +11,7 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 public class FunctionRegistryTest {
 	private FunctionRegistry registry;

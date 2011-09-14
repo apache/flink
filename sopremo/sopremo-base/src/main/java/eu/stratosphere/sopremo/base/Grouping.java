@@ -107,13 +107,15 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 			super("U<values>", new ArrayNode(null));
 		}
 
+		//TODO refactor code
 		@Override
 		protected JsonNode aggregate(final JsonNode mergedArray, final JsonNode array, final EvaluationContext context) {
-			for (int index = 0; index < array.size(); index++) {
-				if (mergedArray.size() <= index)
-					((ArrayNode) mergedArray).add(JsonUtil.NODE_FACTORY.arrayNode());
-				if (!array.get(index).isNull())
-					((ArrayNode) mergedArray.get(index)).add(array.get(index));
+			ArrayNode arrayNode = ((ArrayNode)array);
+			for (int index = 0; index < arrayNode.size(); index++) {
+				if (((ArrayNode)mergedArray).size() <= index)
+					((ArrayNode) mergedArray).add(new ArrayNode());
+				if (!arrayNode.get(index).isNull())
+					((ArrayNode)(((ArrayNode) mergedArray).get(index))).add(arrayNode.get(index));
 			}
 			return mergedArray;
 		}

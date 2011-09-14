@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.pact;
 
 import java.util.Comparator;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -11,10 +10,13 @@ import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
 import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.LongNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;

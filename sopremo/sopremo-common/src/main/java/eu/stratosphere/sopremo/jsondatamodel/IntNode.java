@@ -6,7 +6,7 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
-public class IntNode extends JsonNode {
+public class IntNode extends NumericNode {
 
 	/**
 	 * 

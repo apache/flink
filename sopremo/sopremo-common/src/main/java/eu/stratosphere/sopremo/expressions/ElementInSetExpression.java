@@ -1,11 +1,11 @@
 package eu.stratosphere.sopremo.expressions;
 
 import java.util.Arrays;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, iterating = true)

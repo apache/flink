@@ -1,11 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.util.ConversionIterator;
 
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
 public class ArrayProjection extends EvaluationExpression implements WritableEvaluable {
@@ -35,25 +32,27 @@ public class ArrayProjection extends EvaluationExpression implements WritableEva
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		// lazy spread
-		if (node instanceof StreamArrayNode)
-			return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
-				@Override
-				protected JsonNode convert(final JsonNode element) {
-					return ArrayProjection.this.expression.evaluate(element, context);
-				}
-			}, ((StreamArrayNode) node).isResettable());
+		//TODO
+//		if (node instanceof StreamArrayNode)
+//			return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
+//				@Override
+//				protected JsonNode convert(final JsonNode element) {
+//					return ArrayProjection.this.expression.evaluate(element, context);
+//				}
+//			}, ((StreamArrayNode) node).isResettable());
 		// spread
-		final ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
-		for (int index = 0, size = node.size(); index < size; index++)
-			arrayNode.add(this.expression.evaluate(node.get(index), context));
+		ArrayNode array = ((ArrayNode) node);
+		final ArrayNode arrayNode = new ArrayNode();
+		for (int index = 0, size = array.size(); index < size; index++)
+			arrayNode.add(this.expression.evaluate(array.get(index), context));
 		return arrayNode;
 	}
 
 	@Override
 	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
 		ArrayNode arrayNode = (ArrayNode) node;
-		for (int index = 0, size = node.size(); index < size; index++)
-			arrayNode.set(index, ((WritableEvaluable) this.expression).set(node.get(index), value, context));
+		for (int index = 0, size = arrayNode.size(); index < size; index++)
+			arrayNode.set(index, ((WritableEvaluable) this.expression).set(arrayNode.get(index), value, context));
 		return arrayNode;
 	}
 	

@@ -62,4 +62,8 @@ public abstract class JsonNode implements Serializable, Value {
 	public boolean isArray() {
 		return false;
 	}
+
+	public boolean isTextual() {
+		return false;
+	}
 }

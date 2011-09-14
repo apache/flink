@@ -25,9 +25,9 @@ public class TextNode extends JsonNode {
 		this.value = new PactString(v);
 	}
 
-	public static JsonNode valueOf(final String v) {
+	public static TextNode valueOf(final String v) {
 		if (v == null)
-			return NullNode.getInstance();
+			throw new NullPointerException();
 		if (v.length() == 0)
 			return EMPTY_STRING_NODE;
 		return new TextNode(v);
@@ -86,6 +86,10 @@ public class TextNode extends JsonNode {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		this.value.write(out);
+	}
+	
+	public boolean isTextual() {
+		return false;
 	}
 
 }
