@@ -1,9 +1,8 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 
 public class NonNullRule extends ValidationRule {
 

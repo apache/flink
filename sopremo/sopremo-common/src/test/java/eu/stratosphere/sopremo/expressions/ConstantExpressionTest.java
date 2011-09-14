@@ -1,15 +1,14 @@
 package eu.stratosphere.sopremo.expressions;
 
 import junit.framework.Assert;
-
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
-import org.junit.Ignore;
 import org.junit.Test;
+
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class ConstantExpressionTest extends EvaluableExpressionTest<ConstantExpression> {
 

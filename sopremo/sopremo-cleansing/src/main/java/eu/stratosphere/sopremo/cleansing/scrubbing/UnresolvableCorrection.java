@@ -1,8 +1,7 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class UnresolvableCorrection extends ValueCorrection {
 	/**

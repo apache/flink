@@ -1,5 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
-import static eu.stratosphere.sopremo.JsonUtil.*;
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -7,11 +7,11 @@ import java.util.List;
 
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 

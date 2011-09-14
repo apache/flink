@@ -1,10 +1,8 @@
 package eu.stratosphere.usecase.cleansing;
-import static eu.stratosphere.sopremo.JsonUtil.*;
-
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
+import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.BuiltinFunctions;
@@ -14,6 +12,8 @@ import eu.stratosphere.sopremo.expressions.EvaluableExpressionTest;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class AggExpressionTest extends EvaluableExpressionTest<AggExpression> {
 	@Override

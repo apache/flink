@@ -1,10 +1,9 @@
 package eu.stratosphere.usecase.cleansing;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.TextNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class GenerateExpression extends EvaluationExpression {
 	/**

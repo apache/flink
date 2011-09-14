@@ -1,10 +1,9 @@
 package eu.stratosphere.sopremo.cleansing.similarity;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class SimilarityCondition extends BooleanExpression {
 	/**

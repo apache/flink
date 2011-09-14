@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import org.codehaus.jackson.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public abstract class ValueCorrection extends CleansingRule<ValidationContext> {
 	/**

@@ -1,14 +1,10 @@
 package eu.stratosphere.sopremo.cleansing.similarity;
 
-import java.util.Arrays;
-
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class MongeElkanSimilarity extends EvaluationExpression {
 	private EvaluationExpression baseMeasure;

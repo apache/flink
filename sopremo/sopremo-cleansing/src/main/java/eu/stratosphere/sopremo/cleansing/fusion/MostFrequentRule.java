@@ -3,9 +3,8 @@ package eu.stratosphere.sopremo.cleansing.fusion;
 import it.unimi.dsi.fastutil.objects.Object2DoubleMap;
 import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
-
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 
 public class MostFrequentRule extends FusionRule {
 	/**

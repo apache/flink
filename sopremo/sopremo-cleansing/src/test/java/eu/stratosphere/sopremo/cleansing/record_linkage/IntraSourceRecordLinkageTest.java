@@ -1,14 +1,13 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
+import static eu.stratosphere.sopremo.JsonUtil.createPath;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonArray;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
-import static eu.stratosphere.sopremo.JsonUtil.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -24,6 +23,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 

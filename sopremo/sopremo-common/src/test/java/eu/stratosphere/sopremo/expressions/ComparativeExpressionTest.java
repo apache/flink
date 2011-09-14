@@ -1,14 +1,14 @@
 package eu.stratosphere.sopremo.expressions;
-import static eu.stratosphere.sopremo.JsonUtil.*;
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.TextNode;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class ComparativeExpressionTest extends EvaluableExpressionTest<ComparativeExpression>{
 	@Override

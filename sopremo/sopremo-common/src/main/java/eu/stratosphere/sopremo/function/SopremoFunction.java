@@ -1,9 +1,8 @@
 package eu.stratosphere.sopremo.function;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class SopremoFunction extends Function {
 	/**

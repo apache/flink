@@ -7,7 +7,6 @@ import java.io.OutputStreamWriter;
 
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.IdentityMap;
@@ -16,13 +15,13 @@ import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.ioformats.FormatUtil;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
  * Tests {@link JsonInputFormat}.

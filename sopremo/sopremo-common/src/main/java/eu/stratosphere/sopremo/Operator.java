@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.ListIterator;
 
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
  * Base class for all Sopremo operators. Every operator consumes and produces a specific number of {@link JsonStream}s.

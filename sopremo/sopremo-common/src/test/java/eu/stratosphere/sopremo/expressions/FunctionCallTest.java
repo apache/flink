@@ -1,16 +1,14 @@
 package eu.stratosphere.sopremo.expressions;
-import static eu.stratosphere.sopremo.JsonUtil.*;
-
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.NumericNode;
 import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 

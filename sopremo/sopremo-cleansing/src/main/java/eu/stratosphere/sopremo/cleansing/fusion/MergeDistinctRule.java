@@ -3,10 +3,9 @@ package eu.stratosphere.sopremo.cleansing.fusion;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.NullNode;
-
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 
 public class MergeDistinctRule extends FusionRule {

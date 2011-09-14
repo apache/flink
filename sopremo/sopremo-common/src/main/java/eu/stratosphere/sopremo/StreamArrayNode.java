@@ -5,16 +5,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonProcessingException;
-import org.codehaus.jackson.JsonToken;
-import org.codehaus.jackson.map.SerializerProvider;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.BaseJsonNode;
-import org.codehaus.jackson.node.ContainerNode;
-import org.codehaus.jackson.node.MissingNode;
-import org.codehaus.jackson.node.ObjectNode;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 
 /**
  * Provides a read-only view of an iterator of {@link JsonNode}s as an json array of undefined size.<br>

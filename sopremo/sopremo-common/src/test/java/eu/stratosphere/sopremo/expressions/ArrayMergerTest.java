@@ -1,12 +1,13 @@
 package eu.stratosphere.sopremo.expressions;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.JsonUtil;
-import static eu.stratosphere.sopremo.JsonUtil.*;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 

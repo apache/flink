@@ -1,11 +1,8 @@
 package eu.stratosphere.sopremo;
 
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 

@@ -7,20 +7,15 @@ import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.Assert;
-
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonProcessingException;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.TextNode;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> {
 

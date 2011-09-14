@@ -1,12 +1,9 @@
 package eu.stratosphere.sopremo.cleansing.similarity;
-import static eu.stratosphere.sopremo.JsonUtil.*;
-
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 import junit.framework.Assert;
 
-import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Test;
 
-import uk.ac.shef.wit.simmetrics.similaritymetrics.JaccardSimilarity;
 import uk.ac.shef.wit.simmetrics.similaritymetrics.JaroWinkler;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -15,6 +12,7 @@ import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 
 public class MongeElkanSimilarityTest extends SopremoTest<MongeElkanSimilarity> {
 	@Override

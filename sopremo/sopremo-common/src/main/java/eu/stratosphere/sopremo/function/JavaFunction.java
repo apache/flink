@@ -15,11 +15,11 @@ import java.util.Map.Entry;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class JavaFunction extends Function {
 	/**

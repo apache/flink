@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;

@@ -6,17 +6,14 @@ import java.math.MathContext;
 import java.util.EnumMap;
 import java.util.Map;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser.NumberType;
-import org.codehaus.jackson.node.BigIntegerNode;
-import org.codehaus.jackson.node.DecimalNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.LongNode;
-import org.codehaus.jackson.node.NumericNode;
+import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.NumberCoercer;
+import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for

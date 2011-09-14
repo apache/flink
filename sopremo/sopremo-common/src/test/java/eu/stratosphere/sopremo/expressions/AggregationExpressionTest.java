@@ -1,13 +1,13 @@
 package eu.stratosphere.sopremo.expressions;
-import static eu.stratosphere.sopremo.JsonUtil.*;
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
-import junit.framework.Assert;
 import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class AggregationExpressionTest extends EvaluableExpressionTest<AggregationExpression> {
 	@Override

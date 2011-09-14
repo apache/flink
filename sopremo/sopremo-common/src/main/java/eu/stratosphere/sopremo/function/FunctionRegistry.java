@@ -5,11 +5,10 @@ import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class FunctionRegistry implements SerializableSopremoType {
 	/**

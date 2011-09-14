@@ -1,15 +1,12 @@
 package eu.stratosphere.sopremo.expressions;
-import static eu.stratosphere.sopremo.JsonUtil.*;
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 
 import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.TextNode;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -17,6 +14,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 @RunWith(Parameterized.class)
 public class ComparativeExpressionParameterizedTest extends EvaluableExpressionTest<ComparativeExpression> {

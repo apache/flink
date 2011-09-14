@@ -4,10 +4,6 @@ import static eu.stratosphere.sopremo.JsonUtil.createPath;
 
 import java.io.File;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.TextNode;
-
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Sink;
@@ -23,6 +19,9 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.CsvInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 

@@ -1,8 +1,7 @@
 package eu.stratosphere.sopremo.cleansing.fusion;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class FusionContext extends EvaluationContext {
 	/**

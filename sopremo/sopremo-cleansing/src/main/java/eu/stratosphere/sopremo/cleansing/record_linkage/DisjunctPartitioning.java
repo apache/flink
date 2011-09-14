@@ -1,28 +1,23 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import java.util.List;
-
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
-
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 public class DisjunctPartitioning extends MultiPassPartitioning {
 	public DisjunctPartitioning(final EvaluationExpression partitionKey) {
 		super(partitionKey);

@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
-import static eu.stratosphere.sopremo.JsonUtil.*;
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,11 +9,12 @@ import java.util.List;
 import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.ObjectNode;
-import org.codehaus.jackson.node.TextNode;
 import org.junit.Test;
+
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> {
 

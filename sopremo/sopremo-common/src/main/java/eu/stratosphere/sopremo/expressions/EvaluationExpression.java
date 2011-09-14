@@ -2,12 +2,11 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.Set;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.util.IdentitySet;
 
 public abstract class EvaluationExpression extends SopremoExpression<EvaluationContext> {

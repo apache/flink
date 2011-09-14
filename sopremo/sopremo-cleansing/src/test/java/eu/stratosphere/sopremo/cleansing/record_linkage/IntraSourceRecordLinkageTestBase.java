@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonArray;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -16,6 +15,7 @@ import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;

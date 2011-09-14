@@ -5,7 +5,6 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
 public abstract class JsonNodeTest<T extends JsonNode> {

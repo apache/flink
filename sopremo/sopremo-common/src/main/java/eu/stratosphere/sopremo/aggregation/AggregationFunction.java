@@ -1,10 +1,9 @@
 package eu.stratosphere.sopremo.aggregation;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public abstract class AggregationFunction implements SerializableSopremoType, Cloneable {
 	/**

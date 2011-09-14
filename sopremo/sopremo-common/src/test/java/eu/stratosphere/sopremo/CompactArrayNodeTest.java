@@ -1,14 +1,16 @@
 package eu.stratosphere.sopremo;
-import static eu.stratosphere.sopremo.JsonUtil.*;
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.JsonUtil.createCompactArray;
+import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 
 import java.util.Arrays;
 import java.util.List;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ContainerNode;
 import org.junit.Ignore;
+
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @Ignore
 public class CompactArrayNodeTest extends SopremoTest<CompactArrayNode> {

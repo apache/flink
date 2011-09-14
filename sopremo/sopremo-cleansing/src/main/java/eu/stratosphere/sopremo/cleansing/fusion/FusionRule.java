@@ -1,10 +1,9 @@
 package eu.stratosphere.sopremo.cleansing.fusion;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.cleansing.scrubbing.CleansingRule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public abstract class FusionRule extends CleansingRule<FusionContext> {
 

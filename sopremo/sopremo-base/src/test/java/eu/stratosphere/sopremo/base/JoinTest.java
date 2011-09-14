@@ -1,8 +1,8 @@
 package eu.stratosphere.sopremo.base;
 
-import org.junit.Test;
-import static eu.stratosphere.sopremo.JsonUtil.*;
+import static eu.stratosphere.sopremo.JsonUtil.createPath;
 
+import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.AndExpression;

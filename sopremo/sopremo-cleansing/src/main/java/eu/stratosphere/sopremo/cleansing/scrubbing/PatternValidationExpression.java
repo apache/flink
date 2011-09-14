@@ -2,11 +2,10 @@ package eu.stratosphere.sopremo.cleansing.scrubbing;
 
 import java.util.regex.Pattern;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.TextNode;
-
 import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class PatternValidationExpression extends ValidationRule {
 	/**

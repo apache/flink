@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import eu.stratosphere.pact.common.stub.Stub;
 
 public enum ClosureMode {
 	LINKS(false, false), CLUSTER(true, false), CLUSTER_PROVENANCE(true, true);

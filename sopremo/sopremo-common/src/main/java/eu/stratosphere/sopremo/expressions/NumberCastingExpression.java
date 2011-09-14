@@ -1,12 +1,11 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser.NumberType;
-import org.codehaus.jackson.node.NumericNode;
+import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.NumberCoercer;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @OptimizerHints(scope = Scope.NUMBER)
 public class NumberCastingExpression extends EvaluationExpression {

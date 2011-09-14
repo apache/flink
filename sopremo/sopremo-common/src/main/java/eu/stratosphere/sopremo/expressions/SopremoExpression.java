@@ -3,14 +3,13 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.Collections;
 import java.util.Iterator;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public abstract class SopremoExpression<ContextType extends EvaluationContext> implements SerializableSopremoType,
 		Iterable<SopremoExpression<ContextType>> {

@@ -1,12 +1,11 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonParser.NumberType;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.TextNode;
+import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
-
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 public class NumberCastingExpressionTest extends EvaluableExpressionTest<NumberCastingExpression> {
 
 	@Override

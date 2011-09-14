@@ -1,16 +1,15 @@
 package eu.stratosphere.sopremo.expressions;
-import static eu.stratosphere.sopremo.JsonUtil.*;
-
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
+import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
 import org.junit.Test;
 
-import nl.jqno.equalsverifier.EqualsVerifier;
 import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class BatchAggregationExpressionTest extends EvaluableExpressionTest<BatchAggregationExpression> {
 	@Override

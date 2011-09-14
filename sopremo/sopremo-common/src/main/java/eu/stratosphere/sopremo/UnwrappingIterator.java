@@ -2,8 +2,7 @@ package eu.stratosphere.sopremo;
 
 import java.util.Iterator;
 
-import org.codehaus.jackson.JsonNode;
-
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.ConversionIterator;
 

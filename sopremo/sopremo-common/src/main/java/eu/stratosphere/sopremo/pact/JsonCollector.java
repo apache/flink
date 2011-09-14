@@ -1,8 +1,7 @@
 package eu.stratosphere.sopremo.pact;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.pact.common.stub.Collector;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 
 public class JsonCollector {

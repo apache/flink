@@ -1,10 +1,9 @@
 package eu.stratosphere.sopremo;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.function.Function;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
  * Represents all evaluable entities such as {@link EvaluationExpression}s or {@link Function}s.

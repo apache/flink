@@ -21,14 +21,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
-import java.util.Enumeration;
 import java.util.Iterator;
 
 import junit.framework.AssertionFailedError;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
@@ -46,6 +43,7 @@ import eu.stratosphere.sopremo.PersistenceType;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCross;

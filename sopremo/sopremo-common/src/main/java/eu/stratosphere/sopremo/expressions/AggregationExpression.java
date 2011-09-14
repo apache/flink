@@ -1,9 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class AggregationExpression extends EvaluationExpression {
 	/**

@@ -3,11 +3,9 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.Arrays;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
-
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 @OptimizerHints(scope = Scope.ANY)
 public class OrExpression extends BooleanExpression {
 	/**
