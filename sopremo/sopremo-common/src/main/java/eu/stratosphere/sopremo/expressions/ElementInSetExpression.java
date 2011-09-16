@@ -100,33 +100,33 @@ public class ElementInSetExpression extends BooleanExpression {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((elementExpr == null) ? 0 : elementExpr.hashCode());
-		result = prime * result + ((quantor == null) ? 0 : quantor.hashCode());
-		result = prime * result + ((setExpr == null) ? 0 : setExpr.hashCode());
+		result = prime * result + (this.elementExpr == null ? 0 : this.elementExpr.hashCode());
+		result = prime * result + (this.quantor == null ? 0 : this.quantor.hashCode());
+		result = prime * result + (this.setExpr == null ? 0 : this.setExpr.hashCode());
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 
-		ElementInSetExpression other = (ElementInSetExpression) obj;
-		if (elementExpr == null) {
+		final ElementInSetExpression other = (ElementInSetExpression) obj;
+		if (this.elementExpr == null) {
 			if (other.elementExpr != null)
 				return false;
-		} else if (!elementExpr.equals(other.elementExpr))
+		} else if (!this.elementExpr.equals(other.elementExpr))
 			return false;
-		if (quantor != other.quantor)
+		if (this.quantor != other.quantor)
 			return false;
-		if (setExpr == null) {
+		if (this.setExpr == null) {
 			if (other.setExpr != null)
 				return false;
-		} else if (!setExpr.equals(other.setExpr))
+		} else if (!this.setExpr.equals(other.setExpr))
 			return false;
 
 		return true;

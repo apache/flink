@@ -14,7 +14,7 @@ public class BigIntegerNode extends NumericNode {
 
 	protected BigInteger value;
 
-	public BigIntegerNode(BigInteger v) {
+	public BigIntegerNode(final BigInteger v) {
 		this.value = v;
 	}
 
@@ -28,7 +28,7 @@ public class BigIntegerNode extends NumericNode {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		final byte[] inValue = new byte[in.readInt()];
 		in.readFully(inValue);
 
@@ -36,7 +36,7 @@ public class BigIntegerNode extends NumericNode {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		final byte[] outValue = this.value.toByteArray();
 		out.writeInt(outValue.length);
 		out.write(outValue);
@@ -46,33 +46,33 @@ public class BigIntegerNode extends NumericNode {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + value.hashCode();
+		result = prime * result + this.value.hashCode();
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 
-		BigIntegerNode other = (BigIntegerNode) obj;
-		if (!value.equals(other.value))
+		final BigIntegerNode other = (BigIntegerNode) obj;
+		if (!this.value.equals(other.value))
 			return false;
 		return true;
 	}
 
-	public static BigIntegerNode valueOf(BigInteger bigInteger) {
-		if(bigInteger != null){
+	public static BigIntegerNode valueOf(final BigInteger bigInteger) {
+		if (bigInteger != null)
 			return new BigIntegerNode(bigInteger);
-		}
 		throw new NullPointerException();
 	}
 
-	public Double getValueAsDouble(){
+	@Override
+	public Double getValueAsDouble() {
 		return Double.valueOf(this.value.doubleValue());
 	}
 

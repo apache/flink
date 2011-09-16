@@ -76,7 +76,8 @@ public class DoubleNode extends NumericNode {
 		this.value.write(out);
 	}
 
-	public Double getValueAsDouble(){
+	@Override
+	public Double getValueAsDouble() {
 		return this.value.getValue();
 	}
 

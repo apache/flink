@@ -108,7 +108,7 @@ public class JsonUtil {
 			streamNodes[index] = wrapWithNode(resettable, objectIterators.get(index));
 		return new ArrayNode(streamNodes);
 	}
-	
+
 	public static PathExpression createPath(final List<String> parts) {
 		final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
 		for (int index = 0; index < parts.size(); index++) {
@@ -138,7 +138,7 @@ public class JsonUtil {
 	public static PathExpression createPath(final String... parts) {
 		return createPath(Arrays.asList(parts));
 	}
-	
+
 	public static ArrayNode createArrayNode(final Object... constants) {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(constants);
 	}
@@ -158,9 +158,9 @@ public class JsonUtil {
 			objectNode.put(fields[index].toString(), JsonUtil.OBJECT_MAPPER.valueToTree(fields[index + 1]));
 		return objectNode;
 	}
-	
+
 	public static JsonNode createValueNode(final Object value) {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
 	}
-	
+
 }

@@ -6,14 +6,13 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 
 public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Override
-	protected ArrayAccess createDefaultInstance(int index) {
+	protected ArrayAccess createDefaultInstance(final int index) {
 		return new ArrayAccess(index);
 	}
 

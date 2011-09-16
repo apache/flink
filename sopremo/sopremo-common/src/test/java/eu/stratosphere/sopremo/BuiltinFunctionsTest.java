@@ -29,7 +29,7 @@ public class BuiltinFunctionsTest {
 	public void shouldCoerceDataWhenSumming() {
 		Assert.assertEquals(
 			6.4,
-			((DoubleNode)BuiltinFunctions.sum(createArrayNode(1.1, 2, new BigDecimal("3.3")))).getDoubleValue(), 0.01);
+			((DoubleNode) BuiltinFunctions.sum(createArrayNode(1.1, 2, new BigDecimal("3.3")))).getDoubleValue(), 0.01);
 	}
 
 	/**
@@ -99,15 +99,13 @@ public class BuiltinFunctionsTest {
 			BuiltinFunctions.count(createArrayNode()));
 	}
 
-
-//	/**
-//	 * 
-//	 */
-//	@Test(expected = ClassCastException.class)
-//	public void shouldFailIfIncompatible() {
-//		BuiltinFunctions.sort(createArrayNode(3.14, 4, 1.2, 2));
-//	}
-
+	// /**
+	// *
+	// */
+	// @Test(expected = ClassCastException.class)
+	// public void shouldFailIfIncompatible() {
+	// BuiltinFunctions.sort(createArrayNode(3.14, 4, 1.2, 2));
+	// }
 
 	/**
 	 * 
@@ -175,7 +173,7 @@ public class BuiltinFunctionsTest {
 	public void shouldSumDoubles() {
 		Assert.assertEquals(
 			6.6,
-			((DoubleNode)BuiltinFunctions.sum(createArrayNode(1.1, 2.2, 3.3))).getDoubleValue(), 0.01);
+			((DoubleNode) BuiltinFunctions.sum(createArrayNode(1.1, 2.2, 3.3))).getDoubleValue(), 0.01);
 	}
 
 	/**
@@ -256,10 +254,9 @@ public class BuiltinFunctionsTest {
 	public void shouldCalculateAvgWithDifferentNodes() {
 		BuiltinFunctions.AVERAGE.initialize();
 
-		for (int i = 1; i < 500; i++) {
-			BuiltinFunctions.AVERAGE.aggregate((i % 2 == 0) ? IntNode.valueOf(i) : DoubleNode.valueOf(i),
+		for (int i = 1; i < 500; i++)
+			BuiltinFunctions.AVERAGE.aggregate(i % 2 == 0 ? IntNode.valueOf(i) : DoubleNode.valueOf(i),
 				this.context);
-		}
 
 		Assert.assertEquals(DoubleNode.valueOf(250), BuiltinFunctions.AVERAGE.getFinalAggregate());
 	}

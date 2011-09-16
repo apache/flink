@@ -31,24 +31,24 @@ public class CoerceExpression extends EvaluationExpression {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((targetType == null) ? 0 : targetType.hashCode());
+		result = prime * result + (this.targetType == null ? 0 : this.targetType.hashCode());
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 
-		CoerceExpression other = (CoerceExpression) obj;
-		if (targetType == null) {
+		final CoerceExpression other = (CoerceExpression) obj;
+		if (this.targetType == null) {
 			if (other.targetType != null)
 				return false;
-		} else if (!targetType.equals(other.targetType))
+		} else if (!this.targetType.equals(other.targetType))
 			return false;
 
 		return true;

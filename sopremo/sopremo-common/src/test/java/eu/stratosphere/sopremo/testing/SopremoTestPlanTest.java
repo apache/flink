@@ -94,7 +94,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 */
 	@Test
 	public void completeTestPasses() throws IOException {
-		final Source source = new Source(PersistenceType.HDFS, this.getResourcePath("SopremoTestPlan/test.json"));
+		final Source source = new Source(PersistenceType.HDFS, SopremoTest.getResourcePath("SopremoTestPlan/test.json"));
 
 		final Identity projection = new Identity(source);
 
@@ -113,10 +113,10 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	@Test
 	public void completeTestPassesWithExpectedValues() {
 		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(new Source(PersistenceType.HDFS,
-			this.getResourcePath("SopremoTestPlan/test.json"))));
+			SopremoTest.getResourcePath("SopremoTestPlan/test.json"))));
 
 		testPlan.getExpectedOutput(0).setOperator(new Source(PersistenceType.HDFS,
-			this.getResourcePath("SopremoTestPlan/test.json")));
+			SopremoTest.getResourcePath("SopremoTestPlan/test.json")));
 		testPlan.run();
 	}
 

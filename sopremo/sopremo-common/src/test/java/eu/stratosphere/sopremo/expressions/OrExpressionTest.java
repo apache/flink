@@ -7,20 +7,21 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+
 public class OrExpressionTest extends BooleanExpressionTest<OrExpression> {
 
 	@Override
-	protected OrExpression createDefaultInstance(int index) {
+	protected OrExpression createDefaultInstance(final int index) {
 
 		switch (index) {
 		case 0: {
-			return new OrExpression(TRUE);
+			return new OrExpression(this.TRUE);
 		}
 		case 1: {
-			return new OrExpression(TRUE, TRUE);
+			return new OrExpression(this.TRUE, this.TRUE);
 		}
 		case 2: {
-			return new OrExpression(TRUE, TRUE, TRUE);
+			return new OrExpression(this.TRUE, this.TRUE, this.TRUE);
 		}
 		}
 
@@ -29,14 +30,16 @@ public class OrExpressionTest extends BooleanExpressionTest<OrExpression> {
 
 	@Test
 	public void shouldBeTrueIfOneExprIsTrue() {
-		final JsonNode result = new OrExpression(FALSE, TRUE, FALSE).evaluate(IntNode.valueOf(42), this.context);
+		final JsonNode result = new OrExpression(this.FALSE, this.TRUE, this.FALSE).evaluate(IntNode.valueOf(42),
+			this.context);
 
 		Assert.assertEquals(BooleanNode.TRUE, result);
 	}
 
 	@Test
 	public void shouldBeFalseIfNoExprIsTrue() {
-		final JsonNode result = new OrExpression(FALSE, FALSE, FALSE).evaluate(IntNode.valueOf(42), this.context);
+		final JsonNode result = new OrExpression(this.FALSE, this.FALSE, this.FALSE).evaluate(IntNode.valueOf(42),
+			this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}

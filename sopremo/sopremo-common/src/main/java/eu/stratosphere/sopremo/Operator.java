@@ -94,21 +94,22 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @return the {@link PactModule} representing this operator
 	 */
 	public abstract PactModule asPactModule(EvaluationContext context);
-	
+
 	public SopremoModule toElementaryOperators() {
-		SopremoModule module = new SopremoModule(getName(), getInputs().size(), getOutputs().size());
-		Operator clone = clone();
-		for (int index = 0; index < getInputs().size(); index++) 
+		final SopremoModule module = new SopremoModule(this.getName(), this.getInputs().size(), this.getOutputs()
+			.size());
+		final Operator clone = this.clone();
+		for (int index = 0; index < this.getInputs().size(); index++)
 			clone.setInput(index, module.getInput(index));
-		for (int index = 0; index < getOutputs().size(); index++)
-			module.getOutput(index).setInput(index, clone. getOutput(index));
+		for (int index = 0; index < this.getOutputs().size(); index++)
+			module.getOutput(index).setInput(index, clone.getOutput(index));
 		return module;
 	}
 
 	@Override
 	public Operator clone() {
 		try {
-			Operator clone = (Operator) super.clone();
+			final Operator clone = (Operator) super.clone();
 			clone.inputs = new ArrayList<Operator.Output>(this.inputs);
 			clone.setNumberOfOutputs(0);
 			clone.setNumberOfOutputs(this.outputs.length);
@@ -329,7 +330,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 			final Output other = (Output) obj;
 			return this.index == other.index && this.getOperator() == other.getOperator();
 		}
-		
+
 		/**
 		 * Returns the index of this output in the list of outputs of the associated operator.
 		 * 

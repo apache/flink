@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
@@ -10,7 +11,7 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 public class InputSelectionTest extends EvaluableExpressionTest<InputSelection> {
 
 	@Override
-	protected InputSelection createDefaultInstance(int index) {
+	protected InputSelection createDefaultInstance(final int index) {
 		return new InputSelection(index);
 	}
 

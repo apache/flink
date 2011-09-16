@@ -38,7 +38,7 @@ public class ObjectNode extends JsonNode {
 		this._put(fieldName, new TextNode(value));
 		return this;
 	}
-	
+
 	public ObjectNode put(final String fieldName, final Integer value) {
 		if (value == null)
 			throw new NullPointerException();
@@ -46,7 +46,7 @@ public class ObjectNode extends JsonNode {
 		this._put(fieldName, new IntNode(value));
 		return this;
 	}
-	
+
 	public ObjectNode put(final String fieldName, final Double value) {
 		if (value == null)
 			throw new NullPointerException();
@@ -54,7 +54,7 @@ public class ObjectNode extends JsonNode {
 		this._put(fieldName, new DoubleNode(value));
 		return this;
 	}
-	
+
 	public ObjectNode put(final String fieldName, final BigDecimal value) {
 		if (value == null)
 			throw new NullPointerException();
@@ -62,17 +62,15 @@ public class ObjectNode extends JsonNode {
 		this._put(fieldName, new DecimalNode(value));
 		return this;
 	}
-	
+
 	public ObjectNode put(final String fieldName, final Boolean value) {
 		if (value == null)
 			throw new NullPointerException();
 
-		this._put(fieldName, value? BooleanNode.TRUE: BooleanNode.FALSE);
+		this._put(fieldName, value ? BooleanNode.TRUE : BooleanNode.FALSE);
 		return this;
 	}
-	
-	
-	
+
 	public JsonNode get(final String fieldName) {
 		final JsonNode node = this.children.get(fieldName);
 		if (node != null)
@@ -175,17 +173,17 @@ public class ObjectNode extends JsonNode {
 
 	}
 
-	public Set<Entry<String, JsonNode>> getEntries(){
+	public Set<Entry<String, JsonNode>> getEntries() {
 		return this.children.entrySet();
 	}
-	
-	public ObjectNode putAll(ObjectNode jsonNode) {
-		for(Entry<String, JsonNode> entry : jsonNode.getEntries()){
+
+	public ObjectNode putAll(final ObjectNode jsonNode) {
+		for (final Entry<String, JsonNode> entry : jsonNode.getEntries())
 			this.put(entry.getKey(), entry.getValue());
-		}
 		return this;
 	}
 
+	@Override
 	public boolean isObject() {
 		return true;
 	}
@@ -193,5 +191,5 @@ public class ObjectNode extends JsonNode {
 	public Iterator<String> getFieldNames() {
 		return this.children.keySet().iterator();
 	}
-	
+
 }

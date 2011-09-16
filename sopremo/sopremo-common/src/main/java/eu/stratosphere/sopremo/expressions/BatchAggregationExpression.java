@@ -55,7 +55,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		for (final Partial partial : this.partials)
 			partial.getFunction().initialize();
-		for (final JsonNode input : ((ArrayNode)node))
+		for (final JsonNode input : (ArrayNode) node)
 			for (final Partial partial : this.partials)
 				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, context), context);
 
@@ -81,7 +81,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return ((ArrayNode)BatchAggregationExpression.this.evaluate(node, context)).get(this.index);
+			return ((ArrayNode) BatchAggregationExpression.this.evaluate(node, context)).get(this.index);
 		}
 	}
 
@@ -89,29 +89,29 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((partials == null) ? 0 : partials.hashCode());
+		result = prime * result + (this.partials == null ? 0 : this.partials.hashCode());
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
-		BatchAggregationExpression other = (BatchAggregationExpression) obj;
-		if (partials == null) {
+		final BatchAggregationExpression other = (BatchAggregationExpression) obj;
+		if (this.partials == null) {
 			if (other.partials != null)
 				return false;
-		} else if (!partials.equals(other.partials))
+		} else if (!this.partials.equals(other.partials))
 			return false;
 		return true;
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	protected void toString(final StringBuilder builder) {
 		builder.append("batch");
 	}
 }

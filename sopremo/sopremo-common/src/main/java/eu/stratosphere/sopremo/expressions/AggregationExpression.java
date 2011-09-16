@@ -27,7 +27,7 @@ public class AggregationExpression extends EvaluationExpression {
 	@Override
 	public JsonNode evaluate(final JsonNode nodes, final EvaluationContext context) {
 		this.function.initialize();
-		for (final JsonNode node : (ArrayNode)nodes)
+		for (final JsonNode node : (ArrayNode) nodes)
 			this.function.aggregate(this.preprocessing.evaluate(node, context), context);
 		return this.function.getFinalAggregate();
 	}
@@ -44,29 +44,29 @@ public class AggregationExpression extends EvaluationExpression {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((function == null) ? 0 : function.hashCode());
-		result = prime * result + ((preprocessing == null) ? 0 : preprocessing.hashCode());
+		result = prime * result + (this.function == null ? 0 : this.function.hashCode());
+		result = prime * result + (this.preprocessing == null ? 0 : this.preprocessing.hashCode());
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
-		AggregationExpression other = (AggregationExpression) obj;
-		if (function == null) {
+		final AggregationExpression other = (AggregationExpression) obj;
+		if (this.function == null) {
 			if (other.function != null)
 				return false;
-		} else if (!function.equals(other.function))
+		} else if (!this.function.equals(other.function))
 			return false;
-		if (preprocessing == null) {
+		if (this.preprocessing == null) {
 			if (other.preprocessing != null)
 				return false;
-		} else if (!preprocessing.equals(other.preprocessing))
+		} else if (!this.preprocessing.equals(other.preprocessing))
 			return false;
 		return true;
 	}

@@ -4,6 +4,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+
 @OptimizerHints(scope = Scope.ANY)
 public class UnaryExpression extends BooleanExpression {
 	/**
@@ -38,7 +39,7 @@ public class UnaryExpression extends BooleanExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		BooleanNode result = TypeCoercer.INSTANCE.coerce(this.expr.evaluate(node, context), BooleanNode.class);
+		final BooleanNode result = TypeCoercer.INSTANCE.coerce(this.expr.evaluate(node, context), BooleanNode.class);
 		if (this.negate)
 			return result == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
 		return result;

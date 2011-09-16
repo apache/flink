@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
@@ -11,22 +12,22 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class AggregationExpressionTest extends EvaluableExpressionTest<AggregationExpression> {
 	@Override
-	protected AggregationExpression createDefaultInstance(int index) {
+	protected AggregationExpression createDefaultInstance(final int index) {
 		return new AggregationExpression(BuiltinFunctions.SUM, new ConstantExpression(index));
 	}
 
 	@Test
 	public void testFunctionAndExpression() {
-		AggregationFunction func = BuiltinFunctions.SUM;
-		ConstantExpression expr = new ConstantExpression(1);
-		AggregationExpression aggregation = new AggregationExpression(func, expr);
+		final AggregationFunction func = BuiltinFunctions.SUM;
+		final ConstantExpression expr = new ConstantExpression(1);
+		final AggregationExpression aggregation = new AggregationExpression(func, expr);
 		Assert.assertEquals(func, aggregation.getFunction());
 		Assert.assertEquals(expr, aggregation.getPreprocessing());
 	}
 
 	@Test
 	public void shouldAggregate() {
-		JsonNode result = new AggregationExpression(BuiltinFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
+		final JsonNode result = new AggregationExpression(BuiltinFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
 			this.context);
 		Assert.assertEquals(new DoubleNode(3.0), result);
 	}

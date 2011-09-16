@@ -24,7 +24,7 @@ public class SerializableTest {
 	@BeforeClass
 	public static void setUpClass() {
 		obj = new ObjectNode();
-		ArrayNode friends = new ArrayNode();
+		final ArrayNode friends = new ArrayNode();
 
 		friends.add(new ObjectNode().put("name", TextNode.valueOf("testfriend 1")).put("age", IntNode.valueOf(20))
 			.put("male", BooleanNode.TRUE));
@@ -39,27 +39,27 @@ public class SerializableTest {
 
 	@Before
 	public void setUp() {
-		byteArray = new ByteArrayOutputStream();
-		outStream = new DataOutputStream(byteArray);
+		this.byteArray = new ByteArrayOutputStream();
+		this.outStream = new DataOutputStream(this.byteArray);
 	}
 
 	@Test
 	public void shouldDeAndSerializeNodesCorrectly() {
 		try {
-			obj.write(outStream);
-		} catch (IOException e) {
+			obj.write(this.outStream);
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 
-		ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(byteArray.toByteArray());
-		DataInputStream inStream = new DataInputStream(byteArrayIn);
+		final ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(this.byteArray.toByteArray());
+		final DataInputStream inStream = new DataInputStream(byteArrayIn);
 
-		ObjectNode target = new ObjectNode();
+		final ObjectNode target = new ObjectNode();
 
 		try {
 			target.read(inStream);
 			inStream.close();
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 
@@ -71,20 +71,20 @@ public class SerializableTest {
 		obj = new ObjectNode();
 
 		try {
-			obj.write(outStream);
-		} catch (IOException e) {
+			obj.write(this.outStream);
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 
-		ObjectNode target = new ObjectNode();
+		final ObjectNode target = new ObjectNode();
 
-		ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(byteArray.toByteArray());
-		DataInputStream inStream = new DataInputStream(byteArrayIn);
+		final ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(this.byteArray.toByteArray());
+		final DataInputStream inStream = new DataInputStream(byteArrayIn);
 
 		try {
 			target.read(inStream);
 			inStream.close();
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 
@@ -94,8 +94,8 @@ public class SerializableTest {
 	@After
 	public void tearDown() {
 		try {
-			outStream.close();
-		} catch (IOException e) {
+			this.outStream.close();
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 	}

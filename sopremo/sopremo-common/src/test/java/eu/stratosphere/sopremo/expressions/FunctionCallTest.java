@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
@@ -6,7 +7,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
@@ -30,26 +30,25 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 
 	@Test
 	public void shouldCallFunction() {
-		JsonNode result = new FunctionCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
+		final JsonNode result = new FunctionCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
 			createArrayNode(1, 2), this.context);
 		Assert.assertEquals(new IntNode(3), result);
 	}
-	
+
 	@Test
-	public void shouldGetIteratorOverAllParams(){
-		
-		FunctionCall func = new FunctionCall("sum");
+	public void shouldGetIteratorOverAllParams() {
+
+		final FunctionCall func = new FunctionCall("sum");
 		func.iterator();
-		
+
 	}
 
 	public static JsonNode sum(final NumericNode... nodes) {
 
 		int i = 0;
-		for (final NumericNode node : nodes) {
+		for (final NumericNode node : nodes)
 			i += node.getValueAsInt();
-		}
-		return (new IntNode(i));
+		return new IntNode(i);
 
 	}
 }

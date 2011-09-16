@@ -8,6 +8,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+
 @Ignore
 public abstract class BooleanExpressionTest<T extends BooleanExpression> extends SopremoTest<T> {
 

@@ -6,7 +6,7 @@ public class IntNodeTest extends JsonNodeTest<IntNode> {
 
 	@Override
 	public void testValue() {
-		IntNode intnode = new IntNode(23);
+		final IntNode intnode = new IntNode(23);
 		Assert.assertEquals(23, intnode.getIntValue());
 	}
 

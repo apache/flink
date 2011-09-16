@@ -16,11 +16,11 @@ public abstract class JsonNodeTest<T extends JsonNode> {
 	@Before
 	public void setUp() {
 		try {
-			this.node = (T) BoundTypeUtil.getBindingOfSuperclass(getClass(), JsonNodeTest.class).getParameters()[0]
+			this.node = (T) BoundTypeUtil.getBindingOfSuperclass(this.getClass(), JsonNodeTest.class).getParameters()[0]
 				.getType().newInstance();
-		} catch (InstantiationException e) {
+		} catch (final InstantiationException e) {
 			e.printStackTrace();
-		} catch (IllegalAccessException e) {
+		} catch (final IllegalAccessException e) {
 			e.printStackTrace();
 		}
 	}
@@ -31,13 +31,13 @@ public abstract class JsonNodeTest<T extends JsonNode> {
 			"builder did not write anything - override this test if it is indeed the desired behavior", "",
 			this.node.toString());
 	}
-	
+
 	@Test
-	public void testTypeNumber(){
+	public void testTypeNumber() {
 		Assert.assertNotNull("every JsonNode must have a TypeNumber", this.node.getTypePos());
 	}
-	
+
 	@Test
 	public abstract void testValue();
-	
+
 }

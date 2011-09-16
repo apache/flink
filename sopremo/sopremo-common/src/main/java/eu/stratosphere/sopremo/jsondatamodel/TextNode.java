@@ -87,7 +87,8 @@ public class TextNode extends JsonNode {
 	public void write(final DataOutput out) throws IOException {
 		this.value.write(out);
 	}
-	
+
+	@Override
 	public boolean isTextual() {
 		return true;
 	}

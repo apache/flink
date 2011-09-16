@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -14,7 +15,7 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class BatchAggregationExpressionTest extends EvaluableExpressionTest<BatchAggregationExpression> {
 	@Override
-	protected BatchAggregationExpression createDefaultInstance(int index) {
+	protected BatchAggregationExpression createDefaultInstance(final int index) {
 		switch (index) {
 		case 0:
 			return new BatchAggregationExpression(BuiltinFunctions.AVERAGE);
@@ -29,7 +30,7 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	}
 
 	@Override
-	protected void initVerifier(EqualsVerifier<BatchAggregationExpression> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<BatchAggregationExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
 
 		equalVerifier.withPrefabValues(JsonNode.class, IntNode.valueOf(23), IntNode.valueOf(42));
@@ -41,10 +42,10 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 		batch.add(BuiltinFunctions.AVERAGE);
 		batch.add(BuiltinFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
-		JsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), this.context);
-		JsonNode[] expected = { new DoubleNode(1 + 2 + 3 + 4 + 5),
-			new DoubleNode((double)(1 + 2 + 3 + 4 + 5) / 5),
-			new DoubleNode((double)(1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5) };
+		final JsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), this.context);
+		final JsonNode[] expected = { new DoubleNode(1 + 2 + 3 + 4 + 5),
+			new DoubleNode((double) (1 + 2 + 3 + 4 + 5) / 5),
+			new DoubleNode((double) (1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5) };
 		Assert.assertEquals(JsonUtil.asArray(expected), result);
 	}
 }

@@ -18,11 +18,11 @@ public abstract class JsonNode implements Serializable, Value {
 		IntNode(IntNode.class),
 		LongNode(LongNode.class),
 		BigIntegerNode(BigIntegerNode.class),
-		DecimalNode(DecimalNode.class),		
+		DecimalNode(DecimalNode.class),
 		DoubleNode(DoubleNode.class),
-		
+
 		ArrayNode(ArrayNode.class),
-		ObjectNode(ObjectNode.class),		
+		ObjectNode(ObjectNode.class),
 		TextNode(TextNode.class),
 		BooleanNode(BooleanNode.class),
 		NullNode(NullNode.class);
@@ -57,7 +57,7 @@ public abstract class JsonNode implements Serializable, Value {
 	public boolean isNull() {
 		return false;
 	}
-	
+
 	public boolean isObject() {
 		return false;
 	}

@@ -31,7 +31,7 @@ public class ConstantExpression extends EvaluationExpression {
 
 	public int asInt() {
 		if (this.constant instanceof NumericNode)
-			return ((IntNode)((NumericNode) this.constant)).getIntValue();
+			return ((IntNode) (NumericNode) this.constant).getIntValue();
 		return Integer.parseInt(this.constant.toString());
 	}
 

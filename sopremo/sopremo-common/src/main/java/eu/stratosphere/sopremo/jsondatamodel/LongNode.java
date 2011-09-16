@@ -15,7 +15,7 @@ public class LongNode extends NumericNode {
 
 	protected final PactLong value;
 
-	public LongNode(long value) {
+	public LongNode(final long value) {
 		this.value = new PactLong(value);
 	}
 
@@ -25,40 +25,42 @@ public class LongNode extends NumericNode {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		this.value.read(in);
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		this.value.write(out);
 	}
 
-	public static LongNode valueOf(long value) {
+	public static LongNode valueOf(final long value) {
 		return new LongNode(value);
 	}
 
+	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + value.hashCode();
+		result = prime * result + this.value.hashCode();
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
-		LongNode other = (LongNode) obj;
-		if (!value.equals(other.value))
+		final LongNode other = (LongNode) obj;
+		if (!this.value.equals(other.value))
 			return false;
 		return true;
 	}
 
+	@Override
 	public Double getValueAsDouble() {
 		return Double.valueOf(this.value.getValue());
 	}

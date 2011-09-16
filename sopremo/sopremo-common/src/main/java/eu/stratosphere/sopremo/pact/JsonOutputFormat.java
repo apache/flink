@@ -55,10 +55,12 @@ public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJ
 		final String encoding = parameters.getString(PARAMETER_ENCODING, null);
 		if (encoding != null)
 			this.encoding = JsonEncoding.valueOf(encoding);
-		else this.encoding = JsonEncoding.UTF8;
+		else
+			this.encoding = JsonEncoding.UTF8;
 	}
 
-	public void open(int taskNumber) throws IOException {
+	@Override
+	public void open(final int taskNumber) throws IOException {
 		super.open(taskNumber);
 
 		this.generator = new JsonFactory().createJsonGenerator(this.stream, this.encoding);

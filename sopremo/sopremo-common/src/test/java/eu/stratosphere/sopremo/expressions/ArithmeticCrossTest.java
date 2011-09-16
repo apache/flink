@@ -16,9 +16,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.DivisionEvaluator;
-import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
+import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @RunWith(Parameterized.class)
 public class ArithmeticCrossTest {
@@ -53,7 +54,8 @@ public class ArithmeticCrossTest {
 		if (expectedNode instanceof BigIntegerNode)
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
-					result, expectedNode), ((BigIntegerNode)expectedNode).getBigIntegerValue(), ((BigIntegerNode)result).getBigIntegerValue());
+					result, expectedNode), ((BigIntegerNode) expectedNode).getBigIntegerValue(),
+				((BigIntegerNode) result).getBigIntegerValue());
 		else if (expectedNode instanceof DecimalNode)
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
@@ -61,7 +63,7 @@ public class ArithmeticCrossTest {
 		else
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
-					result, expectedNode), this.expected.doubleValue(), ((DoubleNode)result).getDoubleValue(), 0.0001);
+					result, expectedNode), this.expected.doubleValue(), ((DoubleNode) result).getDoubleValue(), 0.0001);
 	}
 
 	@Parameters

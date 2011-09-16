@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 import static eu.stratosphere.sopremo.JsonUtil.createValueNode;

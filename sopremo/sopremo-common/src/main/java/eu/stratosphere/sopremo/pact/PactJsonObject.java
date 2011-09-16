@@ -31,7 +31,7 @@ import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
  * @author Arvid Heise
  */
 public class PactJsonObject implements Value {
-//	private final PactString serializationString = new PactString();
+	// private final PactString serializationString = new PactString();
 
 	private JsonNode value;
 
@@ -126,15 +126,15 @@ public class PactJsonObject implements Value {
 		SopremoUtil.serializeNode(out, this.value);
 	}
 
-//	private static boolean isValidArray(final JsonNode node) {
-//		for (int index = 0, size = node.size(); index < size; index++) {
-//			if (node.get(index).isArray() && !isValidArray(node.get(index)))
-//				return false;
-//			if (!(node.get(index) instanceof ValueNode))
-//				return false;
-//		}
-//		return true;
-//	}
+	// private static boolean isValidArray(final JsonNode node) {
+	// for (int index = 0, size = node.size(); index < size; index++) {
+	// if (node.get(index).isArray() && !isValidArray(node.get(index)))
+	// return false;
+	// if (!(node.get(index) instanceof ValueNode))
+	// return false;
+	// }
+	// return true;
+	// }
 
 	/**
 	 * Creates a {@link Key} from a JsonNode if it is a suitable json node for a Key.

@@ -29,12 +29,12 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		}
 
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			return this == obj;
 		}
 
 		@Override
-		public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 			return value;
 		}
 

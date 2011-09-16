@@ -97,10 +97,10 @@ public class JavaFunction extends Function {
 	private JsonNode[] getParams(final JsonNode node) {
 		JsonNode[] params;
 		if (node instanceof ArrayNode) {
-			params = new JsonNode[((ArrayNode)node).size()];
+			params = new JsonNode[((ArrayNode) node).size()];
 
 			for (int index = 0; index < params.length; index++)
-				params[index] = ((ArrayNode)node).get(index);
+				params[index] = ((ArrayNode) node).get(index);
 		} else
 			params = new JsonNode[] { node };
 		return params;

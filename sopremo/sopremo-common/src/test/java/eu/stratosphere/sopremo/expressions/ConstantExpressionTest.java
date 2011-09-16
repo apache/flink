@@ -13,17 +13,17 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 public class ConstantExpressionTest extends EvaluableExpressionTest<ConstantExpression> {
 
 	@Override
-	protected ConstantExpression createDefaultInstance(int index) {
+	protected ConstantExpression createDefaultInstance(final int index) {
 		return new ConstantExpression(IntNode.valueOf(index));
 	}
 
 	@Override
-	protected void initVerifier(EqualsVerifier<ConstantExpression> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<ConstantExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier.withPrefabValues(JsonNode.class, IntNode.valueOf(23), IntNode.valueOf(42));
 		equalVerifier.suppress(Warning.TRANSIENT_FIELDS);
 	}
-	
+
 	@Test
 	public void shouldCastNumericNodeCorrectly() {
 		final int result = new ConstantExpression(IntNode.valueOf(42)).asInt();

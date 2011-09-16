@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
@@ -15,7 +16,7 @@ import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpression> {
 
 	@Override
-	protected CoerceExpression createDefaultInstance(int index) {
+	protected CoerceExpression createDefaultInstance(final int index) {
 		switch (index) {
 		case 0: {
 			return new CoerceExpression(BooleanNode.class);
@@ -47,14 +48,15 @@ public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpressi
 	}
 
 	@Test
-	public void shouldOnlyChangeOuterType(){
-		final JsonNode result = new CoerceExpression(ArrayNode.class).evaluate(createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), this.context);
-		
+	public void shouldOnlyChangeOuterType() {
+		final JsonNode result = new CoerceExpression(ArrayNode.class).evaluate(
+			createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), this.context);
+
 		Assert.assertEquals(createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), result);
 	}
-	
+
 	@Test(expected = CoercionException.class)
-	public void shouldThrowExceptionWhenChangeingTextToInt(){
+	public void shouldThrowExceptionWhenChangeingTextToInt() {
 		new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("testname"), this.context);
 	}
 }

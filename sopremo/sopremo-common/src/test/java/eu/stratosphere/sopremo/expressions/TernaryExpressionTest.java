@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
@@ -9,10 +10,11 @@ import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+
 public class TernaryExpressionTest extends EvaluableExpressionTest<TernaryExpression> {
 
 	@Override
-	protected TernaryExpression createDefaultInstance(int index) {
+	protected TernaryExpression createDefaultInstance(final int index) {
 		return new TernaryExpression(new ConstantExpression(BooleanNode.TRUE), new ConstantExpression(
 			IntNode.valueOf(index)), new ConstantExpression(IntNode.valueOf(index)));
 	}

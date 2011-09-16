@@ -15,7 +15,7 @@ public abstract class EvaluableExpressionTest<T extends EvaluationExpression> ex
 
 	@Before
 	public void initContext() {
-		context = new EvaluationContext();
+		this.context = new EvaluationContext();
 	}
 
 	@Test

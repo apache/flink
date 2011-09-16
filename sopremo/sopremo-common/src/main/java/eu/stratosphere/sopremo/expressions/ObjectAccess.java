@@ -33,7 +33,7 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 		this(field, false);
 	}
 
-	public ObjectAccess(String field, boolean safeDereference) {
+	public ObjectAccess(final String field, final boolean safeDereference) {
 		this.field = field;
 		this.safeDereference = safeDereference;
 	}
@@ -59,12 +59,12 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (!node.isObject()) {
-			if(node.isNull() && safeDereference) 
+			if (node.isNull() && this.safeDereference)
 				return node;
-			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", field, node
+			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", this.field, node
 				.getClass().getSimpleName()));
 		}
-		JsonNode value = ((ObjectNode)node).get(this.field);
+		final JsonNode value = ((ObjectNode) node).get(this.field);
 		return value == null ? NullNode.getInstance() : value;
 	}
 

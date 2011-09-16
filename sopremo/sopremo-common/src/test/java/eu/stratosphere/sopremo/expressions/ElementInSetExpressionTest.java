@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
@@ -8,10 +9,11 @@ import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+
 public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementInSetExpression> {
 
 	@Override
-	protected ElementInSetExpression createDefaultInstance(int index) {
+	protected ElementInSetExpression createDefaultInstance(final int index) {
 
 		return new ElementInSetExpression(new ConstantExpression(IntNode.valueOf(index)), Quantor.EXISTS_IN,
 			new ArrayCreation(new ConstantExpression(IntNode.valueOf(index))));

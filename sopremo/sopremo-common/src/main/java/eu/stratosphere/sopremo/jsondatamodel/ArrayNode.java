@@ -144,29 +144,27 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.iterator();
 	}
 
+	@Override
 	public boolean isArray() {
 		return true;
 	}
 
-	public ArrayNode addAll(Collection<JsonNode> values) {
-		for (JsonNode node : values) {
+	public ArrayNode addAll(final Collection<JsonNode> values) {
+		for (final JsonNode node : values)
 			this.add(node);
-		}
 		return this;
 	}
 
 	public boolean isEmpty() {
 		return this.children.isEmpty();
 	}
-	
-	
 
-//	public static Object valueOf(Iterator<JsonNode> iterator) {
-//		ArrayNode array = new ArrayNode();
-//		for(JsonNode node : iterator.next()){
-//			array.add(node);
-//		}
-//		return array;
-//	}
+	// public static Object valueOf(Iterator<JsonNode> iterator) {
+	// ArrayNode array = new ArrayNode();
+	// for(JsonNode node : iterator.next()){
+	// array.add(node);
+	// }
+	// return array;
+	// }
 
 }

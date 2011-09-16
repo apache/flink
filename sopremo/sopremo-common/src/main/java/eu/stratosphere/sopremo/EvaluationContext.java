@@ -17,21 +17,21 @@ public class EvaluationContext implements SerializableSopremoType {
 
 	private int inputCounter = 0;
 
-	private LinkedList<String> operatorStack = new LinkedList<String>();
+	private final LinkedList<String> operatorStack = new LinkedList<String>();
 
 	public LinkedList<String> getOperatorStack() {
 		return this.operatorStack;
 	}
 
 	public String operatorTrace() {
-		final Iterator<String> descendingIterator = operatorStack.descendingIterator();
+		final Iterator<String> descendingIterator = this.operatorStack.descendingIterator();
 		final StringBuilder builder = new StringBuilder(descendingIterator.next());
 		while (descendingIterator.hasNext())
 			builder.append("->").append(descendingIterator.next());
 		return builder.toString();
 	}
 
-	public void pushOperator(String e) {
+	public void pushOperator(final String e) {
 		this.operatorStack.push(e);
 	}
 
@@ -68,12 +68,11 @@ public class EvaluationContext implements SerializableSopremoType {
 	private int taskId;
 
 	public int getTaskId() {
-		return taskId;
+		return this.taskId;
 	}
 
-	public void setTaskId(int taskId) {
+	public void setTaskId(final int taskId) {
 		this.taskId = taskId;
 	}
-	
-	
+
 }

@@ -22,6 +22,7 @@ import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -58,7 +59,7 @@ public class SopremoTestPlan {
 		final List<Operator> unconnectedInputs = new ArrayList<Operator>();
 		for (final Operator operator : sinks) {
 			unconnectedOutputs.addAll(operator.getOutputs());
-			if(operator instanceof Sink)
+			if (operator instanceof Sink)
 				unconnectedOutputs.add(operator);
 		}
 
@@ -87,7 +88,7 @@ public class SopremoTestPlan {
 			}
 		}
 		this.actualOutputs = new ActualOutput[unconnectedOutputs.size()];
-		this.expectedOutputs = new ExpectedOutput[unconnectedOutputs.size() ];
+		this.expectedOutputs = new ExpectedOutput[unconnectedOutputs.size()];
 		for (int index = 0; index < this.actualOutputs.length; index++) {
 			this.actualOutputs[index] = new ActualOutput(index);
 			if (unconnectedOutputs.get(index) instanceof Sink)
@@ -99,7 +100,7 @@ public class SopremoTestPlan {
 	}
 
 	public void trace() {
-		trace = true;
+		this.trace = true;
 	}
 
 	@Override
@@ -201,10 +202,10 @@ public class SopremoTestPlan {
 			input.prepare(this.testPlan);
 		for (final ExpectedOutput output : this.expectedOutputs)
 			output.prepare(this.testPlan);
-		if (trace)
+		if (this.trace)
 			SopremoUtil.trace();
 		this.testPlan.run();
-		if (trace)
+		if (this.trace)
 			SopremoUtil.untrace();
 		for (final ActualOutput output : this.actualOutputs)
 			output.load(this.testPlan);
@@ -213,7 +214,7 @@ public class SopremoTestPlan {
 	public void setInputOperator(final int index, final Source operator) {
 		this.inputs[index].setOperator(operator);
 		if (operator.getType() == PersistenceType.ADHOC)
-			for (final JsonNode node : operator.getAdhocValues())
+			for (final JsonNode node : (ArrayNode) operator.getAdhocValues())
 				this.inputs[index].add(new PactJsonObject(node));
 		else {
 			final TestPairs<PactJsonObject.Key, PactJsonObject> testPairs = new TestPairs<PactJsonObject.Key, PactJsonObject>();

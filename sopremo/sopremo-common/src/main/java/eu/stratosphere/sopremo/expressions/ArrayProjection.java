@@ -32,16 +32,16 @@ public class ArrayProjection extends EvaluationExpression implements WritableEva
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		// lazy spread
-		//TODO
-//		if (node instanceof StreamArrayNode)
-//			return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
-//				@Override
-//				protected JsonNode convert(final JsonNode element) {
-//					return ArrayProjection.this.expression.evaluate(element, context);
-//				}
-//			}, ((StreamArrayNode) node).isResettable());
+		// TODO
+		// if (node instanceof StreamArrayNode)
+		// return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
+		// @Override
+		// protected JsonNode convert(final JsonNode element) {
+		// return ArrayProjection.this.expression.evaluate(element, context);
+		// }
+		// }, ((StreamArrayNode) node).isResettable());
 		// spread
-		ArrayNode array = ((ArrayNode) node);
+		final ArrayNode array = (ArrayNode) node;
 		final ArrayNode arrayNode = new ArrayNode();
 		for (int index = 0, size = array.size(); index < size; index++)
 			arrayNode.add(this.expression.evaluate(array.get(index), context));
@@ -49,13 +49,13 @@ public class ArrayProjection extends EvaluationExpression implements WritableEva
 	}
 
 	@Override
-	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
-		ArrayNode arrayNode = (ArrayNode) node;
+	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+		final ArrayNode arrayNode = (ArrayNode) node;
 		for (int index = 0, size = arrayNode.size(); index < size; index++)
 			arrayNode.set(index, ((WritableEvaluable) this.expression).set(arrayNode.get(index), value, context));
 		return arrayNode;
 	}
-	
+
 	@Override
 	public EvaluationExpression asExpression() {
 		return this;

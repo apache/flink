@@ -35,10 +35,10 @@ public class FunctionCall extends ContainerExpression {
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		// System.err.println("undefined function " + this.name);
-		final JsonNode[] params = new JsonNode[this.paramExprs.length];	
+		final JsonNode[] params = new JsonNode[this.paramExprs.length];
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs[index].evaluate(node, context);
-//		SopremoUtil.LOG.warn(name + " " + Arrays.asList(params) + " " +Arrays.asList(paramExprs) );	
+		// SopremoUtil.LOG.warn(name + " " + Arrays.asList(params) + " " +Arrays.asList(paramExprs) );
 		// if (name.equals("count"))
 		// return BuiltinFunctions.count(JsonUtils.asArray(params));
 		// if (name.equals("sum"))

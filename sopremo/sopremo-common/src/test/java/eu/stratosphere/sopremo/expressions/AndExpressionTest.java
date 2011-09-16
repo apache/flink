@@ -7,20 +7,21 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+
 public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Override
-	protected AndExpression createDefaultInstance(int index) {
+	protected AndExpression createDefaultInstance(final int index) {
 
 		switch (index) {
 		case 0: {
-			return new AndExpression(TRUE);
+			return new AndExpression(this.TRUE);
 		}
 		case 1: {
-			return new AndExpression(TRUE, TRUE);
+			return new AndExpression(this.TRUE, this.TRUE);
 		}
 		case 2: {
-			return new AndExpression(TRUE, TRUE, TRUE);
+			return new AndExpression(this.TRUE, this.TRUE, this.TRUE);
 		}
 		}
 
@@ -29,14 +30,16 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Test
 	public void shouldBeTrueIfAllExprAreTrue() {
-		final JsonNode result = new AndExpression(TRUE, TRUE, TRUE).evaluate(IntNode.valueOf(42), this.context);
+		final JsonNode result = new AndExpression(this.TRUE, this.TRUE, this.TRUE).evaluate(IntNode.valueOf(42),
+			this.context);
 
 		Assert.assertEquals(BooleanNode.TRUE, result);
 	}
 
 	@Test
 	public void shouldBeFalseIfOneExprIsFalse() {
-		final JsonNode result = new AndExpression(TRUE, FALSE, TRUE).evaluate(IntNode.valueOf(42), this.context);
+		final JsonNode result = new AndExpression(this.TRUE, this.FALSE, this.TRUE).evaluate(IntNode.valueOf(42),
+			this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}

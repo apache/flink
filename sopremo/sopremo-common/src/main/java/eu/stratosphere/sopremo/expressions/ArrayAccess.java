@@ -88,12 +88,12 @@ public class ArrayAccess extends EvaluationExpression implements WritableEvaluab
 			}
 			return arrayNode;
 		}
-		JsonNode value = ((ArrayNode) node).get(this.resolveIndex(this.startIndex, size));
+		final JsonNode value = ((ArrayNode) node).get(this.resolveIndex(this.startIndex, size));
 		return value == null ? NullNode.getInstance() : value;
 	}
 
 	@Override
-	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 		if (this.isSelectingAll())
 			return value;
 		final int size = ((ArrayNode) node).size();
@@ -112,7 +112,7 @@ public class ArrayAccess extends EvaluationExpression implements WritableEvaluab
 			((ArrayNode) node).set(this.resolveIndex(this.startIndex, size), value);
 		return node;
 	}
-	
+
 	@Override
 	public EvaluationExpression asExpression() {
 		return this;

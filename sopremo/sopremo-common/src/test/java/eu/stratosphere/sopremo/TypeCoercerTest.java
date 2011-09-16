@@ -23,6 +23,7 @@ import eu.stratosphere.sopremo.jsondatamodel.LongNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+
 @RunWith(Parameterized.class)
 public class TypeCoercerTest {
 	private static final Object CONVERSION_ERROR = "Error";
@@ -51,7 +52,7 @@ public class TypeCoercerTest {
 					this.targetType.isInstance(result));
 				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result),
 					((BigIntegerNode) this.expectedResult).getBigIntegerValue(),
-					((BigIntegerNode)result).getBigIntegerValue());
+					((BigIntegerNode) result).getBigIntegerValue());
 			} else {
 				Assert.assertTrue(
 					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),

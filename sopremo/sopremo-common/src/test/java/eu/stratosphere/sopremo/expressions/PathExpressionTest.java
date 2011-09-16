@@ -23,22 +23,22 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 	private static JsonNode getJsonNode() {
 		try {
-			JsonParser parser = JsonUtil.FACTORY.createJsonParser(new URL(
+			final JsonParser parser = JsonUtil.FACTORY.createJsonParser(new URL(
 				getResourcePath("PathExpressionTest/test.json")));
 			parser.setCodec(JsonUtil.OBJECT_MAPPER);
 			return parser.readValueAsTree();
-		} catch (JsonParseException e) {
+		} catch (final JsonParseException e) {
 			e.printStackTrace();
-		} catch (JsonProcessingException e) {
+		} catch (final JsonProcessingException e) {
 			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 		return null;
 	}
 
 	@Override
-	protected PathExpression createDefaultInstance(int index) {
+	protected PathExpression createDefaultInstance(final int index) {
 
 		return new PathExpression(new ConstantExpression(IntNode.valueOf(index)));
 	}
@@ -55,7 +55,7 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 	@Test
 	public void shouldAddNewExpression() {
-		PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+		final PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
 			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"));
 		expr.add(new ObjectAccess("ID"));
 		final JsonNode result = expr.evaluate(doc, this.context);
@@ -122,12 +122,12 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 		Assert.assertEquals(new ObjectAccess("GlossDiv"), result);
 	}
-	
+
 	@Override
-	protected void initVerifier(EqualsVerifier<PathExpression> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<PathExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
-		equalVerifier.withPrefabValues(List.class, 
-			new ArrayList<Object>(), 
+		equalVerifier.withPrefabValues(List.class,
+			new ArrayList<Object>(),
 			new ArrayList<Object>(Arrays.asList(new ObjectAccess("field"))));
 	}
 }

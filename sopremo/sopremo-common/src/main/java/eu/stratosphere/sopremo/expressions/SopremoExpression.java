@@ -46,7 +46,8 @@ public abstract class SopremoExpression<ContextType extends EvaluationContext> i
 	 * @param builder
 	 *        the builder to append to
 	 */
-	protected void toString(final StringBuilder builder) {}
+	protected void toString(final StringBuilder builder) {
+	}
 
 	@SuppressWarnings("rawtypes")
 	private final static Iterator EMPTY_ITERATOR = Collections.EMPTY_LIST.iterator();

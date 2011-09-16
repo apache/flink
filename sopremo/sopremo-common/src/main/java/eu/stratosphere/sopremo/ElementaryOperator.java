@@ -99,7 +99,7 @@ public class ElementaryOperator extends Operator {
 	 * @return a short circuit module
 	 */
 	protected PactModule createShortCircuitModule() {
-		PactModule module = new PactModule("Short circuit", 1, 1);
+		final PactModule module = new PactModule("Short circuit", 1, 1);
 		module.getOutput(0).setInput(module.getInput(0));
 		return module;
 	}
@@ -117,7 +117,7 @@ public class ElementaryOperator extends Operator {
 	 */
 	protected void configureContract(final Contract contract, final Configuration stubConfiguration,
 			final EvaluationContext context) {
-		context.pushOperator(getName());
+		context.pushOperator(this.getName());
 		SopremoUtil.setContext(stubConfiguration, context);
 		context.popOperator();
 

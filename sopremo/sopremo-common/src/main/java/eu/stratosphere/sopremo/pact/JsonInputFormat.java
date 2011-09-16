@@ -72,7 +72,7 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 	}
 
 	@Override
-	public boolean nextRecord(KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws IOException {
+	public boolean nextRecord(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws IOException {
 		if (!this.end) {
 			pair.getValue().setValue(this.parser.readValueAsTree());
 			this.checkEnd();
@@ -83,14 +83,14 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 	}
 
 	@Override
-	public void open(FileInputSplit split) throws JsonParseException, IOException {
+	public void open(final FileInputSplit split) throws JsonParseException, IOException {
 		super.open(split);
 
 		this.end = false;
-		if (encoding != null)
-			this.parser = JsonUtil.FACTORY.createJsonParser(new InputStreamReader(stream, encoding));
+		if (this.encoding != null)
+			this.parser = JsonUtil.FACTORY.createJsonParser(new InputStreamReader(this.stream, this.encoding));
 		else
-			this.parser = JsonUtil.FACTORY.createJsonParser(stream);
+			this.parser = JsonUtil.FACTORY.createJsonParser(this.stream);
 		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		this.parser.enable(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS);
 		this.parser.enable(JsonParser.Feature.INTERN_FIELD_NAMES);
@@ -109,7 +109,7 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
 	 */
 	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+	public BaseStatistics getStatistics(final BaseStatistics cachedStatistics) {
 		return null;
 	}
 
