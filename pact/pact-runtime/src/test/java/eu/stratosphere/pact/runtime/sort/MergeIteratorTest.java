@@ -25,11 +25,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
-
 
 
 public class MergeIteratorTest {

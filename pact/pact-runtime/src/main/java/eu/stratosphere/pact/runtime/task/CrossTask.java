@@ -21,12 +21,12 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.LastRepeatableIterator;
 import eu.stratosphere.pact.runtime.util.LastRepeatableMutableObjectIterator;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * Cross task which is executed by a Nephele task manager. The task has two

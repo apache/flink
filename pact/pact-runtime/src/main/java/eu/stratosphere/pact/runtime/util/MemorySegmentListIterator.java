@@ -13,50 +13,58 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.task.util;
+package eu.stratosphere.pact.runtime.util;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 
 /**
- * A simple iterator provider that returns a supplied iterator and does nothing when closed.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ *
+ * @author Stephan Ewen
  */
-public class SimpleCloseableInputProvider<E> implements CloseableInputProvider<E>
+public class MemorySegmentListIterator implements Iterator<MemorySegment>
 {
-	/**
-	 * The iterator returned by this class.
-	 */
-	private final MutableObjectIterator<E> iterator;
+	private final ArrayList<MemorySegment> source;
 	
-	
-	/**
-	 * Creates a new simple input provider that will return the given iterator.
-	 * 
-	 * @param iterator The iterator that will be returned.
-	 */
-	public SimpleCloseableInputProvider(MutableObjectIterator<E> iterator) {
-		this.iterator = iterator;
+	public MemorySegmentListIterator(ArrayList<MemorySegment> source)
+	{
+		this.source = source;
 	}
 	
-	
+
 	/* (non-Javadoc)
-	 * @see java.io.Closeable#close()
+	 * @see java.util.Iterator#hasNext()
 	 */
 	@Override
-	public void close() throws IOException {
-		// do nothing
+	public boolean hasNext()
+	{
+		return this.source.size() > 0;
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.CloseableInputProvider#getIterator()
+	 * @see java.util.Iterator#next()
 	 */
 	@Override
-	public MutableObjectIterator<E> getIterator() {
-		return this.iterator;
+	public MemorySegment next() {
+		if (hasNext()) {
+			MemorySegment seg = this.source.remove(this.source.size() - 1);
+			seg.outputView.reset();
+			return seg;
+		}
+		throw new NoSuchElementException();
+	}
+
+	/* (non-Javadoc)
+	 * @see java.util.Iterator#remove()
+	 */
+	@Override
+	public void remove() {
+		throw new UnsupportedOperationException();
 	}
 
 }

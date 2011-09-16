@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.runtime.util;
 
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+
 /**
  * A LastRepeatableIterator allows to emit the latest emitted object again. 
  * 

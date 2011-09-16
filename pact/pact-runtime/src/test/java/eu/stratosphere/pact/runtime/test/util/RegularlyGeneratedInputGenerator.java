@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.test.util;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<PactRecord> {
 

@@ -15,13 +15,34 @@
 
 package eu.stratosphere.pact.runtime.util;
 
-import java.io.IOException;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
-/**
- *
- * @author Stephan Ewen
- */
-public interface MutableObjectIterator<E>
+import org.junit.Test;
+
+public class MathUtilTest
 {
-	public boolean next(E target) throws IOException;
+	@Test
+	public void testLog2Computation()
+	{
+		assertEquals(0, MathUtils.log2floor(1));
+		assertEquals(1, MathUtils.log2floor(2));
+		assertEquals(1, MathUtils.log2floor(3));
+		assertEquals(2, MathUtils.log2floor(4));
+		assertEquals(2, MathUtils.log2floor(5));
+		assertEquals(2, MathUtils.log2floor(7));
+		assertEquals(3, MathUtils.log2floor(8));
+		assertEquals(3, MathUtils.log2floor(9));
+		assertEquals(4, MathUtils.log2floor(16));
+		assertEquals(4, MathUtils.log2floor(17));
+		assertEquals(13, MathUtils.log2floor((0x1 << 13) + 1));
+		assertEquals(30, MathUtils.log2floor(Integer.MAX_VALUE));
+		assertEquals(31, MathUtils.log2floor(-1));
+		
+		try {
+			MathUtils.log2floor(0);
+			fail();
+		}
+		catch (ArithmeticException aex) {}
+	}
 }

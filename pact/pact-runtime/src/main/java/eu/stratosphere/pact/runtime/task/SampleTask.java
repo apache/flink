@@ -17,8 +17,8 @@ package eu.stratosphere.pact.runtime.task;
 
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * Map task which is executed by a Nephele task manager. The task has a single

@@ -37,8 +37,9 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.HashJoin.Partition.PartitionIterator;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.util.MathUtils;
 
 
 /**
@@ -417,7 +418,7 @@ public class HashJoin
 			throw new IllegalArgumentException("Hash Table requires buffers of at least " + HASH_BUCKET_SIZE + " bytes.");
 		}
 		this.bucketsPerSegmentMask = bucketsPerSegment - 1;
-		this.bucketsPerSegmentBits = log2floor(bucketsPerSegment);
+		this.bucketsPerSegmentBits = MathUtils.log2floor(bucketsPerSegment);
 		
 		// take away the write behind buffers
 		this.writeBehindBuffers = new LinkedBlockingQueue<MemorySegment>();
@@ -1306,28 +1307,6 @@ public class HashJoin
 		code = (code + 0xfd7046c5) + (code << 3);
 		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
 		return code >= 0 ? code : -(code + 1);
-	}
-	
-	/**
-	 * Computes the logarithm of the given value to the base of 2, rounded down. It corresponds to the
-	 * position of the highest non-zero bit. The position is counted, starting with 0 from the least
-	 * significant bit to the most significant bit. For example, <code>log2floor(16) = 4</code>, and
-	 * <code>log2floor(10) = 3</code>.
-	 * 
-	 * @param value The value to compute the logarithm for.
-	 * @return The logarithm (rounded down) to the base of 2.
-	 * @throws ArithmeticException Thrown, if the given value is zero.
-	 */
-	public static final int log2floor(int value) throws ArithmeticException
-	{
-		if (value == 0)
-			throw new ArithmeticException("Logarithm of zero is undefined.");
-		
-		int log = 0;
-		while ((value = value >>> 1) != 0)
-			log++;
-		
-		return log;
 	}
 
 	

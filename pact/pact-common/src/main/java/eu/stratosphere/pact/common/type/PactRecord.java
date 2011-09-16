@@ -20,7 +20,11 @@ import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
+import java.util.Iterator;
+import java.util.List;
 
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 
 
@@ -205,7 +209,7 @@ public final class PactRecord implements Value
 	public <T extends Value> T getField(final int fieldNum, final Class<T> type)
 	{
 		// range check
-		if (fieldNum < 0 || fieldNum > this.numFields) {
+		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
 		}
 		
@@ -253,7 +257,7 @@ public final class PactRecord implements Value
 	public <T extends Value> T getField(int fieldNum, T target)
 	{
 		// range check
-		if (fieldNum < 0 || fieldNum > this.numFields) {
+		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
 		}
 		
@@ -284,7 +288,7 @@ public final class PactRecord implements Value
 	public boolean getFieldInto(int fieldNum, Value target)
 	{
 		// range check
-		if (fieldNum < 0 || fieldNum > this.numFields) {
+		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
 		}
 		
@@ -672,7 +676,7 @@ public final class PactRecord implements Value
 	@Override
 	public void read(DataInput in) throws IOException
 	{
-		final int len = readValLengthInt(in);
+		final int len = readVarLengthInt(in);
 		this.binaryLen = len;
 			
 		// ensure out byte array is large enough
@@ -783,6 +787,181 @@ public final class PactRecord implements Value
 		return getFieldsInto(fields, holders);
 	}
 	
+	/**
+	 * @param record
+	 * @param target
+	 * @param furtherBuffers
+	 * @param targetForUsedFurther
+	 * @return
+	 * @throws IOException
+	 */
+	public long serialize(PactRecord record, DataOutputView target, Iterator<MemorySegment> furtherBuffers,
+			List<MemorySegment> targetForUsedFurther)
+	throws IOException
+	{
+		updateBinaryRepresenation();
+		
+		long bytesForLen = 1;
+		if (target.getRemainingBytes() >= this.binaryLen + 5) {
+			int len = this.binaryLen;
+			while (len >= MAX_BIT) {
+				target.write(len | MAX_BIT);
+				len >>= 7;
+				bytesForLen++;
+			}
+			target.write(len);
+			target.write(this.binaryData, 0, this.binaryLen);
+		}
+		else {
+			// need to span multiple buffers
+			if (target.getRemainingBytes() < 6) {
+				// span var-length-int
+				int len = this.binaryLen;
+				while (len >= MAX_BIT) {
+					if (target.getRemainingBytes() == 0) {
+						target = getNextBuffer(furtherBuffers, targetForUsedFurther);
+						if (target == null) {
+							return -1;
+						}
+					}
+					target.write(len | MAX_BIT);
+					len >>= 7;
+					bytesForLen++;
+				}
+				if (target.getRemainingBytes() == 0) {
+					target = getNextBuffer(furtherBuffers, targetForUsedFurther);
+					if (target == null) {
+						return -1;
+					}
+				}
+				target.write(len);
+				if (target.getRemainingBytes() == 0) {
+					target = getNextBuffer(furtherBuffers, targetForUsedFurther);
+					if (target == null) {
+						return -1;
+					}
+				}
+			}
+			else {
+				int len = this.binaryLen;
+				while (len >= MAX_BIT) {
+					target.write(len | MAX_BIT);
+					len >>= 7;
+					bytesForLen++;
+				}
+				target.write(len);
+			}
+			
+			// now write the binary data
+			int currOff = 0;
+			while (true) {
+				int toWrite = Math.min(this.binaryLen - currOff, target.getRemainingBytes());
+				target.write(this.binaryData, currOff, toWrite);
+				currOff += toWrite;
+				
+				if (currOff < this.binaryLen) {
+					target = getNextBuffer(furtherBuffers, targetForUsedFurther);
+					if (target == null) {
+						return -1;
+					}
+				}
+				else {
+					break;
+				}
+			}
+		}
+		
+		return bytesForLen + this.binaryLen;
+	}
+	
+	private final DataOutputView getNextBuffer(Iterator<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther)
+	{
+		if (furtherBuffers.hasNext()) {
+			MemorySegment seg = furtherBuffers.next();
+			targetForUsedFurther.add(seg);
+			DataOutputView target = seg.outputView;
+			return target;
+		}
+		else return null;
+	}
+	
+	public void deserialize(List<MemorySegment> sources, int segmentNum, int segmentOffset)
+	throws IOException
+	{
+		MemorySegment seg = sources.get(segmentNum);
+		
+		if (seg.size() - segmentOffset > 5) {
+			int val = seg.get(segmentOffset++) & 0xff;
+			if (val >= MAX_BIT) {
+				int shift = 7;
+				int curr;
+				val = val & 0x7f;
+				while ((curr = seg.get(segmentOffset++) & 0xff) >= MAX_BIT) {
+					val |= (curr & 0x7f) << shift;
+					shift += 7;
+				}
+				val |= curr << shift;
+			}
+			this.binaryLen = val;
+		}
+		else {
+			int end = seg.size();
+			int val = seg.get(segmentOffset++) & 0xff;
+			if (segmentOffset == end) {
+				segmentOffset = 0;
+				seg = sources.get(++segmentNum);
+			}
+			
+			if (val >= MAX_BIT) {
+				int shift = 7;
+				int curr;
+				val = val & 0x7f;
+				while ((curr = seg.get(segmentOffset++) & 0xff) >= MAX_BIT) {
+					val |= (curr & 0x7f) << shift;
+					shift += 7;
+					if (segmentOffset == end) {
+						segmentOffset = 0;
+						seg = sources.get(++segmentNum);
+					}
+				}
+				val |= curr << shift;
+			}
+			this.binaryLen = val;
+			if (segmentOffset == end) {
+				segmentOffset = 0;
+				seg = sources.get(++segmentNum);
+			}
+		}
+
+		// read the binary representation
+		if (this.binaryData == null || this.binaryData.length < this.binaryLen) {
+			this.binaryData = new byte[this.binaryLen];
+		}
+		
+		int remaining = seg.size() - segmentOffset;
+		if (remaining >= this.binaryLen) {
+			seg.get(segmentOffset, this.binaryData,	0, this.binaryLen);
+		}
+		else {
+			// read across segments
+			int offset = 0;
+			while (true) {
+				int toRead = Math.min(seg.size() - segmentOffset, this.binaryLen - offset);
+				seg.get(segmentOffset, this.binaryData, offset, toRead);
+				offset += toRead;
+				segmentOffset += toRead;
+				
+				if (offset < this.binaryLen) {
+					segmentOffset = 0;
+					seg = sources.get(++segmentNum); 
+				}
+				else break;
+			}
+		}
+		
+		initFields(this.binaryData, 0, this.binaryLen);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//                                     Utilities
 	// --------------------------------------------------------------------------------------------
@@ -796,7 +975,7 @@ public final class PactRecord implements Value
 		out.write(value);
 	}
 	
-	private static final int readValLengthInt(DataInput in) throws IOException
+	private static final int readVarLengthInt(DataInput in) throws IOException
 	{
 		// read first byte
 		int val = in.readUnsignedByte();

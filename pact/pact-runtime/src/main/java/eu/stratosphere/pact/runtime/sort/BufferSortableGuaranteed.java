@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedExcepti
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * Sortable buffer based on heap/stack concept where pairs are written in the heap and index into stack.

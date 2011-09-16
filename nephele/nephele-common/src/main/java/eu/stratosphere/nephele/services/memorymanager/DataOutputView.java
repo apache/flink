@@ -25,7 +25,7 @@ import java.io.IOException;
  * can be used to sequentially write to the memory.
  *
  * @author Alexander Alexandrov
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public interface DataOutputView extends DataOutput
 {
@@ -52,9 +52,9 @@ public interface DataOutputView extends DataOutput
 	public DataOutputView reset();
 	
 	/**
-	 * Gets the number of bytes that remain in the view.
+	 * Gets the number of bytes remaining in this view.
 	 * 
-	 * @return The number of remaining bytes.
+	 * @return The number of bytes remaining.
 	 */
 	public int getRemainingBytes();
 }

@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
  * Integer base type for PACT programs that implements the Key interface.
@@ -28,10 +29,11 @@ import eu.stratosphere.pact.common.type.Key;
  * @see eu.stratosphere.pact.common.type.Key
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * @author Stephan Ewen
  *
  */
-public class PactInteger implements Key {
-
+public class PactInteger implements Key, NormalizableKey
+{
 	private int value;
 
 	/**
@@ -116,10 +118,7 @@ public class PactInteger implements Key {
 	 */
 	@Override
 	public int hashCode() {
-		final int prime = 37;
-		int result = 1;
-		result = prime * result + this.value;
-		return result;
+		return 37 + this.value;
 	}
 
 	/*
@@ -128,16 +127,39 @@ public class PactInteger implements Key {
 	 */
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		final PactInteger other = (PactInteger) obj;
-		if (this.value != other.value)
-			return false;
-		return true;
+		if (obj instanceof PactInteger) {
+			return ((PactInteger) obj).value == value;
+		}
+		return false;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
+	 */
+	@Override
+	public int getNormalizedKeyLen()
+	{
+		return 4;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 */
+	@Override
+	public int copyNormalizedKey(byte[] target, int offset, int len) {
+		if (len >= 4) {
+			target[offset    ] = (byte) ((value >>> 24) & 0xff);
+			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
+			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
+			target[offset + 3] = (byte) ((value       ) & 0xff);
+			return 4;
+		}
+		else {
+			for (int i = 0; len > 0; len--, i++) {
+				target[offset + i] = (byte) ((value >>> ((3-i)<<3)) & 0xff);
+			}
+			return len;
+		}
+	}
+	
 }

@@ -15,7 +15,9 @@
 
 package eu.stratosphere.pact.runtime.plugable;
 
+import java.io.IOException;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
@@ -26,7 +28,7 @@ import eu.stratosphere.pact.common.type.Key;
 /**
  *
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public interface TypeAccessors<T>
 {
@@ -38,7 +40,17 @@ public interface TypeAccessors<T>
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public long serialize(T record, DataOutputView target, List<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther);
+	/**
+	 * @param record
+	 * @param target
+	 * @param furtherBuffers The buffers are NOT guaranteed to be reset!
+	 * @param targetForUsedFurther
+	 * @return
+	 * @throws IOException
+	 */
+	public long serialize(T record, DataOutputView target, Iterator<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther) throws IOException;
+	
+	public void deserialize(T target, List<MemorySegment> sources, int firstSegment, int segmentOffset) throws IOException;  
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -46,11 +58,13 @@ public interface TypeAccessors<T>
 	
 	public int compare(T first, T second, Comparator<Key> comparator);
 	
+	public int compare(List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1, int firstSegment2, int offset1, int offset2);
+	
 	// --------------------------------------------------------------------------------------------
 	
-	public boolean supportNormalizedKey();
+	public boolean supportsNormalizedKey();
 	
 	public int getNormalizeKeyLen();
 	
-	public void putNormalizedKey(byte[] target, int numBytes);
+	public void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
 }

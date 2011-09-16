@@ -22,8 +22,9 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Random;
 
+import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * Test data utilities classes.
@@ -51,7 +52,7 @@ public final class TestData {
 	/**
 	 * Key implementation.
 	 */
-	public static class Key implements eu.stratosphere.pact.common.type.Key {
+	public static class Key implements eu.stratosphere.pact.common.type.Key, NormalizableKey {
 		private int key;
 
 		public Key() {
@@ -98,6 +99,28 @@ public final class TestData {
 		@Override
 		public String toString() {
 			return String.valueOf(key);
+		}
+		
+		@Override
+		public int getNormalizedKeyLen() {
+			return 4;
+		}
+
+		@Override
+		public int copyNormalizedKey(byte[] target, int offset, int len) {
+			if (len >= 4) {
+				target[offset    ] = (byte) ((key >>> 24) & 0xff);
+				target[offset + 1] = (byte) ((key >>> 16) & 0xff);
+				target[offset + 2] = (byte) ((key >>>  8) & 0xff);
+				target[offset + 3] = (byte) ((key       ) & 0xff);
+				return 4;
+			}
+			else {
+				for (int i = 0; len > 0; len--, i++) {
+					target[offset + i] = (byte) ((key >>> ((3-i)<<3)) & 0xff);
+				}
+				return len;
+			}
 		}
 	}
 

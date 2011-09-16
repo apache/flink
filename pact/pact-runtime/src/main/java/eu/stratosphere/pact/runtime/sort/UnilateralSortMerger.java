@@ -38,8 +38,8 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * The {@link UnilateralSortMerger} is part of a merge-sort implementation.

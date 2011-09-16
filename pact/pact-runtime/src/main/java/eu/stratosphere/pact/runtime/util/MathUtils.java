@@ -15,40 +15,40 @@
 
 package eu.stratosphere.pact.runtime.util;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
-
 
 /**
- * An empty mutable object iterator that never returns anything.
+ *
  *
  * @author Stephan Ewen
  */
-public final class EmptyMutableObjectIterator<E> implements MutableObjectIterator<E> {
-
+public final class MathUtils
+{
 	/**
-	 * The singleton instance.
+	 * Computes the logarithm of the given value to the base of 2, rounded down. It corresponds to the
+	 * position of the highest non-zero bit. The position is counted, starting with 0 from the least
+	 * significant bit to the most significant bit. For example, <code>log2floor(16) = 4</code>, and
+	 * <code>log2floor(10) = 3</code>.
+	 * 
+	 * @param value The value to compute the logarithm for.
+	 * @return The logarithm (rounded down) to the base of 2.
+	 * @throws ArithmeticException Thrown, if the given value is zero.
 	 */
-	private static final EmptyMutableObjectIterator<Object> INSTANCE = new EmptyMutableObjectIterator<Object>();
-	
-	/**
-	 * Gets a singleton instance of the empty iterator.
-	 *  
-	 * @param <E> The type of the objects (not) returned by the iterator.
-	 * @return An instance of the iterator.
-	 */
-	public static <E> MutableObjectIterator<E> get() {
-		@SuppressWarnings("unchecked")
-		MutableObjectIterator<E> iter = (MutableObjectIterator<E>) INSTANCE;
-		return iter;
+	public static final int log2floor(int value) throws ArithmeticException
+	{
+		if (value == 0)
+			throw new ArithmeticException("Logarithm of zero is undefined.");
+		
+		int log = 0;
+		while ((value = value >>> 1) != 0)
+			log++;
+		
+		return log;
 	}
 	
+	// ============================================================================================
+	
 	/**
-	 * Always returns null.
-	 *  
-	 * @see MutableObjectIterator#next(Object)
+	 * Prevent Instantiation through private constructor.
 	 */
-	@Override
-	public boolean next(E target) {
-		return false;
-	}
+	private MathUtils() {}
 }

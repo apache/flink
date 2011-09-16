@@ -21,6 +21,9 @@ package eu.stratosphere.pact.common.type;
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface NormalizableKey {
-
+public interface NormalizableKey
+{
+	int getNormalizedKeyLen();
+	
+	int copyNormalizedKey(byte[] target, int offset, int len);
 }
