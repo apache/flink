@@ -32,7 +32,7 @@ public class GlobalEnumeration extends ElementaryOperator {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return TextNode.valueOf(String.format("%d_%d", node.get(0), node.get(1)));
+			return TextNode.valueOf(String.format("%d_%d", ((ArrayNode)node).get(0), ((ArrayNode)node).get(1)));
 		}
 	};
 
@@ -44,7 +44,7 @@ public class GlobalEnumeration extends ElementaryOperator {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return LongNode.valueOf((node.get(0).getLongValue() << 48) + node.get(1).getLongValue());
+			return LongNode.valueOf((((LongNode)((ArrayNode)node).get(0)).getLongValue() << 48) + ((LongNode)((ArrayNode)node).get(1)).getLongValue());
 		}
 	};
 

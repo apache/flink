@@ -8,6 +8,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
@@ -31,7 +32,7 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 	public void shouldCallFunction() {
 		JsonNode result = new FunctionCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
 			createArrayNode(1, 2), this.context);
-		Assert.assertEquals(JsonUtil.NODE_FACTORY.numberNode(3), result);
+		Assert.assertEquals(new IntNode(3), result);
 	}
 	
 	@Test
@@ -48,7 +49,7 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 		for (final NumericNode node : nodes) {
 			i += node.getValueAsInt();
 		}
-		return (JsonUtil.NODE_FACTORY.numberNode(i));
+		return (new IntNode(i));
 
 	}
 }

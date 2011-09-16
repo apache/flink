@@ -5,8 +5,8 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.BuiltinFunctions;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class AggregationExpressionTest extends EvaluableExpressionTest<AggregationExpression> {
@@ -28,6 +28,6 @@ public class AggregationExpressionTest extends EvaluableExpressionTest<Aggregati
 	public void shouldAggregate() {
 		JsonNode result = new AggregationExpression(BuiltinFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
 			this.context);
-		Assert.assertEquals(JsonUtil.NODE_FACTORY.numberNode(3.0), result);
+		Assert.assertEquals(new DoubleNode(3.0), result);
 	}
 }

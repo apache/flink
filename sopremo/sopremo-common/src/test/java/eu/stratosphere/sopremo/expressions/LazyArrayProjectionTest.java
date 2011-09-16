@@ -25,10 +25,10 @@ public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjec
 	@Test
 	public void shouldAccessFieldOfStreamArray() {
 		final JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
-			createStreamArray(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
+			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			this.context);
-		Assert.assertEquals(createStreamArray(1, 2, 3), result);
+		Assert.assertEquals(createArrayNode(1, 2, 3), result);
 	}
 
 }

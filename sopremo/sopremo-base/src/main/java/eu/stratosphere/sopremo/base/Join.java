@@ -14,7 +14,6 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ArrayMerger;
@@ -25,6 +24,7 @@ import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
@@ -34,6 +34,7 @@ import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+
 public class Join extends CompositeOperator {
 	/**
 	 * 
@@ -62,7 +63,7 @@ public class Join extends CompositeOperator {
 
 		final int numInputs = this.getInputs().size();
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
-		
+
 		List<TwoSourceJoin> joins;
 		if (this.condition instanceof AndExpression)
 			joins = this.getInitialJoinOrder((AndExpression) this.condition, module);
@@ -80,13 +81,13 @@ public class Join extends CompositeOperator {
 		for (final TwoSourceJoin twoSourceJoin : joins) {
 			final List<Output> operatorInputs = twoSourceJoin.getInputs();
 			final Output[] actualInputs = new Output[2];
-			List<Source> moduleInput = Arrays.asList( module.getInputs());
+			List<Source> moduleInput = Arrays.asList(module.getInputs());
 			for (int index = 0; index < operatorInputs.size(); index++) {
 				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
 				actualInputs[index] = inputs.get(inputIndex).getSource();
 			}
 			for (int index = 0; index < operatorInputs.size(); index++) {
-				final int inputIndex =  moduleInput.indexOf(operatorInputs.get(index).getOperator());
+				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
 				inputs.set(inputIndex, twoSourceJoin);
 			}
 			twoSourceJoin.setInputs(actualInputs);
@@ -134,7 +135,7 @@ public class Join extends CompositeOperator {
 				(ComparativeExpression) condition);
 		if (condition instanceof ElementInSetExpression)
 			return new ElementInSetJoin(
-				module.getInput(getInputIndex(((ElementInSetExpression) condition)				.getElementExpr())), 
+				module.getInput(getInputIndex(((ElementInSetExpression) condition).getElementExpr())),
 				module.getInput(getInputIndex(((ElementInSetExpression) condition).getSetExpr())),
 				(ElementInSetExpression) condition);
 		throw new UnsupportedOperationException("condition " + condition + " not supported");
@@ -194,7 +195,7 @@ public class Join extends CompositeOperator {
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				if (values2.isEmpty())
 					for (final JsonNode value : values1)
@@ -302,7 +303,7 @@ public class Join extends CompositeOperator {
 			private transient boolean leftOuter, rightOuter;
 
 			@Override
-			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				if (values1.isEmpty()) {
 					// special case: no items from first source
@@ -354,7 +355,7 @@ public class Join extends CompositeOperator {
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				if (!values2.isEmpty())
 					for (final JsonNode value : values1)
@@ -397,7 +398,8 @@ public class Join extends CompositeOperator {
 			@Override
 			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
 					final JsonNode value2, final JsonCollector out) {
-				if (this.comparison.evaluate(JsonUtil.asArray(value1.get(0), value2.get(1)), this.getContext()) == BooleanNode.TRUE)
+				if (this.comparison.evaluate(
+					JsonUtil.asArray(((ArrayNode) value1).get(0), ((ArrayNode) value2).get(1)), this.getContext()) == BooleanNode.TRUE)
 					out.collect(JsonUtil.asArray(key1, key2), JsonUtil.asArray(value1, value2));
 			}
 		}

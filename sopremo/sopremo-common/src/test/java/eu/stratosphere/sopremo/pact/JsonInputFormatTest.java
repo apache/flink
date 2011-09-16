@@ -21,7 +21,10 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.ioformats.FormatUtil;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 
 /**
  * Tests {@link JsonInputFormat}.
@@ -37,7 +40,7 @@ public class JsonInputFormatTest {
 	@Test
 	public void completeTestPasses() throws IOException {
 		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
-				JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
+			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
@@ -87,8 +90,9 @@ public class JsonInputFormatTest {
 	private <K extends Key, V extends Value> FileDataSinkContract<K, V> createOutput(final Contract input,
 			final Class<? extends FileOutputFormat<K, V>> outputFormatClass) {
 		try {
-			final FileDataSinkContract<K, V> out = new FileDataSinkContract<K, V>(outputFormatClass, File.createTempFile(
-				"output", null).toURI().toString(), "Output");
+			final FileDataSinkContract<K, V> out = new FileDataSinkContract<K, V>(outputFormatClass, File
+				.createTempFile(
+					"output", null).toURI().toString(), "Output");
 			out.setInput(input);
 			return out;
 		} catch (final IOException e) {
@@ -120,7 +124,8 @@ public class JsonInputFormatTest {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
 			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextRecord(pair));
 			Assert
-				.assertEquals("other order expected", index, pair.getValue().getValue().get("id").getIntValue());
+				.assertEquals("other order expected", index,
+					((IntNode) ((ObjectNode) pair.getValue().getValue()).get("id")).getIntValue());
 		}
 
 		if (!inputFormat.reachedEnd()) {
@@ -153,11 +158,12 @@ public class JsonInputFormatTest {
 			Assert.fail("value unexpected: " + pair);
 		}
 
-		final JsonNode arrayNode = pair.getValue().getValue().get("array");
+		final JsonNode arrayNode = ((ObjectNode) pair.getValue().getValue()).get("array");
 		Assert.assertNotNull("could not find top level node", arrayNode);
 		for (int index = 1; index <= 5; index++) {
-			Assert.assertNotNull("could not find array element " + index, arrayNode.get(index - 1));
-			Assert.assertEquals("other order expected", index, arrayNode.get(index - 1).get("id").getIntValue());
+			Assert.assertNotNull("could not find array element " + index, ((ArrayNode) arrayNode).get(index - 1));
+			Assert.assertEquals("other order expected", index,
+				((IntNode) ((ObjectNode) ((ArrayNode) arrayNode).get(index - 1)).get("id")).getIntValue());
 		}
 	}
 }

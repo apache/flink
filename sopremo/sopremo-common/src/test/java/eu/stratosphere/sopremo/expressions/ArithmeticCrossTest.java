@@ -53,7 +53,7 @@ public class ArithmeticCrossTest {
 		if (expectedNode instanceof BigIntegerNode)
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
-					result, expectedNode), expectedNode.getBigIntegerValue(), result.getBigIntegerValue());
+					result, expectedNode), ((BigIntegerNode)expectedNode).getBigIntegerValue(), ((BigIntegerNode)result).getBigIntegerValue());
 		else if (expectedNode instanceof DecimalNode)
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
@@ -61,7 +61,7 @@ public class ArithmeticCrossTest {
 		else
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
-					result, expectedNode), this.expected.doubleValue(), result.getDoubleValue(), 0.0001);
+					result, expectedNode), this.expected.doubleValue(), ((DoubleNode)result).getDoubleValue(), 0.0001);
 	}
 
 	@Parameters

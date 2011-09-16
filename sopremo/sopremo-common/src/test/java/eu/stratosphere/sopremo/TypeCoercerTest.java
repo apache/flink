@@ -19,6 +19,7 @@ import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
 import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.LongNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
@@ -50,7 +51,7 @@ public class TypeCoercerTest {
 					this.targetType.isInstance(result));
 				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result),
 					((BigIntegerNode) this.expectedResult).getBigIntegerValue(),
-					result.getBigIntegerValue());
+					((BigIntegerNode)result).getBigIntegerValue());
 			} else {
 				Assert.assertTrue(
 					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
@@ -127,7 +128,7 @@ public class TypeCoercerTest {
 	}
 
 	protected static ArrayNode createArray(final JsonNode... elems) {
-		final ArrayNode arrayNode = new ArrayNode(null);
+		final ArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(Arrays.asList(elems));
 		return arrayNode;
 	}

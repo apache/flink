@@ -13,7 +13,6 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.base.Grouping;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
@@ -229,7 +228,7 @@ public class TransitiveClosure extends CompositeOperator {
 
 		public static class Implementation extends SopremoReduce<Key, PactJsonObject, Key, PactJsonObject> {
 			@Override
-			protected void reduce(final JsonNode key, final StreamArrayNode values, final JsonCollector out) {
+			protected void reduce(final JsonNode key, final ArrayNode values, final JsonCollector out) {
 				out.collect(NullNode.getInstance(), key);
 			}
 		}

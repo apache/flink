@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -48,8 +49,8 @@ public class RangeRule extends ValidationRule {
 		stream.defaultReadObject();
 
 		final JsonNode array = SopremoUtil.deserializeNode(stream);
-		this.min = array.get(0);
-		this.max = array.get(1);
+		this.min = ((ArrayNode)array).get(0);
+		this.max = ((ArrayNode)array).get(1);
 	}
 
 	private void writeObject(final ObjectOutputStream stream) throws IOException {

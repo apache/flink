@@ -11,6 +11,17 @@ public abstract class NumericNode extends JsonNode {
 	
 	public abstract Double getValueAsDouble();
 
+	//TODO check subclasses
+	public boolean isFloatingPointNumber() {
+		return false;
+	}
+
+	
+	//TODO check subclasses
+	public boolean isIntegralNumber() {
+		return false;
+	}
+
 	
 
 }

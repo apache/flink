@@ -151,8 +151,8 @@ public class ValueSplitter extends ElementaryOperator {
 				String field = (String) fieldNames.next();
 				final TextNode fieldNode = TextNode.valueOf(field);
 				out.collect(
-					keyProjection.evaluate(JsonUtil.asArray(value.get(field), fieldNode, object, value), context),
-					valueProjection.evaluate(JsonUtil.asArray(value.get(field), fieldNode, object, value), context));
+					keyProjection.evaluate(JsonUtil.asArray(((ObjectNode)value).get(field), fieldNode, object, value), context),
+					valueProjection.evaluate(JsonUtil.asArray(((ObjectNode)value).get(field), fieldNode, object, value), context));
 			}
 		}
 	}

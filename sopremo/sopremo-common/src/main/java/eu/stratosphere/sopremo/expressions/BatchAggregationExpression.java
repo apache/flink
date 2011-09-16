@@ -81,7 +81,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return BatchAggregationExpression.this.evaluate(node, context).get(this.index);
+			return ((ArrayNode)BatchAggregationExpression.this.evaluate(node, context)).get(this.index);
 		}
 	}
 

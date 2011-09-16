@@ -8,7 +8,6 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
@@ -140,7 +139,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 			private EvaluationExpression projection;
 
 			@Override
-			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
 				out.collect(key, this.projection.evaluate(JsonUtil.asArray(values1, values2), this.getContext()));
 			}
 		}
@@ -165,7 +164,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 			private EvaluationExpression projection;
 
 			@Override
-			protected void reduce(final JsonNode key1, final StreamArrayNode values, final JsonCollector out) {
+			protected void reduce(final JsonNode key1, final ArrayNode values, final JsonCollector out) {
 				out.collect(key1, this.projection.evaluate(values, this.getContext()));
 			}
 		}

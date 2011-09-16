@@ -48,6 +48,6 @@ public class BlackListRule extends ValidationRule {
 
 	private void writeObject(ObjectOutputStream oos) throws IOException {
 		oos.defaultWriteObject();
-		SopremoUtil.serializeNode(oos, new ArrayNode(null).addAll(this.blacklistedValues));
+		SopremoUtil.serializeNode(oos, new ArrayNode().addAll(this.blacklistedValues));
 	}
 }

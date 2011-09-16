@@ -191,8 +191,9 @@ public class Fusion extends ElementaryOperator {
 				final String fieldName = fieldNames.next();
 
 				for (int index = 0; index < values.length; index++) {
-					children[index] = values[index] == NullNode.getInstance() ? values[index] : values[index]
-						.get(fieldName);
+					children[index] = values[index] == NullNode.getInstance() ? values[index]
+						: ((ObjectNode) values[index])
+							.get(fieldName);
 					childWeights[index] = weights[index] * this.getWeight(index, childPath);
 				}
 
@@ -212,17 +213,17 @@ public class Fusion extends ElementaryOperator {
 			try {
 				this.contextNodes.clear();
 				if (this.multipleRecordsPerSource) {
-					final Iterator<JsonNode> iterator = values.iterator();
+					final Iterator<JsonNode> iterator = ((ArrayNode) values).iterator();
 					final IntList sourceIndexes = new IntArrayList();
 					for (int sourceIndex = 0; iterator.hasNext(); sourceIndex++)
-						for (final JsonNode value : iterator.next()) {
+						for (final JsonNode value : (ArrayNode)iterator.next()) {
 							this.contextNodes.add(value);
 							sourceIndexes.add(sourceIndex);
 						}
 
 					this.context.setSourceIndexes(sourceIndexes.toIntArray());
 				} else {
-					for (final JsonNode value : values)
+					for (final JsonNode value : (ArrayNode)values)
 						this.contextNodes.add(value);
 
 					final int[] sourceIndexes = new int[this.contextNodes.size()];

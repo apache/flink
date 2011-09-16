@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -30,7 +31,7 @@ public class ConstantExpression extends EvaluationExpression {
 
 	public int asInt() {
 		if (this.constant instanceof NumericNode)
-			return ((NumericNode) this.constant).getIntValue();
+			return ((IntNode)((NumericNode) this.constant)).getIntValue();
 		return Integer.parseInt(this.constant.toString());
 	}
 

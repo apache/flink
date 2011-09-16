@@ -25,8 +25,8 @@ public class NumericDifference extends EvaluationExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final double left = this.leftExpression.evaluate(node, context).getDoubleValue();
-		final double right = this.rightExpression.evaluate(node, context).getDoubleValue();
+		final double left = ((DoubleNode)this.leftExpression.evaluate(node, context)).getDoubleValue();
+		final double right = ((DoubleNode)this.rightExpression.evaluate(node, context)).getDoubleValue();
 		final double diff = Math.abs(left - right);
 		if (diff > this.maxDiff)
 			return JsonUtil.ZERO;

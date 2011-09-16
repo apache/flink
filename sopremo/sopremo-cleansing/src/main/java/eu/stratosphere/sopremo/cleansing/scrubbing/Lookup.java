@@ -10,7 +10,6 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.UnionAll;
@@ -19,6 +18,8 @@ import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.expressions.WritableEvaluable;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -250,7 +251,7 @@ public class Lookup extends CompositeOperator {
 			private EvaluationExpression defaultExpression;
 
 			@Override
-			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
 				
 				
 				final Iterator<JsonNode> replaceValueIterator = values2.iterator();
@@ -260,10 +261,10 @@ public class Lookup extends CompositeOperator {
 				final EvaluationContext context = getContext();
 				while (valueIterator.hasNext()) {
 					JsonNode value = valueIterator.next();
-					final JsonNode index = value.get(0);
+					final JsonNode index = ((ArrayNode)value).get(0);
 					JsonNode replacement = replaceValue != null ? replaceValue :
-						defaultExpression.evaluate(value.get(1).get(index.getIntValue()), context);
-					out.collect(value.get(1), JsonUtil.asArray(index, replacement));
+						defaultExpression.evaluate(((ArrayNode)((ArrayNode)value).get(1)).get(((IntNode)index).getIntValue()), context);
+					out.collect(((ArrayNode)value).get(1), JsonUtil.asArray(index, replacement));
 				}
 			}
 		}
@@ -284,7 +285,7 @@ public class Lookup extends CompositeOperator {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
-				out.collect(value1.get(1), JsonUtil.asArray(value1.get(0), value2));
+				out.collect(((ArrayNode)value1).get(1), JsonUtil.asArray(((ArrayNode)value1).get(0), value2));
 			}
 		}
 	}
@@ -302,12 +303,12 @@ public class Lookup extends CompositeOperator {
 		public static class Implementation extends
 				SopremoReduce<Key, PactJsonObject, Key, PactJsonObject> {
 			@Override
-			protected void reduce(JsonNode key, StreamArrayNode values, JsonCollector out) {
-				JsonNode[] array = new JsonNode[key.size()];
+			protected void reduce(JsonNode key, ArrayNode values, JsonCollector out) {
+				JsonNode[] array = new JsonNode[((ArrayNode)key).size()];
 				int replacedCount = 0;
 				for (JsonNode value : values) {
-					int index = value.get(0).getIntValue();
-					JsonNode element = value.get(1);
+					int index = ((IntNode)((ArrayNode)value).get(0)).getIntValue();
+					JsonNode element = ((ArrayNode)value).get(1);
 					array[index] = element;
 					replacedCount++;
 				}
@@ -351,7 +352,7 @@ public class Lookup extends CompositeOperator {
 			private EvaluationExpression defaultExpression;
 
 			@Override
-			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
 				final Iterator<JsonNode> replaceValueIterator = values2.iterator();
 				JsonNode replaceValue = replaceValueIterator.hasNext() ? replaceValueIterator.next() : null;
 

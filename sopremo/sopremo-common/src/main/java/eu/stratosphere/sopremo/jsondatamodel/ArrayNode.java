@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
-public class ArrayNode extends JsonNode implements Iterable<JsonNode>{
+public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 
 	/**
 	 * 
@@ -148,10 +148,25 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode>{
 		return true;
 	}
 
-	public JsonNode addAll(Collection<JsonNode> values) {
-		for(JsonNode node : values){
+	public ArrayNode addAll(Collection<JsonNode> values) {
+		for (JsonNode node : values) {
 			this.add(node);
 		}
 		return this;
 	}
+
+	public boolean isEmpty() {
+		return this.children.isEmpty();
+	}
+	
+	
+
+//	public static Object valueOf(Iterator<JsonNode> iterator) {
+//		ArrayNode array = new ArrayNode();
+//		for(JsonNode node : iterator.next()){
+//			array.add(node);
+//		}
+//		return array;
+//	}
+
 }

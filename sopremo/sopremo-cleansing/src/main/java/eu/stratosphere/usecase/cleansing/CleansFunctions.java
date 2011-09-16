@@ -42,7 +42,7 @@ public class CleansFunctions extends BuiltinFunctions {
 		double sum = 0;
 		
 		for (NumericNode numericNode : inputs) {
-			sum += numericNode.getDoubleValue();
+			sum += ((DoubleNode)numericNode).getDoubleValue();
 		}
 		
 		return DoubleNode.valueOf(sum / inputs.length);
@@ -54,7 +54,7 @@ public class CleansFunctions extends BuiltinFunctions {
 	
 	public static JsonNode split(TextNode input, TextNode splitString) {
 		String[] split = input.getTextValue().split(splitString.getTextValue());
-		ArrayNode splitNode = new ArrayNode(null);
+		ArrayNode splitNode = new ArrayNode();
 		for (String string : split) 
 			splitNode.add(TextNode.valueOf(string));
 		return splitNode;
@@ -73,7 +73,7 @@ public class CleansFunctions extends BuiltinFunctions {
 		if (matcher.groupCount() == 1)
 			return TextNode.valueOf(matcher.group(1));
 
-		ArrayNode result = new ArrayNode(null);
+		ArrayNode result = new ArrayNode();
 		for (int index = 1; index <= matcher.groupCount(); index++)
 			result.add(TextNode.valueOf(matcher.group(index)));
 		return result;
@@ -88,7 +88,7 @@ public class CleansFunctions extends BuiltinFunctions {
 	}
 	
 	public static JsonNode filter(ArrayNode input, JsonNode... elementsToFilter) {
-		ArrayNode output = new ArrayNode(null);
+		ArrayNode output = new ArrayNode();
 		HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
 		for (int index = 0; index < input.size(); index++)
 			if(!filterSet.contains(input.get(index)))

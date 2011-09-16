@@ -7,7 +7,7 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -68,6 +68,11 @@ public class UnionAll extends CompositeOperator {
 	// }
 
 	public static class TwoInputUnionAll extends ElementaryOperator {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -8892065872798915034L;
+
 		public TwoInputUnionAll(JsonStream input1, JsonStream input2) {
 			super(input1, input2);
 		}
@@ -76,7 +81,7 @@ public class UnionAll extends CompositeOperator {
 		public static class TwoInputUnion extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				for (final JsonNode value : values1)
 					out.collect(key, value);

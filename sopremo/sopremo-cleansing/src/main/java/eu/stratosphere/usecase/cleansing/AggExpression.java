@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -28,7 +27,7 @@ public class AggExpression extends EvaluationExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		if (node.size() == 0)
+		if (((ArrayNode)node).size() == 0)
 			return new ArrayNode();
 
 		final List<ArrayNode> nodes = this.sortNodesWithKey(node, context);
@@ -51,7 +50,7 @@ public class AggExpression extends EvaluationExpression {
 
 	protected List<ArrayNode> sortNodesWithKey(JsonNode node, EvaluationContext context) {
 		final List<ArrayNode> nodes = new ArrayList<ArrayNode>();
-		for (final JsonNode jsonNode : node)
+		for (final JsonNode jsonNode : (ArrayNode)node)
 			nodes.add(JsonUtil.asArray(this.groupingExpression.evaluate(jsonNode, context), jsonNode));
 		Collections.sort(nodes, new Comparator<ArrayNode>() {
 			@Override

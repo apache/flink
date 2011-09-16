@@ -5,8 +5,8 @@ import java.util.List;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -65,7 +65,7 @@ public class Union extends MultiSourceOperator<Union> {
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			@Override
-			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				if (!values1.isEmpty())
 					out.collect(key, values1.get(0));
