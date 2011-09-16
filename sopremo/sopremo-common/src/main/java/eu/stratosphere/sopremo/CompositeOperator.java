@@ -14,6 +14,7 @@ import eu.stratosphere.pact.common.plan.PactModule;
  * 
  * @author Arvid Heise
  */
+@InputCardinality(min = 1, max = Integer.MAX_VALUE)
 public abstract class CompositeOperator extends Operator {
 	private static final Log LOG = LogFactory.getLog(CompositeOperator.class);
 
@@ -23,51 +24,20 @@ public abstract class CompositeOperator extends Operator {
 	private static final long serialVersionUID = -9172753270465124102L;
 
 	/**
-	 * Initializes the CompositeOperator with the given number of outputs and the given input {@link JsonStream}s. A
-	 * JsonStream is either the output of another operator or the operator itself.
+	 * Initializes the CompositeOperator with the given number of outputs.
 	 * 
 	 * @param numberOfOutputs
 	 *        the number of outputs
-	 * @param inputs
-	 *        the input JsonStreams produces by other operators
 	 */
-	public CompositeOperator(final int numberOfOutputs, final JsonStream... inputs) {
-		super(numberOfOutputs, inputs);
+	public CompositeOperator(final int numberOfOutputs) {
+		super(numberOfOutputs);
 	}
 
 	/**
-	 * Initializes the CompositeOperator with the given number of outputs and the given input {@link JsonStream}s. A
-	 * JsonStream is either the output of another operator or the operator itself.
-	 * 
-	 * @param numberOfOutputs
-	 *        the number of outputs
-	 * @param inputs
-	 *        the input JsonStreams produces by other operators
+	 * Initializes the CompositeOperator with the number of outputs set to 1.
 	 */
-	public CompositeOperator(final int numberOfOutputs, final List<? extends JsonStream> inputs) {
-		super(numberOfOutputs, inputs);
-	}
-
-	/**
-	 * Initializes the CompositeOperator with the given input {@link JsonStream}s. A JsonStream is
-	 * either the output of another operator or the operator itself. The number of outputs is set to 1.
-	 * 
-	 * @param inputs
-	 *        the input JsonStreams produces by other operators
-	 */
-	public CompositeOperator(final JsonStream... inputs) {
-		super(inputs);
-	}
-
-	/**
-	 * Initializes the CompositeOperator with the given input {@link JsonStream}s. A JsonStream is
-	 * either the output of another operator or the operator itself. The number of outputs is set to 1.
-	 * 
-	 * @param inputs
-	 *        the input JsonStreams produces by other operators
-	 */
-	public CompositeOperator(final List<? extends JsonStream> inputs) {
-		super(inputs);
+	public CompositeOperator() {
+		super();
 	}
 
 	/**
@@ -79,13 +49,13 @@ public abstract class CompositeOperator extends Operator {
 	 */
 	public abstract SopremoModule asElementaryOperators();
 
-//	@Override
-//	public SopremoModule toElementaryOperators() {
-//		SopremoModule elementary = asElementaryOperators().asElementary();
-//		System.out.println(getName() + " -> "+ elementary);
-//		return elementary;
-//	}
-	
+	// @Override
+	// public SopremoModule toElementaryOperators() {
+	// SopremoModule elementary = asElementaryOperators().asElementary();
+	// System.out.println(getName() + " -> "+ elementary);
+	// return elementary;
+	// }
+
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		if (LOG.isTraceEnabled())

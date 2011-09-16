@@ -17,7 +17,7 @@ public class SelectionTest extends SopremoTest<Selection> {
 	protected Selection createDefaultInstance(final int index) {
 		final AndExpression condition = new AndExpression(new UnaryExpression(
 			createPath(String.valueOf(index))));
-		return new Selection(null).withCondition(condition);
+		return new Selection().withCondition(condition);
 	}
 
 	@Test
@@ -29,7 +29,9 @@ public class SelectionTest extends SopremoTest<Selection> {
 		final UnaryExpression mgrFlag = new UnaryExpression(new ObjectAccess("mgr"));
 		final OrExpression condition = new OrExpression(mgrFlag, incomeComparison);
 		sopremoPlan.getOutputOperator(0).setInputs(
-			new Selection(sopremoPlan.getInputOperator(0)).withCondition(condition));
+			new Selection().
+				withCondition(condition).
+				withInputs(sopremoPlan.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).
 			add(createPactJsonObject("name", "Jon Doe", "income", 20000, "mgr", false)).

@@ -19,7 +19,6 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.SopremoPlan;
 
-@Ignore
 @RunWith(Parameterized.class)
 public class BaseOperatorTest {
 	private File scriptPath;
@@ -40,6 +39,7 @@ public class BaseOperatorTest {
 		}
 		
 		Assert.assertNotNull("could not parse " + scriptPath.getName(), plan);
+		System.out.println(plan);
 	}
 
 	@Parameters

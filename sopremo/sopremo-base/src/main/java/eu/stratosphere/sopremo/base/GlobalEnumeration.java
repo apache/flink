@@ -10,7 +10,6 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
@@ -52,10 +51,6 @@ public class GlobalEnumeration extends ElementaryOperator {
 	private EvaluationExpression enumerationExpression = EvaluationExpression.AS_KEY;
 
 	private EvaluationExpression idGeneration = CONCATENATION;
-
-	public GlobalEnumeration(final JsonStream input) {
-		super(input);
-	}
 
 	public EvaluationExpression getEnumerationExpression() {
 		return this.enumerationExpression;

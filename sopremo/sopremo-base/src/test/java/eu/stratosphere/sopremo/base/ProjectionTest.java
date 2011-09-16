@@ -13,7 +13,7 @@ public class ProjectionTest extends SopremoTest<Projection> {
 	protected Projection createDefaultInstance(final int index) {
 		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("field", createPath(String.valueOf(index)));
-		return new Projection( null).withValueTransformation(transformation);
+		return new Projection().withValueTransformation(transformation);
 	}
 
 	@Test
@@ -24,7 +24,9 @@ public class ProjectionTest extends SopremoTest<Projection> {
 		transformation.addMapping("sum", new ArithmeticExpression(createPath("a"),
 			ArithmeticOperator.ADDITION, createPath("b")));
 		sopremoPlan.getOutputOperator(0).setInputs(
-			new Projection( sopremoPlan.getInputOperator(0)).withValueTransformation(transformation));
+			new Projection().
+				withValueTransformation(transformation).
+				withInputs(sopremoPlan.getInputOperator(0)));
 
 		sopremoPlan.getInput(0).
 			add(createPactJsonObject("a", 1, "b", 4)).

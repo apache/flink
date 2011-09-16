@@ -6,6 +6,7 @@ options {
     ASTLabelType=EvaluationExpression;
     backtrack=true;
     memoize=true;
+    superClass=SimpleParser;
 }
 
 tokens {	/*
@@ -33,6 +34,7 @@ package eu.stratosphere.simple.jaql;
 package eu.stratosphere.simple.jaql; 
 
 import eu.stratosphere.sopremo.*;
+import eu.stratosphere.util.*;
 import eu.stratosphere.simple.*;
 import eu.stratosphere.sopremo.pact.*;
 import eu.stratosphere.sopremo.expressions.*;
@@ -40,6 +42,7 @@ import eu.stratosphere.sopremo.aggregation.*;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.*;
 import java.math.*;
+import java.util.Arrays;
 }
 
 @rulecatch { }
@@ -50,46 +53,25 @@ bindings.addScope();
 
 @parser::members {
 private Map<String, Operator> variables = new HashMap<String, Operator>();
-private OperatorFactory operatorFactory = new OperatorFactory();
-private List<Sink> sinks = new ArrayList<Sink>();
 
-public Object recoverFromMismatchedSet(IntStream input, RecognitionException e, BitSet follow)
-	throws RecognitionException
-{
-	throw e;
-}
-
-protected Object recoverFromMismatchedToken(IntStream input, int ttype, BitSet follow)
-	throws RecognitionException
-{
-	// if next token is what we are looking for then "delete" this token
-	if ( mismatchIsUnwantedToken(input, ttype) )
-		throw new UnwantedTokenException(ttype, input);
-		
-	// can't recover with single token deletion, try insertion
-	if ( mismatchIsMissingToken(input, follow)  ){
-		Object inserted = getMissingSymbol(input, null, ttype, follow);
-		throw new MissingTokenException(ttype, input, inserted);
-	}
-		
-	throw new MismatchedTokenException(ttype, input);
-}
-
-public SopremoPlan parse() throws RecognitionException {  
+public void parseSinks() throws RecognitionException {  
     script();
-    return new SopremoPlan(sinks);
 }
 
-private EvaluationExpression makePath(Token inputVar, String... path) {
-	List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
+  private EvaluationExpression makePath(Token inputVar, String... path) {
+    List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
 
-  accesses.add(new InputSelection(inputIndexForVariable(inputVar)));	
-		
-	for(String fragment : path)
-		accesses.add(new ObjectAccess(fragment));
-	
-	return PathExpression.valueOf(accesses);
-}
+    int inputIndex = inputIndexForVariable(inputVar);
+    InputSelection inputSelection = new InputSelection(inputIndex);
+    for (ExpressionTag tag : $operator::inputTags.get(inputIndex))
+      inputSelection.addTag(tag);
+    accesses.add(inputSelection);
+
+    for (String fragment : path)
+      accesses.add(new ObjectAccess(fragment));
+
+    return PathExpression.valueOf(accesses);
+  }
 
 private Operator getVariable(Token variable) {
 	Operator op = variables.get(variable.getText());
@@ -99,21 +81,24 @@ private Operator getVariable(Token variable) {
 }
 
 private int inputIndexForVariable(Token variable) {
-  int index = $operator::aliasNames.indexOf(variable.getText());
+  int index = $operator::inputNames.indexOf(variable.getText());
+  if(index == -1) {
+    if(variable.getText().equals("$") && $operator::inputNames.size() == 1 && !$operator::hasExplicitName.get(0))
+      return 0;
+    try {
+      index = Integer.parseInt(variable.getText().substring(1));
+      if($operator::hasExplicitName.get(index))
+        throw new IllegalArgumentException("Cannot use index variable " + variable.getText() + " for input with explicit name", 
+          new RecognitionException(variable.getInputStream()));
+      if(0 > index || index >= $operator::inputNames.size()) 
+        throw new IllegalArgumentException("Invalid input index " + index, new RecognitionException(variable.getInputStream()));
+    } catch(NumberFormatException e) {
+    }
+  }
   if(index == -1)
-    index = $operator::inputNames.indexOf(variable.getText());
-  if(index == -1)
-		throw new IllegalArgumentException("Unknown variable:", new RecognitionException(variable.getInputStream()));
-	return index;
-}
-
-private Number parseInt(String text) {
-  BigInteger result = new BigInteger(text);
-  if(result.bitLength() <= 31)
-    return result.intValue();
-  if(result.bitLength() <= 63)
-    return result.longValue();
-  return result;
+    throw new IllegalArgumentException("Unknown variable " + variable.getText(), 
+      new RecognitionException(variable.getInputStream()));
+  return index;
 }
 
 //private EvaluationExpression[] getExpressions(List nodes
@@ -149,7 +134,8 @@ elementExpression
 comparisonExpression
 	:	e1=arithmeticExpression ((s='<=' | s='>=' | s='<' | s='>' | s='==' | s='!=') e2=arithmeticExpression)?
 	-> 	{ $s == null }? $e1
-	->	{ $s.getText().equals("!=") }? ^(EXPRESSION["ComparativeExpression"] $e1 {ComparativeExpression.BinaryOperator.NOT_EQUAL} $e2)
+  ->  { $s.getText().equals("!=") }? ^(EXPRESSION["ComparativeExpression"] $e1 {ComparativeExpression.BinaryOperator.NOT_EQUAL} $e2)
+  ->  { $s.getText().equals("==") }? ^(EXPRESSION["ComparativeExpression"] $e1 {ComparativeExpression.BinaryOperator.EQUAL} $e2)
 	-> 	^(EXPRESSION["ComparativeExpression"] $e1 {ComparativeExpression.BinaryOperator.valueOfSymbol($s.text)} $e2);
 	
 arithmeticExpression
@@ -200,7 +186,11 @@ parenthesesExpression
 	:	('(' expression ')') -> expression;
 
 functionCall
-	:	ID '(' (params+=expression (',' params+=expression)*) ')' -> ^(EXPRESSION["FunctionCall"] $params);
+@init { List<EvaluationExpression> params = new ArrayList(); }
+	:	name=ID '('	
+	(param=expression { params.add($param.tree); }
+	(',' param=expression { params.add($param.tree); })*) 
+	')' -> ^(EXPRESSION["FunctionCall"] { $name.text } { params.toArray(new EvaluationExpression[params.size()]) });
 	
 fieldAssignment returns [ObjectCreation.Mapping mapping]
 	:	VAR '.' STAR { $objectCreation::mappings.add(new ObjectCreation.CopyFields(makePath($VAR))); } ->
@@ -225,24 +215,27 @@ literal
   | val=UINT -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) });
 
 arrayAccess
-  :  '[' pos=(INTEGER | UINT) ']' -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($pos.text) })
-  |  '[' start=(INTEGER | UINT) ':' end=(INTEGER | UINT) ']' -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($start.text) } { Integer.valueOf($end.text) })
-  |  '[' STAR ']' -> ^(EXPRESSION["ArrayAccess"]);
+  : '[' STAR ']' 
+  -> ^(EXPRESSION["ArrayAccess"])  
+  | '[' (pos=INTEGER | pos=UINT) ']' 
+  -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($pos.text) })
+  | '[' (start=INTEGER | start=UINT) ':' (end=INTEGER | end=UINT) ']' 
+  -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($start.text) } { Integer.valueOf($end.text) });
 	
 arrayCreation
 	:	 '[' elems+=expression (',' elems+=expression)* ','? ']' -> ^(EXPRESSION["ArrayCreation"] $elems);
 
 operator returns [Operator op=null]
 scope { 
-  List<Operator> inputOperators; 
   List<String> inputNames; 
-  List<String> aliasNames; 
+  java.util.BitSet hasExplicitName;
+  List<List<ExpressionTag>> inputTags; 
   Operator result;
 }
 @init { 
-	$operator::inputOperators = new ArrayList<Operator>();
   $operator::inputNames = new ArrayList<String>();
-  $operator::aliasNames = new ArrayList<String>();
+  $operator::inputTags = new ArrayList<List<ExpressionTag>>();
+  $operator::hasExplicitName = new java.util.BitSet();
 }
 	:	opRule=(readOperator | writeOperator | genericOperator) 
 { 
@@ -255,8 +248,9 @@ readOperator
 writeOperator
 	:	'write' from=VAR 'to' (loc=ID? file=STRING | loc=ID '(' file=STRING ')') 
 { 
-	Sink sink = new Sink(JsonOutputFormat.class, $file.text, getVariable(from));
+	Sink sink = new Sink(JsonOutputFormat.class, $file.text);
   $operator::result = sink;
+  sink.setInputs(getVariable(from));
   this.sinks.add(sink);
 } ->;
 
@@ -264,27 +258,48 @@ genericOperator
 scope { 
   OperatorFactory.OperatorInfo operatorInfo;
 }
-	:	name=ID input (',' input)*	
+	:	name=ID 
 { 
-  OperatorFactory.OperatorInfo info = operatorFactory.getOperatorInfo($name.text);
-  if(info == null)
+  $genericOperator::operatorInfo = operatorFactory.getOperatorInfo($name.text); 
+} 
+({$genericOperator::operatorInfo == null}? moreName=ID 
+{  
+  $genericOperator::operatorInfo = operatorFactory.getOperatorInfo($name.text + " " + $moreName.text); 
+} )? 
+{ 
+  if($genericOperator::operatorInfo == null)
     throw new IllegalArgumentException("Unknown operator:", new RecognitionException(name.getInputStream()));
-  $operator::result = info.newInstance($operator::inputOperators);
-  if($operator::aliasNames.size() == 1 && $operator::aliasNames.get(0).equals("\$0"))
-    $operator::aliasNames.set(0, "\$");
-  $genericOperator::operatorInfo = info;
-} operatorOption* ->; 
+  $operator::result = $genericOperator::operatorInfo.newInstance();
+} 
+input (',' input)*	
+operatorOption* ->; 
 	
 operatorOption
-	:	name=ID+ expr=expression { $genericOperator::operatorInfo.setProperty($name.text, $expr.tree); } ->;
+scope {
+ String optionName;
+}
+	:	name=ID 
+{ 
+  $operatorOption::optionName = $name.text; 
+}
+({!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName)}? moreName=ID 
+{  
+  $operatorOption::optionName+= " " + $moreName.text; 
+})?
+expr=expression { $genericOperator::operatorInfo.setProperty($operatorOption::optionName, $operator::result, $expr.tree); } ->;
 
 input	
-	:	(name=VAR 'in')? from=VAR
+	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
 { 
-	$operator::inputOperators.add(getVariable(from)); 
-  $operator::inputNames.add(from.getText()); 
-  $operator::aliasNames.add(name == null ? String.format("\$\%d", $operator::aliasNames.size()) : name.getText()); 
-} -> ;
+  int inputIndex = $operator::inputNames.size();
+  $operator::result.setInput(inputIndex, getVariable(from));
+  $operator::inputNames.add(name != null ? name.getText() : from.getText());
+  $operator::hasExplicitName.set(inputIndex, name != null); 
+  $operator::inputTags.add(preserveFlag == null ? new ArrayList<ExpressionTag>() : Arrays.asList(ExpressionTag.RETAIN));
+} 
+(inputOption=ID {$genericOperator::operatorInfo.hasInputProperty($inputOption.text)}? 
+  expr=expression { $genericOperator::operatorInfo.setInputProperty($inputOption.text, $operator::result, $operator::inputNames.size()-1, $expr.tree); })?
+-> ;
 
 //-> {$from.text != null}? ^(BIND $name $from?)
 //	-> ^($name);	

@@ -5,7 +5,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
-public class BagUnionTest extends SopremoTest<UnionAll> {
+public class UnionAllTest extends SopremoTest<UnionAll> {
 	@Override
 	public void shouldComplyEqualsContract() {
 	}
@@ -14,7 +14,8 @@ public class BagUnionTest extends SopremoTest<UnionAll> {
 	public void shouldPerformThreeWayBagUnion() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
-		final UnionAll union = new UnionAll(sopremoPlan.getInputOperators(0, 3));
+		final UnionAll union = new UnionAll();
+		union.setInputs(sopremoPlan.getInputOperators(0, 3));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
@@ -45,7 +46,8 @@ public class BagUnionTest extends SopremoTest<UnionAll> {
 	public void shouldPerformTrivialBagUnion() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		final UnionAll union = new UnionAll(sopremoPlan.getInputOperators(0, 1));
+		final UnionAll union = new UnionAll();
+		union.setInputs(sopremoPlan.getInputOperator(0));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
@@ -62,7 +64,8 @@ public class BagUnionTest extends SopremoTest<UnionAll> {
 	public void shouldPerformTwoWayBagUnion() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final UnionAll union = new UnionAll(sopremoPlan.getInputOperators(0, 2));
+		final UnionAll union = new UnionAll();
+		union.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
@@ -86,7 +89,8 @@ public class BagUnionTest extends SopremoTest<UnionAll> {
 	public void shouldPerformTwoWayBagUnionWithBagSemanticsPerDefault() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final UnionAll union = new UnionAll(sopremoPlan.getInputOperators(0, 2));
+		final UnionAll union = new UnionAll();
+		union.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).

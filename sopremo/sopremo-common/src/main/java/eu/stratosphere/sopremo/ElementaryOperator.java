@@ -52,7 +52,8 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * 
  * @author Arvid Heise
  */
-public class ElementaryOperator extends Operator {
+@InputCardinality(min = 1, max = 1)
+public abstract class ElementaryOperator extends Operator {
 	private static final org.apache.commons.logging.Log LOG = LogFactory.getLog(ElementaryOperator.class);
 
 	/**
@@ -61,25 +62,20 @@ public class ElementaryOperator extends Operator {
 	private static final long serialVersionUID = 4504792171699882490L;
 
 	/**
-	 * Initializes the ElementaryOperator with the given input {@link JsonStream}s. A JsonStream is
-	 * either the output of another operator or the operator itself.
+	 * Initializes the ElementaryOperator with the given number of outputs.
 	 * 
-	 * @param inputs
-	 *        the input JsonStreams produces by other operators
+	 * @param numberOfOutputs
+	 *        the number of outputs
 	 */
-	public ElementaryOperator(final JsonStream... inputs) {
-		super(inputs);
+	public ElementaryOperator(final int numberOfOutputs) {
+		super(numberOfOutputs);
 	}
 
 	/**
-	 * Initializes the ElementaryOperator with the given input {@link JsonStream}s. A JsonStream is
-	 * either the output of another operator or the operator itself.
-	 * 
-	 * @param inputs
-	 *        the input JsonStreams produces by other operators
+	 * Initializes the ElementaryOperator with the number of outputs set to 1.
 	 */
-	public ElementaryOperator(final List<? extends JsonStream> inputs) {
-		super(inputs);
+	public ElementaryOperator() {
+		super();
 	}
 
 	@Override

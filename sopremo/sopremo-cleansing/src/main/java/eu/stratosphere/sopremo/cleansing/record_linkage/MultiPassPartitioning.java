@@ -49,7 +49,7 @@ public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
 		for (int index = 0; index < this.passPartitionKeys.size(); index++)
 			passes.add(this.createSinglePassInterSource(this.passPartitionKeys.get(index), similarityCondition,
 				input1, input2));
-		return new Union(passes);
+		return new Union().withInputs(passes);
 	}
 
 	@Override
@@ -60,7 +60,7 @@ public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
 			passes.add(this.createSinglePassIntraSource(this.passPartitionKeys.get(index)[0], similarityCondition,
 					input));
 
-		return new Union(passes);
+		return new Union().withInputs(passes);
 	}
 
 	protected abstract Operator createSinglePassInterSource(EvaluationExpression[] partitionKeys,

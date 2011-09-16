@@ -5,6 +5,7 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
@@ -22,10 +23,6 @@ public class Projection extends ElementaryOperator {
 
 	private EvaluationExpression keyTransformation = EvaluationExpression.KEY,
 			valueTransformation = EvaluationExpression.VALUE;
-
-	public Projection(final JsonStream input) {
-		super(input);
-	}
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {

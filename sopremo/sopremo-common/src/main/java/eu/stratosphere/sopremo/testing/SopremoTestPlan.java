@@ -375,7 +375,7 @@ public class SopremoTestPlan {
 		private final int index;
 
 		public MockupSink(final int index) {
-			super(PersistenceType.ADHOC, "mockup-output" + index, null);
+			super(PersistenceType.ADHOC, "mockup-output" + index);
 			this.index = index;
 		}
 

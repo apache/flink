@@ -21,6 +21,7 @@ import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
+@InputCardinality(min = 0, max = 0)
 public class Source extends ElementaryOperator {
 	/**
 	 * 

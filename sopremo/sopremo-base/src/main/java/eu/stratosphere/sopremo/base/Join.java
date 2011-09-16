@@ -15,10 +15,13 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.ExpressionTag;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.StreamArrayNode;
@@ -32,7 +35,6 @@ import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
-import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -52,22 +54,11 @@ public class Join extends CompositeOperator {
 
 	private EvaluationExpression resultProjection = ObjectCreation.CONCATENATION;
 
-	public Join(final JsonStream... inputs) {
-		super(inputs);
-		this.condition = this.condition;
-		this.resultProjection = this.resultProjection;
-	}
-
-	public Join(final List<? extends JsonStream> inputs) {
-		super(inputs);
-		this.condition = this.condition;
-		this.resultProjection = this.resultProjection;
-	}
-
 	public EvaluationExpression getResultProjection() {
 		return this.resultProjection;
 	}
 
+	@Property
 	@Name(preposition = "into")
 	public void setResultProjection(EvaluationExpression resultProjection) {
 		if (resultProjection == null)
@@ -76,6 +67,7 @@ public class Join extends CompositeOperator {
 		this.resultProjection = resultProjection;
 	}
 
+	@Property
 	@Name(preposition = "where")
 	public void setJoinCondition(EvaluationExpression joinCondition) {
 		if (joinCondition == null)
@@ -111,8 +103,9 @@ public class Join extends CompositeOperator {
 			final EvaluationExpression[] elements = new EvaluationExpression[numInputs];
 			Arrays.fill(elements, EvaluationExpression.NULL);
 			elements[index] = EvaluationExpression.VALUE;
-			inputs.add(new Projection(module.getInput(index)).
-				withValueTransformation(new ArrayCreation(elements)));
+			inputs.add(new Projection().
+				withValueTransformation(new ArrayCreation(elements)).
+				withInputs(module.getInput(index)));
 		}
 
 		for (final TwoSourceJoin twoSourceJoin : joins) {
@@ -130,9 +123,10 @@ public class Join extends CompositeOperator {
 			twoSourceJoin.setInputs(actualInputs);
 		}
 
-		module.getOutput(0).setInput(0, new Projection(joins.get(joins.size() - 1)).
+		module.getOutput(0).setInput(0, new Projection().
 			withKeyTransformation(EvaluationExpression.NULL).
-			withValueTransformation(this.resultProjection));
+			withValueTransformation(this.resultProjection).
+			withInputs(joins.get(joins.size() - 1)));
 		return module;
 	}
 
@@ -146,6 +140,15 @@ public class Join extends CompositeOperator {
 			return false;
 		return super.equals(obj) && this.condition.equals(((Join) obj).condition)
 			&& this.resultProjection.equals(((Join) obj).resultProjection);
+	}
+
+	@Override
+	public String toString() {
+		final StringBuilder builder = new StringBuilder(this.getName());
+		builder.append(" on ").append(this.getCondition());
+		if (getResultProjection() != EvaluationExpression.VALUE)
+			builder.append(" to ").append(getResultProjection());
+		return builder.toString();
 	}
 
 	public EvaluationExpression getCondition() {
@@ -188,15 +191,12 @@ public class Join extends CompositeOperator {
 		return result;
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class AntiJoinStub extends ElementaryOperator {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 2672827253341673832L;
-
-		public AntiJoinStub(final JsonStream left, final JsonStream right) {
-			super(left, right);
-		}
 
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
@@ -227,14 +227,14 @@ public class Join extends CompositeOperator {
 		public Operator createJoinContract(final Operator left, final Operator right) {
 			switch (this.comparison.getBinaryOperator()) {
 			case EQUAL:
-				final boolean leftOuter = this.getLeftJoinKey().removeTag(ExpressionTag.PRESERVE);
-				final boolean rightOuter = this.getRightJoinKey().removeTag(ExpressionTag.PRESERVE);
+				final boolean leftOuter = this.getLeftJoinKey().removeTag(ExpressionTag.RETAIN);
+				final boolean rightOuter = this.getRightJoinKey().removeTag(ExpressionTag.RETAIN);
 				if (leftOuter || rightOuter)
-					return new OuterJoinStub(left, leftOuter, right, rightOuter);
+					return new OuterJoinStub(leftOuter, rightOuter).withInputs(left, right);
 
-				return new InnerJoinStub(left, right);
+				return new InnerJoinStub().withInputs(left, right);
 			default:
-				return new ThetaJoinStub(left, this.comparison, right);
+				return new ThetaJoinStub(this.comparison).withInputs(left, right);
 			}
 		}
 	}
@@ -256,20 +256,17 @@ public class Join extends CompositeOperator {
 		@Override
 		public Operator createJoinContract(final Operator left, final Operator right) {
 			if (this.elementInSetExpression.getQuantor() == Quantor.EXISTS_NOT_IN)
-				return new AntiJoinStub(left, right);
-			return new SemiJoinStub(left, right);
+				return new AntiJoinStub().withInputs(left, right);
+			return new SemiJoinStub().withInputs(left, right);
 		}
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class InnerJoinStub extends ElementaryOperator {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 7145499293300473008L;
-
-		public InnerJoinStub(final JsonStream left, final JsonStream right) {
-			super(left, right);
-		}
 
 		public static class Implementation extends
 				SopremoMatch<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
@@ -281,6 +278,7 @@ public class Join extends CompositeOperator {
 		}
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class OuterJoinStub extends ElementaryOperator {
 		/**
 		 * 
@@ -289,9 +287,7 @@ public class Join extends CompositeOperator {
 
 		private transient boolean leftOuter, rightOuter;
 
-		public OuterJoinStub(final JsonStream left, final boolean leftOuter, final JsonStream right,
-				final boolean rightOuter) {
-			super(left, right);
+		public OuterJoinStub(final boolean leftOuter, final boolean rightOuter) {
 			this.leftOuter = leftOuter;
 			this.rightOuter = rightOuter;
 		}
@@ -329,7 +325,7 @@ public class Join extends CompositeOperator {
 					return;
 				}
 
-				// TODO: use resettable iterator to avoid OOM
+				// TODO: use resettable iterator to avoid OOME
 				final ArrayList<JsonNode> firstSourceNodes = new ArrayList<JsonNode>();
 				for (final JsonNode value : values1)
 					firstSourceNodes.add(value);
@@ -348,15 +344,12 @@ public class Join extends CompositeOperator {
 		}
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class SemiJoinStub extends ElementaryOperator {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -7624313431291367616L;
-
-		public SemiJoinStub(final JsonStream left, final JsonStream right) {
-			super(left, right);
-		}
 
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
@@ -370,6 +363,7 @@ public class Join extends CompositeOperator {
 		}
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class ThetaJoinStub extends ElementaryOperator {
 		/**
 		 * 
@@ -378,28 +372,14 @@ public class Join extends CompositeOperator {
 
 		private final ComparativeExpression comparison;
 
-		public ThetaJoinStub(final JsonStream left, final ComparativeExpression comparison, final JsonStream right) {
-			super(left, right);
+		public ThetaJoinStub(final ComparativeExpression comparison) {
 			this.comparison = comparison;
-		}
-
-		@Override
-		protected void configureContract(final Contract contract, final Configuration configuration,
-				final EvaluationContext context) {
-			super.configureContract(contract, configuration, context);
-			SopremoUtil.serialize(configuration, "comparison", this.comparison);
 		}
 
 		public static class Implementation
 				extends
 				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 			private ComparativeExpression comparison;
-
-			@Override
-			public void configure(final Configuration parameters) {
-				super.configure(parameters);
-				this.comparison = SopremoUtil.deserialize(parameters, "comparison", ComparativeExpression.class);
-			}
 
 			@Override
 			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
@@ -410,6 +390,7 @@ public class Join extends CompositeOperator {
 		}
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	static abstract class TwoSourceJoin extends CompositeOperator {
 		/**
 		 * 
@@ -418,9 +399,9 @@ public class Join extends CompositeOperator {
 
 		private final EvaluationExpression leftJoinKey, rightJoinKey;
 
-		public TwoSourceJoin(final JsonStream left, final JsonStream right, final EvaluationExpression leftJoinKey,
+		public TwoSourceJoin(JsonStream left, JsonStream right, final EvaluationExpression leftJoinKey,
 				final EvaluationExpression rightJoinKey) {
-			super(left, right);
+			setInputs(left, right);
 			this.leftJoinKey = leftJoinKey;
 			this.rightJoinKey = rightJoinKey;
 		}
@@ -429,13 +410,16 @@ public class Join extends CompositeOperator {
 		public SopremoModule asElementaryOperators() {
 			final SopremoModule sopremoModule = new SopremoModule(this.toString(), 2, 1);
 
-			final Projection leftProjection = new Projection(sopremoModule.getInput(0))
-				.withKeyTransformation(this.leftJoinKey);
-			final Projection rightProjection = new Projection(sopremoModule.getInput(1))
-				.withKeyTransformation(this.rightJoinKey);
+			final Operator leftProjection = new Projection().
+				withKeyTransformation(this.leftJoinKey).
+				withInputs(sopremoModule.getInput(0));
+			final Operator rightProjection = new Projection()
+				.withKeyTransformation(this.rightJoinKey).
+				withInputs(sopremoModule.getInput(1));
 			final Operator joinAlgorithm = this.createJoinContract(leftProjection, rightProjection);
-			sopremoModule.getOutput(0).setInputs(
-				new Projection(joinAlgorithm).withValueTransformation(new ArrayMerger()));
+			sopremoModule.getOutput(0).setInputs(new Projection().
+				withValueTransformation(new ArrayMerger()).
+				withInputs(joinAlgorithm));
 			return sopremoModule;
 		}
 

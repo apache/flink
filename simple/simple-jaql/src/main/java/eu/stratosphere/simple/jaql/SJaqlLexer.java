@@ -1,4 +1,4 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-09-12 19:14:25
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-09-16 13:45:44
  
 package eu.stratosphere.simple.jaql; 
 
@@ -45,6 +45,7 @@ public class SJaqlLexer extends Lexer {
     public static final int T__57=57;
     public static final int T__58=58;
     public static final int T__59=59;
+    public static final int T__60=60;
     public static final int EXPRESSION=4;
     public static final int OPERATOR=5;
     public static final int VAR=6;
@@ -797,11 +798,32 @@ public class SJaqlLexer extends Lexer {
     }
     // $ANTLR end "T__59"
 
+    // $ANTLR start "T__60"
+    public final void mT__60() throws RecognitionException {
+        try {
+            int _type = T__60;
+            int _channel = DEFAULT_TOKEN_CHANNEL;
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:46:7: ( 'preserve' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:46:9: 'preserve'
+            {
+            match("preserve"); 
+
+
+            }
+
+            state.type = _type;
+            state.channel = _channel;
+        }
+        finally {
+        }
+    }
+    // $ANTLR end "T__60"
+
     // $ANTLR start "LOWER_LETTER"
     public final void mLOWER_LETTER() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:297:2: ( 'a' .. 'z' )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:297:4: 'a' .. 'z'
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:312:2: ( 'a' .. 'z' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:312:4: 'a' .. 'z'
             {
             matchRange('a','z'); 
 
@@ -816,8 +838,8 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "UPPER_LETTER"
     public final void mUPPER_LETTER() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:2: ( 'A' .. 'Z' )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:4: 'A' .. 'Z'
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:315:2: ( 'A' .. 'Z' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:315:4: 'A' .. 'Z'
             {
             matchRange('A','Z'); 
 
@@ -832,8 +854,8 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "DIGIT"
     public final void mDIGIT() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:303:2: ( '0' .. '9' )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:303:4: '0' .. '9'
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:318:2: ( '0' .. '9' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:318:4: '0' .. '9'
             {
             matchRange('0','9'); 
 
@@ -848,8 +870,8 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "SIGN"
     public final void mSIGN() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:305:14: ( ( '+' | '-' ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:305:16: ( '+' | '-' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:320:14: ( ( '+' | '-' ) )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:320:16: ( '+' | '-' )
             {
             if ( input.LA(1)=='+'||input.LA(1)=='-' ) {
                 input.consume();
@@ -874,8 +896,8 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = ID;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:307:4: ( ( LOWER_LETTER | UPPER_LETTER ) ( LOWER_LETTER | UPPER_LETTER | DIGIT | '_' )* )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:307:6: ( LOWER_LETTER | UPPER_LETTER ) ( LOWER_LETTER | UPPER_LETTER | DIGIT | '_' )*
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:322:4: ( ( LOWER_LETTER | UPPER_LETTER ) ( LOWER_LETTER | UPPER_LETTER | DIGIT | '_' )* )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:322:6: ( LOWER_LETTER | UPPER_LETTER ) ( LOWER_LETTER | UPPER_LETTER | DIGIT | '_' )*
             {
             if ( (input.LA(1)>='A' && input.LA(1)<='Z')||(input.LA(1)>='a' && input.LA(1)<='z') ) {
                 input.consume();
@@ -886,7 +908,7 @@ public class SJaqlLexer extends Lexer {
                 recover(mse);
                 throw mse;}
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:307:36: ( LOWER_LETTER | UPPER_LETTER | DIGIT | '_' )*
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:322:36: ( LOWER_LETTER | UPPER_LETTER | DIGIT | '_' )*
             loop1:
             do {
                 int alt1=2;
@@ -935,11 +957,11 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = VAR;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:309:5: ( '$' ( ID )? )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:309:7: '$' ( ID )?
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:324:5: ( '$' ( ID )? )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:324:7: '$' ( ID )?
             {
             match('$'); 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:309:11: ( ID )?
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:324:11: ( ID )?
             int alt2=2;
             int LA2_0 = input.LA(1);
 
@@ -948,7 +970,7 @@ public class SJaqlLexer extends Lexer {
             }
             switch (alt2) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:309:11: ID
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:324:11: ID
                     {
                     mID(); 
 
@@ -973,8 +995,8 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = STAR;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:311:6: ( '*' )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:311:8: '*'
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:326:6: ( '*' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:326:8: '*'
             {
             match('*'); 
 
@@ -993,7 +1015,7 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = COMMENT;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:314:5: ( '//' (~ ( '\\n' | '\\r' ) )* ( '\\r' )? '\\n' | '/*' ( options {greedy=false; } : . )* '*/' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:329:5: ( '//' (~ ( '\\n' | '\\r' ) )* ( '\\r' )? '\\n' | '/*' ( options {greedy=false; } : . )* '*/' )
             int alt6=2;
             int LA6_0 = input.LA(1);
 
@@ -1021,11 +1043,11 @@ public class SJaqlLexer extends Lexer {
             }
             switch (alt6) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:314:9: '//' (~ ( '\\n' | '\\r' ) )* ( '\\r' )? '\\n'
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:329:9: '//' (~ ( '\\n' | '\\r' ) )* ( '\\r' )? '\\n'
                     {
                     match("//"); 
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:314:14: (~ ( '\\n' | '\\r' ) )*
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:329:14: (~ ( '\\n' | '\\r' ) )*
                     loop3:
                     do {
                         int alt3=2;
@@ -1038,7 +1060,7 @@ public class SJaqlLexer extends Lexer {
 
                         switch (alt3) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:314:14: ~ ( '\\n' | '\\r' )
+                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:329:14: ~ ( '\\n' | '\\r' )
                     	    {
                     	    if ( (input.LA(1)>='\u0000' && input.LA(1)<='\t')||(input.LA(1)>='\u000B' && input.LA(1)<='\f')||(input.LA(1)>='\u000E' && input.LA(1)<='\uFFFF') ) {
                     	        input.consume();
@@ -1058,7 +1080,7 @@ public class SJaqlLexer extends Lexer {
                         }
                     } while (true);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:314:28: ( '\\r' )?
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:329:28: ( '\\r' )?
                     int alt4=2;
                     int LA4_0 = input.LA(1);
 
@@ -1067,7 +1089,7 @@ public class SJaqlLexer extends Lexer {
                     }
                     switch (alt4) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:314:28: '\\r'
+                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:329:28: '\\r'
                             {
                             match('\r'); 
 
@@ -1082,11 +1104,11 @@ public class SJaqlLexer extends Lexer {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:315:9: '/*' ( options {greedy=false; } : . )* '*/'
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:330:9: '/*' ( options {greedy=false; } : . )* '*/'
                     {
                     match("/*"); 
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:315:14: ( options {greedy=false; } : . )*
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:330:14: ( options {greedy=false; } : . )*
                     loop5:
                     do {
                         int alt5=2;
@@ -1111,7 +1133,7 @@ public class SJaqlLexer extends Lexer {
 
                         switch (alt5) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:315:42: .
+                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:330:42: .
                     	    {
                     	    matchAny(); 
 
@@ -1142,8 +1164,8 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "QUOTE"
     public final void mQUOTE() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:319:2: ( '\\'' )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:319:4: '\\''
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:334:2: ( '\\'' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:334:4: '\\''
             {
             match('\''); 
 
@@ -1160,10 +1182,10 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = WS;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:321:5: ( ( ' ' | '\\t' | '\\n' | '\\r' )+ )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:321:7: ( ' ' | '\\t' | '\\n' | '\\r' )+
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:336:5: ( ( ' ' | '\\t' | '\\n' | '\\r' )+ )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:336:7: ( ' ' | '\\t' | '\\n' | '\\r' )+
             {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:321:7: ( ' ' | '\\t' | '\\n' | '\\r' )+
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:336:7: ( ' ' | '\\t' | '\\n' | '\\r' )+
             int cnt7=0;
             loop7:
             do {
@@ -1218,11 +1240,11 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = STRING;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:324:2: ( QUOTE ( options {greedy=false; } : . )* QUOTE )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:324:4: QUOTE ( options {greedy=false; } : . )* QUOTE
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:339:2: ( QUOTE ( options {greedy=false; } : . )* QUOTE )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:339:4: QUOTE ( options {greedy=false; } : . )* QUOTE
             {
             mQUOTE(); 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:324:10: ( options {greedy=false; } : . )*
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:339:10: ( options {greedy=false; } : . )*
             loop8:
             do {
                 int alt8=2;
@@ -1238,7 +1260,7 @@ public class SJaqlLexer extends Lexer {
 
                 switch (alt8) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:324:37: .
+            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:339:37: .
             	    {
             	    matchAny(); 
 
@@ -1266,7 +1288,7 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "ESC_SEQ"
     public final void mESC_SEQ() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:5: ( '\\\\' ( 'b' | 't' | 'n' | 'f' | 'r' | '\\\"' | '\\'' | '\\\\' ) | UNICODE_ESC | OCTAL_ESC )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:343:5: ( '\\\\' ( 'b' | 't' | 'n' | 'f' | 'r' | '\\\"' | '\\'' | '\\\\' ) | UNICODE_ESC | OCTAL_ESC )
             int alt9=3;
             int LA9_0 = input.LA(1);
 
@@ -1317,7 +1339,7 @@ public class SJaqlLexer extends Lexer {
             }
             switch (alt9) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:9: '\\\\' ( 'b' | 't' | 'n' | 'f' | 'r' | '\\\"' | '\\'' | '\\\\' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:343:9: '\\\\' ( 'b' | 't' | 'n' | 'f' | 'r' | '\\\"' | '\\'' | '\\\\' )
                     {
                     match('\\'); 
                     if ( input.LA(1)=='\"'||input.LA(1)=='\''||input.LA(1)=='\\'||input.LA(1)=='b'||input.LA(1)=='f'||input.LA(1)=='n'||input.LA(1)=='r'||input.LA(1)=='t' ) {
@@ -1333,14 +1355,14 @@ public class SJaqlLexer extends Lexer {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:329:9: UNICODE_ESC
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:344:9: UNICODE_ESC
                     {
                     mUNICODE_ESC(); 
 
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:330:9: OCTAL_ESC
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:345:9: OCTAL_ESC
                     {
                     mOCTAL_ESC(); 
 
@@ -1357,7 +1379,7 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "OCTAL_ESC"
     public final void mOCTAL_ESC() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:335:5: ( '\\\\' ( '0' .. '3' ) ( '0' .. '7' ) ( '0' .. '7' ) | '\\\\' ( '0' .. '7' ) ( '0' .. '7' ) | '\\\\' ( '0' .. '7' ) )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:5: ( '\\\\' ( '0' .. '3' ) ( '0' .. '7' ) ( '0' .. '7' ) | '\\\\' ( '0' .. '7' ) ( '0' .. '7' ) | '\\\\' ( '0' .. '7' ) )
             int alt10=3;
             int LA10_0 = input.LA(1);
 
@@ -1403,25 +1425,25 @@ public class SJaqlLexer extends Lexer {
             }
             switch (alt10) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:335:9: '\\\\' ( '0' .. '3' ) ( '0' .. '7' ) ( '0' .. '7' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:9: '\\\\' ( '0' .. '3' ) ( '0' .. '7' ) ( '0' .. '7' )
                     {
                     match('\\'); 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:335:14: ( '0' .. '3' )
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:335:15: '0' .. '3'
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:14: ( '0' .. '3' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:15: '0' .. '3'
                     {
                     matchRange('0','3'); 
 
                     }
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:335:25: ( '0' .. '7' )
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:335:26: '0' .. '7'
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:25: ( '0' .. '7' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:26: '0' .. '7'
                     {
                     matchRange('0','7'); 
 
                     }
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:335:36: ( '0' .. '7' )
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:335:37: '0' .. '7'
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:36: ( '0' .. '7' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:37: '0' .. '7'
                     {
                     matchRange('0','7'); 
 
@@ -1431,18 +1453,18 @@ public class SJaqlLexer extends Lexer {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:336:9: '\\\\' ( '0' .. '7' ) ( '0' .. '7' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:9: '\\\\' ( '0' .. '7' ) ( '0' .. '7' )
                     {
                     match('\\'); 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:336:14: ( '0' .. '7' )
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:336:15: '0' .. '7'
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:14: ( '0' .. '7' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:15: '0' .. '7'
                     {
                     matchRange('0','7'); 
 
                     }
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:336:25: ( '0' .. '7' )
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:336:26: '0' .. '7'
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:25: ( '0' .. '7' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:26: '0' .. '7'
                     {
                     matchRange('0','7'); 
 
@@ -1452,11 +1474,11 @@ public class SJaqlLexer extends Lexer {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:337:9: '\\\\' ( '0' .. '7' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:9: '\\\\' ( '0' .. '7' )
                     {
                     match('\\'); 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:337:14: ( '0' .. '7' )
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:337:15: '0' .. '7'
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:14: ( '0' .. '7' )
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:15: '0' .. '7'
                     {
                     matchRange('0','7'); 
 
@@ -1476,8 +1498,8 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "UNICODE_ESC"
     public final void mUNICODE_ESC() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:341:13: ( '\\\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:341:17: '\\\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:356:13: ( '\\\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:356:17: '\\\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
             {
             match('\\'); 
             match('u'); 
@@ -1497,8 +1519,8 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "HEX_DIGIT"
     public final void mHEX_DIGIT() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:344:11: ( ( '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:344:13: ( '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:359:11: ( ( '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' ) )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:359:13: ( '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' )
             {
             if ( (input.LA(1)>='0' && input.LA(1)<='9')||(input.LA(1)>='A' && input.LA(1)<='F')||(input.LA(1)>='a' && input.LA(1)<='f') ) {
                 input.consume();
@@ -1523,10 +1545,10 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = UINT;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:347:6: ( ( '0' .. '9' )+ )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:347:8: ( '0' .. '9' )+
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:362:6: ( ( '0' .. '9' )+ )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:362:8: ( '0' .. '9' )+
             {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:347:8: ( '0' .. '9' )+
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:362:8: ( '0' .. '9' )+
             int cnt11=0;
             loop11:
             do {
@@ -1540,7 +1562,7 @@ public class SJaqlLexer extends Lexer {
 
                 switch (alt11) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:347:8: '0' .. '9'
+            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:362:8: '0' .. '9'
             	    {
             	    matchRange('0','9'); 
 
@@ -1572,10 +1594,10 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = INTEGER;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:349:9: ( ( '+' | '-' )? UINT )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:349:11: ( '+' | '-' )? UINT
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:364:9: ( ( '+' | '-' )? UINT )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:364:11: ( '+' | '-' )? UINT
             {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:349:11: ( '+' | '-' )?
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:364:11: ( '+' | '-' )?
             int alt12=2;
             int LA12_0 = input.LA(1);
 
@@ -1618,14 +1640,14 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = DECIMAL;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:5: ( ( '0' .. '9' )+ '.' ( '0' .. '9' )* ( EXPONENT )? | '.' ( '0' .. '9' )+ ( EXPONENT )? | ( '0' .. '9' )+ EXPONENT )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:367:5: ( ( '0' .. '9' )+ '.' ( '0' .. '9' )* ( EXPONENT )? | '.' ( '0' .. '9' )+ ( EXPONENT )? | ( '0' .. '9' )+ EXPONENT )
             int alt19=3;
             alt19 = dfa19.predict(input);
             switch (alt19) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:9: ( '0' .. '9' )+ '.' ( '0' .. '9' )* ( EXPONENT )?
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:367:9: ( '0' .. '9' )+ '.' ( '0' .. '9' )* ( EXPONENT )?
                     {
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:9: ( '0' .. '9' )+
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:367:9: ( '0' .. '9' )+
                     int cnt13=0;
                     loop13:
                     do {
@@ -1639,7 +1661,7 @@ public class SJaqlLexer extends Lexer {
 
                         switch (alt13) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:10: '0' .. '9'
+                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:367:10: '0' .. '9'
                     	    {
                     	    matchRange('0','9'); 
 
@@ -1656,7 +1678,7 @@ public class SJaqlLexer extends Lexer {
                     } while (true);
 
                     match('.'); 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:25: ( '0' .. '9' )*
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:367:25: ( '0' .. '9' )*
                     loop14:
                     do {
                         int alt14=2;
@@ -1669,7 +1691,7 @@ public class SJaqlLexer extends Lexer {
 
                         switch (alt14) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:26: '0' .. '9'
+                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:367:26: '0' .. '9'
                     	    {
                     	    matchRange('0','9'); 
 
@@ -1681,7 +1703,7 @@ public class SJaqlLexer extends Lexer {
                         }
                     } while (true);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:37: ( EXPONENT )?
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:367:37: ( EXPONENT )?
                     int alt15=2;
                     int LA15_0 = input.LA(1);
 
@@ -1690,7 +1712,7 @@ public class SJaqlLexer extends Lexer {
                     }
                     switch (alt15) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:37: EXPONENT
+                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:367:37: EXPONENT
                             {
                             mEXPONENT(); 
 
@@ -1703,10 +1725,10 @@ public class SJaqlLexer extends Lexer {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:353:9: '.' ( '0' .. '9' )+ ( EXPONENT )?
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:368:9: '.' ( '0' .. '9' )+ ( EXPONENT )?
                     {
                     match('.'); 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:353:13: ( '0' .. '9' )+
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:368:13: ( '0' .. '9' )+
                     int cnt16=0;
                     loop16:
                     do {
@@ -1720,7 +1742,7 @@ public class SJaqlLexer extends Lexer {
 
                         switch (alt16) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:353:14: '0' .. '9'
+                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:368:14: '0' .. '9'
                     	    {
                     	    matchRange('0','9'); 
 
@@ -1736,7 +1758,7 @@ public class SJaqlLexer extends Lexer {
                         cnt16++;
                     } while (true);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:353:25: ( EXPONENT )?
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:368:25: ( EXPONENT )?
                     int alt17=2;
                     int LA17_0 = input.LA(1);
 
@@ -1745,7 +1767,7 @@ public class SJaqlLexer extends Lexer {
                     }
                     switch (alt17) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:353:25: EXPONENT
+                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:368:25: EXPONENT
                             {
                             mEXPONENT(); 
 
@@ -1758,9 +1780,9 @@ public class SJaqlLexer extends Lexer {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:354:9: ( '0' .. '9' )+ EXPONENT
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:369:9: ( '0' .. '9' )+ EXPONENT
                     {
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:354:9: ( '0' .. '9' )+
+                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:369:9: ( '0' .. '9' )+
                     int cnt18=0;
                     loop18:
                     do {
@@ -1774,7 +1796,7 @@ public class SJaqlLexer extends Lexer {
 
                         switch (alt18) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:354:10: '0' .. '9'
+                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:369:10: '0' .. '9'
                     	    {
                     	    matchRange('0','9'); 
 
@@ -1807,8 +1829,8 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR start "EXPONENT"
     public final void mEXPONENT() throws RecognitionException {
         try {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:357:10: ( ( 'e' | 'E' ) ( '+' | '-' )? ( '0' .. '9' )+ )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:357:12: ( 'e' | 'E' ) ( '+' | '-' )? ( '0' .. '9' )+
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:372:10: ( ( 'e' | 'E' ) ( '+' | '-' )? ( '0' .. '9' )+ )
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:372:12: ( 'e' | 'E' ) ( '+' | '-' )? ( '0' .. '9' )+
             {
             if ( input.LA(1)=='E'||input.LA(1)=='e' ) {
                 input.consume();
@@ -1819,7 +1841,7 @@ public class SJaqlLexer extends Lexer {
                 recover(mse);
                 throw mse;}
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:357:22: ( '+' | '-' )?
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:372:22: ( '+' | '-' )?
             int alt20=2;
             int LA20_0 = input.LA(1);
 
@@ -1845,7 +1867,7 @@ public class SJaqlLexer extends Lexer {
 
             }
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:357:33: ( '0' .. '9' )+
+            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:372:33: ( '0' .. '9' )+
             int cnt21=0;
             loop21:
             do {
@@ -1859,7 +1881,7 @@ public class SJaqlLexer extends Lexer {
 
                 switch (alt21) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:357:34: '0' .. '9'
+            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:372:34: '0' .. '9'
             	    {
             	    matchRange('0','9'); 
 
@@ -1885,8 +1907,8 @@ public class SJaqlLexer extends Lexer {
     // $ANTLR end "EXPONENT"
 
     public void mTokens() throws RecognitionException {
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:8: ( T__25 | T__26 | T__27 | T__28 | T__29 | T__30 | T__31 | T__32 | T__33 | T__34 | T__35 | T__36 | T__37 | T__38 | T__39 | T__40 | T__41 | T__42 | T__43 | T__44 | T__45 | T__46 | T__47 | T__48 | T__49 | T__50 | T__51 | T__52 | T__53 | T__54 | T__55 | T__56 | T__57 | T__58 | T__59 | ID | VAR | STAR | COMMENT | WS | STRING | UINT | INTEGER | DECIMAL )
-        int alt22=44;
+        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:8: ( T__25 | T__26 | T__27 | T__28 | T__29 | T__30 | T__31 | T__32 | T__33 | T__34 | T__35 | T__36 | T__37 | T__38 | T__39 | T__40 | T__41 | T__42 | T__43 | T__44 | T__45 | T__46 | T__47 | T__48 | T__49 | T__50 | T__51 | T__52 | T__53 | T__54 | T__55 | T__56 | T__57 | T__58 | T__59 | T__60 | ID | VAR | STAR | COMMENT | WS | STRING | UINT | INTEGER | DECIMAL )
+        int alt22=45;
         alt22 = dfa22.predict(input);
         switch (alt22) {
             case 1 :
@@ -2135,63 +2157,70 @@ public class SJaqlLexer extends Lexer {
                 }
                 break;
             case 36 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:220: ID
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:220: T__60
+                {
+                mT__60(); 
+
+                }
+                break;
+            case 37 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:226: ID
                 {
                 mID(); 
 
                 }
                 break;
-            case 37 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:223: VAR
+            case 38 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:229: VAR
                 {
                 mVAR(); 
 
                 }
                 break;
-            case 38 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:227: STAR
+            case 39 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:233: STAR
                 {
                 mSTAR(); 
 
                 }
                 break;
-            case 39 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:232: COMMENT
+            case 40 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:238: COMMENT
                 {
                 mCOMMENT(); 
 
                 }
                 break;
-            case 40 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:240: WS
+            case 41 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:246: WS
                 {
                 mWS(); 
 
                 }
                 break;
-            case 41 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:243: STRING
+            case 42 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:249: STRING
                 {
                 mSTRING(); 
 
                 }
                 break;
-            case 42 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:250: UINT
+            case 43 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:256: UINT
                 {
                 mUINT(); 
 
                 }
                 break;
-            case 43 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:255: INTEGER
+            case 44 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:261: INTEGER
                 {
                 mINTEGER(); 
 
                 }
                 break;
-            case 44 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:263: DECIMAL
+            case 45 :
+                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:1:269: DECIMAL
                 {
                 mDECIMAL(); 
 
@@ -2255,86 +2284,87 @@ public class SJaqlLexer extends Lexer {
             this.transition = DFA19_transition;
         }
         public String getDescription() {
-            return "351:1: DECIMAL : ( ( '0' .. '9' )+ '.' ( '0' .. '9' )* ( EXPONENT )? | '.' ( '0' .. '9' )+ ( EXPONENT )? | ( '0' .. '9' )+ EXPONENT );";
+            return "366:1: DECIMAL : ( ( '0' .. '9' )+ '.' ( '0' .. '9' )* ( EXPONENT )? | '.' ( '0' .. '9' )+ ( EXPONENT )? | ( '0' .. '9' )+ EXPONENT );";
         }
     }
     static final String DFA22_eotS =
-        "\2\uffff\1\44\1\35\1\uffff\1\35\1\uffff\2\35\1\52\1\54\1\56\1\60"+
-        "\1\63\1\65\1\uffff\1\66\6\uffff\2\35\2\uffff\2\35\5\uffff\1\75\2"+
-        "\uffff\1\76\1\35\1\100\1\35\17\uffff\1\35\1\103\3\35\2\uffff\1\107"+
-        "\1\uffff\2\35\1\uffff\3\35\2\uffff\1\115\1\35\1\117\1\35\1\uffff"+
-        "\1\121\1\uffff\1\122\2\uffff";
+        "\2\uffff\1\45\1\36\1\uffff\1\36\1\uffff\2\36\1\53\1\55\1\57\1\61"+
+        "\1\64\1\66\1\uffff\1\67\6\uffff\2\36\2\uffff\3\36\5\uffff\1\77\2"+
+        "\uffff\1\100\1\36\1\102\1\36\17\uffff\1\36\1\105\4\36\2\uffff\1"+
+        "\112\1\uffff\2\36\1\uffff\4\36\2\uffff\1\121\1\36\1\123\2\36\1\uffff"+
+        "\1\126\1\uffff\1\127\1\36\2\uffff\2\36\1\133\1\uffff";
     static final String DFA22_eofS =
-        "\123\uffff";
+        "\134\uffff";
     static final String DFA22_minS =
         "\1\11\1\uffff\1\75\1\162\1\uffff\1\156\1\uffff\1\156\1\157\3\75"+
-        "\1\53\1\55\1\52\1\uffff\1\60\6\uffff\1\157\1\141\2\uffff\1\145\1"+
+        "\1\53\1\55\1\52\1\uffff\1\60\6\uffff\1\157\1\141\2\uffff\1\145\2"+
         "\162\5\uffff\1\56\2\uffff\1\60\1\144\1\60\1\164\17\uffff\1\165\1"+
-        "\60\1\154\1\141\1\151\2\uffff\1\60\1\uffff\1\40\1\145\1\uffff\1"+
-        "\163\1\144\1\164\2\uffff\1\60\1\145\1\60\1\145\1\uffff\1\60\1\uffff"+
-        "\1\60\2\uffff";
+        "\60\1\154\1\141\1\151\1\145\2\uffff\1\60\1\uffff\1\40\1\145\1\uffff"+
+        "\1\163\1\144\1\164\1\163\2\uffff\1\60\1\145\1\60\2\145\1\uffff\1"+
+        "\60\1\uffff\1\60\1\162\2\uffff\1\166\1\145\1\60\1\uffff";
     static final String DFA22_maxS =
         "\1\176\1\uffff\1\75\1\162\1\uffff\1\156\1\uffff\1\156\1\157\3\75"+
-        "\2\71\1\57\1\uffff\1\71\6\uffff\1\162\1\141\2\uffff\1\145\1\162"+
+        "\2\71\1\57\1\uffff\1\71\6\uffff\1\162\1\141\2\uffff\1\145\2\162"+
         "\5\uffff\1\145\2\uffff\1\172\1\144\1\172\1\164\17\uffff\1\165\1"+
-        "\172\1\154\1\141\1\151\2\uffff\1\172\1\uffff\1\40\1\145\1\uffff"+
-        "\1\163\1\144\1\164\2\uffff\1\172\1\145\1\172\1\145\1\uffff\1\172"+
-        "\1\uffff\1\172\2\uffff";
+        "\172\1\154\1\141\1\151\1\145\2\uffff\1\172\1\uffff\1\40\1\145\1"+
+        "\uffff\1\163\1\144\1\164\1\163\2\uffff\1\172\1\145\1\172\2\145\1"+
+        "\uffff\1\172\1\uffff\1\172\1\162\2\uffff\1\166\1\145\1\172\1\uffff";
     static final String DFA22_acceptS =
         "\1\uffff\1\1\2\uffff\1\4\1\uffff\1\6\10\uffff\1\25\1\uffff\1\27"+
-        "\1\30\1\31\1\32\1\33\1\34\2\uffff\1\37\1\40\2\uffff\1\44\1\45\1"+
-        "\46\1\50\1\51\1\uffff\1\15\1\2\4\uffff\1\11\1\13\1\12\1\14\1\16"+
-        "\1\24\1\22\1\17\1\53\1\23\1\20\1\47\1\21\1\26\1\54\5\uffff\1\52"+
-        "\1\3\1\uffff\1\7\2\uffff\1\43\3\uffff\1\5\1\10\4\uffff\1\35\1\uffff"+
-        "\1\41\1\uffff\1\36\1\42";
+        "\1\30\1\31\1\32\1\33\1\34\2\uffff\1\37\1\40\3\uffff\1\45\1\46\1"+
+        "\47\1\51\1\52\1\uffff\1\15\1\2\4\uffff\1\11\1\13\1\12\1\14\1\16"+
+        "\1\24\1\22\1\17\1\54\1\23\1\20\1\50\1\21\1\26\1\55\6\uffff\1\53"+
+        "\1\3\1\uffff\1\7\2\uffff\1\43\4\uffff\1\5\1\10\5\uffff\1\35\1\uffff"+
+        "\1\41\2\uffff\1\36\1\42\3\uffff\1\44";
     static final String DFA22_specialS =
-        "\123\uffff}>";
+        "\134\uffff}>";
     static final String[] DFA22_transitionS = {
-            "\2\40\2\uffff\1\40\22\uffff\1\40\1\13\2\uffff\1\36\1\uffff\1"+
-            "\6\1\41\1\21\1\22\1\37\1\14\1\23\1\15\1\20\1\16\12\42\1\24\1"+
-            "\1\1\11\1\2\1\12\2\uffff\32\35\1\31\1\uffff\1\32\3\uffff\1\5"+
-            "\4\35\1\30\2\35\1\7\4\35\1\10\1\3\2\35\1\33\1\35\1\27\2\35\1"+
-            "\34\3\35\1\25\1\4\1\26\1\17",
+            "\2\41\2\uffff\1\41\22\uffff\1\41\1\13\2\uffff\1\37\1\uffff\1"+
+            "\6\1\42\1\21\1\22\1\40\1\14\1\23\1\15\1\20\1\16\12\43\1\24\1"+
+            "\1\1\11\1\2\1\12\2\uffff\32\36\1\31\1\uffff\1\32\3\uffff\1\5"+
+            "\4\36\1\30\2\36\1\7\4\36\1\10\1\3\1\35\1\36\1\33\1\36\1\27\2"+
+            "\36\1\34\3\36\1\25\1\4\1\26\1\17",
             "",
-            "\1\43",
-            "\1\45",
-            "",
+            "\1\44",
             "\1\46",
             "",
             "\1\47",
+            "",
             "\1\50",
             "\1\51",
-            "\1\53",
-            "\1\55",
-            "\1\57\4\uffff\12\61",
-            "\1\62\2\uffff\12\61",
-            "\1\64\4\uffff\1\64",
+            "\1\52",
+            "\1\54",
+            "\1\56",
+            "\1\60\4\uffff\12\62",
+            "\1\63\2\uffff\12\62",
+            "\1\65\4\uffff\1\65",
             "",
-            "\12\67",
-            "",
-            "",
-            "",
+            "\12\70",
             "",
             "",
             "",
-            "\1\71\2\uffff\1\70",
-            "\1\72",
             "",
             "",
+            "",
+            "\1\72\2\uffff\1\71",
             "\1\73",
+            "",
+            "",
             "\1\74",
+            "\1\75",
+            "\1\76",
             "",
             "",
             "",
             "",
             "",
-            "\1\67\1\uffff\12\42\13\uffff\1\67\37\uffff\1\67",
+            "\1\70\1\uffff\12\43\13\uffff\1\70\37\uffff\1\70",
             "",
             "",
-            "\12\35\7\uffff\32\35\4\uffff\1\35\1\uffff\32\35",
-            "\1\77",
-            "\12\35\7\uffff\32\35\4\uffff\1\35\1\uffff\32\35",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
             "\1\101",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
+            "\1\103",
             "",
             "",
             "",
@@ -2350,32 +2380,40 @@ public class SJaqlLexer extends Lexer {
             "",
             "",
             "",
-            "\1\102",
-            "\12\35\7\uffff\32\35\4\uffff\1\35\1\uffff\32\35",
             "\1\104",
-            "\1\105",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
             "\1\106",
-            "",
-            "",
-            "\12\35\7\uffff\32\35\4\uffff\1\35\1\uffff\32\35",
-            "",
+            "\1\107",
             "\1\110",
             "\1\111",
             "",
-            "\1\112",
+            "",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
+            "",
             "\1\113",
             "\1\114",
             "",
-            "",
-            "\12\35\7\uffff\32\35\4\uffff\1\35\1\uffff\32\35",
+            "\1\115",
             "\1\116",
-            "\12\35\7\uffff\32\35\4\uffff\1\35\1\uffff\32\35",
+            "\1\117",
             "\1\120",
             "",
-            "\12\35\7\uffff\32\35\4\uffff\1\35\1\uffff\32\35",
             "",
-            "\12\35\7\uffff\32\35\4\uffff\1\35\1\uffff\32\35",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
+            "\1\122",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
+            "\1\124",
+            "\1\125",
             "",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
+            "",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
+            "\1\130",
+            "",
+            "",
+            "\1\131",
+            "\1\132",
+            "\12\36\7\uffff\32\36\4\uffff\1\36\1\uffff\32\36",
             ""
     };
 
@@ -2409,7 +2447,7 @@ public class SJaqlLexer extends Lexer {
             this.transition = DFA22_transition;
         }
         public String getDescription() {
-            return "1:1: Tokens : ( T__25 | T__26 | T__27 | T__28 | T__29 | T__30 | T__31 | T__32 | T__33 | T__34 | T__35 | T__36 | T__37 | T__38 | T__39 | T__40 | T__41 | T__42 | T__43 | T__44 | T__45 | T__46 | T__47 | T__48 | T__49 | T__50 | T__51 | T__52 | T__53 | T__54 | T__55 | T__56 | T__57 | T__58 | T__59 | ID | VAR | STAR | COMMENT | WS | STRING | UINT | INTEGER | DECIMAL );";
+            return "1:1: Tokens : ( T__25 | T__26 | T__27 | T__28 | T__29 | T__30 | T__31 | T__32 | T__33 | T__34 | T__35 | T__36 | T__37 | T__38 | T__39 | T__40 | T__41 | T__42 | T__43 | T__44 | T__45 | T__46 | T__47 | T__48 | T__49 | T__50 | T__51 | T__52 | T__53 | T__54 | T__55 | T__56 | T__57 | T__58 | T__59 | T__60 | ID | VAR | STAR | COMMENT | WS | STRING | UINT | INTEGER | DECIMAL );";
         }
     }
  

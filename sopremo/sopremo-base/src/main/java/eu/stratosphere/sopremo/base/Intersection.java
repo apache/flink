@@ -5,7 +5,7 @@ import java.util.List;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.StreamArrayNode;
@@ -15,23 +15,11 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 @Name(verb = "intersect")
-public class Intersection extends MultiSourceOperator<Intersection> {
+public class Intersection extends SetOperation {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -2204883087931986053L;
-
-	public Intersection(final JsonStream... inputs) {
-		super(inputs);
-
-		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
-	}
-
-	public Intersection(final List<? extends JsonStream> inputs) {
-		super(inputs);
-
-		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
-	}
 
 	@Override
 	protected Operator createElementaryOperations(final List<Operator> inputs) {
@@ -40,30 +28,22 @@ public class Intersection extends MultiSourceOperator<Intersection> {
 
 		Operator leftInput = inputs.get(0);
 		for (int index = 1; index < inputs.size(); index++)
-			leftInput = new TwoInputIntersection(leftInput, inputs.get(index));
+			leftInput = new TwoInputIntersection().withInputs(leftInput, inputs.get(index));
 
 		return leftInput;
 	}
 
+	@Override
+	protected EvaluationExpression getDefaultValueProjection(Output source) {
+		return source == getInput(0) ? EvaluationExpression.VALUE : EvaluationExpression.NULL;
+	}
+
+	@InputCardinality(min = 2, max = 2)
 	public static class TwoInputIntersection extends ElementaryOperator {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -7207641826328647442L;
-
-		public TwoInputIntersection(final JsonStream input1, final JsonStream input2) {
-			super(input1, input2);
-		}
-
-		//
-		// @Override
-		// public PactModule asPactModule(EvaluationContext context) {
-		// CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>
-		// intersection =
-		// new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
-		// Implementation.class);
-		// return PactModule.valueOf(toString(), intersection);
-		// }
 
 		public static class Implementation extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {

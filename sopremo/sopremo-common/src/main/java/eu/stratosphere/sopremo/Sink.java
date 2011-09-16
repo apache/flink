@@ -21,12 +21,12 @@ public class Sink extends ElementaryOperator {
 
 	private Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat;
 
-	public Sink(final PersistenceType type, final String outputName, final JsonStream input) {
-		this(JsonOutputFormat.class, outputName, input);
+	public Sink(final PersistenceType type, final String outputName) {
+		this(JsonOutputFormat.class, outputName);
 	}
 	
-	public Sink(Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat, final String outputName, final JsonStream input) {
-		super(input);
+	public Sink(Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat, final String outputName) {
+		super(0);
 		// if (type == DataType.ADHOC)
 		// throw new IllegalArgumentException();
 		this.outputName = outputName;

@@ -1,33 +1,20 @@
-package eu.stratosphere.simple;
+package eu.stratosphere.sopremo;
 
+import java.beans.IndexedPropertyDescriptor;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Name;
-import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.base.Difference;
-import eu.stratosphere.sopremo.base.Grouping;
-import eu.stratosphere.sopremo.base.Intersection;
-import eu.stratosphere.sopremo.base.Join;
-import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.base.Selection;
-import eu.stratosphere.sopremo.base.Union;
-import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 public class OperatorFactory {
 	private Map<String, OperatorInfo> operators = new HashMap<String, OperatorFactory.OperatorInfo>();
 
-	public static class OperatorInfo {
+	public class OperatorInfo {
 
 		private Class<? extends Operator> operatorClass;
 
@@ -38,38 +25,77 @@ public class OperatorFactory {
 				PropertyDescriptor[] propertyDescriptors = Introspector.getBeanInfo(operatorClass)
 					.getPropertyDescriptors();
 				for (PropertyDescriptor propertyDescriptor : propertyDescriptors)
-					if (propertyDescriptor.getWriteMethod() != null)
-						options.put(propertyDescriptor.getName(), propertyDescriptor);
+					if (propertyDescriptor.getWriteMethod() != null
+						|| ((propertyDescriptor instanceof IndexedPropertyDescriptor) &&
+						((IndexedPropertyDescriptor) propertyDescriptor).getIndexedWriteMethod() != null)) {
+						String name = propertyNameChooser.choose(
+							(String[]) propertyDescriptor.getValue(Operator.Info.NAME_NOUNS),
+							(String[]) propertyDescriptor.getValue(Operator.Info.NAME_VERB),
+							(String[]) propertyDescriptor.getValue(Operator.Info.NAME_ADJECTIVE),
+							(String[]) propertyDescriptor.getValue(Operator.Info.NAME_PREPOSITION));
+						if (name == null)
+							name = propertyDescriptor.getName();
+
+						if (propertyDescriptor.getValue(Operator.Info.INPUT) == Boolean.TRUE)
+							inputProperties.put(name, propertyDescriptor);
+						else
+							operatorProperties.put(name, propertyDescriptor);
+					}
 			} catch (IntrospectionException e) {
 				e.printStackTrace();
 			}
 		}
 
-		private Map<String, PropertyDescriptor> options = new HashMap<String, PropertyDescriptor>();
+		private Map<String, PropertyDescriptor> operatorProperties = new HashMap<String, PropertyDescriptor>();
 
-		public void setProperty(String name, EvaluationExpression expression) {
-			PropertyDescriptor propertyDescriptor = options.get(name);
-			if (propertyDescriptor == null)
-				throw new IllegalArgumentException("Unknown property: " + name);
+		private Map<String, PropertyDescriptor> inputProperties = new HashMap<String, PropertyDescriptor>();
+
+		public boolean hasProperty(String name) {
+			return operatorProperties.get(name) != null;
 		}
 
-		public Operator newInstance(List<Operator> inputs) {
+		public void setProperty(String name, Operator operator, EvaluationExpression expression) {
+			PropertyDescriptor propertyDescriptor = operatorProperties.get(name);
+			if (propertyDescriptor == null)
+				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
+					name, operator.getName(), operatorProperties.keySet()));
 			try {
-				Class<?>[] classes = new Class[inputs.size()];
-				Arrays.fill(classes, JsonStream.class);
-				return this.operatorClass.getConstructor(classes).newInstance(
-					inputs.toArray(new JsonStream[inputs.size()]));
-			} catch (InstantiationException e) {
+				propertyDescriptor.getWriteMethod().invoke(operator, expression);
+			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 			} catch (IllegalAccessException e) {
 				e.printStackTrace();
+			} catch (InvocationTargetException e) {
+				e.printStackTrace();
+			}
+		}
+
+		public boolean hasInputProperty(String name) {
+			return inputProperties.get(name) != null;
+		}
+
+		public void setInputProperty(String name, Operator operator, int inputIndex, EvaluationExpression expression) {
+			PropertyDescriptor propertyDescriptor = inputProperties.get(name);
+			if (propertyDescriptor == null)
+				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
+					name, operator.getName(), inputProperties.keySet()));
+			try {
+				((IndexedPropertyDescriptor) propertyDescriptor).getIndexedWriteMethod().invoke(operator, inputIndex, expression);
 			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
-			} catch (SecurityException e) {
+			} catch (IllegalAccessException e) {
 				e.printStackTrace();
 			} catch (InvocationTargetException e) {
 				e.printStackTrace();
-			} catch (NoSuchMethodException e) {
+			}
+		}
+
+		public Operator newInstance() {
+			try {
+				return this.operatorClass.newInstance();
+			} catch (InstantiationException e) {
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
 				e.printStackTrace();
 			}
 			return null;
@@ -77,14 +103,6 @@ public class OperatorFactory {
 	}
 
 	public OperatorFactory() {
-		addOperator(Projection.class);
-		addOperator(Selection.class);
-		addOperator(Grouping.class);
-		addOperator(Join.class);
-		addOperator(Difference.class);
-		addOperator(Union.class);
-		addOperator(Intersection.class);
-		addOperator(UnionAll.class);
 	}
 
 	public OperatorInfo getOperatorInfo(String operator) {

@@ -9,6 +9,7 @@ import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Name;
@@ -37,30 +38,21 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 
 	private EvaluationExpression resultProjection = EvaluationExpression.VALUE;
 
-	public Grouping(final JsonStream... inputs) {
-		super(inputs);
-
-		this.setDefaultKeyProjection(GROUP_ALL);
-	}
-
-	public Grouping(final List<? extends JsonStream> inputs) {
-		super(inputs);
-
+	public Grouping() {
 		this.setDefaultKeyProjection(GROUP_ALL);
 	}
 
 	@Override
 	protected Operator createElementaryOperations(final List<Operator> inputs) {
 		if (inputs.size() <= 1)
-			return new GroupProjection(this.resultProjection, inputs.get(0));
+			return new GroupProjection(this.resultProjection).withInputs(inputs);
 
 		if (inputs.size() == 2)
-			return new CoGroupProjection(this.resultProjection, inputs.get(0), inputs.get(1));
+			return new CoGroupProjection(this.resultProjection).withInputs(inputs);
 
-		final UnionAll union = new UnionAll(inputs);
+		final Operator union = new UnionAll().withInputs(inputs);
 		return new GroupProjection(new PathExpression(new AggregationExpression(new ArrayUnion()),
-			this.resultProjection),
-			union);
+			this.resultProjection)).withInputs(union);
 	}
 
 	@Override
@@ -115,8 +107,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 
 	@Property(preferred = true, input = true)
 	@Name(preposition = "by")
-	@Override
-	public void setKeyProjection(int inputIndex, EvaluationExpression keyProjection) {
+	public void setGroupingKey(int inputIndex, EvaluationExpression keyProjection) {
 		super.setKeyProjection(inputIndex, keyProjection);
 	}
 
@@ -147,17 +138,27 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		}
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class CoGroupProjection extends ElementaryOperator {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 561729616462154707L;
 
-		@SuppressWarnings("unused")
-		private final EvaluationExpression projection;
+		private EvaluationExpression projection = EvaluationExpression.VALUE;
 
-		public CoGroupProjection(final EvaluationExpression projection, final JsonStream input1, final JsonStream input2) {
-			super(input1, input2);
+		public CoGroupProjection(EvaluationExpression projection) {
+			this.projection = projection;
+		}
+
+		public EvaluationExpression getProjection() {
+			return projection;
+		}
+
+		public void setProjection(EvaluationExpression projection) {
+			if (projection == null)
+				throw new NullPointerException("projection must not be null");
+
 			this.projection = projection;
 		}
 
@@ -181,8 +182,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		@SuppressWarnings("unused")
 		private final EvaluationExpression projection;
 
-		public GroupProjection(final EvaluationExpression projection, final JsonStream input) {
-			super(input);
+		public GroupProjection(final EvaluationExpression projection) {
 			this.projection = projection;
 		}
 

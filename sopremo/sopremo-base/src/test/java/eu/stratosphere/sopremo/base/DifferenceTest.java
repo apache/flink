@@ -12,8 +12,9 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class DifferenceTest extends SopremoTest<Difference> {
 	@Override
 	protected Difference createDefaultInstance(final int index) {
-		final Difference difference = new Difference(new Source(EvaluationExpression.NULL), null, null);
-		difference.setKeyProjection(0, createPath(String.valueOf(index)));
+		final Difference difference = new Difference();
+		difference.setInputs(new Source(EvaluationExpression.NULL));
+		difference.setIdentityKey(0, createPath(String.valueOf(index)));
 		return difference;
 	}
 
@@ -21,7 +22,8 @@ public class DifferenceTest extends SopremoTest<Difference> {
 	public void shouldSupportArraysOfPrimitives() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
+		final Difference difference = new Difference();
+		difference.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).
@@ -43,9 +45,10 @@ public class DifferenceTest extends SopremoTest<Difference> {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
-		final Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
-		difference.setKeyProjection(0, createPath("name"));
-		difference.setKeyProjection(1, new FunctionCall("concat", createPath("first name"),
+		final Difference difference = new Difference();
+		difference.setInputs(sopremoPlan.getInputOperators(0, 2));
+		difference.setIdentityKey(0, createPath("name"));
+		difference.setIdentityKey(1, new FunctionCall("concat", createPath("first name"),
 			new ConstantExpression(" "),
 			createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(difference);
@@ -68,7 +71,8 @@ public class DifferenceTest extends SopremoTest<Difference> {
 	public void shouldSupportPrimitives() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final Difference difference = new Difference(sopremoPlan.getInputOperators(0, 2));
+		final Difference difference = new Difference();
+		difference.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).
@@ -92,7 +96,8 @@ public class DifferenceTest extends SopremoTest<Difference> {
 	public void shouldSupportSingleSource() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		final Difference difference = new Difference(sopremoPlan.getInputOperator(0));
+		final Difference difference = new Difference();
+		difference.setInputs(sopremoPlan.getInputOperator(0));
 		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).
@@ -114,7 +119,8 @@ public class DifferenceTest extends SopremoTest<Difference> {
 	public void shouldSupportThreeSources() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
-		final Difference difference = new Difference(sopremoPlan.getInputOperators(0, 3));
+		final Difference difference = new Difference();
+		difference.setInputs(sopremoPlan.getInputOperators(0, 3));
 		sopremoPlan.getOutputOperator(0).setInputs(difference);
 
 		sopremoPlan.getInput(0).

@@ -7,6 +7,7 @@ import org.codehaus.jackson.node.NullNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.util.IdentitySet;
 
@@ -137,6 +138,13 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		final StringBuilder builder = new StringBuilder();
 		this.toString(builder);
 		return builder.toString();
+	}
+	
+	@Override
+	protected void toString(StringBuilder builder) {
+		if(!tags.isEmpty())
+			builder.append(tags).append(" ");
+		super.toString(builder);
 	}
 
 	public EvaluationExpression withTag(final ExpressionTag tag) {

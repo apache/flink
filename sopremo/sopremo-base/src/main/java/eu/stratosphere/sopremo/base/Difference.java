@@ -5,6 +5,7 @@ import java.util.List;
 import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
@@ -15,24 +16,12 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 @Name(verb = "difference")
-public class Difference extends MultiSourceOperator<Difference> {
+public class Difference extends SetOperation {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 2805583327454416554L;
-
-	public Difference(final JsonStream... inputs) {
-		super(inputs);
-
-		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
-	}
-
-	public Difference(final List<? extends JsonStream> inputs) {
-		super(inputs);
-
-		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
-	}
 
 	@Override
 	protected Operator createElementaryOperations(final List<Operator> inputs) {
@@ -41,25 +30,22 @@ public class Difference extends MultiSourceOperator<Difference> {
 
 		Operator leftInput = inputs.get(0);
 		for (int index = 1; index < inputs.size(); index++)
-			leftInput = new TwoInputDifference(leftInput, inputs.get(index));
+			leftInput = new TwoInputDifference().withInputs(leftInput, inputs.get(index));
 
 		return leftInput;
 	}
-	
+
 	@Override
 	protected EvaluationExpression getDefaultValueProjection(Output source) {
 		return source == getInput(0) ? EvaluationExpression.VALUE : EvaluationExpression.NULL;
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class TwoInputDifference extends ElementaryOperator {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 2331712414222089266L;
-
-		public TwoInputDifference(final JsonStream input1, final JsonStream input2) {
-			super(input1, input2);
-		}
 
 		// @Override
 		// public PactModule asPactModule(EvaluationContext context) {

@@ -11,6 +11,7 @@ import org.antlr.runtime.tree.CommonTreeAdaptor;
 import org.antlr.runtime.tree.TreeAdaptor;
 
 import eu.stratosphere.pact.common.util.ReflectionUtil;
+import eu.stratosphere.sopremo.ExpressionFactory;
 import eu.stratosphere.sopremo.expressions.ErroneousExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.util.reflect.ReflectUtil;

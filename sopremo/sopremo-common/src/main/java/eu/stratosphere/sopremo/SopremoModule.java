@@ -40,7 +40,7 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 	public SopremoModule(final String name, final int numberOfInputs, final int numberOfOutputs) {
 		super(name, new Source[numberOfInputs], new Sink[numberOfOutputs], OperatorNavigator.INSTANCE);
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new Sink(PersistenceType.HDFS, String.format("%s %d", name, index), null);
+			this.outputNodes[index] = new Sink(PersistenceType.HDFS, String.format("%s %d", name, index));
 		for (int index = 0; index < this.inputNodes.length; index++)
 			this.inputNodes[index] = new Source(PersistenceType.HDFS, String.format("%s %d", name, index));
 	}
@@ -154,7 +154,9 @@ public class SopremoModule extends GraphModule<Operator, Source, Sink> {
 		private static final long serialVersionUID = 632583661549969648L;
 
 		private ModuleOperator(final int numberOfOutputs, final JsonStream[] inputs) {
-			super(numberOfOutputs, inputs);
+			super(numberOfOutputs);
+			setNumberOfInputs(inputs.length);
+			setInputs(inputs);
 		}
 
 		@Override

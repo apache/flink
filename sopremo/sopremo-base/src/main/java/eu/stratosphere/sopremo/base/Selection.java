@@ -23,10 +23,6 @@ public class Selection extends ElementaryOperator {
 
 	private EvaluationExpression condition = new ConstantExpression(true);
 
-	public Selection(final JsonStream input) {
-		super(input);
-	}
-
 	@Override
 	public boolean equals(final Object obj) {
 		if (this == obj)
@@ -64,20 +60,6 @@ public class Selection extends ElementaryOperator {
 		return this;
 	}
 
-	//
-	// @Override
-	// public PactModule asPactModule(EvaluationContext context) {
-	// PactModule module = new PactModule(this.toString(), 1, 1);
-	// MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> selectionMap =
-	// new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
-	// SelectionStub.class);
-	// module.getOutput(0).setInput(selectionMap);
-	// selectionMap.setInput(module.getInput(0));
-	// SopremoUtil.serialize(selectionMap.getStubParameters(), "condition", this.getCondition());
-	// SopremoUtil.setContext(selectionMap.getStubParameters(), context);
-	// return module;
-	// }
-
 	@Override
 	public String toString() {
 		final StringBuilder builder = new StringBuilder(this.getName());
@@ -85,7 +67,7 @@ public class Selection extends ElementaryOperator {
 		return builder.toString();
 	}
 
-	public static class SelectionStub extends
+	public static class Implementation extends
 			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
 		private BooleanExpression condition;
 

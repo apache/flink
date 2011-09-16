@@ -12,8 +12,9 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class IntersectionTest extends SopremoTest<Intersection> {
 	@Override
 	protected Intersection createDefaultInstance(final int index) {
-		final Intersection intersection = new Intersection(new Source(EvaluationExpression.NULL), null, null);
-		intersection.setKeyProjection(0, createPath(String.valueOf(index)));
+		final Intersection intersection = new Intersection();
+		intersection.setInputs(new Source(EvaluationExpression.NULL));
+		intersection.setIdentityKey(0, createPath(String.valueOf(index)));
 		return intersection;
 	}
 
@@ -21,7 +22,8 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 	public void shouldSupportArraysOfPrimitives() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
+		final Intersection intersection = new Intersection();
+		intersection.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
@@ -44,9 +46,10 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
-		final Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
-		intersection.setKeyProjection(0, createPath("name"));
-		intersection.setKeyProjection(1, new FunctionCall("concat", createPath("first name"),
+		final Intersection intersection = new Intersection();
+		intersection.setInputs(sopremoPlan.getInputOperators(0, 2));
+		intersection.setIdentityKey(0, createPath("name"));
+		intersection.setIdentityKey(1, new FunctionCall("concat", createPath("first name"),
 			new ConstantExpression(" "), createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
@@ -69,7 +72,8 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 	public void shouldSupportPrimitives() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 2));
+		final Intersection intersection = new Intersection();
+		intersection.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
@@ -94,7 +98,8 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 	public void shouldSupportSingleSource() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		final Intersection intersection = new Intersection(sopremoPlan.getInputOperator(0));
+		final Intersection intersection = new Intersection();
+		intersection.setInputs(sopremoPlan.getInputOperator(0));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
@@ -116,7 +121,8 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 	public void shouldSupportThreeSources() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
-		final Intersection intersection = new Intersection(sopremoPlan.getInputOperators(0, 3));
+		final Intersection intersection = new Intersection();
+		intersection.setInputs(sopremoPlan.getInputOperators(0, 3));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).

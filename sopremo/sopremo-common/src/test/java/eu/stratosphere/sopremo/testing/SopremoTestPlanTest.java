@@ -40,6 +40,7 @@ import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.PersistenceType;
@@ -62,7 +63,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 */
 	@Test
 	public void adhocInputAndOutputShouldTransparentlyWork() {
-		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
+		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity());
 		testPlan.getInput(0).
 			add(createPactJsonValue("test1")).
 			add(createPactJsonValue("test2"));
@@ -98,10 +99,12 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	public void completeTestPasses() throws IOException {
 		final Source source = new Source(PersistenceType.HDFS, this.getResourcePath("SopremoTestPlan/test.json"));
 
-		final Identity projection = new Identity(source);
+		final Identity projection = new Identity();
+		projection.setInputs(source);
 
 		final Sink sink = new Sink(PersistenceType.HDFS, File.createTempFile(
-			"output", null).toURI().toString(), projection);
+			"output", null).toURI().toString());
+		projection.setInputs(projection);
 
 		final SopremoTestPlan testPlan = new SopremoTestPlan(sink);
 		testPlan.run();
@@ -114,8 +117,8 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() {
-		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(new Source(PersistenceType.HDFS,
-			this.getResourcePath("SopremoTestPlan/test.json"))));
+		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity().
+			withInputs(new Source(PersistenceType.HDFS, this.getResourcePath("SopremoTestPlan/test.json"))));
 
 		testPlan.getExpectedOutput(0).setOperator(new Source(PersistenceType.HDFS,
 			this.getResourcePath("SopremoTestPlan/test.json")));
@@ -132,7 +135,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 */
 	@Test
 	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
-		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
+		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity());
 		testPlan.getInput(0).
 			add(createPactJsonValue("test1")).
 			add(createPactJsonValue("test2"));
@@ -165,7 +168,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 */
 	@Test
 	public void settingValuesShouldWorkWithSourceContracts() {
-		final CartesianProduct cartesianProduct = new CartesianProduct(null, null);
+		final CartesianProduct cartesianProduct = new CartesianProduct();
 		final SopremoTestPlan testPlan = new SopremoTestPlan(cartesianProduct);
 		testPlan.getInputForStream(cartesianProduct.getInput(0)).
 			add(createPactJsonValue("test1")).
@@ -181,15 +184,12 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		testPlan.run();
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class CartesianProduct extends ElementaryOperator {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -4747731771822553359L;
-
-		public CartesianProduct(final JsonStream input1, final JsonStream input2) {
-			super(input1, input2);
-		}
 
 		public static class Implementation
 				extends
@@ -207,10 +207,6 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		 * 
 		 */
 		private static final long serialVersionUID = 6764940997115103382L;
-
-		public Identity(final JsonStream input) {
-			super(input);
-		}
 
 		public static class Implementation
 				extends

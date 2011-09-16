@@ -1,0 +1,8 @@
+$users = read 'users.json';
+$pages = read 'pages.json';
+
+$result = join $users, $pages 
+  where $users.id == $pages.userid
+  into { $users.name, $pages.* };
+  
+write $result to 'result.json';

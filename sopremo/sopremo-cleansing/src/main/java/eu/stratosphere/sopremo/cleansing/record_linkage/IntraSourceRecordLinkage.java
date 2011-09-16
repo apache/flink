@@ -27,7 +27,7 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 
 	private final ComparativeExpression similarityCondition;
 
-	private final RecordLinkageAlgorithm algorithm;
+	private final RecordLinkageAlgorithm algorithm = new Naive();
 
 	private final RecordLinkageInput recordLinkageInput = new RecordLinkageInput(this, 0);
 
@@ -58,12 +58,12 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 	@Override
 	public SopremoModule asElementaryOperators() {
 		SopremoModule module = new SopremoModule(getName(), 1, 1);
-		
+
 		RecordLinkageInput recordLinkageInput = this.recordLinkageInput.clone();
 		recordLinkageInput.setSource(module.getInput(0).getSource());
 		EvaluationExpression resultProjection = this.recordLinkageInput.getResultProjection();
 		if (this.linkageMode.ordinal() >= LinkageMode.TRANSITIVE_LINKS.ordinal() &&
-				!recordLinkageInput.getResultProjection().equals(recordLinkageInput.getIdProjection()))
+			!recordLinkageInput.getResultProjection().equals(recordLinkageInput.getIdProjection()))
 			recordLinkageInput.setResultProjection(recordLinkageInput.getIdProjection());
 
 		Operator duplicatePairs;
@@ -77,7 +77,7 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 			module.getOutput(0).setInput(0, duplicatePairs);
 			return module;
 		}
-		
+
 		Operator output;
 		final TransitiveClosure closure = new TransitiveClosure(duplicatePairs);
 		ClosureMode closureMode = this.linkageMode.getClosureMode();
@@ -90,10 +90,11 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 		output = closure;
 
 		if (recordLinkageInput.getResultProjection() != resultProjection) {
-			Lookup reverseLookup = new Lookup(closure, module.getInput(0));
-			reverseLookup.withDictionaryKeyExtraction(this.recordLinkageInput.getIdProjection());
-			reverseLookup.withDictionaryValueExtraction(this.recordLinkageInput.getResultProjection());
-			reverseLookup.setArrayElementsReplacement(true);
+			Operator reverseLookup = new Lookup().
+				withDictionaryKeyExtraction(this.recordLinkageInput.getIdProjection()).
+				withDictionaryValueExtraction(this.recordLinkageInput.getResultProjection()).
+				withArrayElementsReplacement(true).
+				withInputs(closure, module.getInput(0));
 			output = reverseLookup;
 		}
 
@@ -107,15 +108,18 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 			withKeyProjection(new ArrayAccess(0)).
 			withValueProjection(EvaluationExpression.NULL);
 		allTuples.setName("all tuples");
-		Operator singleRecords = new Difference(module.getInput(0), allTuples).
-				withKeyProjection(0, this.recordLinkageInput.getIdProjection()).
-				withValueProjection(0, this.recordLinkageInput.getResultProjection()).
-				withKeyProjection(1, EvaluationExpression.KEY);
+		Operator singleRecords = new Difference().
+			withKeyProjection(0, this.recordLinkageInput.getIdProjection()).
+			withValueProjection(0, this.recordLinkageInput.getResultProjection()).
+			withKeyProjection(1, EvaluationExpression.KEY).
+			withInputs(module.getInput(0), allTuples);
 		singleRecords.setName("singleRecords");
 
-		final Projection wrappedInArray = new Projection(new ArrayCreation(EvaluationExpression.VALUE), singleRecords);
-		
-		module.getOutput(0).setInput(0, new UnionAll(wrappedInArray, output));
+		final Operator wrappedInArray = new Projection().
+			withValueTransformation(new ArrayCreation(EvaluationExpression.VALUE)).
+			withInputs(singleRecords);
+
+		module.getOutput(0).setInput(0, new UnionAll().withInputs(wrappedInArray, output));
 		return module;
 	}
 
@@ -137,10 +141,12 @@ public class IntraSourceRecordLinkage extends CompositeOperator {
 		Operator allPairs = this.algorithm.getDuplicatePairStream(this.similarityCondition,
 			Arrays.asList(recordLinkageInput, recordLinkageInput));
 		// remove symmetric and reflexive pairs
-		Operator orderedPairs = new Selection(new ComparativeExpression(new PathExpression(new ArrayAccess(0),
-			idProjection), BinaryOperator.LESS, new PathExpression(new ArrayAccess(1), idProjection)),
-			allPairs);
-		return new Projection(resultProjection, orderedPairs);
+		Operator orderedPairs = new Selection().
+			withCondition(
+				new ComparativeExpression(new PathExpression(new ArrayAccess(0), idProjection), BinaryOperator.LESS,
+					new PathExpression(new ArrayAccess(1), idProjection))).
+			withInputs(allPairs);
+		return new Projection().withValueTransformation(resultProjection).withInputs(orderedPairs);
 	}
 
 	@Override

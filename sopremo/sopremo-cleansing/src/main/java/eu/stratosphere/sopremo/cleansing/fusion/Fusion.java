@@ -54,10 +54,6 @@ public class Fusion extends ElementaryOperator {
 
 	private FusionRule defaultValueRule = MergeRule.INSTANCE;
 
-	public Fusion(final JsonStream input) {
-		super(input);
-	}
-
 	public void addRule(final FusionRule e) {
 		this.rules.put(e.getTargetPath(), e);
 	}

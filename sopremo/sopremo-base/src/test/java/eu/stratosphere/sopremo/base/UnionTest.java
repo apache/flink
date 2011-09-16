@@ -12,8 +12,9 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class UnionTest extends SopremoTest<Union> {
 	@Override
 	protected Union createDefaultInstance(final int index) {
-		final Union union = new Union(new Source(EvaluationExpression.NULL), null, null);
-		union.setKeyProjection(0, createPath(String.valueOf(index)));
+		final Union union = new Union();
+		union.setInputs(new Source(EvaluationExpression.NULL));
+		union.setIdentityKey(0, createPath(String.valueOf(index)));
 		return union;
 	}
 
@@ -21,7 +22,8 @@ public class UnionTest extends SopremoTest<Union> {
 	public void shouldSupportArraysOfPrimitives() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final Union union = new Union(sopremoPlan.getInputOperators(0, 2));
+		final Union union = new Union();
+		union.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
@@ -46,9 +48,10 @@ public class UnionTest extends SopremoTest<Union> {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
-		final Union union = new Union(sopremoPlan.getInputOperators(0, 2));
-		union.setKeyProjection(0, createPath("name"));
-		union.setKeyProjection(1, new FunctionCall("concat", createPath("first name"), new ConstantExpression(" "),
+		final Union union = new Union();
+		union.setInputs(sopremoPlan.getInputOperators(0, 2));
+		union.setIdentityKey(0, createPath("name"));
+		union.setIdentityKey(1, new FunctionCall("concat", createPath("first name"), new ConstantExpression(" "),
 			createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
@@ -73,7 +76,8 @@ public class UnionTest extends SopremoTest<Union> {
 	public void shouldSupportPrimitives() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final Union union = new Union(sopremoPlan.getInputOperators(0, 2));
+		final Union union = new Union();
+		union.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
@@ -100,7 +104,8 @@ public class UnionTest extends SopremoTest<Union> {
 	public void shouldSupportSingleSource() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 
-		final Union union = new Union(sopremoPlan.getInputOperator(0));
+		final Union union = new Union();
+		union.setInputs(sopremoPlan.getInputOperator(0));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
@@ -122,7 +127,8 @@ public class UnionTest extends SopremoTest<Union> {
 	public void shouldSupportThreeSources() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
-		final Union union = new Union(sopremoPlan.getInputOperators(0, 3));
+		final Union union = new Union();
+		union.setInputs(sopremoPlan.getInputOperators(0, 3));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).

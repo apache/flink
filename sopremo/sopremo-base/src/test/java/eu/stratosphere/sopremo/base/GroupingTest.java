@@ -18,7 +18,7 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class GroupingTest extends SopremoTest<Grouping> {
 	@Override
 	protected Grouping createDefaultInstance(final int index) {
-		final Grouping aggregation = new Grouping(null, null).
+		final Grouping aggregation = new Grouping().
 			withResultProjection(new ConstantExpression(index));
 		return aggregation;
 	}
@@ -44,11 +44,11 @@ public class GroupingTest extends SopremoTest<Grouping> {
 					ArithmeticOperator.MULTIPLICATION, new ObjectAccess("count"))),
 				new AggregationExpression(BuiltinFunctions.SUM)));
 
-		final Grouping aggregation = new Grouping(sopremoPlan.getInputOperators(0, 3)).
-			withResultProjection(transformation);
-		aggregation.setKeyProjection(0, createPath("dept"));
-		aggregation.setKeyProjection(1, createPath("did"));
-		aggregation.setKeyProjection(2, createPath("dept_id"));
+		final Grouping aggregation = new Grouping().withResultProjection(transformation);
+		aggregation.setInputs(sopremoPlan.getInputOperators(0, 3));
+		aggregation.setGroupingKey(0, createPath("dept"));
+		aggregation.setGroupingKey(1, createPath("did"));
+		aggregation.setGroupingKey(2, createPath("dept_id"));
 
 		sopremoPlan.getOutputOperator(0).setInputs(aggregation);
 
@@ -98,10 +98,10 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		transformation.addMapping("numEmps",
 			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.COUNT)));
 
-		final Grouping aggregation = new Grouping(sopremoPlan.getInputOperators(0, 2)).
-			withResultProjection(transformation);
-		aggregation.setKeyProjection(0, createPath("dept"));
-		aggregation.setKeyProjection(1, createPath("did"));
+		final Grouping aggregation = new Grouping().withResultProjection(transformation);
+		aggregation.setInputs(sopremoPlan.getInputOperators(0, 2));
+		aggregation.setGroupingKey(0, createPath("dept"));
+		aggregation.setGroupingKey(1, createPath("did"));
 
 		sopremoPlan.getOutputOperator(0).setInputs(aggregation);
 
@@ -118,11 +118,9 @@ public class GroupingTest extends SopremoTest<Grouping> {
 			add(createPactJsonObject("did", 2, "name", "marketing")).
 			add(createPactJsonObject("did", 3, "name", "sales"));
 		sopremoPlan.getExpectedOutput(0).
-			add(
-				createPactJsonObject("dept", 1, "deptName", "development", "emps", new int[] { 1, 2, 4, 7 },
-					"numEmps", 4)).
-			add(
-				createPactJsonObject("dept", 2, "deptName", "marketing", "emps", new int[] { 3, 6 }, "numEmps", 2)).
+			add(createPactJsonObject("dept", 1, "deptName", "development", "emps", new int[] { 1, 2, 4, 7 },
+				"numEmps", 4)).
+			add(createPactJsonObject("dept", 2, "deptName", "marketing", "emps", new int[] { 3, 6 }, "numEmps", 2)).
 			add(createPactJsonObject("dept", 3, "deptName", "sales", "emps", new int[] { 5 }, "numEmps", 1));
 
 		sopremoPlan.run();
@@ -140,9 +138,9 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		transformation.addMapping("total",
 			new PathExpression(batch.add(BuiltinFunctions.SUM, new ObjectAccess("income"))));
 
-		final Grouping aggregation = new Grouping(sopremoPlan.getInputOperator(0)).
-			withResultProjection(transformation);
-		aggregation.setKeyProjection(0, createPath("dept"));
+		final Grouping aggregation = new Grouping().withResultProjection(transformation);
+		aggregation.setInputs(sopremoPlan.getInputOperator(0));
+		aggregation.setGroupingKey(0, createPath("dept"));
 
 		sopremoPlan.getOutputOperator(0).setInputs(aggregation);
 
@@ -167,8 +165,8 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
 		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
 
-		final Grouping aggregation = new Grouping(sopremoPlan.getInputOperator(0)).
-			withResultProjection(BuiltinFunctions.COUNT.asExpression());
+		final Grouping aggregation = new Grouping().withResultProjection(BuiltinFunctions.COUNT.asExpression());
+		aggregation.setInputs(sopremoPlan.getInputOperator(0));
 		sopremoPlan.getOutputOperator(0).setInputs(aggregation);
 
 		sopremoPlan.getInput(0).

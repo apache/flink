@@ -74,8 +74,9 @@ public class ElementaryOperatorTest {
 		assertEquals(OperatorWithOneStub.Implementation.class, contract.getUserCodeClass());
 	}
 
+	@SuppressWarnings("serial")
 	public ElementaryOperator getDefault() {
-		return new ElementaryOperator();
+		return new ElementaryOperator() {};
 	}
 
 	@Test

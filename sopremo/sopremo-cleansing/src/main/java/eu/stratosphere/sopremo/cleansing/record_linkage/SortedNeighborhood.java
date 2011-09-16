@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 import java.util.List;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Operator.Output;
@@ -23,15 +24,16 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 	@Override
 	protected Operator createSinglePassInterSource(EvaluationExpression[] partitionKeys,
 			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2) {
-		return new SinglePassInterSource(partitionKeys, similarityCondition, input1, input2);
+		return new SinglePassInterSource(partitionKeys, similarityCondition).withInputs(input1, input2);
 	}
 
 	@Override
 	protected Operator createSinglePassIntraSource(EvaluationExpression partitionKey,
 			ComparativeExpression similarityCondition, RecordLinkageInput input) {
-		return new SinglePassIntraSource(partitionKey, similarityCondition, input);
+		return new SinglePassIntraSource(partitionKey, similarityCondition).withInputs(input);
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class SinglePassInterSource extends CompositeOperator {
 		/**
 		 * 
@@ -43,9 +45,7 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 		private final EvaluationExpression[] partitionKeys;
 
 		public SinglePassInterSource(final EvaluationExpression[] partitionKeys,
-				final ComparativeExpression similarityCondition,
-				final JsonStream stream1, final JsonStream stream2) {
-			super(stream1, stream2);
+				final ComparativeExpression similarityCondition) {
 			this.similarityCondition = similarityCondition;
 			this.partitionKeys = partitionKeys;
 		}
@@ -76,6 +76,7 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 		}
 	}
 
+	@InputCardinality(min = 1, max = 1)
 	public static class SinglePassIntraSource extends CompositeOperator {
 		/**
 		 * 
@@ -87,9 +88,7 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 		private final EvaluationExpression partitionKey;
 
 		public SinglePassIntraSource(final EvaluationExpression partitionKey,
-				final ComparativeExpression similarityCondition,
-				final JsonStream stream) {
-			super(stream);
+				final ComparativeExpression similarityCondition) {
 			this.similarityCondition = similarityCondition;
 			this.partitionKey = partitionKey;
 		}

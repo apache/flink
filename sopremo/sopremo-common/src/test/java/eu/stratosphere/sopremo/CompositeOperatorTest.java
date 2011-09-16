@@ -40,7 +40,8 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		final Operator input1 = new Source(PersistenceType.HDFS, "1");
 		final Operator input2 = new Source(PersistenceType.HDFS, "2");
 		final Operator input3 = new Source(PersistenceType.HDFS, "3");
-		final CompositeOperator fixture = new CompositeOperatorImpl(1, input1, input2, input3);
+		final CompositeOperator fixture = new CompositeOperatorImpl(1);
+		fixture.setInputs(input1, input2, input3);
 		final EvaluationContext context = new EvaluationContext();
 
 		final PactModule result = fixture.asPactModule(context);
@@ -71,15 +72,15 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 
 		private final int index;
 
-		public CompositeOperatorImpl(final int index, final JsonStream... streams) {
-			super(1, streams);
+		public CompositeOperatorImpl(final int index) {
+			super(1);
 			this.index = index;
 		}
 
 		@Override
 		public SopremoModule asElementaryOperators() {
-			return SopremoModule.valueOf(this.getName(), new ElementaryOperatorImpl(this.getInput(0),
-				new ElementaryOperatorImpl(this.getInput(1), this.getInput(2))));
+			return SopremoModule.valueOf(this.getName(), new ElementaryOperatorImpl().withInputs(this.getInput(0),
+				new ElementaryOperatorImpl().withInputs(this.getInput(1), this.getInput(2))));
 		}
 
 		@Override
@@ -106,12 +107,9 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	static class ElementaryOperatorImpl extends ElementaryOperator {
 		private static final long serialVersionUID = 1L;
-
-		public ElementaryOperatorImpl(final JsonStream stream1, final JsonStream stream2) {
-			super(stream1, stream2);
-		}
 
 		static class Implementation
 				extends
