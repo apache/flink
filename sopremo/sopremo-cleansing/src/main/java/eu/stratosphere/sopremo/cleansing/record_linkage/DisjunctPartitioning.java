@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
@@ -10,6 +9,7 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
@@ -84,7 +84,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
-				final CompactArrayNode pair = JsonUtil.asArray(value1, value2);
+				final ArrayNode pair = JsonUtil.asArray(value1, value2);
 				if (this.similarityCondition.evaluate(pair, this.getContext()) == BooleanNode.TRUE)
 					out.collect(NullNode.getInstance(),
 						JsonUtil.asArray(this.resultProjection1.evaluate(value1, getContext()),

@@ -4,8 +4,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
 public class ArrayNode extends JsonNode implements Iterable<JsonNode>{
 
@@ -148,8 +148,8 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode>{
 		return true;
 	}
 
-	public JsonNode addAll(List<JsonNode> blacklistedValues) {
-		for(JsonNode node : blacklistedValues){
+	public JsonNode addAll(Collection<JsonNode> values) {
+		for(JsonNode node : values){
 			this.add(node);
 		}
 		return this;

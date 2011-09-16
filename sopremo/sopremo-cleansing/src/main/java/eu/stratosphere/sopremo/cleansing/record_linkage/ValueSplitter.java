@@ -12,8 +12,10 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -125,7 +127,7 @@ public class ValueSplitter extends ElementaryOperator {
 
 			int index = 0;
 			final EvaluationContext context = this.getContext();
-			for (JsonNode element : array) {
+			for (JsonNode element : (ArrayNode) array) {
 				JsonNode indexNode = IntNode.valueOf(index++);
 				out.collect(
 					keyProjection.evaluate(JsonUtil.asArray(element, indexNode, array, value), context),
@@ -143,7 +145,7 @@ public class ValueSplitter extends ElementaryOperator {
 			if (!object.isObject())
 				throw new EvaluationException("Cannot split non-object");
 
-			final Iterator<String> fieldNames = object.getFieldNames();
+			final Iterator<String> fieldNames = ((ObjectNode)object).getFieldNames();
 			final EvaluationContext context = this.getContext();
 			while (fieldNames.hasNext()) {
 				String field = (String) fieldNames.next();

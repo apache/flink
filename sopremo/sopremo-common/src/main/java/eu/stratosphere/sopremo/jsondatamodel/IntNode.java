@@ -73,5 +73,9 @@ public class IntNode extends NumericNode {
 	public void write(final DataOutput out) throws IOException {
 		this.value.write(out);
 	}
+	
+	public Double getValueAsDouble(){
+		return Double.valueOf(this.value.getValue());
+	}
 
 }

@@ -104,7 +104,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		private static final long serialVersionUID = -5358556436487835033L;
 
 		public ArrayUnion() {
-			super("U<values>", new ArrayNode(null));
+			super("U<values>", new ArrayNode());
 		}
 
 		//TODO refactor code

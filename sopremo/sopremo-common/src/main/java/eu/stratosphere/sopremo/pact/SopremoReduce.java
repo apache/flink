@@ -9,7 +9,7 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
@@ -31,7 +31,7 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 		return false;
 	}
 
-	protected abstract void reduce(JsonNode key, StreamArrayNode values, JsonCollector out);
+	protected abstract void reduce(JsonNode key, ArrayNode values, JsonCollector out);
 
 	@Override
 	public void reduce(final PactJsonObject.Key key, Iterator<PactJsonObject> values,
@@ -45,12 +45,13 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 			values = cached.iterator();
 		}
 		try {
-		this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
-			new JsonCollector(
-				out));
-	} catch(RuntimeException e) {
-		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", getContext().operatorTrace(), key, values, e));
-		throw e;
-	}
+			this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
+				new JsonCollector(
+					out));
+		} catch (RuntimeException e) {
+			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", getContext().operatorTrace(),
+				key, values, e));
+			throw e;
+		}
 	}
 }

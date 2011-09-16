@@ -20,7 +20,7 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
@@ -158,8 +158,8 @@ public class PactJsonObject implements Value {
 	}
 
 	public static PactJsonObject valueOf(JsonNode value) {
-		if (value instanceof StreamArrayNode && !((StreamArrayNode) value).isResettable()) {
-			value = StreamArrayNode.valueOf(value.getElements(), true);
+		if (value instanceof ArrayNode && !((ArrayNode) value).isResettable()) {
+			value = ArrayNode.valueOf(value.getElements(), true);
 			if (SopremoUtil.LOG.isInfoEnabled())
 				SopremoUtil.LOG.info(String.format("needed to materialize the stream array " + value));
 		}

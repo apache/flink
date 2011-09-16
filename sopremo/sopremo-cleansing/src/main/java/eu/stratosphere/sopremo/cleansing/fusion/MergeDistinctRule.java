@@ -21,7 +21,7 @@ public class MergeDistinctRule extends FusionRule {
 
 	@Override
 	public JsonNode fuse(final JsonNode[] values, final double[] weights, final FusionContext context) {
-		final ArrayNode array = new ArrayNode(null);
+		final ArrayNode array = new ArrayNode();
 		final Set<JsonNode> distinctValues = new TreeSet<JsonNode>(JsonNodeComparator.INSTANCE);
 		for (final JsonNode value : values)
 			if (value != NullNode.getInstance())

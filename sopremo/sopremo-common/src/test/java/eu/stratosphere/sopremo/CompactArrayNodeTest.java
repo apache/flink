@@ -10,22 +10,23 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Ignore;
 
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @Ignore
-public class CompactArrayNodeTest extends SopremoTest<CompactArrayNode> {
+public class CompactArrayNodeTest extends SopremoTest<ArrayNode> {
 	@Override
-	protected CompactArrayNode createDefaultInstance(final int index) {
+	protected ArrayNode createDefaultInstance(final int index) {
 		return createCompactArray(index);
 	}
 
 	@Override
-	protected void initVerifier(final EqualsVerifier<CompactArrayNode> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<ArrayNode> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier
 			.withPrefabValues(List.class, Arrays.asList(createPactJsonValue("red")),
 				Arrays.asList(createPactJsonValue("black")))
-			.withPrefabValues(CompactArrayNode.class, createCompactArray("red"), createCompactArray("black"))
+			.withPrefabValues(ArrayNode.class, createCompactArray("red"), createCompactArray("black"))
 			.withPrefabValues(ContainerNode.class, createArrayNode("red"), createArrayNode("black"))
 			.withPrefabValues(JsonNode.class, createValueNode("red"), createValueNode("black"));
 	}

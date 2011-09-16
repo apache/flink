@@ -17,7 +17,7 @@ public class MergeRule extends FusionRule {
 
 	@Override
 	public JsonNode fuse(final JsonNode[] values, final double[] weights, final FusionContext context) {
-		final ArrayNode array = new ArrayNode(null);
+		final ArrayNode array = new ArrayNode();
 		for (final JsonNode value : values)
 			if (value != NullNode.getInstance())
 				array.add(value);

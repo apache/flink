@@ -29,7 +29,7 @@ public class BuiltinFunctionsTest {
 	public void shouldCoerceDataWhenSumming() {
 		Assert.assertEquals(
 			6.4,
-			BuiltinFunctions.sum(createArrayNode(1.1, 2, new BigDecimal("3.3"))).getDoubleValue(), 0.01);
+			((DoubleNode)BuiltinFunctions.sum(createArrayNode(1.1, 2, new BigDecimal("3.3")))).getDoubleValue(), 0.01);
 	}
 
 	/**
@@ -86,7 +86,7 @@ public class BuiltinFunctionsTest {
 	public void shouldCountStreamArray() {
 		Assert.assertEquals(
 			createValueNode(3),
-			BuiltinFunctions.count(SopremoTest.createStreamArray(1, 2, 3)));
+			BuiltinFunctions.count(JsonUtil.createArrayNode(1, 2, 3)));
 	}
 
 	/**
@@ -175,7 +175,7 @@ public class BuiltinFunctionsTest {
 	public void shouldSumDoubles() {
 		Assert.assertEquals(
 			6.6,
-			BuiltinFunctions.sum(createArrayNode(1.1, 2.2, 3.3)).getDoubleValue(), 0.01);
+			((DoubleNode)BuiltinFunctions.sum(createArrayNode(1.1, 2.2, 3.3))).getDoubleValue(), 0.01);
 	}
 
 	/**
@@ -215,9 +215,9 @@ public class BuiltinFunctionsTest {
 	@Test
 	public void shouldUnionAllMixedArrayTypes() {
 		Assert.assertEquals(
-			SopremoTest.createStreamArray(1, 2, 3, 4, 5, 6),
+			JsonUtil.createArrayNode(1, 2, 3, 4, 5, 6),
 			BuiltinFunctions.unionAll(createArrayNode(1, 2, 3), createCompactArray(4, 5),
-				SopremoTest.createStreamArray(6)));
+				JsonUtil.createArrayNode(6)));
 	}
 
 	/**
@@ -237,9 +237,9 @@ public class BuiltinFunctionsTest {
 	@Test
 	public void shouldUnionAllStreamArrays() {
 		Assert.assertEquals(
-			SopremoTest.createStreamArray(1, 2, 3, 4, 5, 6),
-			BuiltinFunctions.unionAll(SopremoTest.createStreamArray(1, 2, 3), SopremoTest.createStreamArray(4, 5),
-				SopremoTest.createStreamArray(6)));
+			JsonUtil.createArrayNode(1, 2, 3, 4, 5, 6),
+			BuiltinFunctions.unionAll(JsonUtil.createArrayNode(1, 2, 3), JsonUtil.createArrayNode(4, 5),
+				JsonUtil.createArrayNode(6)));
 	}
 
 	@Test

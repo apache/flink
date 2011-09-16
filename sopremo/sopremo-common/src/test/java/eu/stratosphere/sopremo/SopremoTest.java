@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
@@ -115,8 +116,6 @@ public abstract class SopremoTest<T> {
 		equalVerifier.verify();
 	}
 
-	
-
 	public static PactJsonObject createPactJsonArray(final Object... constants) {
 		return new PactJsonObject(createArrayNode(constants));
 	}
@@ -128,14 +127,6 @@ public abstract class SopremoTest<T> {
 	public static PactJsonObject createPactJsonValue(final Object value) {
 		return new PactJsonObject(createValueNode(value));
 	}
-
-	
-
-	public static StreamArrayNode createStreamArray(final Object... constants) {
-		return StreamArrayNode.valueOf(createArrayNode(constants).getElements(), true);
-	}
-
-	
 
 	public static String getResourcePath(final String resource) {
 		try {

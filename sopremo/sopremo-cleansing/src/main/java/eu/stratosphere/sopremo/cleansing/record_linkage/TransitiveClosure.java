@@ -211,8 +211,8 @@ public class TransitiveClosure extends CompositeOperator {
 		public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
 			@Override
 			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-				out.collect(value.get(0), NullNode.getInstance());
-				out.collect(value.get(1), NullNode.getInstance());
+				out.collect(((ArrayNode)value).get(0), NullNode.getInstance());
+				out.collect(((ArrayNode)value).get(1), NullNode.getInstance());
 			}
 		}
 	}
@@ -287,7 +287,7 @@ public class TransitiveClosure extends CompositeOperator {
 
 				final Set<JsonNode> remainingRows = new HashSet<JsonNode>(matrix.getRows());
 				while (!remainingRows.isEmpty()) {
-					final ArrayNode cluster = new ArrayNode(null);
+					final ArrayNode cluster = new ArrayNode();
 					final JsonNode row = remainingRows.iterator().next();
 					cluster.add(row);
 					for (final JsonNode column : matrix.get(row))
@@ -306,7 +306,7 @@ public class TransitiveClosure extends CompositeOperator {
 					Collection<ProvenancedItem<JsonNode>> cluster) {
 				final ArrayNode[] provenanceCluster = new ArrayNode[this.sourceCount];
 				for (int index = 0; index < provenanceCluster.length; index++)
-					provenanceCluster[index] = new ArrayNode(null);
+					provenanceCluster[index] = new ArrayNode();
 				provenanceCluster[row.getSourceIndex()].add(row.getNode());
 				for (ProvenancedItem<JsonNode> node : cluster)
 					provenanceCluster[node.getSourceIndex()].add(node.getNode());
@@ -334,10 +334,10 @@ public class TransitiveClosure extends CompositeOperator {
 			protected void fillMatrix(BinarySparseMatrix<?> genMatrix, final JsonNode pairs) {
 				BinarySparseMatrix<ProvenancedItem<JsonNode>> matrix = (BinarySparseMatrix<ProvenancedItem<JsonNode>>) genMatrix;
 
-				for (final JsonNode pair : pairs) {
+				for (final JsonNode pair : (ArrayNode)pairs) {
 					ProvenancedItem<JsonNode> value1 = null, value2 = null;
-					for (int sourceIndex = 0; sourceIndex < pair.size(); sourceIndex++) {
-						JsonNode value = pair.get(sourceIndex);
+					for (int sourceIndex = 0; sourceIndex < ((ArrayNode)pair).size(); sourceIndex++) {
+						JsonNode value = ((ArrayNode)pair).get(sourceIndex);
 						if (value != NullNode.getInstance())
 							if (value1 == null)
 								value1 = new ProvenancedItem<JsonNode>(value, sourceIndex);
@@ -350,7 +350,7 @@ public class TransitiveClosure extends CompositeOperator {
 					matrix.set(value2, value1);
 				}
 
-				this.sourceCount = pairs.get(pairs.size() - 1).size();
+				this.sourceCount = ((ArrayNode)((ArrayNode)pairs).get(((ArrayNode)pairs).size() - 1)).size();
 			}
 		}
 
@@ -373,10 +373,10 @@ public class TransitiveClosure extends CompositeOperator {
 
 			protected void fillMatrix(BinarySparseMatrix<?> genMatrix, final JsonNode pairs) {
 				BinarySparseMatrix<JsonNode> matrix = (BinarySparseMatrix<JsonNode>) genMatrix;
-				for (final JsonNode pair : pairs) {
+				for (final JsonNode pair : (ArrayNode)pairs) {
 					JsonNode value1 = null, value2 = null;
-					for (int sourceIndex = 0; sourceIndex < pair.size(); sourceIndex++) {
-						JsonNode value = pair.get(sourceIndex);
+					for (int sourceIndex = 0; sourceIndex < ((ArrayNode)pair).size(); sourceIndex++) {
+						JsonNode value = ((ArrayNode)pair).get(sourceIndex);
 						if (value != NullNode.getInstance())
 							if (value1 == null)
 								value1 = value;

@@ -15,13 +15,16 @@ public abstract class JsonNode implements Serializable, Value {
 	private static final long serialVersionUID = 7164528435336585193L;
 
 	protected enum TYPES {
-		TextNode(TextNode.class),
 		IntNode(IntNode.class),
-		BooleanNode(BooleanNode.class),
+		LongNode(LongNode.class),
+		BigIntegerNode(BigIntegerNode.class),
+		DecimalNode(DecimalNode.class),		
 		DoubleNode(DoubleNode.class),
+		
 		ArrayNode(ArrayNode.class),
-		ObjectNode(ObjectNode.class),
-		DecimalNode(DecimalNode.class),
+		ObjectNode(ObjectNode.class),		
+		TextNode(TextNode.class),
+		BooleanNode(BooleanNode.class),
 		NullNode(NullNode.class);
 
 		private final Class<? extends JsonNode> clazz;

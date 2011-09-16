@@ -36,8 +36,7 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 				(Comparator<?>) ReflectUtil.getStaticValue(subComparator, "INSTANCE"));
 
 		this.nodeComparators.put(ArrayNode.class, ArrayNodeComparator.INSTANCE);
-		this.nodeComparators.put(CompactArrayNode.class, ArrayNodeComparator.INSTANCE);
-		this.nodeComparators.put(StreamArrayNode.class, ArrayNodeComparator.INSTANCE);
+		
 
 		final Comparator<ObjectNode> cannotCompare = new Comparator<ObjectNode>() {
 			@Override

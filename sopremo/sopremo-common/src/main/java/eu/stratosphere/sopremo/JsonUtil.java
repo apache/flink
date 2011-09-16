@@ -51,7 +51,7 @@ public class JsonUtil {
 	 * @return an efficient wrapper
 	 */
 	public static ArrayNode asArray(final JsonNode... nodes) {
-		return new CompactArrayNode(nodes);
+		return new ArrayNode(nodes);
 	}
 
 	/**
@@ -72,7 +72,7 @@ public class JsonUtil {
 		final JsonNode[] streamNodes = new JsonNode[objectIterators.length];
 		for (int index = 0; index < streamNodes.length; index++)
 			streamNodes[index] = wrapWithNode(resettable, (Iterator<PactJsonObject>) objectIterators[index]);
-		return new CompactArrayNode(streamNodes);
+		return new ArrayNode(streamNodes);
 	}
 
 	/**
@@ -86,8 +86,8 @@ public class JsonUtil {
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the stream
 	 */
-	public static StreamArrayNode wrapWithNode(final boolean resettable, final Iterator<PactJsonObject> objectIterator) {
-		return StreamArrayNode.valueOf(new UnwrappingIterator(objectIterator), resettable);
+	public static ArrayNode wrapWithNode(final boolean resettable, final Iterator<PactJsonObject> objectIterator) {
+		return ArrayNode.valueOf(new UnwrappingIterator(objectIterator), resettable);
 	}
 
 	/**
@@ -106,7 +106,7 @@ public class JsonUtil {
 		final JsonNode[] streamNodes = new JsonNode[objectIterators.size()];
 		for (int index = 0; index < streamNodes.length; index++)
 			streamNodes[index] = wrapWithNode(resettable, objectIterators.get(index));
-		return new CompactArrayNode(streamNodes);
+		return new ArrayNode(streamNodes);
 	}
 	
 	public static PathExpression createPath(final List<String> parts) {
@@ -143,7 +143,7 @@ public class JsonUtil {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(constants);
 	}
 
-	public static CompactArrayNode createCompactArray(final Object... constants) {
+	public static ArrayNode createCompactArray(final Object... constants) {
 		final JsonNode[] nodes = new JsonNode[constants.length];
 		for (int index = 0; index < nodes.length; index++)
 			nodes[index] = createValueNode(constants[index]);
@@ -153,7 +153,7 @@ public class JsonUtil {
 	public static ObjectNode createObjectNode(final Object... fields) {
 		if (fields.length % 2 != 0)
 			throw new IllegalArgumentException("must have an even number of params");
-		final ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
+		final ObjectNode objectNode = new ObjectNode();
 		for (int index = 0; index < fields.length; index += 2)
 			objectNode.put(fields[index].toString(), JsonUtil.OBJECT_MAPPER.valueToTree(fields[index + 1]));
 		return objectNode;

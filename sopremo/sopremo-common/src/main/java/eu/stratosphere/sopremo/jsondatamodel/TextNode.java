@@ -89,7 +89,7 @@ public class TextNode extends JsonNode {
 	}
 	
 	public boolean isTextual() {
-		return false;
+		return true;
 	}
 
 }

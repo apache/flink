@@ -29,11 +29,11 @@ public class AggExpression extends EvaluationExpression {
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
 		if (node.size() == 0)
-			return new ArrayNode(null);
+			return new ArrayNode();
 
-		final List<CompactArrayNode> nodes = this.sortNodesWithKey(node, context);
+		final List<ArrayNode> nodes = this.sortNodesWithKey(node, context);
 
-		final ArrayNode resultNode = new ArrayNode(null);
+		final ArrayNode resultNode = new ArrayNode();
 
 		int groupStart = 0;
 		JsonNode groupKey = nodes.get(0).get(0);
@@ -49,22 +49,22 @@ public class AggExpression extends EvaluationExpression {
 		return resultNode;
 	}
 
-	protected List<CompactArrayNode> sortNodesWithKey(JsonNode node, EvaluationContext context) {
-		final List<CompactArrayNode> nodes = new ArrayList<CompactArrayNode>();
+	protected List<ArrayNode> sortNodesWithKey(JsonNode node, EvaluationContext context) {
+		final List<ArrayNode> nodes = new ArrayList<ArrayNode>();
 		for (final JsonNode jsonNode : node)
 			nodes.add(JsonUtil.asArray(this.groupingExpression.evaluate(jsonNode, context), jsonNode));
-		Collections.sort(nodes, new Comparator<CompactArrayNode>() {
+		Collections.sort(nodes, new Comparator<ArrayNode>() {
 			@Override
-			public int compare(CompactArrayNode o1, CompactArrayNode o2) {
+			public int compare(ArrayNode o1, ArrayNode o2) {
 				return JsonNodeComparator.INSTANCE.compare(o1.get(0), o2.get(0));
 			}
 		});
 		return nodes;
 	}
 
-	protected JsonNode evaluateGroup(List<CompactArrayNode> group, EvaluationContext context) {
-		ArrayNode values = new ArrayNode(null);
-		for (CompactArrayNode compactArrayNode : group)
+	protected JsonNode evaluateGroup(List<ArrayNode> group, EvaluationContext context) {
+		ArrayNode values = new ArrayNode();
+		for (ArrayNode compactArrayNode : group)
 			values.add(compactArrayNode.get(1));
 		return this.resultExpression.evaluate(values, context);
 	}

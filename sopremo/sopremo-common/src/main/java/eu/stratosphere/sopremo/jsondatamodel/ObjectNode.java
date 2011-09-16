@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -187,6 +188,10 @@ public class ObjectNode extends JsonNode {
 
 	public boolean isObject() {
 		return true;
+	}
+
+	public Iterator<String> getFieldNames() {
+		return this.children.keySet().iterator();
 	}
 	
 }

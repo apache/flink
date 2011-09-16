@@ -83,4 +83,8 @@ public class DecimalNode extends NumericNode {
 		out.writeInt(this.value.scale());
 	}
 
+	public Double getValueAsDouble(){
+		return Double.valueOf(this.value.doubleValue());
+	}
+
 }

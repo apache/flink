@@ -171,9 +171,9 @@ public class Fusion extends ElementaryOperator {
 		}
 
 		private JsonNode fuseArrays(final JsonNode[] values) {
-			final ArrayNode fusedArray = new ArrayNode(null);
+			final ArrayNode fusedArray = new ArrayNode();
 			for (final JsonNode array : values)
-				for (final JsonNode element : array)
+				for (final JsonNode element : (ArrayNode) array)
 					fusedArray.add(element);
 			return fusedArray;
 		}
@@ -184,7 +184,7 @@ public class Fusion extends ElementaryOperator {
 			final List<String> childPath = new ArrayList<String>(currentPath);
 			final double[] childWeights = new double[weights.length];
 
-			final ObjectNode fusedObject = new ObjectNode(null);
+			final ObjectNode fusedObject = new ObjectNode();
 			final int lastPath = childPath.size();
 			childPath.add(null);
 			while (fieldNames.hasNext()) {

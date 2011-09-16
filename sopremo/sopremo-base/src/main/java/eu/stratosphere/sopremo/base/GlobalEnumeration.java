@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
@@ -10,6 +9,7 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.LongNode;
@@ -101,7 +101,7 @@ public class GlobalEnumeration extends ElementaryOperator {
 
 		private long counter;
 
-		private CompactArrayNode params;
+		private ArrayNode params;
 
 		@Override
 		public void configure(final Configuration parameters) {
@@ -113,7 +113,7 @@ public class GlobalEnumeration extends ElementaryOperator {
 
 		@Override
 		protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-			this.params.getChildren()[1] = LongNode.valueOf(this.counter++);
+			this.params.set(1, LongNode.valueOf(this.counter++));
 			final JsonNode id = this.idGeneration.evaluate(this.params, this.getContext());
 
 			if (this.enumerationExpression == EvaluationExpression.AS_KEY)

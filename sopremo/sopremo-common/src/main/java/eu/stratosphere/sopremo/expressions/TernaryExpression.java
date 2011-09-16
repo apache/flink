@@ -4,7 +4,13 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+
 public class TernaryExpression extends EvaluationExpression {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -5854293822552106472L;
 
 	private EvaluationExpression ifClause, ifExpression, thenExpression;
 

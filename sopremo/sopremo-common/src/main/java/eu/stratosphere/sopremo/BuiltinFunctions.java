@@ -71,7 +71,7 @@ public class BuiltinFunctions {
 
 		@Override
 		public void aggregate(final JsonNode node, final EvaluationContext context) {
-			this.value += node.getDoubleValue();
+			this.value += ((DoubleNode)node).getDoubleValue();
 			this.count++;
 		}
 
@@ -92,7 +92,7 @@ public class BuiltinFunctions {
 	public static JsonNode format(TextNode format, JsonNode... params) {
 		Object[] paramsAsObjects = new Object[params.length];
 		for (int index = 0; index < paramsAsObjects.length; index++)
-			paramsAsObjects[index] = params[index].isTextual() ? params[index].getTextValue() : params[index]
+			paramsAsObjects[index] = params[index].isTextual() ? ((TextNode)params[index]).getTextValue() : params[index]
 				.toString();
 
 		return TextNode.valueOf(String.format(format.getTextValue(), paramsAsObjects));
@@ -159,7 +159,7 @@ public class BuiltinFunctions {
 	public static JsonNode concat(final JsonNode[] params) {
 		final StringBuilder builder = new StringBuilder();
 		for (final JsonNode jsonNode : params)
-			builder.append(jsonNode.isTextual() ? jsonNode.getTextValue() : jsonNode);
+			builder.append(jsonNode.isTextual() ? ((TextNode)jsonNode).getTextValue() : jsonNode);
 		return JsonUtil.OBJECT_MAPPER.valueToTree(builder);
 	}
 
@@ -181,7 +181,7 @@ public class BuiltinFunctions {
 		for (final JsonNode jsonNode : node)
 			nodes.add(jsonNode);
 		Collections.sort(nodes, JsonNodeComparator.INSTANCE);
-		final ArrayNode arrayNode = new ArrayNode(null);
+		final ArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(nodes);
 		return arrayNode;
 	}
@@ -191,7 +191,7 @@ public class BuiltinFunctions {
 		final Set<JsonNode> nodes = new HashSet<JsonNode>();
 		for (final JsonNode jsonNode : node)
 			nodes.add(jsonNode);
-		final ArrayNode arrayNode = new ArrayNode(null);
+		final ArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(nodes);
 		return arrayNode;
 	}
@@ -230,9 +230,9 @@ public class BuiltinFunctions {
 	public static JsonNode unionAll(final JsonNode... arrays) {
 		boolean hasStream = false, resettable = false;
 		for (final JsonNode param : arrays) {
-			final boolean stream = param instanceof StreamArrayNode;
+			final boolean stream = param instanceof ArrayNode;
 			hasStream |= stream;
-			if (stream && ((StreamArrayNode) param).isResettable()) {
+			if (stream && ((ArrayNode) param).isResettable()) {
 				resettable = true;
 				break;
 			}
@@ -242,7 +242,7 @@ public class BuiltinFunctions {
 			final Iterator<?>[] iterators = new Iterator[arrays.length];
 			for (int index = 0; index < iterators.length; index++)
 				iterators[index] = arrays[index].iterator();
-			return StreamArrayNode.valueOf(new ConcatenatingIterator<JsonNode>(iterators), resettable);
+			return ArrayNode.valueOf(new ConcatenatingIterator<JsonNode>(iterators), resettable);
 		}
 
 		final ArrayNode union = JsonUtil.NODE_FACTORY.arrayNode();
