@@ -319,7 +319,7 @@ public final class ExecutionVertex {
 		// Notify the listener objects
 		final Iterator<CheckpointStateListener> it = this.checkpointStateListeners.iterator();
 		while (it.hasNext()) {
-			it.next().checkpointStateChanged(this.vertexID, newCheckpointState);
+			it.next().checkpointStateChanged(this.getExecutionGraph().getJobID(), this.vertexID, newCheckpointState);
 		}
 	}
 

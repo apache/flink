@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.checkpointing;
+package eu.stratosphere.nephele.checkpointing;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -61,7 +61,7 @@ public class EphemeralCheckpoint {
 	/**
 	 * The number of envelopes to be stored in a single meta data file.
 	 */
-	private static final int ENVELOPES_PER_META_DATA_FILE = 100;
+	private static final int ENVELOPES_PER_META_DATA_FILE = 10000;
 
 	/**
 	 * The enveloped which are currently queued until the state of the checkpoint is decided.
@@ -123,6 +123,8 @@ public class EphemeralCheckpoint {
 	 */
 	private CheckpointingDecisionState checkpointingDecision;
 
+	private volatile CheckpointingDecisionState asynchronousCheckpointingDecision;
+
 	public EphemeralCheckpoint(final Task task, final boolean ephemeral) {
 
 		this.task = task;
@@ -137,6 +139,7 @@ public class EphemeralCheckpoint {
 
 		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
 			: CheckpointingDecisionState.CHECKPOINTING);
+		this.asynchronousCheckpointingDecision = this.checkpointingDecision;
 
 		this.fileBufferManager = FileBufferManager.getInstance();
 
@@ -193,31 +196,22 @@ public class EphemeralCheckpoint {
 		return this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING;
 	}
 
-	public void destroy() {
+	private void destroy() {
 
 		while (!this.queuedEnvelopes.isEmpty()) {
 
 			final TransferEnvelope transferEnvelope = this.queuedEnvelopes.poll();
 			final Buffer buffer = transferEnvelope.getBuffer();
 			if (buffer != null) {
-				System.out.println("Recycling buffer");
 				buffer.recycleBuffer();
 			}
 		}
-
-		this.checkpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
 	}
 
-	public void write() throws IOException, InterruptedException {
+	private void write() throws IOException, InterruptedException {
 
-		if (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED) {
-
-			this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
-			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
-
-			while (!this.queuedEnvelopes.isEmpty()) {
-				writeTransferEnvelope(this.queuedEnvelopes.poll());
-			}
+		while (!this.queuedEnvelopes.isEmpty()) {
+			writeTransferEnvelope(this.queuedEnvelopes.poll());
 		}
 	}
 
@@ -251,13 +245,14 @@ public class EphemeralCheckpoint {
 
 		if (this.metaDataFileChannel == null) {
 
-			final String checkpointDir = GlobalConfiguration.getString(CheckpointManager.CHECKPOINT_DIRECTORY_KEY,
-				CheckpointManager.DEFAULT_CHECKPOINT_DIRECTORY);
+			final String checkpointDir = GlobalConfiguration.getString(
+				CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
+				CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Writing checkpointing meta data to directory " + checkpointDir);
 			}
 			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator
-				+ CheckpointManager.METADATA_PREFIX
+				+ CheckpointReplayManager.METADATA_PREFIX
 				+ "_" + this.task.getVertexID() + "_" + this.metaDataSuffix);
 			this.metaDataFileChannel = fos.getChannel();
 		}
@@ -286,10 +281,11 @@ public class EphemeralCheckpoint {
 				this.metaDataFileChannel.close();
 			}
 
-			final String checkpointDir = GlobalConfiguration.getString(CheckpointManager.CHECKPOINT_DIRECTORY_KEY,
-				CheckpointManager.DEFAULT_CHECKPOINT_DIRECTORY);
+			final String checkpointDir = GlobalConfiguration.getString(
+				CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
+				CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
 
-			new FileOutputStream(checkpointDir + File.separator + CheckpointManager.METADATA_PREFIX + "_"
+			new FileOutputStream(checkpointDir + File.separator + CheckpointReplayManager.METADATA_PREFIX + "_"
 				+ this.task.getVertexID() + "_final").close();
 
 			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.
@@ -300,5 +296,37 @@ public class EphemeralCheckpoint {
 			// Send notification that checkpoint is completed
 			this.task.checkpointStateChanged(CheckpointState.COMPLETE);
 		}
+	}
+
+	public void setCheckpointDecisionAsynchronously(final boolean checkpointDecision) {
+
+		if (checkpointDecision) {
+			this.asynchronousCheckpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
+		} else {
+			this.asynchronousCheckpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
+		}
+	}
+
+	public void checkAsynchronousCheckpointDecision() throws IOException, InterruptedException {
+
+		if (this.asynchronousCheckpointingDecision == this.checkpointingDecision) {
+			return;
+		}
+
+		if (this.asynchronousCheckpointingDecision == CheckpointingDecisionState.UNDECIDED) {
+			LOG.error("Asynchronous checkpoint decision is UNDECIDED");
+			return;
+		}
+
+		if (this.asynchronousCheckpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
+			// Write the data which has been queued so far and update checkpoint state
+			write();
+			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
+		} else {
+			// Simply destroy the checkpoint
+			destroy();
+		}
+
+		this.checkpointingDecision = this.asynchronousCheckpointingDecision;
 	}
 }

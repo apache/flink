@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
@@ -66,6 +67,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final Map<ChannelID, ChannelContext> registeredChannels = new ConcurrentHashMap<ChannelID, ChannelContext>();
 
+	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
+
+	private final Map<ExecutionVertexID, TaskContext> tasksWithUndecidedCheckpoints = new ConcurrentHashMap<ExecutionVertexID, TaskContext>();
+
 	private final NetworkConnectionManager networkConnectionManager;
 
 	private final ChannelLookupProtocol channelLookupService;
@@ -73,8 +78,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private final InstanceConnectionInfo localConnectionInfo;
 
 	private final LocalBufferPool transitBufferPool;
-
-	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
 
 	private final boolean allowSenderSideSpilling;
 
@@ -123,8 +126,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void register(final Task task, final Set<ChannelID> activeOutputChannels) {
 
 		final Environment environment = task.getEnvironment();
-		
-		final TaskContext taskContext = new TaskContext(task, this);
+
+		final TaskContext taskContext = new TaskContext(task, this, this.tasksWithUndecidedCheckpoints);
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
@@ -205,12 +208,13 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * 
 	 * @param vertexID
 	 *        the ID of the task to be unregistered
-	 * @param task the task to be unregistered
+	 * @param task
+	 *        the task to be unregistered
 	 */
 	public void unregister(final ExecutionVertexID vertexID, final Task task) {
 
 		final Environment environment = task.getEnvironment();
-		
+
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
@@ -391,7 +395,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 			final ChannelContext channelContext = this.registeredChannels.get(localReceiver);
 			if (channelContext == null) {
-				if(LOG.isDebugEnabled()) {
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Cannot find local receiver " + localReceiver + " for job "
 						+ transferEnvelope.getJobID());
 				}
@@ -617,6 +621,22 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		if (this.multicastEnabled) {
 			this.transitBufferPool.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel
 				* numberOfChannelsForMulticast));
+		}
+	}
+
+	public void reportCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions) {
+
+		for (final CheckpointDecision cd : checkpointDecisions) {
+
+			final TaskContext taskContext = this.tasksWithUndecidedCheckpoints.remove(cd.getVertexID());
+
+			if (taskContext == null) {
+				LOG.error("Cannot report checkpoint decision for vertex " + cd.getVertexID());
+				continue;
+			}
+			
+			taskContext.setCheckpointDecisionAsynchronously(cd.getCheckpointDecision());
+			taskContext.reportAsynchronousEvent();
 		}
 	}
 }

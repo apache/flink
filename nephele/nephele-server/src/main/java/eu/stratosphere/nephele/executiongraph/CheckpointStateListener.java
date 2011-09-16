@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
+import eu.stratosphere.nephele.jobgraph.JobID;
+
 /**
  * Classes implementing the {@link CheckpointStateListener} interface can register for notifications about state changes
  * of
@@ -27,10 +29,12 @@ public interface CheckpointStateListener {
 	/**
 	 * Called to notify a change in the vertex's checkpoint state
 	 * 
-	 * @param id
+	 * @param jobID
+	 *        the ID of the job the event belongs to
+	 * @param vertexID
 	 *        the ID of the vertex whose checkpoint state has changed
 	 * @param newCheckpointState
 	 *        the new state of the vertex's checkpoint
 	 */
-	void checkpointStateChanged(ExecutionVertexID id, CheckpointState newCheckpointState);
+	void checkpointStateChanged(JobID jobID, ExecutionVertexID vertexID, CheckpointState newCheckpointState);
 }

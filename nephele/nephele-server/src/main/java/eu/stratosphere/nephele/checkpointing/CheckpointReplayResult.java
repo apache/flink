@@ -13,23 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.util;
+package eu.stratosphere.nephele.checkpointing;
 
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 
-public final class DummyInputFormat extends DelimitedInputFormat
-{
-	private final PactInteger integer = new PactInteger(1);
+public class CheckpointReplayResult extends AbstractTaskResult {
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
+	/**
+	 * Constructs a new checkpoint replay result.
+	 * 
+	 * @param vertexID
+	 *        the task ID this result belongs to
+	 * @param returnCode
+	 *        the return code of the submission
 	 */
-	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-		target.setField(0, this.integer);
-		target.setField(1, this.integer);
-		return true;
+	public CheckpointReplayResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
+		super(vertexID, returnCode);
+	}
+
+	/**
+	 * Constructs an empty checkpoint replay result.
+	 */
+	public CheckpointReplayResult() {
+		super();
 	}
 }

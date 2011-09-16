@@ -384,7 +384,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		}
 	}
 
-	public void killInstance(String instanceName) {
+	public void killInstance(final String instanceName) {
 
 		final MessageBox messageBox = new MessageBox(getShell(), SWT.YES | SWT.NO | SWT.ICON_QUESTION);
 		messageBox.setText("Confirmation");

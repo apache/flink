@@ -13,28 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager;
+package eu.stratosphere.nephele.checkpointing;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import java.util.List;
+import java.util.Map;
 
-public class CheckpointReplayResult extends AbstractTaskResult {
+import eu.stratosphere.nephele.instance.AbstractInstance;
+
+/**
+ * A checkpoint decision propagator is responsible for propagating a coordinated checkpoint decision to the individual
+ * {@link Task} objects running on the different {@link TaskManager} instances.
+ * 
+ * @author warneke
+ */
+public interface CheckpointDecisionPropagator {
 
 	/**
-	 * Constructs a new checkpoint replay result.
+	 * Propagates a list of checkpoint decisions to the respective {@link TaskManager} instances.
 	 * 
-	 * @param vertexID
-	 *        the task ID this result belongs to
-	 * @param returnCode
-	 *        the return code of the submission
+	 * @param checkpointDecisions
+	 *        a map with checkpoint decisions divided by task managers
 	 */
-	public CheckpointReplayResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
-		super(vertexID, returnCode);
-	}
-
-	/**
-	 * Constructs an empty checkpoint replay result.
-	 */
-	public CheckpointReplayResult() {
-		super();
-	}
+	void propagateCheckpointDecisions(Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions);
 }

@@ -143,6 +143,15 @@ public interface InstanceManager {
 	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes();
 
 	/**
+	 * Returns the {@link AbstractInstance} with the given name.
+	 * 
+	 * @param name
+	 *        the name of the instance
+	 * @return the instance with the given name or <code>null</code> if no such instance could be found
+	 */
+	AbstractInstance getInstanceByName(String name);
+
+	/**
 	 * Shuts the instance manager down and stops all its internal processes.
 	 */
 	void shutdown();
