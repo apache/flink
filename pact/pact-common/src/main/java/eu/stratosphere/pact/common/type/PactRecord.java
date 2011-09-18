@@ -323,23 +323,6 @@ public final class PactRecord implements Value
 		return true;
 	}
 	
-//	/**
-//	 * @param positions
-//	 * @param targets
-//	 * @return
-//	 */
-//	public boolean getFields(int[] positions, Value[] targets)
-//	{
-//		for (int i = 0; i < positions.length; i++) {
-//			Value v = getField(positions[i], targets[i]);
-//			if (v == null) {
-//				return false;
-//			}
-//			targets[i] = v;
-//		}
-//		return true;
-//	}
-	
 	/**
 	 * Deserializes the given object from the binary string, starting at the given position.
 	 * If the deserialization asks for more that <code>limit - offset</code> bytes, than 
@@ -394,6 +377,9 @@ public final class PactRecord implements Value
 		internallySetField(fieldNum, value);
 	}
 	
+	/**
+	 * @param value
+	 */
 	public void addField(Value value)
 	{
 		int pos = this.numFields;
@@ -401,6 +387,10 @@ public final class PactRecord implements Value
 		internallySetField(pos, value);
 	}
 	
+	/**
+	 * @param position
+	 * @param value
+	 */
 	public void insertField(int position, Value value)
 	{
 		throw new UnsupportedOperationException();
@@ -458,16 +448,25 @@ public final class PactRecord implements Value
 		this.firstModifiedPos = Integer.MAX_VALUE;
 	}
 	
+	/**
+	 * @param other
+	 */
 	public void unionFields(PactRecord other)
 	{
 		throw new UnsupportedOperationException();
 	}
 	
+	/**
+	 * @param target
+	 */
 	public void copyToIfModified(PactRecord target)
 	{
 		copyTo(target);
 	}
 	
+	/**
+	 * @param target
+	 */
 	public void copyTo(PactRecord target)
 	{
 		updateBinaryRepresenation();
@@ -509,6 +508,12 @@ public final class PactRecord implements Value
 
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * @param positions
+	 * @param searchValues
+	 * @param deserializationHolders
+	 * @return
+	 */
 	public final boolean equalsFields(int[] positions, Value[] searchValues, Value[] deserializationHolders)
 	{
 		for (int i = 0; i < positions.length; i++) {
@@ -764,6 +769,13 @@ public final class PactRecord implements Value
 		this.lastUnmodifiedPos = numFields - 1;
 	}
 	
+	/**
+	 * @param fields
+	 * @param holders
+	 * @param binData
+	 * @param offset
+	 * @return
+	 */
 	public boolean readBinary(int[] fields, Value[] holders, byte[] binData, int offset)
 	{
 		// read the length
@@ -885,6 +897,12 @@ public final class PactRecord implements Value
 		else return null;
 	}
 	
+	/**
+	 * @param sources
+	 * @param segmentNum
+	 * @param segmentOffset
+	 * @throws IOException
+	 */
 	public void deserialize(List<MemorySegment> sources, int segmentNum, int segmentOffset)
 	throws IOException
 	{
@@ -1278,8 +1296,8 @@ public final class PactRecord implements Value
 			if (this.position >= this.memory.length - 1) {
 				resize(2);
 			}
-			this.memory[this.position++] = (byte) ((v >> 8) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 0) & 0xff);
+			this.memory[this.position++] = (byte) (v >> 8);
+			this.memory[this.position++] = (byte) v;
 		}
 
 		@Override
@@ -1308,10 +1326,10 @@ public final class PactRecord implements Value
 			if (this.position >= this.memory.length - 3) {
 				resize(4);
 			}
-			this.memory[this.position++] = (byte) ((v >> 24) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 16) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 8) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 0) & 0xff);
+			this.memory[this.position++] = (byte) (v >> 24);
+			this.memory[this.position++] = (byte) (v >> 16);
+			this.memory[this.position++] = (byte) (v >> 8);
+			this.memory[this.position++] = (byte) v;
 		}
 
 		@Override
@@ -1319,14 +1337,14 @@ public final class PactRecord implements Value
 			if (this.position >= this.memory.length - 7) {
 				resize(8);
 			}
-			this.memory[this.position++] = (byte) ((v >> 56) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 48) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 40) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 32) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 24) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 16) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 8) & 0xff);
-			this.memory[this.position++] = (byte) ((v >> 0) & 0xff);
+			this.memory[this.position++] = (byte) (v >> 56);
+			this.memory[this.position++] = (byte) (v >> 48);
+			this.memory[this.position++] = (byte) (v >> 40);
+			this.memory[this.position++] = (byte) (v >> 32);
+			this.memory[this.position++] = (byte) (v >> 24);
+			this.memory[this.position++] = (byte) (v >> 16);
+			this.memory[this.position++] = (byte) (v >> 8);
+			this.memory[this.position++] = (byte) v;
 		}
 
 		@Override
@@ -1405,26 +1423,26 @@ public final class PactRecord implements Value
 				this.memory[this.position++] = (byte) value;
 			}
 			else if (value <= 0x3fff) {
-				this.memory[this.position++] = (byte) ((value >>> 7) & 0xff);
-				this.memory[this.position++] = (byte) ((value & 0xff) | MAX_BIT);
+				this.memory[this.position++] = (byte) (value >>> 7);
+				this.memory[this.position++] = (byte) (value | MAX_BIT);
 			}
 			else if (value <= 0x1fffff) {
-				this.memory[this.position++] = (byte) ((value >>> 14) & 0xff);
-				this.memory[this.position++] = (byte) (((value >>> 7) & 0xff) | MAX_BIT);
-				this.memory[this.position++] = (byte) ((value & 0xff) | MAX_BIT);
+				this.memory[this.position++] = (byte) (value >>> 14);
+				this.memory[this.position++] = (byte) ((value >>> 7) | MAX_BIT);
+				this.memory[this.position++] = (byte) (value | MAX_BIT);
 			}
 			else if (value <= 0xfffffff) {
-				this.memory[this.position++] = (byte) (( value >>> 21) & 0xff);
-				this.memory[this.position++] = (byte) (((value >>> 14) & 0xff) | MAX_BIT);
-				this.memory[this.position++] = (byte) (((value >>>  7) & 0xff) | MAX_BIT);
-				this.memory[this.position++] = (byte) ((value & 0xff) | MAX_BIT);				
+				this.memory[this.position++] = (byte) (  value >>> 21);
+				this.memory[this.position++] = (byte) ((value >>> 14) | MAX_BIT);
+				this.memory[this.position++] = (byte) ((value >>>  7) | MAX_BIT);
+				this.memory[this.position++] = (byte) (value | MAX_BIT);				
 			}
 			else {
-				this.memory[this.position++] = (byte) (( value >>> 28) & 0xff);
-				this.memory[this.position++] = (byte) (((value >>> 21) & 0xff) | MAX_BIT);
-				this.memory[this.position++] = (byte) (((value >>> 14) & 0xff) | MAX_BIT);
-				this.memory[this.position++] = (byte) (((value >>>  7) & 0xff) | MAX_BIT);
-				this.memory[this.position++] = (byte) ((value & 0xff) | MAX_BIT);
+				this.memory[this.position++] = (byte) ( value >>> 28);
+				this.memory[this.position++] = (byte) ((value >>> 21) | MAX_BIT);
+				this.memory[this.position++] = (byte) ((value >>> 14) | MAX_BIT);
+				this.memory[this.position++] = (byte) ((value >>>  7) | MAX_BIT);
+				this.memory[this.position++] = (byte) (value | MAX_BIT);
 			}
 		}
 		
