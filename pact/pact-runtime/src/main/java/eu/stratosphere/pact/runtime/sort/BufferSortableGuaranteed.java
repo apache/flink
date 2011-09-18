@@ -52,10 +52,6 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  * and pointers.
  * 
  * @author Erik Nijkamp
- * @param <K>
- *        The type of the key.
- * @param <V>
- *        The type of the value.
  */
 public final class BufferSortableGuaranteed extends MemoryBacked implements IndexedSortable {
 	
@@ -320,6 +316,14 @@ public final class BufferSortableGuaranteed extends MemoryBacked implements Inde
 			}
 
 			write(bytearr, 0, utflen + 2);
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.nephele.services.memorymanager.DataOutputView#getRemainingBytes()
+		 */
+		@Override
+		public int getRemainingBytes() {
+			return this.stackEndAbs - this.position;
 		}
 	}
 
