@@ -16,9 +16,8 @@
 package eu.stratosphere.pact.runtime.sort;
 
 import java.util.List;
+import java.util.Random;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -41,15 +40,13 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Value;
  */
 public class NormalizedKeySorterTest
 {
-	private static final Log LOG = LogFactory.getLog(NormalizedKeySorterTest.class);
-
 	private static final long SEED = 649180756312423613L;
 
 	private static final int KEY_MAX = Integer.MAX_VALUE;
 
 	private static final int VALUE_LENGTH = 118;
 
-	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
+	private static final int MEMORY_SIZE = 1024 * 1024 * 768;
 	
 	private static final int MEMORY_SEGMENT_SIZE = 32 * 1024; 
 
@@ -92,6 +89,48 @@ public class NormalizedKeySorterTest
 		
 		// write the records
 		PactRecord record = new PactRecord();
+		int num = -1;
+		do {
+			generator.next(record);
+			num++;
+		}
+		while (sorter.write(record));
+		
+		// re-read the records
+		generator.reset();
+		PactRecord readTarget = new PactRecord();
+		
+		int i = 0;
+		while (i < num) {
+			generator.next(record);
+			sorter.getRecord(readTarget, i++);
+			
+			Key rk = readTarget.getField(0, Key.class);
+			Key gk = record.getField(0, Key.class);
+			
+			Value rv = readTarget.getField(1, Value.class);
+			Value gv = record.getField(1, Value.class);
+			
+			Assert.assertEquals("The re-read key is wrong", gk, rk);
+			Assert.assertEquals("The re-read value is wrong", gv, rv);
+		}
+		
+		// release the memory occupied by the buffers
+		this.memoryManager.release(sorter.dispose());
+	}
+	
+	@Test
+	public void testWriteAndIterator() throws Exception
+	{
+		final int numSegments = MEMORY_SIZE / MEMORY_SEGMENT_SIZE;
+		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
+		
+		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+			ValueMode.RANDOM_LENGTH);
+		
+		// write the records
+		PactRecord record = new PactRecord();
 		do {
 			generator.next(record);
 		}
@@ -119,8 +158,13 @@ public class NormalizedKeySorterTest
 		this.memoryManager.release(sorter.dispose());
 	}
 	
+	/**
+	 * The swap test fills the sort buffer and swaps all elements such that they are
+	 * backwards. It then resets the generator, goes backwards through the buffer
+	 * and compares for equality.
+	 */
 	@Test
-	public void testSort() throws Exception
+	public void testSwap() throws Exception
 	{
 		final int numSegments = MEMORY_SIZE / MEMORY_SEGMENT_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
@@ -131,21 +175,135 @@ public class NormalizedKeySorterTest
 		
 		// write the records
 		PactRecord record = new PactRecord();
+		int num = -1;
+		do {
+			generator.next(record);
+			num++;
+		}
+		while (sorter.write(record));
+		
+		// swap the records
+		int start = 0, end = num - 1;
+		while (start < end) {
+			sorter.swap(start++, end--);
+		}
+		
+		// re-read the records
+		generator.reset();
+		PactRecord readTarget = new PactRecord();
+		
+		int i = num - 1;
+		while (i >= 0) {
+			generator.next(record);
+			sorter.getRecord(readTarget, i--);
+			
+			Key rk = readTarget.getField(0, Key.class);
+			Key gk = record.getField(0, Key.class);
+			
+			Value rv = readTarget.getField(1, Value.class);
+			Value gv = record.getField(1, Value.class);
+			
+			Assert.assertEquals("The re-read key is wrong", gk, rk);
+			Assert.assertEquals("The re-read value is wrong", gv, rv);
+		}
+		
+		// release the memory occupied by the buffers
+		this.memoryManager.release(sorter.dispose());
+	}
+	
+	/**
+	 * The compare test creates a sorted stream, writes it to the buffer and
+	 * compares random elements. It expects that earlier elements are lower than later
+	 * ones.
+	 */
+	@Test
+	public void testCompare() throws Exception
+	{
+		final int numSegments = MEMORY_SIZE / MEMORY_SEGMENT_SIZE;
+		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
+		
+		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.SORTED,
+			ValueMode.RANDOM_LENGTH);
+		
+		// write the records
+		PactRecord record = new PactRecord();
+		int num = -1;
+		do {
+			generator.next(record);
+			num++;
+		}
+		while (sorter.write(record));
+		
+		// compare random elements
+		Random rnd = new Random(SEED << 1);
+		for (int i = 0; i < 2 * num; i++) {
+			int pos1 = rnd.nextInt(num);
+			int pos2 = rnd.nextInt(num);
+			
+			int cmp = sorter.compare(pos1, pos2);
+			
+			if (pos1 < pos2) {
+				Assert.assertTrue(cmp <= 0);
+			}
+			else {
+				Assert.assertTrue(cmp >= 0);
+			}
+		}
+		
+		// release the memory occupied by the buffers
+		this.memoryManager.release(sorter.dispose());
+	}
+	
+	@Test
+	public void testSort() throws Exception
+	{
+		final int numSegments = MEMORY_SIZE / MEMORY_SEGMENT_SIZE;
+		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
+		
+		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+			ValueMode.RANDOM_LENGTH);
+		
+		long writeStart = System.nanoTime();
+		// write the records
+		PactRecord record = new PactRecord();
 		do {
 			generator.next(record);
 		}
 		while (sorter.write(record));
+		long writeStop = System.nanoTime();
 		
-
+		System.out.println("Writing took: " + (writeStop - writeStart) / 1000000 + " msec");
+		
+		long sortStart = System.nanoTime();
+		
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
+		
+		long sortStop = System.nanoTime();
+		
+		System.out.println("Sorting took: " + (sortStop - sortStart) / 1000000 + " msec");
 		
 		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
 		PactRecord readTarget = new PactRecord();
 		
+		Key current = new Key();
+		Key last = new Key();
+		
+		iter.next(readTarget);
+		readTarget.getFieldInto(0, last);
+		
 		while (iter.next(readTarget)) {
-			Key rk = readTarget.getField(0, Key.class);
-			Value rv = readTarget.getField(1, Value.class);
+			readTarget.getFieldInto(0, current);
+			
+			final int cmp = last.compareTo(current);
+			if (cmp > 0)
+				Assert.fail("Next key is not larger or equal to previous key.");
+			
+			Key tmp = current;
+			current = last;
+			last = tmp;
 		}
 		
 		// release the memory occupied by the buffers

@@ -47,6 +47,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	
 	private final TypeAccessors<T> accessors;
 	
+	private final T holder1, holder2;
+	
 	private final ArrayList<MemorySegment> freeMemory;
 	
 	private final Iterator<MemorySegment> memorySource;
@@ -90,6 +92,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 			throw new NullPointerException();
 		}
 		this.accessors = accessors;
+		this.holder1 = accessors.createInstance();
+		this.holder2 = accessors.createInstance();
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
@@ -241,7 +245,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		final int offsetI = (int) (pointer1 & this.segmentSizeMask);
 		final int bufferJ = (int) (pointer2 >>> this.segmentSizeBits);
 		final int offsetJ = (int) (pointer2 & this.segmentSizeMask);
-		return this.accessors.compare(this.recordBuffers, this.recordBuffers, bufferI, bufferJ, offsetI, offsetJ);
+		return this.accessors.compare(this.holder1, this.holder2, this.recordBuffers, this.recordBuffers, bufferI, bufferJ, offsetI, offsetJ);
 	}
 	
 	private final boolean memoryAvailable()
@@ -351,7 +355,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		
 		int val = 0;
 		for (int pos = 0, posI = segI.translateOffset(segmentOffsetI + OFFSET_LEN), posJ = segJ.translateOffset(segmentOffsetJ + OFFSET_LEN);
-			pos < this.numKeyBytes && (val = bI[posI] - bJ[posJ]) != 0; pos++);
+			pos < this.numKeyBytes & (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
 		
 		if (val != 0) {
 			return val;
