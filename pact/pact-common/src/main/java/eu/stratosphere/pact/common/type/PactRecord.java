@@ -800,6 +800,20 @@ public final class PactRecord implements Value
 	}
 	
 	/**
+	 * @param fields
+	 * @param holders
+	 * @param memory
+	 * @param firstSegment
+	 * @param offset
+	 * @return
+	 */
+	public boolean readBinary(int[] fields, Value[] holders, List<MemorySegment> memory, int firstSegment, int offset)
+	{
+		deserialize(memory, firstSegment, offset);
+		return getFieldsInto(fields, holders);
+	}
+	
+	/**
 	 * @param record
 	 * @param target
 	 * @param furtherBuffers
@@ -904,7 +918,6 @@ public final class PactRecord implements Value
 	 * @throws IOException
 	 */
 	public void deserialize(List<MemorySegment> sources, int segmentNum, int segmentOffset)
-	throws IOException
 	{
 		MemorySegment seg = sources.get(segmentNum);
 		
@@ -1377,7 +1390,7 @@ public final class PactRecord implements Value
 			if (utflen > 65535)
 				throw new UTFDataFormatException("Encoded string is too long: " + utflen);
 			
-			else if (this.position > this.memory.length - utflen) {
+			else if (this.position > this.memory.length - utflen - 2) {
 				resize(utflen);
 			}
 			

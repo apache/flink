@@ -58,7 +58,7 @@ public interface TypeAccessors<T>
 	
 	public int compare(T first, T second, Comparator<Key> comparator);
 	
-	public int compare(List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1, int firstSegment2, int offset1, int offset2);
+	public int compare(T holder1, T holder2, List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1, int firstSegment2, int offset1, int offset2);
 	
 	// --------------------------------------------------------------------------------------------
 	

@@ -24,6 +24,7 @@ import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
+import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 
@@ -119,7 +120,6 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	 */
 	@Override
 	public void deserialize(PactRecord target, List<MemorySegment> sources, int firstSegment, int segmentOffset)
-	throws IOException
 	{
 		target.deserialize(sources, firstSegment, segmentOffset);
 	}
@@ -130,13 +130,16 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#hash(java.lang.Object)
 	 */
 	@Override
-	public int hash(PactRecord object) {
-		object.getFieldsInto(this.keyFields, this.keyHolders1);
-		int code = 0;
-		for (int i = 0; i < this.keyHolders1.length; i++) {
-			code ^= this.keyHolders1[i].hashCode();
+	public int hash(PactRecord object)
+	{
+		if (object.getFieldsInto(this.keyFields, this.keyHolders1)) {
+			int code = 0;
+			for (int i = 0; i < this.keyHolders1.length; i++) {
+				code ^= this.keyHolders1[i].hashCode();
+			}
+			return code;
 		}
-		return code;
+		else throw new NullKeyFieldException();
 	}
 
 
@@ -144,26 +147,40 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(java.lang.Object, java.lang.Object, java.util.Comparator)
 	 */
 	@Override
-	public int compare(PactRecord first, PactRecord second, Comparator<Key> comparator) {
-		first.getFieldsInto(this.keyFields, this.keyHolders1);
-		second.getFieldsInto(this.keyFields, this.keyHolders2);
-		
-		for (int i = 0; i < this.keyHolders1.length; i++) {
-			int c = comparator.compare(this.keyHolders1[i], this.keyHolders2[i]);
-			if (c != 0)
-				return c;
+	public int compare(PactRecord first, PactRecord second, Comparator<Key> comparator)
+	{
+		if (first.getFieldsInto(this.keyFields, this.keyHolders1) &
+		    second.getFieldsInto(this.keyFields, this.keyHolders2))
+		{
+			for (int i = 0; i < this.keyHolders1.length; i++) {
+				int c = comparator.compare(this.keyHolders1[i], this.keyHolders2[i]);
+				if (c != 0)
+					return c;
+			}
+			return 0;
 		}
-		return 0;
+		else throw new NullKeyFieldException();
 	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(java.util.List, java.util.List, int, int, int, int)
 	 */
 	@Override
-	public int compare(List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1,
-			int firstSegment2, int offset1, int offset2) {
-		// TODO Auto-generated method stub
-		return 0;
+	public int compare(PactRecord holder1, PactRecord holder2,
+			List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1,
+			int firstSegment2, int offset1, int offset2)
+	{
+		if (holder1.readBinary(this.keyFields, this.keyHolders1, sources1, firstSegment1, offset1) &
+		    holder2.readBinary(this.keyFields, this.keyHolders2, sources2, firstSegment2, offset2))
+		{
+			for (int i = 0; i < this.keyHolders1.length; i++) {
+				final int val = this.keyHolders1[i].compareTo(this.keyHolders2[i]);
+				if (val != 0)
+					return val;
+			}
+			return 0;
+		}
+		else throw new NullKeyFieldException();
 	}
 
 	/* (non-Javadoc)
@@ -190,11 +207,13 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	@Override
 	public void putNormalizedKey(PactRecord record, byte[] target, int offset, int numBytes)
 	{
-		record.getFieldsInto(this.keyFields, this.keyHolders1);
-		for (int i = 0; i < this.numLeadingNormalizableKeys & numBytes > 0; i++) {
-			int bytes = ((NormalizableKey) this.keyHolders1[i]).copyNormalizedKey(target, offset, numBytes);
-			numBytes -= bytes;
-			offset += bytes;
+		if (record.getFieldsInto(this.keyFields, this.keyHolders1)) {
+			for (int i = 0; i < this.numLeadingNormalizableKeys & numBytes > 0; i++) {
+				int bytes = ((NormalizableKey) this.keyHolders1[i]).copyNormalizedKey(target, offset, numBytes);
+				numBytes -= bytes;
+				offset += bytes;
+			}
 		}
+		else throw new NullKeyFieldException();
 	}
 }
