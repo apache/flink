@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.NumberCoercer;

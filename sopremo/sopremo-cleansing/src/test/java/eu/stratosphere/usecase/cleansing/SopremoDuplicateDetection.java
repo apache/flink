@@ -5,7 +5,6 @@ import static eu.stratosphere.sopremo.JsonUtil.createPath;
 import java.io.File;
 
 import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
@@ -21,6 +20,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.CsvInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
@@ -76,7 +76,7 @@ public class SopremoDuplicateDetection {
 
 	public static class DuplicateDetectionFunctions {
 		public static JsonNode replaceAll(JsonNode node, TextNode regex, TextNode replacement) {
-			return new TextNode(node.getValueAsText().replaceAll(regex.getTextValue(),
+			return new TextNode(((NumericNode)node).getValueAsText().replaceAll(regex.getTextValue(),
 				replacement.getTextValue()));
 		}
 	}

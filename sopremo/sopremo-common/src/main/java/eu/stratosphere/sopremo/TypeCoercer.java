@@ -234,7 +234,7 @@ public class TypeCoercer {
 		toBooleanCoercers.put(NumericNode.class, new Coercer() {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
-				return BooleanNode.valueOf(((NumericNode) node).getValueAsDouble() != 0);
+				return BooleanNode.valueOf(((NumericNode) node).getDoubleValue() != 0);
 			}
 		});
 		toBooleanCoercers.put(TextNode.class, new Coercer() {

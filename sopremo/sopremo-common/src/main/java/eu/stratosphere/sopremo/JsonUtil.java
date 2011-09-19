@@ -29,17 +29,17 @@ public class JsonUtil {
 	 */
 	public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	/**
-	 * A general purpose {@link JsonNodeFactory}. No state of this node factory should be changed. If a specifically
-	 * configured JsonNodeFactory is needed, a new instance should be created.
-	 */
-	public static final JsonNodeFactory NODE_FACTORY = JsonNodeFactory.instance;
+//	/**
+//	 * A general purpose {@link JsonNodeFactory}. No state of this node factory should be changed. If a specifically
+//	 * configured JsonNodeFactory is needed, a new instance should be created.
+//	 */
+//	public static final JsonNodeFactory NODE_FACTORY = JsonNodeFactory.instance;
 
-	/**
-	 * A general purpose {@link JsonFactory}. No state of this factory should be changed. If a specifically
-	 * configured JsonFactory is needed, a new instance should be created.
-	 */
-	public static final JsonFactory FACTORY = new JsonFactory();
+//	/**
+//	 * A general purpose {@link JsonFactory}. No state of this factory should be changed. If a specifically
+//	 * configured JsonFactory is needed, a new instance should be created.
+//	 */
+//	public static final JsonFactory FACTORY = new JsonFactory();
 
 	public static final JsonNode ZERO = new IntNode(0);
 
