@@ -15,7 +15,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 @Name(verb = "union")
-public class Union extends SetOperation {
+public class Union extends SetOperation<Union> {
 	/**
 	 * 
 	 */

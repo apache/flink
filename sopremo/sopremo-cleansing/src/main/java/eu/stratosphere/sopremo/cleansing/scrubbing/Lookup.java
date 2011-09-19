@@ -73,10 +73,11 @@ public class Lookup extends CompositeOperator {
 		right.setInputs(sopremoModule.getInput(1));
 
 		if (arrayElementsReplacement) {
-			final ValueSplitter arraySplit = new ValueSplitter(sopremoModule.getInput(0)).
+			final Operator arraySplit = new ValueSplitter().
 				withArrayProjection(this.inputKeyExtractor.asExpression()).
 				withKeyProjection(new ArrayAccess(0)).
-				withValueProjection(new ArrayAccess(1, 2));
+				withValueProjection(new ArrayAccess(1, 2)).
+				withInputs(sopremoModule.getInput(0));
 
 			final Operator replacedElements = defaultExpression == FILTER_RECORDS ?
 				new ElementStrictReplace().withInputs(arraySplit, right) :
@@ -96,10 +97,14 @@ public class Lookup extends CompositeOperator {
 				withKeyTransformation(this.inputKeyExtractor.asExpression()).
 				withInputs(sopremoModule.getInput(0));
 			if (defaultExpression == FILTER_RECORDS)
-				sopremoModule.getOutput(0).setInput(0, new StrictReplace(this.inputKeyExtractor).withInputs(left, right));
+				sopremoModule.getOutput(0).setInput(0,
+					new StrictReplace().withInputKeyExtractor(inputKeyExtractor).withInputs(left, right));
 			else
 				sopremoModule.getOutput(0).setInput(0,
-					new ReplaceWithDefaultValue(this.inputKeyExtractor, this.defaultExpression).withInputs(left, right));
+					new ReplaceWithDefaultValue().
+						withInputKeyExtractor(inputKeyExtractor).
+						withDefaultExpression(FILTER_RECORDS).
+						withInputs(left, right));
 		}
 		return sopremoModule;
 	}
@@ -321,6 +326,16 @@ public class Lookup extends CompositeOperator {
 			this.defaultExpression = defaultExpression;
 		}
 
+		public ReplaceWithDefaultValue withInputKeyExtractor(WritableEvaluable prop) {
+			setInputKeyExtractor(prop);
+			return this;
+		}
+
+		public ReplaceWithDefaultValue withDefaultExpression(EvaluationExpression prop) {
+			setDefaultExpression(prop);
+			return this;
+		}
+
 		public EvaluationExpression getDefaultExpression() {
 			return this.defaultExpression;
 		}
@@ -370,6 +385,11 @@ public class Lookup extends CompositeOperator {
 
 		public WritableEvaluable getInputKeyExtractor() {
 			return this.inputKeyExtractor;
+		}
+
+		public StrictReplace withInputKeyExtractor(WritableEvaluable prop) {
+			setInputKeyExtractor(prop);
+			return this;
 		}
 
 		public static class Implementation extends

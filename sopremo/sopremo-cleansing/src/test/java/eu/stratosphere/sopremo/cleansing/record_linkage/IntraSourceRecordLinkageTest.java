@@ -15,6 +15,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
+import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.base.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.cleansing.similarity.NumericDifference;
@@ -93,16 +94,20 @@ public class IntraSourceRecordLinkageTest {
 	}
 
 	private SopremoTestPlan createTestPlan(final LinkageMode mode) {
-		IntraSourceRecordLinkage recordLinkage = new IntraSourceRecordLinkage(new Naive(), this.similarityFunction,
-			0.7, null);
-		recordLinkage.setLinkageMode(mode);
-		
-		Projection sortedArrays = new Projection(BuiltinFunctions.SORT.asExpression(), recordLinkage);
+		RecordLinkage recordLinkage = new IntraSourceRecordLinkage().
+			withAlgorithm(new Naive()).
+			withSimilarityExpression(this.similarityFunction).
+			withThreshold(0.7).
+			withLinkageMode(mode);
+
+		Operator sortedArrays = new Projection().
+			withValueTransformation(BuiltinFunctions.SORT.asExpression()).
+			withInputs(recordLinkage);
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(sortedArrays);
 		if (this.useId)
-			recordLinkage.getRecordLinkageInput().setIdProjection(new ObjectAccess("id"));
+			recordLinkage.getRecordLinkageInput(0).setIdProjection(new ObjectAccess("id"));
 		if (this.resultProjection != null)
-			recordLinkage.getRecordLinkageInput().setResultProjection(this.resultProjection);
+			recordLinkage.getRecordLinkageInput(0).setResultProjection(this.resultProjection);
 
 		for (PactJsonObject object : this.inputs)
 			sopremoTestPlan.getInput(0).add(object);

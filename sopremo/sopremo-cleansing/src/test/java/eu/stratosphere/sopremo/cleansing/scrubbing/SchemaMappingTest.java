@@ -59,7 +59,7 @@ public class SchemaMappingTest {
 
 	@Test
 	public void testMapping() {
-		final SchemaMapping schemaMapping = new SchemaMapping(EvaluationExpression.VALUE, null);
+		final SchemaMapping schemaMapping = new SchemaMapping();
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(schemaMapping);
 		for (ValidationRule rule : this.validationRules)
 			schemaMapping.addRule(rule);

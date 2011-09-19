@@ -51,11 +51,11 @@ public class DisjunctPratitioningRecordLinkageIntraSourceTest extends
 
 				boolean inSameBlockingBin = false;
 				for (int index = 0; index < this.blockingKeys.length && !inSameBlockingBin; index++)
-					if (this.blockingKeys[index].evaluate(left.getValue().getValue(), getContext()).equals(
-						this.blockingKeys[index].evaluate(right.getValue().getValue(), getContext())))
+					if (this.blockingKeys[index].evaluate(left.getValue().getValue(), this.getContext()).equals(
+						this.blockingKeys[index].evaluate(right.getValue().getValue(), this.getContext())))
 						inSameBlockingBin = true;
 				if (inSameBlockingBin)
-					emitCandidate(left, right);
+					this.emitCandidate(left, right);
 			}
 		}
 	}

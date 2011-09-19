@@ -21,9 +21,6 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 
 public class Naive extends RecordLinkageAlgorithm {
-	public Naive() {
-	}
-
 	@Override
 	public Operator getInterSource(ComparativeExpression similarityCondition, RecordLinkageInput input1,
 			RecordLinkageInput input2) {
@@ -32,7 +29,7 @@ public class Naive extends RecordLinkageAlgorithm {
 
 	@Override
 	public Operator getIntraSource(ComparativeExpression similarityCondition, RecordLinkageInput input) {
-		return new IntraSource(similarityCondition, input, input);
+		return new IntraSource(similarityCondition, input);
 	}
 
 	public static class InterSource extends ElementaryOperator {
@@ -49,7 +46,7 @@ public class Naive extends RecordLinkageAlgorithm {
 
 		public InterSource(final ComparativeExpression similarityCondition, RecordLinkageInput stream1,
 				RecordLinkageInput stream2) {
-			super(stream1, stream2);
+			setInputs(stream1, stream2);
 			this.similarityCondition = similarityCondition;
 			this.resultProjection1 = stream1.getResultProjection();
 			this.resultProjection2 = stream2.getResultProjection();
@@ -83,16 +80,13 @@ public class Naive extends RecordLinkageAlgorithm {
 		private final ComparativeExpression similarityCondition;
 
 		@SuppressWarnings("unused")
-		private final EvaluationExpression resultProjection1, resultProjection2, idProjection1, idProjection2;
+		private final EvaluationExpression resultProjection, idProjection;
 
-		public IntraSource(final ComparativeExpression similarityCondition, RecordLinkageInput stream1,
-				RecordLinkageInput stream2) {
-			super(stream1, stream2);
+		public IntraSource(final ComparativeExpression similarityCondition, RecordLinkageInput stream) {
+			setInputs(stream, stream);
 			this.similarityCondition = similarityCondition;
-			this.resultProjection1 = stream1.getResultProjection();
-			this.resultProjection2 = stream2.getResultProjection();
-			this.idProjection1 = stream1.getIdProjection();
-			this.idProjection2 = stream2.getIdProjection();
+			this.resultProjection = stream.getResultProjection();
+			this.idProjection = stream.getIdProjection();
 		}
 
 		public static class Implementation
@@ -101,18 +95,18 @@ public class Naive extends RecordLinkageAlgorithm {
 				PactJsonObject> {
 			private ComparativeExpression similarityCondition;
 
-			private EvaluationExpression resultProjection1, resultProjection2, idProjection1, idProjection2;
+			private EvaluationExpression resultProjection, idProjection;
 
 			@Override
 			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
 					final JsonNode value2, final JsonCollector out) {
 				// if( id(value1) < id(value2) && similarityCondition )
-				if (JsonNodeComparator.INSTANCE.compare(this.idProjection1.evaluate(value1, this.getContext()),
-					this.idProjection2.evaluate(value2, this.getContext())) < 0
+				if (JsonNodeComparator.INSTANCE.compare(this.idProjection.evaluate(value1, this.getContext()),
+					this.idProjection.evaluate(value2, this.getContext())) < 0
 					&& this.similarityCondition.evaluate(JsonUtil.asArray(value1, value2), this.getContext()) == BooleanNode.TRUE)
 					out.collect(NullNode.getInstance(),
-						JsonUtil.asArray(this.resultProjection1.evaluate(value1, getContext()),
-							this.resultProjection2.evaluate(value2, getContext())));
+						JsonUtil.asArray(this.resultProjection.evaluate(value1, getContext()),
+							this.resultProjection.evaluate(value2, getContext())));
 			}
 		}
 	}

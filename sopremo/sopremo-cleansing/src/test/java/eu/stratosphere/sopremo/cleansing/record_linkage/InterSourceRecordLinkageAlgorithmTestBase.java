@@ -10,7 +10,6 @@ import org.junit.runners.Parameterized;
 
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
@@ -51,9 +50,8 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 	 */
 	@Test
 	public void pactCodeShouldPerformLikeStandardImplementation() {
-		final InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(this.createAlgorithm(), new ConstantExpression(1), 0,
-			null,
-			null);
+		final InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage();
+		recordLinkage.setAlgorithm(this.createAlgorithm());
 		this.sopremoTestPlan = createTestPlan(recordLinkage, false, this.resultProjection1, this.resultProjection2);
 
 		this.generateExpectedPairs(this.sopremoTestPlan.getInput(0), this.sopremoTestPlan.getInput(1));

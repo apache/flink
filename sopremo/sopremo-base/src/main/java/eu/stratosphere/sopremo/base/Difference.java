@@ -16,7 +16,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 @Name(verb = "difference")
-public class Difference extends SetOperation {
+public class Difference extends SetOperation<Difference> {
 
 	/**
 	 * 

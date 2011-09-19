@@ -15,7 +15,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 @Name(verb = "intersect")
-public class Intersection extends SetOperation {
+public class Intersection extends SetOperation<Intersection> {
 	/**
 	 * 
 	 */

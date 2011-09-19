@@ -34,10 +34,6 @@ public class ValueSplitter extends ElementaryOperator {
 
 	private Class<? extends Stub<?, ?>> implementation = ExplicitProjections.class;
 
-	public ValueSplitter(JsonStream input) {
-		super(input);
-	}
-
 	public ValueSplitter addProjection(EvaluationExpression... projections) {
 		this.implementation = ExplicitProjections.class;
 		for (EvaluationExpression evaluationExpression : projections)

@@ -33,7 +33,7 @@ public class NaiveRecordLinkageInterSourceTest extends InterSourceRecordLinkageA
 	protected void generateExpectedPairs(Input leftInput, Input rightInput) {
 		for (final KeyValuePair<Key, PactJsonObject> left : leftInput)
 			for (final KeyValuePair<Key, PactJsonObject> right : rightInput)
-				emitCandidate(left, right);
+				this.emitCandidate(left, right);
 	}
 
 	@Override

@@ -11,8 +11,6 @@ import org.junit.runners.Parameterized;
 
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
@@ -55,8 +53,8 @@ public abstract class IntraSourceRecordLinkageTestBase<P extends RecordLinkageAl
 	 */
 	@Test
 	public void pactCodeShouldPerformLikeStandardImplementation() {
-		final IntraSourceRecordLinkage recordLinkage =
-			new IntraSourceRecordLinkage(this.createAlgorithm(), new ConstantExpression(1), 0, (JsonStream) null);
+		final IntraSourceRecordLinkage recordLinkage = new IntraSourceRecordLinkage();
+		recordLinkage.setAlgorithm(this.createAlgorithm());
 		this.sopremoTestPlan = this.createTestPlan(recordLinkage, this.useId, this.resultProjection);
 
 		EvaluationExpression resultProjection = this.resultProjection;

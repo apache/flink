@@ -13,6 +13,7 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Difference;
 import eu.stratosphere.sopremo.base.Projection;
+import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.cleansing.scrubbing.Lookup;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
@@ -23,36 +24,11 @@ import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 @InputCardinality(min = 2)
-public class InterSourceRecordLinkage extends CompositeOperator {
+public class InterSourceRecordLinkage extends RecordLinkage {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 8586134336913358961L;
-
-	private final ComparativeExpression similarityCondition;
-
-	private final RecordLinkageAlgorithm algorithm;
-
-	private final Map<Operator.Output, RecordLinkageInput> recordLinkageInputs = new IdentityHashMap<Operator.Output, RecordLinkageInput>();
-
-	private LinkageMode linkageMode = LinkageMode.LINKS_ONLY;
-
-	public InterSourceRecordLinkage(final RecordLinkageAlgorithm algorithm,
-			final EvaluationExpression similarityExpression,
-			final double threshold, final JsonStream... inputs) {
-		this(algorithm, similarityExpression, threshold, Arrays.asList(inputs));
-	}
-
-	public InterSourceRecordLinkage(final RecordLinkageAlgorithm algorithm,
-			final EvaluationExpression similarityExpression,
-			final double threshold, final List<? extends JsonStream> inputs) {
-		super(1, inputs);
-		if (algorithm == null)
-			throw new NullPointerException();
-		this.algorithm = algorithm;
-		this.similarityCondition = new ComparativeExpression(similarityExpression, BinaryOperator.GREATER_EQUAL,
-			new ConstantExpression(threshold));
-	}
 
 	@Override
 	public SopremoModule asElementaryOperators() {
@@ -63,8 +39,8 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 			originalInputs.add(this.getRecordLinkageInput(index));
 
 		final List<RecordLinkageInput> inputs = new ArrayList<RecordLinkageInput>(originalInputs);
-		if (this.linkageMode.ordinal() >= LinkageMode.TRANSITIVE_LINKS.ordinal()
-			&& this.linkageMode.getClosureMode().isProvenance())
+		if (this.getLinkageMode().ordinal() >= LinkageMode.TRANSITIVE_LINKS.ordinal()
+			&& this.getLinkageMode().getClosureMode().isProvenance())
 			for (int index = 0, size = inputs.size(); index < size; index++) {
 				inputs.set(index, inputs.get(index).clone());
 				inputs.get(index).setResultProjection(inputs.get(index).getIdProjection());
@@ -72,33 +48,35 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 		for (int index = 0, size = inputs.size(); index < size; index++)
 			inputs.get(index).setSource(module.getInput(index).getSource());
 
-		Operator duplicatePairs = this.algorithm.getDuplicatePairStream(this.similarityCondition, inputs);
+		Operator duplicatePairs = this.getAlgorithm().getDuplicatePairStream(this.getSimilarityCondition(), inputs);
 
-		if (this.linkageMode == LinkageMode.LINKS_ONLY) {
+		if (this.getLinkageMode() == LinkageMode.LINKS_ONLY) {
 			module.getOutput(0).setInput(0, duplicatePairs);
 			return module;
 		}
 
 		Operator output;
-		final TransitiveClosure closure = new TransitiveClosure(duplicatePairs);
-		closure.setClosureMode(this.linkageMode.getClosureMode());
+		final Operator closure = new TransitiveClosure().
+			withClosureMode(this.getLinkageMode().getClosureMode()).
+			withInputs(duplicatePairs);
 		// // already id projected
 		// if (recordLinkageInput.getResultProjection() != EvaluationExpression.VALUE)
 		// closure.setIdProjection(EvaluationExpression.VALUE);
 		output = closure;
 
-		if (this.linkageMode.getClosureMode().isProvenance())
+		if (this.getLinkageMode().getClosureMode().isProvenance())
 			for (int index = 0, size = inputs.size(); index < size; index++)
 				if (inputs.get(index).getResultProjection() != originalInputs.get(index).getResultProjection()) {
-					Lookup reverseLookup = new Lookup(output, inputs.get(index));
-					reverseLookup.withDictionaryKeyExtraction(originalInputs.get(index).getIdProjection());
-					reverseLookup.withDictionaryValueExtraction(originalInputs.get(index).getResultProjection());
-					reverseLookup.withInputKeyExtractor(new ArrayAccess(index));
-					reverseLookup.setArrayElementsReplacement(true);
+					Operator reverseLookup = new Lookup().
+						withDictionaryKeyExtraction(originalInputs.get(index).getIdProjection()).
+						withDictionaryValueExtraction(originalInputs.get(index).getResultProjection()).
+						withInputKeyExtractor(new ArrayAccess(index)).
+						withArrayElementsReplacement(true).
+						withInputs(output, inputs.get(index));
 					output = reverseLookup;
 				}
 
-		if (!this.linkageMode.isWithSingles()) {
+		if (!this.getLinkageMode().isWithSingles()) {
 			module.getOutput(0).setInput(0, output);
 			return module;
 		}
@@ -128,88 +106,50 @@ public class InterSourceRecordLinkage extends CompositeOperator {
 		List<Operator> outputs = new ArrayList<Operator>();
 
 		outputs.add(output);
-		
-		if (this.linkageMode.getClosureMode().isProvenance())
+
+		if (this.getLinkageMode().getClosureMode().isProvenance())
 			for (int index = 0; index < originalInputs.size(); index++) {
-				ValueSplitter allTuples = new ValueSplitter(closure).
+				Operator allTuples = new ValueSplitter().
 					withArrayProjection(new ArrayAccess(index)).
 					withKeyProjection(new ArrayAccess(0)).
-					withValueProjection(EvaluationExpression.NULL);
+					withValueProjection(EvaluationExpression.NULL).
+					withInputs(closure);
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
-				Operator singleRecords = new Difference(module.getInput(index), allTuples).
-					withKeyProjection(0, recordLinkageInput.getIdProjection()).
+				Operator singleRecords = new Difference().
+					withIdentityKey(0, recordLinkageInput.getIdProjection()).
 					withValueProjection(0, recordLinkageInput.getResultProjection()).
-					withKeyProjection(1, EvaluationExpression.KEY);
+					withIdentityKey(1, EvaluationExpression.KEY).
+					withInputs(module.getInput(index), allTuples);
 
 				EvaluationExpression[] expressions = new EvaluationExpression[inputs.size()];
 				Arrays.fill(expressions, new ArrayCreation());
 				expressions[index] = new ArrayCreation(EvaluationExpression.VALUE);
-				final Projection wrappedInArray = new Projection(new ArrayCreation(expressions), singleRecords);
-				outputs.add(wrappedInArray);
+				outputs.add(new Projection().
+					withValueTransformation(new ArrayCreation(expressions)).
+					withInputs(singleRecords));
 			}
 		else {
-			ValueSplitter allTuples = new ValueSplitter(closure).
+			Operator allTuples = new ValueSplitter().
 				withArrayProjection(EvaluationExpression.VALUE).
 				withKeyProjection(new ArrayAccess(0)).
-				withValueProjection(EvaluationExpression.NULL);
+				withValueProjection(EvaluationExpression.NULL).
+				withInputs(closure);
 
 			for (int index = 0; index < originalInputs.size(); index++) {
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
-				Operator singleRecords = new Difference(module.getInput(index), allTuples).
-					withKeyProjection(0, recordLinkageInput.getResultProjection()).
+				Operator singleRecords = new Difference().
+					withIdentityKey(0, recordLinkageInput.getResultProjection()).
 					withValueProjection(0, recordLinkageInput.getResultProjection()).
-					withKeyProjection(1, EvaluationExpression.KEY);
-				outputs.add(new Projection(new ArrayCreation(EvaluationExpression.VALUE), singleRecords));
+					withIdentityKey(1, EvaluationExpression.KEY).
+					withInputs(module.getInput(index), allTuples);
+				outputs.add(new Projection().
+					withValueTransformation(new ArrayCreation(EvaluationExpression.VALUE)).
+					withInputs(singleRecords));
 			}
 		}
 
-		module.getOutput(0).setInput(0, new UnionAll(outputs));
+		module.getOutput(0).setInput(0, new UnionAll().withInputs(outputs));
 		return module;
-	}
-
-	@Override
-	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (!super.equals(obj))
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		final InterSourceRecordLinkage other = (InterSourceRecordLinkage) obj;
-
-		return this.linkageMode == other.linkageMode &&
-			this.algorithm.equals(other.algorithm) && this.similarityCondition.equals(other.similarityCondition)
-			&& this.recordLinkageInputs.equals(other.recordLinkageInputs);
-	}
-
-	public LinkageMode getLinkageMode() {
-		return this.linkageMode;
-	}
-
-	public RecordLinkageInput getRecordLinkageInput(final int index) {
-		RecordLinkageInput recordLinkageInput = this.recordLinkageInputs.get(this.getInput(index));
-		if (recordLinkageInput == null)
-			this.recordLinkageInputs
-				.put(this.getInput(index), recordLinkageInput = new RecordLinkageInput(this, index));
-		return recordLinkageInput;
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + this.linkageMode.hashCode();
-		result = prime * result + this.algorithm.hashCode();
-		result = prime * result + this.similarityCondition.hashCode();
-		result = prime * result + this.recordLinkageInputs.hashCode();
-		return result;
-	}
-
-	public void setLinkageMode(LinkageMode linkageMode) {
-		if (linkageMode == null)
-			throw new NullPointerException("linkageMode must not be null");
-
-		this.linkageMode = linkageMode;
 	}
 
 }

@@ -35,21 +35,18 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * @author Arvid Heise
  */
 @InputCardinality(min = 1, max = 1)
-public abstract class Operator implements SerializableSopremoType, JsonStream, Cloneable, BeanInfo {
+public abstract class Operator<Self extends Operator<Self>> implements SerializableSopremoType, JsonStream, Cloneable,
+		BeanInfo {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 7808932536291658512L;
 
-	private transient List<Operator.Output> inputs = new ArrayList<Operator.Output>();
+	private transient List<Operator<Self>.Output> inputs = new ArrayList<Operator<Self>.Output>();
 
 	private String name;
 
-	private transient Output[] outputs = new Output[0];
-
-	private Map<Class<?>, BeanInfo> beanInfos = new IdentityHashMap<Class<?>, BeanInfo>();
-
-	private BeanInfo beanInfo;
+	private transient List<Output> outputs = new ArrayList<Output>();
 
 	private int minInputs, maxInputs;
 
@@ -83,12 +80,12 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	public abstract PactModule asPactModule(EvaluationContext context);
 
 	@Override
-	public Operator clone() {
+	public Operator<Self> clone() {
 		try {
-			Operator clone = (Operator) super.clone();
-			clone.inputs = new ArrayList<Operator.Output>(this.inputs);
-			clone.setNumberOfOutputs(0);
-			clone.setNumberOfOutputs(this.outputs.length);
+			@SuppressWarnings("unchecked")
+			Operator<Self> clone = (Operator<Self>) super.clone();
+			clone.inputs = new ArrayList<Operator<Self>.Output>(this.inputs);
+			clone.outputs = new ArrayList<Operator<Self>.Output>(this.outputs);
 			return clone;
 		} catch (final CloneNotSupportedException e) {
 			// cannot happen
@@ -104,7 +101,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final Operator other = (Operator) obj;
+		final Operator<?> other = (Operator<?>) obj;
 		return this.name.equals(other.name);
 	}
 
@@ -175,8 +172,13 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 		return this.getBeanInfo().getBeanDescriptor();
 	}
 
-	protected BeanInfo getBeanInfo() {
-		return this.beanInfo = new Info(this.getClass());
+	private static Map<Class<?>, Info> beanInfos = new IdentityHashMap<Class<?>, Operator.Info>();
+
+	private BeanInfo getBeanInfo() {
+		Info beanInfo = beanInfos.get(getClass());
+		if (beanInfo == null)
+			beanInfos.put(getClass(), beanInfo = new Info(this.getClass()));
+		return beanInfo;
 	}
 
 	@Override
@@ -207,7 +209,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 *        the index of the output
 	 * @return the output that produces the input of this operator at the given position
 	 */
-	public Operator.Output getInput(final int index) {
+	public Output getInput(final int index) {
 		return this.inputs.get(index);
 	}
 
@@ -217,11 +219,11 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * 
 	 * @return a list of operators that produce the input of this operator
 	 */
-	public List<Operator> getInputOperators() {
-		return new AbstractList<Operator>() {
+	public List<Operator<?>> getInputOperators() {
+		return new AbstractList<Operator<?>>() {
 
 			@Override
-			public Operator get(final int index) {
+			public Operator<?> get(final int index) {
 				return Operator.this.inputs.get(index) == null ? null : Operator.this.inputs.get(index).getOperator();
 			}
 
@@ -248,8 +250,8 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * 
 	 * @return a list of outputs that produce the input of this operator
 	 */
-	public List<Operator.Output> getInputs() {
-		return new ArrayList<Operator.Output>(this.inputs);
+	public List<Output> getInputs() {
+		return new ArrayList<Output>(this.inputs);
 	}
 
 	public int getMaxInputs() {
@@ -283,7 +285,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @return the output at the given position
 	 */
 	public Output getOutput(final int index) {
-		return this.outputs[index];
+		return this.outputs.get(index);
 	}
 
 	/**
@@ -292,7 +294,7 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 * @return all outputs of this operator
 	 */
 	public List<Output> getOutputs() {
-		return Arrays.asList(this.outputs);
+		return this.outputs;
 	}
 
 	@Override
@@ -424,17 +426,15 @@ public abstract class Operator implements SerializableSopremoType, JsonStream, C
 	 *        the number of outputs
 	 */
 	protected final void setNumberOfOutputs(final int numberOfOutputs) {
-		final Output[] outputs = new Output[numberOfOutputs];
-		System.arraycopy(this.outputs, 0, outputs, 0, Math.min(numberOfOutputs, this.outputs.length));
-
-		for (int index = this.outputs.length; index < numberOfOutputs; index++)
-			outputs[index] = new Output(index);
-		this.outputs = outputs;
+		if (numberOfOutputs > outputs.size())
+			outputs.subList(numberOfOutputs, outputs.size()).clear();
+		else
+			CollectionUtil.ensureSize(outputs, numberOfOutputs);
 	}
 
 	public SopremoModule toElementaryOperators() {
 		SopremoModule module = new SopremoModule(this.getName(), this.getInputs().size(), this.getOutputs().size());
-		Operator clone = this.clone();
+		Operator<Self> clone = this.clone();
 		for (int index = 0; index < this.getInputs().size(); index++)
 			clone.setInput(index, module.getInput(index));
 		for (int index = 0; index < this.getOutputs().size(); index++)

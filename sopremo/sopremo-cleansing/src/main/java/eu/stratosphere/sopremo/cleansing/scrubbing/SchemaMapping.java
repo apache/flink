@@ -29,7 +29,7 @@ public class SchemaMapping extends CompositeOperator {
 
 		this.projection = projection;
 	}
-	
+
 	public SchemaMapping withProjection(EvaluationExpression projection) {
 		setProjection(projection);
 		return this;
@@ -41,7 +41,8 @@ public class SchemaMapping extends CompositeOperator {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		final Validation validation = new Validation(new Projection(this.projection, null));
+		final Validation validation = new Validation();
+		validation.setInputs(new Projection().withValueTransformation(this.projection));
 		validation.setRules(this.rules);
 		return SopremoModule.valueOf(this.getName(), validation);
 	}

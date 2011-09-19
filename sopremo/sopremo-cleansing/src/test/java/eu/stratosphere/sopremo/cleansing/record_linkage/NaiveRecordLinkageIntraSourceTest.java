@@ -45,7 +45,7 @@ public class NaiveRecordLinkageIntraSourceTest extends IntraSourceRecordLinkageT
 				} else if (skipPairs)
 					continue;
 
-				emitCandidate(left, right);
+				this.emitCandidate(left, right);
 			}
 		}
 	}

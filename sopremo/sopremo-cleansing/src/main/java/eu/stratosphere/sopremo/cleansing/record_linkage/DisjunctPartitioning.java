@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import java.util.List;
-
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NullNode;
@@ -9,10 +7,10 @@ import org.codehaus.jackson.node.NullNode;
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
@@ -50,6 +48,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		return new SinglePassIntraSource(partitionKey, similarityCondition, input);
 	}
 
+	@InputCardinality(min = 2, max = 2)
 	public static class InterSourceComparison extends ElementaryOperator {
 		/**
 		 * 
@@ -62,18 +61,18 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		public InterSourceComparison(final ComparativeExpression similarityCondition, final JsonStream input1,
 				EvaluationExpression resultProjection1, final JsonStream input2, EvaluationExpression resultProjection2) {
-			super(input1, input2);
+			this.setInputs(input1, input2);
 			this.similarityCondition = similarityCondition;
 			this.resultProjection1 = resultProjection1;
 			this.resultProjection2 = resultProjection2;
 		}
 
 		public EvaluationExpression getResultProjection1() {
-			return resultProjection1;
+			return this.resultProjection1;
 		}
 
 		public EvaluationExpression getResultProjection2() {
-			return resultProjection2;
+			return this.resultProjection2;
 		}
 
 		public ComparativeExpression getSimilarityCondition() {
@@ -92,8 +91,8 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 				final CompactArrayNode pair = JsonUtil.asArray(value1, value2);
 				if (this.similarityCondition.evaluate(pair, this.getContext()) == BooleanNode.TRUE)
 					out.collect(NullNode.getInstance(),
-						JsonUtil.asArray(this.resultProjection1.evaluate(value1, getContext()),
-							this.resultProjection2.evaluate(value2, getContext())));
+						JsonUtil.asArray(this.resultProjection1.evaluate(value1, this.getContext()),
+							this.resultProjection2.evaluate(value2, this.getContext())));
 			}
 		}
 	}
@@ -113,7 +112,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		public IntraSourceComparison(final ComparativeExpression similarityCondition,
 				final EvaluationExpression resultProjection, final EvaluationExpression idProjection,
 				final JsonStream stream) {
-			super(stream, stream);
+			this.setInputs(stream, stream);
 			this.similarityCondition = similarityCondition;
 			this.resultProjection = resultProjection;
 			this.idProjection = idProjection;
@@ -132,8 +131,8 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 					this.idProjection.evaluate(value2, this.getContext())) < 0
 					&& this.similarityCondition.evaluate(JsonUtil.asArray(value1, value2), this.getContext()) == BooleanNode.TRUE)
 					out.collect(NullNode.getInstance(),
-						JsonUtil.asArray(this.resultProjection.evaluate(value1, getContext()),
-							this.resultProjection.evaluate(value2, getContext())));
+						JsonUtil.asArray(this.resultProjection.evaluate(value1, this.getContext()),
+							this.resultProjection.evaluate(value2, this.getContext())));
 			}
 		}
 	}
@@ -153,7 +152,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		public SinglePassInterSource(final EvaluationExpression[] partitionKeys,
 				final ComparativeExpression similarityCondition, final RecordLinkageInput stream1,
 				final RecordLinkageInput stream2) {
-			super(stream1, stream2);
+			this.setInputs(stream1, stream2);
 			this.similarityCondition = similarityCondition;
 			this.partitionKeys = partitionKeys;
 			this.resultProjection1 = stream1.getResultProjection();
@@ -162,13 +161,14 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		@Override
 		public SopremoModule asElementaryOperators() {
-			final Projection[] keyExtractors = new Projection[2];
+			final Operator[] keyExtractors = new Operator[2];
 			for (int index = 0; index < 2; index++)
-				keyExtractors[index] = new Projection(this.partitionKeys[index],
-					EvaluationExpression.VALUE, this.getInput(index));
+				keyExtractors[index] = new Projection().
+					withKeyTransformation(this.partitionKeys[index]).
+					withInputs(this.getInput(index));
 
 			return SopremoModule.valueOf(this.getName(), new InterSourceComparison(this.similarityCondition,
-					keyExtractors[0], resultProjection1, keyExtractors[1], resultProjection2));
+				keyExtractors[0], this.resultProjection1, keyExtractors[1], this.resultProjection2));
 		}
 
 	}
@@ -187,7 +187,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		public SinglePassIntraSource(final EvaluationExpression partitionKey,
 				final ComparativeExpression similarityCondition, final RecordLinkageInput stream) {
-			super(stream);
+			this.setInputs(stream);
 			this.similarityCondition = similarityCondition;
 			this.partitionKey = partitionKey;
 			this.idProjection = stream.getIdProjection();
@@ -196,8 +196,9 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		@Override
 		public SopremoModule asElementaryOperators() {
-			final Projection keyExtractor = new Projection(this.partitionKey, EvaluationExpression.VALUE,
-				this.getInput(0));
+			final Operator keyExtractor = new Projection().
+				withKeyTransformation(this.partitionKey).
+				withInputs(this.getInput(0));
 
 			return SopremoModule.valueOf(this.getName(), new IntraSourceComparison(this.similarityCondition,
 				this.resultProjection, this.idProjection, keyExtractor));

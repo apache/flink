@@ -7,8 +7,6 @@ import org.codehaus.jackson.node.IntNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
@@ -16,10 +14,13 @@ public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
 	protected TransitiveClosure createDefaultInstance(int index) {
 		final TransitiveClosure transitiveClosure = new TransitiveClosure();
 		transitiveClosure.setClosureMode(ClosureMode.values()[index]);
-//		transitiveClosure.setIdProjection(new ObjectAccess(String.valueOf(index)));
+		// transitiveClosure.setIdProjection(new ObjectAccess(String.valueOf(index)));
 		return transitiveClosure;
 	}
 
+	/**
+	 * Tests the algorithm only
+	 */
 	@Test
 	public void testWarshall() {
 		final BinarySparseMatrix matrix = new BinarySparseMatrix();
@@ -53,9 +54,9 @@ public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
 
 	@Test
 	public void testTransitiveClosureWithIdAndPairMode() {
-		final TransitiveClosure transitiveClosure = new TransitiveClosure(null);
+		final TransitiveClosure transitiveClosure = new TransitiveClosure();
 		transitiveClosure.setClosureMode(ClosureMode.LINKS);
-//		transitiveClosure.setIdProjection(new ObjectAccess("id"));
+		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
 
 		sopremoTestPlan.getInput(0).

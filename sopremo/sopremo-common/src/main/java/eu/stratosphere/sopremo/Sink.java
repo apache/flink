@@ -24,8 +24,9 @@ public class Sink extends ElementaryOperator {
 	public Sink(final PersistenceType type, final String outputName) {
 		this(JsonOutputFormat.class, outputName);
 	}
-	
-	public Sink(Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat, final String outputName) {
+
+	public Sink(Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat,
+			final String outputName) {
 		super(0);
 		// if (type == DataType.ADHOC)
 		// throw new IllegalArgumentException();
@@ -34,24 +35,24 @@ public class Sink extends ElementaryOperator {
 		this.type = PersistenceType.HDFS;
 		setNumberOfOutputs(0);
 	}
-	
+
 	@Override
 	public Output getSource() {
-throw new UnsupportedOperationException("Sink has not output");
+		throw new UnsupportedOperationException("Sink has not output");
 	}
-	
+
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		final PactModule pactModule = new PactModule(this.toString(), 1, 0);
 		final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
-				outputFormat, this.outputName, this.outputName);
+			outputFormat, this.outputName, this.outputName);
 		contract.setInput(pactModule.getInput(0));
-//		if(this.outputFormat == JsonOutputFormat.class)
+		// if(this.outputFormat == JsonOutputFormat.class)
 		contract.setDegreeOfParallelism(1);
 		pactModule.addInternalOutput(contract);
 		return pactModule;
 	}
-	
+
 	@Override
 	public SopremoModule toElementaryOperators() {
 		SopremoModule module = new SopremoModule(getName(), 1, 0);

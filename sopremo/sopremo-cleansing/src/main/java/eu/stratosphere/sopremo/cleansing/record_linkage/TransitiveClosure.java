@@ -78,6 +78,11 @@ public class TransitiveClosure extends CompositeOperator {
 		this.closureMode = clusterMode;
 	}
 
+	public TransitiveClosure withClosureMode(ClosureMode closureMode) {
+		setClosureMode(closureMode);
+		return this;
+	}
+
 	@Override
 	public SopremoModule asElementaryOperators() {
 

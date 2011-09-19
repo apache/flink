@@ -164,7 +164,7 @@ public class InterSourceRecordLinkageTest {
 	@Test
 	public void shouldAddSinglesClusters() {
 		final SopremoTestPlan testPlan = this.createTestPlan(LinkageMode.ALL_CLUSTERS_FLAT);
-		
+
 		testPlan.getExpectedOutput(0).
 			add(this.arrayOfElement(testPlan, 0, 10)).
 			add(this.arrayOfElement(testPlan, 1, 11)).
@@ -190,7 +190,7 @@ public class InterSourceRecordLinkageTest {
 			add(this.deepArrayOfElements(testPlan, new int[] { 4 }, new int[] { 14 })).
 			add(this.deepArrayOfElements(testPlan, new int[] { 5 }, new int[] { 151, 152 })).
 			add(this.deepArrayOfElements(testPlan, new int[] { 3 }, new int[] {}));
-		
+
 		testPlan.run();
 	}
 
@@ -248,18 +248,24 @@ public class InterSourceRecordLinkageTest {
 	}
 
 	private SopremoTestPlan createTestPlan(final LinkageMode mode) {
-		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(new Naive(), this.similarityFunction,
-			0.7, null, null);
-		recordLinkage.setLinkageMode(mode);
+		RecordLinkage recordLinkage = new InterSourceRecordLinkage().
+			withAlgorithm(new Naive()).
+			withSimilarityExpression(this.similarityFunction).
+			withThreshold(0.7).
+			withLinkageMode(mode);
 
 		Operator sortedArrays = recordLinkage;
 		if (!mode.getClosureMode().isProvenance())
-			sortedArrays = new Projection(BuiltinFunctions.SORT.asExpression(), recordLinkage);
+			sortedArrays = new Projection().
+				withValueTransformation(BuiltinFunctions.SORT.asExpression()).
+				withInputs(recordLinkage);
 		else {
 			EvaluationExpression[] sorts = new EvaluationExpression[this.inputs.size()];
 			for (int index = 0; index < sorts.length; index++)
 				sorts[index] = new PathExpression(new ArrayAccess(index), BuiltinFunctions.SORT.asExpression());
-			sortedArrays = new Projection(new ArrayCreation(sorts), recordLinkage);
+			sortedArrays = new Projection().
+				withValueTransformation(new ArrayCreation(sorts)).
+				withInputs(recordLinkage);
 		}
 
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(sortedArrays);
