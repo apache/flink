@@ -258,21 +258,21 @@ public class BuiltinFunctions {
 	 */
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
 	public static JsonNode unionAll(final JsonNode... arrays) {
-		boolean hasStream = false, resettable = false;
+		boolean hasStream = false; //, resettable = false;
 		for (final JsonNode param : arrays) {
 			final boolean stream = param instanceof ArrayNode;
 			hasStream |= stream;
-			if (stream && ((ArrayNode) param).isResettable()) {
-				resettable = true;
-				break;
-			}
+//			if (stream && ((ArrayNode) param).isResettable()) {
+//				resettable = true;
+//				break;
+//			}
 		}
 
 		if (hasStream) {
 			final Iterator<?>[] iterators = new Iterator[arrays.length];
 			for (int index = 0; index < iterators.length; index++)
 				iterators[index] = ((ArrayNode) arrays[index]).iterator();
-			return ArrayNode.valueOf(new ConcatenatingIterator<JsonNode>(iterators), resettable);
+			return ArrayNode.valueOf(new ConcatenatingIterator<JsonNode>(iterators)/*, resettable*/);
 		}
 
 		final ArrayNode union = new ArrayNode();

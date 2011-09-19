@@ -87,7 +87,7 @@ public class JsonUtil {
 	 * @return the node wrapping the stream
 	 */
 	public static ArrayNode wrapWithNode(final boolean resettable, final Iterator<PactJsonObject> objectIterator) {
-		return ArrayNode.valueOf(new UnwrappingIterator(objectIterator), resettable);
+		return ArrayNode.valueOf(new UnwrappingIterator(objectIterator)/*, resettable*/);
 	}
 
 	/**
