@@ -192,4 +192,8 @@ public class ObjectNode extends JsonNode {
 		return this.children.keySet().iterator();
 	}
 
+	public Iterator<Entry<String, JsonNode>> getFields() {
+		return this.children.entrySet().iterator();
+	}
+
 }

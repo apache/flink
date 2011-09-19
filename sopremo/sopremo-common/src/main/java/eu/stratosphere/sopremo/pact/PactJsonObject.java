@@ -158,11 +158,11 @@ public class PactJsonObject implements Value {
 	}
 
 	public static PactJsonObject valueOf(JsonNode value) {
-		if (value instanceof ArrayNode && !((ArrayNode) value).isResettable()) {
-			value = ArrayNode.valueOf(value.getElements(), true);
-			if (SopremoUtil.LOG.isInfoEnabled())
-				SopremoUtil.LOG.info(String.format("needed to materialize the stream array " + value));
-		}
+//		if (value instanceof ArrayNode && !((ArrayNode) value).isResettable()) {
+//			value = ArrayNode.valueOf(value.getElements(), true);
+//			if (SopremoUtil.LOG.isInfoEnabled())
+//				SopremoUtil.LOG.info(String.format("needed to materialize the stream array " + value));
+//		}
 		return new PactJsonObject(value);
 	}
 

@@ -87,5 +87,10 @@ public class DecimalNode extends NumericNode {
 	public Double getValueAsDouble() {
 		return Double.valueOf(this.value.doubleValue());
 	}
+	
+	@Override
+	public boolean isFloatingPointNumber() {
+		return true;
+	}
 
 }

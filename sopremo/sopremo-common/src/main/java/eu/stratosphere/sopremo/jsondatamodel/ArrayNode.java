@@ -159,12 +159,17 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.isEmpty();
 	}
 
-	// public static Object valueOf(Iterator<JsonNode> iterator) {
-	// ArrayNode array = new ArrayNode();
-	// for(JsonNode node : iterator.next()){
-	// array.add(node);
-	// }
-	// return array;
-	// }
+	 public static Object valueOf(Iterator<JsonNode> iterator) {
+	 ArrayNode array = new ArrayNode();
+	 while(iterator.hasNext())
+	 {
+	 array.add(iterator.next());
+	 }
+	 return array;
+	 }
+	 
+	 public JsonNode[] toArray(){
+		 return this.children.toArray(new JsonNode[this.children.size()]);
+	 }
 
 }

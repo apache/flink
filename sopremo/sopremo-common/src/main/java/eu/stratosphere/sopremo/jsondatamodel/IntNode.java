@@ -78,5 +78,10 @@ public class IntNode extends NumericNode {
 	public Double getValueAsDouble() {
 		return Double.valueOf(this.value.getValue());
 	}
+	
+	@Override
+	public boolean isIntegralNumber() {
+		return true;
+	}
 
 }

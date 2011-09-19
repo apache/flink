@@ -80,4 +80,9 @@ public class BigIntegerNode extends NumericNode {
 		return this.value;
 	}
 
+	@Override
+	public boolean isIntegralNumber() {
+		return true;
+	}
+	
 }

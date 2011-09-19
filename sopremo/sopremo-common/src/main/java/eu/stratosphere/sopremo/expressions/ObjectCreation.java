@@ -7,6 +7,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.util.ConversionIterator;
@@ -27,7 +28,7 @@ public class ObjectCreation extends ContainerExpression {
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			final ObjectNode objectNode = new ObjectNode();
-			final Iterator<JsonNode> elements = node.getElements();
+			final Iterator<JsonNode> elements = ((ArrayNode)node).iterator();
 			while (elements.hasNext()) {
 				final JsonNode jsonNode = elements.next();
 				if (!jsonNode.isNull())

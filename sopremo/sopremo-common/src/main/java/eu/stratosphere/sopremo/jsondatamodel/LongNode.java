@@ -68,5 +68,10 @@ public class LongNode extends NumericNode {
 	public long getLongValue() {
 		return this.value.getValue();
 	}
+	
+	@Override
+	public boolean isIntegralNumber() {
+		return true;
+	}
 
 }

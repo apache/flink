@@ -80,5 +80,10 @@ public class DoubleNode extends NumericNode {
 	public Double getValueAsDouble() {
 		return this.value.getValue();
 	}
+	
+	@Override
+	public boolean isFloatingPointNumber() {
+		return true;
+	}
 
 }

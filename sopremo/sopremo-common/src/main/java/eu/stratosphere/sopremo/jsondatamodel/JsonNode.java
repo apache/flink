@@ -14,7 +14,7 @@ public abstract class JsonNode implements Serializable, Value {
 	 */
 	private static final long serialVersionUID = 7164528435336585193L;
 
-	protected enum TYPES {
+	public enum TYPES {
 		IntNode(IntNode.class),
 		LongNode(LongNode.class),
 		BigIntegerNode(BigIntegerNode.class),

@@ -54,11 +54,11 @@ public class SopremoDuplicateDetection {
 
 		// selection phone number equality
 		EvaluationExpression phone1 = new FunctionCall("replaceAll", createPath("0", "phone"),
-			new ConstantExpression(JsonUtil.NODE_FACTORY.textNode("\\W")), new ConstantExpression(
-				JsonUtil.NODE_FACTORY.textNode("")));
+			new ConstantExpression(new TextNode("\\W")), new ConstantExpression(
+				new TextNode("")));
 		EvaluationExpression phone2 = new FunctionCall("replaceAll", createPath("1", "phone"),
-			new ConstantExpression(JsonUtil.NODE_FACTORY.textNode("\\W")), new ConstantExpression(
-				JsonUtil.NODE_FACTORY.textNode("")));
+			new ConstantExpression(new TextNode("\\W")), new ConstantExpression(
+				new TextNode("")));
 		Selection phoneSimilarity = new Selection(new ComparativeExpression(phone1, BinaryOperator.EQUAL, phone2),
 			sim);
 
@@ -76,7 +76,7 @@ public class SopremoDuplicateDetection {
 
 	public static class DuplicateDetectionFunctions {
 		public static JsonNode replaceAll(JsonNode node, TextNode regex, TextNode replacement) {
-			return JsonUtil.NODE_FACTORY.textNode(node.getValueAsText().replaceAll(regex.getValueAsText(),
+			return new TextNode(node.getValueAsText().replaceAll(regex.getTextValue(),
 				replacement.getTextValue()));
 		}
 	}

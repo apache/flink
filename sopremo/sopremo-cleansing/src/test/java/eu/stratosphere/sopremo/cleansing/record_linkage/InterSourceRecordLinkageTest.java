@@ -26,6 +26,7 @@ import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
@@ -225,7 +226,7 @@ public class InterSourceRecordLinkageTest {
 	}
 
 	private PactJsonObject flatArrayOfElements(SopremoTestPlan testPlan, int[]... ids) {
-		ArrayNode array = new ArrayNode(null);
+		ArrayNode array = new ArrayNode();
 
 		for (int sourceIndex = 0; sourceIndex < ids.length; sourceIndex++) {
 			EvaluationExpression resultProjection = this.resultProjections[sourceIndex];
@@ -241,7 +242,7 @@ public class InterSourceRecordLinkageTest {
 
 	private PactJsonObject findTuple(SopremoTestPlan testPlan, int sourceIndex, int id) {
 		for (PactJsonObject object : this.inputs.get(sourceIndex))
-			if (this.idProjections[sourceIndex].evaluate(object.getValue(), testPlan.getEvaluationContext())
+			if (((IntNode)this.idProjections[sourceIndex].evaluate(object.getValue(), testPlan.getEvaluationContext()))
 				.getIntValue() == id)
 				return object;
 		throw new IllegalStateException();
