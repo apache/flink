@@ -105,4 +105,9 @@ public class IntNode extends NumericNode {
 	public String getValueAsText() {
 		return this.value.toString();
 	}
+	@Override
+	public TYPES getType() {
+		return TYPES.DoubleNode;
+	}
+	
 }

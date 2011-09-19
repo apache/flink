@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
@@ -45,10 +46,10 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 
 	public static JsonNode sum(final NumericNode... nodes) {
 
-		int i = 0;
+		Double i = 0.0;
 		for (final NumericNode node : nodes)
-			i += node.getValueAsInt();
-		return new IntNode(i);
+			i += node.getDoubleValue();
+		return new DoubleNode(i);
 
 	}
 }

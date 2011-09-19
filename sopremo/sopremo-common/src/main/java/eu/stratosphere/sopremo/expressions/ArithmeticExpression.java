@@ -6,8 +6,6 @@ import java.math.MathContext;
 import java.util.EnumMap;
 import java.util.Map;
 
-import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.NumberCoercer;
 import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
@@ -15,6 +13,7 @@ import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
 import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode.TYPES;
 import eu.stratosphere.sopremo.jsondatamodel.LongNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
@@ -187,20 +186,19 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		private final String sign;
 
-		private final Map<NumberType, NumberEvaluator> typeEvaluators = new EnumMap<NumberType, NumberEvaluator>(
-			NumberType.class);
+		private final Map<JsonNode.TYPES, NumberEvaluator> typeEvaluators = new EnumMap<JsonNode.TYPES, NumberEvaluator>(
+			JsonNode.TYPES.class);
 
 		private ArithmeticOperator(final String sign, final NumberEvaluator integerEvaluator,
 				final NumberEvaluator longEvaluator,
 				final NumberEvaluator doubleEvaluator, final NumberEvaluator bigIntegerEvaluator,
 				final NumberEvaluator bigDecimalEvaluator) {
 			this.sign = sign;
-			this.typeEvaluators.put(NumberType.INT, integerEvaluator);
-			this.typeEvaluators.put(NumberType.LONG, longEvaluator);
-			this.typeEvaluators.put(NumberType.FLOAT, doubleEvaluator);
-			this.typeEvaluators.put(NumberType.DOUBLE, doubleEvaluator);
-			this.typeEvaluators.put(NumberType.BIG_INTEGER, bigIntegerEvaluator);
-			this.typeEvaluators.put(NumberType.BIG_DECIMAL, bigDecimalEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.IntNode, integerEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.LongNode, longEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.DoubleNode, doubleEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.BigIntegerNode, bigIntegerEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.DecimalNode, bigDecimalEvaluator);
 		}
 
 		/**
@@ -213,8 +211,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 * @return the result of the operation
 		 */
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			final NumberType widerType = NumberCoercer.INSTANCE.getWiderType(left.getNumberType(),
-				right.getNumberType());
+			final TYPES widerType = NumberCoercer.INSTANCE.getWiderType(left,
+				right);
 			return this.typeEvaluators.get(widerType).evaluate(left, right);
 		}
 

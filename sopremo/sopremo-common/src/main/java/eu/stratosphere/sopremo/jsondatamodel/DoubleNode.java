@@ -103,6 +103,11 @@ public class DoubleNode extends NumericNode {
 	public boolean isFloatingPointNumber() {
 		return true;
 	}
+	
+	@Override
+	public TYPES getType() {
+		return TYPES.DoubleNode;
+	}
 
 	public String getValueAsText() {
 		return this.value.toString();

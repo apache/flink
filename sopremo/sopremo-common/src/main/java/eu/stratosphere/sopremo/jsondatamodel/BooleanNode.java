@@ -81,4 +81,9 @@ public class BooleanNode extends JsonNode {
 	public void write(final DataOutput out) throws IOException {
 		out.writeBoolean(this.value);
 	}
+	
+	@Override
+	public TYPES getType() {
+		return TYPES.BooleanNode;
+	}
 }

@@ -159,7 +159,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.isEmpty();
 	}
 
-	 public static Object valueOf(Iterator<JsonNode> iterator) {
+	 public static ArrayNode valueOf(Iterator<JsonNode> iterator) {
 	 ArrayNode array = new ArrayNode();
 	 while(iterator.hasNext())
 	 {
@@ -171,5 +171,10 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	 public JsonNode[] toArray(){
 		 return this.children.toArray(new JsonNode[this.children.size()]);
 	 }
+
+	@Override
+	public TYPES getType() {
+		return TYPES.ArrayNode;
+	}
 
 }

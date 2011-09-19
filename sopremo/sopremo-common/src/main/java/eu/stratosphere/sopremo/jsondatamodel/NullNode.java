@@ -57,4 +57,9 @@ public class NullNode extends JsonNode {
 	public boolean isNull() {
 		return true;
 	}
+	
+	@Override
+	public TYPES getType() {
+		return TYPES.NullNode;
+	}
 }

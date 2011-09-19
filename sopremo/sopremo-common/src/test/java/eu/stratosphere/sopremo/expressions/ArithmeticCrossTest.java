@@ -47,9 +47,9 @@ public class ArithmeticCrossTest {
 		final JsonNode expectedNode = JsonUtil.OBJECT_MAPPER.valueToTree(this.expected);
 		Assert.assertEquals(
 			String.format("%s%s%s", this.left.getClass().getSimpleName(),
-				this.operator, this.right.getClass().getSimpleName(), result.getNumberType(),
-				expectedNode.getNumberType()),
-			expectedNode.getNumberType(), result.getNumberType());
+				this.operator, this.right.getClass().getSimpleName(), result.getType(),
+				expectedNode.getType()),
+			expectedNode.getType(), result.getType());
 		// workaround for BigIntegerNode bug
 		if (expectedNode instanceof BigIntegerNode)
 			Assert.assertEquals(

@@ -106,4 +106,10 @@ public class BigIntegerNode extends NumericNode {
 		return this.value.toString();
 	}
 
+	
+	@Override
+	public TYPES getType() {
+		return TYPES.BigIntegerNode;
+	}
+	
 }
