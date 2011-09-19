@@ -15,13 +15,24 @@ public class SchemaMapping extends CompositeOperator {
 	 */
 	private static final long serialVersionUID = 5817110603520085487L;
 
-	private final EvaluationExpression projection;
+	private EvaluationExpression projection = EvaluationExpression.VALUE;
 
-	private final List<ValidationRule> rules = new ArrayList<ValidationRule>();
+	private List<ValidationRule> rules = new ArrayList<ValidationRule>();
 
-	public SchemaMapping(final EvaluationExpression projection, final JsonStream input) {
-		super(input);
+	public EvaluationExpression getProjection() {
+		return this.projection;
+	}
+
+	public void setProjection(EvaluationExpression projection) {
+		if (projection == null)
+			throw new NullPointerException("projection must not be null");
+
 		this.projection = projection;
+	}
+	
+	public SchemaMapping withProjection(EvaluationExpression projection) {
+		setProjection(projection);
+		return this;
 	}
 
 	public void addRule(final ValidationRule e) {

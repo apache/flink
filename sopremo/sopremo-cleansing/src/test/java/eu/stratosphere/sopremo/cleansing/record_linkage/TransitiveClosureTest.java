@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
 	@Override
 	protected TransitiveClosure createDefaultInstance(int index) {
-		final TransitiveClosure transitiveClosure = new TransitiveClosure(null);
+		final TransitiveClosure transitiveClosure = new TransitiveClosure();
 		transitiveClosure.setClosureMode(ClosureMode.values()[index]);
 //		transitiveClosure.setIdProjection(new ObjectAccess(String.valueOf(index)));
 		return transitiveClosure;

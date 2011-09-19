@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 import java.util.Arrays;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
@@ -19,6 +20,7 @@ import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 
+@InputCardinality(min = 1, max = 1)
 public class IntraSourceRecordLinkage extends CompositeOperator {
 	/**
 	 * 

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
@@ -21,6 +22,7 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
+@InputCardinality(min = 2)
 public class InterSourceRecordLinkage extends CompositeOperator {
 	/**
 	 * 

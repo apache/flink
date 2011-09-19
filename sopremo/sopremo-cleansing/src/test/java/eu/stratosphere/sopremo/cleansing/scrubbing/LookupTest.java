@@ -14,12 +14,12 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class LookupTest extends SopremoTest<Lookup> {
 	@Override
 	protected Lookup createDefaultInstance(int index) {
-		return new Lookup(null, null).withInputKeyExtractor(new ArrayAccess(index));
+		return new Lookup().withInputKeyExtractor(new ArrayAccess(index));
 	}
 
 	@Test
 	public void shouldLookupValuesStrictly() {
-		final Lookup lookup = new Lookup(null, null);
+		final Lookup lookup = new Lookup();
 		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
 		lookup.setDictionaryValueExtraction(new ArrayAccess(1));
@@ -44,7 +44,7 @@ public class LookupTest extends SopremoTest<Lookup> {
 
 	@Test
 	public void shouldLookupValuesWithDefaultValue() {
-		final Lookup lookup = new Lookup(null, null);
+		final Lookup lookup = new Lookup();
 		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
 		lookup.setDictionaryValueExtraction(new ArrayAccess(1));
@@ -73,7 +73,7 @@ public class LookupTest extends SopremoTest<Lookup> {
 
 	@Test
 	public void shouldLookupArrayValuesStrictly() {		
-		final Lookup lookup = new Lookup(null, null);
+		final Lookup lookup = new Lookup();
 		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
 		lookup.setDictionaryValueExtraction(new ArrayAccess(1));
@@ -99,7 +99,7 @@ public class LookupTest extends SopremoTest<Lookup> {
 
 	@Test
 	public void shouldLookupArrayValuesWithDefault() {
-		final Lookup lookup = new Lookup(null, null);
+		final Lookup lookup = new Lookup();
 		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
 		lookup.setDictionaryValueExtraction(new ArrayAccess(1));

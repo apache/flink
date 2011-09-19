@@ -65,15 +65,7 @@ public class TransitiveClosure extends CompositeOperator {
 		}
 	};
 
-	// private Int2ObjectArrayMap<EvaluationExpression> idProjections = new Int2ObjectArrayMap<EvaluationExpression>();
-
 	private ClosureMode closureMode = ClosureMode.LINKS;
-
-	public TransitiveClosure(final JsonStream input) {
-		super(input);
-
-		// idProjections.defaultReturnValue(DEFAULT_PROJECTION);
-	}
 
 	public ClosureMode getClosureMode() {
 		return this.closureMode;
@@ -140,8 +132,8 @@ public class TransitiveClosure extends CompositeOperator {
 		// new PathExpression(new ArrayAccess(1), this.idProjection)), input);
 		// }
 
-		final Grouping groupAll = new Grouping(EvaluationExpression.VALUE, input);
-		final UnparallelClosure pairs = new UnparallelClosure(this.closureMode, groupAll);
+		final Operator groupAll = new Grouping().withInputs(input);
+		final Operator pairs = new UnparallelClosure().withClosureMode(closureMode).withInputs(groupAll);
 
 		// Operator output;
 		// if (this.closureMode.isCluster())
@@ -216,10 +208,6 @@ public class TransitiveClosure extends CompositeOperator {
 		 */
 		private static final long serialVersionUID = 3704755338323086311L;
 
-		public FlattenPairs(final JsonStream input) {
-			super(input);
-		}
-
 		public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
 			@Override
 			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
@@ -235,10 +223,6 @@ public class TransitiveClosure extends CompositeOperator {
 		 */
 		private static final long serialVersionUID = -4398233623518806826L;
 
-		public RemoveDuplicateEntities(final JsonStream input) {
-			super(input);
-		}
-
 		public static class Implementation extends SopremoReduce<Key, PactJsonObject, Key, PactJsonObject> {
 			@Override
 			protected void reduce(final JsonNode key, final StreamArrayNode values, final JsonCollector out) {
@@ -253,11 +237,18 @@ public class TransitiveClosure extends CompositeOperator {
 		 */
 		private static final long serialVersionUID = 2445030877785106855L;
 
-		private final ClosureMode closureMode;
+		private ClosureMode closureMode = ClosureMode.LINKS;
 
-		public UnparallelClosure(final ClosureMode closureMode, final JsonStream input) {
-			super(input);
+		public void setClosureMode(ClosureMode closureMode) {
+			if (closureMode == null)
+				throw new NullPointerException("closureMode must not be null");
+
 			this.closureMode = closureMode;
+		}
+
+		public TransitiveClosure.UnparallelClosure withClosureMode(ClosureMode mode) {
+			setClosureMode(mode);
+			return this;
 		}
 
 		public ClosureMode getClosureMode() {
