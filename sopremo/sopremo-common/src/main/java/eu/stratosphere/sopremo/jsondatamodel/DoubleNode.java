@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo.jsondatamodel;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 
@@ -25,10 +27,6 @@ public class DoubleNode extends NumericNode {
 
 	public static DoubleNode valueOf(final double v) {
 		return new DoubleNode(v);
-	}
-
-	public double getDoubleValue() {
-		return this.value.getValue();
 	}
 
 	@Override
@@ -77,13 +75,36 @@ public class DoubleNode extends NumericNode {
 	}
 
 	@Override
-	public Double getValueAsDouble() {
+	public Integer getIntValue() {
+		return (int) this.value.getValue();
+	}
+
+	@Override
+	public Long getLongValue() {
+		return (long) this.value.getValue();
+	}
+
+	@Override
+	public BigInteger getBigIntegerValue() {
+		return BigInteger.valueOf(this.getLongValue());
+	}
+
+	@Override
+	public BigDecimal getDecimalValue() {
+		return BigDecimal.valueOf(this.value.getValue());
+	}
+
+	@Override
+	public Double getDoubleValue() {
 		return this.value.getValue();
 	}
-	
+
 	@Override
 	public boolean isFloatingPointNumber() {
 		return true;
 	}
 
+	public String getValueAsText() {
+		return this.value.toString();
+	}
 }

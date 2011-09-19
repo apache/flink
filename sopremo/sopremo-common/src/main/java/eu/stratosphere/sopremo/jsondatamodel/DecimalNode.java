@@ -29,10 +29,6 @@ public class DecimalNode extends NumericNode {
 		return new DecimalNode(v);
 	}
 
-	public BigDecimal getDecimalValue() {
-		return this.value;
-	}
-
 	@Override
 	public String toString() {
 		return this.value.toString();
@@ -84,13 +80,36 @@ public class DecimalNode extends NumericNode {
 	}
 
 	@Override
-	public Double getValueAsDouble() {
-		return Double.valueOf(this.value.doubleValue());
+	public Integer getIntValue() {
+		return this.value.intValue();
 	}
-	
+
+	@Override
+	public Long getLongValue() {
+		return this.value.longValue();
+	}
+
+	@Override
+	public BigInteger getBigIntegerValue() {
+		return this.value.toBigInteger();
+	}
+
+	@Override
+	public BigDecimal getDecimalValue() {
+		return this.value;
+	}
+
+	@Override
+	public Double getDoubleValue() {
+		return this.value.doubleValue();
+	}
+
 	@Override
 	public boolean isFloatingPointNumber() {
 		return true;
 	}
 
+	public String getValueAsText() {
+		return this.value.toString();
+	}
 }

@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.jsondatamodel;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 public class BigIntegerNode extends NumericNode {
@@ -72,17 +73,37 @@ public class BigIntegerNode extends NumericNode {
 	}
 
 	@Override
-	public Double getValueAsDouble() {
-		return Double.valueOf(this.value.doubleValue());
+	public Integer getIntValue() {
+		return this.value.intValue();
 	}
 
+	@Override
+	public Long getLongValue() {
+		return this.value.longValue();
+	}
+
+	@Override
 	public BigInteger getBigIntegerValue() {
 		return this.value;
+	}
+
+	@Override
+	public BigDecimal getDecimalValue() {
+		return new BigDecimal(this.value);
+	}
+
+	@Override
+	public Double getDoubleValue() {
+		return this.value.doubleValue();
 	}
 
 	@Override
 	public boolean isIntegralNumber() {
 		return true;
 	}
-	
+
+	public String getValueAsText() {
+		return this.value.toString();
+	}
+
 }
