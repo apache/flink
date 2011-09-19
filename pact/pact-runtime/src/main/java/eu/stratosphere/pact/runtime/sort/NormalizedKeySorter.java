@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
@@ -390,11 +391,11 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		return this.numRecords;
 	}
 
-	
-	// -------------------------------------------------------------------------
-	//                          Iterating
 	// -------------------------------------------------------------------------
 	
+	/**
+	 * @return
+	 */
 	public final MutableObjectIterator<T> getIterator()
 	{
 		return new MutableObjectIterator<T>()
@@ -435,5 +436,38 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		};
 	}
 	
+	// ------------------------------------------------------------------------
 	
+	/**
+	 * Writes this buffer completely to the given writer.
+	 * 
+	 * @param writer The writer to write the segment to.
+	 * @throws IOException Thrown, if the writer caused an I/O exception.
+	 */
+	public void writeToChannel(final Writer writer) throws IOException
+	{
+		int recordsLeft = this.numRecords;
+		int currentMemSeg = 0;
+		while (recordsLeft > 0)
+		{
+			final MemorySegment currentIndexSegment = this.sortIndex.get(currentMemSeg++);
+			int offset = 0;
+			// check whether we have a full or partially full segment
+			if (recordsLeft >= this.indexEntriesPerSegment) {
+				// full segment
+				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
+					final long pointer = currentIndexSegment.getLong(offset);
+					
+				}
+				recordsLeft -= this.indexEntriesPerSegment;
+			} else {
+				// partially filled segment
+				for (; recordsLeft > 0; recordsLeft--, offset += this.indexEntrySize)
+				{
+					final long pointer = currentIndexSegment.getLong(offset);
+					
+				}
+			}
+		}
+	}
 }

@@ -33,10 +33,13 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.pact.common.contract.AbstractPact;
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.CombinerNode;
@@ -250,7 +253,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				return;
 			}
 
-			for (PactConnection connection : node.getIncomingConnections()) {
+			for (int i = 0; i < incomingConns.size(); i++)
+			{
+				final PactConnection connection = incomingConns.get(i);
 				// get parent vertex
 				AbstractJobVertex outputVertex = this.vertices.get(connection.getSourcePact());
 				if (outputVertex == null) {
@@ -259,14 +264,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 				switch (connection.getShipStrategy()) {
 				case FORWARD:
-					connectWithForwardStrategy(connection, outputVertex, inputVertex);
+					connectWithForwardStrategy(connection, i, outputVertex, inputVertex);
 					break;
 				case PARTITION_LOCAL_HASH:
 				case PARTITION_HASH:
-					connectWithPartitionStrategy(connection, outputVertex, inputVertex);
+					connectWithPartitionStrategy(connection, i, outputVertex, inputVertex);
 					break;
 				case BROADCAST:
-					connectWithBroadcastStrategy(connection, outputVertex, inputVertex);
+					connectWithBroadcastStrategy(connection, i, outputVertex, inputVertex);
 					break;
 				case PARTITION_RANGE:
 					if(isDistributionGiven(connection)) {
@@ -281,7 +286,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 					throw new Exception("Invalid ship strategy: " + connection.getShipStrategy());
 				}
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			throw new CompilerException(
 				"An error occurred while translating the optimized plan to a nephele JobGraph: " + e.getMessage(), e);
 		}
@@ -345,6 +351,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		// we have currently only one strategy for combiners
 		combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
+		combineConfig.setLocalStrategyKeyTypes(0, combineNode.getPactContract().getKeyColumnNumbers(0));
+		combineConfig.setLocalStrategyKeyTypes(combineNode.getPactContract().getKeyClasses());
 
 		// assign the memory
 		assignMemory(combineConfig, combineNode.getMemoryPerTask());
@@ -360,7 +368,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobTaskVertex generateReduceVertex(ReduceNode reduceNode) throws CompilerException {
+	private JobTaskVertex generateReduceVertex(ReduceNode reduceNode) throws CompilerException
+	{
 		// create task vertex
 		JobTaskVertex reduceVertex = new JobTaskVertex(reduceNode.getPactContract().getName(), this.jobGraph);
 		// set task class
@@ -375,9 +384,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		switch (reduceNode.getLocalStrategy()) {
 		case SORT:
 			reduceConfig.setLocalStrategy(LocalStrategy.SORT);
+			reduceConfig.setLocalStrategyKeyTypes(0, reduceNode.getPactContract().getKeyColumnNumbers(0));
+			reduceConfig.setLocalStrategyKeyTypes(reduceNode.getPactContract().getKeyClasses());
 			break;
 		case COMBININGSORT:
 			reduceConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
+			reduceConfig.setLocalStrategyKeyTypes(0, reduceNode.getPactContract().getKeyColumnNumbers(0));
+			reduceConfig.setLocalStrategyKeyTypes(reduceNode.getPactContract().getKeyClasses());
 			break;
 		case NONE:
 			reduceConfig.setLocalStrategy(LocalStrategy.NONE);
@@ -687,8 +700,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @param inputVertex
 	 * @throws CompilerException
 	 */
-	private void connectWithForwardStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+	private void connectWithForwardStrategy(PactConnection connection, int inputNumber,
+			AbstractJobVertex outputVertex,	AbstractJobVertex inputVertex)
+	throws CompilerException, JobGraphDefinitionException {
 		// TODO: currently we do a 1-to-1 mapping one the same instance. Hence, we use INMEMORY channels
 		// We should add the possibility to distribute the load to multiple machines (one local, x remote)
 
@@ -717,7 +731,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, inputNumber, outputVertex, inputVertex);
 
 	}
 
@@ -728,25 +742,23 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 * @throws JobGraphDefinitionException
 	 */
-	private void connectWithPartitionStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+	private void connectWithPartitionStrategy(PactConnection connection, int inputNumber,
+			AbstractJobVertex outputVertex,	AbstractJobVertex inputVertex)
+	throws CompilerException, JobGraphDefinitionException
+	{
 		// check if shipStrategy suits child
-		switch (connection.getTargetPact().getPactType()) {
+		switch (connection.getTargetPact().getPactType())
+		{
 		case Map:
 			// ok (Partitioning before map increases data volume)
-			break;
 		case Reduce:
 			// ok (Default)
-			break;
 		case Match:
 			// ok (Partitioning exist already or forward for broadcast)
-			break;
 		case Cross:
 			// ok (Partitioning with broadcast before cross increases data volume)
-			break;
 		case Cogroup:
 			// ok (Default)
-			break;
 		case DataSink:
 			// ok
 			break;
@@ -755,7 +767,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, inputNumber, outputVertex, inputVertex);
 	}
 
 	/**
@@ -765,8 +777,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 * @throws JobGraphDefinitionException
 	 */
-	private void connectWithBroadcastStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+	private void connectWithBroadcastStrategy(PactConnection connection, int inputNumber,
+			AbstractJobVertex outputVertex,	AbstractJobVertex inputVertex)
+	throws CompilerException, JobGraphDefinitionException
+	{
 		// check if shipStrategy suits child
 		switch (connection.getTargetPact().getPactType()) {
 		case Match:
@@ -780,7 +794,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, inputNumber, outputVertex, inputVertex);
 	}
 
 	/**
@@ -790,8 +804,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 * @throws JobGraphDefinitionException
 	 */
-	private void connectWithSFRStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+	private void connectWithSFRStrategy(PactConnection connection,
+			AbstractJobVertex outputVertex, AbstractJobVertex inputVertex)
+	throws CompilerException, JobGraphDefinitionException
+	{
 		// check if shipStrategy suits child
 		switch (connection.getTargetPact().getPactType()) {
 		case Cross:
@@ -985,8 +1001,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException
 	 * @throws CompilerException
 	 */
-	private void connectJobVertices(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws JobGraphDefinitionException, CompilerException {
+	private void connectJobVertices(PactConnection connection, int inputNumber,
+			AbstractJobVertex outputVertex, AbstractJobVertex inputVertex)
+	throws JobGraphDefinitionException, CompilerException
+	{
 		ChannelType channelType = null;
 
 		switch (connection.getShipStrategy()) {
@@ -1014,6 +1032,19 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		TaskConfig tempConfig = null;
+		
+		final int[] keyPositions;
+		final Class<? extends Key>[] keyTypes;
+		
+		final Contract targetContract = connection.getTargetPact().getPactContract();
+		if (targetContract instanceof AbstractPact<?>) {
+			AbstractPact<?> pact = (AbstractPact<?>) targetContract;
+			keyPositions = pact.getKeyColumnNumbers(inputNumber);
+			keyTypes = pact.getKeyClasses();
+		} else {
+			keyPositions = null;
+			keyTypes = null;
+		}
 
 		switch (connection.getTempMode()) {
 		case NONE:
@@ -1022,7 +1053,11 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			// set ship strategy in vertex and child
 
 			// set strategies in task configs
-			outputConfig.addOutputShipStrategy(connection.getShipStrategy());
+			if ( (keyPositions == null | keyTypes == null) || (keyPositions.length == 0 | keyTypes.length == 0)) {
+				outputConfig.addOutputShipStrategy(connection.getShipStrategy());
+			} else {
+				outputConfig.addOutputShipStrategy(connection.getShipStrategy(), keyPositions, keyTypes);
+			}
 			inputConfig.addInputShipStrategy(connection.getShipStrategy());
 			break;
 		case TEMP_SENDER_SIDE:
@@ -1093,7 +1128,4 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		config.setMemorySize(memSize * 1024L * 1024L);
 		config.setNumFilehandles(DEFAULT_MERGE_FACTOR);
 	}
-
-	// ------------------------------------------------------------------------
-
 }

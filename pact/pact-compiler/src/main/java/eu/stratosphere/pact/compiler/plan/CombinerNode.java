@@ -81,6 +81,11 @@ public class CombinerNode extends OptimizerNode {
 			default:	        return 0;
 		}
 	}
+	
+	@Override
+	public ReduceContract getPactContract() {
+		return (ReduceContract) super.getPactContract();
+	}
 
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
