@@ -84,4 +84,9 @@ public class IntNode extends NumericNode {
 		return true;
 	}
 
+	@Override
+	public TYPES getType() {
+		return TYPES.DoubleNode;
+	}
+	
 }

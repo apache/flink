@@ -172,4 +172,9 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		 return this.children.toArray(new JsonNode[this.children.size()]);
 	 }
 
+	@Override
+	public TYPES getType() {
+		return TYPES.ArrayNode;
+	}
+
 }

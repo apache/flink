@@ -92,5 +92,10 @@ public class TextNode extends JsonNode {
 	public boolean isTextual() {
 		return true;
 	}
+	
+	@Override
+	public TYPES getType() {
+		return TYPES.TextNode;
+	}
 
 }

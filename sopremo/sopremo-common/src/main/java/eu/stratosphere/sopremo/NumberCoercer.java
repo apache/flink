@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.eclipse.jetty.util.ajax.JSONPojoConvertor.NumberType;
-
 import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
 import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
 import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
@@ -20,7 +18,7 @@ import eu.stratosphere.sopremo.jsondatamodel.LongNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 public final class NumberCoercer {
-	private static final int NUMBER_TYPES_COUNT = JsonNode.TYPES.values().length;
+//	private static final int NUMBER_TYPES_COUNT = JsonNode.TYPES.values().length;
 
 	/**
 	 * The default instance.
@@ -29,7 +27,7 @@ public final class NumberCoercer {
 
 //	private final NumberType[][] typeCoerceMatrix = new NumberType[NUMBER_TYPES_COUNT][NUMBER_TYPES_COUNT];
 //
-	private final Map<JsonNode.TYPES, Coercer> coercers = new HashMap<JsonNode.TYPES, Coercer>();
+	private final Map<JsonNode.TYPES, Coercer> coercers = new EnumMap<JsonNode.TYPES, Coercer>(JsonNode.TYPES.class);
 //
 //	private final Map<Class<? extends JsonNode>, Coercer> classCoercers = new IdentityHashMap<Class<? extends JsonNode>, Coercer>();
 //
@@ -110,7 +108,7 @@ public final class NumberCoercer {
 		return (T) this.classCoercers.get(targetType).coerce(node);
 	}
 
-	JsonNode coerceGeneric(final JsonNode node, final NumberType targetType) {
+	JsonNode coerceGeneric(final JsonNode node, final int targetType) {
 		return this.coercers.get(targetType).coerce(node);
 	}
 
@@ -122,8 +120,8 @@ public final class NumberCoercer {
 //		return this.typeCoerceMatrix[leftType.ordinal()][rightType.ordinal()];
 //	}
 
-	public int getWiderType(final JsonNode leftType, final JsonNode rightType) {
-		return leftType.getTypePos() >= rightType.getTypePos() ? leftType.getTypePos() : rightType.getTypePos();
+	public TYPES getWiderType(final JsonNode leftType, final JsonNode rightType) {
+		return leftType.getTypePos() >= rightType.getTypePos() ? leftType.getType() : rightType.getType();
 	}
 
 //	public Class<? extends JsonNode> getImplementationType(final NumberType type) {

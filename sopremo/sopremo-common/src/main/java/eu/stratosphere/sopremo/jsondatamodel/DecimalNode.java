@@ -92,5 +92,10 @@ public class DecimalNode extends NumericNode {
 	public boolean isFloatingPointNumber() {
 		return true;
 	}
+	
+	@Override
+	public TYPES getType() {
+		return TYPES.DecimalNode;
+	}
 
 }

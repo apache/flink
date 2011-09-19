@@ -85,4 +85,9 @@ public class BigIntegerNode extends NumericNode {
 		return true;
 	}
 	
+	@Override
+	public TYPES getType() {
+		return TYPES.BigIntegerNode;
+	}
+	
 }

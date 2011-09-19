@@ -43,6 +43,8 @@ public abstract class JsonNode implements Serializable, Value {
 	public abstract boolean equals(Object o);
 
 	public abstract int getTypePos();
+	
+	public abstract JsonNode.TYPES getType();
 
 	public JsonNode canonicalize() {
 		return this;

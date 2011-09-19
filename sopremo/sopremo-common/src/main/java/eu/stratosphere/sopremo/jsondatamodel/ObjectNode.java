@@ -195,5 +195,10 @@ public class ObjectNode extends JsonNode {
 	public Iterator<Entry<String, JsonNode>> getFields() {
 		return this.children.entrySet().iterator();
 	}
+	
+	@Override
+	public TYPES getType() {
+		return TYPES.ObjectNode;
+	}
 
 }

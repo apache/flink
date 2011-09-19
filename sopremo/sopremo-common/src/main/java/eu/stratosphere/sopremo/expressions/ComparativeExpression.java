@@ -149,7 +149,7 @@ public class ComparativeExpression extends BooleanExpression {
 		public boolean evaluate(final JsonNode e1, final JsonNode e2) {
 			if (e1.getClass() != e2.getClass()) {
 				if (e1 instanceof NumericNode && e2 instanceof NumericNode) {
-					final NumberType widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
+					final JsonNode.TYPES widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
 					return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(
 						NumberCoercer.INSTANCE.coerce((NumericNode) e1, widerType),
 						NumberCoercer.INSTANCE.coerce((NumericNode) e2, widerType),

@@ -73,5 +73,10 @@ public class LongNode extends NumericNode {
 	public boolean isIntegralNumber() {
 		return true;
 	}
+	
+	@Override
+	public TYPES getType() {
+		return TYPES.LongNode;
+	}
 
 }
