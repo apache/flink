@@ -691,7 +691,7 @@ public class ByteBufferedChannelManager {
 	 * @param byteBufferedChannelManager
 	 * @param fileInputChannel
 	 * @param sourceChannelID 
-	 * @return
+	 * @return CheckpointOutgoingConnection
 	 */
 	public CheckpointOutgoingConnection createOutgoingCheckpointConnection(
 			ByteBufferedChannelManager byteBufferedChannelManager, FileChannel fileInputChannel, ChannelID sourceChannelID) {
@@ -710,5 +710,14 @@ public class ByteBufferedChannelManager {
 			e.printStackTrace();
 		}
 		return null;
+	}
+
+	/**
+	 * @param 
+	 */
+	public void clear(ChannelID channelID) {
+		ByteBufferedChannelWrapper wrapper = this.registeredChannels.get(channelID);
+			wrapper.clear();
+		
 	}
 }

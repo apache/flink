@@ -153,7 +153,9 @@ public class ChannelCheckpoint {
 		if (this.fileChannel != null) {
 			this.fileChannel.close();
 		}
-
+		if(this.outgoingConnection != null){
+			this.outgoingConnection.markfinished();
+		}
 		this.checkpointFinished = true;
 	}
 

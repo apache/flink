@@ -322,8 +322,9 @@ public class ExecutionVertex {
 	public synchronized int getNumberOfSuccessors() {
 
 		int numberOfSuccessors = 0;
-
+		LOG.info(this.environment.getNumberOfOutputGates());
 		for (int i = 0; i < this.environment.getNumberOfOutputGates(); i++) {
+			LOG.info(this.environment.getOutputGate(i).getNumberOfOutputChannels());
 			numberOfSuccessors += this.environment.getOutputGate(i).getNumberOfOutputChannels();
 		}
 

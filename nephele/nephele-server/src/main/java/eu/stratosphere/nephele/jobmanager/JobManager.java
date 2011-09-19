@@ -737,7 +737,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// TODO: Start vertex if in lazy mode
 
 		final AbstractInstance assignedInstance = vertex.getAllocatedResource().getInstance();
-		System.out.println("-- " + assignedInstance.getName() + " found");
 		if (assignedInstance == null) {
 			LOG.debug("Cannot resolve lookup: vertex found for channel ID " + targetChannelID
 				+ " but no instance assigned");
@@ -948,7 +947,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		if(newJobStatus == InternalJobStatus.RECOVERING){
 			try {
 				RecoveryThread recoverythread = new RecoveryThread(executionGraph, this);
-				recoverythread.run();
+				recoverythread.start();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

@@ -194,4 +194,11 @@ public class MemoryBuffer implements InternalBuffer {
 
 		return duplicatedMemoryBuffer;
 	}
+
+
+	@Override
+	public void rewind() {
+		
+		this.byteBuffer.rewind();
+	}
 }

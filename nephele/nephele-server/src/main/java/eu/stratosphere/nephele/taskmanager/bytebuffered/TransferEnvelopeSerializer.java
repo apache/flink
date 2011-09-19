@@ -209,6 +209,7 @@ public class TransferEnvelopeSerializer {
 				buffer.read(writableByteChannel);
 
 				if (!buffer.hasRemaining()) {
+					buffer.rewind();
 					this.serializationState = SerializationState.FULLYSERIALIZED;
 					return false;
 				}

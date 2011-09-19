@@ -350,4 +350,9 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 			buffersToRecycle.poll().recycleBuffer();
 		}
 	}
+	
+	public void clear(){
+		releaseAllResources();
+		this.nextExpectedSequenceNumber = 0;
+	}
 }

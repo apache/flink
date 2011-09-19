@@ -283,5 +283,9 @@ public class FileBuffer implements InternalBuffer {
 
 		throw new RuntimeException("Not yet implemented");
 	}
-
+	
+	@Override
+	public void rewind() {
+		//nothing to do here
+	}
 }

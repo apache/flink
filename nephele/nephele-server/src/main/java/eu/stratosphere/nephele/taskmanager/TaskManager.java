@@ -1015,9 +1015,24 @@ public class TaskManager implements TaskOperationProtocol {
 	}
 
 	@Override
-	public void restart(ExecutionVertexID executionVertexID) {
+	public void restart(ExecutionVertexID executionVertexID,Configuration jobConfiguration ) {
 		Environment ee = this.runningTasks.remove(executionVertexID);
+		//unregisterTask(executionVertexID, ee);
 		ee.restartExecution();
+		
+		for(int i =0; i< ee.getNumberOfInputGates();i++){
+			InputGate<? extends Record> ingate = ee.getInputGate(i);
+			for(int j= 0; j < ingate.getNumberOfInputChannels(); j++){
+				this.byteBufferedChannelManager.clear(ingate.getInputChannel(j).getID());
+			}
+		}
+		for(int i =0; i< ee.getNumberOfOutputGates();i++){
+			OutputGate<? extends Record> outgate = ee.getOutputGate(i);
+			for(int j= 0; j < outgate.getNumberOfOutputChannels(); j++){
+				this.byteBufferedChannelManager.clear(outgate.getOutputChannel(j).getID());
+			}
+		}
+		//registerTask(executionVertexID, jobConfiguration, ee);
 	}
 
 }

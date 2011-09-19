@@ -106,7 +106,7 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 			}
 
 			this.recordLength = byteArrayToInt(this.lengthBuf.array());
-			System.out.println("INCOMING record length " + this.recordLength);
+			//System.out.println("INCOMING record length " + this.recordLength);
 
 			if (this.tempBuffer == null) {
 				this.tempBuffer = ByteBuffer.allocate(this.recordLength);

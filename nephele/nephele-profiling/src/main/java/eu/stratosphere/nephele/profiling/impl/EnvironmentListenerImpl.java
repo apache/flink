@@ -53,6 +53,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 		case FINISHED:
 		case CANCELING:
 		case CANCELED:
+		case RESTARTING:
 		case FAILED:
 			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(ee, ee.getExecutingThread());
 			break;

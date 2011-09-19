@@ -359,7 +359,7 @@ public class Environment implements Runnable, IOReadableWritable {
 			}
 
 		} catch (Exception e) {
-			if(!this.restarting){
+			
 			if (!this.isCanceled) {
 
 				// Perform clean up when the task failed and has been not canceled by the user
@@ -369,16 +369,16 @@ public class Environment implements Runnable, IOReadableWritable {
 					LOG.error(StringUtils.stringifyException(e2));
 				}
 			}
-
+			if(!this.restarting){
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
-
+			}
 			if (this.isCanceled) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
 				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
 			}
-			}
+			
 			return;
 		}
 
@@ -560,9 +560,10 @@ public class Environment implements Runnable, IOReadableWritable {
 			LOG.error(StringUtils.stringifyException(e));
 		}
 
-		
-		this.executingThread.interrupt();
-		
+		while(this.isCanceled){
+
+			this.executingThread.interrupt();
+		}
 	
 		LOG.info("Execution canceled");
 		this.isCanceled= false;
@@ -934,7 +935,8 @@ public class Environment implements Runnable, IOReadableWritable {
 			return;
 		}
 		if(this.executionState== ExecutionState.RESTARTING && newExecutionState == ExecutionState.CANCELED){
-			//ignore canceled state here
+			
+			this.isCanceled = false;
 			return;
 		}
 

@@ -126,7 +126,7 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 
 			// Look for a close event
 			final EventList eventList = outgoingTransferEnvelope.getEventList();
-			if (!eventList.isEmpty() && this.commonChannelType == ChannelType.FILE) {
+			if (!eventList.isEmpty()) {
 
 				final Iterator<AbstractEvent> it = eventList.iterator();
 				while (it.hasNext()) {
@@ -149,13 +149,8 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 		// Check if the provided envelope must be sent via the network
 		if (processingLog.mustBeSentViaNetwork() && !processingLog.isSentViaNetwork()) {
 			//If we just want to finish the checkpoint mark the envelope as send.
-//			if(this.finishCheckpoint){
-//				System.out.println("FINSIHING CHECKPOINT");
-//				outgoingTransferEnvelope.getProcessingLog().isSentViaNetwork();
-//				
-//			}else{
 				this.byteBufferedChannelManager.queueOutgoingTransferEnvelope(outgoingTransferEnvelope);
-//			}
+
 		}
 
 		if (outgoingTransferEnvelope.getBuffer() != null) {

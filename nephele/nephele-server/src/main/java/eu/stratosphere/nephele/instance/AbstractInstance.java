@@ -298,13 +298,15 @@ public abstract class AbstractInstance extends NetworkNode {
 	/**
 	 * @param id the ExecutionVertexId of the Vertex to restart 
 	 */
-	public void restart(ExecutionVertexID executionVertexID ){
+	public void restart(ExecutionVertexID executionVertexID , Configuration jobConfiguration){
 		
 		
 		try {
-			getTaskManager().restart(executionVertexID);
+			getTaskManager().restart(executionVertexID,jobConfiguration);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
+
+
 }

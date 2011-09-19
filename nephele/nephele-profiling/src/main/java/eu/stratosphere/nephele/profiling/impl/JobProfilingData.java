@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.types.InstanceSummaryProfilingEvent;
@@ -85,7 +86,8 @@ public class JobProfilingData {
 			final ExecutionGroupVertex groupVertex = it.next();
 			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
 				final ExecutionVertex executionVertex = groupVertex.getGroupMember(i);
-				tempSet.add(executionVertex.getAllocatedResource().getInstance());
+				AllocatedResource allocatedResource = executionVertex.getAllocatedResource();
+				tempSet.add(allocatedResource.getInstance());
 			}
 		}
 

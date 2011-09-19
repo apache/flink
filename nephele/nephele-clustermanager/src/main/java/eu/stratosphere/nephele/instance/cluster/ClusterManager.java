@@ -673,7 +673,7 @@ public class ClusterManager implements InstanceManager {
 	public synchronized void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo,
 			HardwareDescription hardwareDescription) {
 
-		ClusterInstance host = registeredHosts.get(instanceConnectionInfo);
+		ClusterInstance host = this.registeredHosts.get(instanceConnectionInfo);
 
 		// check whether we have discovered a new host
 		if (host == null) {
@@ -711,7 +711,7 @@ public class ClusterManager implements InstanceManager {
 
 			for (int i = 0; i < entry.getValue().intValue(); i++) {
 
-				LOG.info("Trying to allocate instance of type " + entry.getKey().getIdentifier());
+				LOG.info("Trying to allocate "+entry.getValue().intValue() + " instances of type " + entry.getKey().getIdentifier());
 
 				// TODO: Introduce topology awareness here
 				// TODO: Daniel: Code taken from AbstractScheduler..
@@ -720,6 +720,7 @@ public class ClusterManager implements InstanceManager {
 				// Try to match the instance type without slicing first
 				for (final ClusterInstance host : this.registeredHosts.values()) {
 					if (host.getType().equals(entry.getKey())) {
+						LOG.info("Created slice on " + host.getName());
 						slice = host.createSlice(entry.getKey(), jobID);
 						if (slice != null) {
 							break;
@@ -755,7 +756,7 @@ public class ClusterManager implements InstanceManager {
 						this.instanceListener, slice);
 					clusterInstanceNotifier.start();
 				}
-				return;
+				
 			}
 
 		}

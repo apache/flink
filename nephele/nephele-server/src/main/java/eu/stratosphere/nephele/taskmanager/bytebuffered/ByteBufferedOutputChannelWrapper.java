@@ -320,4 +320,16 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 	public  ByteBufferedOutputChannelGroup getChannelGroup(){
 		return this.byteBufferedOutputChannelGroup;
 	}
+	
+	public void clear(){
+		//mark as written to recycle buffer
+		if(this.outgoingTransferEnvelope != null){
+			this.outgoingTransferEnvelope.getProcessingLog().setSentViaNetwork();
+			this.outgoingTransferEnvelope = null;
+		}
+		this.sequenceNumber = 0;
+		if(this.uncompressedDataBuffer != null){
+			this.uncompressedDataBuffer.recycleBuffer();
+		}
+	}
 }

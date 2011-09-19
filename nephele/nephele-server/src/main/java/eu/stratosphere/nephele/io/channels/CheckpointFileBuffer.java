@@ -168,4 +168,9 @@ public class CheckpointFileBuffer implements InternalBuffer {
 
 		throw new IllegalStateException("duplicate called on CheckpointFileBuffer");
 	}
+	@Override
+	public void rewind() {
+		
+		//nothing to do here
+	}
 }

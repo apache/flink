@@ -53,6 +53,7 @@ public class CheckpointOutgoingConnection extends OutgoingConnection {
 	private boolean isSubscribedToWriteEvent= false;
 	private final int bufferSizeInBytes;
 	private long eof = 0;
+	private boolean finished = false;
 	/**
 	 * Initializes CheckpointOutgoingConnection.
 	 *
@@ -104,18 +105,20 @@ public class CheckpointOutgoingConnection extends OutgoingConnection {
 		LOG.info("position" + this.readableByteChannel.position() + " transfered " + this.eof);
 		LOG.info(this.readableByteChannel.size());
 		//FileLock lock = this.readableByteChannel.lock();
-	//	this.eof = this.readableByteChannel.read(this.tempBuffer,this.bytesread);
 		this.eof = this.readableByteChannel.transferTo(this.bytesread,this.readableByteChannel.size(),writableByteChannel );
 		//lock.release();
-//		try{
-//		int written = writableByteChannel.write(this.tempBuffer);
-//		this.tempBuffer.clear();
-//		
-//		
-//		}catch(NonWritableChannelException e){
-//			
-//		}
-		LOG.info("position" + this.readableByteChannel.position() + " transfered " + this.eof + " ALL " + this.bytesread);
+		if(this.eof == 0){
+			if(this.finished && this.readableByteChannel.size() == this.bytesread){
+				throw new EOFException();
+			}
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
+		LOG.info(" transfered " + this.eof + " ALL " + this.bytesread);
 		this.bytesread += this.eof;
 		
 		return true;
@@ -129,6 +132,11 @@ public class CheckpointOutgoingConnection extends OutgoingConnection {
 	 *        the selection of the underlying TCP connection
 	 */
 	public void setSelectionKey(SelectionKey selectionKey) {
+		super.setSelectionKey(selectionKey);
 		this.selectionKey = selectionKey;
+	}
+	
+	public void markfinished(){
+		this.finished  = true;
 	}
 }

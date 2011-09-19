@@ -31,4 +31,6 @@ public interface ByteBufferedChannelWrapper {
 	public ChannelID getConnectedChannelID();
 
 	public void reportIOException(IOException ioe);
+	
+	public void clear();
 }

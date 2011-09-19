@@ -132,5 +132,5 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	/**
 	 * @param executionVertexID
 	 */
-	void restart(ExecutionVertexID executionVertexID);
+	void restart(ExecutionVertexID executionVertexID,Configuration jobConfiguration );
 }

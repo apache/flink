@@ -101,7 +101,7 @@ public class AllocatedResource {
 		if (obj instanceof AllocatedResource) {
 
 			final AllocatedResource allocatedResource = (AllocatedResource) obj;
-			if (!this.instance.equals(allocatedResource.getInstance())) {
+			if (!this.instance.equals(allocatedResource.getInstance())) {				
 				return false;
 			}
 
@@ -143,4 +143,5 @@ public class AllocatedResource {
 
 		return this.allocationID.hashCode();
 	}
+	
 }

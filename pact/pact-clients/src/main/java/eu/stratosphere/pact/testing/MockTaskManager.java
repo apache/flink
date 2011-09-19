@@ -235,7 +235,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	}
 
 	@Override
-	public void restart(ExecutionVertexID executionVertexID) {
+	public void restart(ExecutionVertexID executionVertexID, Configuration jobConfiguration) {
 	}
 
 }

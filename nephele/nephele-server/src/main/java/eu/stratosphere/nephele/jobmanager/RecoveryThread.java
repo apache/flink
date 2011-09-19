@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -93,14 +94,20 @@ public class RecoveryThread extends Thread {
 			LOG.error("No failed vertices to recover" );
 		}
 		Iterator<ExecutionVertex> vertexIter = this.failedVertices.iterator();
-		//Change InputChannels for every Vertex
+	
 		while(vertexIter.hasNext()){
 			
 			
 //			ArrayList<AbstractInputChannel> channels = new ArrayList<AbstractInputChannel>();
 			ExecutionVertex failed = vertexIter.next();
-			List<ExecutionVertex> restart = findRestarts(failed);
 			
+			LOG.info("Staring Recovery for " + failed);
+			List<ExecutionVertex> restart = findRestarts(failed);
+			if(restart.size() < 2 ){
+				LOG.info("No other Vertices have to be restarted?");
+			}else{
+				LOG.info(restart.size());
+			}
 			
 			Iterator<ExecutionVertex> restartIterator = restart.iterator();
 			while(restartIterator.hasNext()){
@@ -109,7 +116,7 @@ public class RecoveryThread extends Thread {
 				if(!vertex.equals(failed)){
 				LOG.info("---------------");
 				LOG.info("Restarting " + vertex.getName() );
-				vertex.getAllocatedResource().getInstance().restart(vertex.getID());
+				vertex.getAllocatedResource().getInstance().restart(vertex.getID(), job.getJobConfiguration());
 				LOG.info("---------------");
 				}
 				
@@ -139,33 +146,44 @@ public class RecoveryThread extends Thread {
 	 * @return
 	 */
 	private List<ExecutionVertex> findRestarts(ExecutionVertex failed) {
+		LOG.info("in findRestarts");
 		ArrayList<ExecutionVertex> restart = new ArrayList<ExecutionVertex>();
-		Queue<ExecutionVertex> totest = new PriorityQueue<ExecutionVertex>();
+		Queue<ExecutionVertex> totest = new ArrayDeque<ExecutionVertex>();
 		ArrayList<ExecutionVertex> visited = new ArrayList<ExecutionVertex>();
+		
 		totest.add(failed);
-		
-		
+		int k= 0;
+		LOG.info("added totest");
+		ExecutionVertex vertex = failed;
 		while(!totest.isEmpty()){
 			//Add all followers
-			ExecutionVertex vertex = totest.poll();
-			System.out.println("Testing " + vertex.getName());
+			
+			LOG.info("in while");
+			if(k!=0){
+			 vertex = totest.peek();
+			}
+			LOG.info("Testing " + vertex.getName() );
+			k++;
+			totest.remove(vertex);
 			if(!restart.contains(vertex)){
 				restart.add(vertex);
 			}
 			for(int i = 0; i < vertex.getNumberOfSuccessors(); i++){
 				ExecutionVertex successor = vertex.getSuccessor(i);
+				restart.add(successor);
+				LOG.info("add " + successor.getName() + " torestart");
 				//totest.add(successor);
 				if(successor.isCheckpoint()){
 					this.checkpoints.remove(successor);
 				}
-				restart.add(successor);
-				LOG.info("add " + successor.getName() + " torestart");
+				
 				List<ExecutionVertex> follower = findFollowers(successor, restart);
 				restart.addAll(follower);
 				Iterator<ExecutionVertex> iter = follower.iterator();
 				while(iter.hasNext()){
 					ExecutionVertex follow = iter.next();
 					if(!visited.contains(follow)){
+						LOG.info("add totest" + follow.getName());
 						totest.add(follow);
 					}
 				}
@@ -178,6 +196,7 @@ public class RecoveryThread extends Thread {
 					restart.add(predecessor);
 					if(!visited.contains(predecessor)){
 						totest.add(predecessor);
+						LOG.info("add totest" + predecessor);
 					}
 				}else{
 					if(!this.globalConsistentCheckpoint.contains(predecessor)){
@@ -193,6 +212,7 @@ public class RecoveryThread extends Thread {
 					while(iter.hasNext()){
 						ExecutionVertex follow = iter.next();
 						if(!visited.contains(follow)){
+							LOG.info("add totest" + follow.getName());
 							totest.add(follow);
 						}
 					}
@@ -203,7 +223,7 @@ public class RecoveryThread extends Thread {
 		}
 		
 		
-		
+		LOG.info("finderestartsfinished");
 		
 		return restart;
 	}

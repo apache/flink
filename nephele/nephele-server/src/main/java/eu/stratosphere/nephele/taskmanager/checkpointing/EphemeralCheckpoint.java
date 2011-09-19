@@ -405,7 +405,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			
 			while (it.hasNext()) {
 				ChannelCheckpoint next = it.next();
-				LOG.info("Creating permanent channel " + next.getSourceChannelID());
+				//LOG.info("Creating permanent channel " + next.getSourceChannelID());
 				this.checkpointManager.reportPersistenCheckpoint(this.executionVertexID,next.getSourceChannelID() );
 				next.makePersistent();
 			}
