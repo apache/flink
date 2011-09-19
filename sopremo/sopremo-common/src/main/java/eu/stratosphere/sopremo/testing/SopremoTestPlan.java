@@ -54,31 +54,31 @@ public class SopremoTestPlan {
 		this.initInputsAndOutputs(numInputs, numOutputs);
 	}
 
-	public SopremoTestPlan(final Operator... sinks) {
+	public SopremoTestPlan(final Operator<?>... sinks) {
 		final List<JsonStream> unconnectedOutputs = new ArrayList<JsonStream>();
-		final List<Operator> unconnectedInputs = new ArrayList<Operator>();
-		for (final Operator operator : sinks) {
+		final List<Operator<?>> unconnectedInputs = new ArrayList<Operator<?>>();
+		for (final Operator<?> operator : sinks) {
 			unconnectedOutputs.addAll(operator.getOutputs());
 			if(operator instanceof Sink)
 				unconnectedOutputs.add(operator);
 		}
 
-		for (final Operator operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
+		for (final Operator<?> operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
 			if (operator instanceof Source)
 				unconnectedInputs.add(operator);
 			else
-				for (final Operator.Output input : operator.getInputs())
+				for (final Operator<?>.Output input : operator.getInputs())
 					if (input == null)
 						unconnectedInputs.add(operator);
 
 		this.inputs = new Input[unconnectedInputs.size()];
 		for (int index = 0; index < this.inputs.length; index++) {
 			this.inputs[index] = new Input(index);
-			final Operator unconnectedNode = unconnectedInputs.get(index);
+			final Operator<?> unconnectedNode = unconnectedInputs.get(index);
 			if (unconnectedNode instanceof Source)
 				this.setInputOperator(index, (Source) unconnectedNode);
 			else {
-				final List<Operator.Output> missingInputs = new ArrayList<Operator.Output>(unconnectedNode.getInputs());
+				final List<Operator<?>.Output> missingInputs = new ArrayList<Operator<?>.Output>(unconnectedNode.getInputs());
 				for (int missingIndex = 0; missingIndex < missingInputs.size(); missingIndex++)
 					if (missingInputs.get(missingIndex) == null) {
 						missingInputs.set(missingIndex, this.inputs[index].getOperator().getOutput(0));
@@ -254,7 +254,7 @@ public class SopremoTestPlan {
 		}
 	}
 
-	static class Channel<O extends Operator, C extends Channel<O, C>> {
+	static class Channel<O extends Operator<?>, C extends Channel<O, C>> {
 		private final TestPairs<PactJsonObject.Key, PactJsonObject> pairs = new TestPairs<PactJsonObject.Key, PactJsonObject>();
 
 		private O operator;

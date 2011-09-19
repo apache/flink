@@ -8,6 +8,11 @@ import eu.stratosphere.sopremo.TypeCoercer;
 
 public class TernaryExpression extends EvaluationExpression {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7083052112301970387L;
+
 	private EvaluationExpression ifClause, ifExpression, thenExpression;
 
 	public TernaryExpression(EvaluationExpression ifClause, EvaluationExpression ifExpression,

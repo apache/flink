@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.pact;
 
 import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractTask;

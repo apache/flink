@@ -1,11 +1,11 @@
 package eu.stratosphere.sopremo.expressions;
 
 import junit.framework.Assert;
-import org.junit.Test;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.IntNode;
+import org.junit.Test;
 
 public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 

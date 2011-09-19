@@ -11,5 +11,5 @@ public interface JsonStream {
 	 * 
 	 * @return the soruce of the stream
 	 */
-	public Operator.Output getSource();
+	public Operator<?>.Output getSource();
 }

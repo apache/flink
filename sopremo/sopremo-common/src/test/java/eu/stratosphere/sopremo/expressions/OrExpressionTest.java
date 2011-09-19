@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import junit.framework.Assert;
+
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.IntNode;

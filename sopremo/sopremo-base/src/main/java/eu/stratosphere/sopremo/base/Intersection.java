@@ -22,11 +22,11 @@ public class Intersection extends SetOperation<Intersection> {
 	private static final long serialVersionUID = -2204883087931986053L;
 
 	@Override
-	protected Operator createElementaryOperations(final List<Operator> inputs) {
+	protected Operator<?> createElementaryOperations(final List<Operator<?>> inputs) {
 		if (inputs.size() <= 1)
 			return inputs.get(0);
 
-		Operator leftInput = inputs.get(0);
+		Operator<?> leftInput = inputs.get(0);
 		for (int index = 1; index < inputs.size(); index++)
 			leftInput = new TwoInputIntersection().withInputs(leftInput, inputs.get(index));
 
@@ -34,12 +34,12 @@ public class Intersection extends SetOperation<Intersection> {
 	}
 
 	@Override
-	protected EvaluationExpression getDefaultValueProjection(Output source) {
+	protected EvaluationExpression getDefaultValueProjection(Operator<?>.Output source) {
 		return source == getInput(0) ? EvaluationExpression.VALUE : EvaluationExpression.NULL;
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class TwoInputIntersection extends ElementaryOperator {
+	public static class TwoInputIntersection extends ElementaryOperator<TwoInputIntersection> {
 		/**
 		 * 
 		 */

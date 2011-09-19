@@ -21,8 +21,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
-import java.util.Enumeration;
 import java.util.Iterator;
 
 import junit.framework.AssertionFailedError;
@@ -41,7 +39,6 @@ import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.PersistenceType;
 import eu.stratosphere.sopremo.Sink;

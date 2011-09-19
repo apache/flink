@@ -11,16 +11,16 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> extends CompositeOperator {
+public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>> extends CompositeOperator<Self> {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -4054964985762240025L;
 
-	private final Map<Operator.Output, EvaluationExpression>
-			keyProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>(),
-			valueProjections = new IdentityHashMap<Operator.Output, EvaluationExpression>();
+	private final Map<Operator<?>.Output, EvaluationExpression>
+			keyProjections = new IdentityHashMap<Operator<?>.Output, EvaluationExpression>(),
+			valueProjections = new IdentityHashMap<Operator<?>.Output, EvaluationExpression>();
 
 	private EvaluationExpression defaultKeyProjection = EvaluationExpression.NULL;
 
@@ -33,14 +33,14 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 		final int numInputs = this.getInputOperators().size();
 		final SopremoModule module = new SopremoModule(this.getName(), numInputs, 1);
 
-		final List<Operator> inputs = new ArrayList<Operator>();
+		final List<Operator<?>> inputs = new ArrayList<Operator<?>>();
 		for (int index = 0; index < numInputs; index++)
 			inputs.add(new Projection().
 				withKeyTransformation(this.getKeyProjection(index)).
 				withValueTransformation(this.getValueProjection(index)).
 				withInputs(module.getInput(index)));
 
-		Operator lastOperator = this.createElementaryOperations(inputs);
+		Operator<?> lastOperator = this.createElementaryOperations(inputs);
 
 		if (resetKey)
 			lastOperator = new Projection().
@@ -60,12 +60,12 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 	}
 
 	@SuppressWarnings("unchecked")
-	public Op withResetKey(boolean resetKey) {
+	public Self withResetKey(boolean resetKey) {
 		setResetKey(resetKey);
-		return (Op) this;
+		return (Self) this;
 	}
 
-	protected abstract Operator createElementaryOperations(List<Operator> inputs);
+	protected abstract Operator<?> createElementaryOperations(List<Operator<?>> inputs);
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -79,11 +79,11 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 		return this.keyProjections.equals(other.keyProjections) && this.valueProjections.equals(other.valueProjections);
 	}
 
-	protected EvaluationExpression getDefaultKeyProjection(final Output source) {
+	protected EvaluationExpression getDefaultKeyProjection(final Operator<?>.Output source) {
 		return this.defaultKeyProjection;
 	}
 
-	protected EvaluationExpression getDefaultValueProjection(final Output source) {
+	protected EvaluationExpression getDefaultValueProjection(final Operator<?>.Output source) {
 		return this.defaultValueProjection;
 	}
 
@@ -92,7 +92,7 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 	}
 
 	protected EvaluationExpression getKeyProjection(final JsonStream input) {
-		final Output source = input == null ? null : input.getSource();
+		final Operator<?>.Output source = input == null ? null : input.getSource();
 		EvaluationExpression keyProjection = this.keyProjections.get(source);
 		if (keyProjection == null)
 			keyProjection = this.getDefaultKeyProjection(source);
@@ -104,7 +104,7 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 	}
 
 	protected EvaluationExpression getValueProjection(final JsonStream input) {
-		final Output source = input == null ? null : input.getSource();
+		final Operator<?>.Output source = input == null ? null : input.getSource();
 		EvaluationExpression valueProjection = this.valueProjections.get(source);
 		if (valueProjection == null)
 			valueProjection = this.getDefaultValueProjection(source);
@@ -151,27 +151,24 @@ public abstract class MultiSourceOperator<Op extends MultiSourceOperator<Op>> ex
 	}
 
 	@SuppressWarnings("unchecked")
-	protected Op withValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
+	protected Self withValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
 		setValueProjection(inputIndex, valueProjection);
-		return (Op) this;
+		return (Self) this;
 	}
 
-	@SuppressWarnings("unchecked")
-	protected Op withKeyProjection(final int inputIndex, final EvaluationExpression valueProjection) {
+	protected Self withKeyProjection(final int inputIndex, final EvaluationExpression valueProjection) {
 		setKeyProjection(inputIndex, valueProjection);
-		return (Op) this;
+		return self();
 	}
 
-	@SuppressWarnings("unchecked")
-	public Op withValueProjection(final EvaluationExpression valueProjection) {
+	protected Self withValueProjection(final EvaluationExpression valueProjection) {
 		setDefaultValueProjection(valueProjection);
-		return (Op) this;
+		return self();
 	}
 
-	@SuppressWarnings("unchecked")
-	public Op withKeyProjection(final EvaluationExpression valueProjection) {
+	protected Self withKeyProjection(final EvaluationExpression valueProjection) {
 		setDefaultKeyProjection(valueProjection);
-		return (Op) this;
+		return self();
 	}
 	// @Override
 	// public String toString() {

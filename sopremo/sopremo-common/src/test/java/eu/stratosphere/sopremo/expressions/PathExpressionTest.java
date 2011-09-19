@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.Assert;
-
 import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.codehaus.jackson.JsonNode;
@@ -16,7 +15,6 @@ import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.TextNode;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;

@@ -19,6 +19,7 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
@@ -41,7 +42,7 @@ import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 
 @Name(verb = "join")
-public class Join extends CompositeOperator {
+public class Join extends CompositeOperator<Join> {
 	/**
 	 * 
 	 */
@@ -95,7 +96,7 @@ public class Join extends CompositeOperator {
 		else
 			joins = Arrays.asList(this.getTwoSourceJoinForExpression(this.condition, module));
 
-		final List<Operator> inputs = new ArrayList<Operator>();
+		final List<Operator<?>> inputs = new ArrayList<Operator<?>>();
 		for (int index = 0; index < numInputs; index++) {
 			final EvaluationExpression[] elements = new EvaluationExpression[numInputs];
 			Arrays.fill(elements, EvaluationExpression.NULL);
@@ -106,7 +107,7 @@ public class Join extends CompositeOperator {
 		}
 
 		for (final TwoSourceJoin twoSourceJoin : joins) {
-			final List<Output> operatorInputs = twoSourceJoin.getInputs();
+			List<Operator<?>.Output> operatorInputs = twoSourceJoin.getInputs();
 			final Output[] actualInputs = new Output[2];
 			List<Source> moduleInput = Arrays.asList(module.getInputs());
 			for (int index = 0; index < operatorInputs.size(); index++) {
@@ -388,7 +389,7 @@ public class Join extends CompositeOperator {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	static abstract class TwoSourceJoin extends CompositeOperator {
+	static abstract class TwoSourceJoin extends CompositeOperator<TwoSourceJoin> {
 		/**
 		 * 
 		 */

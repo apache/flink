@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
 
@@ -53,7 +52,7 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * @author Arvid Heise
  */
 @InputCardinality(min = 1, max = 1)
-public abstract class ElementaryOperator extends Operator {
+public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> extends Operator<Self> {
 	private static final org.apache.commons.logging.Log LOG = LogFactory.getLog(ElementaryOperator.class);
 
 	/**

@@ -2,11 +2,8 @@ package eu.stratosphere.sopremo.pact;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import java.util.Arrays;
 
-import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
 
@@ -23,8 +20,6 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 	private static final String FIELD_DELIMITER = "fieldDelimiter";
 
 	public static final String COLUMN_NAMES = "columnNames";
-
-	private CsvReader reader;
 
 	private char fieldDelimiter = ',';
 

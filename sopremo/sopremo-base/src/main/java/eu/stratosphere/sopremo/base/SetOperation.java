@@ -5,6 +5,11 @@ import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public abstract class SetOperation<Op extends SetOperation<Op>>  extends MultiSourceOperator<Op> {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -5431211249370548419L;
+
 	public SetOperation() {
 		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
 	}
@@ -21,7 +26,7 @@ public abstract class SetOperation<Op extends SetOperation<Op>>  extends MultiSo
 
 	public Op withIdentityKey(int inputIndex, EvaluationExpression identityKey) {
 		setIdentityKey(inputIndex, identityKey);
-		return (Op) this;
+		return self();
 	}
 	
 	@Override

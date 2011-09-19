@@ -4,7 +4,6 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
@@ -15,7 +14,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 @Name(verb = "select")
-public class Selection extends ElementaryOperator {
+public class Selection extends ElementaryOperator<Selection> {
 	/**
 	 * 
 	 */

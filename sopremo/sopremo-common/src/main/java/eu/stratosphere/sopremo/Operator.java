@@ -14,7 +14,6 @@ import java.beans.SimpleBeanInfo;
 import java.lang.reflect.Method;
 import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.ListIterator;
@@ -42,7 +41,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 */
 	private static final long serialVersionUID = 7808932536291658512L;
 
-	private transient List<Operator<Self>.Output> inputs = new ArrayList<Operator<Self>.Output>();
+	private transient List<Operator<?>.Output> inputs = new ArrayList<Operator<?>.Output>();
 
 	private String name;
 
@@ -84,7 +83,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 		try {
 			@SuppressWarnings("unchecked")
 			Operator<Self> clone = (Operator<Self>) super.clone();
-			clone.inputs = new ArrayList<Operator<Self>.Output>(this.inputs);
+			clone.inputs = new ArrayList<Operator<?>.Output>(this.inputs);
 			clone.outputs = new ArrayList<Operator<Self>.Output>(this.outputs);
 			return clone;
 		} catch (final CloneNotSupportedException e) {
@@ -209,7 +208,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 *        the index of the output
 	 * @return the output that produces the input of this operator at the given position
 	 */
-	public Output getInput(final int index) {
+	public Operator<?>.Output getInput(final int index) {
 		return this.inputs.get(index);
 	}
 
@@ -229,7 +228,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 
 			@Override
 			public int indexOf(final Object o) {
-				final ListIterator<Output> e = Operator.this.inputs.listIterator();
+				final ListIterator<Operator<?>.Output> e = Operator.this.inputs.listIterator();
 				while (e.hasNext())
 					if (o == e.next())
 						return e.previousIndex();
@@ -250,8 +249,8 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 * 
 	 * @return a list of outputs that produce the input of this operator
 	 */
-	public List<Output> getInputs() {
-		return new ArrayList<Output>(this.inputs);
+	public List<Operator<?>.Output> getInputs() {
+		return new ArrayList<Operator<?>.Output>(this.inputs);
 	}
 
 	public int getMaxInputs() {
@@ -294,7 +293,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 * @return all outputs of this operator
 	 */
 	public List<Output> getOutputs() {
-		return this.outputs;
+		return new ArrayList<Operator<Self>.Output>(this.outputs);
 	}
 
 	@Override
@@ -375,9 +374,14 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 *        the new inputs
 	 * @return this
 	 */
-	public Operator withInputs(final List<? extends JsonStream> inputs) {
+	public Self withInputs(final List<? extends JsonStream> inputs) {
 		setInputs(inputs);
-		return this;
+		return self();
+	}
+
+	@SuppressWarnings("unchecked")
+	protected final Self self() {
+		return (Self) this;
 	}
 
 	/**
@@ -387,9 +391,9 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 *        the new inputs
 	 * @return this
 	 */
-	public Operator withInputs(final JsonStream... inputs) {
+	public Self withInputs(final JsonStream... inputs) {
 		setInputs(inputs);
-		return this;
+		return self();
 	}
 
 	protected void setNumberOfInputs(int min, int max) {
@@ -468,6 +472,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 
 		private PropertyDescriptor[] properties;
 
+		@SuppressWarnings("rawtypes")
 		public Info(Class<? extends Operator> clazz) {
 			this.classDescriptor = new BeanDescriptor(clazz);
 			this.setNames(this.classDescriptor, clazz.getAnnotation(Name.class));
@@ -475,6 +480,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 			this.findProperties(clazz);
 		}
 
+		@SuppressWarnings("rawtypes")
 		private void findProperties(Class<? extends Operator> clazz) {
 			List<PropertyDescriptor> properties = new ArrayList<PropertyDescriptor>();
 			try {
@@ -555,7 +561,8 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 				return false;
 			if (this.getClass() != obj.getClass())
 				return false;
-			final Output other = (Output) obj;
+			@SuppressWarnings("unchecked")
+			final Operator<Self>.Output other = (Operator<Self>.Output) obj;
 			return this.index == other.index && this.getOperator() == other.getOperator();
 		}
 
@@ -573,7 +580,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 		 * 
 		 * @return the associated operator
 		 */
-		public Operator getOperator() {
+		public Operator<Self> getOperator() {
 			return Operator.this;
 		}
 

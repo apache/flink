@@ -4,7 +4,6 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser.NumberType;
 import org.codehaus.jackson.node.BooleanNode;
 import org.codehaus.jackson.node.NumericNode;
-import org.codehaus.jackson.node.TextNode;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;

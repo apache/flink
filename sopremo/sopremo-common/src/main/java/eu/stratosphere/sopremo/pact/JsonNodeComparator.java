@@ -54,7 +54,6 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		this.nodeComparators.put(MissingNode.class, cannotCompare);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public int compare(final JsonNode value1, final JsonNode value2) {
 		final Class<? extends JsonNode> class1 = value1.getClass();
@@ -64,6 +63,7 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		return compareStrict(value1, value2, class1);
 	}
 
+	@SuppressWarnings("unchecked")
 	public int compareStrict(final JsonNode value1, final JsonNode value2, final Class<? extends JsonNode> clazz) {
 		return this.nodeComparators.get(clazz).compare(value1, value2);
 	}

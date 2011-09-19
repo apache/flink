@@ -64,7 +64,7 @@ public class SopremoPlan {
 	 * 
 	 * @return all operators in this module
 	 */
-	public Iterable<? extends Operator> getContainedOperators() {
+	public Iterable<? extends Operator<?>> getContainedOperators() {
 		return this.module.getReachableNodes();
 	}
 

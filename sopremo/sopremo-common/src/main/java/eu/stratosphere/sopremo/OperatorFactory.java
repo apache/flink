@@ -12,13 +12,13 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 public class OperatorFactory {
-	private Map<String, OperatorInfo> operators = new HashMap<String, OperatorFactory.OperatorInfo>();
+	private Map<String, OperatorInfo<?>> operators = new HashMap<String, OperatorInfo<?>>();
 
-	public class OperatorInfo {
+	public class OperatorInfo<Op extends Operator<Op>> {
 
-		private Class<? extends Operator> operatorClass;
+		private Class<? extends Op> operatorClass;
 
-		public OperatorInfo(Class<? extends Operator> operatorClass) {
+		public OperatorInfo(Class<? extends Op> operatorClass) {
 			this.operatorClass = operatorClass;
 
 			try {
@@ -54,7 +54,7 @@ public class OperatorFactory {
 			return operatorProperties.get(name) != null;
 		}
 
-		public void setProperty(String name, Operator operator, EvaluationExpression expression) {
+		public void setProperty(String name, Op operator, EvaluationExpression expression) {
 			PropertyDescriptor propertyDescriptor = operatorProperties.get(name);
 			if (propertyDescriptor == null)
 				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
@@ -74,7 +74,7 @@ public class OperatorFactory {
 			return inputProperties.get(name) != null;
 		}
 
-		public void setInputProperty(String name, Operator operator, int inputIndex, EvaluationExpression expression) {
+		public void setInputProperty(String name, Op operator, int inputIndex, EvaluationExpression expression) {
 			PropertyDescriptor propertyDescriptor = inputProperties.get(name);
 			if (propertyDescriptor == null)
 				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
@@ -90,7 +90,7 @@ public class OperatorFactory {
 			}
 		}
 
-		public Operator newInstance() {
+		public Op newInstance() {
 			try {
 				return this.operatorClass.newInstance();
 			} catch (InstantiationException e) {
@@ -105,11 +105,12 @@ public class OperatorFactory {
 	public OperatorFactory() {
 	}
 
-	public OperatorInfo getOperatorInfo(String operator) {
+	public OperatorInfo<?> getOperatorInfo(String operator) {
 		return operators.get(operator.toLowerCase());
 	}
 
-	public void addOperator(Class<? extends Operator> operatorClass) {
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public void addOperator(Class<? extends Operator<?>> operatorClass) {
 		String name;
 		Name nameAnnotation = ReflectUtil.getAnnotation(operatorClass, Name.class);
 		if (nameAnnotation != null)

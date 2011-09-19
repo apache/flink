@@ -16,7 +16,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 @Name(verb = "union all")
-public class UnionAll extends CompositeOperator {
+public class UnionAll extends CompositeOperator<UnionAll> {
 	/**
 	 * 
 	 */
@@ -25,10 +25,10 @@ public class UnionAll extends CompositeOperator {
 	@Override
 	public SopremoModule asElementaryOperators() {
 
-		final List<Output> inputs = getInputs();
+		final List<Operator<?>.Output> inputs = getInputs();
 		final SopremoModule module = new SopremoModule(getName(), inputs.size(), 1);
 
-		Operator leftInput = module.getInput(0);
+		Operator<?> leftInput = module.getInput(0);
 		for (int index = 1; index < inputs.size(); index++)
 			leftInput = new TwoInputUnionAll().withInputs(leftInput, module.getInput(index));
 
@@ -38,7 +38,12 @@ public class UnionAll extends CompositeOperator {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class TwoInputUnionAll extends ElementaryOperator {
+	public static class TwoInputUnionAll extends ElementaryOperator<TwoInputUnionAll> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 6943661062249973782L;
+
 		// TODO: replace with efficient union operator
 		public static class TwoInputUnion extends
 				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {

@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo;
 
-import java.util.List;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -15,7 +13,7 @@ import eu.stratosphere.pact.common.plan.PactModule;
  * @author Arvid Heise
  */
 @InputCardinality(min = 1, max = Integer.MAX_VALUE)
-public abstract class CompositeOperator extends Operator {
+public abstract class CompositeOperator<Self extends CompositeOperator<Self>> extends Operator<Self> {
 	private static final Log LOG = LogFactory.getLog(CompositeOperator.class);
 
 	/**
