@@ -38,6 +38,10 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	
 	private static final int HIGH_BIT = 0x1 << 7;
 	
+	private static final int HIGH_BIT2 = 0x1 << 13;
+	
+	private static final int HIGH_BIT2_MASK = 0x3 << 6;
+	
 	
 	private char[] value;		// character value of the pact string, not necessarily completely filled
 	
@@ -413,11 +417,32 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len)
 	{
-//		final char[] chars = this.value;
-//		final int limit = offset + len;
-//		int pos = 0;
+		final char[] chars = this.value;
+		final int limit = offset + len;
+		final int end = this.len;
+		int pos = 0;
 		
-		throw new UnsupportedOperationException();
+		while (pos < end && offset < limit) {
+			char c = chars[pos++];
+			if (c < HIGH_BIT) {
+				target[offset++] = (byte) c;
+			}
+			else if (c < HIGH_BIT2) {
+				target[offset++] = (byte) ((c >>> 7) | HIGH_BIT);
+				if (offset < limit)
+					target[offset++] = (byte) c;
+			}
+			else {
+				target[offset++] = (byte) ((c >>> 10) | HIGH_BIT2_MASK);
+				if (offset < limit)
+					target[offset++] = (byte) (c >>> 2);
+				if (offset < limit)
+					target[offset++] = (byte) c;
+			}
+		}
+		while (offset < limit) {
+			target[offset++] = 0;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
