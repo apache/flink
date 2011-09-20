@@ -38,7 +38,7 @@ public class RecordLinkageInput implements JsonStream, Cloneable {
 		if (this.source != null)
 			return this.source;
 
-		return this.recordLinkage.getInput(this.index);
+		return this.recordLinkage.getInput(this.index).getSource();
 	}
 
 	public void setSource(Operator<?>.Output source) {

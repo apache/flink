@@ -41,11 +41,11 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 */
 	private static final long serialVersionUID = 7808932536291658512L;
 
-	private transient List<Operator<?>.Output> inputs = new ArrayList<Operator<?>.Output>();
+	private transient List<JsonStream> inputs = new ArrayList<JsonStream>();
 
 	private String name;
 
-	private transient List<Output> outputs = new ArrayList<Output>();
+	private transient List<JsonStream> outputs = new ArrayList<JsonStream>();
 
 	private int minInputs, maxInputs;
 
@@ -83,8 +83,8 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 		try {
 			@SuppressWarnings("unchecked")
 			Operator<Self> clone = (Operator<Self>) super.clone();
-			clone.inputs = new ArrayList<Operator<?>.Output>(this.inputs);
-			clone.outputs = new ArrayList<Operator<Self>.Output>(this.outputs);
+			clone.inputs = new ArrayList<JsonStream>(this.inputs);
+			clone.outputs = new ArrayList<JsonStream>(this.outputs);
 			return clone;
 		} catch (final CloneNotSupportedException e) {
 			// cannot happen
@@ -208,7 +208,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 *        the index of the output
 	 * @return the output that produces the input of this operator at the given position
 	 */
-	public Operator<?>.Output getInput(final int index) {
+	public JsonStream getInput(final int index) {
 		return this.inputs.get(index);
 	}
 
@@ -230,12 +230,13 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 
 			@Override
 			public Operator<?> get(final int index) {
-				return Operator.this.inputs.get(index) == null ? null : Operator.this.inputs.get(index).getOperator();
+				return Operator.this.inputs.get(index) == null ? null
+					: Operator.this.inputs.get(index).getSource().getOperator();
 			}
 
 			@Override
 			public int indexOf(final Object o) {
-				final ListIterator<Operator<?>.Output> e = Operator.this.inputs.listIterator();
+				final ListIterator<JsonStream> e = Operator.this.inputs.listIterator();
 				while (e.hasNext())
 					if (o == e.next())
 						return e.previousIndex();
@@ -256,8 +257,8 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 * 
 	 * @return a list of outputs that produce the input of this operator
 	 */
-	public List<Operator<?>.Output> getInputs() {
-		return new ArrayList<Operator<?>.Output>(this.inputs);
+	public List<JsonStream> getInputs() {
+		return new ArrayList<JsonStream>(this.inputs);
 	}
 
 	public int getMaxInputs() {
@@ -290,7 +291,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 *        the index to lookup
 	 * @return the output at the given position
 	 */
-	public Output getOutput(final int index) {
+	public JsonStream getOutput(final int index) {
 		return this.outputs.get(index);
 	}
 
@@ -299,8 +300,8 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 * 
 	 * @return all outputs of this operator
 	 */
-	public List<Output> getOutputs() {
-		return new ArrayList<Operator<Self>.Output>(this.outputs);
+	public List<JsonStream> getOutputs() {
+		return new ArrayList<JsonStream>(this.outputs);
 	}
 
 	@Override
@@ -311,9 +312,10 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	/**
 	 * Returns the first output of this operator.
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public Output getSource() {
-		return this.getOutput(0);
+		return (Output) this.getOutput(0);
 	}
 
 	@Override

@@ -67,7 +67,7 @@ public class SopremoTestPlan {
 			if (operator instanceof Source)
 				unconnectedInputs.add(operator);
 			else
-				for (final Operator<?>.Output input : operator.getInputs())
+				for (final JsonStream input : operator.getInputs())
 					if (input == null)
 						unconnectedInputs.add(operator);
 
@@ -78,7 +78,7 @@ public class SopremoTestPlan {
 			if (unconnectedNode instanceof Source)
 				this.setInputOperator(index, (Source) unconnectedNode);
 			else {
-				final List<Operator<?>.Output> missingInputs = new ArrayList<Operator<?>.Output>(
+				final List<JsonStream> missingInputs = new ArrayList<JsonStream>(
 					unconnectedNode.getInputs());
 				for (int missingIndex = 0; missingIndex < missingInputs.size(); missingIndex++)
 					if (missingInputs.get(missingIndex) == null) {

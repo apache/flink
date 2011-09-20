@@ -52,7 +52,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 	}
 
 	/**
-	 * Run the Operator<?>.Output getInput(int) method test.
+	 * Run the JsonStream getInput(int) method test.
 	 */
 	@Test
 	public void testGetInput() {
@@ -78,7 +78,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 	}
 
 	/**
-	 * Run the List<Operator<?>.Output> getInputs() method test.
+	 * Run the List<JsonStream> getInputs() method test.
 	 */
 	@Test
 	public void testGetInputs() {
@@ -86,58 +86,58 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		final Operator<?> input2 = new OpImpl(1);
 		final Operator<?> fixture = new OpImpl(0).withInputs(input1, input2);
 
-		final List<Operator<?>.Output> result = fixture.getInputs();
+		final List<JsonStream> result = fixture.getInputs();
 
 		assertNotNull(result);
 		assertEquals(2, result.size());
 
-		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		final List<JsonStream> expectedResults = new ArrayList<JsonStream>();
 		expectedResults.add(input1.getOutput(0));
 		expectedResults.add(input2.getOutput(0));
 		assertEquals(expectedResults, result);
 	}
 
 	/**
-	 * Run the Operator<?>.Output getOutput(int) method test.
+	 * Run the JsonStream getOutput(int) method test.
 	 */
 	@Test
 	public void testGetOutput() {
 		final Operator<?> fixture = new OpImpl(0);
 
-		final Operator<?>.Output result = fixture.getOutput(0);
+		final JsonStream result = fixture.getOutput(0);
 
 		assertNotNull(result);
-		assertEquals(0, result.getIndex());
+		assertEquals(0, result.getSource().getIndex());
 	}
 
 	/**
-	 * Run the List<Operator<?>.Output> getOutputs() method test.
+	 * Run the List<JsonStream> getOutputs() method test.
 	 */
 	@Test
 	public void testGetOutputs() {
 		final Operator<?> fixture = new OpImpl(0);
 
-		final List<Operator<?>.Output> result = fixture.getOutputs();
+		final List<JsonStream> result = fixture.getOutputs();
 
 		assertNotNull(result);
 		assertEquals(1, result.size());
 
-		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		final List<JsonStream> expectedResults = new ArrayList<JsonStream>();
 		expectedResults.add(fixture.getOutput(0));
 		assertEquals(expectedResults, result);
 	}
 
 	/**
-	 * Run the Operator<?>.Output getSource() method test.
+	 * Run the JsonStream getSource() method test.
 	 */
 	@Test
 	public void testGetSource() {
 		final Operator<?> fixture = new OpImpl(0);
 
-		final Operator<?>.Output result = fixture.getSource();
+		final JsonStream result = fixture.getSource();
 
 		assertNotNull(result);
-		assertEquals(0, result.getIndex());
+		assertEquals(0, result.getSource().getIndex());
 		assertSame(fixture.getOutput(0), result);
 	}
 
@@ -155,7 +155,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 
 		assertEquals(1, fixture.getInputs().size());
 
-		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		final List<JsonStream> expectedResults = new ArrayList<JsonStream>();
 		expectedResults.add(newInput.getOutput(0));
 		assertEquals(expectedResults, fixture.getInputs());
 	}
@@ -173,7 +173,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 
 		assertEquals(1, fixture.getInputs().size());
 
-		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		final List<JsonStream> expectedResults = new ArrayList<JsonStream>();
 		expectedResults.add(null);
 		assertEquals(expectedResults, fixture.getInputs());
 	}
@@ -211,7 +211,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		fixture.setInputs(inputs);
 
 		assertEquals(1, fixture.getInputs().size());
-		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		final List<JsonStream> expectedResults = new ArrayList<JsonStream>();
 		expectedResults.add(newInput.getOutput(0));
 		assertEquals(expectedResults, fixture.getInputs());
 	}

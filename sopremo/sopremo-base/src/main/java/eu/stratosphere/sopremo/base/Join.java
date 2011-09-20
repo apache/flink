@@ -106,16 +106,16 @@ public class Join extends CompositeOperator<Join> {
 		}
 
 		for (final TwoSourceJoin twoSourceJoin : joins) {
-			List<Operator<?>.Output> operatorInputs = twoSourceJoin.getInputs();
+			List<JsonStream> operatorInputs = twoSourceJoin.getInputs();
 
-			final List<Operator<?>.Output> actualInputs = new ArrayList<Operator<?>.Output>(operatorInputs.size());
+			final List<JsonStream> actualInputs = new ArrayList<JsonStream>(operatorInputs.size());
 			List<Source> moduleInput = Arrays.asList(module.getInputs());
 			for (int index = 0; index < operatorInputs.size(); index++) {
-				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
+				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getSource().getOperator());
 				actualInputs.add(inputs.get(inputIndex).getSource());
 			}
 			for (int index = 0; index < operatorInputs.size(); index++) {
-				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
+				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getSource().getOperator());
 				inputs.set(inputIndex, twoSourceJoin);
 			}
 			twoSourceJoin.setInputs(actualInputs);

@@ -4,11 +4,11 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 
 public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends CompositeOperator<Self> {
 
@@ -23,7 +23,7 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 
 	private RecordLinkageAlgorithm algorithm = new Naive();
 
-	private final Map<Operator<?>.Output, RecordLinkageInput> recordLinkageInputs = new IdentityHashMap<Operator<?>.Output, RecordLinkageInput>();
+	private final Map<JsonStream, RecordLinkageInput> recordLinkageInputs = new IdentityHashMap<JsonStream, RecordLinkageInput>();
 
 	private LinkageMode linkageMode = LinkageMode.LINKS_ONLY;
 

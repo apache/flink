@@ -107,7 +107,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					if (node instanceof Source)
 						inputs.add(node);
 					else
-						for (final Operator<?>.Output input : node.getInputs())
+						for (final JsonStream input : node.getInputs())
 							if (input == null)
 								inputs.add(node);
 				};
@@ -125,7 +125,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 
 		for (int operatorIndex = 0, moduleIndex = 0; operatorIndex < inputs.size(); operatorIndex++) {
 			final Operator<?> operator = inputs.get(operatorIndex);
-			final List<Operator<?>.Output> operatorInputs = new ArrayList<Operator<?>.Output>(operator.getInputs());
+			final List<JsonStream> operatorInputs = new ArrayList<JsonStream>(operator.getInputs());
 			for (int inputIndex = 0; inputIndex < operatorInputs.size(); inputIndex++)
 				if (operatorInputs.get(inputIndex) == null)
 					operatorInputs.set(inputIndex, module.getInput(moduleIndex++).getOutput(0));
@@ -235,10 +235,11 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 
 			if (inputIndex >= operator.getInputs().size() || inputIndex == -1)
 				return o;
-			final Operator<?>.Output input = operator.getInputs().get(inputIndex);
-			Contract outputtingContract = this.operatorOutputs.get(input.getOperator())[input.getIndex()];
-			if (outputtingContract instanceof FileDataSourceContract<?, ?> && !(input.getOperator() instanceof Source))
-				outputtingContract = this.findOutputtingPactInOperator(input.getOperator(), outputtingContract);
+			Operator<?>.Output inputSource = operator.getInputs().get(inputIndex).getSource();
+			Contract outputtingContract = this.operatorOutputs.get(inputSource.getOperator())[inputSource.getIndex()];
+			if (outputtingContract instanceof FileDataSourceContract<?, ?>
+				&& !(inputSource.getOperator() instanceof Source))
+				outputtingContract = this.findOutputtingPactInOperator(inputSource.getOperator(), outputtingContract);
 			return outputtingContract;
 		}
 
@@ -264,8 +265,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	private class ElementaryAssembler {
 		private final Map<Operator<?>, SopremoModule> modules = new IdentityHashMap<Operator<?>, SopremoModule>();
 
-		// private final Map<Operator<?>, Operator<?>.Output[]> operatorOutputs = new IdentityHashMap<Operator<?>,
-		// Operator<?>.Output[]>();
+		// private final Map<Operator<?>, JsonStream[]> operatorOutputs = new IdentityHashMap<Operator<?>,
+		// JsonStream[]>();
 
 		public ElementaryAssembler() {
 		}
@@ -305,13 +306,13 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				final Operator<?> operator = operatorModule.getKey();
 				final SopremoModule module = operatorModule.getValue();
 
-				final Map<Operator<?>.Output, Operator<?>.Output> operatorInputToModuleOutput = new IdentityHashMap<Operator<?>.Output, Operator<?>.Output>();
+				final Map<JsonStream, JsonStream> operatorInputToModuleOutput = new IdentityHashMap<JsonStream, JsonStream>();
 
 				for (int index = 0; index < operator.getInputs().size(); index++) {
-					final Operator<?>.Output input = operator.getInput(index);
-					final SopremoModule inputModule = this.modules.get(input.getOperator());
+					Operator<?>.Output inputSource = operator.getInput(index).getSource();
+					final SopremoModule inputModule = this.modules.get(inputSource.getOperator());
 					operatorInputToModuleOutput.put(module.getInput(0).getOutput(0),
-						inputModule.getOutput(input.getIndex()).getInput(0));
+						inputModule.getOutput(inputSource.getIndex()).getInput(0));
 				}
 
 				// final Source[] moduleInputs = module.getInputs();
@@ -319,9 +320,9 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 						@Override
 						public void nodeTraversed(final Operator<?> innerNode) {
-							List<Operator<?>.Output> innerNodeInputs = innerNode.getInputs();
+							List<JsonStream> innerNodeInputs = innerNode.getInputs();
 							for (int index = 0; index < innerNodeInputs.size(); index++) {
-								Operator<?>.Output moduleOutput = operatorInputToModuleOutput.get(innerNodeInputs
+								JsonStream moduleOutput = operatorInputToModuleOutput.get(innerNodeInputs
 									.get(index));
 								if (moduleOutput != null)
 									innerNodeInputs.set(index, moduleOutput);

@@ -7,6 +7,7 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
@@ -25,7 +26,7 @@ public class UnionAll extends CompositeOperator<UnionAll> {
 	@Override
 	public SopremoModule asElementaryOperators() {
 
-		final List<Operator<?>.Output> inputs = this.getInputs();
+		final List<JsonStream> inputs = this.getInputs();
 		final SopremoModule module = new SopremoModule(this.getName(), inputs.size(), 1);
 
 		Operator<?> leftInput = module.getInput(0);
