@@ -48,7 +48,6 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 		 */
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public int compare(final JsonNode value1, final JsonNode value2) {
 		final Class<? extends JsonNode> class1 = value1.getClass();

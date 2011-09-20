@@ -24,8 +24,8 @@ public class NullNode extends JsonNode {
 	}
 
 	@Override
-	public String toString() {
-		return "null";
+	public StringBuilder toString(StringBuilder sb) {
+		return sb.append("null");
 	}
 
 	@Override

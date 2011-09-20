@@ -30,8 +30,8 @@ public class DoubleNode extends NumericNode {
 	}
 
 	@Override
-	public String toString() {
-		return this.value.toString();
+	public StringBuilder toString(StringBuilder sb) {
+		return sb.append(this.value);
 	}
 
 	@Override

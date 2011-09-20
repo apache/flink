@@ -14,8 +14,6 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.io.JsonParser;
-import eu.stratosphere.sopremo.io.JsonParser.JsonParseException;
-import eu.stratosphere.sopremo.io.JsonParser.JsonProcessingException;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;

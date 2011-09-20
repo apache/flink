@@ -21,7 +21,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 
 	public ArrayNode(final JsonNode... nodes) {
 		for (final JsonNode node : nodes)
-			this._add(node);
+			this.add(node);
 	}
 
 	public int size() {
@@ -69,18 +69,17 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	}
 
 	@Override
-	public String toString() {
-		final StringBuilder sb = new StringBuilder(16 + (this.size() << 4));
+	public StringBuilder toString(StringBuilder sb) {
 		sb.append('[');
 
 		for (int i = 0; i < this.children.size(); i++) {
 			if (i > 0)
 				sb.append(',');
-			sb.append(this.children.get(i).toString());
+			sb.append(this.children.get(i).toString(sb));
 		}
 
 		sb.append(']');
-		return sb.toString();
+		return sb;
 	}
 
 	@Override
@@ -160,18 +159,18 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.isEmpty();
 	}
 
-	 public static ArrayNode valueOf(Iterator<JsonNode> iterator) {
-	 ArrayNode array = new ArrayNode();
-	 while(iterator.hasNext())
-	 {
-	 array.add(iterator.next());
-	 }
-	 return array;
-	 }
-	 
-	 public JsonNode[] toArray(){
-		 return this.children.toArray(new JsonNode[this.children.size()]);
-	 }
+	public static ArrayNode valueOf(Iterator<JsonNode> iterator) {
+		ArrayNode array = new ArrayNode();
+		while (iterator.hasNext())
+		{
+			array.add(iterator.next());
+		}
+		return array;
+	}
+
+	public JsonNode[] toArray() {
+		return this.children.toArray(new JsonNode[this.children.size()]);
+	}
 
 	@Override
 	public TYPES getType() {

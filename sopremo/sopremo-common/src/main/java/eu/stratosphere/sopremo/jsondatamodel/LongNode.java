@@ -100,4 +100,9 @@ public class LongNode extends NumericNode {
 	public String getValueAsText() {
 		return this.value.toString();
 	}
+
+	@Override
+	public StringBuilder toString(StringBuilder sb) {
+		return sb.append(this.value);
+	}
 }

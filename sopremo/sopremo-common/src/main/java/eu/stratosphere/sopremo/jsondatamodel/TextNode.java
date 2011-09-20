@@ -38,10 +38,9 @@ public class TextNode extends JsonNode {
 	}
 
 	@Override
-	public String toString() {
-		final StringBuilder sb = new StringBuilder();
+	public StringBuilder toString(StringBuilder sb) {
 		appendQuoted(sb, this.value.toString());
-		return sb.toString();
+		return sb;
 	}
 
 	public static void appendQuoted(final StringBuilder sb, final String content) {

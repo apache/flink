@@ -43,7 +43,7 @@ public abstract class JsonNode implements Serializable, Value {
 	public abstract boolean equals(Object o);
 
 	public abstract int getTypePos();
-	
+
 	public abstract JsonNode.TYPES getType();
 
 	public JsonNode canonicalize() {
@@ -71,4 +71,13 @@ public abstract class JsonNode implements Serializable, Value {
 	public boolean isTextual() {
 		return false;
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		this.toString(sb);
+		return sb.toString();
+	}
+
+	public abstract StringBuilder toString(StringBuilder sb);
 }

@@ -111,5 +111,10 @@ public class BigIntegerNode extends NumericNode {
 	public TYPES getType() {
 		return TYPES.BigIntegerNode;
 	}
+
+	@Override
+	public StringBuilder toString(StringBuilder sb) {
+		return sb.append(this.value);
+	}
 	
 }

@@ -25,9 +25,9 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.io.JsonParseException;
 import eu.stratosphere.sopremo.io.JsonParser;
-import eu.stratosphere.sopremo.io.JsonParser.JsonParseException;
-import eu.stratosphere.sopremo.io.JsonParser.JsonToken;
+import eu.stratosphere.sopremo.io.JsonToken;
 
 /**
  * Reads json files with Jackson. The resulting key/value pair consists of an id and a {@link PactJsonObject}. The id is

@@ -35,8 +35,8 @@ public class BooleanNode extends JsonNode {
 	}
 
 	@Override
-	public String toString() {
-		return this == TRUE ? "true" : "false";
+	public StringBuilder toString(StringBuilder sb) {
+		return this == TRUE ? sb.append("true") : sb.append("false");
 	}
 
 	@Override

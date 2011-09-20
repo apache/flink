@@ -91,8 +91,7 @@ public class ObjectNode extends JsonNode {
 	}
 
 	@Override
-	public String toString() {
-		final StringBuilder sb = new StringBuilder();
+	public StringBuilder toString(StringBuilder sb) {
 		sb.append('{');
 
 		int count = 0;
@@ -102,11 +101,11 @@ public class ObjectNode extends JsonNode {
 			++count;
 
 			TextNode.appendQuoted(sb, en.getKey());
-			sb.append(':').append(en.getValue().toString());
+			sb.append(':').append(en.getValue().toString(sb));
 		}
 
 		sb.append('}');
-		return sb.toString();
+		return sb;
 	}
 
 	private JsonNode _put(final String fieldName, final JsonNode value) {

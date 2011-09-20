@@ -16,14 +16,11 @@
 package eu.stratosphere.sopremo.pact;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.io.JsonGenerator;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectMapper;
 
 /**
  * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link PactJsonObject}
@@ -32,8 +29,6 @@ import eu.stratosphere.sopremo.jsondatamodel.ObjectMapper;
  * @author Arvid Heise
  */
 public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJsonObject> {
-
-	private Charset encoding;
 
 	private JsonGenerator generator;
 
@@ -51,22 +46,12 @@ public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJ
 		super.close();
 	}
 
-	@Override
-	public void configure(final Configuration parameters) {
-		super.configure(parameters);
-
-		final String encoding = parameters.getString(PARAMETER_ENCODING, null);
-		if (encoding != null)
-			this.encoding = Charset.forName(encoding);
-		else
-			this.encoding = Charset.forName("UTF8");
-	}
 
 	@Override
 	public void open(final int taskNumber) throws IOException {
 		super.open(taskNumber);
 
-		this.generator = new JsonGenerator(this.stream, this.encoding);
+		this.generator = new JsonGenerator(this.stream);
 		this.generator.writeStartArray();
 	}
 
