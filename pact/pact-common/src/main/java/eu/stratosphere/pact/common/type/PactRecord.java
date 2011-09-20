@@ -223,7 +223,7 @@ public final class PactRecord implements Value
 			return (T) this.fields[fieldNum];
 		}
 		
-		final int limit = fieldNum < this.numFields - 1 ? this.offsets[fieldNum + 1] : this.binaryLen;
+		final int limit = offset + this.lengths[fieldNum];
 		
 		// get an instance, either from the instance cache or create a new one
 		final Value oldField = this.fields[fieldNum]; 
