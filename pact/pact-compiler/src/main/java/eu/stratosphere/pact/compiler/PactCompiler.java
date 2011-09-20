@@ -595,12 +595,13 @@ public class PactCompiler {
 		}
 
 		// set the default degree of parallelism
-		int defaultParallelism = this.defaultDegreeOfParallelism;
+		int defaultParallelism = pactPlan.getDefaultParallelism() > 0 ?
+			pactPlan.getDefaultParallelism() : this.defaultDegreeOfParallelism;
 		if (defaultParallelism < 1) {
-			defaultParallelism = maxMachinesJob * defaultIntraNodeParallelism;
-		} else if (defaultParallelism > maxMachinesJob * defaultIntraNodeParallelism) {
+			defaultParallelism = maxMachinesJob * this.defaultIntraNodeParallelism;
+		} else if (defaultParallelism > maxMachinesJob * this.defaultIntraNodeParallelism) {
 			int oldParallelism = defaultParallelism;
-			defaultParallelism = maxMachinesJob * defaultIntraNodeParallelism;
+			defaultParallelism = maxMachinesJob * this.defaultIntraNodeParallelism;
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Decreasing default degree of parallelism from " + oldParallelism +
@@ -817,7 +818,6 @@ public class PactCompiler {
 			if (maxMachines > 0) {
 				int p = n.getDegreeOfParallelism();
 				tasksPerInstance = (p / maxMachines) + (p % maxMachines == 0 ? 0 : 1);
-
 				tasksPerInstance = Math.max(tasksPerInstance, this.defaultIntraNodeParallelism);
 			}
 

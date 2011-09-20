@@ -45,7 +45,7 @@ public class Plan implements Visitable<Contract>
 	/**
 	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
 	 */
-	protected int defaultParallelism;
+	protected int defaultParallelism = -1;
 	
 	/**
 	 * The maximal number of machines to use in the job.
@@ -184,7 +184,7 @@ public class Plan implements Visitable<Contract>
 	 * @return The default parallelism for the plan.
 	 */
 	public int getDefaultParallelism() {
-		return defaultParallelism;
+		return this.defaultParallelism;
 	}
 	
 	/**
