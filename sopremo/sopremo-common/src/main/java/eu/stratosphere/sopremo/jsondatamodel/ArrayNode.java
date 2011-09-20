@@ -28,10 +28,11 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.size();
 	}
 
-	public void add(JsonNode node) {
+	public ArrayNode add(JsonNode node) {
 		if (node == null)
 			node = NullNode.getInstance();
 		this._add(node);
+		return this;
 	}
 
 	public JsonNode get(final int index) {

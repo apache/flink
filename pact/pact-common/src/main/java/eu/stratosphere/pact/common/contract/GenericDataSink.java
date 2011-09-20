@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.io.OutputFormat;
 
 /**
  * Contract for nodes which act as data sinks, storing the data they receive somewhere instead of sending it to another

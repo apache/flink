@@ -14,6 +14,7 @@ import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectMapper;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 
@@ -140,7 +141,7 @@ public class JsonUtil {
 	}
 
 	public static ArrayNode createArrayNode(final Object... constants) {
-		return JsonUtil.OBJECT_MAPPER.valueToTree(constants);
+		return (ArrayNode)JsonUtil.OBJECT_MAPPER.valueToTree(constants);
 	}
 
 	public static ArrayNode createCompactArray(final Object... constants) {

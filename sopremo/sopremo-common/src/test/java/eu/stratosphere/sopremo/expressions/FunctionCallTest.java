@@ -33,7 +33,7 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 	public void shouldCallFunction() {
 		final JsonNode result = new FunctionCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
 			createArrayNode(1, 2), this.context);
-		Assert.assertEquals(new IntNode(3), result);
+		Assert.assertEquals(new DoubleNode(3), result);
 	}
 
 	@Test

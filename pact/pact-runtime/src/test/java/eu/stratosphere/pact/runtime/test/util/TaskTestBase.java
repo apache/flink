@@ -41,8 +41,8 @@ import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(LibraryCacheManager.class)

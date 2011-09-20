@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.iomanager.Serializer;
 import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
-import eu.stratosphere.pact.runtime.sort.DeserializerComparator;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 
 /**

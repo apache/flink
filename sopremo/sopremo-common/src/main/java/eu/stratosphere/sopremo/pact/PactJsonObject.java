@@ -38,7 +38,7 @@ public class PactJsonObject implements Value {
 	 * Initializes PactJsonObject with an empty {@link ObjectNode}.
 	 */
 	public PactJsonObject() {
-		this.value = JsonUtil.OBJECT_MAPPER.createObjectNode();
+		this.value = new ObjectNode();
 	}
 
 	/**
