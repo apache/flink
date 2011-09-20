@@ -9,5 +9,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface InputCardinality {
 	int min() default 1;
+
 	int max() default Integer.MAX_VALUE;
 }

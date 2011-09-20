@@ -31,7 +31,7 @@ public class BlackListRule extends ValidationRule {
 			EvaluationExpression... targetPath) {
 		super(targetPath);
 		this.blacklistedValues = (List<JsonNode>) blacklistedValues;
-		setValueCorrection(new DefaultValueCorrection(defaultValue));
+		this.setValueCorrection(new DefaultValueCorrection(defaultValue));
 	}
 
 	@Override
@@ -41,7 +41,7 @@ public class BlackListRule extends ValidationRule {
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
-		blacklistedValues = new ArrayList<JsonNode>();
+		this.blacklistedValues = new ArrayList<JsonNode>();
 		ArrayNode array = SopremoUtil.deserializeNode(ois, ArrayNode.class);
 		for (JsonNode jsonNode : array)
 			this.blacklistedValues.add(jsonNode);

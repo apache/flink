@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import java.util.Arrays;
 
-import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
@@ -15,12 +14,11 @@ import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 
 @InputCardinality(min = 1, max = 1)
-public class IntraSourceRecordLinkage extends RecordLinkage {
+public class IntraSourceRecordLinkage extends RecordLinkage<IntraSourceRecordLinkage> {
 	/**
 	 * 
 	 */
@@ -30,6 +28,7 @@ public class IntraSourceRecordLinkage extends RecordLinkage {
 		return super.getRecordLinkageInput(0);
 	}
 
+	@SuppressWarnings("cast")
 	@Override
 	public SopremoModule asElementaryOperators() {
 		SopremoModule module = new SopremoModule(this.getName(), 1, 1);
@@ -41,7 +40,7 @@ public class IntraSourceRecordLinkage extends RecordLinkage {
 			!recordLinkageInput.getResultProjection().equals(recordLinkageInput.getIdProjection()))
 			recordLinkageInput.setResultProjection(recordLinkageInput.getIdProjection());
 
-		Operator duplicatePairs;
+		Operator<?> duplicatePairs;
 		if (this.getAlgorithm() instanceof IntraSourceRecordLinkageAlgorithm)
 			duplicatePairs = ((IntraSourceRecordLinkageAlgorithm) this.getAlgorithm()).getIntraSource(
 				this.getSimilarityCondition(), recordLinkageInput);
@@ -56,16 +55,16 @@ public class IntraSourceRecordLinkage extends RecordLinkage {
 		ClosureMode closureMode = this.getLinkageMode().getClosureMode();
 		if (closureMode.isCluster())
 			closureMode = ClosureMode.CLUSTER;
-		Operator closure = new TransitiveClosure().
+		TransitiveClosure closure = new TransitiveClosure().
 			withClosureMode(closureMode).
 			withInputs(duplicatePairs);
-		Operator output = closure;
+		Operator<?> output = closure;
 		// // already id projected
 		// if (recordLinkageInput.getResultProjection() != EvaluationExpression.VALUE)
 		// closure.setIdProjection(EvaluationExpression.VALUE);
 
 		if (recordLinkageInput.getResultProjection() != resultProjection) {
-			Operator reverseLookup = new Lookup().
+			Lookup reverseLookup = new Lookup().
 				withDictionaryKeyExtraction(this.getRecordLinkageInput(0).getIdProjection()).
 				withDictionaryValueExtraction(this.getRecordLinkageInput(0).getResultProjection()).
 				withArrayElementsReplacement(true).
@@ -78,20 +77,20 @@ public class IntraSourceRecordLinkage extends RecordLinkage {
 			return module;
 		}
 
-		Operator allTuples = new ValueSplitter().
+		ValueSplitter allTuples = new ValueSplitter().
+			withInputs(closure).
 			withArrayProjection(EvaluationExpression.VALUE).
 			withKeyProjection(new ArrayAccess(0)).
-			withValueProjection(EvaluationExpression.NULL).
-			withInputs(closure);
+			withValueProjection(EvaluationExpression.NULL);
 		allTuples.setName("all tuples");
-		Operator singleRecords = new Difference().
+		Difference singleRecords = new Difference().
+			withInputs(module.getInput(0), allTuples).
 			withIdentityKey(0, this.getRecordLinkageInput(0).getIdProjection()).
 			withValueProjection(0, this.getRecordLinkageInput(0).getResultProjection()).
-			withIdentityKey(1, EvaluationExpression.KEY).
-			withInputs(module.getInput(0), allTuples);
+			withIdentityKey(1, EvaluationExpression.KEY);
 		singleRecords.setName("singleRecords");
 
-		final Operator wrappedInArray = new Projection().
+		final Projection wrappedInArray = new Projection().
 			withValueTransformation(new ArrayCreation(EvaluationExpression.VALUE)).
 			withInputs(singleRecords);
 
@@ -99,7 +98,7 @@ public class IntraSourceRecordLinkage extends RecordLinkage {
 		return module;
 	}
 
-	private Operator simulateIntraSource() {
+	private Operator<?> simulateIntraSource() {
 		// simulate with record linkage
 		RecordLinkageInput recordLinkageInput = this.getRecordLinkageInput(0).clone();
 
@@ -114,14 +113,14 @@ public class IntraSourceRecordLinkage extends RecordLinkage {
 				idProjection = new ArrayAccess(0);
 				resultProjection = new ArrayAccess(1);
 			}
-		Operator allPairs = this.getAlgorithm().getDuplicatePairStream(this.getSimilarityCondition(),
+		Operator<?> allPairs = this.getAlgorithm().getDuplicatePairStream(this.getSimilarityCondition(),
 			Arrays.asList(recordLinkageInput, recordLinkageInput));
 		// remove symmetric and reflexive pairs
-		Operator orderedPairs = new Selection().
-			withCondition(
-				new ComparativeExpression(new PathExpression(new ArrayAccess(0), idProjection), BinaryOperator.LESS,
-					new PathExpression(new ArrayAccess(1), idProjection))).
-			withInputs(allPairs);
+		Selection orderedPairs = new Selection().withInputs(allPairs).
+			withCondition(new ComparativeExpression(
+				new PathExpression(new ArrayAccess(0), idProjection),
+				BinaryOperator.LESS,
+				new PathExpression(new ArrayAccess(1), idProjection)));
 		return new Projection().withValueTransformation(resultProjection).withInputs(orderedPairs);
 	}
 

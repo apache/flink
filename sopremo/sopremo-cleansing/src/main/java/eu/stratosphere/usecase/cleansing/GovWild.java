@@ -23,7 +23,6 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
 import eu.stratosphere.pact.testing.ioformats.SequentialInputFormat;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.PersistenceType;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
@@ -70,6 +69,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
+@SuppressWarnings("unused")
 public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 	private int noSubTasks;
 
@@ -83,12 +83,12 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 	private static final int PERSON = 0, LEGAL_ENTITY = 1, FUND = 2;
 
-	private Operator[][] inputs = new Operator[4][3];
+	private Operator<?>[][] inputs = new Operator<?>[4][3];
 
 	// cluster[x][y] after integration of source x
-	private Operator[][] cluster = new Operator[4][3];
+	private Operator<?>[][] cluster = new Operator<?>[4][3];
 
-	private Operator[][] fused = new Operator[4][3];
+	private Operator<?>[][] fused = new Operator<?>[4][3];
 
 	@Override
 	public Plan getPlan(String... args) throws IllegalArgumentException {
@@ -111,45 +111,46 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		this.mapEarmarkPerson(!(startLevel <= 3 && 3 < stopLevel));
 		this.mapEarmarkLegalEntity(!(startLevel <= 3 && 3 < stopLevel));
 		//
-		clusterPersons1(!(startLevel <= 10 && 10 < stopLevel));
-		fusePersons1(!(startLevel <= 11 && 11 < stopLevel));
-		clusterLegalEntity1(!(startLevel <= 12 && 12 < stopLevel));
-		fuseLegalEntity1(!(startLevel <= 13 && 13 < stopLevel));
+		this.clusterPersons1(!(startLevel <= 10 && 10 < stopLevel));
+		this.fusePersons1(!(startLevel <= 11 && 11 < stopLevel));
+		this.clusterLegalEntity1(!(startLevel <= 12 && 12 < stopLevel));
+		this.fuseLegalEntity1(!(startLevel <= 13 && 13 < stopLevel));
 
 		this.scrubSpending(!(startLevel <= 21 && 21 < stopLevel));
 		this.mapSpendingFund(!(startLevel <= 22 && 22 < stopLevel));
 		this.mapSpendingLegalEntity(!(startLevel <= 22 && 22 < stopLevel));
 
-		clusterLegalEntity2(!(startLevel <= 31 && 31 < stopLevel));
-		fuseLegalEntity2(!(startLevel <= 32 && 32 < stopLevel));
+		this.clusterLegalEntity2(!(startLevel <= 31 && 31 < stopLevel));
+		this.fuseLegalEntity2(!(startLevel <= 32 && 32 < stopLevel));
 
 		if (stopLevel == 1337) {
-			sinks.clear();
-			sinks.add((Sink) this.fused[SPENDING][LEGAL_ENTITY]);
-			sinks.add((Sink) this.fused[EARMARK][PERSON]);
-			sinks.add((Sink) this.inputs[SPENDING][FUND]);
-			sinks.add((Sink) this.inputs[EARMARK][FUND]);
+			this.sinks.clear();
+			this.sinks.add((Sink) this.fused[SPENDING][LEGAL_ENTITY]);
+			this.sinks.add((Sink) this.fused[EARMARK][PERSON]);
+			this.sinks.add((Sink) this.inputs[SPENDING][FUND]);
+			this.sinks.add((Sink) this.inputs[EARMARK][FUND]);
 		}
 		// //
 		// analyze(!(startLevel <= 100 && 100 < stopLevel));
 
-		// // Operator earmarks = new Source(getInternalInputFormat(), String.format("%s/OriginalUsEarmark2008.json",
+		// // Operator<?> earmarks = new Source(getInternalInputFormat(), String.format("%s/OriginalUsEarmark2008.json",
 		// inputDir));
-		// Operator congressPersons = new Source(getInternalInputFormat(), String.format("%s/CongressPerson.json",
+		// Operator<?> congressPersons = new Source(getInternalInputFormat(), String.format("%s/CongressPerson.json",
 		// outputDir));
-		// Operator earmarkPersons = new Source(getInternalInputFormat(), String.format("%s/EarmarkPerson.json",
+		// Operator<?> earmarkPersons = new Source(getInternalInputFormat(), String.format("%s/EarmarkPerson.json",
 		// outputDir));
-		// // Operator scrubbedEarmark = scrubEarmark(earmarks);
-		// // Operator congress = ;
+		// // Operator<?> scrubbedEarmark = scrubEarmark(earmarks);
+		// // Operator<?> congress = ;
 		// // Sink congressOut = cleanCongress();
 		//
-		// // Operator persons = clusterPersons(congressPersons, earmarkPersons);
+		// // Operator<?> persons = clusterPersons(congressPersons, earmarkPersons);
 		// // Sink earmarkFundOut = new Sink(SequentialOutputFormat.class, String.format("%s/Persons.json", outputDir),
 		// // persons);
 		//
-		// Operator persons = new Source(getInternalInputFormat(), String.format("%s/Persons.json", outputDir));
+		// Operator<?> persons = new Source(getInternalInputFormat(), String.format("%s/Persons.json", outputDir));
 		//
-		// Operator selection = new Selection(new ComparativeExpression(new FunctionCall("count", new ArrayAccess(0)),
+		// Operator<?> selection = new Selection(new ComparativeExpression(new FunctionCall("count", new
+		// ArrayAccess(0)),
 		// BinaryOperator.EQUAL, new ConstantExpression(0)), persons);
 		//
 		// Sink earmarkFundOut = new Sink(SequentialOutputFormat.class, String.format("%s/Result.json", outputDir),
@@ -159,29 +160,29 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		sopremoPlan.getContext().getFunctionRegistry()
 			.register(eu.stratosphere.usecase.cleansing.CleansFunctions.class);
 		Plan pactPlan = sopremoPlan.asPactPlan();
-		pactPlan.setMaxNumberMachines(noSubTasks);
+		pactPlan.setMaxNumberMachines(this.noSubTasks);
 		return pactPlan;
 	}
 
 	private void analyze(boolean simulate) {
 
-		Operator persons = fused[EARMARK][PERSON];
+		Operator<?> persons = this.fused[EARMARK][PERSON];
 		if (persons == null)
-			persons = new Source(String.format("%s/Persons.json", outputDir));
+			persons = new Source(String.format("%s/Persons.json", this.outputDir));
 
-		Operator selection = new Selection().
+		Operator<?> selection = new Selection().
 			withCondition(new ComparativeExpression(new FunctionCall("count", new ArrayAccess(0)),
 				BinaryOperator.EQUAL, new ConstantExpression(0))).
 			withInputs(persons);
 
-		sinks.add((Sink) new Sink(getInternalOutputFormat(), String.format("%s/Result.json", outputDir))
+		this.sinks.add(new Sink(this.getInternalOutputFormat(), String.format("%s/Result.json", this.outputDir))
 			.withInputs(selection));
 
 	}
 
 	private void clusterLegalEntity1(boolean simulate) {
 		if (simulate) {
-			this.cluster[EARMARK][LEGAL_ENTITY] = new Source(getInternalInputFormat(), String.format(
+			this.cluster[EARMARK][LEGAL_ENTITY] = new Source(this.getInternalInputFormat(), String.format(
 				"%s/LegalEntityCluster1.json", this.outputDir));
 			return;
 		}
@@ -191,7 +192,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			new PathExpression(new InputSelection(1), new ObjectAccess("names"), new ArrayAccess(0)));
 		// DisjunctPartitioning partitioning = new DisjunctPartitioning(new FunctionCall("substring", new
 		// ObjectAccess("lastName"), new ConstantExpression(0), new ConstantExpression(2)));
-		InterSourceRecordLinkage recordLinkage = (InterSourceRecordLinkage) new InterSourceRecordLinkage().
+		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(new Naive()).
 			withSimilarityExpression(simmFunction).
 			withThreshold(0.8).
@@ -202,14 +203,14 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		recordLinkage.getRecordLinkageInput(1).setIdProjection(new ObjectAccess("id"));
 
 		this.cluster[EARMARK][LEGAL_ENTITY] = recordLinkage;
-		this.sinks.add(new Sink(getInternalOutputFormat(),
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
 			String.format("%s/LegalEntityCluster1.json", this.outputDir)).
 			withInputs(recordLinkage));
 	}
 
 	private void clusterPersons1(boolean simulate) {
 		if (simulate) {
-			this.cluster[EARMARK][PERSON] = new Source(getInternalInputFormat(), String.format(
+			this.cluster[EARMARK][PERSON] = new Source(this.getInternalInputFormat(), String.format(
 				"%s/PersonCluster1.json",
 				this.outputDir));
 			return;
@@ -223,22 +224,26 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 				"lastName")), new PathExpression(new InputSelection(1), new ObjectAccess("lastName"))));
 		// DisjunctPartitioning partitioning = new DisjunctPartitioning(new FunctionCall("substring", new
 		// ObjectAccess("lastName"), new ConstantExpression(0), new ConstantExpression(2)));
+
 		DisjunctPartitioning partitioning = new DisjunctPartitioning(new ObjectAccess("lastName"));
-		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(partitioning, simmFunction, 0.6,
-			this.inputs[CONGRESS][PERSON], this.inputs[EARMARK][PERSON]);
-		recordLinkage.setLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT);
+		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
+			withAlgorithm(partitioning).
+			withSimilarityExpression(simmFunction).
+			withThreshold(0.6).
+			withLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT).
+			withInputs(this.inputs[CONGRESS][PERSON], this.inputs[EARMARK][PERSON]);
 
 		recordLinkage.getRecordLinkageInput(0).setIdProjection(new ObjectAccess("id"));
 		recordLinkage.getRecordLinkageInput(1).setIdProjection(new ObjectAccess("id"));
 
 		this.cluster[EARMARK][PERSON] = recordLinkage;
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/PersonCluster1.json", this.outputDir),
-			recordLinkage));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/PersonCluster1.json", this.outputDir)).withInputs(recordLinkage));
 	}
 
 	private void clusterLegalEntity2(boolean simulate) {
 		if (simulate) {
-			this.cluster[SPENDING][LEGAL_ENTITY] = new Source(getInternalInputFormat(), String.format(
+			this.cluster[SPENDING][LEGAL_ENTITY] = new Source(this.getInternalInputFormat(), String.format(
 				"%s/LegalEntityCluster2.json",
 				this.outputDir));
 			return;
@@ -266,61 +271,70 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 				new ConstantExpression("")),
 			new FunctionCall("extract", new ConstantExpression("([^ ])*"),
 				new PathExpression(new ObjectAccess("names"), new ArrayAccess(0))));
-		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage(partitioning, simmFunction, 0.8,
-			this.fused[EARMARK][LEGAL_ENTITY], this.inputs[SPENDING][LEGAL_ENTITY]);
-		recordLinkage.setLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT);
+
+		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
+			withAlgorithm(partitioning).
+			withSimilarityExpression(simmFunction).
+			withThreshold(0.8).
+			withLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT).
+			withInputs(this.fused[EARMARK][LEGAL_ENTITY], this.inputs[SPENDING][LEGAL_ENTITY]);
 
 		recordLinkage.getRecordLinkageInput(0).setIdProjection(new ObjectAccess("id"));
 		recordLinkage.getRecordLinkageInput(1).setIdProjection(new ObjectAccess("id"));
 
 		this.cluster[SPENDING][LEGAL_ENTITY] = recordLinkage;
-		this.sinks.add(new Sink(getInternalOutputFormat(),
-			String.format("%s/LegalEntityCluster2.json", this.outputDir),
-			recordLinkage));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/LegalEntityCluster2.json", this.outputDir)).withInputs(recordLinkage));
 	}
 
 	private void fusePersons1(boolean simulate) {
 		if (simulate) {
-			this.fused[EARMARK][PERSON] = new Source(getInternalInputFormat(), String.format("%s/Persons1.json",
+			this.fused[EARMARK][PERSON] = new Source(this.getInternalInputFormat(), String.format("%s/Persons1.json",
 				this.outputDir));
 			return;
 		}
 
-		Selection links = new Selection(new ComparativeExpression(
-			new FunctionCall("count", EvaluationExpression.VALUE), BinaryOperator.GREATER, new ConstantExpression(1)),
-			this.cluster[EARMARK][PERSON]);
+		Selection links = new Selection().
+			withInputs(this.cluster[EARMARK][PERSON]).
+			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+				BinaryOperator.GREATER, new ConstantExpression(1)));
 
-		Selection earmarksOnly = new Selection(new ComparativeExpression(
-			new FunctionCall("count", EvaluationExpression.VALUE), BinaryOperator.EQUAL, new ConstantExpression(1)),
-			this.cluster[EARMARK][PERSON]);
+		Selection earmarksOnly = new Selection().
+			withInputs(this.cluster[EARMARK][PERSON]).
+			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+				BinaryOperator.EQUAL, new ConstantExpression(1)));
 
 		ObjectCreation merge = new ObjectCreation();
 		merge.addMapping(new ObjectCreation.CopyFields(new InputSelection(0)));
 		merge.addMapping("funds", new PathExpression(new InputSelection(1), new ObjectAccess("enactedFunds")));
-		Projection linksProjection = new Projection(merge, links);
+		Projection linksProjection = new Projection().withValueTransformation(merge).withInputs(links);
 
-		Projection earmarkProjection = new Projection(new InputSelection(0), earmarksOnly);
+		Projection earmarkProjection = new Projection().
+			withValueTransformation(new InputSelection(0)).
+			withInputs(earmarksOnly);
 
-		this.fused[EARMARK][PERSON] = new UnionAll(linksProjection, earmarkProjection);
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/Person1.json", this.outputDir),
-			this.fused[EARMARK][PERSON]));
+		this.fused[EARMARK][PERSON] = new UnionAll().withInputs(linksProjection, earmarkProjection);
+		this.sinks.add(new Sink(this.getInternalOutputFormat(), String.format("%s/Person1.json", this.outputDir)).
+			withInputs(this.fused[EARMARK][PERSON]));
 	}
 
 	private void fuseLegalEntity1(boolean simulate) {
 		if (simulate) {
-			this.fused[EARMARK][LEGAL_ENTITY] = new Source(getInternalInputFormat(), String.format(
+			this.fused[EARMARK][LEGAL_ENTITY] = new Source(this.getInternalInputFormat(), String.format(
 				"%s/LegalEntity1.json",
 				this.outputDir));
 			return;
 		}
 
-		Selection links = new Selection(new ComparativeExpression(
-			new FunctionCall("count", EvaluationExpression.VALUE), BinaryOperator.GREATER, new ConstantExpression(1)),
-			this.cluster[EARMARK][LEGAL_ENTITY]);
+		Selection links = new Selection().
+			withInputs(this.cluster[EARMARK][LEGAL_ENTITY]).
+			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+				BinaryOperator.GREATER, new ConstantExpression(1)));
 
-		Selection earmarksOnly = new Selection(new ComparativeExpression(
-			new FunctionCall("count", EvaluationExpression.VALUE), BinaryOperator.EQUAL, new ConstantExpression(1)),
-			this.cluster[EARMARK][LEGAL_ENTITY]);
+		Selection earmarksOnly = new Selection().
+			withInputs(this.cluster[EARMARK][LEGAL_ENTITY]).
+			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+				BinaryOperator.EQUAL, new ConstantExpression(1)));
 
 		ObjectCreation merge = new ObjectCreation();
 		merge.addMapping(new ObjectCreation.CopyFields(new InputSelection(1)));
@@ -331,32 +345,36 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			new PathExpression(new InputSelection(0), new ObjectAccess("addresses")),
 			new PathExpression(new InputSelection(1), new ObjectAccess("addresses")))));
 		// merge.addMapping("funds", new PathExpression(new ArrayAccess(1), new ObjectAccess("enactedFunds")));
-		Projection linksProjection = new Projection(merge, links);
+		Projection linksProjection = new Projection().withValueTransformation(merge).withInputs(links);
 
-		Projection earmarkProjection = new Projection(new InputSelection(0), earmarksOnly);
+		Projection earmarkProjection = new Projection().
+			withValueTransformation(new InputSelection(0)).
+			withInputs(earmarksOnly);
 
 		// TODO: update person worksFor
 
-		this.fused[EARMARK][LEGAL_ENTITY] = new UnionAll(linksProjection, earmarkProjection);
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/LegalEntity1.json", this.outputDir),
-			this.fused[EARMARK][LEGAL_ENTITY]));
+		this.fused[EARMARK][LEGAL_ENTITY] = new UnionAll().withInputs(linksProjection, earmarkProjection);
+		this.sinks.add(new Sink(this.getInternalOutputFormat(), String.format("%s/LegalEntity1.json", this.outputDir)).
+			withInputs(this.fused[EARMARK][LEGAL_ENTITY]));
 	}
 
 	private void fuseLegalEntity2(boolean simulate) {
 		if (simulate) {
-			this.fused[SPENDING][LEGAL_ENTITY] = new Source(getInternalInputFormat(), String.format(
+			this.fused[SPENDING][LEGAL_ENTITY] = new Source(this.getInternalInputFormat(), String.format(
 				"%s/LegalEntity2.json",
 				this.outputDir));
 			return;
 		}
 
-		Selection links = new Selection(new ComparativeExpression(
-			new FunctionCall("count", EvaluationExpression.VALUE), BinaryOperator.GREATER, new ConstantExpression(1)),
-			this.cluster[EARMARK][LEGAL_ENTITY]);
+		Selection links = new Selection().
+			withInputs(this.cluster[SPENDING][LEGAL_ENTITY]).
+			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+				BinaryOperator.GREATER, new ConstantExpression(1)));
 
-		Selection oneSourceOnly = new Selection(new ComparativeExpression(
-			new FunctionCall("count", EvaluationExpression.VALUE), BinaryOperator.EQUAL, new ConstantExpression(1)),
-			this.cluster[EARMARK][LEGAL_ENTITY]);
+		Selection oneSourceOnly = new Selection().
+			withInputs(this.cluster[SPENDING][LEGAL_ENTITY]).
+			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+				BinaryOperator.EQUAL, new ConstantExpression(1)));
 
 		ObjectCreation merge = new ObjectCreation();
 		merge.addMapping(new ObjectCreation.CopyFields(new InputSelection(1)));
@@ -367,18 +385,20 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			new PathExpression(new InputSelection(0), new ObjectAccess("addresses")),
 			new PathExpression(new InputSelection(1), new ObjectAccess("addresses")))));
 		// merge.addMapping("funds", new PathExpression(new ArrayAccess(1), new ObjectAccess("enactedFunds")));
-		Projection linksProjection = new Projection(merge, links);
+		Projection linksProjection = new Projection().withValueTransformation(merge).withInputs(links);
 
-		Projection oneSourceProjection = new Projection(new ArrayAccess(0), oneSourceOnly);
+		Projection oneSourceProjection = new Projection().
+			withValueTransformation(new InputSelection(0)).
+			withInputs(oneSourceOnly);
 
 		// TODO: update person worksFor
 
-		this.fused[SPENDING][LEGAL_ENTITY] = new UnionAll(linksProjection, oneSourceProjection);
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/LegalEntity2.json", this.outputDir),
-			this.fused[SPENDING][LEGAL_ENTITY]));
+		this.fused[SPENDING][LEGAL_ENTITY] = new UnionAll().withInputs(linksProjection, oneSourceProjection);
+		this.sinks.add(new Sink(this.getInternalOutputFormat(), String.format("%s/LegalEntity2.json", this.outputDir)).
+			withInputs(this.fused[SPENDING][LEGAL_ENTITY]));
 	}
 
-	// private Operator mapCongressLegalEntities(Operator congressScrub) {
+	// private Operator<?> mapCongressLegalEntities(Operator<?> congressScrub) {
 	//
 	// }
 	//
@@ -426,7 +446,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		stateProjections.addMapping("legalEntity", new FunctionCall("format", new ConstantExpression(
 			"congressLegalEntity%s"), new PathExpression(new ArrayAccess(0), new ObjectAccess("state"))));
 		stateProjections.addMapping("positions", new FunctionCall("distinct", new AggregationExpression(
-			CleansFunctions.ALL, new ObjectAccess("position"))));
+			BuiltinFunctions.ALL, new ObjectAccess("position"))));
 		stateProjections.addMapping("startYear",
 			this.coerce(IntNode.class, new AggregationExpression(CleansFunctions.MIN, new FunctionCall(
 				"extract", new ObjectAccess("number"), new ConstantExpression("\\(([0-9]{0,4})-")))));
@@ -434,7 +454,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			this.coerce(IntNode.class, new AggregationExpression(CleansFunctions.MAX, new FunctionCall(
 				"extract", new ObjectAccess("number"), new ConstantExpression("-([0-9]{0,4})")))));
 		stateProjections.addMapping("congresses",
-			new AggregationExpression(CleansFunctions.ALL, this.coerce(IntNode.class, new FunctionCall(
+			new AggregationExpression(BuiltinFunctions.ALL, this.coerce(IntNode.class, new FunctionCall(
 				"extract", new ObjectAccess("number"), new ConstantExpression("([0-9]+)\\(")))));
 		AggExpression congresses = new AggExpression(new ObjectAccess("state"), stateProjections);
 
@@ -470,7 +490,9 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// //
 		if (this.scrubbed[CONGRESS] == null)
 			this.scrubCongress(true);
-		SchemaMapping congressMapping = new SchemaMapping(projection, this.scrubbed[CONGRESS]);
+		SchemaMapping congressMapping = new SchemaMapping().
+			withProjection(projection).
+			withInputs(this.scrubbed[CONGRESS]);
 
 		// new Lookup(congressMapping, congressMapping);
 		// ValueSplitter titles = new ValueSplitter(congressMapping).withArrayProjection(new
@@ -480,11 +502,12 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// titles));
 
 		this.inputs[CONGRESS][PERSON] = congressMapping;
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/CongressPersons.json", this.outputDir),
-			congressMapping));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/CongressPersons.json", this.outputDir)).
+			withInputs(congressMapping));
 	}
 
-	private Operator mapCongressStates() {
+	private Operator<?> mapCongressStates() {
 		ObjectCreation projection = new ObjectCreation();
 		BatchAggregationExpression batch = new BatchAggregationExpression();
 		EvaluationExpression first = batch.add(BuiltinFunctions.FIRST);
@@ -496,16 +519,19 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		address.addMapping("country", new ConstantExpression("United States of America"));
 		projection.addMapping("addresses", address);
 
-		ValueSplitter valueSplitter = new ValueSplitter(this.scrubbed[CONGRESS]).
+		ValueSplitter valueSplitter = new ValueSplitter().
+			withInputs(this.scrubbed[CONGRESS]).
 			withArrayProjection(new ObjectAccess("congresses")).
 			withKeyProjection(new PathExpression(new ArrayAccess(0), new ObjectAccess("state"))).
 			withValueProjection(new PathExpression(new ArrayAccess(0), new ObjectAccess("state")));
-		Grouping grouping = new Grouping(projection, valueSplitter);
-		grouping.withKeyProjection(EvaluationExpression.KEY);
+		Grouping grouping = new Grouping().
+			withGroupingKey(0, EvaluationExpression.KEY).
+			withInputs(valueSplitter).
+			withResultProjection(projection);
 		return grouping;
 	}
 
-	private Operator mapCongressParties() {
+	private Operator<?> mapCongressParties() {
 
 		ObjectCreation projection = new ObjectCreation();
 		BatchAggregationExpression batch = new BatchAggregationExpression();
@@ -513,18 +539,21 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		projection.addMapping("id", new FunctionCall("format", new ConstantExpression("congressLegalEntity%s"), first));
 		projection.addMapping("names", new ArrayCreation(first));
 
-		ValueSplitter valueSplitter = new ValueSplitter(this.scrubbed[CONGRESS]).
+		ValueSplitter valueSplitter = new ValueSplitter().
+			withInputs(this.scrubbed[CONGRESS]).
 			withArrayProjection(new ObjectAccess("congresses")).
 			withKeyProjection(new PathExpression(new ArrayAccess(0), new ObjectAccess("party"))).
 			withValueProjection(new PathExpression(new ArrayAccess(0), new ObjectAccess("party")));
-		Grouping grouping = new Grouping(projection, valueSplitter);
-		grouping.withKeyProjection(EvaluationExpression.KEY);
+		Grouping grouping = new Grouping().
+			withInputs(valueSplitter).
+			withGroupingKey(EvaluationExpression.KEY).
+			withResultProjection(projection);
 		return grouping;
 	}
 
 	private void mapCongressLegalEntity(boolean simulate) {
 		if (simulate) {
-			this.inputs[CONGRESS][LEGAL_ENTITY] = new Source(getInternalInputFormat(), String.format(
+			this.inputs[CONGRESS][LEGAL_ENTITY] = new Source(this.getInternalInputFormat(), String.format(
 				"%s/CongressLegalEntities.json",
 				this.outputDir));
 			return;
@@ -532,11 +561,11 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		if (this.scrubbed[CONGRESS] == null)
 			this.scrubCongress(true);
-		UnionAll legalEntities = new UnionAll(this.mapCongressParties(), this.mapCongressStates());
+		UnionAll legalEntities = new UnionAll().withInputs(this.mapCongressParties(), this.mapCongressStates());
 		this.inputs[CONGRESS][LEGAL_ENTITY] = legalEntities;
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/CongressLegalEntities.json",
-			this.outputDir),
-			legalEntities));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/CongressLegalEntities.json", this.outputDir)).
+			withInputs(legalEntities));
 	}
 
 	private EvaluationExpression coerce(Class<? extends JsonNode> type, EvaluationExpression expression) {
@@ -547,7 +576,8 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 	private void mapSpendingFund(boolean simulate) {
 		if (simulate) {
-			this.inputs[SPENDING][FUND] = new Source(getInternalInputFormat(), String.format("%s/EarmarkFunds.json",
+			this.inputs[SPENDING][FUND] = new Source(this.getInternalInputFormat(), String.format(
+				"%s/EarmarkFunds.json",
 				this.outputDir));
 			return;
 		}
@@ -556,30 +586,34 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 		fundProjection.addMapping("id", new FunctionCall("format", new ConstantExpression("spendings%s"),
-			new PathExpression(batch.add(CleansFunctions.FIRST), new ObjectAccess("UniqueTransactionID"))));
-		fundProjection.addMapping("amount", batch.add(CleansFunctions.SUM, new TernaryExpression(new ObjectAccess(
-			"DollarsObligated"), coerce(DecimalNode.class, new ObjectAccess("DollarsObligated")),
+			new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess("UniqueTransactionID"))));
+		fundProjection.addMapping("amount", batch.add(BuiltinFunctions.SUM, new TernaryExpression(new ObjectAccess(
+			"DollarsObligated"), this.coerce(DecimalNode.class, new ObjectAccess("DollarsObligated")),
 			new ConstantExpression(0))));
 		fundProjection.addMapping("currency", new ConstantExpression("USD"));
 		ObjectCreation date = new ObjectCreation();
-		date.addMapping("year", batch.add(CleansFunctions.FIRST, new ObjectAccess("FiscalYear")));
+		date.addMapping("year", batch.add(BuiltinFunctions.FIRST, new ObjectAccess("FiscalYear")));
 		fundProjection.addMapping("date", date);
-		fundProjection.addMapping("subject", new PathExpression(batch.add(CleansFunctions.FIRST), new ObjectAccess(
+		fundProjection.addMapping("subject", new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess(
 			"ProductorServiceCode")));
 
 		if (this.scrubbed[SPENDING] == null)
 			this.scrubSpending(true);
-		Grouping grouping = new Grouping(fundProjection, this.scrubbed[SPENDING]);
-		grouping.withKeyProjection(new ObjectAccess("UniqueTransactionID"));
+		Grouping grouping = new Grouping().
+			withInputs(this.scrubbed[SPENDING]).
+			withGroupingKey(new ObjectAccess("UniqueTransactionID")).
+			withResultProjection(fundProjection);
 
 		this.inputs[SPENDING][FUND] = grouping;
-		this.sinks
-			.add(new Sink(getInternalOutputFormat(), String.format("%s/SpendingFunds.json", this.outputDir), grouping));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/SpendingFunds.json", this.outputDir)).
+			withInputs(grouping));
 	}
 
 	private void mapEarmarkFund(boolean simulate) {
 		if (simulate) {
-			this.inputs[EARMARK][FUND] = new Source(getInternalInputFormat(), String.format("%s/EarmarkFunds.json",
+			this.inputs[EARMARK][FUND] = new Source(this.getInternalInputFormat(), String.format(
+				"%s/EarmarkFunds.json",
 				this.outputDir));
 			return;
 		}
@@ -588,29 +622,30 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 		fundProjection.addMapping("id", new FunctionCall("format", new ConstantExpression("earmark%s"),
-			new PathExpression(batch.add(CleansFunctions.FIRST), new ObjectAccess("earmarkId"))));
-		fundProjection.addMapping("amount", batch.add(CleansFunctions.SUM, new TernaryExpression(new ObjectAccess(
+			new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess("earmarkId"))));
+		fundProjection.addMapping("amount", batch.add(BuiltinFunctions.SUM, new TernaryExpression(new ObjectAccess(
 			"amount"), new ObjectAccess("amount"), new ConstantExpression(0))));
 		fundProjection.addMapping("currency", new ConstantExpression("USD"));
 		ObjectCreation date = new ObjectCreation();
-		date.addMapping("year", batch.add(CleansFunctions.FIRST, new ObjectAccess("enactedYear")));
+		date.addMapping("year", batch.add(BuiltinFunctions.FIRST, new ObjectAccess("enactedYear")));
 		fundProjection.addMapping("date", date);
-		fundProjection.addMapping("subject", new PathExpression(batch.add(CleansFunctions.FIRST), new ObjectAccess(
+		fundProjection.addMapping("subject", new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess(
 			"shortDescription")));
 
 		if (this.scrubbed[EARMARK] == null)
 			this.scrubEarmark(true);
 		Grouping grouping = new Grouping().
-				withKeyProjection(new ObjectAccess("earmarkId")).
-				withResultProjection(fundProjection).
-				withInputs(this.scrubbed[EARMARK]);
+			withInputs(this.scrubbed[EARMARK]).
+			withGroupingKey(new ObjectAccess("earmarkId")).
+			withResultProjection(fundProjection);
 
 		this.inputs[EARMARK][FUND] = grouping;
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/EarmarkFunds.json", this.outputDir),
-			grouping));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/EarmarkFunds.json", this.outputDir)).
+			withInputs(grouping));
 	}
 
-	private Operator mapEarmarkStates() {
+	private Operator<?> mapEarmarkStates() {
 		ObjectCreation projection = new ObjectCreation();
 		PathExpression name = new PathExpression(new ArrayAccess(0), new ObjectAccess("sponsorStateCode"));
 		projection.addMapping("id", new FunctionCall("format", new ConstantExpression("congressLegalEntity%s"), name));
@@ -623,15 +658,19 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		ComparativeExpression recipientCondition = new ComparativeExpression(new ObjectAccess("sponsorStateCode"),
 			BinaryOperator.NOT_EQUAL, new ConstantExpression(""));
-		Selection sponsors = new Selection(recipientCondition, this.scrubbed[EARMARK]);
-		Grouping grouping = new Grouping(projection, sponsors);
-		grouping.withKeyProjection(new ObjectAccess("sponsorStateCode"));
+		Selection sponsors = new Selection().
+			withInputs(this.scrubbed[EARMARK]).
+			withCondition(recipientCondition);
+		Grouping grouping = new Grouping().
+			withInputs(sponsors).
+			withGroupingKey(new ObjectAccess("sponsorStateCode")).
+			withResultProjection(projection);
 		return grouping;
 	}
 
 	private void mapEarmarkLegalEntity(boolean simulate) {
 		if (simulate) {
-			this.inputs[EARMARK][LEGAL_ENTITY] = new Source(getInternalInputFormat(), String.format(
+			this.inputs[EARMARK][LEGAL_ENTITY] = new Source(this.getInternalInputFormat(), String.format(
 				"%s/EarmarkLegalEntities.json",
 				this.outputDir));
 			return;
@@ -639,21 +678,21 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		if (this.scrubbed[EARMARK] == null)
 			this.scrubEarmark(true);
-		UnionAll legalEntities = new UnionAll(this.mapEarmarkReceiver(), this.mapEarmarkStates());
+		UnionAll legalEntities = new UnionAll().withInputs(this.mapEarmarkReceiver(), this.mapEarmarkStates());
 		this.inputs[EARMARK][LEGAL_ENTITY] = legalEntities;
-		this.sinks.add(new Sink(getInternalOutputFormat(), String
-			.format("%s/EarmarkLegalEntities.json", this.outputDir),
-			legalEntities));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/EarmarkLegalEntities.json", this.outputDir)).
+			withInputs(legalEntities));
 
 	}
 
-	private Operator mapEarmarkReceiver() {
+	private Operator<?> mapEarmarkReceiver() {
 
 		ObjectCreation projection = new ObjectCreation();
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 
-		projection.addMapping("names", new ArrayCreation(new PathExpression(batch.add(CleansFunctions.FIRST),
+		projection.addMapping("names", new ArrayCreation(new PathExpression(batch.add(BuiltinFunctions.FIRST),
 			new ObjectAccess("recipient"))));
 		projection.addMapping("id", new GenerateExpression("earmarkReceiver%s"));
 
@@ -662,7 +701,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			"earmarkId")));
 		funds.addMapping("amount", new ObjectAccess("currentContractValue"));
 		funds.addMapping("currency", new ConstantExpression("USD"));
-		projection.addMapping("receivedFunds", batch.add(CleansFunctions.ALL, funds));
+		projection.addMapping("receivedFunds", batch.add(BuiltinFunctions.ALL, funds));
 
 		ObjectCreation address = new ObjectCreation();
 		address.addMapping("street", new FunctionCall("trim",
@@ -672,24 +711,29 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		address.addMapping("zipCode", new ObjectAccess("recipientZipcode"));
 		address.addMapping("state", new FunctionCall("camelCase", new ObjectAccess("sponsorStateCode")));
 		address.addMapping("country", new ObjectAccess("recipientCountry"));
-		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(CleansFunctions.ALL, address)));
+		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(BuiltinFunctions.ALL, address)));
 
 		projection.addMapping("phones",
-			new FunctionCall("distinct", batch.add(CleansFunctions.ALL, new ObjectAccess("phone"))));
+			new FunctionCall("distinct", batch.add(BuiltinFunctions.ALL, new ObjectAccess("phone"))));
 		// TODO: add recipientType, recipientTypeOther
 
 		ComparativeExpression recipientCondition = new ComparativeExpression(new ObjectAccess("recordType"),
 			BinaryOperator.EQUAL, new ConstantExpression("R"));
-		Selection sponsors = new Selection(recipientCondition, this.scrubbed[EARMARK]);
-		Grouping grouping = new Grouping(projection, sponsors);
-		grouping.withKeyProjection(new ObjectAccess("recipient"));
+		Selection sponsors = new Selection().
+			withInputs(this.scrubbed[EARMARK]).
+			withCondition(recipientCondition);
+		Grouping grouping = new Grouping().
+			withInputs(sponsors).
+			withGroupingKey(new ObjectAccess("recipient")).
+			withResultProjection(projection);
 
 		return grouping;
 	}
 
 	private void mapEarmarkPerson(boolean simulate) {
 		if (simulate) {
-			this.inputs[EARMARK][PERSON] = new Source(getInternalInputFormat(), String.format("%s/EarmarkPerson.json",
+			this.inputs[EARMARK][PERSON] = new Source(this.getInternalInputFormat(), String.format(
+				"%s/EarmarkPerson.json",
 				this.outputDir));
 			return;
 		}
@@ -699,23 +743,23 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 
 		projection.addMapping("id", new GenerateExpression("earmarkPerson%s"));
-		PathExpression first = new PathExpression(batch.add(CleansFunctions.FIRST),
+		PathExpression first = new PathExpression(batch.add(BuiltinFunctions.FIRST),
 			new ObjectAccess("sponsorFirstName"));
-		PathExpression middle = new PathExpression(batch.add(CleansFunctions.FIRST), new ObjectAccess(
+		PathExpression middle = new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess(
 			"sponsorMiddleName"));
 		projection.addMapping("firstName",
 			new TernaryExpression(middle, new FunctionCall("format", new ConstantExpression("%s %s"), first, middle),
 				first));
-		projection.addMapping("lastName", new PathExpression(batch.add(CleansFunctions.FIRST), new TernaryExpression(
+		projection.addMapping("lastName", new PathExpression(batch.add(BuiltinFunctions.FIRST), new TernaryExpression(
 			new ObjectAccess("sponsorLastName"), new ObjectAccess("sponsorLastName"), new ObjectAccess(
 				"sponsorFirstName"))));
 
-		projection.addMapping("enactedFunds", batch.add(CleansFunctions.SORT, new FunctionCall("format",
+		projection.addMapping("enactedFunds", batch.add(BuiltinFunctions.SORT, new FunctionCall("format",
 			new ConstantExpression("earmark%s"), new ObjectAccess("earmarkId"))));
 
 		ObjectCreation address = new ObjectCreation();
 		address.addMapping("state", new ObjectAccess("sponsorStateCode"));
-		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(CleansFunctions.ALL, address)));
+		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(BuiltinFunctions.ALL, address)));
 
 		ObjectCreation employment = new ObjectCreation();
 		employment.addMapping("legalEntity", new FunctionCall("format",
@@ -728,16 +772,20 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			this.scrubEarmark(true);
 		ComparativeExpression sponsorCondition = new ComparativeExpression(new ObjectAccess("recordType"),
 			BinaryOperator.EQUAL, new ConstantExpression("C"));
-		Selection sponsors = new Selection(sponsorCondition, this.scrubbed[EARMARK]);
-		Grouping grouping = new Grouping(projection, sponsors);
-		grouping.withKeyProjection(new ArrayCreation(new ObjectAccess("sponsorFirstName"),
-			new ObjectAccess("sponsorMiddleName"), new ObjectAccess("sponsorLastName")));
+		Selection sponsors = new Selection().
+			withInputs(this.scrubbed[EARMARK]).
+			withCondition(sponsorCondition);
+		Grouping grouping = new Grouping().
+			withInputs(sponsors).
+			withGroupingKey(new ArrayCreation(new ObjectAccess("sponsorFirstName"),
+				new ObjectAccess("sponsorMiddleName"), new ObjectAccess("sponsorLastName"))).
+			withResultProjection(projection);
 
-		Operator persons = grouping;
+		Operator<?> persons = grouping;
 		this.inputs[EARMARK][PERSON] = persons;
-		this.sinks.add(
-			new Sink(getInternalOutputFormat(), String.format("%s/EarmarkPerson.json", this.outputDir), persons));
-
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/EarmarkPerson.json", this.outputDir)).
+			withInputs(persons));
 	}
 
 	protected Projection getNickNameLookup() {
@@ -747,24 +795,29 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			realNames[index] = new ObjectAccess(String.format("REALNAME_%d", index + 1));
 		EvaluationExpression filteredNames = new FunctionCall("filter", new ArrayCreation(realNames),
 			new ConstantExpression(null), new ConstantExpression(""));
-		Projection nickNamesToRealNames = new Projection(new ObjectAccess("NICKNAME"), filteredNames, nickNames);
+		Projection nickNamesToRealNames = new Projection().
+			withInputs(nickNames).
+			withKeyTransformation(new ObjectAccess("NICKNAME")).
+			withValueTransformation(filteredNames);
 		return nickNamesToRealNames;
 	}
 
-	private Operator mapSpendingAgencies() {
+	private Operator<?> mapSpendingAgencies() {
 		ObjectCreation projection = new ObjectCreation();
 		PathExpression name = new PathExpression(new ArrayAccess(0), new ObjectAccess("ContractingAgency"));
 		projection.addMapping("id", new FunctionCall("format", new ConstantExpression("spendingLegalEntity%s"), name));
 		projection.addMapping("name", name);
 
-		Grouping grouping = new Grouping(projection, this.scrubbed[SPENDING]);
-		grouping.withKeyProjection(new ObjectAccess("ContractingAgency"));
+		Grouping grouping = new Grouping().
+			withInputs(this.scrubbed[SPENDING]).
+			withGroupingKey(new ObjectAccess("ContractingAgency")).
+			withResultProjection(projection);
 		return grouping;
 	}
 
 	private void mapSpendingLegalEntity(boolean simulate) {
 		if (simulate) {
-			this.inputs[SPENDING][LEGAL_ENTITY] = new Source(getInternalInputFormat(), String.format(
+			this.inputs[SPENDING][LEGAL_ENTITY] = new Source(this.getInternalInputFormat(), String.format(
 				"%s/SpendingLegalEntities.json",
 				this.outputDir));
 			return;
@@ -772,15 +825,15 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		if (this.scrubbed[SPENDING] == null)
 			this.scrubEarmark(true);
-		UnionAll legalEntities = new UnionAll(this.mapSpendingAgencies(), this.mapSpendingReceiver());
+		UnionAll legalEntities = new UnionAll().withInputs(this.mapSpendingAgencies(), this.mapSpendingReceiver());
 		this.inputs[SPENDING][LEGAL_ENTITY] = legalEntities;
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/SpendingLegalEntities.json",
-			this.outputDir),
-			legalEntities));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/SpendingLegalEntities.json", this.outputDir)).
+			withInputs(legalEntities));
 
 	}
 
-	private Operator mapSpendingReceiver() {
+	private Operator<?> mapSpendingReceiver() {
 
 		ObjectCreation projection = new ObjectCreation();
 
@@ -791,16 +844,16 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// new ObjectAccess("RecipientOrContractorName"),
 		// new ObjectAccess("VendorName"));
 		//
-		projection.addMapping("name", new PathExpression(batch.add(CleansFunctions.FIRST), new ObjectAccess(
+		projection.addMapping("name", new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess(
 			"ParentRecipientOrCompanyName")));
 		projection.addMapping("id", new GenerateExpression("spendingReceiver%s"));
 
 		ObjectCreation funds = new ObjectCreation();
 		funds.addMapping("fund", new FunctionCall("format", new ConstantExpression("spendings%s"), new ObjectAccess(
 			"UniqueTransactionID")));
-		funds.addMapping("amount", coerce(DecimalNode.class, new ObjectAccess("DollarsObligated")));
+		funds.addMapping("amount", this.coerce(DecimalNode.class, new ObjectAccess("DollarsObligated")));
 		funds.addMapping("currency", new ConstantExpression("USD"));
-		projection.addMapping("receivedFunds", batch.add(CleansFunctions.ALL, funds));
+		projection.addMapping("receivedFunds", batch.add(BuiltinFunctions.ALL, funds));
 
 		ObjectCreation address = new ObjectCreation();
 		address.addMapping("street", new ObjectAccess("RecipientAddressLine123"));
@@ -808,10 +861,12 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		address.addMapping("zipCode", new ObjectAccess("RecipientZipCode"));
 		address.addMapping("state", new FunctionCall("camelCase", new ObjectAccess("RecipientState")));
 		// address.addMapping("country", new ObjectAccess("vendorCountry"));
-		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(CleansFunctions.ALL, address)));
+		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(BuiltinFunctions.ALL, address)));
 
-		Grouping grouping = new Grouping(projection, this.scrubbed[SPENDING]);
-		grouping.withKeyProjection(new ObjectAccess("ParentRecipientOrCompanyName"));
+		Grouping grouping = new Grouping().
+			withInputs(this.scrubbed[SPENDING]).
+			withGroupingKey(new ObjectAccess("ParentRecipientOrCompanyName")).
+			withResultProjection(projection);
 
 		return grouping;
 	}
@@ -852,9 +907,11 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// scrubbed = new Lookup(new ObjectAccess("sponsorFirstName"), new Source(getInternalInputFormat(), ));
 		// validation.addRule(new RangeRule(new ObjectAccess("memberName")));
 
-		ComparativeExpression withReceiver = new ComparativeExpression(new FunctionCall("length", new ObjectAccess(
+		ComparativeExpression hasReceiver = new ComparativeExpression(new FunctionCall("length", new ObjectAccess(
 			"ParentRecipientOrCompanyName")), BinaryOperator.GREATER, new ConstantExpression(1));
-		this.scrubbed[SPENDING] = new Selection(withReceiver, spending);
+		this.scrubbed[SPENDING] = new Selection().
+			withInputs(spending).
+			withCondition(hasReceiver);
 		// this.sinks.add(new Sink(SequentialOutputFormat.class, String.format("%s/ScrubbedSpending.json",
 		// this.outputDir),
 		// spending));
@@ -862,36 +919,38 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 	private void scrubEarmark(boolean simulate) {
 		if (simulate) {
-			this.scrubbed[EARMARK] = new Source(getInternalInputFormat(), String.format("%s/ScrubbedEarmarks.json",
+			this.scrubbed[EARMARK] = new Source(this.getInternalInputFormat(), String.format(
+				"%s/ScrubbedEarmarks.json",
 				this.outputDir));
 			return;
 		}
 
-		Source earmarks = new Source(PersistenceType.HDFS,
-			String.format("%s/OriginalUsEarmark2008.json", this.inputDir));
-		Operator scrubbed = new Validation(earmarks);
+		Source earmarks = new Source(String.format("%s/OriginalUsEarmark2008.json", this.inputDir));
+		Operator<?> scrubbed = new Validation().withInputs(earmarks);
 
 		// scrubbed = new Lookup(new ObjectAccess("sponsorFirstName"), new Source(getInternalInputFormat(), ));
 		// validation.addRule(new RangeRule(new ObjectAccess("memberName")));
 		this.scrubbed[EARMARK] = scrubbed;
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/ScrubbedEarmarks.json", this.outputDir),
-			scrubbed));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/ScrubbedEarmarks.json", this.outputDir)).
+			withInputs(scrubbed));
 	}
 
-	private Operator[] scrubbed = new Operator[4];
+	private Operator<?>[] scrubbed = new Operator<?>[4];
 
-	private Operator joinedCongress;
+	private Operator<?> joinedCongress;
 
 	private void scrubCongress(boolean simulate) {
 		if (simulate) {
-			this.scrubbed[CONGRESS] = new Source(getInternalInputFormat(), String.format("%s/ScrubbedCongress.json",
+			this.scrubbed[CONGRESS] = new Source(this.getInternalInputFormat(), String.format(
+				"%s/ScrubbedCongress.json",
 				this.outputDir));
 			return;
 		}
 
-		if (joinedCongress == null)
+		if (this.joinedCongress == null)
 			this.joinCongress(true);
-		Validation scrubbedCongress = new Validation(joinedCongress);
+		Validation scrubbedCongress = new Validation().withInputs(this.joinedCongress);
 		scrubbedCongress.addRule(new NonNullRule(new ObjectAccess("memberName")));
 		scrubbedCongress.addRule(new NonNullRule(TextNode.valueOf("none"), new ObjectAccess("biography")));
 		scrubbedCongress.addRule(new PatternValidationExpression(Pattern.compile("[0-9]+\\(.*"), new ObjectAccess(
@@ -901,13 +960,14 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 				"congress"), new ArrayProjection(new ObjectAccess("position"))));
 		this.scrubbed[CONGRESS] = scrubbedCongress;
 
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/ScrubbedCongress.json", this.outputDir),
-			scrubbedCongress));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/ScrubbedCongress.json", this.outputDir)).
+			withInputs(scrubbedCongress));
 	}
 
 	private void joinCongress(boolean simulate) {
 		if (simulate) {
-			joinedCongress = new Source(getInternalInputFormat(), String.format("%s/JoinedCongress.json",
+			this.joinedCongress = new Source(this.getInternalInputFormat(), String.format("%s/JoinedCongress.json",
 				this.outputDir));
 			return;
 		}
@@ -929,16 +989,19 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		resultProjection.addMapping("biography", new PathExpression(new InputSelection(1), new ArrayAccess(0),
 			new ObjectAccess("biography", true)));
 
-		Grouping congress = new Grouping(resultProjection,
-			new Source(PersistenceType.HDFS, String.format("%s/OriginalUsCongress.json", this.inputDir)),
-			new Source(PersistenceType.HDFS, String.format("%s/OriginalUsCongressBiography.json", this.inputDir)));
+		Grouping congress = new Grouping().
+			withInputs(new Source(String.format("%s/OriginalUsCongress.json", this.inputDir)),
+				new Source(String.format("%s/OriginalUsCongressBiography.json", this.inputDir))).
+			withGroupingKey(0, new ObjectAccess("biography")).
+			withGroupingKey(1, new ObjectAccess("id")).
+			withResultProjection(resultProjection);
 
-		congress.withKeyProjection(0, new ObjectAccess("biography"));
-		congress.withKeyProjection(1, new ObjectAccess("id"));
-
-		joinedCongress = new Selection(new UnaryExpression(new ObjectAccess("biography")), congress);
-		this.sinks.add(new Sink(getInternalOutputFormat(), String.format("%s/JoinedCongress.json", this.outputDir),
-			congress));
+		this.joinedCongress = new Selection().
+			withInputs(congress).
+			withCondition(new UnaryExpression(new ObjectAccess("biography")));
+		this.sinks.add(new Sink(this.getInternalOutputFormat(),
+			String.format("%s/JoinedCongress.json", this.outputDir)).
+			withInputs(congress));
 	}
 
 	public static void main(String[] args) {

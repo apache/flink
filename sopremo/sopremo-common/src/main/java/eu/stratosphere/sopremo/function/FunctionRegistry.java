@@ -24,8 +24,8 @@ public class FunctionRegistry implements SerializableSopremoType {
 
 	public JsonNode evaluate(final String functionName, final JsonNode node, final EvaluationContext context) {
 		final Function function = this.getFunction(functionName);
-		if(function == null)
-			 throw new EvaluationException(String.format("Unknown function %s", functionName));
+		if (function == null)
+			throw new EvaluationException(String.format("Unknown function %s", functionName));
 		return function.evaluate(node, context);
 	}
 

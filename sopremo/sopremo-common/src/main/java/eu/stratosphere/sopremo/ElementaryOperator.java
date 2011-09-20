@@ -112,7 +112,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 */
 	protected void configureContract(final Contract contract, final Configuration stubConfiguration,
 			final EvaluationContext context) {
-		context.pushOperator(getName());
+		context.pushOperator(this.getName());
 		SopremoUtil.setContext(stubConfiguration, context);
 		context.popOperator();
 

@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -43,9 +42,9 @@ public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
 	}
 
 	@Override
-	public Operator getInterSource(ComparativeExpression similarityCondition, RecordLinkageInput input1,
+	public Operator<?> getInterSource(ComparativeExpression similarityCondition, RecordLinkageInput input1,
 			RecordLinkageInput input2) {
-		final List<Operator> passes = new ArrayList<Operator>();
+		final List<Operator<?>> passes = new ArrayList<Operator<?>>();
 		for (int index = 0; index < this.passPartitionKeys.size(); index++)
 			passes.add(this.createSinglePassInterSource(this.passPartitionKeys.get(index), similarityCondition,
 				input1, input2));
@@ -53,20 +52,20 @@ public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
 	}
 
 	@Override
-	public Operator getIntraSource(ComparativeExpression similarityCondition, RecordLinkageInput input) {
-		final List<Operator> passes = new ArrayList<Operator>();
+	public Operator<?> getIntraSource(ComparativeExpression similarityCondition, RecordLinkageInput input) {
+		final List<Operator<?>> passes = new ArrayList<Operator<?>>();
 
 		for (int index = 0; index < this.passPartitionKeys.size(); index++)
 			passes.add(this.createSinglePassIntraSource(this.passPartitionKeys.get(index)[0], similarityCondition,
-					input));
+				input));
 
 		return new Union().withInputs(passes);
 	}
 
-	protected abstract Operator createSinglePassInterSource(EvaluationExpression[] partitionKeys,
+	protected abstract Operator<?> createSinglePassInterSource(EvaluationExpression[] partitionKeys,
 			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2);
 
-	protected abstract Operator createSinglePassIntraSource(EvaluationExpression partitionKey,
+	protected abstract Operator<?> createSinglePassIntraSource(EvaluationExpression partitionKey,
 			ComparativeExpression similarityCondition, RecordLinkageInput input);
 
 	@Override

@@ -15,30 +15,33 @@ public @interface Name {
 	String[] adjective() default {};
 
 	String[] preposition() default {};
-	
+
 	public static enum NameType {
 		NOUN {
 			@Override
 			public String[] get(Name name) {
 				return name.noun();
 			}
-		}, VERB {
+		},
+		VERB {
 			@Override
 			public String[] get(Name name) {
 				return name.verb();
 			}
-		}, ADJECTIVE {
+		},
+		ADJECTIVE {
 			@Override
 			public String[] get(Name name) {
 				return name.adjective();
 			}
-		}, PREPOSITION {
+		},
+		PREPOSITION {
 			@Override
 			public String[] get(Name name) {
 				return name.preposition();
 			}
 		};
-		
+
 		public abstract String[] get(Name name);
 	}
 }

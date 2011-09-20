@@ -43,14 +43,14 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 	}
 
 	@Override
-	protected Operator createElementaryOperations(final List<Operator> inputs) {
+	protected Operator<?> createElementaryOperations(final List<Operator<?>> inputs) {
 		if (inputs.size() <= 1)
 			return new GroupProjection(this.resultProjection).withInputs(inputs);
 
 		if (inputs.size() == 2)
 			return new CoGroupProjection(this.resultProjection).withInputs(inputs);
 
-		final Operator union = new UnionAll().withInputs(inputs);
+		final UnionAll union = new UnionAll().withInputs(inputs);
 		return new GroupProjection(new PathExpression(new AggregationExpression(new ArrayUnion()),
 			this.resultProjection)).withInputs(union);
 	}
@@ -68,19 +68,19 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 	}
 
 	@Override
-	protected EvaluationExpression getDefaultValueProjection(final Output source) {
-		if (super.getDefaultValueProjection(source) != EvaluationExpression.VALUE)
-			return super.getDefaultValueProjection(source);
+	protected EvaluationExpression getDefaultValueProjection(final JsonStream input) {
+		if (super.getDefaultValueProjection(input) != EvaluationExpression.VALUE)
+			return super.getDefaultValueProjection(input);
 		if (this.getInputs().size() <= 2)
 			return EvaluationExpression.VALUE;
 		final EvaluationExpression[] elements = new EvaluationExpression[this.getInputs().size()];
 		Arrays.fill(elements, EvaluationExpression.NULL);
-		elements[this.getInputs().indexOf(source)] = EvaluationExpression.VALUE;
+		elements[this.getInputs().indexOf(input)] = EvaluationExpression.VALUE;
 		return new ArrayCreation(elements);
 	}
 
 	public EvaluationExpression getResultProjection() {
-		return resultProjection;
+		return this.resultProjection;
 	}
 
 	@Override
@@ -101,7 +101,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 	}
 
 	public Grouping withResultProjection(EvaluationExpression resultProjection) {
-		setResultProjection(resultProjection);
+		this.setResultProjection(resultProjection);
 		return this;
 	}
 
@@ -109,6 +109,20 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 	@Name(preposition = "by")
 	public void setGroupingKey(int inputIndex, EvaluationExpression keyProjection) {
 		super.setKeyProjection(inputIndex, keyProjection);
+	}
+
+	public EvaluationExpression getGroupingKey(int index) {
+		return super.getKeyProjection(index);
+	}
+
+	public Grouping withGroupingKey(int inputIndex, EvaluationExpression groupingKey) {
+		setGroupingKey(inputIndex, groupingKey);
+		return this;
+	}
+
+	public Grouping withGroupingKey(EvaluationExpression groupingKey) {
+		setDefaultKeyProjection(groupingKey);
+		return this;
 	}
 
 	@Override
@@ -139,7 +153,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class CoGroupProjection extends ElementaryOperator {
+	public static class CoGroupProjection extends ElementaryOperator<CoGroupProjection> {
 		/**
 		 * 
 		 */
@@ -152,7 +166,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		}
 
 		public EvaluationExpression getProjection() {
-			return projection;
+			return this.projection;
 		}
 
 		public void setProjection(EvaluationExpression projection) {
@@ -173,7 +187,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		}
 	}
 
-	public static class GroupProjection extends ElementaryOperator {
+	public static class GroupProjection extends ElementaryOperator<GroupProjection> {
 		/**
 		 * 
 		 */

@@ -6,8 +6,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 
@@ -36,7 +41,7 @@ public abstract class SopremoTest<T> {
 
 	protected Class<T> type;
 
-	protected T createDefaultInstance(final int index) {
+	protected T createDefaultInstance(@SuppressWarnings("unused") final int index) {
 		try {
 			return this.type.newInstance();
 		} catch (final Exception e) {
@@ -65,10 +70,19 @@ public abstract class SopremoTest<T> {
 	protected void initVerifier(final EqualsVerifier<T> equalVerifier) {
 		final BitSet blackBitSet = new BitSet();
 		blackBitSet.set(1);
+		ArrayList<Object> redList = new ArrayList<Object>();
+		redList.add(null);
+		ArrayList<Object> blackList = new ArrayList<Object>(redList);
+		blackList.add(null);
+		Map<Object, Object> blackMap = new HashMap<Object, Object>();
+		blackMap.put("test", null);
 
 		equalVerifier.suppress(Warning.NULL_FIELDS)
 			.suppress(Warning.NONFINAL_FIELDS)
 			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet)
+			.withPrefabValues(Set.class, new HashSet<Object>(), new HashSet<Object>(Arrays.asList(42)))
+			.withPrefabValues(List.class, redList, blackList)
+			.withPrefabValues(Map.class, new HashMap<Object, Object>(), blackMap)
 			.usingGetClass();
 	}
 
@@ -90,6 +104,9 @@ public abstract class SopremoTest<T> {
 	 */
 	@Test
 	public void shouldComplyEqualsContract() {
+		if (this.first == null)
+			Assert.fail("Cannot create default instance; "
+				+ "please override createDefaultInstance or shouldComplyEqualsContract");
 		this.shouldComplyEqualsContract(this.first, this.second, this.more);
 	}
 

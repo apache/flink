@@ -63,7 +63,7 @@ public class SopremoUtil {
 
 	@SuppressWarnings("unchecked")
 	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
-			final Class<T> objectClass) {
+			@SuppressWarnings("unused") final Class<T> objectClass) {
 		final String string = config.getString(key, null);
 		if (string == null)
 			return null;
@@ -78,13 +78,14 @@ public class SopremoUtil {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T extends JsonNode> T deserializeNode(final DataInput in, final Class<T> expectedClass)
-			throws IOException {
+	public static <T extends JsonNode> T deserializeNode(final DataInput in,
+			@SuppressWarnings("unused") final Class<T> expectedClass) throws IOException {
 		return (T) deserializeNode(in);
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T deserializeObject(final ObjectInputStream ois, final Class<T> clazz) throws IOException,
+	public static <T> T deserializeObject(final ObjectInputStream ois, @SuppressWarnings("unused") final Class<T> clazz)
+			throws IOException,
 			ClassNotFoundException {
 		if (ois.readBoolean())
 			return (T) ois.readObject();
@@ -217,10 +218,10 @@ public class SopremoUtil {
 	}
 
 	public static void trace() {
-		(((Log4JLogger) LOG).getLogger()).setLevel(Level.TRACE);
+		((Log4JLogger) LOG).getLogger().setLevel(Level.TRACE);
 	}
 
 	public static void untrace() {
-		(((Log4JLogger) LOG).getLogger()).setLevel((((Log4JLogger) LOG).getLogger()).getParent().getLevel());
+		((Log4JLogger) LOG).getLogger().setLevel(((Log4JLogger) LOG).getLogger().getParent().getLevel());
 	}
 }

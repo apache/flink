@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.Arrays;
+
 import junit.framework.Assert;
 
 import org.codehaus.jackson.JsonNode;
@@ -11,20 +13,9 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Override
 	protected AndExpression createDefaultInstance(int index) {
-
-		switch (index) {
-		case 0: {
-			return new AndExpression(TRUE);
-		}
-		case 1: {
-			return new AndExpression(TRUE, TRUE);
-		}
-		case 2: {
-			return new AndExpression(TRUE, TRUE, TRUE);
-		}
-		}
-
-		return super.createDefaultInstance(index);
+		EvaluationExpression[] params = new EvaluationExpression[index + 1];
+		Arrays.fill(params, TRUE);
+		return new AndExpression(params);
 	}
 
 	@Test
@@ -41,6 +32,7 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}
 
+	@SuppressWarnings("unused")
 	@Test(expected = IllegalArgumentException.class)
 	public void shouldThrowExceptionIfExpressionsAreEmpty() {
 		new AndExpression();

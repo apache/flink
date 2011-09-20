@@ -19,7 +19,6 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
@@ -75,12 +74,12 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	public Join withResultProjection(EvaluationExpression resultProjection) {
-		setResultProjection(resultProjection);
+		this.setResultProjection(resultProjection);
 		return this;
 	}
 
 	public Join withJoinCondition(EvaluationExpression joinCondition) {
-		setJoinCondition(joinCondition);
+		this.setJoinCondition(joinCondition);
 		return this;
 	}
 
@@ -108,11 +107,12 @@ public class Join extends CompositeOperator<Join> {
 
 		for (final TwoSourceJoin twoSourceJoin : joins) {
 			List<Operator<?>.Output> operatorInputs = twoSourceJoin.getInputs();
-			final Output[] actualInputs = new Output[2];
+
+			final List<Operator<?>.Output> actualInputs = new ArrayList<Operator<?>.Output>(operatorInputs.size());
 			List<Source> moduleInput = Arrays.asList(module.getInputs());
 			for (int index = 0; index < operatorInputs.size(); index++) {
 				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
-				actualInputs[index] = inputs.get(inputIndex).getSource();
+				actualInputs.add(inputs.get(inputIndex).getSource());
 			}
 			for (int index = 0; index < operatorInputs.size(); index++) {
 				final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getOperator());
@@ -144,8 +144,8 @@ public class Join extends CompositeOperator<Join> {
 	public String toString() {
 		final StringBuilder builder = new StringBuilder(this.getName());
 		builder.append(" on ").append(this.getCondition());
-		if (getResultProjection() != EvaluationExpression.VALUE)
-			builder.append(" to ").append(getResultProjection());
+		if (this.getResultProjection() != EvaluationExpression.VALUE)
+			builder.append(" to ").append(this.getResultProjection());
 		return builder.toString();
 	}
 
@@ -190,7 +190,7 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class AntiJoinStub extends ElementaryOperator {
+	public static class AntiJoinStub extends ElementaryOperator<AntiJoinStub> {
 		/**
 		 * 
 		 */
@@ -222,7 +222,7 @@ public class Join extends CompositeOperator<Join> {
 		}
 
 		@Override
-		public Operator createJoinContract(final Operator left, final Operator right) {
+		public Operator<?> createJoinContract(final Operator<?> left, final Operator<?> right) {
 			switch (this.comparison.getBinaryOperator()) {
 			case EQUAL:
 				final boolean leftOuter = this.getLeftJoinKey().removeTag(ExpressionTag.RETAIN);
@@ -252,7 +252,7 @@ public class Join extends CompositeOperator<Join> {
 		}
 
 		@Override
-		public Operator createJoinContract(final Operator left, final Operator right) {
+		public Operator<?> createJoinContract(final Operator<?> left, final Operator<?> right) {
 			if (this.elementInSetExpression.getQuantor() == Quantor.EXISTS_NOT_IN)
 				return new AntiJoinStub().withInputs(left, right);
 			return new SemiJoinStub().withInputs(left, right);
@@ -260,7 +260,7 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class InnerJoinStub extends ElementaryOperator {
+	public static class InnerJoinStub extends ElementaryOperator<InnerJoinStub> {
 		/**
 		 * 
 		 */
@@ -277,7 +277,7 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class OuterJoinStub extends ElementaryOperator {
+	public static class OuterJoinStub extends ElementaryOperator<OuterJoinStub> {
 		/**
 		 * 
 		 */
@@ -343,7 +343,7 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class SemiJoinStub extends ElementaryOperator {
+	public static class SemiJoinStub extends ElementaryOperator<SemiJoinStub> {
 		/**
 		 * 
 		 */
@@ -362,12 +362,13 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class ThetaJoinStub extends ElementaryOperator {
+	public static class ThetaJoinStub extends ElementaryOperator<ThetaJoinStub> {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -952011340895859983L;
 
+		@SuppressWarnings("unused")
 		private final ComparativeExpression comparison;
 
 		public ThetaJoinStub(final ComparativeExpression comparison) {
@@ -399,7 +400,7 @@ public class Join extends CompositeOperator<Join> {
 
 		public TwoSourceJoin(JsonStream left, JsonStream right, final EvaluationExpression leftJoinKey,
 				final EvaluationExpression rightJoinKey) {
-			setInputs(left, right);
+			this.setInputs(left, right);
 			this.leftJoinKey = leftJoinKey;
 			this.rightJoinKey = rightJoinKey;
 		}
@@ -408,20 +409,20 @@ public class Join extends CompositeOperator<Join> {
 		public SopremoModule asElementaryOperators() {
 			final SopremoModule sopremoModule = new SopremoModule(this.toString(), 2, 1);
 
-			final Operator leftProjection = new Projection().
+			final Operator<?> leftProjection = new Projection().
 				withKeyTransformation(this.leftJoinKey).
 				withInputs(sopremoModule.getInput(0));
-			final Operator rightProjection = new Projection()
+			final Operator<?> rightProjection = new Projection()
 				.withKeyTransformation(this.rightJoinKey).
 				withInputs(sopremoModule.getInput(1));
-			final Operator joinAlgorithm = this.createJoinContract(leftProjection, rightProjection);
+			final Operator<?> joinAlgorithm = this.createJoinContract(leftProjection, rightProjection);
 			sopremoModule.getOutput(0).setInputs(new Projection().
 				withValueTransformation(new ArrayMerger()).
 				withInputs(joinAlgorithm));
 			return sopremoModule;
 		}
 
-		public abstract Operator createJoinContract(Operator left, Operator right);
+		public abstract Operator<?> createJoinContract(Operator<?> left, Operator<?> right);
 
 		public EvaluationExpression getLeftJoinKey() {
 			return this.leftJoinKey;

@@ -42,7 +42,7 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 
 		Operator<?> lastOperator = this.createElementaryOperations(inputs);
 
-		if (resetKey)
+		if (this.resetKey)
 			lastOperator = new Projection().
 				withKeyTransformation(EvaluationExpression.NULL).
 				withInputs(lastOperator);
@@ -61,7 +61,7 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 
 	@SuppressWarnings("unchecked")
 	public Self withResetKey(boolean resetKey) {
-		setResetKey(resetKey);
+		this.setResetKey(resetKey);
 		return (Self) this;
 	}
 
@@ -79,11 +79,13 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		return this.keyProjections.equals(other.keyProjections) && this.valueProjections.equals(other.valueProjections);
 	}
 
-	protected EvaluationExpression getDefaultKeyProjection(final Operator<?>.Output source) {
+	@SuppressWarnings("unused")
+	protected EvaluationExpression getDefaultKeyProjection(final JsonStream input) {
 		return this.defaultKeyProjection;
 	}
 
-	protected EvaluationExpression getDefaultValueProjection(final Operator<?>.Output source) {
+	@SuppressWarnings("unused")
+	protected EvaluationExpression getDefaultValueProjection(final JsonStream input) {
 		return this.defaultValueProjection;
 	}
 
@@ -129,7 +131,7 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 	}
 
 	protected void setKeyProjection(final int inputIndex, final EvaluationExpression keyProjection) {
-		this.setKeyProjection(this.getInput(inputIndex), keyProjection);
+		this.setKeyProjection(getSafeInput(inputIndex), keyProjection);
 	}
 
 	protected void setKeyProjection(final JsonStream input, final EvaluationExpression keyProjection) {
@@ -140,7 +142,7 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 	}
 
 	protected void setValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
-		this.setValueProjection(this.getInput(inputIndex), valueProjection);
+		this.setValueProjection(this.getSafeInput(inputIndex), valueProjection);
 	}
 
 	protected void setValueProjection(final JsonStream input, final EvaluationExpression valueProjection) {
@@ -152,23 +154,23 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 
 	@SuppressWarnings("unchecked")
 	protected Self withValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
-		setValueProjection(inputIndex, valueProjection);
+		this.setValueProjection(inputIndex, valueProjection);
 		return (Self) this;
 	}
 
 	protected Self withKeyProjection(final int inputIndex, final EvaluationExpression valueProjection) {
-		setKeyProjection(inputIndex, valueProjection);
-		return self();
+		this.setKeyProjection(inputIndex, valueProjection);
+		return this.self();
 	}
 
 	protected Self withValueProjection(final EvaluationExpression valueProjection) {
-		setDefaultValueProjection(valueProjection);
-		return self();
+		this.setDefaultValueProjection(valueProjection);
+		return this.self();
 	}
 
 	protected Self withKeyProjection(final EvaluationExpression valueProjection) {
-		setDefaultKeyProjection(valueProjection);
-		return self();
+		this.setDefaultKeyProjection(valueProjection);
+		return this.self();
 	}
 	// @Override
 	// public String toString() {

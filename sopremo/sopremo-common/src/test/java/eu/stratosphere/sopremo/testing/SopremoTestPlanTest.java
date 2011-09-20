@@ -30,7 +30,6 @@ import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
-import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -40,7 +39,6 @@ import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.PersistenceType;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
@@ -94,13 +92,12 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 */
 	@Test
 	public void completeTestPasses() throws IOException {
-		final Source source = new Source(PersistenceType.HDFS, this.getResourcePath("SopremoTestPlan/test.json"));
+		final Source source = new Source(getResourcePath("SopremoTestPlan/test.json"));
 
 		final Identity projection = new Identity();
 		projection.setInputs(source);
 
-		final Sink sink = new Sink(PersistenceType.HDFS, File.createTempFile(
-			"output", null).toURI().toString());
+		final Sink sink = new Sink(File.createTempFile("output", null).toURI().toString());
 		projection.setInputs(projection);
 
 		final SopremoTestPlan testPlan = new SopremoTestPlan(sink);
@@ -115,10 +112,9 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	@Test
 	public void completeTestPassesWithExpectedValues() {
 		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity().
-			withInputs(new Source(PersistenceType.HDFS, this.getResourcePath("SopremoTestPlan/test.json"))));
+			withInputs(new Source(getResourcePath("SopremoTestPlan/test.json"))));
 
-		testPlan.getExpectedOutput(0).setOperator(new Source(PersistenceType.HDFS,
-			this.getResourcePath("SopremoTestPlan/test.json")));
+		testPlan.getExpectedOutput(0).setOperator(new Source(getResourcePath("SopremoTestPlan/test.json")));
 		testPlan.run();
 	}
 
@@ -182,7 +178,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class CartesianProduct extends ElementaryOperator {
+	public static class CartesianProduct extends ElementaryOperator<CartesianProduct> {
 		/**
 		 * 
 		 */
@@ -199,7 +195,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		}
 	}
 
-	public static class Identity extends ElementaryOperator {
+	public static class Identity extends ElementaryOperator<Identity> {
 		/**
 		 * 
 		 */

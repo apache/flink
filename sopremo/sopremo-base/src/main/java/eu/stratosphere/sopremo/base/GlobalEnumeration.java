@@ -18,7 +18,7 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
-public class GlobalEnumeration extends ElementaryOperator {
+public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	/**
 	 * 
 	 */

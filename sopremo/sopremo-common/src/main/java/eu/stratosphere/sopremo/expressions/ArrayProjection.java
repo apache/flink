@@ -57,7 +57,7 @@ public class ArrayProjection extends EvaluationExpression implements WritableEva
 			arrayNode.set(index, ((WritableEvaluable) this.expression).set(node.get(index), value, context));
 		return arrayNode;
 	}
-	
+
 	@Override
 	public EvaluationExpression asExpression() {
 		return this;

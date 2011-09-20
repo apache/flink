@@ -61,7 +61,7 @@ public abstract class CompositeOperator<Self extends CompositeOperator<Self>> ex
 		final SopremoModule elementaryPlan = this.asElementaryOperators();
 		if (LOG.isTraceEnabled())
 			LOG.trace(" to elementary plan\n" + elementaryPlan);
-		context.pushOperator(getName());
+		context.pushOperator(this.getName());
 		final PactModule pactModule = elementaryPlan.asPactModule(context);
 		context.popOperator();
 		return pactModule;

@@ -16,7 +16,6 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.base.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.cleansing.similarity.NumericDifference;
@@ -248,13 +247,13 @@ public class InterSourceRecordLinkageTest {
 	}
 
 	private SopremoTestPlan createTestPlan(final LinkageMode mode) {
-		RecordLinkage recordLinkage = new InterSourceRecordLinkage().
+		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(new Naive()).
 			withSimilarityExpression(this.similarityFunction).
 			withThreshold(0.7).
 			withLinkageMode(mode);
 
-		Operator sortedArrays = recordLinkage;
+		Projection sortedArrays;
 		if (!mode.getClosureMode().isProvenance())
 			sortedArrays = new Projection().
 				withValueTransformation(BuiltinFunctions.SORT.asExpression()).

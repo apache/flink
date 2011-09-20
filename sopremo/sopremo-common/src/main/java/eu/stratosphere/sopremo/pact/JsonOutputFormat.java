@@ -25,7 +25,6 @@ import org.codehaus.jackson.map.ObjectMapper;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactNull;
 
 /**
  * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link PactJsonObject}
@@ -60,9 +59,11 @@ public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJ
 		final String encoding = parameters.getString(PARAMETER_ENCODING, null);
 		if (encoding != null)
 			this.encoding = JsonEncoding.valueOf(encoding);
-		else this.encoding = JsonEncoding.UTF8;
+		else
+			this.encoding = JsonEncoding.UTF8;
 	}
 
+	@Override
 	public void open(int taskNumber) throws IOException {
 		super.open(taskNumber);
 

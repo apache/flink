@@ -22,7 +22,7 @@ import eu.stratosphere.util.dag.GraphLevelPartitioner;
 import eu.stratosphere.util.dag.GraphLevelPartitioner.Level;
 
 /**
- * The class <code>CompositeOperatorTest</code> contains tests for the class <code>{@link CompositeOperator}</code>.
+ * The class <code>CompositeOperatorTest</code> contains tests for the class <code>{@link CompositeOperator<?>}</code>.
  * 
  * @author Arvid Heise
  */
@@ -37,10 +37,10 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 	 */
 	@Test
 	public void testAsPactModule() throws Exception {
-		final Operator input1 = new Source(PersistenceType.HDFS, "1");
-		final Operator input2 = new Source(PersistenceType.HDFS, "2");
-		final Operator input3 = new Source(PersistenceType.HDFS, "3");
-		final CompositeOperator fixture = new CompositeOperatorImpl(1);
+		final Operator<?> input1 = new Source("1");
+		final Operator<?> input2 = new Source("2");
+		final Operator<?> input3 = new Source("3");
+		final CompositeOperator<?> fixture = new CompositeOperatorImpl(1);
 		fixture.setInputs(input1, input2, input3);
 		final EvaluationContext context = new EvaluationContext();
 
@@ -64,7 +64,7 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		assertTrue(FileDataSinkContract.class.isInstance(reachableNodes.get(3).getLevelNodes().get(0)));
 	}
 
-	static class CompositeOperatorImpl extends CompositeOperator {
+	static class CompositeOperatorImpl extends CompositeOperator<CompositeOperatorImpl> {
 		/**
 		 * 
 		 */
@@ -79,8 +79,8 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 
 		@Override
 		public SopremoModule asElementaryOperators() {
-			return SopremoModule.valueOf(this.getName(), new ElementaryOperatorImpl().withInputs(this.getInput(0),
-				new ElementaryOperatorImpl().withInputs(this.getInput(1), this.getInput(2))));
+			return SopremoModule.valueOf(this.getName(),
+				new ElementaryOperatorImpl().withInputs(null, new ElementaryOperatorImpl()));
 		}
 
 		@Override
@@ -108,7 +108,7 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	static class ElementaryOperatorImpl extends ElementaryOperator {
+	static class ElementaryOperatorImpl extends ElementaryOperator<ElementaryOperatorImpl> {
 		private static final long serialVersionUID = 1L;
 
 		static class Implementation

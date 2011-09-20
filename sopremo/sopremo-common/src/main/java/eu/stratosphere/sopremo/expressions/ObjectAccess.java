@@ -60,9 +60,9 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (!node.isObject()) {
-			if(node.isNull() && safeDereference) 
+			if (node.isNull() && this.safeDereference)
 				return node;
-			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", field, node
+			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", this.field, node
 				.getClass().getSimpleName()));
 		}
 		JsonNode value = node.get(this.field);

@@ -11,6 +11,7 @@ public class GenerateExpression extends EvaluationExpression {
 	 * 
 	 */
 	private static final long serialVersionUID = -3577122499530356668L;
+
 	private String pattern;
 
 	private long id;

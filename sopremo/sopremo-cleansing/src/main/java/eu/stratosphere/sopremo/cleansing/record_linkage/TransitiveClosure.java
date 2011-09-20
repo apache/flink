@@ -1,10 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
-
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -17,20 +13,11 @@ import org.codehaus.jackson.node.NullNode;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.sopremo.base.GlobalEnumeration;
 import eu.stratosphere.sopremo.base.Grouping;
-import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.cleansing.scrubbing.Lookup;
-import eu.stratosphere.sopremo.expressions.ArrayAccess;
-import eu.stratosphere.sopremo.expressions.ArrayCreation;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -43,27 +30,31 @@ import eu.stratosphere.sopremo.pact.SopremoReduce;
  * 
  * @author Arvid Heise
  */
-public class TransitiveClosure extends CompositeOperator {
+public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 3678166801854560781L;
 
-	/**
-	 * Tag variable
-	 */
-	private static final EvaluationExpression DEFAULT_PROJECTION = new EvaluationExpression() {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 1075231292038294405L;
-
-		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return null;
-		}
-	};
+	//
+	// /**
+	// * Tag variable
+	// */
+	// private static final EvaluationExpression DEFAULT_PROJECTION = new EvaluationExpression() {
+	// /**
+	// *
+	// */
+	// private static final long serialVersionUID = 1075231292038294405L;
+	//
+	// @Override
+	// public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	// return null;
+	// }
+	// };
+	//
+	public TransitiveClosure() {
+	}
 
 	private ClosureMode closureMode = ClosureMode.LINKS;
 
@@ -79,7 +70,7 @@ public class TransitiveClosure extends CompositeOperator {
 	}
 
 	public TransitiveClosure withClosureMode(ClosureMode closureMode) {
-		setClosureMode(closureMode);
+		this.setClosureMode(closureMode);
 		return this;
 	}
 
@@ -137,8 +128,8 @@ public class TransitiveClosure extends CompositeOperator {
 		// new PathExpression(new ArrayAccess(1), this.idProjection)), input);
 		// }
 
-		final Operator groupAll = new Grouping().withInputs(input);
-		final Operator pairs = new UnparallelClosure().withClosureMode(closureMode).withInputs(groupAll);
+		final Grouping groupAll = new Grouping().withInputs(input);
+		final UnparallelClosure pairs = new UnparallelClosure().withClosureMode(this.closureMode).withInputs(groupAll);
 
 		// Operator output;
 		// if (this.closureMode.isCluster())
@@ -192,13 +183,13 @@ public class TransitiveClosure extends CompositeOperator {
 		return "TransitiveClosure [closureMode=" + this.closureMode + "]";
 	}
 
-	public static void warshall(final BinarySparseMatrix<Object> matrix) {
+	public static <E> void warshall(final BinarySparseMatrix<E> matrix) {
 		// Warshall
-		for (final Object row : matrix.getRows()) {
-			final Deque<Object> columnsToExplore = new LinkedList<Object>(matrix.get(row));
+		for (final E row : matrix.getRows()) {
+			final Deque<E> columnsToExplore = new LinkedList<E>(matrix.get(row));
 			while (!columnsToExplore.isEmpty()) {
-				final Object column = columnsToExplore.pop();
-				for (final Object transitiveNode : matrix.get(column))
+				final E column = columnsToExplore.pop();
+				for (final E transitiveNode : matrix.get(column))
 					if (!row.equals(transitiveNode) && !matrix.isSet(row, transitiveNode)) {
 						matrix.set(row, transitiveNode);
 						columnsToExplore.push(transitiveNode);
@@ -207,7 +198,7 @@ public class TransitiveClosure extends CompositeOperator {
 		}
 	}
 
-	public static class FlattenPairs extends ElementaryOperator {
+	public static class FlattenPairs extends ElementaryOperator<FlattenPairs> {
 		/**
 		 * 
 		 */
@@ -222,7 +213,7 @@ public class TransitiveClosure extends CompositeOperator {
 		}
 	}
 
-	public static class RemoveDuplicateEntities extends ElementaryOperator {
+	public static class RemoveDuplicateEntities extends ElementaryOperator<RemoveDuplicateEntities> {
 		/**
 		 * 
 		 */
@@ -236,7 +227,7 @@ public class TransitiveClosure extends CompositeOperator {
 		}
 	}
 
-	public static class UnparallelClosure extends ElementaryOperator {
+	public static class UnparallelClosure extends ElementaryOperator<UnparallelClosure> {
 		/**
 		 * 
 		 */
@@ -251,8 +242,8 @@ public class TransitiveClosure extends CompositeOperator {
 			this.closureMode = closureMode;
 		}
 
-		public TransitiveClosure.UnparallelClosure withClosureMode(ClosureMode mode) {
-			setClosureMode(mode);
+		public UnparallelClosure withClosureMode(ClosureMode mode) {
+			this.setClosureMode(mode);
 			return this;
 		}
 
@@ -279,6 +270,7 @@ public class TransitiveClosure extends CompositeOperator {
 
 			@Override
 			protected void emit(final JsonNode key, BinarySparseMatrix<?> genMatrix, final JsonCollector out) {
+				@SuppressWarnings("unchecked")
 				BinarySparseMatrix<JsonNode> matrix = (BinarySparseMatrix<JsonNode>) genMatrix;
 				for (final JsonNode row : matrix.getRows())
 					for (final JsonNode column : matrix.get(row))
@@ -290,8 +282,9 @@ public class TransitiveClosure extends CompositeOperator {
 		public static class Cluster extends ImplementationBase<Key, PactJsonObject, Key, PactJsonObject> {
 
 			@Override
-			protected void emit(final JsonNode key, BinarySparseMatrix genMatrix, final JsonCollector out) {
-				BinarySparseMatrix<JsonNode> matrix = genMatrix;
+			protected void emit(final JsonNode key, BinarySparseMatrix<?> genMatrix, final JsonCollector out) {
+				@SuppressWarnings("unchecked")
+				BinarySparseMatrix<JsonNode> matrix = (BinarySparseMatrix<JsonNode>) genMatrix;
 
 				final Set<JsonNode> remainingRows = new HashSet<JsonNode>(matrix.getRows());
 				while (!remainingRows.isEmpty()) {
@@ -322,8 +315,9 @@ public class TransitiveClosure extends CompositeOperator {
 			}
 
 			@Override
-			protected void emit(final JsonNode key, BinarySparseMatrix genMatrix, final JsonCollector out) {
-				BinarySparseMatrix<ProvenancedItem<JsonNode>> matrix = genMatrix;
+			protected void emit(final JsonNode key, BinarySparseMatrix<?> genMatrix, final JsonCollector out) {
+				@SuppressWarnings("unchecked")
+				BinarySparseMatrix<ProvenancedItem<JsonNode>> matrix = (BinarySparseMatrix<ProvenancedItem<JsonNode>>) genMatrix;
 
 				final Set<ProvenancedItem<JsonNode>> remainingRows = new HashSet<ProvenancedItem<JsonNode>>(
 					matrix.getRows());
@@ -340,6 +334,7 @@ public class TransitiveClosure extends CompositeOperator {
 
 			@Override
 			protected void fillMatrix(BinarySparseMatrix<?> genMatrix, final JsonNode pairs) {
+				@SuppressWarnings("unchecked")
 				BinarySparseMatrix<ProvenancedItem<JsonNode>> matrix = (BinarySparseMatrix<ProvenancedItem<JsonNode>>) genMatrix;
 
 				for (final JsonNode pair : pairs) {
@@ -380,7 +375,9 @@ public class TransitiveClosure extends CompositeOperator {
 			protected abstract void emit(final JsonNode key, BinarySparseMatrix<?> matrix, final JsonCollector out);
 
 			protected void fillMatrix(BinarySparseMatrix<?> genMatrix, final JsonNode pairs) {
+				@SuppressWarnings("unchecked")
 				BinarySparseMatrix<JsonNode> matrix = (BinarySparseMatrix<JsonNode>) genMatrix;
+				
 				for (final JsonNode pair : pairs) {
 					JsonNode value1 = null, value2 = null;
 					for (int sourceIndex = 0; sourceIndex < pair.size(); sourceIndex++) {
@@ -435,7 +432,7 @@ public class TransitiveClosure extends CompositeOperator {
 				return false;
 			if (this.getClass() != obj.getClass())
 				return false;
-			ProvenancedItem other = (ProvenancedItem) obj;
+			ProvenancedItem<?> other = (ProvenancedItem<?>) obj;
 			return this.sourceIndex == other.sourceIndex && this.node.equals(other.node);
 		}
 

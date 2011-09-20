@@ -28,17 +28,17 @@ public class TernaryExpression extends EvaluationExpression {
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		if (TypeCoercer.INSTANCE.coerce(ifClause.evaluate(node, context), BooleanNode.class) == BooleanNode.TRUE)
-			return ifExpression.evaluate(node, context);
-		return thenExpression.evaluate(node, context);
+		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, context), BooleanNode.class) == BooleanNode.TRUE)
+			return this.ifExpression.evaluate(node, context);
+		return this.thenExpression.evaluate(node, context);
 	}
 
 	@Override
 	protected void toString(StringBuilder builder) {
-		ifClause.toString(builder);
+		this.ifClause.toString(builder);
 		builder.append(" ? ");
-		ifExpression.toString(builder);
+		this.ifExpression.toString(builder);
 		builder.append(" : ");
-		thenExpression.toString(builder);
+		this.thenExpression.toString(builder);
 	}
 }

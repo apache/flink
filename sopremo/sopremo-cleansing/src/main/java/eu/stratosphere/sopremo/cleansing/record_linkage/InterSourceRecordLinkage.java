@@ -2,29 +2,21 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 
-import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Difference;
 import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.cleansing.scrubbing.Lookup;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 @InputCardinality(min = 2)
-public class InterSourceRecordLinkage extends RecordLinkage {
+public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLinkage> {
 	/**
 	 * 
 	 */
@@ -32,7 +24,7 @@ public class InterSourceRecordLinkage extends RecordLinkage {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		SopremoModule module = new SopremoModule(getName(), getInputs().size(), 1);
+		SopremoModule module = new SopremoModule(this.getName(), this.getInputs().size(), 1);
 
 		final List<RecordLinkageInput> originalInputs = new ArrayList<RecordLinkageInput>();
 		for (int index = 0, size = this.getInputs().size(); index < size; index++)
@@ -48,15 +40,15 @@ public class InterSourceRecordLinkage extends RecordLinkage {
 		for (int index = 0, size = inputs.size(); index < size; index++)
 			inputs.get(index).setSource(module.getInput(index).getSource());
 
-		Operator duplicatePairs = this.getAlgorithm().getDuplicatePairStream(this.getSimilarityCondition(), inputs);
+		Operator<?> duplicatePairs = this.getAlgorithm().getDuplicatePairStream(this.getSimilarityCondition(), inputs);
 
 		if (this.getLinkageMode() == LinkageMode.LINKS_ONLY) {
 			module.getOutput(0).setInput(0, duplicatePairs);
 			return module;
 		}
 
-		Operator output;
-		final Operator closure = new TransitiveClosure().
+		Operator<?> output;
+		final TransitiveClosure closure = new TransitiveClosure().
 			withClosureMode(this.getLinkageMode().getClosureMode()).
 			withInputs(duplicatePairs);
 		// // already id projected
@@ -67,7 +59,7 @@ public class InterSourceRecordLinkage extends RecordLinkage {
 		if (this.getLinkageMode().getClosureMode().isProvenance())
 			for (int index = 0, size = inputs.size(); index < size; index++)
 				if (inputs.get(index).getResultProjection() != originalInputs.get(index).getResultProjection()) {
-					Operator reverseLookup = new Lookup().
+					Lookup reverseLookup = new Lookup().
 						withDictionaryKeyExtraction(originalInputs.get(index).getIdProjection()).
 						withDictionaryValueExtraction(originalInputs.get(index).getResultProjection()).
 						withInputKeyExtractor(new ArrayAccess(index)).
@@ -103,33 +95,33 @@ public class InterSourceRecordLinkage extends RecordLinkage {
 		// new PathExpression.Writable(new ArrayAccess(inputIndex), new ArrayAccess()));
 		// }
 		// singleExtractors.add(clusters);
-		List<Operator> outputs = new ArrayList<Operator>();
+		List<Operator<?>> outputs = new ArrayList<Operator<?>>();
 
 		outputs.add(output);
 
 		if (this.getLinkageMode().getClosureMode().isProvenance())
 			for (int index = 0; index < originalInputs.size(); index++) {
-				Operator allTuples = new ValueSplitter().
+				ValueSplitter allTuples = new ValueSplitter().
+					withInputs(closure).
 					withArrayProjection(new ArrayAccess(index)).
 					withKeyProjection(new ArrayAccess(0)).
-					withValueProjection(EvaluationExpression.NULL).
-					withInputs(closure);
+					withValueProjection(EvaluationExpression.NULL);
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
-				Operator singleRecords = new Difference().
+				Difference singleRecords = new Difference().
+					withInputs(module.getInput(index), allTuples).
 					withIdentityKey(0, recordLinkageInput.getIdProjection()).
 					withValueProjection(0, recordLinkageInput.getResultProjection()).
-					withIdentityKey(1, EvaluationExpression.KEY).
-					withInputs(module.getInput(index), allTuples);
+					withIdentityKey(1, EvaluationExpression.KEY);
 
 				EvaluationExpression[] expressions = new EvaluationExpression[inputs.size()];
 				Arrays.fill(expressions, new ArrayCreation());
 				expressions[index] = new ArrayCreation(EvaluationExpression.VALUE);
 				outputs.add(new Projection().
-					withValueTransformation(new ArrayCreation(expressions)).
-					withInputs(singleRecords));
+					withInputs(singleRecords).
+					withValueTransformation(new ArrayCreation(expressions)));
 			}
 		else {
-			Operator allTuples = new ValueSplitter().
+			ValueSplitter allTuples = new ValueSplitter().
 				withArrayProjection(EvaluationExpression.VALUE).
 				withKeyProjection(new ArrayAccess(0)).
 				withValueProjection(EvaluationExpression.NULL).
@@ -137,14 +129,14 @@ public class InterSourceRecordLinkage extends RecordLinkage {
 
 			for (int index = 0; index < originalInputs.size(); index++) {
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
-				Operator singleRecords = new Difference().
+				Difference singleRecords = new Difference().
+					withInputs(module.getInput(index), allTuples).
 					withIdentityKey(0, recordLinkageInput.getResultProjection()).
 					withValueProjection(0, recordLinkageInput.getResultProjection()).
-					withIdentityKey(1, EvaluationExpression.KEY).
-					withInputs(module.getInput(index), allTuples);
+					withIdentityKey(1, EvaluationExpression.KEY);
 				outputs.add(new Projection().
-					withValueTransformation(new ArrayCreation(EvaluationExpression.VALUE)).
-					withInputs(singleRecords));
+					withInputs(singleRecords).
+					withValueTransformation(new ArrayCreation(EvaluationExpression.VALUE)));
 			}
 		}
 

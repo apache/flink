@@ -42,6 +42,7 @@ public abstract class Function implements Evaluable, SerializableSopremoType {
 	public String toString() {
 		return this.name + "()";
 	}
-	
+
+	@Override
 	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
 }

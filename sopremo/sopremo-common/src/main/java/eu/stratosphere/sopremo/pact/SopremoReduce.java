@@ -27,7 +27,8 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 	protected EvaluationContext getContext() {
 		return this.context;
 	}
-
+	
+	@SuppressWarnings("unused")
 	protected boolean needsResettableIterator(final PactJsonObject.Key key, final Iterator<PactJsonObject> values) {
 		return false;
 	}
@@ -42,16 +43,17 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 			final ArrayList<PactJsonObject> cached = new ArrayList<PactJsonObject>();
 			while (values.hasNext())
 				cached.add(values.next());
-			SopremoUtil.LOG.trace(String.format("%s %s/%s", getContext().operatorTrace(), key, cached));
+			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), key, cached));
 			values = cached.iterator();
 		}
 		try {
-		this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
-			new JsonCollector(
-				out));
-	} catch(RuntimeException e) {
-		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", getContext().operatorTrace(), key, values, e));
-		throw e;
-	}
+			this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
+				new JsonCollector(
+					out));
+		} catch (RuntimeException e) {
+			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", this.getContext()
+				.operatorTrace(), key, values, e));
+			throw e;
+		}
 	}
 }

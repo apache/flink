@@ -1,12 +1,8 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import java.util.List;
-
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -22,19 +18,19 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 	}
 
 	@Override
-	protected Operator createSinglePassInterSource(EvaluationExpression[] partitionKeys,
+	protected Operator<?> createSinglePassInterSource(EvaluationExpression[] partitionKeys,
 			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2) {
 		return new SinglePassInterSource(partitionKeys, similarityCondition).withInputs(input1, input2);
 	}
 
 	@Override
-	protected Operator createSinglePassIntraSource(EvaluationExpression partitionKey,
+	protected Operator<?> createSinglePassIntraSource(EvaluationExpression partitionKey,
 			ComparativeExpression similarityCondition, RecordLinkageInput input) {
 		return new SinglePassIntraSource(partitionKey, similarityCondition).withInputs(input);
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class SinglePassInterSource extends CompositeOperator {
+	public static class SinglePassInterSource extends CompositeOperator<SinglePassInterSource> {
 		/**
 		 * 
 		 */
@@ -77,7 +73,7 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 	}
 
 	@InputCardinality(min = 1, max = 1)
-	public static class SinglePassIntraSource extends CompositeOperator {
+	public static class SinglePassIntraSource extends CompositeOperator<SinglePassIntraSource> {
 		/**
 		 * 
 		 */

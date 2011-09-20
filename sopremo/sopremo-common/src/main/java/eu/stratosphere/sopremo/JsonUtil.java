@@ -102,5 +102,5 @@ public class JsonUtil {
 			streamNodes[index] = wrapWithNode(resettable, objectIterators.get(index));
 		return new CompactArrayNode(streamNodes);
 	}
-	
+
 }

@@ -12,9 +12,9 @@ import eu.stratosphere.sopremo.SopremoTest;
 @Ignore
 public abstract class BooleanExpressionTest<T extends BooleanExpression> extends SopremoTest<T> {
 
-	protected UnaryExpression TRUE = new UnaryExpression(new ConstantExpression(BooleanNode.TRUE));
+	protected static UnaryExpression TRUE = new UnaryExpression(new ConstantExpression(BooleanNode.TRUE));
 
-	protected UnaryExpression FALSE = new UnaryExpression(new ConstantExpression(BooleanNode.FALSE));
+	protected static UnaryExpression FALSE = new UnaryExpression(new ConstantExpression(BooleanNode.FALSE));
 
 	protected EvaluationContext context = new EvaluationContext();
 

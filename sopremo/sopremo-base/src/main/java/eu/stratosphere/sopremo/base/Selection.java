@@ -34,7 +34,7 @@ public class Selection extends ElementaryOperator<Selection> {
 	}
 
 	public EvaluationExpression getCondition() {
-		return condition;
+		return this.condition;
 	}
 
 	@Override
@@ -55,7 +55,7 @@ public class Selection extends ElementaryOperator<Selection> {
 	}
 
 	public Selection withCondition(EvaluationExpression condition) {
-		setCondition(condition);
+		this.setCondition(condition);
 		return this;
 	}
 

@@ -6,7 +6,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
@@ -90,7 +90,11 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 
 		assertNotNull(result);
 		assertEquals(2, result.size());
-		assertEquals(Arrays.asList(input1.getOutput(0), input2.getOutput(0)), result);
+
+		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		expectedResults.add(input1.getOutput(0));
+		expectedResults.add(input2.getOutput(0));
+		assertEquals(expectedResults, result);
 	}
 
 	/**
@@ -117,7 +121,10 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 
 		assertNotNull(result);
 		assertEquals(1, result.size());
-		assertEquals(Arrays.asList(fixture.getOutput(0)), result);
+
+		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		expectedResults.add(fixture.getOutput(0));
+		assertEquals(expectedResults, result);
 	}
 
 	/**
@@ -147,7 +154,10 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		fixture.setInputs(newInput);
 
 		assertEquals(1, fixture.getInputs().size());
-		assertEquals(Arrays.asList(newInput.getOutput(0)), fixture.getInputs());
+
+		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		expectedResults.add(newInput.getOutput(0));
+		assertEquals(expectedResults, fixture.getInputs());
 	}
 
 	/**
@@ -162,7 +172,10 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		fixture.setInputs((Operator<?>) null);
 
 		assertEquals(1, fixture.getInputs().size());
-		assertEquals(Arrays.asList((Operator<?>) null), fixture.getInputs());
+
+		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		expectedResults.add(null);
+		assertEquals(expectedResults, fixture.getInputs());
 	}
 
 	/**
@@ -193,10 +206,14 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		final Operator<?> fixture = new OpImpl(0).withInputs(input1, input2);
 
 		final Operator<?> newInput = new OpImpl(2);
-		fixture.setInputs(Arrays.asList(newInput));
+		List<JsonStream> inputs = new ArrayList<JsonStream>();
+		inputs.add(newInput);
+		fixture.setInputs(inputs);
 
 		assertEquals(1, fixture.getInputs().size());
-		assertEquals(Arrays.asList(newInput.getOutput(0)), fixture.getInputs());
+		final List<Operator<?>.Output> expectedResults = new ArrayList<Operator<?>.Output>();
+		expectedResults.add(newInput.getOutput(0));
+		assertEquals(expectedResults, fixture.getInputs());
 	}
 
 	/**
@@ -204,8 +221,9 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 	 */
 	@Test(expected = java.lang.NullPointerException.class)
 	public void testSetInputsWithNull() {
-		@SuppressWarnings("serial")
-		final Operator<?> fixture = new ElementaryOperator() {};
+		@SuppressWarnings({ "serial", "rawtypes" })
+		final Operator<?> fixture = new ElementaryOperator() {
+		};
 		final List<? extends JsonStream> inputs = null;
 
 		fixture.setInputs(inputs);
@@ -220,10 +238,14 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		final Operator<?> input2 = new OpImpl(1);
 		final Operator<?> fixture = new OpImpl(0).withInputs(input1, input2);
 
-		fixture.setInputs(Arrays.asList((Operator<?>) null));
+		List<JsonStream> newInputs = new ArrayList<JsonStream>();
+		newInputs.add(null);
+		fixture.setInputs(newInputs);
 
 		assertEquals(1, fixture.getInputs().size());
-		assertEquals(Arrays.asList((Operator<?>) null), fixture.getInputs());
+		List<JsonStream> expectedInputs = new ArrayList<JsonStream>();
+		expectedInputs.add(null);
+		assertEquals(expectedInputs, fixture.getInputs());
 	}
 
 	/**
@@ -267,7 +289,6 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 
 		@Override
 		public PactModule asPactModule(final EvaluationContext context) {
-			// TODO Auto-generated method stub
 			return null;
 		}
 

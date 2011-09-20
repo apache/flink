@@ -24,7 +24,7 @@ public class EvaluationContext implements SerializableSopremoType {
 	}
 
 	public String operatorTrace() {
-		final Iterator<String> descendingIterator = operatorStack.descendingIterator();
+		final Iterator<String> descendingIterator = this.operatorStack.descendingIterator();
 		final StringBuilder builder = new StringBuilder(descendingIterator.next());
 		while (descendingIterator.hasNext())
 			builder.append("->").append(descendingIterator.next());
@@ -68,12 +68,11 @@ public class EvaluationContext implements SerializableSopremoType {
 	private int taskId;
 
 	public int getTaskId() {
-		return taskId;
+		return this.taskId;
 	}
 
 	public void setTaskId(int taskId) {
 		this.taskId = taskId;
 	}
-	
-	
+
 }

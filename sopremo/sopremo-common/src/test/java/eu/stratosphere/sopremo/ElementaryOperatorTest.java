@@ -74,8 +74,8 @@ public class ElementaryOperatorTest {
 		assertEquals(OperatorWithOneStub.Implementation.class, contract.getUserCodeClass());
 	}
 
-	@SuppressWarnings("serial")
-	public ElementaryOperator getDefault() {
+	@SuppressWarnings({ "serial", "rawtypes" })
+	public ElementaryOperator<?> getDefault() {
 		return new ElementaryOperator() {};
 	}
 
@@ -99,7 +99,7 @@ public class ElementaryOperatorTest {
 			new OperatorWithOneStub().getStubClass());
 	}
 
-	static class OperatorWithInstanceStub extends ElementaryOperator {
+	static class OperatorWithInstanceStub extends ElementaryOperator<OperatorWithInstanceStub> {
 		private static final long serialVersionUID = 1L;
 
 		class Implementation extends MapStub<Key, Value, Key, Value> {
@@ -109,11 +109,11 @@ public class ElementaryOperatorTest {
 		}
 	}
 
-	static class OperatorWithNoStubs extends ElementaryOperator {
+	static class OperatorWithNoStubs extends ElementaryOperator<OperatorWithNoStubs> {
 		private static final long serialVersionUID = 1L;
 	}
 
-	static class OperatorWithOneStub extends ElementaryOperator {
+	static class OperatorWithOneStub extends ElementaryOperator<OperatorWithOneStub> {
 		private static final long serialVersionUID = 1L;
 
 		static class Implementation extends MapStub<Key, Value, Key, Value> {
@@ -123,7 +123,7 @@ public class ElementaryOperatorTest {
 		}
 	}
 
-	static class OperatorWithTwoStubs extends ElementaryOperator {
+	static class OperatorWithTwoStubs extends ElementaryOperator<OperatorWithTwoStubs> {
 		private static final long serialVersionUID = 1L;
 
 		static class Implementation1 extends ReduceStub<Key, Value, Key, Value> {
@@ -139,7 +139,7 @@ public class ElementaryOperatorTest {
 		}
 	}
 
-	static class OperatorWithUnknownStub extends ElementaryOperator {
+	static class OperatorWithUnknownStub extends ElementaryOperator<OperatorWithUnknownStub> {
 		private static final long serialVersionUID = 1L;
 
 		static class Implementation extends SingleInputStub<Key, Value, Key, Value> {

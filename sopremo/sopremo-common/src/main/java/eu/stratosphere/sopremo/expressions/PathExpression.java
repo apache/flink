@@ -122,7 +122,7 @@ public class PathExpression extends ContainerExpression {
 		switch (expressions.size()) {
 		case 0:
 			return EvaluationExpression.VALUE;
-			
+
 		case 1:
 			return expressions.get(0);
 
@@ -130,7 +130,7 @@ public class PathExpression extends ContainerExpression {
 			return new PathExpression(expressions);
 		}
 	}
-	
+
 	public static EvaluationExpression valueOf(EvaluationExpression... expressions) {
 		return valueOf(Arrays.asList(expressions));
 	}

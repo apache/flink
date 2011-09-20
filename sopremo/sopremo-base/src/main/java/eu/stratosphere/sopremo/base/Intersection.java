@@ -6,6 +6,7 @@ import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.StreamArrayNode;
@@ -34,8 +35,8 @@ public class Intersection extends SetOperation<Intersection> {
 	}
 
 	@Override
-	protected EvaluationExpression getDefaultValueProjection(Operator<?>.Output source) {
-		return source == getInput(0) ? EvaluationExpression.VALUE : EvaluationExpression.NULL;
+	protected EvaluationExpression getDefaultValueProjection(JsonStream input) {
+		return input == this.getInput(0) ? EvaluationExpression.VALUE : EvaluationExpression.NULL;
 	}
 
 	@InputCardinality(min = 2, max = 2)

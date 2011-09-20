@@ -37,7 +37,7 @@ public class NumberCastingExpression extends EvaluationExpression {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((targetType == null) ? 0 : targetType.hashCode());
+		result = prime * result + (this.targetType == null ? 0 : this.targetType.hashCode());
 		return result;
 	}
 
@@ -47,11 +47,11 @@ public class NumberCastingExpression extends EvaluationExpression {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 
 		NumberCastingExpression other = (NumberCastingExpression) obj;
-		if (targetType != other.targetType)
+		if (this.targetType != other.targetType)
 			return false;
 
 		return true;

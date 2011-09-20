@@ -5,12 +5,8 @@ import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
 
-import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.SerializableSopremoType;
-import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.sopremo.function.FunctionRegistry;
 
 public abstract class SopremoExpression<ContextType extends EvaluationContext> implements SerializableSopremoType,
 		Iterable<SopremoExpression<ContextType>> {
@@ -49,6 +45,8 @@ public abstract class SopremoExpression<ContextType extends EvaluationContext> i
 	 * @param builder
 	 *        the builder to append to
 	 */
+	// TODO: make abstract
+	@SuppressWarnings("unused")
 	protected void toString(final StringBuilder builder) {
 	}
 

@@ -20,7 +20,6 @@ import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.stub.Stub;
 
 /**
  * Convenience methods when dealing with {@link Contract}s.

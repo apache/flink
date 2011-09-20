@@ -25,8 +25,8 @@ public class UnionAll extends CompositeOperator<UnionAll> {
 	@Override
 	public SopremoModule asElementaryOperators() {
 
-		final List<Operator<?>.Output> inputs = getInputs();
-		final SopremoModule module = new SopremoModule(getName(), inputs.size(), 1);
+		final List<Operator<?>.Output> inputs = this.getInputs();
+		final SopremoModule module = new SopremoModule(this.getName(), inputs.size(), 1);
 
 		Operator<?> leftInput = module.getInput(0);
 		for (int index = 1; index < inputs.size(); index++)

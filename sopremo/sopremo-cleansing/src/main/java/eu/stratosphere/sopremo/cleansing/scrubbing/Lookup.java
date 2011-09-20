@@ -10,18 +10,15 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.cleansing.record_linkage.ValueSplitter;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
-import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.expressions.WritableEvaluable;
@@ -33,7 +30,7 @@ import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 
 @InputCardinality(min = 2, max = 2)
-public class Lookup extends CompositeOperator {
+public class Lookup extends CompositeOperator<Lookup> {
 
 	/**
 	 * 
@@ -72,38 +69,38 @@ public class Lookup extends CompositeOperator {
 		right.setValueTransformation(this.dictionaryValueExtraction);
 		right.setInputs(sopremoModule.getInput(1));
 
-		if (arrayElementsReplacement) {
-			final Operator arraySplit = new ValueSplitter().
+		if (this.arrayElementsReplacement) {
+			final ValueSplitter arraySplit = new ValueSplitter().
 				withArrayProjection(this.inputKeyExtractor.asExpression()).
 				withKeyProjection(new ArrayAccess(0)).
 				withValueProjection(new ArrayAccess(1, 2)).
 				withInputs(sopremoModule.getInput(0));
 
-			final Operator replacedElements = defaultExpression == FILTER_RECORDS ?
+			final Operator<?> replacedElements = this.defaultExpression == FILTER_RECORDS ?
 				new ElementStrictReplace().withInputs(arraySplit, right) :
-				new ElementReplaceWithDefault().withDefaultExpression(defaultExpression).withInputs(arraySplit, right);
+				new ElementReplaceWithDefault().withDefaultExpression(this.defaultExpression).withInputs(arraySplit, right);
 
-			final Operator arrayDictionary = new AssembleArray().withInputs(replacedElements);
+			final AssembleArray arrayDictionary = new AssembleArray().withInputs(replacedElements);
 
 			final Lookup arrayLookup = new Lookup();
 			arrayLookup.setInputs(sopremoModule.getInput(0), arrayDictionary);
-			arrayLookup.setInputKeyExtractor(inputKeyExtractor);
-			Operator emptyArrays = new Selection().
-				withCondition(new UnaryExpression(inputKeyExtractor.asExpression(), true)).
+			arrayLookup.setInputKeyExtractor(this.inputKeyExtractor);
+			Selection emptyArrays = new Selection().
+				withCondition(new UnaryExpression(this.inputKeyExtractor.asExpression(), true)).
 				withInputs(sopremoModule.getInput(0));
 			sopremoModule.getOutput(0).setInput(0, new UnionAll().withInputs(arrayLookup, emptyArrays));
 		} else {
-			final Operator left = new Projection().
+			final Projection left = new Projection().
 				withKeyTransformation(this.inputKeyExtractor.asExpression()).
 				withInputs(sopremoModule.getInput(0));
-			if (defaultExpression == FILTER_RECORDS)
+			if (this.defaultExpression == FILTER_RECORDS)
 				sopremoModule.getOutput(0).setInput(0,
-					new StrictReplace().withInputKeyExtractor(inputKeyExtractor).withInputs(left, right));
+					new StrictReplace().withInputKeyExtractor(this.inputKeyExtractor).withInputs(left, right));
 			else
 				sopremoModule.getOutput(0).setInput(0,
 					new ReplaceWithDefaultValue().
-						withInputKeyExtractor(inputKeyExtractor).
-						withDefaultExpression(FILTER_RECORDS).
+						withInputKeyExtractor(this.inputKeyExtractor).
+						withDefaultExpression(this.defaultExpression).
 						withInputs(left, right));
 		}
 		return sopremoModule;
@@ -115,7 +112,7 @@ public class Lookup extends CompositeOperator {
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		Lookup other = (Lookup) obj;
 		return this.arrayElementsReplacement == other.arrayElementsReplacement &&
@@ -134,7 +131,7 @@ public class Lookup extends CompositeOperator {
 	}
 
 	public EvaluationExpression getDictionaryValueExtraction() {
-		return dictionaryValueExtraction;
+		return this.dictionaryValueExtraction;
 	}
 
 	public WritableEvaluable getInputKeyExtractor() {
@@ -209,7 +206,7 @@ public class Lookup extends CompositeOperator {
 		return this;
 	}
 
-	public static class AssembleArray extends ElementaryOperator {
+	public static class AssembleArray extends ElementaryOperator<AssembleArray> {
 		/**
 		 * 
 		 */
@@ -236,7 +233,7 @@ public class Lookup extends CompositeOperator {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class ElementReplaceWithDefault extends ElementaryOperator {
+	public static class ElementReplaceWithDefault extends ElementaryOperator<ElementReplaceWithDefault> {
 		/**
 		 * 
 		 */
@@ -252,7 +249,7 @@ public class Lookup extends CompositeOperator {
 		}
 
 		public ElementReplaceWithDefault withDefaultExpression(EvaluationExpression defaultExpression) {
-			setDefaultExpression(defaultExpression);
+			this.setDefaultExpression(defaultExpression);
 			return this;
 		}
 
@@ -272,12 +269,12 @@ public class Lookup extends CompositeOperator {
 				JsonNode replaceValue = replaceValueIterator.hasNext() ? replaceValueIterator.next() : null;
 
 				final Iterator<JsonNode> valueIterator = values1.iterator();
-				final EvaluationContext context = getContext();
+				final EvaluationContext context = this.getContext();
 				while (valueIterator.hasNext()) {
 					JsonNode value = valueIterator.next();
 					final JsonNode index = value.get(0);
 					JsonNode replacement = replaceValue != null ? replaceValue :
-						defaultExpression.evaluate(value.get(1).get(index.getIntValue()), context);
+						this.defaultExpression.evaluate(value.get(1).get(index.getIntValue()), context);
 					out.collect(value.get(1), JsonUtil.asArray(index, replacement));
 				}
 			}
@@ -285,7 +282,7 @@ public class Lookup extends CompositeOperator {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class ElementStrictReplace extends ElementaryOperator {
+	public static class ElementStrictReplace extends ElementaryOperator<ElementStrictReplace> {
 		/**
 		 * 
 		 */
@@ -302,7 +299,7 @@ public class Lookup extends CompositeOperator {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class ReplaceWithDefaultValue extends ElementaryOperator {
+	public static class ReplaceWithDefaultValue extends ElementaryOperator<ReplaceWithDefaultValue> {
 		/**
 		 * 
 		 */
@@ -327,12 +324,12 @@ public class Lookup extends CompositeOperator {
 		}
 
 		public ReplaceWithDefaultValue withInputKeyExtractor(WritableEvaluable prop) {
-			setInputKeyExtractor(prop);
+			this.setInputKeyExtractor(prop);
 			return this;
 		}
 
 		public ReplaceWithDefaultValue withDefaultExpression(EvaluationExpression prop) {
-			setDefaultExpression(prop);
+			this.setDefaultExpression(prop);
 			return this;
 		}
 
@@ -356,11 +353,11 @@ public class Lookup extends CompositeOperator {
 				JsonNode replaceValue = replaceValueIterator.hasNext() ? replaceValueIterator.next() : null;
 
 				final Iterator<JsonNode> valueIterator = values1.iterator();
-				final EvaluationContext context = getContext();
+				final EvaluationContext context = this.getContext();
 				while (valueIterator.hasNext()) {
 					JsonNode value = valueIterator.next();
 					JsonNode replacement = replaceValue != null ? replaceValue :
-						defaultExpression.evaluate(
+						this.defaultExpression.evaluate(
 							((EvaluationExpression) this.inputKeyExtractor).evaluate(value, context), context);
 					out.collect(NullNode.getInstance(), this.inputKeyExtractor.set(value, replacement, context));
 				}
@@ -368,7 +365,8 @@ public class Lookup extends CompositeOperator {
 		}
 	}
 
-	public static class StrictReplace extends ElementaryOperator {
+	@InputCardinality(min = 2, max = 2)
+	public static class StrictReplace extends ElementaryOperator<StrictReplace> {
 		/**
 		 * 
 		 */
@@ -388,7 +386,7 @@ public class Lookup extends CompositeOperator {
 		}
 
 		public StrictReplace withInputKeyExtractor(WritableEvaluable prop) {
-			setInputKeyExtractor(prop);
+			this.setInputKeyExtractor(prop);
 			return this;
 		}
 

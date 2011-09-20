@@ -18,11 +18,11 @@ public enum LinkageMode {
 	}
 
 	public ClosureMode getClosureMode() {
-		return closureMode;
+		return this.closureMode;
 	}
 
 	public boolean isWithSingles() {
-		return withSingles;
+		return this.withSingles;
 	}
 
 }

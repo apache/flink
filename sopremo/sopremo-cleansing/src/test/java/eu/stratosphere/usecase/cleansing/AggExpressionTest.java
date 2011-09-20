@@ -22,19 +22,19 @@ public class AggExpressionTest extends EvaluableExpressionTest<AggExpression> {
 
 	@Test
 	public void testAggregation() {
-		context.getFunctionRegistry().register(BuiltinFunctions.class);
-		
+		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
+
 		ArrayNode input = new ArrayNode(null);
 		input.add(createObjectNode("key", 1, "value", 11));
 		input.add(createObjectNode("key", 2, "value", 24));
 		input.add(createObjectNode("key", 3, "value", 33));
 		input.add(createObjectNode("key", 2, "value", 25));
 		input.add(createObjectNode("key", 1, "value", 12));
-		
+
 		AggExpression aggExpression = new AggExpression(new ObjectAccess("key"), new FunctionCall("sum",
 			new ArrayProjection(new ObjectAccess("value"))));
 
-		JsonNode result = aggExpression.evaluate(input, context);
+		JsonNode result = aggExpression.evaluate(input, this.context);
 
 		ArrayNode expected = new ArrayNode(null);
 		expected.add(createValueNode(23));

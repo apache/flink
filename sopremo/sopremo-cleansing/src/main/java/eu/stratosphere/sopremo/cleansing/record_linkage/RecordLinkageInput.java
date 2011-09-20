@@ -2,25 +2,23 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Operator.Output;
-import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public class RecordLinkageInput implements JsonStream, Cloneable {
 	/**
 	 * 
 	 */
-	private final Operator recordLinkage;
+	private final Operator<?> recordLinkage;
 
 	private final int index;
 
 	private EvaluationExpression idProjection = EvaluationExpression.VALUE;
 
 	private EvaluationExpression resultProjection = EvaluationExpression.VALUE;
-	
-	private Output source;
 
-	RecordLinkageInput(Operator recordLinkage, int index) {
+	private Operator<?>.Output source;
+
+	RecordLinkageInput(Operator<?> recordLinkage, int index) {
 		this.recordLinkage = recordLinkage;
 		this.index = index;
 	}
@@ -36,22 +34,22 @@ public class RecordLinkageInput implements JsonStream, Cloneable {
 	}
 
 	@Override
-	public Output getSource() {
-		if(source != null)
+	public Operator<?>.Output getSource() {
+		if (this.source != null)
 			return this.source;
-		
-		return this.recordLinkage.getInput(index);
-	}
-	
-public void setSource(Output source) {
-	if (source == null)
-		throw new NullPointerException("source must not be null");
 
-	this.source = source;
-}
+		return this.recordLinkage.getInput(this.index);
+	}
+
+	public void setSource(Operator<?>.Output source) {
+		if (source == null)
+			throw new NullPointerException("source must not be null");
+
+		this.source = source;
+	}
 
 	public EvaluationExpression getIdProjection() {
-		return idProjection;
+		return this.idProjection;
 	}
 
 	public void setIdProjection(EvaluationExpression idProjection) {
@@ -62,7 +60,7 @@ public void setSource(Output source) {
 	}
 
 	public EvaluationExpression getResultProjection() {
-		return resultProjection;
+		return this.resultProjection;
 	}
 
 	public void setResultProjection(EvaluationExpression resultProjection) {
@@ -74,17 +72,17 @@ public void setSource(Output source) {
 
 	@Override
 	public String toString() {
-		return String.format("RecordLinkageInput [index=%s, idProjection=%s, resultProjection=%s]", index,
-			idProjection, resultProjection);
+		return String.format("RecordLinkageInput [index=%s, idProjection=%s, resultProjection=%s]", this.index,
+			this.idProjection, this.resultProjection);
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + idProjection.hashCode();
-		result = prime * result + index;
-		result = prime * result + resultProjection.hashCode();
+		result = prime * result + this.idProjection.hashCode();
+		result = prime * result + this.index;
+		result = prime * result + this.resultProjection.hashCode();
 		return result;
 	}
 
@@ -94,11 +92,11 @@ public void setSource(Output source) {
 			return true;
 		if (obj == null)
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 
 		RecordLinkageInput other = (RecordLinkageInput) obj;
-		return index == other.index && idProjection.equals(other.idProjection)
-			&& resultProjection.equals(other.resultProjection);
+		return this.index == other.index && this.idProjection.equals(other.idProjection)
+			&& this.resultProjection.equals(other.resultProjection);
 	}
 }

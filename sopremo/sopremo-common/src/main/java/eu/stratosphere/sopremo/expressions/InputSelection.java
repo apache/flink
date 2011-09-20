@@ -27,7 +27,7 @@ public class InputSelection extends EvaluationExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		if(!node.isArray())
+		if (!node.isArray())
 			throw new EvaluationException("Cannot access index of non-array " + node.getClass().getSimpleName());
 		return node.get(this.index);
 	}

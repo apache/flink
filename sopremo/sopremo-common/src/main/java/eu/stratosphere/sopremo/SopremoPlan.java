@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.plan.Plan;
 
 /**

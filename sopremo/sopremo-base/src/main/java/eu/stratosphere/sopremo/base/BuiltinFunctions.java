@@ -6,9 +6,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.DoubleNode;
@@ -39,6 +36,11 @@ public class BuiltinFunctions {
 	private static final NumericNode ZERO = new IntNode(0), ONE = new IntNode(1);
 
 	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 3374531808023596313L;
+
 		@Override
 		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
 			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, (NumericNode) node);
@@ -46,6 +48,11 @@ public class BuiltinFunctions {
 	};
 
 	public static final AggregationFunction COUNT = new TransitiveAggregationFunction("count", ZERO) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -6577648498236047543L;
+
 		@Override
 		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
 			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, ONE);
@@ -53,6 +60,11 @@ public class BuiltinFunctions {
 	};
 
 	public static final AggregationFunction FIRST = new TransitiveAggregationFunction("first", NullNode.getInstance()) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -5150348943392288447L;
+
 		@Override
 		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
 			return aggregate.isNull() ? node : aggregate;
@@ -60,6 +72,11 @@ public class BuiltinFunctions {
 	};
 
 	public static final AggregationFunction SORT = new MaterializingAggregationFunction("sort") {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4629715553538301566L;
+
 		@Override
 		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
 			Collections.sort(nodes, JsonNodeComparator.INSTANCE);
@@ -68,9 +85,19 @@ public class BuiltinFunctions {
 	};
 
 	public static final AggregationFunction ALL = new MaterializingAggregationFunction("all") {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 8866296383020871357L;
 	};
 
 	public static final AggregationFunction AVERAGE = new AggregationFunction("avg") {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2396520073900312650L;
+
 		private transient int count;
 
 		private transient double value;
@@ -112,30 +139,30 @@ public class BuiltinFunctions {
 		return TextNode.valueOf(string.substring(fromPos, toPos));
 	}
 
-//	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
-//		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
-//		Matcher matcher = compiledPattern.matcher(input.getTextValue());
-//		if (!matcher.find())
-//			return defaultValue;
-//
-//		if (matcher.groupCount() == 1)
-//			return TextNode.valueOf(matcher.group(0));
-//
-//		ArrayNode result = new ArrayNode(null);
-//		for (int index = 1; index <= matcher.groupCount(); index++)
-//			result.add(TextNode.valueOf(matcher.group(index)));
-//		return result;
-//	}
-//
-//	public static JsonNode extract(TextNode input, TextNode pattern) {
-//		return extract(input, pattern, NullNode.getInstance());
-//	}
+	// public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
+	// Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
+	// Matcher matcher = compiledPattern.matcher(input.getTextValue());
+	// if (!matcher.find())
+	// return defaultValue;
+	//
+	// if (matcher.groupCount() == 1)
+	// return TextNode.valueOf(matcher.group(0));
+	//
+	// ArrayNode result = new ArrayNode(null);
+	// for (int index = 1; index <= matcher.groupCount(); index++)
+	// result.add(TextNode.valueOf(matcher.group(index)));
+	// return result;
+	// }
+	//
+	// public static JsonNode extract(TextNode input, TextNode pattern) {
+	// return extract(input, pattern, NullNode.getInstance());
+	// }
 
 	public static JsonNode camelCase(TextNode input) {
 		char[] chars = input.getTextValue().toCharArray();
 
 		boolean capitalize = true;
-		for (int index = 0; index < chars.length; index++) {
+		for (int index = 0; index < chars.length; index++)
 			if (Character.isWhitespace(chars[index]))
 				capitalize = true;
 			else if (capitalize) {
@@ -143,7 +170,6 @@ public class BuiltinFunctions {
 				capitalize = false;
 			} else
 				chars[index] = Character.toLowerCase(chars[index]);
-		}
 
 		return TextNode.valueOf(new String(chars));
 	}

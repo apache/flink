@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.JsonUtil;
 
 /**
@@ -91,10 +90,10 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 		super.open(split);
 
 		this.end = false;
-		if (encoding != null)
-			this.parser = JsonUtil.FACTORY.createJsonParser(new InputStreamReader(stream, encoding));
+		if (this.encoding != null)
+			this.parser = JsonUtil.FACTORY.createJsonParser(new InputStreamReader(this.stream, this.encoding));
 		else
-			this.parser = JsonUtil.FACTORY.createJsonParser(stream);
+			this.parser = JsonUtil.FACTORY.createJsonParser(this.stream);
 		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		this.parser.enable(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS);
 		this.parser.enable(JsonParser.Feature.INTERN_FIELD_NAMES);

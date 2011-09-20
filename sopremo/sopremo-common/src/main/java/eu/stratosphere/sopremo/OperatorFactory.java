@@ -26,9 +26,9 @@ public class OperatorFactory {
 					.getPropertyDescriptors();
 				for (PropertyDescriptor propertyDescriptor : propertyDescriptors)
 					if (propertyDescriptor.getWriteMethod() != null
-						|| ((propertyDescriptor instanceof IndexedPropertyDescriptor) &&
-						((IndexedPropertyDescriptor) propertyDescriptor).getIndexedWriteMethod() != null)) {
-						String name = propertyNameChooser.choose(
+						|| propertyDescriptor instanceof IndexedPropertyDescriptor &&
+						((IndexedPropertyDescriptor) propertyDescriptor).getIndexedWriteMethod() != null) {
+						String name = OperatorFactory.this.propertyNameChooser.choose(
 							(String[]) propertyDescriptor.getValue(Operator.Info.NAME_NOUNS),
 							(String[]) propertyDescriptor.getValue(Operator.Info.NAME_VERB),
 							(String[]) propertyDescriptor.getValue(Operator.Info.NAME_ADJECTIVE),
@@ -37,9 +37,9 @@ public class OperatorFactory {
 							name = propertyDescriptor.getName();
 
 						if (propertyDescriptor.getValue(Operator.Info.INPUT) == Boolean.TRUE)
-							inputProperties.put(name, propertyDescriptor);
+							this.inputProperties.put(name, propertyDescriptor);
 						else
-							operatorProperties.put(name, propertyDescriptor);
+							this.operatorProperties.put(name, propertyDescriptor);
 					}
 			} catch (IntrospectionException e) {
 				e.printStackTrace();
@@ -51,14 +51,14 @@ public class OperatorFactory {
 		private Map<String, PropertyDescriptor> inputProperties = new HashMap<String, PropertyDescriptor>();
 
 		public boolean hasProperty(String name) {
-			return operatorProperties.get(name) != null;
+			return this.operatorProperties.get(name) != null;
 		}
 
 		public void setProperty(String name, Op operator, EvaluationExpression expression) {
-			PropertyDescriptor propertyDescriptor = operatorProperties.get(name);
+			PropertyDescriptor propertyDescriptor = this.operatorProperties.get(name);
 			if (propertyDescriptor == null)
 				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
-					name, operator.getName(), operatorProperties.keySet()));
+					name, operator.getName(), this.operatorProperties.keySet()));
 			try {
 				propertyDescriptor.getWriteMethod().invoke(operator, expression);
 			} catch (IllegalArgumentException e) {
@@ -71,16 +71,17 @@ public class OperatorFactory {
 		}
 
 		public boolean hasInputProperty(String name) {
-			return inputProperties.get(name) != null;
+			return this.inputProperties.get(name) != null;
 		}
 
 		public void setInputProperty(String name, Op operator, int inputIndex, EvaluationExpression expression) {
-			PropertyDescriptor propertyDescriptor = inputProperties.get(name);
+			PropertyDescriptor propertyDescriptor = this.inputProperties.get(name);
 			if (propertyDescriptor == null)
 				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
-					name, operator.getName(), inputProperties.keySet()));
+					name, operator.getName(), this.inputProperties.keySet()));
 			try {
-				((IndexedPropertyDescriptor) propertyDescriptor).getIndexedWriteMethod().invoke(operator, inputIndex, expression);
+				((IndexedPropertyDescriptor) propertyDescriptor).getIndexedWriteMethod().invoke(operator, inputIndex,
+					expression);
 			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 			} catch (IllegalAccessException e) {
@@ -106,7 +107,7 @@ public class OperatorFactory {
 	}
 
 	public OperatorInfo<?> getOperatorInfo(String operator) {
-		return operators.get(operator.toLowerCase());
+		return this.operators.get(operator.toLowerCase());
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -114,11 +115,11 @@ public class OperatorFactory {
 		String name;
 		Name nameAnnotation = ReflectUtil.getAnnotation(operatorClass, Name.class);
 		if (nameAnnotation != null)
-			name = operatorNameChooser.choose(nameAnnotation.noun(), nameAnnotation.verb(), nameAnnotation.adjective(),
+			name = this.operatorNameChooser.choose(nameAnnotation.noun(), nameAnnotation.verb(), nameAnnotation.adjective(),
 				nameAnnotation.preposition());
 		else
 			name = operatorClass.getSimpleName().toLowerCase();
-		operators.put(name, new OperatorInfo(operatorClass));
+		this.operators.put(name, new OperatorInfo(operatorClass));
 	}
 
 	public static interface NameChooser {
@@ -144,7 +145,7 @@ public class OperatorFactory {
 		public String choose(String[] nouns, String[] verbs, String[] adjectives, String[] prepositions) {
 			String[][] names = { nouns, verbs, adjectives, prepositions };
 			for (int pos : this.preferredOrder) {
-				String value = firstOrNull(names[pos]);
+				String value = this.firstOrNull(names[pos]);
 				if (value != null)
 					return value;
 			}

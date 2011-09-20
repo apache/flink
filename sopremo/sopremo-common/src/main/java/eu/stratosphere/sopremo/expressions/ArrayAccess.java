@@ -114,7 +114,7 @@ public class ArrayAccess extends EvaluationExpression implements WritableEvaluab
 			((ArrayNode) node).set(this.resolveIndex(this.startIndex, size), value);
 		return node;
 	}
-	
+
 	@Override
 	public EvaluationExpression asExpression() {
 		return this;

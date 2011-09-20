@@ -37,19 +37,19 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 	}
 
 	@Override
-	protected Operator createSinglePassInterSource(EvaluationExpression[] partitionKeys,
+	protected Operator<?> createSinglePassInterSource(EvaluationExpression[] partitionKeys,
 			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2) {
 		return new SinglePassInterSource(partitionKeys, similarityCondition, input1, input2);
 	}
 
 	@Override
-	protected Operator createSinglePassIntraSource(EvaluationExpression partitionKey,
+	protected Operator<?> createSinglePassIntraSource(EvaluationExpression partitionKey,
 			ComparativeExpression similarityCondition, RecordLinkageInput input) {
 		return new SinglePassIntraSource(partitionKey, similarityCondition, input);
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	public static class InterSourceComparison extends ElementaryOperator {
+	public static class InterSourceComparison extends ElementaryOperator<InterSourceComparison> {
 		/**
 		 * 
 		 */
@@ -97,7 +97,8 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		}
 	}
 
-	public static class IntraSourceComparison extends ElementaryOperator {
+	@InputCardinality(min = 2, max = 2)
+	public static class IntraSourceComparison extends ElementaryOperator<IntraSourceComparison> {
 		/**
 		 * 
 		 */
@@ -137,7 +138,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		}
 	}
 
-	public static class SinglePassInterSource extends CompositeOperator {
+	public static class SinglePassInterSource extends CompositeOperator<SinglePassInterSource> {
 		/**
 		 * 
 		 */
@@ -161,7 +162,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		@Override
 		public SopremoModule asElementaryOperators() {
-			final Operator[] keyExtractors = new Operator[2];
+			final Projection[] keyExtractors = new Projection[2];
 			for (int index = 0; index < 2; index++)
 				keyExtractors[index] = new Projection().
 					withKeyTransformation(this.partitionKeys[index]).
@@ -173,7 +174,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 	}
 
-	public static class SinglePassIntraSource extends CompositeOperator {
+	public static class SinglePassIntraSource extends CompositeOperator<SinglePassIntraSource> {
 		/**
 		 * 
 		 */
@@ -196,7 +197,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		@Override
 		public SopremoModule asElementaryOperators() {
-			final Operator keyExtractor = new Projection().
+			final Projection keyExtractor = new Projection().
 				withKeyTransformation(this.partitionKey).
 				withInputs(this.getInput(0));
 

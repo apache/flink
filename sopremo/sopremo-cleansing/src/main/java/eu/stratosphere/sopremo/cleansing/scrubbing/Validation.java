@@ -19,7 +19,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-public class Validation extends ElementaryOperator {
+public class Validation extends ElementaryOperator<Validation> {
 	/**
 	 * 
 	 */
@@ -86,10 +86,10 @@ public class Validation extends ElementaryOperator {
 						JsonNode parent = value;
 						final int lastIndex = targetPath.size() - 1;
 						for (int index = 0; index < lastIndex; index++)
-							parent = targetPath.get(index).evaluate(parent, context);
+							parent = targetPath.get(index).evaluate(parent, this.context);
 
 						final EvaluationExpression lastSegment = targetPath.get(lastIndex);
-						final JsonNode validationValue = lastSegment.evaluate(parent, context);
+						final JsonNode validationValue = lastSegment.evaluate(parent, this.context);
 						if (!rule.validate(validationValue, this.context)) {
 							this.context.setViolatedRule(rule);
 							((WritableEvaluable) lastSegment).set(parent, rule.fix(validationValue, this.context),

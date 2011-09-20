@@ -123,7 +123,7 @@ public abstract class StreamArrayNode extends ContainerNode {
 	public ArrayNode removeAll() {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public abstract JsonNode[] toArray();
 
 	/*
@@ -254,11 +254,11 @@ public abstract class StreamArrayNode extends ContainerNode {
 		public String toString() {
 			return "[?]";
 		}
-		
+
 		@Override
 		public JsonNode[] toArray() {
-			assumeBeginning();
-			return valueOf(nodes, true).toArray();
+			this.assumeBeginning();
+			return valueOf(this.nodes, true).toArray();
 		}
 	}
 
@@ -328,10 +328,10 @@ public abstract class StreamArrayNode extends ContainerNode {
 		public String toString() {
 			return this.nodes.toString();
 		}
-		
+
 		@Override
 		public JsonNode[] toArray() {
-			return this.nodes.toArray(new JsonNode[nodes.size()]);
+			return this.nodes.toArray(new JsonNode[this.nodes.size()]);
 		}
 	}
 }

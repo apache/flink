@@ -82,62 +82,62 @@ public class ComparativeExpression extends BooleanExpression {
 		EQUAL("=") {
 			@Override
 			public boolean isTrue(int comparisonResult) {
-				return comparisonResult  == 0;
+				return comparisonResult == 0;
 			}
-//			@Override
-//			public boolean evaluate(JsonNode e1, JsonNode e2) {
-//				return e1.equals(e2);
-//			};
+			// @Override
+			// public boolean evaluate(JsonNode e1, JsonNode e2) {
+			// return e1.equals(e2);
+			// };
 		},
 		NOT_EQUAL("<>") {
 			@Override
 			public boolean isTrue(int comparisonResult) {
-				return comparisonResult  != 0;
+				return comparisonResult != 0;
 			}
-//			@Override
-//			public boolean evaluate(JsonNode e1, JsonNode e2) {
-//				return !e1.equals(e2);
-//			};
+			// @Override
+			// public boolean evaluate(JsonNode e1, JsonNode e2) {
+			// return !e1.equals(e2);
+			// };
 		},
 		LESS("<") {
 			@Override
 			public boolean isTrue(int comparisonResult) {
-				return comparisonResult  < 0;
+				return comparisonResult < 0;
 			}
-//			@Override
-//			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-//				return e1.compareTo(e2) < 0;
-//			};
+			// @Override
+			// public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+			// return e1.compareTo(e2) < 0;
+			// };
 		},
 		LESS_EQUAL("<=") {
 			@Override
 			public boolean isTrue(int comparisonResult) {
-				return comparisonResult  <= 0;
+				return comparisonResult <= 0;
 			}
-//			@Override
-//			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-//				return e1.compareTo(e2) <= 0;
-//			};
+			// @Override
+			// public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+			// return e1.compareTo(e2) <= 0;
+			// };
 		},
 		GREATER(">") {
 			@Override
 			public boolean isTrue(int comparisonResult) {
-				return comparisonResult  > 0;
+				return comparisonResult > 0;
 			}
-//			@Override
-//			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-//				return e1.compareTo(e2) > 0;
-//			};
+			// @Override
+			// public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+			// return e1.compareTo(e2) > 0;
+			// };
 		},
 		GREATER_EQUAL(">=") {
 			@Override
 			public boolean isTrue(int comparisonResult) {
-				return comparisonResult  >= 0;
+				return comparisonResult >= 0;
 			}
-//			@Override
-//			public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
-//				return e1.compareTo(e2) >= 0;
-//			};
+			// @Override
+			// public <T extends java.lang.Comparable<T>> boolean evaluateComparable(final T e1, final T e2) {
+			// return e1.compareTo(e2) >= 0;
+			// };
 		};
 
 		private final String sign;
@@ -147,37 +147,38 @@ public class ComparativeExpression extends BooleanExpression {
 		}
 
 		public boolean evaluate(final JsonNode e1, final JsonNode e2) {
-			if(e1.getClass() != e2.getClass()) {
+			if (e1.getClass() != e2.getClass()) {
 				if (e1 instanceof NumericNode && e2 instanceof NumericNode) {
 					NumberType widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
-					return isTrue( JsonNodeComparator.INSTANCE.compareStrict(NumberCoercer.INSTANCE.coerce((NumericNode) e1, widerType), 
-						NumberCoercer.INSTANCE.coerce((NumericNode) e2, widerType), NumberCoercer.INSTANCE.getImplementationType(widerType)));
+					return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(
+						NumberCoercer.INSTANCE.coerce((NumericNode) e1, widerType),
+						NumberCoercer.INSTANCE.coerce((NumericNode) e2, widerType),
+						NumberCoercer.INSTANCE.getImplementationType(widerType)));
 				}
-					
+
 				throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));
 			}
-				
-			return isTrue(JsonNodeComparator.INSTANCE.compareStrict(e1, e2, 	e1.getClass()));
+
+			return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(e1, e2, e1.getClass()));
 		}
 
-		public boolean isTrue(int comparisonResult) {
-			return false;
-		}
-//
-//		public boolean evaluateComparable(final T e1, final T e2) {
-//			return false;
-//		}
+		public abstract boolean isTrue(int comparisonResult);
+
+		//
+		// public boolean evaluateComparable(final T e1, final T e2) {
+		// return false;
+		// }
 
 		@Override
 		public String toString() {
 			return this.sign;
 		}
-		
+
 		public static BinaryOperator valueOfSymbol(String name) {
-			for (BinaryOperator operator : BinaryOperator.values()) 
-				if(operator.sign.equals(name))
+			for (BinaryOperator operator : BinaryOperator.values())
+				if (operator.sign.equals(name))
 					return operator;
-			
+
 			return null;
 		}
 	}

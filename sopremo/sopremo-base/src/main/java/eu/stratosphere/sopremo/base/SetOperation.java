@@ -4,7 +4,7 @@ import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public abstract class SetOperation<Op extends SetOperation<Op>>  extends MultiSourceOperator<Op> {
+public abstract class SetOperation<Op extends SetOperation<Op>> extends MultiSourceOperator<Op> {
 	/**
 	 * 
 	 */
@@ -21,24 +21,24 @@ public abstract class SetOperation<Op extends SetOperation<Op>>  extends MultiSo
 	}
 
 	public EvaluationExpression getIdentityKey(int inputIndex) {
-		return getKeyProjection(inputIndex);
+		return this.getKeyProjection(inputIndex);
 	}
 
 	public Op withIdentityKey(int inputIndex, EvaluationExpression identityKey) {
-		setIdentityKey(inputIndex, identityKey);
-		return self();
+		this.setIdentityKey(inputIndex, identityKey);
+		return this.self();
 	}
-	
+
 	@Override
 	public void setValueProjection(int inputIndex, EvaluationExpression valueProjection) {
 		super.setValueProjection(inputIndex, valueProjection);
 	}
-	
+
 	@Override
 	public EvaluationExpression getValueProjection(int index) {
 		return super.getValueProjection(index);
 	}
-	
+
 	@Override
 	public Op withValueProjection(int inputIndex, EvaluationExpression valueProjection) {
 		return super.withValueProjection(inputIndex, valueProjection);
@@ -47,9 +47,9 @@ public abstract class SetOperation<Op extends SetOperation<Op>>  extends MultiSo
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(super.toString());
-		builder.append(" on ").append(getKeyProjection(0));
-		for (int index = 1; index < getInputs().size(); index++)
-			builder.append(", ").append(getKeyProjection(index));
+		builder.append(" on ").append(this.getKeyProjection(0));
+		for (int index = 1; index < this.getInputs().size(); index++)
+			builder.append(", ").append(this.getKeyProjection(index));
 		return builder.toString();
 	}
 }

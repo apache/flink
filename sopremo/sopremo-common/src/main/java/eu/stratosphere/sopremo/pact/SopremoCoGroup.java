@@ -30,18 +30,20 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 				cached1.add(values1.next());
 			while (values2.hasNext())
 				cached2.add(values2.next());
-			SopremoUtil.LOG.trace(String.format("%s %s/%s/%s", getContext().operatorTrace(), key, cached1, cached2));
+			SopremoUtil.LOG.trace(String
+				.format("%s %s/%s/%s", this.getContext().operatorTrace(), key, cached1, cached2));
 			values1 = cached1.iterator();
 			values2 = cached2.iterator();
 		}
 		try {
-		this.coGroup(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values1), values1),
-			JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values2), values2),
-			new JsonCollector(out));
-	} catch(RuntimeException e) {
-		SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", getContext().operatorTrace(), key, values1, values2, e));
-		throw e;
-	}
+			this.coGroup(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values1), values1),
+				JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values2), values2),
+				new JsonCollector(out));
+		} catch (RuntimeException e) {
+			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", this.getContext()
+				.operatorTrace(), key, values1, values2, e));
+			throw e;
+		}
 	}
 
 	@Override
@@ -55,6 +57,7 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 		return this.context;
 	}
 
+	@SuppressWarnings("unused")
 	protected boolean needsResettableIterator(final int input, final PactJsonObject.Key key,
 			final Iterator<PactJsonObject> values) {
 		return false;

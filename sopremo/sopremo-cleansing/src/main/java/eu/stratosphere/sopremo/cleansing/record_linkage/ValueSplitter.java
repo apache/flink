@@ -12,7 +12,6 @@ import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -21,7 +20,7 @@ import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
-public class ValueSplitter extends ElementaryOperator {
+public class ValueSplitter extends ElementaryOperator<ValueSplitter> {
 	/**
 	 * 
 	 */
@@ -62,7 +61,7 @@ public class ValueSplitter extends ElementaryOperator {
 	 * @return this
 	 */
 	public ValueSplitter withValueProjection(EvaluationExpression valueProjection) {
-		setValueProjection(valueProjection);
+		this.setValueProjection(valueProjection);
 		return this;
 	}
 
@@ -98,7 +97,7 @@ public class ValueSplitter extends ElementaryOperator {
 
 	@Override
 	protected Class<? extends Stub<?, ?>> getStubClass() {
-		return implementation;
+		return this.implementation;
 	}
 
 	public static class ExplicitProjections extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
@@ -116,7 +115,7 @@ public class ValueSplitter extends ElementaryOperator {
 
 		@Override
 		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-			final JsonNode array = path.evaluate(value, getContext());
+			final JsonNode array = this.path.evaluate(value, this.getContext());
 			if (!array.isArray())
 				throw new EvaluationException("Cannot split non-array");
 
@@ -125,8 +124,8 @@ public class ValueSplitter extends ElementaryOperator {
 			for (JsonNode element : array) {
 				JsonNode indexNode = IntNode.valueOf(index++);
 				out.collect(
-					keyProjection.evaluate(JsonUtil.asArray(element, indexNode, array, value), context),
-					valueProjection.evaluate(JsonUtil.asArray(element, indexNode, array, value), context));
+					this.keyProjection.evaluate(JsonUtil.asArray(element, indexNode, array, value), context),
+					this.valueProjection.evaluate(JsonUtil.asArray(element, indexNode, array, value), context));
 			}
 		}
 	}
@@ -136,18 +135,18 @@ public class ValueSplitter extends ElementaryOperator {
 
 		@Override
 		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-			final JsonNode object = path.evaluate(value, getContext());
+			final JsonNode object = this.path.evaluate(value, this.getContext());
 			if (!object.isObject())
 				throw new EvaluationException("Cannot split non-object");
 
 			final Iterator<String> fieldNames = object.getFieldNames();
 			final EvaluationContext context = this.getContext();
 			while (fieldNames.hasNext()) {
-				String field = (String) fieldNames.next();
+				String field = fieldNames.next();
 				final TextNode fieldNode = TextNode.valueOf(field);
 				out.collect(
-					keyProjection.evaluate(JsonUtil.asArray(value.get(field), fieldNode, object, value), context),
-					valueProjection.evaluate(JsonUtil.asArray(value.get(field), fieldNode, object, value), context));
+					this.keyProjection.evaluate(JsonUtil.asArray(value.get(field), fieldNode, object, value), context),
+					this.valueProjection.evaluate(JsonUtil.asArray(value.get(field), fieldNode, object, value), context));
 			}
 		}
 	}

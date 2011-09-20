@@ -39,9 +39,9 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	public SopremoModule(final String name, final int numberOfInputs, final int numberOfOutputs) {
 		super(name, new Source[numberOfInputs], new Sink[numberOfOutputs], OperatorNavigator.INSTANCE);
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new Sink(PersistenceType.HDFS, String.format("%s %d", name, index));
+			this.outputNodes[index] = new Sink(String.format("%s %d", name, index));
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new Source(PersistenceType.HDFS, String.format("%s %d", name, index));
+			this.inputNodes[index] = new Source(String.format("%s %d", name, index));
 	}
 
 	/**
@@ -107,8 +107,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					if (node instanceof Source)
 						inputs.add(node);
 					else
-						for (final Operator<?>.Output output : node.getInputs())
-							if (output == null)
+						for (final Operator<?>.Output input : node.getInputs())
+							if (input == null)
 								inputs.add(node);
 				};
 			});
@@ -155,8 +155,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 
 		private ModuleOperator(final int numberOfOutputs, final JsonStream[] inputs) {
 			super(numberOfOutputs);
-			setNumberOfInputs(inputs.length);
-			setInputs(inputs);
+			this.setNumberOfInputs(inputs.length);
+			this.setInputs(inputs);
 		}
 
 		@Override
@@ -264,7 +264,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	private class ElementaryAssembler {
 		private final Map<Operator<?>, SopremoModule> modules = new IdentityHashMap<Operator<?>, SopremoModule>();
 
-//		private final Map<Operator<?>, Operator<?>.Output[]> operatorOutputs = new IdentityHashMap<Operator<?>, Operator<?>.Output[]>();
+		// private final Map<Operator<?>, Operator<?>.Output[]> operatorOutputs = new IdentityHashMap<Operator<?>,
+		// Operator<?>.Output[]>();
 
 		public ElementaryAssembler() {
 		}
@@ -293,7 +294,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
 						SopremoModule elementaryModule = node.toElementaryOperators();
-						modules.put(node, elementaryModule);
+						ElementaryAssembler.this.modules.put(node, elementaryModule);
 						// modules.put(node, new SopremoModule("test " + node.hashCode(), 0, 0));
 					}
 				});
@@ -308,12 +309,12 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 
 				for (int index = 0; index < operator.getInputs().size(); index++) {
 					final Operator<?>.Output input = operator.getInput(index);
-					final SopremoModule inputModule = modules.get(input.getOperator());
+					final SopremoModule inputModule = this.modules.get(input.getOperator());
 					operatorInputToModuleOutput.put(module.getInput(0).getOutput(0),
 						inputModule.getOutput(input.getIndex()).getInput(0));
 				}
 
-//				final Source[] moduleInputs = module.getInputs();
+				// final Source[] moduleInputs = module.getInputs();
 				DependencyAwareGraphTraverser.INSTANCE.traverse(module.getAllOutputs(),
 					OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 						@Override

@@ -4,12 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public class SchemaMapping extends CompositeOperator {
+public class SchemaMapping extends CompositeOperator<SchemaMapping> {
 	/**
 	 * 
 	 */
@@ -31,7 +30,7 @@ public class SchemaMapping extends CompositeOperator {
 	}
 
 	public SchemaMapping withProjection(EvaluationExpression projection) {
-		setProjection(projection);
+		this.setProjection(projection);
 		return this;
 	}
 

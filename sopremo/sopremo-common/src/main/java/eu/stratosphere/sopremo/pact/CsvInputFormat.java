@@ -57,38 +57,39 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 		// this.keyNames[0] = this.keyNames[0].replaceAll("^\\ufeff", "");
 		// }
 	}
-//
-//	@Override
-//	public boolean reachedEnd() {
-//		return this.end;
-//	}
+
+	//
+	// @Override
+	// public boolean reachedEnd() {
+	// return this.end;
+	// }
 
 	private Charset charSet = Charset.forName("utf-8");
+
 	@Override
 	public boolean readLine(KeyValuePair<Key, PactJsonObject> pair, byte[] record) {
-//		if (!this.end) {
-			CsvReader reader = new CsvReader(new ByteArrayInputStream(record), charSet);
-			reader.setDelimiter(fieldDelimiter);
-			try {
-				if (reader.readRecord()) {
-					ObjectNode node = new ObjectNode(JsonNodeFactory.instance);
-					if(this.keyNames != null) {
+		// if (!this.end) {
+		CsvReader reader = new CsvReader(new ByteArrayInputStream(record), this.charSet);
+		reader.setDelimiter(this.fieldDelimiter);
+		try {
+			if (reader.readRecord()) {
+				ObjectNode node = new ObjectNode(JsonNodeFactory.instance);
+				if (this.keyNames != null)
 					for (int i = 0; i < this.keyNames.length; i++)
 						node.put(this.keyNames[i], reader.get(i));
-					} else {
-						for (int i = 0; i < reader.getColumnCount(); i++)
-							node.put(String.format("key%d", i + 1), reader.get(i));					
-					}
-					pair.getValue().setValue(node);
-					return true;
-				}
-
-//				this.end = true;
-			} catch (IOException e) {
-				SopremoUtil.LOG.warn("Parsing CSV record", e);
+				else
+					for (int i = 0; i < reader.getColumnCount(); i++)
+						node.put(String.format("key%d", i + 1), reader.get(i));
+				pair.getValue().setValue(node);
+				return true;
 			}
-			return false;
-//		}
-//		return false;
+
+			// this.end = true;
+		} catch (IOException e) {
+			SopremoUtil.LOG.warn("Parsing CSV record", e);
+		}
+		return false;
+		// }
+		// return false;
 	}
 }

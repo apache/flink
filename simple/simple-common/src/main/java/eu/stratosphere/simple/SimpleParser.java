@@ -19,31 +19,27 @@ import org.antlr.runtime.RecognitionException;
 import org.antlr.runtime.RecognizerSharedState;
 import org.antlr.runtime.TokenStream;
 import org.antlr.runtime.UnwantedTokenException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.sopremo.ExpressionTagFactory;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorFactory;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public abstract class SimpleParser extends Parser {
 	protected OperatorFactory operatorFactory = new OperatorFactory();
-	
+
 	protected ExpressionTagFactory expressionTagFactory = new ExpressionTagFactory();
 
 	protected List<Sink> sinks = new ArrayList<Sink>();
 
 	public SimpleParser(TokenStream input, RecognizerSharedState state) {
 		super(input, state);
-		importPackage("base");
+		this.importPackage("base");
 	}
 
 	public SimpleParser(TokenStream input) {
 		super(input);
-		importPackage("base");
+		this.importPackage("base");
 	}
 
 	/**
@@ -52,15 +48,15 @@ public abstract class SimpleParser extends Parser {
 	 * @param packageName
 	 */
 	public void importPackage(String packageName) {
-		String packagePath = getPackagePath(packageName);
+		String packagePath = this.getPackagePath(packageName);
 
 		SimpleUtil.LOG.debug("adding package " + packagePath);
 		try {
 			if (packagePath.endsWith(".jar"))
-				importFromJar(new File(packagePath).getAbsolutePath(), new File(packagePath));
+				this.importFromJar(new File(packagePath).getAbsolutePath(), new File(packagePath));
 			else
 				// should only happen while debugging
-				importFromProject(new File(packagePath).getAbsolutePath(), new File(packagePath));
+				this.importFromProject(new File(packagePath).getAbsolutePath(), new File(packagePath));
 		} catch (IOException e) {
 			throw new IllegalArgumentException(String.format("could not load package %s", packagePath));
 		}
@@ -71,20 +67,20 @@ public abstract class SimpleParser extends Parser {
 		String classpath = System.getProperty("java.class.path");
 		String sopremoPackage = "sopremo-" + packageName;
 		for (String path : classpath.split(File.pathSeparator))
-			if (path.contains(sopremoPackage)) { // found entry
+			if (path.contains(sopremoPackage))
 				return path;
-			}
 		throw new IllegalArgumentException(String.format("no package %s found", sopremoPackage));
 	}
 
 	private void importFromProject(String classPath, File dir) {
 		for (File file : dir.listFiles())
 			if (file.isDirectory())
-				importFromProject(classPath, file);
+				this.importFromProject(classPath, file);
 			else if (file.getName().endsWith(".class") && !file.getName().contains("$"))
-				importFromFile(classPath, file);
+				this.importFromFile(classPath, file);
 	}
 
+	@SuppressWarnings("unchecked")
 	private void importFromFile(String classPath, File file) {
 		String classFileName = file.getAbsolutePath().substring(classPath.length());
 		String className = classFileName.replaceAll(".class$", "").replaceAll("/|\\\\", ".").replaceAll("^\\.", "");
@@ -93,7 +89,7 @@ public abstract class SimpleParser extends Parser {
 			clazz = Class.forName(className);
 			if (Operator.class.isAssignableFrom(clazz) && (clazz.getModifiers() & Modifier.ABSTRACT) == 0) {
 				SimpleUtil.LOG.trace("adding operator " + clazz);
-				operatorFactory.addOperator((Class<? extends Operator>) clazz);
+				this.operatorFactory.addOperator((Class<? extends Operator<?>>) clazz);
 			}
 		} catch (ClassNotFoundException e) {
 			SimpleUtil.LOG.warn("could not load operator " + className);
@@ -109,20 +105,22 @@ public abstract class SimpleParser extends Parser {
 		}
 	}
 
+	@Override
 	public Object recoverFromMismatchedSet(IntStream input, RecognitionException e, BitSet follow)
 			throws RecognitionException {
 		throw e;
 	}
 
+	@Override
 	protected Object recoverFromMismatchedToken(IntStream input, int ttype, BitSet follow)
 			throws RecognitionException {
 		// if next token is what we are looking for then "delete" this token
-		if (mismatchIsUnwantedToken(input, ttype))
+		if (this.mismatchIsUnwantedToken(input, ttype))
 			throw new UnwantedTokenException(ttype, input);
 
 		// can't recover with single token deletion, try insertion
-		if (mismatchIsMissingToken(input, follow)) {
-			Object inserted = getMissingSymbol(input, null, ttype, follow);
+		if (this.mismatchIsMissingToken(input, follow)) {
+			Object inserted = this.getMissingSymbol(input, null, ttype, follow);
 			throw new MissingTokenException(ttype, input, inserted);
 		}
 
@@ -132,8 +130,8 @@ public abstract class SimpleParser extends Parser {
 	protected abstract void parseSinks() throws RecognitionException;
 
 	public SopremoPlan parse() throws RecognitionException {
-		parseSinks();
-		return new SopremoPlan(sinks);
+		this.parseSinks();
+		return new SopremoPlan(this.sinks);
 	}
 
 	protected Number parseInt(String text) {

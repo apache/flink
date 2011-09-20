@@ -10,7 +10,12 @@ import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 
-public abstract class RecordLinkage extends CompositeOperator {
+public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends CompositeOperator<Self> {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4477302065457442491L;
 
 	private EvaluationExpression similarityExpression = new ConstantExpression(1);
 
@@ -18,7 +23,7 @@ public abstract class RecordLinkage extends CompositeOperator {
 
 	private RecordLinkageAlgorithm algorithm = new Naive();
 
-	private final Map<Operator.Output, RecordLinkageInput> recordLinkageInputs = new IdentityHashMap<Operator.Output, RecordLinkageInput>();
+	private final Map<Operator<?>.Output, RecordLinkageInput> recordLinkageInputs = new IdentityHashMap<Operator<?>.Output, RecordLinkageInput>();
 
 	private LinkageMode linkageMode = LinkageMode.LINKS_ONLY;
 
@@ -30,7 +35,7 @@ public abstract class RecordLinkage extends CompositeOperator {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final RecordLinkage other = (RecordLinkage) obj;
+		final RecordLinkage<?> other = (RecordLinkage<?>) obj;
 
 		return this.linkageMode == other.linkageMode && this.threshold == other.threshold &&
 			this.algorithm.equals(other.algorithm) && this.similarityExpression.equals(other.similarityExpression) &&
@@ -38,11 +43,11 @@ public abstract class RecordLinkage extends CompositeOperator {
 	}
 
 	public RecordLinkageAlgorithm getAlgorithm() {
-		return algorithm;
+		return this.algorithm;
 	}
 
 	public LinkageMode getLinkageMode() {
-		return linkageMode;
+		return this.linkageMode;
 	}
 
 	protected ComparativeExpression getSimilarityCondition() {
@@ -51,11 +56,11 @@ public abstract class RecordLinkage extends CompositeOperator {
 	}
 
 	public EvaluationExpression getSimilarityExpression() {
-		return similarityExpression;
+		return this.similarityExpression;
 	}
 
 	public double getThreshold() {
-		return threshold;
+		return this.threshold;
 	}
 
 	@Override
@@ -100,24 +105,24 @@ public abstract class RecordLinkage extends CompositeOperator {
 		this.threshold = threshold;
 	}
 
-	public RecordLinkage withAlgorithm(RecordLinkageAlgorithm algorithm) {
+	public Self withAlgorithm(RecordLinkageAlgorithm algorithm) {
 		this.setAlgorithm(algorithm);
-		return this;
+		return self();
 	}
 
-	public RecordLinkage withLinkageMode(LinkageMode linkageMode) {
-		setLinkageMode(linkageMode);
-		return this;
+	public Self withLinkageMode(LinkageMode linkageMode) {
+		this.setLinkageMode(linkageMode);
+		return self();
 	}
 
-	public RecordLinkage withSimilarityExpression(EvaluationExpression evaluationExpression) {
+	public Self withSimilarityExpression(EvaluationExpression evaluationExpression) {
 		this.setSimilarityExpression(evaluationExpression);
-		return this;
+		return self();
 	}
 
-	public RecordLinkage withThreshold(double threshold) {
+	public Self withThreshold(double threshold) {
 		this.setThreshold(threshold);
-		return this;
+		return self();
 	}
 
 	public RecordLinkageInput getRecordLinkageInput(final int index) {

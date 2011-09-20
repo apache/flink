@@ -8,7 +8,6 @@ import org.codehaus.jackson.node.NullNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.ExpressionTag;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.util.IdentitySet;
 
 public abstract class EvaluationExpression extends SopremoExpression<EvaluationContext> {
@@ -48,6 +47,11 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		@Override
 		protected void toString(final StringBuilder builder) {
 			builder.append("<value>");
+		}
+
+		@Override
+		public int hashCode() {
+			return System.identityHashCode(this);
 		}
 	}
 
@@ -139,11 +143,11 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		this.toString(builder);
 		return builder.toString();
 	}
-	
+
 	@Override
 	protected void toString(StringBuilder builder) {
-		if(!tags.isEmpty())
-			builder.append(tags).append(" ");
+		if (!this.tags.isEmpty())
+			builder.append(this.tags).append(" ");
 		super.toString(builder);
 	}
 

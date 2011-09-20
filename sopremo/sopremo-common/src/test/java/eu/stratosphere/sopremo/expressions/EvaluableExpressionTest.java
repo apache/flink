@@ -15,15 +15,15 @@ public abstract class EvaluableExpressionTest<T extends EvaluationExpression> ex
 
 	@Before
 	public void initContext() {
-		context = new EvaluationContext();
+		this.context = new EvaluationContext();
 	}
 
 	@Test
 	public void testToString() {
 		final StringBuilder builder = new StringBuilder();
 		this.first.toString(builder);
-		Assert.assertNotSame(
-			"builder did not write anything - override this test if it is indeed the desired behavior", "", builder
-				.toString().intern());
+		Assert.assertFalse(
+			"builder did not write anything - override this test if it is indeed the desired behavior",
+			builder.length() == 0);
 	}
 }

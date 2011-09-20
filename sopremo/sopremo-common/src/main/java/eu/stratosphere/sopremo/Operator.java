@@ -66,7 +66,7 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 		this.setNumberOfOutputs(numberOfOutputs);
 		InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
 		this.setNumberOfInputs(inputs.min(), inputs.max());
-		this.name = getClass().getSimpleName();
+		this.name = this.getClass().getSimpleName();
 	}
 
 	/**
@@ -174,9 +174,9 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	private static Map<Class<?>, Info> beanInfos = new IdentityHashMap<Class<?>, Operator.Info>();
 
 	private BeanInfo getBeanInfo() {
-		Info beanInfo = beanInfos.get(getClass());
+		Info beanInfo = beanInfos.get(this.getClass());
 		if (beanInfo == null)
-			beanInfos.put(getClass(), beanInfo = new Info(this.getClass()));
+			beanInfos.put(this.getClass(), beanInfo = new Info(this.getClass()));
 		return beanInfo;
 	}
 
@@ -210,6 +210,13 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 */
 	public Operator<?>.Output getInput(final int index) {
 		return this.inputs.get(index);
+	}
+
+	protected JsonStream getSafeInput(final int inputIndex) {
+		JsonStream input = this.getInput(inputIndex);
+		if (input == null)
+			throw new IllegalStateException("inputs must be set first");
+		return input;
 	}
 
 	/**
@@ -375,8 +382,8 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 * @return this
 	 */
 	public Self withInputs(final List<? extends JsonStream> inputs) {
-		setInputs(inputs);
-		return self();
+		this.setInputs(inputs);
+		return this.self();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -392,8 +399,8 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 * @return this
 	 */
 	public Self withInputs(final JsonStream... inputs) {
-		setInputs(inputs);
-		return self();
+		this.setInputs(inputs);
+		return this.self();
 	}
 
 	protected void setNumberOfInputs(int min, int max) {
@@ -430,10 +437,11 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 	 *        the number of outputs
 	 */
 	protected final void setNumberOfOutputs(final int numberOfOutputs) {
-		if (numberOfOutputs > outputs.size())
-			outputs.subList(numberOfOutputs, outputs.size()).clear();
+		if (numberOfOutputs < this.outputs.size())
+			this.outputs.subList(numberOfOutputs, this.outputs.size()).clear();
 		else
-			CollectionUtil.ensureSize(outputs, numberOfOutputs);
+			for (int index = this.outputs.size(); index < numberOfOutputs; index++)
+				this.outputs.add(new Output(index));
 	}
 
 	public SopremoModule toElementaryOperators() {
@@ -561,8 +569,8 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 				return false;
 			if (this.getClass() != obj.getClass())
 				return false;
-			@SuppressWarnings("unchecked")
-			final Operator<Self>.Output other = (Operator<Self>.Output) obj;
+			@SuppressWarnings("rawtypes")
+			final Operator.Output other = (Operator.Output) obj;
 			return this.index == other.index && this.getOperator() == other.getOperator();
 		}
 

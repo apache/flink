@@ -178,7 +178,7 @@ public class TypeCoercer {
 	@SuppressWarnings("unchecked")
 	public <T extends JsonNode> T coerce(final JsonNode node, final Class<T> targetType, final T defaultValue) {
 		final Map<Class<? extends JsonNode>, Coercer> toCoercer = this.coercers.get(targetType);
-		if (toCoercer == null) 
+		if (toCoercer == null)
 			return defaultValue;
 		Coercer fromCoercer = toCoercer.get(node.getClass());
 		if (fromCoercer == null) {

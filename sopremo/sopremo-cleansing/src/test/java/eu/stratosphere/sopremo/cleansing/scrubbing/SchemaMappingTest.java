@@ -12,7 +12,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
@@ -21,29 +20,20 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 public class SchemaMappingTest {
 	@Parameters
 	public static Collection<Object[]> getParameters() {
-		return Arrays
-			.asList(
-				new Object[] {
-					Arrays.asList(),
-					createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull",
-						null) },
+		return Arrays.asList(
+			new Object[] { Arrays.asList(),
+				createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull", null) },
 
-				new Object[] {
-					Arrays.asList(new TypeValidationExpression(IntNode.class,
-						new ObjectAccess("stringInsteadOfInteger"))),
-					createPactJsonObject("stringInsteadOfInteger", 12, "outsideMonthRange", 14, "shouldBeNonNull",
-						null) },
+			new Object[] {
+				Arrays.asList(new TypeValidationExpression(IntNode.class, new ObjectAccess("stringInsteadOfInteger"))),
+				createPactJsonObject("stringInsteadOfInteger", 12, "outsideMonthRange", 14, "shouldBeNonNull", null) },
 
-				new Object[] {
-					Arrays.asList(new RangeRule(IntNode.valueOf(1), IntNode.valueOf(12), new ObjectAccess(
-						"outsideMonthRange"))),
-					createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 12, "shouldBeNonNull",
-						null) },
+			new Object[] {
+				Arrays.asList(new RangeRule(IntNode.valueOf(1), IntNode.valueOf(12), new ObjectAccess(
+					"outsideMonthRange"))),
+				createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 12, "shouldBeNonNull", null) },
 
-				new Object[] {
-					Arrays.asList(new NonNullRule(new ObjectAccess("shouldBeNonNull"))),
-					ERROR }
-			);
+			new Object[] { Arrays.asList(new NonNullRule(new ObjectAccess("shouldBeNonNull"))), ERROR });
 	}
 
 	private static final PactJsonObject ERROR = null;
@@ -64,12 +54,12 @@ public class SchemaMappingTest {
 		for (ValidationRule rule : this.validationRules)
 			schemaMapping.addRule(rule);
 
-		sopremoTestPlan.getInput(0).
-			add(createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull", null));
-		if (expectedObject == ERROR)
+		sopremoTestPlan.getInput(0).add(
+			createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull", null));
+		if (this.expectedObject == ERROR)
 			sopremoTestPlan.getExpectedOutput(0).setEmpty();
 		else
-			sopremoTestPlan.getExpectedOutput(0).add(expectedObject);
+			sopremoTestPlan.getExpectedOutput(0).add(this.expectedObject);
 		sopremoTestPlan.run();
 	}
 }

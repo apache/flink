@@ -19,7 +19,6 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorNavigator;
-import eu.stratosphere.sopremo.PersistenceType;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
@@ -59,11 +58,12 @@ public class SopremoTestPlan {
 		final List<Operator<?>> unconnectedInputs = new ArrayList<Operator<?>>();
 		for (final Operator<?> operator : sinks) {
 			unconnectedOutputs.addAll(operator.getOutputs());
-			if(operator instanceof Sink)
+			if (operator instanceof Sink)
 				unconnectedOutputs.add(operator);
 		}
 
-		for (final Operator<?> operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
+		for (final Operator<?> operator : OneTimeTraverser.INSTANCE
+			.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
 			if (operator instanceof Source)
 				unconnectedInputs.add(operator);
 			else
@@ -78,7 +78,8 @@ public class SopremoTestPlan {
 			if (unconnectedNode instanceof Source)
 				this.setInputOperator(index, (Source) unconnectedNode);
 			else {
-				final List<Operator<?>.Output> missingInputs = new ArrayList<Operator<?>.Output>(unconnectedNode.getInputs());
+				final List<Operator<?>.Output> missingInputs = new ArrayList<Operator<?>.Output>(
+					unconnectedNode.getInputs());
 				for (int missingIndex = 0; missingIndex < missingInputs.size(); missingIndex++)
 					if (missingInputs.get(missingIndex) == null) {
 						missingInputs.set(missingIndex, this.inputs[index].getOperator().getOutput(0));
@@ -88,7 +89,7 @@ public class SopremoTestPlan {
 			}
 		}
 		this.actualOutputs = new ActualOutput[unconnectedOutputs.size()];
-		this.expectedOutputs = new ExpectedOutput[unconnectedOutputs.size() ];
+		this.expectedOutputs = new ExpectedOutput[unconnectedOutputs.size()];
 		for (int index = 0; index < this.actualOutputs.length; index++) {
 			this.actualOutputs[index] = new ActualOutput(index);
 			if (unconnectedOutputs.get(index) instanceof Sink)
@@ -100,7 +101,7 @@ public class SopremoTestPlan {
 	}
 
 	public void trace() {
-		trace = true;
+		this.trace = true;
 	}
 
 	@Override
@@ -202,10 +203,10 @@ public class SopremoTestPlan {
 			input.prepare(this.testPlan);
 		for (final ExpectedOutput output : this.expectedOutputs)
 			output.prepare(this.testPlan);
-		if (trace)
+		if (this.trace)
 			SopremoUtil.trace();
 		this.testPlan.run();
-		if (trace)
+		if (this.trace)
 			SopremoUtil.untrace();
 		for (final ActualOutput output : this.actualOutputs)
 			output.load(this.testPlan);
@@ -213,7 +214,7 @@ public class SopremoTestPlan {
 
 	public void setInputOperator(final int index, final Source operator) {
 		this.inputs[index].setOperator(operator);
-		if (operator.getType() == PersistenceType.ADHOC)
+		if (operator.isAdhoc())
 			for (final JsonNode node : operator.getAdhocValues())
 				this.inputs[index].add(new PactJsonObject(node));
 		else {
@@ -375,7 +376,7 @@ public class SopremoTestPlan {
 		private final int index;
 
 		public MockupSink(final int index) {
-			super(PersistenceType.ADHOC, "mockup-output" + index);
+			super("mockup-output" + index);
 			this.index = index;
 		}
 
@@ -424,7 +425,7 @@ public class SopremoTestPlan {
 		private final int index;
 
 		public MockupSource(final int index) {
-			super(PersistenceType.HDFS, "mockup-input" + index);
+			super("mockup-input" + index);
 			this.index = index;
 		}
 

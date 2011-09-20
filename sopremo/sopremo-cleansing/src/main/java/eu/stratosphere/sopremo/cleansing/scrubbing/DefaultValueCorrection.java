@@ -33,7 +33,7 @@ public class DefaultValueCorrection extends ValueCorrection {
 
 	private void writeObject(ObjectOutputStream oos) throws IOException {
 		oos.defaultWriteObject();
-		SopremoUtil.serializeNode(oos, defaultValue);
+		SopremoUtil.serializeNode(oos, this.defaultValue);
 	}
 
 	@Override

@@ -114,6 +114,7 @@ public class FunctionRegistryTest {
 			this.registry.evaluate("count", JsonUtil.asArray(JsonUtil.NODE_FACTORY.numberNode(1)), this.context));
 	}
 
+	@SuppressWarnings("unused")
 	public static class JavaFunctions {
 
 		public static JsonNode count(final ArrayNode node) {

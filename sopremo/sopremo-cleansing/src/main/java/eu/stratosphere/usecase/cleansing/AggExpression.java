@@ -91,10 +91,10 @@ public class AggExpression extends EvaluationExpression {
 		return this.groupingExpression.equals(other.groupingExpression)
 			&& this.resultExpression.equals(other.resultExpression);
 	}
-	
+
 	@Override
 	protected void toString(StringBuilder builder) {
-		builder.append("g(").append(groupingExpression).append(") -> ").append(resultExpression);
+		builder.append("g(").append(this.groupingExpression).append(") -> ").append(this.resultExpression);
 	}
 
 }

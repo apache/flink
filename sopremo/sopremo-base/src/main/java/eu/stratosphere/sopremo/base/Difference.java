@@ -36,7 +36,7 @@ public class Difference extends SetOperation<Difference> {
 	}
 
 	@Override
-	protected EvaluationExpression getDefaultValueProjection(Operator<?><?>.Output source) {
+	protected EvaluationExpression getDefaultValueProjection(JsonStream source) {
 		return source == getInput(0) ? EvaluationExpression.VALUE : EvaluationExpression.NULL;
 	}
 

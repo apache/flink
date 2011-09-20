@@ -5,7 +5,6 @@ import junit.framework.Assert;
 import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Test;
 
-import uk.ac.shef.wit.simmetrics.similaritymetrics.JaccardSimilarity;
 import uk.ac.shef.wit.simmetrics.similaritymetrics.JaroWinkler;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;

@@ -87,12 +87,12 @@ public class Projection extends ElementaryOperator<Projection> {
 	}
 
 	public Projection withKeyTransformation(EvaluationExpression keyTransformation) {
-		setKeyTransformation(keyTransformation);
+		this.setKeyTransformation(keyTransformation);
 		return this;
 	}
 
 	public Projection withValueTransformation(EvaluationExpression valueTransformation) {
-		setValueTransformation(valueTransformation);
+		this.setValueTransformation(valueTransformation);
 		return this;
 	}
 

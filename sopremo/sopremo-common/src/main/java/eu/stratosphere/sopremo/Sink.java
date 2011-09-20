@@ -14,23 +14,17 @@ public class Sink extends ElementaryOperator<Sink> {
 
 	private final String outputName;
 
-	private final PersistenceType type;
-
 	private Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat;
-
-	public Sink(final PersistenceType type, final String outputName) {
-		this(JsonOutputFormat.class, outputName);
-	}
 
 	public Sink(Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat,
 			final String outputName) {
 		super(0);
-		// if (type == DataType.ADHOC)
-		// throw new IllegalArgumentException();
-		this.outputName = outputName;
 		this.outputFormat = outputFormat;
-		this.type = PersistenceType.HDFS;
-		setNumberOfOutputs(0);
+		this.outputName = outputName;
+	}
+	
+	public Sink(final String outputName) {
+		this(JsonOutputFormat.class, outputName);
 	}
 
 	@Override
@@ -42,7 +36,7 @@ public class Sink extends ElementaryOperator<Sink> {
 	public PactModule asPactModule(final EvaluationContext context) {
 		final PactModule pactModule = new PactModule(this.toString(), 1, 0);
 		final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
-			outputFormat, this.outputName, this.outputName);
+			this.outputFormat, this.outputName, this.outputName);
 		contract.setInput(pactModule.getInput(0));
 		// if(this.outputFormat == JsonOutputFormat.class)
 		contract.setDegreeOfParallelism(1);
@@ -52,8 +46,8 @@ public class Sink extends ElementaryOperator<Sink> {
 
 	@Override
 	public SopremoModule toElementaryOperators() {
-		SopremoModule module = new SopremoModule(getName(), 1, 0);
-		Sink clone = (Sink) clone();
+		SopremoModule module = new SopremoModule(this.getName(), 1, 0);
+		Sink clone = (Sink) this.clone();
 		module.addInternalOutput(clone);
 		clone.setInput(0, module.getInput(0));
 		return module;
@@ -61,10 +55,6 @@ public class Sink extends ElementaryOperator<Sink> {
 
 	public String getOutputName() {
 		return this.outputName;
-	}
-
-	public PersistenceType getType() {
-		return this.type;
 	}
 
 	@Override

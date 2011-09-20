@@ -30,11 +30,12 @@ public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJ
 			final Collector<PactJsonObject.Key, PactJsonObject> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isTraceEnabled())
-			SopremoUtil.LOG.trace(String.format("%s %s/%s", getContext().operatorTrace(), key, value));
+			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), key, value));
 		try {
-		this.map(key.getValue(), value.getValue(), new JsonCollector(out));
-		} catch(RuntimeException e) {
-			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", getContext().operatorTrace(), key, value, e));
+			this.map(key.getValue(), value.getValue(), new JsonCollector(out));
+		} catch (RuntimeException e) {
+			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", this.getContext()
+				.operatorTrace(), key, value, e));
 			throw e;
 		}
 	};

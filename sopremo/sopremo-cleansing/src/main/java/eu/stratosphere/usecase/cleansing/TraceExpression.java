@@ -7,12 +7,16 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class TraceExpression extends EvaluationExpression {
-private EvaluationExpression expression;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3935412444889830869L;
 
+	private EvaluationExpression expression;
 
 	public TraceExpression(EvaluationExpression expression) {
-	this.expression = expression;
-}
+		this.expression = expression;
+	}
 
 	public TraceExpression() {
 		this(VALUE);
@@ -20,7 +24,7 @@ private EvaluationExpression expression;
 
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		SopremoUtil.LOG.info(expression.evaluate(node, context));
+		SopremoUtil.LOG.info(this.expression.evaluate(node, context));
 		return node;
 	}
 

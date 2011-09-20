@@ -29,12 +29,13 @@ public class WhiteListRule extends ValidationRule {
 	@SuppressWarnings("unchecked")
 	public WhiteListRule(List<? extends JsonNode> possibleValues, JsonNode defaultValue, EvaluationExpression targetPath) {
 		super(targetPath);
-		this.possibleValues =  (List<JsonNode>) possibleValues;
-		setValueCorrection(new DefaultValueCorrection(defaultValue));
+		this.possibleValues = (List<JsonNode>) possibleValues;
+		this.setValueCorrection(new DefaultValueCorrection(defaultValue));
 	}
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();possibleValues = new ArrayList<JsonNode>();
+		ois.defaultReadObject();
+		this.possibleValues = new ArrayList<JsonNode>();
 		ArrayNode array = SopremoUtil.deserializeNode(ois, ArrayNode.class);
 		for (JsonNode jsonNode : array)
 			this.possibleValues.add(jsonNode);

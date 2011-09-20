@@ -1,4 +1,4 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-09-16 13:45:43
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-09-20 10:24:06
  
 package eu.stratosphere.simple.jaql; 
 
@@ -930,7 +930,7 @@ public class SJaqlParser extends SimpleParser {
 
 
                     // AST REWRITE
-                    // elements: set, elem
+                    // elements: elem, set
                     // token labels: 
                     // rule labels: elem, retval, set
                     // token list labels: 
@@ -983,7 +983,7 @@ public class SJaqlParser extends SimpleParser {
 
 
                     // AST REWRITE
-                    // elements: set, elem
+                    // elements: elem, set
                     // token labels: 
                     // rule labels: elem, retval, set
                     // token list labels: 
@@ -1247,7 +1247,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: e2, e2, e1, e1, e2, e1, e1
+            // elements: e2, e2, e1, e2, e1, e1, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 

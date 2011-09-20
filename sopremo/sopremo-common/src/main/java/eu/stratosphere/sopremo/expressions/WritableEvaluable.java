@@ -6,6 +6,6 @@ import eu.stratosphere.sopremo.EvaluationContext;
 
 public interface WritableEvaluable {
 	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context);
-	
+
 	public EvaluationExpression asExpression();
 }
