@@ -66,5 +66,7 @@ public interface TypeAccessors<T>
 	
 	public int getNormalizeKeyLen();
 	
+	public boolean isNormalizedKeyPrefixOnly(int keyBytes);
+	
 	public void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
 }

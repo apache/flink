@@ -137,7 +137,7 @@ public class PactInteger implements Key, NormalizableKey
 	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
 	 */
 	@Override
-	public int getNormalizedKeyLen()
+	public int getMaxNormalizedKeyLen()
 	{
 		return 4;
 	}
@@ -146,20 +146,28 @@ public class PactInteger implements Key, NormalizableKey
 	 * @see eu.stratosphere.pact.common.type.NormalizableKey#copyNormalizedKey(byte[], int, int)
 	 */
 	@Override
-	public int copyNormalizedKey(byte[] target, int offset, int len) {
-		if (len >= 4) {
+	public void copyNormalizedKey(byte[] target, int offset, int len)
+	{
+		if (len == 4) {
+			// default case, full normalized key
 			target[offset    ] = (byte) ((value >>> 24) & 0xff);
 			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
 			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
 			target[offset + 3] = (byte) ((value       ) & 0xff);
-			return 4;
 		}
-		else {
+		else if (len < 4) {
 			for (int i = 0; len > 0; len--, i++) {
 				target[offset + i] = (byte) ((value >>> ((3-i)<<3)) & 0xff);
 			}
-			return len;
+		}
+		else {
+			target[offset    ] = (byte) ((value >>> 24) & 0xff);
+			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
+			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
+			target[offset + 3] = (byte) ((value       ) & 0xff);
+			for (int i = 4; i < len; i++) {
+				target[offset + i] = 0;
+			}
 		}
 	}
-	
 }

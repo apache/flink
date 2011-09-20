@@ -38,9 +38,12 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 {
 	private final int[] keyFields;
 	
-	private final Key[] keyHolders1;
+	private final Class<? extends Key>[] keyTypes;
 	
-	private final Key[] keyHolders2;
+	private final Key[] keyHolders1, keyHolders2;
+	
+	
+	private final int[] normalizedKeyLengths;
 	
 	private final int numLeadingNormalizableKeys;
 	
@@ -52,10 +55,11 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	public PactRecordAccessors(int[] keyFields, Class<? extends Key>[] keyTypes)
 	{
 		this.keyFields = keyFields;
+		this.keyTypes = keyTypes;
 		
+		// instantiate fields to extract keys into
 		this.keyHolders1 = new Key[keyTypes.length];
 		this.keyHolders2 = new Key[keyTypes.length];
-		
 		for (int i = 0; i < keyTypes.length; i++) {
 			if (keyTypes[i] == null) {
 				throw new NullPointerException("Key type " + i + " is null.");
@@ -64,13 +68,24 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 			this.keyHolders2[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
 		}
 		
+		// set up auxiliary fields for normalized key support
+		this.normalizedKeyLengths = new int[keyFields.length];
 		int nKeys = 0;
 		int nKeyLen = 0;
 		for (int i = 0; i < this.keyHolders1.length; i++) {
 			Key k = this.keyHolders1[i];
 			if (k instanceof NormalizableKey) {
 				nKeys++;
-				nKeyLen = ((NormalizableKey) k).getNormalizedKeyLen();
+				final int len = ((NormalizableKey) k).getMaxNormalizedKeyLen();
+				if (len < 0) {
+					throw new RuntimeException("Data type " + k.getClass().getName() + 
+						" specifies an invalid length for the normalized key: " + len);
+				}
+				this.normalizedKeyLengths[i] = len;
+				nKeyLen += this.normalizedKeyLengths[i];
+				if (nKeyLen < 0) {
+					nKeyLen = Integer.MAX_VALUE;
+				}
 			}
 			else break;
 		}
@@ -132,14 +147,16 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	@Override
 	public int hash(PactRecord object)
 	{
-		if (object.getFieldsInto(this.keyFields, this.keyHolders1)) {
+		try {
 			int code = 0;
-			for (int i = 0; i < this.keyHolders1.length; i++) {
-				code ^= this.keyHolders1[i].hashCode();
+			for (int i = 0; i < this.keyFields.length; i++) {
+				code ^= object.getField(this.keyFields[i], this.keyTypes[i]).hashCode();
 			}
 			return code;
 		}
-		else throw new NullKeyFieldException();
+		catch (NullPointerException npex) {
+			throw new NullKeyFieldException();
+		}
 	}
 
 
@@ -200,6 +217,17 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	{
 		return this.normalizableKeyPrefixLen;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#isNormalizedKeyPrefixOnly()
+	 */
+	@Override
+	public boolean isNormalizedKeyPrefixOnly(int keyBytes)
+	{
+		return this.numLeadingNormalizableKeys < this.keyFields.length ||
+		        this.normalizableKeyPrefixLen == Integer.MAX_VALUE ||
+				this.normalizableKeyPrefixLen > keyBytes;
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#putNormalizedKey(java.lang.Object, byte[], int, int)
@@ -207,13 +235,18 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	@Override
 	public void putNormalizedKey(PactRecord record, byte[] target, int offset, int numBytes)
 	{
-		if (record.getFieldsInto(this.keyFields, this.keyHolders1)) {
-			for (int i = 0; i < this.numLeadingNormalizableKeys & numBytes > 0; i++) {
-				int bytes = ((NormalizableKey) this.keyHolders1[i]).copyNormalizedKey(target, offset, numBytes);
-				numBytes -= bytes;
-				offset += bytes;
+		try {
+			for (int i = 0; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
+			{
+				int len = this.normalizedKeyLengths[i]; 
+				len = numBytes >= len ? len : numBytes;
+				((NormalizableKey) record.getField(this.keyFields[i], this.keyTypes[i])).copyNormalizedKey(target, offset, len);
+				numBytes -= len;
+				offset += len;
 			}
 		}
-		else throw new NullKeyFieldException();
+		catch (NullPointerException npex) {
+			throw new NullKeyFieldException();
+		}
 	}
 }

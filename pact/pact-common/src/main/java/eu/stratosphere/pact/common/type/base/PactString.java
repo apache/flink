@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
  * String base type for PACT programs that implements the Key interface.
@@ -28,106 +29,222 @@ import eu.stratosphere.pact.common.type.Key;
  * @see eu.stratosphere.pact.common.type.Key
  * @see java.lang.String
  * 
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
  */
-public class PactString implements Key, CharSequence {
+public class PactString implements Key, NormalizableKey, CharSequence
+{
+	private static final char[] EMPTY_STRING = new char[0];
+	
+	private static final int HIGH_BIT = 0x1 << 7;
+	
+	
+	private char[] value;		// character value of the pact string, not necessarily completely filled
+	
+	private int len;			// length of the pact string
+	
+	private int hashCode;		// cache for the hashCode
 
-	private String value;
-
+	
+	// --------------------------------------------------------------------------------------------
+	//                                      Constructors
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Initializes the encapsulated String object with an empty string.	
 	 */
-	public PactString() {
-		this.value = "";
+	public PactString()
+	{
+		this.value = EMPTY_STRING;
+		this.len = 0;
+	}
+	
+	/**
+	 * Initializes this PactString to the value of the given string.
+	 * 
+	 * @param value The string containing the value for this PactString.
+	 */
+	public PactString(final String value)
+	{
+		setValue(value);
+	}
+	
+	/**
+	 * Initializes this PactString to a copy the given PactString.
+	 * 
+	 * @param value The initial value.
+	 */
+	public PactString(final PactString value)
+	{
+		setValue(value);
+	}
+	
+	/**
+	 * Initializes the PactString to a sub-string of the given PactString. 
+	 * 
+	 * @param value The string containing the substring.
+	 * @param offset The offset of the substring.
+	 * @param len The length of the substring.
+	 */
+	public PactString(final PactString value, final int offset, final int len)
+	{
+		setValue(value, offset, len);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//                                Getters and Setters
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Initializes the encapsulated String object with the provided value.
+	 * Returns this PactString's internal character data.
 	 * 
-	 * @param value Initial value of the encapsulated string.
+	 * @return The character data.
 	 */
-	public PactString(final String value) {
-		this.value = value;
-	}
-
-	/**
-	 * Returns the value of the encapsulated string.
-	 * 
-	 * @return The value of the encapsulated string.
-	 */
-	public String getValue() {
+	public char[] getValue() {
 		return this.value;
 	}
+	
+	/**
+	 * Gets this PactString as a String.
+	 * 
+	 * @return A String resembling the contents of this PactString.
+	 */
+	public String getAsString() {
+		return toString();
+	}
 
 	/**
-	 * Sets the value of the encapsulated string to the specified value.
+	 * Sets the value of the PactString to the given string.
 	 * 
-	 * @param value
-	 *        The new value of the encapsulated string.
+	 * @param value The new string value.
 	 */
-	public void setValue(final String value) {
+	public void setValue(final String value)
+	{
+		if (value == null)
+			throw new NullPointerException("Value must not be null");
+		
+		final int len = value.length(); 
+		ensureSize(len);
+		
+		for (int i = 0; i < len; i++) {
+			this.value[i] = value.charAt(i);
+		}
+		this.len = len;
+		this.hashCode = 0;
+	}
+	
+	/**
+	 * Sets the value of the PactString to the given string.
+	 * 
+	 * @param value The new string value.
+	 */
+	public void setValue(final PactString value)
+	{
 		if (value == null)
 			throw new NullPointerException("Value must not be null");
 
-		this.value = value;
+		ensureSize(value.len);
+		this.len = value.len;
+		System.arraycopy(value.value, 0, this.value, 0, value.len);
+		this.hashCode = 0;
 	}
 	
-	public void setValue(byte[] bytes, int offset, int len) {
+	/**
+	 * Sets the value of the PactString to the given string.
+	 * 
+	 * @param value The new string value.
+	 */
+	public void setValue(final PactString value, int offset, int len)
+	{
+		if (value == null)
+			throw new NullPointerException();
+		
+		if (offset < 0 || len < 0 || offset > value.len - len)
+			throw new IndexOutOfBoundsException();
+
+		ensureSize(len);
+		this.len = len;
+		System.arraycopy(value.value, offset, this.value, 0, len);
+		this.hashCode = 0;
+	}
+	
+	
+	public void setValueUTF8(byte[] bytes, int offset, int len) {
+		throw new UnsupportedOperationException();
+	}
+	
+	/**
+	 * Sets the value of this <code>PactString</code>, assuming that the binary data is ASCII coded. The n-th character of the
+	 * <code>PactString</code> corresponds directly to the n-th byte in the given array after the offset.
+	 * 
+	 * @param bytes The binary character data.
+	 * @param offset The offset in the array.
+	 * @param len The number of bytes to read from the array.
+	 */
+	public void setValueAscii(byte[] bytes, int offset, int len)
+	{
 		if (bytes == null)
 			throw new NullPointerException("Bytes must not be null");
+		if (len < 0 | offset < 0 | offset > bytes.length - len)
+			throw new IndexOutOfBoundsException();
 		
-		this.value = new String(bytes, offset, len);
+		ensureSize(len);
+		this.len = len;
+		this.hashCode = 0;
+		
+		final char[] chars = this.value;
+		
+		for (int i = 0, limit = offset + len; offset < limit; offset++, i++) {
+			chars[i] = (char) (bytes[offset] & 0xff);
+		}
 	}
+	
+	
+	// --------------------------------------------------------------------------------------------
+	//                            Serialization / De-Serialization
+	// --------------------------------------------------------------------------------------------
 	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
-		final int maxBit = 0x1 << 7;
-
+	public void read(final DataInput in) throws IOException
+	{
 		int len = in.readUnsignedByte();
 
-		if (len >= maxBit) {
+		if (len >= HIGH_BIT) {
 			int shift = 7;
 			int curr;
-
 			len = len & 0x7f;
-
-			while ((curr = in.readUnsignedByte()) >= maxBit) {
+			while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
 				len |= (curr & 0x7f) << shift;
 				shift += 7;
 			}
-
 			len |= curr << shift;
 		}
-
-		final char[] data = new char[len];
+		
+		this.len = len;
+		this.hashCode = 0;
+		ensureSize(len);
+		final char[] data = this.value;
 
 		for (int i = 0; i < len; i++) {
 			int c = in.readUnsignedByte();
-
-			if (c < maxBit)
+			if (c < HIGH_BIT)
 				data[i] = (char) c;
 			else {
 				int shift = 7;
 				int curr;
-
 				c = c & 0x7f;
-
-				while ((curr = in.readUnsignedByte()) >= maxBit) {
+				while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
 					c |= (curr & 0x7f) << shift;
 					shift += 7;
 				}
-
 				c |= curr << shift;
 				data[i] = (char) c;
 			}
 		}
-
-		this.value = new String(data);
 	}
 
 	/*
@@ -135,35 +252,39 @@ public class PactString implements Key, CharSequence {
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
-		final int maxBit = 0x1 << 7;
+	public void write(final DataOutput out) throws IOException
+	{
+		int len = this.len;
 
-		int len = this.value.length();
-
-		while (len >= maxBit) {
-			out.write(len | maxBit);
+		// write the length, variable-length encoded
+		while (len >= HIGH_BIT) {
+			out.write(len | HIGH_BIT);
 			len >>= 7;
 		}
 		out.write(len);
 
-		for (int i = 0; i < this.value.length(); i++) {
-			int c = this.value.charAt(i);
+		// write the char data, variable length encoded
+		for (int i = 0; i < this.len; i++) {
+			int c = this.value[i];
 
-			while (c >= maxBit) {
-				out.write(c | maxBit);
+			while (c >= HIGH_BIT) {
+				out.write(c | HIGH_BIT);
 				c >>= 7;
 			}
 			out.write(c);
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
-	public String toString() {
-		return this.value;
+	public String toString()
+	{
+		return new String(this.value, 0, this.len);
 	}
 
 	/*
@@ -171,11 +292,27 @@ public class PactString implements Key, CharSequence {
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof PactString))
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to N_String!");
+	public int compareTo(final Key o)
+	{
+		if (o instanceof PactString) {
+			PactString other = (PactString) o;
 
-		return this.value.compareTo(((PactString) o).value);
+			int len1 = this.len;
+			int len2 = other.len;
+			int n = Math.min(len1, len2);
+			char v1[] = value;
+			char v2[] = other.value;
+
+			for (int k = 0; k < n; k++) {
+				char c1 = v1[k];
+				char c2 = v2[k];
+				if (c1 != c2) {
+					return c1 - c2;
+				}
+			}
+			return len1 - len2;
+		} else
+			throw new ClassCastException("Cannot compare PactString to " + o.getClass().getName());
 	}
 
 	/*
@@ -183,11 +320,19 @@ public class PactString implements Key, CharSequence {
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + this.value.hashCode();
-		return result;
+	public int hashCode()
+	{
+		int h = this.hashCode;
+		if (h == 0 && this.len > 0) {
+			int off = 0;
+			char val[] = this.value;
+			int len = this.len;
+			for (int i = 0; i < len; i++) {
+				h = 31 * h + val[off++];
+			}
+			this.hashCode = h;
+		}
+		return h;
 	}
 
 	/*
@@ -195,15 +340,28 @@ public class PactString implements Key, CharSequence {
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@Override
-	public boolean equals(final Object obj) {
-		if (this == obj)
+	public boolean equals(final Object obj)
+	{
+		if (this == obj) {
 			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		final PactString other = (PactString) obj;
-		return this.value.equals(other.value);
+		}
+		
+		if (obj.getClass() == PactString.class) {
+			final PactString other = (PactString) obj;
+			int len = this.len;
+			
+			if (len == other.len) {
+				final char[] tc = this.value;
+				final char[] oc = other.value;
+				int i = 0, j = 0;
+				
+				while (len-- != 0) {
+					if (tc[i++] != oc[j++]) return false;
+				}
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -216,7 +374,7 @@ public class PactString implements Key, CharSequence {
 	@Override
 	public int length()
 	{
-		return this.value.length();
+		return this.len;
 	}
 
 	/* (non-Javadoc)
@@ -225,7 +383,7 @@ public class PactString implements Key, CharSequence {
 	@Override
 	public char charAt(int index)
 	{
-		return this.value.charAt(0);
+		return this.value[index];
 	}
 
 	/* (non-Javadoc)
@@ -234,7 +392,41 @@ public class PactString implements Key, CharSequence {
 	@Override
 	public CharSequence subSequence(int start, int end)
 	{
-		return this.value.substring(start, end);
+		return new PactString(this, start, end - start);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                   Normalized Key
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
+	 */
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return Integer.MAX_VALUE;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 */
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len)
+	{
+//		final char[] chars = this.value;
+//		final int limit = offset + len;
+//		int pos = 0;
+		
+		throw new UnsupportedOperationException();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                      Utilities
+	// --------------------------------------------------------------------------------------------
+
+	private final void ensureSize(int size) {
+		if (this.value.length < size) {
+			this.value = new char[size];
+		}
+	}
 }

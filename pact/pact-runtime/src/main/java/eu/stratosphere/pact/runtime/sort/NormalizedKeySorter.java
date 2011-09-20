@@ -36,7 +36,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	
 	private static final int OFFSET_LEN = 8;
 	
-	private static final int MAX_NORMALIZED_KEY_LEN = 16;
+	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
 	
 	private static final int MIN_REQUIRED_BUFFERS = 3;
 
@@ -80,7 +80,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	private final int segmentSizeBits;
 	
 	private final int totalNumBuffers;
-
+	
+	private final boolean normalizedKeyFullyDetermines;
 	
 	
 	// -------------------------------------------------------------------------
@@ -89,9 +90,16 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 
 	public NormalizedKeySorter(TypeAccessors<T> accessors, List<MemorySegment> memory)
 	{
-		if (accessors == null || memory == null) {
+		this(accessors, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
+	}
+	
+	public NormalizedKeySorter(TypeAccessors<T> accessors, List<MemorySegment> memory, int maxNormalizedKeyBytes)
+	{
+		if (accessors == null || memory == null)
 			throw new NullPointerException();
-		}
+		if (maxNormalizedKeyBytes < 0)
+			throw new IllegalArgumentException("Maximal number of normalized key bytes must not be negative.");
+		
 		this.accessors = accessors;
 		this.holder1 = accessors.createInstance();
 		this.holder2 = accessors.createInstance();
@@ -122,8 +130,17 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		this.sortIndex = new ArrayList<MemorySegment>(16);
 		this.recordBuffers = new ArrayList<MemorySegment>(16);
 		
+		// set up normalized key characteristics
+		if (this.accessors.supportsNormalizedKey()) {
+			this.numKeyBytes = Math.min(this.accessors.getNormalizeKeyLen(), maxNormalizedKeyBytes);
+			this.normalizedKeyFullyDetermines = !this.accessors.isNormalizedKeyPrefixOnly(this.numKeyBytes);
+		}
+		else {
+			this.numKeyBytes = 0;
+			this.normalizedKeyFullyDetermines = false;
+		}
+		
 		// compute the index entry size and limits
-		this.numKeyBytes = Math.min(this.accessors.getNormalizeKeyLen(), MAX_NORMALIZED_KEY_LEN);
 		this.indexEntrySize = this.numKeyBytes + OFFSET_LEN;
 		this.indexEntriesPerSegment = segmentSize / this.indexEntrySize;
 		this.lastIndexEntryOffset = (this.indexEntriesPerSegment - 1) * this.indexEntrySize;
@@ -358,7 +375,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		for (int pos = 0, posI = segI.translateOffset(segmentOffsetI + OFFSET_LEN), posJ = segJ.translateOffset(segmentOffsetJ + OFFSET_LEN);
 			pos < this.numKeyBytes & (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
 		
-		if (val != 0) {
+		if (val != 0 || this.normalizedKeyFullyDetermines) {
 			return val;
 		}
 		
