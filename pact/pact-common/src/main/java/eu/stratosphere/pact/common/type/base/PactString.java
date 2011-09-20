@@ -70,6 +70,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 */
 	public PactString(final String value)
 	{
+		this.value = EMPTY_STRING;
 		setValue(value);
 	}
 	
@@ -80,6 +81,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 */
 	public PactString(final PactString value)
 	{
+		this.value = EMPTY_STRING;
 		setValue(value);
 	}
 	
@@ -92,6 +94,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 */
 	public PactString(final PactString value, final int offset, final int len)
 	{
+		this.value = EMPTY_STRING;
 		setValue(value, offset, len);
 	}
 

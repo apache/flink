@@ -22,8 +22,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Random;
 
-import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
@@ -52,75 +52,21 @@ public final class TestData {
 	/**
 	 * Key implementation.
 	 */
-	public static class Key implements eu.stratosphere.pact.common.type.Key, NormalizableKey {
-		private int key;
-
+	public static class Key extends PactInteger {
 		public Key() {
+			super();
 		}
 
 		public Key(int k) {
-			key = k;
+			super(k);
 		}
 
 		public int getKey() {
-			return key;
+			return getValue();
 		}
 		
 		public void setKey(int key) {
-			this.key = key;
-		}
-
-		@Override
-		public void read(DataInput in) throws IOException {
-			key = in.readInt();
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException {
-			out.writeInt(key);
-		}
-
-		@Override
-		public int compareTo(eu.stratosphere.pact.common.type.Key o) {
-			Key other = (Key) o;
-			return this.key - other.key;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return this.key == ((Key) obj).key;
-		}
-
-		@Override
-		public int hashCode() {
-			return key;
-		}
-
-		@Override
-		public String toString() {
-			return String.valueOf(key);
-		}
-		
-		@Override
-		public int getNormalizedKeyLen() {
-			return 4;
-		}
-
-		@Override
-		public int copyNormalizedKey(byte[] target, int offset, int len) {
-			if (len >= 4) {
-				target[offset    ] = (byte) ((key >>> 24) & 0xff);
-				target[offset + 1] = (byte) ((key >>> 16) & 0xff);
-				target[offset + 2] = (byte) ((key >>>  8) & 0xff);
-				target[offset + 3] = (byte) ((key       ) & 0xff);
-				return 4;
-			}
-			else {
-				for (int i = 0; len > 0; len--, i++) {
-					target[offset + i] = (byte) ((key >>> ((3-i)<<3)) & 0xff);
-				}
-				return len;
-			}
+			setValue(key);
 		}
 	}
 
@@ -222,7 +168,7 @@ public final class TestData {
 		}
 
 		public boolean next(PactRecord target) {
-			this.key.key = keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1;
+			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
 			this.value.value = randomString();
 			target.setField(0, this.key);
 			target.setField(1, this.value);

@@ -463,28 +463,29 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 */
 	public void writeToChannel(final Writer writer) throws IOException
 	{
-		int recordsLeft = this.numRecords;
-		int currentMemSeg = 0;
-		while (recordsLeft > 0)
-		{
-			final MemorySegment currentIndexSegment = this.sortIndex.get(currentMemSeg++);
-			int offset = 0;
-			// check whether we have a full or partially full segment
-			if (recordsLeft >= this.indexEntriesPerSegment) {
-				// full segment
-				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
-					final long pointer = currentIndexSegment.getLong(offset);
-					
-				}
-				recordsLeft -= this.indexEntriesPerSegment;
-			} else {
-				// partially filled segment
-				for (; recordsLeft > 0; recordsLeft--, offset += this.indexEntrySize)
-				{
-					final long pointer = currentIndexSegment.getLong(offset);
-					
-				}
-			}
-		}
+		throw new UnsupportedOperationException();
+//		int recordsLeft = this.numRecords;
+//		int currentMemSeg = 0;
+//		while (recordsLeft > 0)
+//		{
+//			final MemorySegment currentIndexSegment = this.sortIndex.get(currentMemSeg++);
+//			int offset = 0;
+//			// check whether we have a full or partially full segment
+//			if (recordsLeft >= this.indexEntriesPerSegment) {
+//				// full segment
+//				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
+//					final long pointer = currentIndexSegment.getLong(offset);
+//					
+//				}
+//				recordsLeft -= this.indexEntriesPerSegment;
+//			} else {
+//				// partially filled segment
+//				for (; recordsLeft > 0; recordsLeft--, offset += this.indexEntrySize)
+//				{
+//					final long pointer = currentIndexSegment.getLong(offset);
+//					
+//				}
+//			}
+//		}
 	}
 }
