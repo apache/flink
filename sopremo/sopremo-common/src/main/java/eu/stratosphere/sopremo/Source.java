@@ -11,6 +11,8 @@ import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.io.JsonParser.JsonProcessingException;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
@@ -90,8 +92,7 @@ public class Source extends ElementaryOperator {
 	}
 
 	private void writeValues(final File tempFile) throws IOException, JsonProcessingException {
-		final JsonGenerator writer = JsonUtil.FACTORY.createJsonGenerator(tempFile, JsonEncoding.UTF8);
-		writer.setCodec(JsonUtil.OBJECT_MAPPER);
+		final JsonGenerator writer = new JsonGenerator(tempFile);
 		writer.writeTree(this.getAdhocValues());
 		writer.close();
 	}

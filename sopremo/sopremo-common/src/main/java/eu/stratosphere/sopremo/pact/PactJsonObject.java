@@ -19,7 +19,6 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;

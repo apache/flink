@@ -33,6 +33,8 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class SopremoUtil {
@@ -70,7 +72,7 @@ public class SopremoUtil {
 
 	public static JsonNode deserializeNode(final DataInput in) throws IOException {
 		SerializationString.get().read(in);
-		final JsonParser parser = JsonUtil.FACTORY.createJsonParser(SerializationString.get().getValue());
+		final JsonParser parser = new JsonParser(SerializationString.get().getValue());
 		parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		return parser.readValueAsTree();
 	}
@@ -155,8 +157,8 @@ public class SopremoUtil {
 
 	public static void serializeNode(final DataOutput out, final JsonNode value) throws IOException {
 		final StringWriter writer = new StringWriter();
-		final JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(writer);
-		generator.setCodec(JsonUtil.OBJECT_MAPPER);
+		final JsonGenerator generator = new JsonGenerator(writer);
+//		generator.setCodec(JsonUtil.OBJECT_MAPPER);
 		generator.writeTree(value);
 		SerializationString.get().setValue(writer.toString());
 		SerializationString.get().write(out);
