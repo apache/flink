@@ -73,7 +73,7 @@ public class SopremoUtil {
 	public static JsonNode deserializeNode(final DataInput in) throws IOException {
 		SerializationString.get().read(in);
 		final JsonParser parser = new JsonParser(SerializationString.get().getValue());
-		parser.setCodec(JsonUtil.OBJECT_MAPPER);
+//		parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		return parser.readValueAsTree();
 	}
 

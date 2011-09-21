@@ -26,7 +26,7 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 		try {
 			final JsonParser parser = new JsonParser(new URL(
 				getResourcePath("PathExpressionTest/test.json")));
-			parser.setCodec(JsonUtil.OBJECT_MAPPER);
+//			parser.setCodec(JsonUtil.OBJECT_MAPPER);
 			return parser.readValueAsTree();
 		} catch (final IOException e) {
 			e.printStackTrace();

@@ -94,7 +94,7 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 			this.parser = new JsonParser(new InputStreamReader(this.stream, this.encoding));
 		else
 			this.parser = new JsonParser(this.stream);
-		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
+//		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
 //		this.parser.enable(eu.stratosphere.sopremo.io.Feature.ALLOW_UNQUOTED_CONTROL_CHARS);
 //		this.parser.enable(eu.stratosphere.sopremo.io.Feature.INTERN_FIELD_NAMES);
 		if (this.array = this.parser.nextToken() == JsonToken.START_ARRAY)
