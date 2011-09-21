@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
  * Long base type for PACT programs that implements the Key interface.
@@ -30,7 +31,8 @@ import eu.stratosphere.pact.common.type.Key;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class PactLong implements Key {
+public class PactLong implements Key, NormalizableKey
+{
 
 	private long value;
 
@@ -131,5 +133,51 @@ public class PactLong implements Key {
 			return this.value == ((PactLong) obj).value;  
 		}
 		return false;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
+	 */
+	@Override
+	public int getMaxNormalizedKeyLen()
+	{
+		return 8;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 */
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len)
+	{
+		if (len == 8) {
+			// default case, full normalized key
+			target[offset    ] = (byte) (value >>> 56);
+			target[offset + 1] = (byte) (value >>> 48);
+			target[offset + 2] = (byte) (value >>> 40);
+			target[offset + 3] = (byte) (value >>> 32);
+			target[offset + 4] = (byte) (value >>> 24);
+			target[offset + 5] = (byte) (value >>> 16);
+			target[offset + 6] = (byte) (value >>>  8);
+			target[offset + 7] = (byte) (value       );
+		}
+		else if (len < 8) {
+			for (int i = 0; len > 0; len--, i++) {
+				target[offset + i] = (byte) (value >>> ((7-i)<<3));
+			}
+		}
+		else {
+			target[offset    ] = (byte) (value >>> 56);
+			target[offset + 1] = (byte) (value >>> 48);
+			target[offset + 2] = (byte) (value >>> 40);
+			target[offset + 3] = (byte) (value >>> 32);
+			target[offset + 4] = (byte) (value >>> 24);
+			target[offset + 5] = (byte) (value >>> 16);
+			target[offset + 6] = (byte) (value >>>  8);
+			target[offset + 7] = (byte) (value       );
+			for (int i = 8; i < len; i++) {
+				target[offset + i] = 0;
+			}
+		}
 	}
 }
