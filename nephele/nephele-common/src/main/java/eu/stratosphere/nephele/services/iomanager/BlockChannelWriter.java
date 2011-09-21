@@ -63,7 +63,7 @@ public class BlockChannelWriter extends BlockChannelAccess<WriteRequest, LinkedB
 	 *                     writer, the exception thrown here may have been caused by an earlier write request. 
 	 */
 	public void writeBlock(MemorySegment segment) throws IOException
-	{		
+	{
 		// check the error state of this channel
 		checkErroneous();
 		
