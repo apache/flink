@@ -9,7 +9,8 @@ public enum JsonToken {
 	START_OBJECT('{'),
 	END_OBJECT('}'),
 	KEY_VALUE_DELIMITER(':'),
-	START_STRING('\"');
+	START_STRING('\"'),
+	WHITE_SPACE(' ');
 	
 	private char token;
 	

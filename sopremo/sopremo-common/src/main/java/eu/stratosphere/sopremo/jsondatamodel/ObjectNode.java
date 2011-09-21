@@ -101,7 +101,8 @@ public class ObjectNode extends JsonNode {
 			++count;
 
 			TextNode.appendQuoted(sb, en.getKey());
-			sb.append(':').append(en.getValue().toString(sb));
+			sb.append(':');
+			en.getValue().toString(sb);
 		}
 
 		sb.append('}');

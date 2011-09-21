@@ -1,11 +1,6 @@
 package eu.stratosphere.sopremo.io;
 
-import static eu.stratosphere.sopremo.io.JsonToken.END_ARRAY;
-import static eu.stratosphere.sopremo.io.JsonToken.END_OBJECT;
-import static eu.stratosphere.sopremo.io.JsonToken.KEY_VALUE_DELIMITER;
-import static eu.stratosphere.sopremo.io.JsonToken.START_ARRAY;
-import static eu.stratosphere.sopremo.io.JsonToken.START_OBJECT;
-import static eu.stratosphere.sopremo.io.JsonToken.START_STRING;
+import static eu.stratosphere.sopremo.io.JsonToken.*;
 import it.unimi.dsi.fastutil.Stack;
 import it.unimi.dsi.fastutil.chars.Char2ObjectMap;
 import it.unimi.dsi.fastutil.chars.Char2ObjectOpenHashMap;
@@ -20,6 +15,7 @@ import java.math.BigInteger;
 import java.net.URL;
 
 import eu.stratosphere.nephele.fs.FSDataInputStream;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
@@ -33,11 +29,12 @@ public class JsonParser {
 
 	private BufferedReader reader;
 
-	private Stack<JsonToken> state = new ObjectArrayList<JsonToken>();
+	private Stack<JsonNode> state = new ObjectArrayList<JsonNode>();
 
 	private Char2ObjectMap<JsonToken> tokens = new Char2ObjectOpenHashMap<JsonToken>(
-		new char[] { '[', ']', '{', '}', ':', '\"' },
-		new JsonToken[] { START_ARRAY, END_ARRAY, START_OBJECT, END_OBJECT, KEY_VALUE_DELIMITER, START_STRING });
+		new char[] { '[', ']', '{', '}', ':', '\"', ' ' },
+		new JsonToken[] { START_ARRAY, END_ARRAY, START_OBJECT, END_OBJECT, KEY_VALUE_DELIMITER, START_STRING,
+			WHITE_SPACE });
 
 	public JsonParser(FSDataInputStream stream) {
 		this.reader = new BufferedReader(new InputStreamReader(stream));
@@ -56,54 +53,90 @@ public class JsonParser {
 	}
 
 	public JsonNode readValueAsTree() throws IOException {
-		JsonNode node = null;
+		boolean insideString = false;
+
+		ArrayNode root = new ArrayNode();
+		state.push(root);
+		
 		StringBuilder sb = new StringBuilder();
 		int nextChar;
+		
 		while ((nextChar = this.reader.read()) != -1) {
 			char character = (char) nextChar;
-			switch (character) {
-			case '[': {
-				state.push(START_ARRAY);
-				break;
-			}
-			case ']': {
-				if (START_ARRAY != state.pop()) {
-					throw new JsonParseException();
-				}
-				break;
-			}
-			case '{': {
-				state.push(START_OBJECT);
-				break;
-			}
-			case '}': {
-				if (START_OBJECT != state.pop()) {
-					throw new JsonParseException();
-				}
-				break;
-			}
-			case ':': {
-				state.push(KEY_VALUE_DELIMITER);
-				break;
-			}
-			case '\"': {
-				if (state.top() == START_STRING) {
-					state.pop();
-					PrimitiveParser.parse(sb.toString());
-					sb.setLength(0);
-				} else {
-					state.push(START_STRING);
-				}
-				break;
-			}
-			default: {
+			if (insideString && character != '\"') {
 				sb.append(character);
 
-				break;
+			} else {
+				switch (character) {
+				case '[': {
+					if (state.top() == root) {
+						ArrayNode node = new ArrayNode();
+						root.add(node);
+						state.push(node);
+					} else {
+						ArrayNode newArray = new ArrayNode();
+						((ArrayNode) state.top()).add(newArray);
+						state.push(newArray);
+					}
+					break;
+				}
+				case ']': {
+					ArrayNode node = (ArrayNode) state.pop();
+					if (sb.length() != 0){
+						node.add(PrimitiveParser.parse(sb.toString()));
+						sb.setLength(0);
+					}
+					break;
+				}
+				case '{': {
+					break;
+				}
+				case '}': {
+					break;
+				}
+				case ':': {
+					break;
+				}
+				case '\"': {
+					if (sb.length() == 0) {
+						insideString = true;
+					} else {
+						if (!sb.toString().endsWith("\\")) {
+							insideString = false;
+							ArrayNode node = (ArrayNode) state.top();
+							node.add(TextNode.valueOf(sb.toString()));
+							sb.setLength(0);
+						} else {
+							sb.append(character);
+						}
+					}
+					break;
+				}
+				case ',': {
+					if (sb.length() != 0) {
+						ArrayNode node = (ArrayNode) state.top();
+						node.add(PrimitiveParser.parse(sb.toString()));
+						sb.setLength(0);
+					}
+					break;
+				}
+				
+				// TODO check all whitespaces instead of ' '
+				case ' ': {
+					if (insideString) {
+						sb.append(character);
+					}
+					break;
+				}
+				default: {
+					sb.append(character);
+					break;
+				}
+				}
 			}
-			}
+
 		}
-		return node;
+		return root.isEmpty() ? PrimitiveParser.parse(sb.toString()) : root.get(0);
 	}
 
 	public Object nextToken() {
