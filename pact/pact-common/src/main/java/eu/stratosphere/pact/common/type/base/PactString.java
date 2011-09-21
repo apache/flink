@@ -107,7 +107,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * 
 	 * @return The character data.
 	 */
-	public char[] getValue() {
+	public char[] getChars() {
 		return this.value;
 	}
 	
@@ -116,7 +116,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * 
 	 * @return A String resembling the contents of this PactString.
 	 */
-	public String getAsString() {
+	public String getValue() {
 		return toString();
 	}
 
@@ -266,7 +266,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 		// write the length, variable-length encoded
 		while (len >= HIGH_BIT) {
 			out.write(len | HIGH_BIT);
-			len >>= 7;
+			len >>>= 7;
 		}
 		out.write(len);
 
@@ -276,7 +276,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 
 			while (c >= HIGH_BIT) {
 				out.write(c | HIGH_BIT);
-				c >>= 7;
+				c >>>= 7;
 			}
 			out.write(c);
 		}

@@ -15,15 +15,13 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Random;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
@@ -73,49 +71,92 @@ public final class TestData {
 	/**
 	 * Value implementation.
 	 */
-	public static class Value implements eu.stratosphere.pact.common.type.Value {
-		private String value;
+	public static class Value extends PactString {
 
 		public Value() {
+			super();
 		}
 
 		public Value(String v) {
-			value = v;
-		}
-
-		public String getValue() {
-			return value;
+			super(v);
 		}
 		
-		public void setValue(String value) {
-			this.value = value;
-		}
-
+		/*
+		 * (non-Javadoc)
+		 * @see java.lang.Object#equals(java.lang.Object)
+		 */
 		@Override
-		public void read(DataInput in) throws IOException {
-			value = in.readUTF();
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException {
-			out.writeUTF(value);
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return this.value.equals(((Value) obj).value);
-		}
-		
-		@Override
-		public int hashCode() {
-			return this.value.hashCode();
-		}
-
-		@Override
-		public String toString() {
-			return value;
+		public boolean equals(final Object obj)
+		{
+			if (this == obj) {
+				return true;
+			}
+			
+			if (obj.getClass() == TestData.Value.class) {
+				final PactString other = (PactString) obj;
+				int len = this.length();
+				
+				if (len == other.length()) {
+					final char[] tc = this.getChars();
+					final char[] oc = other.getChars();
+					int i = 0, j = 0;
+					
+					while (len-- != 0) {
+						if (tc[i++] != oc[j++]) return false;
+					}
+					return true;
+				}
+			}
+			return false;
 		}
 	}
+	
+//	/**
+//	 * Value implementation.
+//	 */
+//	public static class Value implements eu.stratosphere.pact.common.type.Value {
+//		private String value;
+//
+//		public Value() {
+//		}
+//
+//		public Value(String v) {
+//			value = v;
+//		}
+//
+//		public String getValue() {
+//			return value;
+//		}
+//		
+//		public void setValue(String value) {
+//			this.value = value;
+//		}
+//
+//		@Override
+//		public void read(DataInput in) throws IOException {
+//			value = in.readUTF();
+//		}
+//
+//		@Override
+//		public void write(DataOutput out) throws IOException {
+//			out.writeUTF(value);
+//		}
+//
+//		@Override
+//		public boolean equals(Object obj) {
+//			return this.value.equals(((Value) obj).value);
+//		}
+//		
+//		@Override
+//		public int hashCode() {
+//			return this.value.hashCode();
+//		}
+//
+//		@Override
+//		public String toString() {
+//			return value;
+//		}
+//	}
 
 	/**
 	 * Pair generator.
@@ -169,7 +210,7 @@ public final class TestData {
 
 		public boolean next(PactRecord target) {
 			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-			this.value.value = randomString();
+			this.value.setValue(randomString());
 			target.setField(0, this.key);
 			target.setField(1, this.value);
 			return true;
@@ -180,7 +221,7 @@ public final class TestData {
 			int valueLength = Integer.SIZE / 8;
 
 			// value
-			String text = rec.getField(1, Value.class).value;
+			String text = rec.getField(1, Value.class).getValue();
 			int strlen = text.length();
 			int utflen = 0;
 			int c;
@@ -329,7 +370,7 @@ public final class TestData {
 		@Override
 		public boolean next(PactRecord target) {
 			if (pos < this.numPairs) {
-				this.value.value = this.valueValue + ' ' + pos;
+				this.value.setValue(this.valueValue + ' ' + pos);
 				target.setField(0, this.key);
 				target.setField(1, this.value);
 				pos++;
