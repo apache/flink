@@ -13,7 +13,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.sopremo.io.JsonParser.PrimitiveParser;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
