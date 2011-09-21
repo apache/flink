@@ -265,25 +265,24 @@ public class NormalizedKeySorterTest
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
-		long writeStart = System.nanoTime();
+//		long writeStart = System.nanoTime();
+		
 		// write the records
 		PactRecord record = new PactRecord();
 		do {
 			generator.next(record);
 		}
 		while (sorter.write(record));
-		long writeStop = System.nanoTime();
 		
-		System.out.println("Writing took: " + (writeStop - writeStart) / 1000000 + " msec");
-		
-		long sortStart = System.nanoTime();
+//		long writeStop = System.nanoTime();
+//		System.out.println("Writing took: " + (writeStop - writeStart) / 1000000 + " msec");
+//		long sortStart = System.nanoTime();
 		
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
 		
-		long sortStop = System.nanoTime();
-		
-		System.out.println("Sorting took: " + (sortStop - sortStart) / 1000000 + " msec");
+//		long sortStop = System.nanoTime();
+//		System.out.println("Sorting took: " + (sortStop - sortStart) / 1000000 + " msec");
 		
 		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
 		PactRecord readTarget = new PactRecord();
@@ -302,6 +301,102 @@ public class NormalizedKeySorterTest
 				Assert.fail("Next key is not larger or equal to previous key.");
 			
 			Key tmp = current;
+			current = last;
+			last = tmp;
+		}
+		
+		// release the memory occupied by the buffers
+		this.memoryManager.release(sorter.dispose());
+	}
+	
+	@Test
+	public void testSortShortStringKeys() throws Exception
+	{
+		final int numSegments = MEMORY_SIZE / MEMORY_SEGMENT_SIZE;
+		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
+		
+		@SuppressWarnings("unchecked")
+		PactRecordAccessors accessors = new PactRecordAccessors(new int[] {1}, new Class[]{Value.class});
+		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(accessors, memory);
+		
+		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
+			ValueMode.FIX_LENGTH);
+		
+		// write the records
+		PactRecord record = new PactRecord();
+		do {
+			generator.next(record);
+		}
+		while (sorter.write(record));
+		
+		QuickSort qs = new QuickSort();
+		qs.sort(sorter);
+		
+		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
+		PactRecord readTarget = new PactRecord();
+		
+		Value current = new Value();
+		Value last = new Value();
+		
+		iter.next(readTarget);
+		readTarget.getFieldInto(1, last);
+		
+		while (iter.next(readTarget)) {
+			readTarget.getFieldInto(1, current);
+			
+			final int cmp = last.compareTo(current);
+			if (cmp > 0)
+				Assert.fail("Next value is not larger or equal to previous value.");
+			
+			Value tmp = current;
+			current = last;
+			last = tmp;
+		}
+		
+		// release the memory occupied by the buffers
+		this.memoryManager.release(sorter.dispose());
+	}
+	
+	@Test
+	public void testSortLongStringKeys() throws Exception
+	{
+		final int numSegments = MEMORY_SIZE / MEMORY_SEGMENT_SIZE;
+		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
+		
+		@SuppressWarnings("unchecked")
+		PactRecordAccessors accessors = new PactRecordAccessors(new int[] {1}, new Class[]{Value.class});
+		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(accessors, memory);
+		
+		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+			ValueMode.FIX_LENGTH);
+		
+		// write the records
+		PactRecord record = new PactRecord();
+		do {
+			generator.next(record);
+		}
+		while (sorter.write(record));
+		
+		QuickSort qs = new QuickSort();
+		qs.sort(sorter);
+		
+		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
+		PactRecord readTarget = new PactRecord();
+		
+		Value current = new Value();
+		Value last = new Value();
+		
+		iter.next(readTarget);
+		readTarget.getFieldInto(1, last);
+		
+		while (iter.next(readTarget)) {
+			readTarget.getFieldInto(1, current);
+			
+			final int cmp = last.compareTo(current);
+			if (cmp > 0)
+				Assert.fail("Next value is not larger or equal to previous value.");
+			
+			Value tmp = current;
 			current = last;
 			last = tmp;
 		}

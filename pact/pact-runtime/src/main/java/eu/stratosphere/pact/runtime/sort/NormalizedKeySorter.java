@@ -187,6 +187,11 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		return this.numRecords == 0;
 	}
 	
+	/**
+	 * Collects all memory segments from this sorter.
+	 * 
+	 * @return All memory segments from this sorter.
+	 */
 	public List<MemorySegment> dispose() {
 		this.freeMemory.addAll(this.sortIndex);
 		this.freeMemory.addAll(this.recordBuffers);
@@ -195,6 +200,16 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		this.sortIndex.clear();
 		
 		return this.freeMemory;
+	}
+	
+	/**
+	 * Gets the total capacity of this sorter, in bytes.
+	 * 
+	 * @return The sorter's total capacity.
+	 */
+	public long getCapacity()
+	{
+		return ((long) this.totalNumBuffers) * (this.segmentSizeMask + 1);
 	}
 
 	// -------------------------------------------------------------------------
@@ -373,7 +388,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		
 		int val = 0;
 		for (int pos = 0, posI = segI.translateOffset(segmentOffsetI + OFFSET_LEN), posJ = segJ.translateOffset(segmentOffsetJ + OFFSET_LEN);
-			pos < this.numKeyBytes & (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
+			pos < this.numKeyBytes && (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
 		
 		if (val != 0 || this.normalizedKeyFullyDetermines) {
 			return val;
