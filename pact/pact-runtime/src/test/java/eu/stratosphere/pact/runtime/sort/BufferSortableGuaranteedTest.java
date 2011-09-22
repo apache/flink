@@ -46,7 +46,7 @@ public class BufferSortableGuaranteedTest
 
 	private static final int VALUE_LENGTH = 118;
 
-	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
+	private static final int MEMORY_SIZE = 1024 * 1024 * 64;
 
 	private DefaultMemoryManager memoryManager;
 
