@@ -247,29 +247,14 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	// Threads
 	// ------------------------------------------------------------------------
 
-	private class SpillingThread extends ThreadBase
+	protected class CombiningSpillingThread extends SpillingThread
 	{
-		private final MemoryManager memoryManager;		// memory manager for memory allocation and release
-
-		private final IOManager ioManager;				// I/O manager to create channels
-
-		private final long writeMemSize;				// memory for output buffers
-		
-		private final long readMemSize;					// memory for reading and pre-fetching buffers
-		
-
-		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
+		public CombiningSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
 				long writeMemSize, long readMemSize,
 				AbstractInvokable parentTask)
 		{
-			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
-
-			// members
-			this.memoryManager = memoryManager;
-			this.ioManager = ioManager;
-			this.writeMemSize = writeMemSize;
-			this.readMemSize = readMemSize;
+			super(exceptionHandler, queues, memoryManager, ioManager, writeMemSize, readMemSize, parentTask);
 		}
 
 		/**
@@ -407,7 +392,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 					LOG.debug("Combining buffer " + element.id + '.');
 
 				// set up the combining helpers
-				final BufferSortableGuaranteed buffer = element.buffer;
+				final NormalizedKeySorter<PactRecord> buffer = element.buffer;
 				final CombineValueIterator iter = new CombineValueIterator(buffer);
 				final WriterCollector collector = new WriterCollector(writer);
 
@@ -453,20 +438,13 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				this.queues.empty.add(element);
 			}
 
-			// if sentinel then set lazy iterator
-			if (LOG.isDebugEnabled())
+			// done with the spilling
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("Spilling done.");
-
-
-			// release sort-buffers
-			if (LOG.isDebugEnabled())
-					LOG.debug("Releasing sort-buffer memory.");
-			releaseSortBuffers();
-			if (CombiningUnilateralSortMerger.this.sortSegments != null) {
-				unregisterSegmentsToBeFreedAtShutdown(CombiningUnilateralSortMerger.this.sortSegments);
-				CombiningUnilateralSortMerger.this.sortSegments.clear();
+				LOG.debug("Releasing sort-buffer memory.");
 			}
 			
+			releaseSortBuffers();
 
 			try {
 				// merge channels until sufficient file handles are available
@@ -512,35 +490,6 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			if (LOG.isDebugEnabled())
 				LOG.debug("Spilling thread done.");
 		}
-		
-		/**
-		 * Releases the memory that is registered for in-memory sorted run generation.
-		 */
-		private void releaseSortBuffers()
-		{
-			while (!queues.empty.isEmpty()) {
-				try {
-					MemorySegment segment = queues.empty.take().buffer.unbind();
-					CombiningUnilateralSortMerger.this.sortSegments.remove(segment);
-					memoryManager.release(segment);
-				}
-				catch (InterruptedException iex) {
-					if (isRunning()) {
-						LOG.error("Spilling thread was interrupted (without being shut down) while collecting empty buffers to release them. " +
-								"Retrying to collect buffers...");
-					}
-					else {
-						return;
-					}
-				}
-			}
-		}
-		
-		private CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache)
-		throws InterruptedException
-		{
-			return cache.isEmpty() ? queue.take() : cache.remove(0);
-		}
 
 	} // end spilling/merging thread
 
@@ -553,7 +502,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 */
 	private static final class CombineValueIterator implements Iterator<PactRecord>
 	{
-		private final BufferSortableGuaranteed buffer; // the buffer from which values are returned
+		private final NormalizedKeySorter<PactRecord> buffer; // the buffer from which values are returned
 		
 		private final PactRecord record;
 
@@ -567,7 +516,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @param buffer
 		 *        The buffer to get the values from.
 		 */
-		public CombineValueIterator(BufferSortableGuaranteed buffer)
+		public CombineValueIterator(NormalizedKeySorter<PactRecord> buffer)
 		{
 			this.buffer = buffer;
 			this.record = new PactRecord();

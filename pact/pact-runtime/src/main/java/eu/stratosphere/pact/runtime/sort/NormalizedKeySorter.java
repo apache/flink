@@ -62,6 +62,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	
 	private long currentDataBufferOffset;
 	
+	private long sortIndexBytes;
+	
 	private int currentSortIndexOffset;
 	
 	private int numRecords;
@@ -163,6 +165,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		this.numRecords = 0;
 		this.currentSortIndexOffset = 0;
 		this.currentDataBufferOffset = 0;
+		this.sortIndexBytes = 0;
 		
 		// return all memory
 		this.freeMemory.addAll(this.sortIndex);
@@ -211,6 +214,16 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	{
 		return ((long) this.totalNumBuffers) * (this.segmentSizeMask + 1);
 	}
+	
+	/**
+	 * Gets the number of bytes currently occupied in this sorter.
+	 * 
+	 * @return The number of bytes occupied.
+	 */
+	public long getOccupancy()
+	{
+		return this.currentDataBufferOffset + this.sortIndexBytes;
+	}
 
 	// -------------------------------------------------------------------------
 	// Retrieving and Writing
@@ -230,6 +243,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				this.currentSortIndexSegment = nextMemorySegment();
 				this.sortIndex.add(this.currentSortIndexSegment);
 				this.currentSortIndexOffset = 0;
+				this.sortIndexBytes += this.segmentSizeMask + 1;
 			}
 			else return false;
 		}

@@ -40,14 +40,6 @@ public interface TypeAccessors<T>
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * @param record
-	 * @param target
-	 * @param furtherBuffers The buffers are NOT guaranteed to be reset!
-	 * @param targetForUsedFurther
-	 * @return
-	 * @throws IOException
-	 */
 	public long serialize(T record, DataOutputView target, Iterator<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther) throws IOException;
 	
 	public void deserialize(T target, List<MemorySegment> sources, int firstSegment, int segmentOffset) throws IOException;  

@@ -68,7 +68,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 	{
 		super(memoryManager, ioManager, totalMemory, 
 			0,
-			totalMemory < 2 * MIN_SORT_BUFFER_SIZE ? 1 : Math.max((int) Math.ceil(totalMemory / (64.0 * 1024 * 1024)), 2),
+			totalMemory < 2 * MIN_SORT_MEM ? 1 : Math.max((int) Math.ceil(totalMemory / (64.0 * 1024 * 1024)), 2),
 			2, keyComparators, keyPositions, keyClasses, input, parentTask, 0.0f);
 	}
 

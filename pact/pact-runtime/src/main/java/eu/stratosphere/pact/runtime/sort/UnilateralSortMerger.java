@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.services.iomanager.StreamChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -39,6 +38,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordAccessors;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 
 /**
@@ -67,16 +67,16 @@ public class UnilateralSortMerger implements SortMerger
 	 * Logging.
 	 */
 	private static final Log LOG = LogFactory.getLog(UnilateralSortMerger.class);
-	
+
 	/**
 	 * A mask that is ANDed to the buffer size to make it a multiple of the minimal buffer size.
 	 */
-	protected static final long BUFFER_ALIGNMENT_MASK = ~(0x1fffL);
-
+	protected static final long IO_BUFFER_ALIGNMENT_MASK = ~(0xffffL);
+	
 	/**
-	 * The minimal size of an IO buffer. Currently set to 8 KiBytes
+	 * The minimal size of an IO buffer. Currently set to 64 KiBytes
 	 */
-	protected static final int MIN_IO_BUFFER_SIZE = 8 * 1024;
+	protected static final int MIN_IO_BUFFER_SIZE = 64 * 1024;
 
 	/**
 	 * The maximal size of an IO buffer. Currently set to 512 KiBytes
@@ -84,14 +84,24 @@ public class UnilateralSortMerger implements SortMerger
 	protected static final int MAX_IO_BUFFER_SIZE = 512 * 1024;
 	
 	/**
-	 * The minimal size of a sort buffer. Currently set to 2 MiBytes.
-	 */
-	protected static final int MIN_SORT_BUFFER_SIZE = 2 * 1024 * 1024;
-
-	/**
 	 * The number of buffers to use by the writers.
 	 */
 	protected static final int NUM_WRITE_BUFFERS = 2;
+	
+	/**
+	 * The size of a memory segment used for sorting.
+	 */
+	protected static final int SORT_MEM_SEGMENT_SIZE = 64 * 1024;
+	
+	/**
+	 * The minimum number of segments that are required for the sort to operate.
+	 */
+	protected static final int MIN_NUM_SORT_MEM_SEGMENTS = 32;
+	
+	/**
+	 * The minimal size of a sort buffer, currently 2 MiBytes.
+	 */
+	protected static final int MIN_SORT_MEM = SORT_MEM_SEGMENT_SIZE * MIN_NUM_SORT_MEM_SEGMENTS;
 
 	// ------------------------------------------------------------------------
 	//                               Fields
@@ -111,7 +121,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The segments for the sort buffers.
 	 */
-	protected final List<MemorySegment> sortSegments;
+	protected final List<NormalizedKeySorter<?>> sortBuffers;
 
 	/**
 	 * The memory manager through which memory is allocated and released.
@@ -266,14 +276,17 @@ public class UnilateralSortMerger implements SortMerger
 		if (maxNumFileHandles < 2) {
 			throw new IllegalArgumentException("Merger cannot work with less than two file handles.");
 		}
-		if (totalMemory < maxNumFileHandles * MIN_IO_BUFFER_SIZE) {
-			throw new IOException("Too little memory for merging operations.");
-		}
 		if (keyComparators.length < 1) {
 			throw new IllegalArgumentException("There must be at least one sort column and hence one comparator.");
 		}
 		if (keyComparators.length != keyPositions.length || keyPositions.length != keyClasses.length) {
 			throw new IllegalArgumentException("The number of comparators, key columns and key types must match.");
+		}
+		
+		// check whether we need to reduce the number merge fan-in due to memory size
+		if (ioMemory != 0 && totalMemory < maxNumFileHandles * MIN_IO_BUFFER_SIZE) {
+			maxNumFileHandles = (int) (totalMemory / MIN_IO_BUFFER_SIZE);
+			LOG.warn("Reducing merge fan-in to " + maxNumFileHandles + " due too memory limitations.");
 		}
 		
 		this.maxNumFileHandles = maxNumFileHandles;
@@ -294,18 +307,17 @@ public class UnilateralSortMerger implements SortMerger
 		// initially, only the spilling thread needs some I/O buffers for asynchronous writing,
 		// the remainder can be dedicated to sort memory
 		
-		long sortMem;
-		
 		if (ioMemory < 0) {
 			ioMemory = totalMemory / 64;
 			ioMemory = Math.max(
 					Math.min(ioMemory, NUM_WRITE_BUFFERS * MAX_IO_BUFFER_SIZE),
 						NUM_WRITE_BUFFERS * MIN_IO_BUFFER_SIZE);
-			ioMemory &= BUFFER_ALIGNMENT_MASK << 1; // align for two buffer sizes
+			ioMemory &= IO_BUFFER_ALIGNMENT_MASK << 1; // align for two buffer sizes
 		}
 		
-		sortMem = totalMemory - ioMemory;
-		if (sortMem < MIN_SORT_BUFFER_SIZE) {
+		final long sortMem = totalMemory - ioMemory;
+		long numSortMemSegments = sortMem / SORT_MEM_SEGMENT_SIZE;
+		if (numSortMemSegments < MIN_NUM_SORT_MEM_SEGMENTS) {
 			throw new IOException("Too little memory provided to Sort-Merger to perform task.");
 		}
 		
@@ -314,35 +326,32 @@ public class UnilateralSortMerger implements SortMerger
 			if (sortMem > 96 * 1024 * 1024) {
 				numSortBuffers = 3;
 			}
-			else if (sortMem >= 2 * MIN_SORT_BUFFER_SIZE) {
+			else if (numSortMemSegments >= 2 * MIN_NUM_SORT_MEM_SEGMENTS) {
 				numSortBuffers = 2;
 			}
 			else {
 				numSortBuffers = 1;
 			}
 		}
+		final int numSegmentsPerSortBuffer = numSortMemSegments / numSortBuffers > Integer.MAX_VALUE ? 
+						Integer.MAX_VALUE : (int) (numSortMemSegments / numSortBuffers);
 		
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Instantiating unilateral sort-merger with " + ioMemory + " bytes of write cache and " + sortMem + 
 				" bytes of sorting/merging memory. Dividing sort memory over " + numSortBuffers + 
-				" buffers, merging maximally " + maxNumFileHandles + " streams at once.");
+				" buffers (" + numSegmentsPerSortBuffer + " pages a " + SORT_MEM_SEGMENT_SIZE + 
+				" bytes) , merging maximally " + maxNumFileHandles + " streams at once.");
 		}
 		
+		this.sortBuffers = new ArrayList<NormalizedKeySorter<?>>(numSortBuffers);
+		final PactRecordAccessors accessors = new PactRecordAccessors(keyPositions, keyClasses);
 		
-		// allocate the memory for the sort buffers
-		final List<MemorySegment> sortSegments = this.memoryManager.allocate(parentTask, sortMem, numSortBuffers, MIN_SORT_BUFFER_SIZE);
-		registerSegmentsToBeFreedAtShutdown(sortSegments);
-		this.sortSegments = sortSegments;
-		
-		// fill empty queue with buffers
-		for (int i = 0; i < sortSegments.size(); i++) {
-			MemorySegment mseg = sortSegments.get(i);
-
-			// comparator
-			RawComparator comparator = new DeserializerComparator(keyPositions, keyClasses, keyComparators);
-
-			// sort-buffer
-			BufferSortableGuaranteed buffer = new BufferSortableGuaranteed(mseg, comparator);
+		// allocate the sort buffers and fill empty queue with them
+		for (int i = 0; i < numSortBuffers; i++)
+		{
+			final List<MemorySegment> sortSegments = this.memoryManager.allocateStrict(parent, numSegmentsPerSortBuffer, SORT_MEM_SEGMENT_SIZE);
+			final NormalizedKeySorter<PactRecord> buffer = new NormalizedKeySorter<PactRecord>(accessors, sortSegments);
+			this.sortBuffers.add(buffer);
 
 			// add to empty queue
 			CircularElement element = new CircularElement(i, buffer);
@@ -477,11 +486,17 @@ public class UnilateralSortMerger implements SortMerger
 				}
 			}
 			
-			// release all memory
+			// release all memory from writers
 			for (List<MemorySegment> segments: this.memoryToReleaseAtShutdown) {
 				memoryManager.release(segments);
 			}
 			this.memoryToReleaseAtShutdown.clear();
+			
+			// release all sort buffers
+			for (NormalizedKeySorter<?> sorter : this.sortBuffers) {
+				this.memoryManager.release(sorter.dispose());
+			}
+			this.sortBuffers.clear();
 		}
 	}
 
@@ -623,8 +638,8 @@ public class UnilateralSortMerger implements SortMerger
 	 * 
 	 * @param iterator The result iterator to set.
 	 */
-	protected final void setResultIterator(MutableObjectIterator<PactRecord> iterator) {
-		
+	protected final void setResultIterator(MutableObjectIterator<PactRecord> iterator)
+	{
 		synchronized (this.iteratorLock) {
 			// set the result iterator only, if no exception has occurred
 			if (this.iteratorException == null) {
@@ -639,7 +654,8 @@ public class UnilateralSortMerger implements SortMerger
 	 * 
 	 * @param ioex The exception to be reported to the threads that wait for the result iterator.
 	 */
-	protected final void setResultIteratorException(IOException ioex) {
+	protected final void setResultIteratorException(IOException ioex)
+	{
 		synchronized (this.iteratorLock) {
 			if (this.iteratorException == null) {
 				this.iteratorException = ioex;
@@ -802,13 +818,12 @@ public class UnilateralSortMerger implements SortMerger
 		// determine the memory to use per channel and the number of buffers
 		final long ioMemoryPerChannel = totalReadMemory / numChannels;
 		final int numBuffers = ioMemoryPerChannel < 2 * MIN_IO_BUFFER_SIZE ? 1 :
-			                    ioMemoryPerChannel < 2 * MAX_IO_BUFFER_SIZE ? 2 :
+			                    ioMemoryPerChannel <= 2 * MAX_IO_BUFFER_SIZE ? 2 :
 			                    (int) (ioMemoryPerChannel / MAX_IO_BUFFER_SIZE);
-		final long bufferSize = (ioMemoryPerChannel / numBuffers) & BUFFER_ALIGNMENT_MASK;
+		final int bufferSize = (int) ((ioMemoryPerChannel / numBuffers) & IO_BUFFER_ALIGNMENT_MASK);
 		
 		// allocate all buffers in one step, for efficiency
-		final List<MemorySegment> memorySegments = this.memoryManager.allocate(this.parent, 
-			bufferSize * numBuffers * numChannels, numBuffers * numChannels, MIN_IO_BUFFER_SIZE);
+		final List<MemorySegment> memorySegments = this.memoryManager.allocateStrict(this.parent, numBuffers * numChannels, bufferSize);
 		
 		// get the buffers for all but the last channel
 		for (int i = 0, buffer = 0; i < numChannels - 1; i++) {
@@ -849,14 +864,14 @@ public class UnilateralSortMerger implements SortMerger
 	protected static final class CircularElement
 	{
 		final int id;
-		final BufferSortableGuaranteed buffer;
+		final NormalizedKeySorter<PactRecord> buffer;
 
 		public CircularElement() {
 			this.buffer = null;
 			this.id = -1;
 		}
 
-		public CircularElement(int id, BufferSortableGuaranteed buffer) {
+		public CircularElement(int id, NormalizedKeySorter<PactRecord> buffer) {
 			this.id = id;
 			this.buffer = buffer;
 		}
@@ -1021,7 +1036,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The thread that consumes the input data and puts it into a buffer that will be sorted.
 	 */
-	private static class ReadingThread extends ThreadBase
+	protected static class ReadingThread extends ThreadBase
 	{
 		/**
 		 * The input channels to read from.
@@ -1094,7 +1109,7 @@ public class UnilateralSortMerger implements SortMerger
 				}
 				
 				// get the new buffer and check it
-				final BufferSortableGuaranteed buffer = element.buffer;
+				final NormalizedKeySorter<PactRecord> buffer = element.buffer;
 				if (!buffer.isEmpty()) {
 					throw new IOException("New buffer is not empty.");
 				}
@@ -1217,7 +1232,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The thread that sorts filled buffers.
 	 */
-	private static class SortingThread extends ThreadBase {
+	protected static class SortingThread extends ThreadBase {
 		/**
 		 * The sorter.
 		 */
@@ -1242,7 +1257,8 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * Entry point of the thread.
 		 */
-		public void go() throws IOException {
+		public void go() throws IOException
+		{
 			boolean alive = true;
 
 			// loop as long as the thread is marked alive
@@ -1286,15 +1302,15 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 *
 	 */
-	private class SpillingThread extends ThreadBase
+	protected class SpillingThread extends ThreadBase
 	{
-		private final MemoryManager memoryManager;		// memory manager for memory allocation and release
+		protected final MemoryManager memoryManager;		// memory manager for memory allocation and release
 
-		private final IOManager ioManager;				// I/O manager to create channels
+		protected final IOManager ioManager;				// I/O manager to create channels
 
-		private final long writeMemSize;				// memory for output buffers
+		protected final long writeMemSize;				// memory for output buffers
 		
-		private final long readMemSize;					// memory for reading and pre-fetching buffers
+		protected final long readMemSize;					// memory for reading and pre-fetching buffers
 
 
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
@@ -1387,8 +1403,8 @@ public class UnilateralSortMerger implements SortMerger
 
 			// allocate memory segments for channel writer
 			try {
-				writeBuffers = this.memoryManager.allocate(UnilateralSortMerger.this.parent, writeMemSize, 
-					NUM_WRITE_BUFFERS, MIN_IO_BUFFER_SIZE);
+				int writeBufferSize = (int) this.writeMemSize / NUM_WRITE_BUFFERS;
+				writeBuffers = this.memoryManager.allocateStrict(UnilateralSortMerger.this.parent, NUM_WRITE_BUFFERS, writeBufferSize);
 				registerSegmentsToBeFreedAtShutdown(writeBuffers);
 			}
 			catch (MemoryAllocationException maex) {
@@ -1451,12 +1467,7 @@ public class UnilateralSortMerger implements SortMerger
 				LOG.debug("Releasing sort-buffer memory.");
 			}
 			
-			// release sort-buffers
 			releaseSortBuffers();
-			if (UnilateralSortMerger.this.sortSegments != null) {
-				unregisterSegmentsToBeFreedAtShutdown(UnilateralSortMerger.this.sortSegments);
-				UnilateralSortMerger.this.sortSegments.clear();
-			}
 
 			// ------------------- Merging Phase ------------------------
 			
@@ -1504,13 +1515,14 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * Releases the memory that is registered for in-memory sorted run generation.
 		 */
-		private void releaseSortBuffers()
+		protected final void releaseSortBuffers()
 		{
-			while (!queues.empty.isEmpty()) {
+			while (!this.queues.empty.isEmpty()) {
 				try {
-					MemorySegment segment = queues.empty.take().buffer.unbind();
-					UnilateralSortMerger.this.sortSegments.remove(segment);
-					memoryManager.release(segment);
+					final NormalizedKeySorter<?> sorter = this.queues.empty.take().buffer;
+					final List<MemorySegment> segments = sorter.dispose();
+					this.memoryManager.release(segments);
+					UnilateralSortMerger.this.sortBuffers.remove(sorter);
 				}
 				catch (InterruptedException iex) {
 					if (isRunning()) {
@@ -1524,7 +1536,7 @@ public class UnilateralSortMerger implements SortMerger
 			}
 		}
 		
-		private CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache)
+		protected final CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache)
 		throws InterruptedException
 		{
 			return cache.isEmpty() ? queue.take() : cache.remove(0);
