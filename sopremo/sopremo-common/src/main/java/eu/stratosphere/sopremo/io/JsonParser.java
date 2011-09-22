@@ -6,6 +6,8 @@ import it.unimi.dsi.fastutil.chars.Char2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.io.BufferedReader;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -14,6 +16,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
@@ -24,6 +28,7 @@ import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.LongNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class JsonParser {
@@ -32,18 +37,16 @@ public class JsonParser {
 
 	private Stack<JsonNode> state = new ObjectArrayList<JsonNode>();
 
-	ArrayNode root = new ArrayNode();
+	ContainerNode root = new ContainerNode();
 
-	boolean insideString = false;
+	private boolean insideString = false;
 
-	// private Char2ObjectMap<JsonToken> tokens = new Char2ObjectOpenHashMap<JsonToken>(
-	// new char[] { '[', ']', '{', '}', ':', '\"', ' ' },
-	// new JsonToken[] { START_ARRAY, END_ARRAY, START_OBJECT, END_OBJECT, KEY_VALUE_DELIMITER, START_STRING,
-	// WHITE_SPACE });
+	private boolean wasString;
 
 	private Char2ObjectMap<CharacterHandler> handler = new Char2ObjectOpenHashMap<CharacterHandler>(
-		new char[] { '[', ']', /* '{', '}', ':', */'\"', ',', ' ' },
-		new CharacterHandler[] { new OpenArrayHandler(), new CloseArrayHandler(), new StringHandler(),
+		new char[] { '[', ']', '{', '}', ':', '\"', ',', ' ' },
+		new CharacterHandler[] { new OpenArrayHandler(), new CloseArrayHandler(), new OpenObjectHandler(),
+			new CloseObjectHandler(), new KeyValueSeperatorHandler(), new StringHandler(),
 			new CommaHandler(), new WhiteSpaceHandler() });
 
 	public JsonParser(FSDataInputStream stream) {
@@ -77,72 +80,6 @@ public class JsonParser {
 
 			} else {
 				this.handler.get(character).handleCharacter(sb, character);
-				// switch (character) {
-				// case '[': {
-				// if (state.top() == root) {
-				// ArrayNode node = new ArrayNode();
-				// root.add(node);
-				// state.push(node);
-				// } else {
-				// ArrayNode newArray = new ArrayNode();
-				// ((ArrayNode) state.top()).add(newArray);
-				// state.push(newArray);
-				// }
-				// break;
-				// }
-				// case ']': {
-				// ArrayNode node = (ArrayNode) state.pop();
-				// if (sb.length() != 0) {
-				// node.add(this.parsePrimitive(sb.toString()));
-				// sb.setLength(0);
-				// }
-				// break;
-				// }
-				// case '{': {
-				// break;
-				// }
-				// case '}': {
-				// break;
-				// }
-				// case ':': {
-				// break;
-				// }
-				// case '\"': {
-				// if (sb.length() == 0) {
-				// insideString = true;
-				// } else {
-				// if (!sb.toString().endsWith("\\")) {
-				// insideString = false;
-				// ArrayNode node = (ArrayNode) state.top();
-				// node.add(TextNode.valueOf(sb.toString()));
-				// sb.setLength(0);
-				// } else {
-				// sb.append(character);
-				// }
-				// }
-				// break;
-				// }
-				// case ',': {
-				// if (sb.length() != 0) {
-				// ArrayNode node = (ArrayNode) state.top();
-				// node.add(this.parsePrimitive(sb.toString()));
-				// sb.setLength(0);
-				// }
-				// break;
-				// }
-				//
-				// // TODO check all whitespaces instead of ' '
-				// case ' ': {
-				// if (insideString) {
-				// sb.append(character);
-				// }
-				// break;
-				// }
-				// default: {
-				// sb.append(character);
-				// break;
-				// }
-				// }
 			}
 
 		}
@@ -150,7 +87,12 @@ public class JsonParser {
 		if (state.top() != root) {
 			throw new JsonParseException();
 		}
-		return root.isEmpty() ? JsonParser.parsePrimitive(sb.toString()) : root.get(0);
+
+		if (sb.length() != 0) {
+			root.addValue(JsonParser.parsePrimitive(sb.toString()));
+		}
+
+		return ((ArrayNode) root.build()).get(0);
 	}
 
 	public Object nextToken() {
@@ -194,22 +136,15 @@ public class JsonParser {
 	}
 
 	private interface CharacterHandler {
-		public void handleCharacter(StringBuilder sb, char character);
+		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException;
 	}
 
 	private class OpenArrayHandler implements CharacterHandler {
 
 		@Override
 		public void handleCharacter(StringBuilder sb, char character) {
-			if (state.top() == root) {
-				ArrayNode node = new ArrayNode();
-				root.add(node);
-				state.push(node);
-			} else {
-				ArrayNode newArray = new ArrayNode();
-				((ArrayNode) state.top()).add(newArray);
-				state.push(newArray);
-			}
+			ContainerNode newArray = new ContainerNode();
+			state.push(newArray);
 		}
 
 	}
@@ -217,12 +152,19 @@ public class JsonParser {
 	private class CloseArrayHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) {
-			ArrayNode node = (ArrayNode) state.pop();
+		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
+			ContainerNode node = (ContainerNode) state.pop();
 			if (sb.length() != 0) {
-				node.add(JsonParser.parsePrimitive(sb.toString()));
+				if (!wasString) {
+					node.addValue(JsonParser.parsePrimitive(sb.toString()));
+				} else {
+					node.addValue(TextNode.valueOf(sb.toString()));
+					wasString = false;
+				}
 				sb.setLength(0);
 			}
+
+			((ContainerNode) state.top()).addValue(node.build());
 
 		}
 	}
@@ -236,9 +178,7 @@ public class JsonParser {
 			} else {
 				if (!sb.toString().endsWith("\\")) {
 					insideString = false;
-					ArrayNode node = (ArrayNode) state.top();
-					node.add(TextNode.valueOf(sb.toString()));
-					sb.setLength(0);
+					wasString = true;
 				} else {
 					sb.append(character);
 				}
@@ -251,8 +191,13 @@ public class JsonParser {
 		@Override
 		public void handleCharacter(StringBuilder sb, char character) {
 			if (sb.length() != 0) {
-				ArrayNode node = (ArrayNode) state.top();
-				node.add(JsonParser.parsePrimitive(sb.toString()));
+				ContainerNode node = (ContainerNode) state.top();
+				if (!wasString) {
+					node.addValue(JsonParser.parsePrimitive(sb.toString()));
+				} else {
+					node.addValue(TextNode.valueOf(sb.toString()));
+					wasString = false;
+				}
 				sb.setLength(0);
 			}
 		}
@@ -269,11 +214,131 @@ public class JsonParser {
 
 	}
 
+	private class OpenObjectHandler implements CharacterHandler {
+
+		@Override
+		public void handleCharacter(StringBuilder sb, char character) {
+			ContainerNode node = new ContainerNode();
+			state.push(node);
+
+		}
+
+	}
+
+	private class CloseObjectHandler implements CharacterHandler {
+
+		@Override
+		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
+			ContainerNode node = (ContainerNode) state.pop();
+			if (sb.length() != 0) {
+				if (!wasString) {
+					node.addValue(JsonParser.parsePrimitive(sb.toString()));
+				} else {
+					node.addValue(TextNode.valueOf(sb.toString()));
+					wasString = false;
+				}
+				sb.setLength(0);
+			}
+
+			((ContainerNode) state.top()).addValue(node.build());
+		}
+
+	}
+
+	private class KeyValueSeperatorHandler implements CharacterHandler {
+
+		@Override
+		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
+			if (sb.length() != 0) {
+				ContainerNode node = (ContainerNode) state.top();
+				node.addKey(sb);
+				wasString = false;
+				sb.setLength(0);
+			}
+		}
+
+	}
+
 	private class DefaultHandler implements CharacterHandler {
 
 		@Override
 		public void handleCharacter(StringBuilder sb, char character) {
 			sb.append(character);
 		}
+	}
+
+	private class ContainerNode extends JsonNode {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7285733826083281420L;
+
+		private List<String> keys = new ArrayList<String>();
+
+		private List<JsonNode> values = new ArrayList<JsonNode>();
+
+		public void addKey(StringBuilder sb) {
+			this.keys.add(sb.toString());
+		}
+
+		public void addValue(JsonNode node) {
+			this.values.add(node);
+		}
+
+		public JsonNode build() throws JsonParseException {
+			JsonNode node;
+
+			if (this.keys.size() == 0) {
+				// this ContainerNode represents an ArrayNode
+				node = new ArrayNode();
+				for (JsonNode value : this.values) {
+					((ArrayNode) node).add(value);
+				}
+
+			} else {
+				// this ContainerNode represents an ObjectNode
+
+				if (this.keys.size() != this.values.size()) {
+					throw new JsonParseException();
+				}
+
+				node = new ObjectNode();
+				for (int i = 0; i < this.keys.size(); i++) {
+					((ObjectNode) node).put(this.keys.get(i), this.values.get(i));
+				}
+			}
+
+			return node;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			return false;
+		}
+
+		@Override
+		public int getTypePos() {
+			return 0;
+		}
+
+		@Override
+		public TYPES getType() {
+			return null;
+		}
+
+		@Override
+		public void read(DataInput in) throws IOException {
+		}
+
+		@Override
+		public void write(DataOutput out) throws IOException {
+		}
+
+		@Override
+		public StringBuilder toString(StringBuilder sb) {
+			return sb;
+		}
+
 	}
 }

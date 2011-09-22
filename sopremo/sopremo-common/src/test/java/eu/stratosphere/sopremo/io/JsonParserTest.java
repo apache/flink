@@ -21,6 +21,7 @@ import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.LongNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 @RunWith(Parameterized.class)
@@ -67,14 +68,20 @@ public class JsonParserTest {
 					new ArrayNode().add(IntNode.valueOf(23)).add(
 						new ArrayNode().add(new ArrayNode().add(IntNode.valueOf(24)).add(IntNode.valueOf(55)))
 							.add(IntNode.valueOf(12)).add(IntNode.valueOf(17)))) },
-			{ "\"Test\"", TextNode.valueOf("Test")},
-			{ "\"Test\\\"Test\"", TextNode.valueOf("Test\\\"Test")},
+			{ "\"Test\"", TextNode.valueOf("Test") },
+			{ "\"Test\\\"Test\"", TextNode.valueOf("Test\\\"Test") },
 			{
 				"[42, [23, [[24, \"Test\"], 12, \"17\"]]]",
 				new ArrayNode().add(IntNode.valueOf(42)).add(
 					new ArrayNode().add(IntNode.valueOf(23)).add(
 						new ArrayNode().add(new ArrayNode().add(IntNode.valueOf(24)).add(TextNode.valueOf("Test")))
-							.add(IntNode.valueOf(12)).add(TextNode.valueOf("17")))) }
+							.add(IntNode.valueOf(12)).add(TextNode.valueOf("17")))) },
+			{ "{\"key1\" : 42}", new ObjectNode().put("key1", IntNode.valueOf(42)) },
+			{
+				"{\"key1\" : [1,3,\"Hello\"], \"key2\": {\"key3\": 23}}",
+				new ObjectNode().put("key1",
+					new ArrayNode().add(IntNode.valueOf(1)).add(IntNode.valueOf(3)).add(TextNode.valueOf("Hello")))
+					.put("key2", new ObjectNode().put("key3", IntNode.valueOf(23))) }
 
 		});
 	}

@@ -18,8 +18,8 @@ import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperat
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.DivisionEvaluator;
 import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
 import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 @RunWith(Parameterized.class)
 public class ArithmeticCrossTest {
@@ -63,7 +63,7 @@ public class ArithmeticCrossTest {
 		else
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
-					result, expectedNode), this.expected.doubleValue(), ((DoubleNode) result).getDoubleValue(), 0.0001);
+					result, expectedNode), this.expected.doubleValue(), ((NumericNode)result).getDoubleValue(), 0.0001);
 	}
 
 	@Parameters

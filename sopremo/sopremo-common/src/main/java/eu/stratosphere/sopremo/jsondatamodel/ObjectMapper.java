@@ -32,6 +32,9 @@ public class ObjectMapper {
 			return NullNode.getInstance();
 		}
 		Class<? extends Object> valueClass = value.getClass();
+		if(value instanceof JsonNode){
+			return (JsonNode)value;
+		}
 		if (valueClass.isArray()) {
 			Object[] array = (Object[]) value;
 			ArrayNode arrayNode = new ArrayNode();

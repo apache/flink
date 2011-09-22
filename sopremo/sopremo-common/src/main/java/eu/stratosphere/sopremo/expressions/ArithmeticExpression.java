@@ -284,8 +284,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return DoubleNode.valueOf(this.evaluate(((DoubleNode) left).getDoubleValue(),
-				((DoubleNode) right).getDoubleValue()));
+			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(),
+				right.getDoubleValue()));
 		}
 	}
 
@@ -294,7 +294,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return IntNode.valueOf(this.evaluate(((IntNode) left).getIntValue(), ((IntNode) right).getIntValue()));
+			return IntNode.valueOf(this.evaluate(left.getIntValue(), right.getIntValue()));
 		}
 	}
 
@@ -303,7 +303,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return LongNode.valueOf(this.evaluate(((LongNode) left).getLongValue(), ((LongNode) right).getLongValue()));
+			return LongNode.valueOf(this.evaluate(left.getLongValue(), right.getLongValue()));
 		}
 	}
 
