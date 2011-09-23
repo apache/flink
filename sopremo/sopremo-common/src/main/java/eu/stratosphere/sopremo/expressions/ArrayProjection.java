@@ -9,7 +9,7 @@ import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.util.ConversionIterator;
 
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
-public class ArrayProjection extends EvaluationExpression implements WritableEvaluable {
+public class ArrayProjection extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -54,13 +54,8 @@ public class ArrayProjection extends EvaluationExpression implements WritableEva
 	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
 		ArrayNode arrayNode = (ArrayNode) node;
 		for (int index = 0, size = node.size(); index < size; index++)
-			arrayNode.set(index, ((WritableEvaluable) this.expression).set(node.get(index), value, context));
+			arrayNode.set(index, this.expression.set(node.get(index), value, context));
 		return arrayNode;
-	}
-
-	@Override
-	public EvaluationExpression asExpression() {
-		return this;
 	}
 
 	@Override

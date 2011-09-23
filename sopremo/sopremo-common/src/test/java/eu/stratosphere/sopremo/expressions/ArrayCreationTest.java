@@ -10,8 +10,6 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.IntNode;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.EvaluationContext;
-
 public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 
 	@Override
@@ -33,7 +31,7 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 	@Test
 	public void shouldCreateIteratorCorrectly() {
 		int index = 0;
-		Iterator<SopremoExpression<EvaluationContext>> it = new ArrayCreation(new ConstantExpression(
+		Iterator<EvaluationExpression> it = new ArrayCreation(new ConstantExpression(
 			IntNode.valueOf(0)), new ConstantExpression(
 			IntNode.valueOf(1)), new ConstantExpression(IntNode.valueOf(2)),
 			new ConstantExpression(IntNode.valueOf(3)), new ConstantExpression(IntNode.valueOf(4))).iterator();

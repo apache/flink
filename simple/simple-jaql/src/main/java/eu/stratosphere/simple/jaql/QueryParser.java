@@ -16,7 +16,7 @@ import eu.stratosphere.sopremo.SopremoPlan;
 
 public class QueryParser extends PlanCreator {
 
-	Deque<List<Operator>> operatorInputs = new LinkedList<List<Operator>>();
+	Deque<List<Operator<?>>> operatorInputs = new LinkedList<List<Operator<?>>>();
 
 	@Override
 	public SopremoPlan getPlan(InputStream stream) {

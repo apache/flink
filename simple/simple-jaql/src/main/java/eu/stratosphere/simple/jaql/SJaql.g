@@ -58,25 +58,29 @@ public void parseSinks() throws RecognitionException {
     script();
 }
 
-  private EvaluationExpression makePath(Token inputVar, String... path) {
-    List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
+private EvaluationExpression makePath(Token inputVar, String... path) {
+  List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
 
-    int inputIndex = inputIndexForVariable(inputVar);
+  int inputIndex = inputIndexForVariable(inputVar);
+  if(inputIndex == -1) {
+    accesses.add(new JsonStreamExpression(getVariable(inputVar)));
+  } else {
     InputSelection inputSelection = new InputSelection(inputIndex);
     for (ExpressionTag tag : $operator::inputTags.get(inputIndex))
       inputSelection.addTag(tag);
     accesses.add(inputSelection);
-
-    for (String fragment : path)
-      accesses.add(new ObjectAccess(fragment));
-
-    return PathExpression.valueOf(accesses);
   }
+
+  for (String fragment : path)
+    accesses.add(new ObjectAccess(fragment));
+
+  return PathExpression.valueOf(accesses);
+}
 
 private Operator getVariable(Token variable) {
 	Operator op = variables.get(variable.getText());
 	if(op == null)
-		throw new IllegalArgumentException("Unknown variable:", new RecognitionException(variable.getInputStream()));
+		throw new IllegalArgumentException("Unknown variable" + variable.getText(), new RecognitionException(variable.getInputStream()));
 	return op;
 }
 
@@ -95,9 +99,6 @@ private int inputIndexForVariable(Token variable) {
     } catch(NumberFormatException e) {
     }
   }
-  if(index == -1)
-    throw new IllegalArgumentException("Unknown variable " + variable.getText(), 
-      new RecognitionException(variable.getInputStream()));
   return index;
 }
 
@@ -113,9 +114,14 @@ statement
 assignment
 	:	target=VAR '=' source=operator { variables.put($target.text, $source.op); } -> ;
 
+contextAwareExpression [EvaluationExpression contextExpression]
+scope { EvaluationExpression context }
+@init { $contextAwareExpression::context = $contextExpression; }
+  : expression;
+
 expression
 	:	orExpression;
-
+	
 orExpression
   : exprs+=andExpression (('or' | '||') exprs+=andExpression)*
   -> { $exprs.size() == 1 }? { $exprs.get(0) }
@@ -156,19 +162,29 @@ preincrementExpression
 	|	unaryExpression;
 	
 unaryExpression
-	:	('!' | '~')? pathExpression;
+	:	('!' | '~')? 
+	  (({$contextAwareExpression::context != null}? contextAwarePathExpression) | pathExpression);
 
 //castExpression
 //	:	'(' STRING ')' valueExpression;
 	
+contextAwarePathExpression
+scope {  List<EvaluationExpression> fragments; }
+@init { $contextAwarePathExpression::fragments = new ArrayList<EvaluationExpression>(); }
+  : start=ID { $contextAwarePathExpression::fragments.add($contextAwareExpression::context); $contextAwarePathExpression::fragments.add(new ObjectAccess($start.text));}
+    ( ('.' (field=ID { $contextAwarePathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
+        | arrayAccess { $contextAwarePathExpression::fragments.add($arrayAccess.tree); } )* ->  ^(EXPRESSION["PathExpression"] { $contextAwarePathExpression::fragments } );
+  
 pathExpression
 scope {  List<EvaluationExpression> fragments; }
 @init { $pathExpression::fragments = new ArrayList<EvaluationExpression>(); }
-  : valueExpression (
-    ('.' (ID { $pathExpression::fragments.add(new ObjectAccess($ID.text)); } 
-        /*| functionCall { fragments.add(new ObjectAccess($ID.text)); } */)) 
-    | arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ { $pathExpression::fragments.add(0, $valueExpression.tree); } ->  ^(EXPRESSION["PathExpression"] { $pathExpression::fragments } )
-    | valueExpression;
+  : // entry point: valueExpression such as variable name
+    valueExpression
+    // add .field or [index] to path
+    ( ('.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
+        | arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ { $pathExpression::fragments.add(0, $valueExpression.tree); } ->  ^(EXPRESSION["PathExpression"] { $pathExpression::fragments } )
+  // or use expression only
+  | valueExpression;
 
 valueExpression
 	:	functionCall 
@@ -189,7 +205,7 @@ functionCall
 @init { List<EvaluationExpression> params = new ArrayList(); }
 	:	name=ID '('	
 	(param=expression { params.add($param.tree); }
-	(',' param=expression { params.add($param.tree); })*) 
+	(',' param=expression { params.add($param.tree); })*)? 
 	')' -> ^(EXPRESSION["FunctionCall"] { $name.text } { params.toArray(new EvaluationExpression[params.size()]) });
 	
 fieldAssignment returns [ObjectCreation.Mapping mapping]
@@ -258,19 +274,15 @@ genericOperator
 scope { 
   OperatorFactory.OperatorInfo operatorInfo;
 }
-	:	name=ID 
-{ 
-  $genericOperator::operatorInfo = operatorFactory.getOperatorInfo($name.text); 
-} 
+	:	name=ID {$genericOperator::operatorInfo = operatorFactory.getOperatorInfo($name.text);}
 ({$genericOperator::operatorInfo == null}? moreName=ID 
-{  
-  $genericOperator::operatorInfo = operatorFactory.getOperatorInfo($name.text + " " + $moreName.text); 
-} )? 
+{$genericOperator::operatorInfo = operatorFactory.getOperatorInfo($name.text + " " + $moreName.text);})? 
 { 
   if($genericOperator::operatorInfo == null)
     throw new IllegalArgumentException("Unknown operator:", new RecognitionException(name.getInputStream()));
   $operator::result = $genericOperator::operatorInfo.newInstance();
 } 
+operatorFlag*
 input (',' input)*	
 operatorOption* ->; 
 	
@@ -278,15 +290,19 @@ operatorOption
 scope {
  String optionName;
 }
-	:	name=ID 
-{ 
-  $operatorOption::optionName = $name.text; 
-}
+	:	name=ID { $operatorOption::optionName = $name.text; }
 ({!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName)}? moreName=ID 
-{  
-  $operatorOption::optionName+= " " + $moreName.text; 
-})?
-expr=expression { $genericOperator::operatorInfo.setProperty($operatorOption::optionName, $operator::result, $expr.tree); } ->;
+ { $operatorOption::optionName = $name.text + " " + $moreName.text;})?
+expr=contextAwareExpression[null] { $genericOperator::operatorInfo.setProperty($operatorOption::optionName, $operator::result, $expr.tree); } ->;
+
+operatorFlag
+scope {
+ String flagName;
+}
+  : name=ID  { $operatorFlag::flagName = $name.text; }
+({!$genericOperator::operatorInfo.hasFlag($operatorFlag::flagName)}? moreName=ID 
+ { $operatorFlag::flagName = $name.text + " " + $moreName.text;})?
+{ $genericOperator::operatorInfo.setProperty($operatorFlag::flagName, $operator::result, true); } ->;
 
 input	
 	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
@@ -298,8 +314,9 @@ input
   $operator::inputTags.add(preserveFlag == null ? new ArrayList<ExpressionTag>() : Arrays.asList(ExpressionTag.RETAIN));
 } 
 (inputOption=ID {$genericOperator::operatorInfo.hasInputProperty($inputOption.text)}? 
-  expr=expression { $genericOperator::operatorInfo.setInputProperty($inputOption.text, $operator::result, $operator::inputNames.size()-1, $expr.tree); })?
+  expr=contextAwareExpression[new InputSelection($operator::inputNames.size() - 1)] { $genericOperator::operatorInfo.setInputProperty($inputOption.text, $operator::result, $operator::inputNames.size()-1, $expr.tree); })?
 -> ;
+
 
 //-> {$from.text != null}? ^(BIND $name $from?)
 //	-> ^($name);	

@@ -9,17 +9,18 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.cleansing.fusion.FusionRule;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.WritableEvaluable;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-public class Validation extends ElementaryOperator<Validation> {
+@Name(verb = "scrub")
+public class Scrubbing extends ElementaryOperator<Scrubbing> {
 	/**
 	 * 
 	 */
@@ -92,8 +93,7 @@ public class Validation extends ElementaryOperator<Validation> {
 						final JsonNode validationValue = lastSegment.evaluate(parent, this.context);
 						if (!rule.validate(validationValue, this.context)) {
 							this.context.setViolatedRule(rule);
-							((WritableEvaluable) lastSegment).set(parent, rule.fix(validationValue, this.context),
-								this.context);
+							lastSegment.set(parent, rule.fix(validationValue, this.context), this.context);
 						}
 					}
 				}

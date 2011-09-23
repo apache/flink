@@ -8,13 +8,15 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE, ElementType.METHOD })
 public @interface Property {
+	boolean input() default false;
+
+	boolean flag() default false;
+
 	boolean preferred() default false;
 
 	boolean expert() default false;
 
 	boolean hidden() default false;
-
-	boolean input() default false;
 
 	String[] description() default {};
 }

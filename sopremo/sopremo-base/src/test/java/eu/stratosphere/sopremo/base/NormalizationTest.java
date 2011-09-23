@@ -1,9 +1,10 @@
-package eu.stratosphere.sopremo.cleansing.scrubbing;
+package eu.stratosphere.sopremo.base;
 
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.base.BuiltinFunctions;
+import eu.stratosphere.sopremo.base.Replace;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -11,16 +12,16 @@ import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
-public class LookupTest extends SopremoTest<Lookup> {
+public class NormalizationTest extends SopremoTest<Replace> {
 	@Override
-	protected Lookup createDefaultInstance(int index) {
-		return new Lookup().withInputKeyExtractor(new ArrayAccess(index));
+	protected Replace createDefaultInstance(int index) {
+		return new Replace().withReplaceExpression(new ArrayAccess(index));
 	}
 
 	@Test
 	public void shouldLookupValuesStrictly() {
-		final Lookup lookup = new Lookup();
-		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
+		final Replace lookup = new Replace();
+		lookup.setReplaceExpression(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
 		lookup.setDictionaryValueExtraction(new ArrayAccess(1));
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(lookup);
@@ -44,8 +45,8 @@ public class LookupTest extends SopremoTest<Lookup> {
 
 	@Test
 	public void shouldLookupValuesWithDefaultValue() {
-		final Lookup lookup = new Lookup();
-		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
+		final Replace lookup = new Replace();
+		lookup.setReplaceExpression(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
 		lookup.setDictionaryValueExtraction(new ArrayAccess(1));
 		lookup.setDefaultExpression(new FunctionCall("format", new ConstantExpression("default %s"),
@@ -73,8 +74,8 @@ public class LookupTest extends SopremoTest<Lookup> {
 
 	@Test
 	public void shouldLookupArrayValuesStrictly() {		
-		final Lookup lookup = new Lookup();
-		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
+		final Replace lookup = new Replace();
+		lookup.setReplaceExpression(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
 		lookup.setDictionaryValueExtraction(new ArrayAccess(1));
 		lookup.setArrayElementsReplacement(true);
@@ -99,8 +100,8 @@ public class LookupTest extends SopremoTest<Lookup> {
 
 	@Test
 	public void shouldLookupArrayValuesWithDefault() {
-		final Lookup lookup = new Lookup();
-		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
+		final Replace lookup = new Replace();
+		lookup.setReplaceExpression(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
 		lookup.setDictionaryValueExtraction(new ArrayAccess(1));
 		lookup.setDefaultExpression(new FunctionCall("format", new ConstantExpression("default %s"),

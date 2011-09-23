@@ -8,8 +8,8 @@ import org.codehaus.jackson.JsonNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 
-public abstract class SopremoExpression<ContextType extends EvaluationContext> implements SerializableSopremoType,
-		Iterable<SopremoExpression<ContextType>> {
+public abstract class SopremoExpression<ContextType extends EvaluationContext, ElementType extends SopremoExpression<ContextType, ElementType>>
+		implements SerializableSopremoType, Iterable<ElementType> {
 	/**
 	 * 
 	 */
@@ -55,7 +55,7 @@ public abstract class SopremoExpression<ContextType extends EvaluationContext> i
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public Iterator<SopremoExpression<ContextType>> iterator() {
+	public Iterator<ElementType> iterator() {
 		return EMPTY_ITERATOR;
 	}
 }

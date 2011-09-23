@@ -10,8 +10,8 @@ import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.util.IdentitySet;
 
-public abstract class EvaluationExpression extends SopremoExpression<EvaluationContext> {
-	private static final class SameValueExpression extends EvaluationExpression implements WritableEvaluable {
+public abstract class EvaluationExpression extends SopremoExpression<EvaluationContext, EvaluationExpression> {
+	private static final class SameValueExpression extends EvaluationExpression {
 		/**
 		 * 
 		 */
@@ -40,11 +40,6 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		}
 
 		@Override
-		public EvaluationExpression asExpression() {
-			return this;
-		}
-
-		@Override
 		protected void toString(final StringBuilder builder) {
 			builder.append("<value>");
 		}
@@ -64,6 +59,23 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 	 * Used for secondary information during plan creation only.
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
+
+	/**
+	 * Sets the value of the node specified by this expression using the given {@link EvaluationContext}.
+	 * 
+	 * @param node
+	 *        the node to change
+	 * @param value
+	 *        the value to set
+	 * @param context
+	 *        the current <code>EvaluationContext</code>
+	 * @return the node or a new node if the expression directly accesses the node
+	 */
+	@SuppressWarnings("unused")
+	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+		throw new UnsupportedOperationException(String.format(
+			"Cannot change the value with expression %s of node %s to %s", this, node, value));
+	}
 
 	public final static EvaluationExpression KEY = new EvaluationExpression() {
 		/**

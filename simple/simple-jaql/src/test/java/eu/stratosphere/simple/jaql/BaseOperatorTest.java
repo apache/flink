@@ -11,7 +11,6 @@ import java.util.List;
 import junit.framework.Assert;
 
 import org.antlr.runtime.RecognitionException;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -31,19 +30,19 @@ public class BaseOperatorTest {
 	public void testParser() throws FileNotFoundException, IOException {
 		SopremoPlan plan = null;
 
-		try {		
+		try {
 			plan = new QueryParser().tryParse(new FileInputStream(this.scriptPath));
+		} catch (RecognitionException e) {
+			Assert.fail(String.format("could not parse %s @ token %s in line %s: %s", this.scriptPath.getName(),
+				e.token, e.line, e));
 		}
-		catch (RecognitionException e) {
-			Assert.fail(String.format("could not parse %s @ token %s in line %s: %s", scriptPath.getName(), e.token, e.line, e));
-		}
-		
-		Assert.assertNotNull("could not parse " + scriptPath.getName(), plan);
+
+		Assert.assertNotNull("could not parse " + this.scriptPath.getName(), plan);
 		System.out.println(plan);
 	}
 
 	@Parameters
-	public static List<Object[]> baseScripts() throws IOException {
+	public static List<Object[]> baseScripts() {
 		ArrayList<Object[]> parameters = new ArrayList<Object[]>();
 		URL scriptDir = BaseOperatorTest.class.getClassLoader().getResource("baseScripts");
 		for (File script : new File(scriptDir.getPath()).listFiles())

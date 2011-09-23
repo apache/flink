@@ -5,11 +5,12 @@ import java.util.Arrays;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.base.ArraySplit;
 import eu.stratosphere.sopremo.base.Difference;
+import eu.stratosphere.sopremo.base.Replace;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.UnionAll;
-import eu.stratosphere.sopremo.cleansing.scrubbing.Lookup;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
@@ -64,7 +65,7 @@ public class IntraSourceRecordLinkage extends RecordLinkage<IntraSourceRecordLin
 		// closure.setIdProjection(EvaluationExpression.VALUE);
 
 		if (recordLinkageInput.getResultProjection() != resultProjection) {
-			Lookup reverseLookup = new Lookup().
+			Replace reverseLookup = new Replace().
 				withDictionaryKeyExtraction(this.getRecordLinkageInput(0).getIdProjection()).
 				withDictionaryValueExtraction(this.getRecordLinkageInput(0).getResultProjection()).
 				withArrayElementsReplacement(true).
@@ -77,9 +78,9 @@ public class IntraSourceRecordLinkage extends RecordLinkage<IntraSourceRecordLin
 			return module;
 		}
 
-		ValueSplitter allTuples = new ValueSplitter().
+		ArraySplit allTuples = new ArraySplit().
 			withInputs(closure).
-			withArrayProjection(EvaluationExpression.VALUE).
+			withArrayPath(EvaluationExpression.VALUE).
 			withKeyProjection(new ArrayAccess(0)).
 			withValueProjection(EvaluationExpression.NULL);
 		allTuples.setName("all tuples");

@@ -22,7 +22,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = 1681947333740209285L;
 
-	private final SopremoExpression<EvaluationContext>[] elements;
+	private final EvaluationExpression[] elements;
 
 	/**
 	 * Initializes ArrayCreation to create an array of the given expressions.
@@ -54,7 +54,7 @@ public class ArrayCreation extends ContainerExpression {
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		final ArrayNode arrayNode = JsonUtil.NODE_FACTORY.arrayNode();
-		for (final SopremoExpression<EvaluationContext> expression : this.elements)
+		for (final EvaluationExpression expression : this.elements)
 			arrayNode.add(expression.evaluate(node, context));
 		return arrayNode;
 	}
@@ -65,7 +65,7 @@ public class ArrayCreation extends ContainerExpression {
 	}
 
 	@Override
-	public Iterator<SopremoExpression<EvaluationContext>> iterator() {
+	public Iterator<EvaluationExpression> iterator() {
 		return Arrays.asList(this.elements).iterator();
 	}
 

@@ -13,7 +13,7 @@ import eu.stratosphere.sopremo.EvaluationException;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.OBJECT)
-public class ObjectAccess extends EvaluationExpression implements WritableEvaluable {
+public class ObjectAccess extends EvaluationExpression {
 
 	/**
 	 * 
@@ -37,11 +37,6 @@ public class ObjectAccess extends EvaluationExpression implements WritableEvalua
 	public ObjectAccess(String field, boolean safeDereference) {
 		this.field = field;
 		this.safeDereference = safeDereference;
-	}
-
-	@Override
-	public EvaluationExpression asExpression() {
-		return this;
 	}
 
 	@Override

@@ -54,13 +54,13 @@ public class OperatorFactory {
 			return this.operatorProperties.get(name) != null;
 		}
 
-		public void setProperty(String name, Op operator, EvaluationExpression expression) {
+		public void setProperty(String name, Op operator, Object value) {
 			PropertyDescriptor propertyDescriptor = this.operatorProperties.get(name);
 			if (propertyDescriptor == null)
 				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
 					name, operator.getName(), this.operatorProperties.keySet()));
 			try {
-				propertyDescriptor.getWriteMethod().invoke(operator, expression);
+				propertyDescriptor.getWriteMethod().invoke(operator, value);
 			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 			} catch (IllegalAccessException e) {
@@ -72,6 +72,10 @@ public class OperatorFactory {
 
 		public boolean hasInputProperty(String name) {
 			return this.inputProperties.get(name) != null;
+		}
+
+		public boolean hasFlag(String name) {
+			return this.inputProperties.get(name) != null && this.inputProperties.get(name).getPropertyType() == Boolean.TYPE;
 		}
 
 		public void setInputProperty(String name, Op operator, int inputIndex, EvaluationExpression expression) {

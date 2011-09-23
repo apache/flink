@@ -2,8 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.Iterator;
 
-import eu.stratosphere.sopremo.EvaluationContext;
-
 public abstract class ContainerExpression extends EvaluationExpression {
 	/**
 	 * 
@@ -12,7 +10,7 @@ public abstract class ContainerExpression extends EvaluationExpression {
 
 	@SuppressWarnings("unchecked")
 	public <T extends EvaluationExpression> T find(final Class<T> evaluableClass) {
-		for (final SopremoExpression<EvaluationContext> element : this) {
+		for (final EvaluationExpression element : this) {
 			if (evaluableClass.isInstance(element))
 				return (T) element;
 
@@ -26,10 +24,10 @@ public abstract class ContainerExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public abstract Iterator<SopremoExpression<EvaluationContext>> iterator();
+	public abstract Iterator<EvaluationExpression> iterator();
 
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-		for (final SopremoExpression<EvaluationContext> element : this)
+		for (final EvaluationExpression element : this)
 			if (element instanceof ContainerExpression)
 				((ContainerExpression) element).replace(toReplace, replaceFragment);
 	}

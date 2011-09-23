@@ -18,7 +18,7 @@ public class FunctionCall extends ContainerExpression {
 
 	private final String name;
 
-	private final SopremoExpression<EvaluationContext>[] paramExprs;
+	private final EvaluationExpression[] paramExprs;
 
 	public FunctionCall(final String name, final EvaluationExpression... params) {
 		this.name = name;
@@ -56,7 +56,7 @@ public class FunctionCall extends ContainerExpression {
 	}
 
 	@Override
-	public Iterator<SopremoExpression<EvaluationContext>> iterator() {
+	public Iterator<EvaluationExpression> iterator() {
 		return Arrays.asList(this.paramExprs).iterator();
 	}
 

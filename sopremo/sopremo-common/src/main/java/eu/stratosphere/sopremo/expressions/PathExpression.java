@@ -17,7 +17,7 @@ public class PathExpression extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = -4663949354781572815L;
 
-	private final List<SopremoExpression<EvaluationContext>> fragments = new ArrayList<SopremoExpression<EvaluationContext>>();
+	private final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
 
 	public PathExpression(final EvaluationExpression... fragments) {
 		this(Arrays.asList(fragments));
@@ -50,7 +50,7 @@ public class PathExpression extends ContainerExpression {
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		JsonNode fragmentNode = node;
-		for (final SopremoExpression<EvaluationContext> fragment : this.fragments)
+		for (final EvaluationExpression fragment : this.fragments)
 			fragmentNode = fragment.evaluate(fragmentNode, context);
 		return fragmentNode;
 	}
@@ -59,11 +59,11 @@ public class PathExpression extends ContainerExpression {
 		return this.fragments.size();
 	}
 
-	public SopremoExpression<EvaluationContext> getFragment(final int index) {
+	public EvaluationExpression getFragment(final int index) {
 		return this.fragments.get(index);
 	}
 
-	public List<SopremoExpression<EvaluationContext>> getFragments() {
+	public List<EvaluationExpression> getFragments() {
 		return this.fragments;
 	}
 
@@ -82,7 +82,7 @@ public class PathExpression extends ContainerExpression {
 	}
 
 	@Override
-	public Iterator<SopremoExpression<EvaluationContext>> iterator() {
+	public Iterator<EvaluationExpression> iterator() {
 		return this.fragments.iterator();
 	}
 
@@ -108,7 +108,7 @@ public class PathExpression extends ContainerExpression {
 
 	@Override
 	protected void toString(final StringBuilder builder) {
-		for (final SopremoExpression<EvaluationContext> fragment : this.fragments)
+		for (final EvaluationExpression fragment : this.fragments)
 			fragment.toString(builder);
 	}
 
@@ -135,41 +135,42 @@ public class PathExpression extends ContainerExpression {
 		return valueOf(Arrays.asList(expressions));
 	}
 
-	public static class Writable extends PathExpression implements WritableEvaluable {
-
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 2014987314121118540L;
-
-		public <T extends EvaluationExpression & WritableEvaluable> Writable(final List<T> fragments) {
-			super(fragments);
-		}
-
-		public <T extends EvaluationExpression & WritableEvaluable> Writable(final T... fragments) {
-			super(fragments);
-		}
-
-		@Override
-		public void add(final EvaluationExpression fragment) {
-			if (!(fragment instanceof WritableEvaluable))
-				throw new IllegalArgumentException();
-			super.add(fragment);
-		}
-
-		@Override
-		public EvaluationExpression asExpression() {
-			return this;
-		}
-
-		@Override
-		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
-			JsonNode fragmentNode = node;
-			final List<SopremoExpression<EvaluationContext>> fragments = this.getFragments();
-			for (int index = 0; index < fragments.size() - 1; index++)
-				fragmentNode = fragments.get(index).evaluate(fragmentNode, context);
-			((WritableEvaluable) fragmentNode).set(node, value, context);
-			return node;
-		}
+	@Override
+	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+		JsonNode fragmentNode = node;
+		final List<EvaluationExpression> fragments = this.getFragments();
+		for (int index = 0; index < fragments.size() - 1; index++)
+			fragmentNode = fragments.get(index).evaluate(fragmentNode, context);
+		fragments.get(fragments.size() - 1).set(node, value, context);
+		return node;
 	}
+//	
+//	public static class Writable extends PathExpression implements WritableEvaluable {
+//
+//		/**
+//		 * 
+//		 */
+//		private static final long serialVersionUID = 2014987314121118540L;
+//
+//		public <T extends EvaluationExpression & WritableEvaluable> Writable(final List<T> fragments) {
+//			super(fragments);
+//		}
+//
+//		public <T extends EvaluationExpression & WritableEvaluable> Writable(final T... fragments) {
+//			super(fragments);
+//		}
+//
+//		@Override
+//		public void add(final EvaluationExpression fragment) {
+//			if (!(fragment instanceof WritableEvaluable))
+//				throw new IllegalArgumentException();
+//			super.add(fragment);
+//		}
+//
+//		@Override
+//		public EvaluationExpression asExpression() {
+//			return this;
+//		}
+//
+//	}
 }

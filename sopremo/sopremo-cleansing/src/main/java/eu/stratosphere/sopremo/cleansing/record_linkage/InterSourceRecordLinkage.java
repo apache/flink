@@ -7,10 +7,11 @@ import java.util.List;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.base.ArraySplit;
 import eu.stratosphere.sopremo.base.Difference;
+import eu.stratosphere.sopremo.base.Replace;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.base.UnionAll;
-import eu.stratosphere.sopremo.cleansing.scrubbing.Lookup;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -59,10 +60,10 @@ public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLin
 		if (this.getLinkageMode().getClosureMode().isProvenance())
 			for (int index = 0, size = inputs.size(); index < size; index++)
 				if (inputs.get(index).getResultProjection() != originalInputs.get(index).getResultProjection()) {
-					Lookup reverseLookup = new Lookup().
+					Replace reverseLookup = new Replace().
 						withDictionaryKeyExtraction(originalInputs.get(index).getIdProjection()).
 						withDictionaryValueExtraction(originalInputs.get(index).getResultProjection()).
-						withInputKeyExtractor(new ArrayAccess(index)).
+						withReplaceExpression(new ArrayAccess(index)).
 						withArrayElementsReplacement(true).
 						withInputs(output, inputs.get(index));
 					output = reverseLookup;
@@ -101,9 +102,9 @@ public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLin
 
 		if (this.getLinkageMode().getClosureMode().isProvenance())
 			for (int index = 0; index < originalInputs.size(); index++) {
-				ValueSplitter allTuples = new ValueSplitter().
+				ArraySplit allTuples = new ArraySplit().
 					withInputs(closure).
-					withArrayProjection(new ArrayAccess(index)).
+					withArrayPath(new ArrayAccess(index)).
 					withKeyProjection(new ArrayAccess(0)).
 					withValueProjection(EvaluationExpression.NULL);
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
@@ -121,8 +122,8 @@ public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLin
 					withValueTransformation(new ArrayCreation(expressions)));
 			}
 		else {
-			ValueSplitter allTuples = new ValueSplitter().
-				withArrayProjection(EvaluationExpression.VALUE).
+			ArraySplit allTuples = new ArraySplit().
+				withArrayPath(EvaluationExpression.VALUE).
 				withKeyProjection(new ArrayAccess(0)).
 				withValueProjection(EvaluationExpression.NULL).
 				withInputs(closure);

@@ -96,6 +96,7 @@ public abstract class SimpleParser extends Parser {
 		}
 	}
 
+	@SuppressWarnings("unused")
 	private void importFromJar(String classPath, File file) throws IOException {
 		Enumeration<JarEntry> entries = new JarFile(file).entries();
 		while (entries.hasMoreElements()) {

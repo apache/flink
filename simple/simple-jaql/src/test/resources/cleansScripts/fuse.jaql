@@ -1,3 +1,5 @@
+using cleansing;
+
 $fusedPersons = fuse $sponsor, $member in $linkedPersons
 	into { *@\label{line:fuse_into_start}@*
 		id: generateId('person'),

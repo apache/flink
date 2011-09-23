@@ -17,7 +17,6 @@ import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.TextNode;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 
 public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> {
@@ -120,7 +119,7 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 	@Test
 	public void shouldFindRightFragment() {
-		final SopremoExpression<EvaluationContext> result = new PathExpression(new ObjectAccess("glossary"),
+		final EvaluationExpression result = new PathExpression(new ObjectAccess("glossary"),
 			new ObjectAccess("GlossDiv"), new ObjectAccess("GlossList")).getFragment(1);
 
 		Assert.assertEquals(new ObjectAccess("GlossDiv"), result);

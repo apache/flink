@@ -102,10 +102,10 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	@Override
-	public Iterator<SopremoExpression<EvaluationContext>> iterator() {
-		return new ConversionIterator<Mapping, SopremoExpression<EvaluationContext>>(this.mappings.iterator()) {
+	public Iterator<EvaluationExpression> iterator() {
+		return new ConversionIterator<Mapping, EvaluationExpression>(this.mappings.iterator()) {
 			@Override
-			protected SopremoExpression<EvaluationContext> convert(final Mapping inputObject) {
+			protected EvaluationExpression convert(final Mapping inputObject) {
 				return inputObject.getExpression();
 			}
 		};

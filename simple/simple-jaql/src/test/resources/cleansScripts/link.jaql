@@ -1,8 +1,0 @@
-$funds = read hdfs('Funds.json');
-$persons = read hdfs('Persons.json');
-
-$funds -> substitute sponsor in $.sponsors
-	using person in $persons
-	where sponsor in person.originalRecords
-	with person.id;
--> write(hdfs('Funds.json'));

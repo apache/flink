@@ -40,7 +40,7 @@ public class SchemaMapping extends CompositeOperator<SchemaMapping> {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		final Validation validation = new Validation();
+		final Scrubbing validation = new Scrubbing();
 		validation.setInputs(new Projection().withValueTransformation(this.projection));
 		validation.setRules(this.rules);
 		return SopremoModule.valueOf(this.getName(), validation);

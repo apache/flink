@@ -7,7 +7,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.SopremoExpression;
 
-public abstract class CleansingRule<ContextType extends EvaluationContext> extends SopremoExpression<ContextType> {
+public abstract class CleansingRule<ContextType extends EvaluationContext> extends SopremoExpression<ContextType, CleansingRule<ContextType>> {
 
 	/**
 	 * 

@@ -26,22 +26,23 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.base.ArraySplit;
 import eu.stratosphere.sopremo.base.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Grouping;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.base.UnionAll;
+import eu.stratosphere.sopremo.base.ValueSplit;
 import eu.stratosphere.sopremo.cleansing.record_linkage.DisjunctPartitioning;
 import eu.stratosphere.sopremo.cleansing.record_linkage.InterSourceRecordLinkage;
 import eu.stratosphere.sopremo.cleansing.record_linkage.LinkageMode;
 import eu.stratosphere.sopremo.cleansing.record_linkage.Naive;
-import eu.stratosphere.sopremo.cleansing.record_linkage.ValueSplitter;
 import eu.stratosphere.sopremo.cleansing.scrubbing.BlackListRule;
 import eu.stratosphere.sopremo.cleansing.scrubbing.NonNullRule;
 import eu.stratosphere.sopremo.cleansing.scrubbing.PatternValidationExpression;
 import eu.stratosphere.sopremo.cleansing.scrubbing.SchemaMapping;
-import eu.stratosphere.sopremo.cleansing.scrubbing.Validation;
+import eu.stratosphere.sopremo.cleansing.scrubbing.Scrubbing;
 import eu.stratosphere.sopremo.cleansing.similarity.MongeElkanSimilarity;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
@@ -519,9 +520,9 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		address.addMapping("country", new ConstantExpression("United States of America"));
 		projection.addMapping("addresses", address);
 
-		ValueSplitter valueSplitter = new ValueSplitter().
+		ArraySplit valueSplitter = new ArraySplit().
 			withInputs(this.scrubbed[CONGRESS]).
-			withArrayProjection(new ObjectAccess("congresses")).
+			withArrayPath(new ObjectAccess("congresses")).
 			withKeyProjection(new PathExpression(new ArrayAccess(0), new ObjectAccess("state"))).
 			withValueProjection(new PathExpression(new ArrayAccess(0), new ObjectAccess("state")));
 		Grouping grouping = new Grouping().
@@ -539,9 +540,9 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		projection.addMapping("id", new FunctionCall("format", new ConstantExpression("congressLegalEntity%s"), first));
 		projection.addMapping("names", new ArrayCreation(first));
 
-		ValueSplitter valueSplitter = new ValueSplitter().
+		ArraySplit valueSplitter = new ArraySplit().
 			withInputs(this.scrubbed[CONGRESS]).
-			withArrayProjection(new ObjectAccess("congresses")).
+			withArrayPath(new ObjectAccess("congresses")).
 			withKeyProjection(new PathExpression(new ArrayAccess(0), new ObjectAccess("party"))).
 			withValueProjection(new PathExpression(new ArrayAccess(0), new ObjectAccess("party")));
 		Grouping grouping = new Grouping().
@@ -926,7 +927,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		}
 
 		Source earmarks = new Source(String.format("%s/OriginalUsEarmark2008.json", this.inputDir));
-		Operator<?> scrubbed = new Validation().withInputs(earmarks);
+		Operator<?> scrubbed = new Scrubbing().withInputs(earmarks);
 
 		// scrubbed = new Lookup(new ObjectAccess("sponsorFirstName"), new Source(getInternalInputFormat(), ));
 		// validation.addRule(new RangeRule(new ObjectAccess("memberName")));
@@ -950,7 +951,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		if (this.joinedCongress == null)
 			this.joinCongress(true);
-		Validation scrubbedCongress = new Validation().withInputs(this.joinedCongress);
+		Scrubbing scrubbedCongress = new Scrubbing().withInputs(this.joinedCongress);
 		scrubbedCongress.addRule(new NonNullRule(new ObjectAccess("memberName")));
 		scrubbedCongress.addRule(new NonNullRule(TextNode.valueOf("none"), new ObjectAccess("biography")));
 		scrubbedCongress.addRule(new PatternValidationExpression(Pattern.compile("[0-9]+\\(.*"), new ObjectAccess(

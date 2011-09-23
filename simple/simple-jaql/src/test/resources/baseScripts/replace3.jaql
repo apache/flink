@@ -1,0 +1,9 @@
+$persons = read hdfs('Persons.json');
+$languages = read hdfs('Languages.json');
+
+$normalizedPersons = replace all $person in $persons 
+	on $person.spokenLanguages
+	with $languages
+	default {};
+
+write $normalizedPersons to hdfs('NormalizedPersons.json');

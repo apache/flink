@@ -1,3 +1,5 @@
+using cleansing;
+
 extract from $scrubbed_earmarks into {
 	$funds = group by $.earmarkId {
 		id: generateId('earmark'),

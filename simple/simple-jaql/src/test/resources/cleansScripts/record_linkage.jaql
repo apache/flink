@@ -1,3 +1,5 @@
+using cleansing;
+
 $sponsors = read hdfs('EarmarkSponsors.json');
 $members = read hdfs('CongressMembers.json');
 
