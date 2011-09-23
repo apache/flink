@@ -107,7 +107,7 @@ public class IntNode extends NumericNode {
 	}
 	@Override
 	public TYPES getType() {
-		return TYPES.DoubleNode;
+		return TYPES.IntNode;
 	}
 	
 }

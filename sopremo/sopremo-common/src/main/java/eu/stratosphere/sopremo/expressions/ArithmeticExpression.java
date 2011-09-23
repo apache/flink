@@ -227,8 +227,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return DecimalNode.valueOf(this.evaluate(((DecimalNode) left).getDecimalValue(),
-				((DecimalNode) right).getDecimalValue()));
+			return DecimalNode.valueOf(this.evaluate( left.getDecimalValue(),
+				right.getDecimalValue()));
 		}
 	}
 
@@ -237,8 +237,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return BigIntegerNode.valueOf(this.evaluate(((BigIntegerNode) left).getBigIntegerValue(),
-				((BigIntegerNode) right).getBigIntegerValue()));
+			return BigIntegerNode.valueOf(this.evaluate(left.getBigIntegerValue(),
+				right.getBigIntegerValue()));
 		}
 	}
 
@@ -260,8 +260,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return DecimalNode.valueOf(divideImpl(((DecimalNode) left).getDecimalValue(),
-				((DecimalNode) right).getDecimalValue()));
+			return DecimalNode.valueOf(divideImpl(left.getDecimalValue(),
+				right.getDecimalValue()));
 		}
 
 		public static BigDecimal divideImpl(final BigDecimal bigLeft, final BigDecimal bigRight) {

@@ -24,6 +24,10 @@ public class DoubleNode extends NumericNode {
 	public DoubleNode(final double v) {
 		this.value = new PactDouble(v);
 	}
+	
+	public DoubleNode(final float v) {
+		this.value = new PactDouble(v);
+	}
 
 	public static DoubleNode valueOf(final double v) {
 		return new DoubleNode(v);

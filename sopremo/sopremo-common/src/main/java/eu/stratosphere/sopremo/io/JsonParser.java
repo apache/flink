@@ -34,14 +34,16 @@ import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 public class JsonParser {
 
 	private BufferedReader reader;
-
+	
 	private Stack<JsonNode> state = new ObjectArrayList<JsonNode>();
 
 	ContainerNode root = new ContainerNode();
 
 	private boolean insideString = false;
 
-	private boolean wasString;
+	private boolean wasString = false;
+	
+	private boolean isArray = false;
 
 	private Char2ObjectMap<CharacterHandler> handler = new Char2ObjectOpenHashMap<CharacterHandler>(
 		new char[] { '[', ']', '{', '}', ':', '\"', ',', ' ' },
@@ -71,9 +73,9 @@ public class JsonParser {
 		this.state.push(this.root);
 
 		StringBuilder sb = new StringBuilder();
-		int nextChar;
+		int nextChar = this.reader.read();
 
-		while ((nextChar = this.reader.read()) != -1) {
+		do {
 			char character = (char) nextChar;
 			if (insideString && character != '\"') {
 				sb.append(character);
@@ -81,18 +83,20 @@ public class JsonParser {
 			} else {
 				this.handler.get(character).handleCharacter(sb, character);
 			}
+			nextChar = this.reader.read();
 
-		}
-
-		if (state.top() != root) {
-			throw new JsonParseException();
-		}
+		} while ((this.state.top() != root || nextChar != ',')  && (nextChar) != -1);
 
 		if (sb.length() != 0) {
+			if(root == state.top())
 			root.addValue(JsonParser.parsePrimitive(sb.toString()));
+			else return JsonParser.parsePrimitive(sb.toString());
 		}
 
-		return ((ArrayNode) root.build()).get(0);
+		if(isArray){
+			return root.remove(0);
+		} else return ((ArrayNode) root.build()).get(0);
+		
 	}
 
 	public Object nextToken() {
@@ -143,17 +147,37 @@ public class JsonParser {
 
 		@Override
 		public void handleCharacter(StringBuilder sb, char character) {
-			ContainerNode newArray = new ContainerNode();
-			state.push(newArray);
+			if (root == state.top() && !isArray) {				
+				isArray = true;
+			} else {
+				state.push(new ContainerNode());
+			}
 		}
 
+	}
+
+	private class OpenObjectHandler implements CharacterHandler {
+	
+		@Override
+		public void handleCharacter(StringBuilder sb, char character) {
+			ContainerNode node = new ContainerNode();
+			state.push(node);
+	
+		}
+	
 	}
 
 	private class CloseArrayHandler implements CharacterHandler {
 
 		@Override
 		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
-			ContainerNode node = (ContainerNode) state.pop();
+			ContainerNode node;
+			if (state.top() != root) {
+				node = (ContainerNode) state.pop();
+			} else {
+				node = (ContainerNode) state.top();
+			}
+
 			if (sb.length() != 0) {
 				if (!wasString) {
 					node.addValue(JsonParser.parsePrimitive(sb.toString()));
@@ -167,6 +191,32 @@ public class JsonParser {
 			((ContainerNode) state.top()).addValue(node.build());
 
 		}
+	}
+
+	private class CloseObjectHandler implements CharacterHandler {
+	
+		@Override
+		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
+			ContainerNode node;
+			if (state.top() != root) {
+				node = (ContainerNode) state.pop();
+			} else {
+				node = (ContainerNode) state.top();
+			}
+			if (sb.length() != 0) {
+				if (!wasString) {
+					node.addValue(JsonParser.parsePrimitive(sb.toString()));
+				} else {
+					node.addValue(TextNode.valueOf(sb.toString()));
+					wasString = false;
+				}
+				sb.setLength(0);
+			}
+	
+			((ContainerNode) state.top()).addValue(node.build());
+				
+		}
+	
 	}
 
 	private class StringHandler implements CharacterHandler {
@@ -214,37 +264,6 @@ public class JsonParser {
 
 	}
 
-	private class OpenObjectHandler implements CharacterHandler {
-
-		@Override
-		public void handleCharacter(StringBuilder sb, char character) {
-			ContainerNode node = new ContainerNode();
-			state.push(node);
-
-		}
-
-	}
-
-	private class CloseObjectHandler implements CharacterHandler {
-
-		@Override
-		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
-			ContainerNode node = (ContainerNode) state.pop();
-			if (sb.length() != 0) {
-				if (!wasString) {
-					node.addValue(JsonParser.parsePrimitive(sb.toString()));
-				} else {
-					node.addValue(TextNode.valueOf(sb.toString()));
-					wasString = false;
-				}
-				sb.setLength(0);
-			}
-
-			((ContainerNode) state.top()).addValue(node.build());
-		}
-
-	}
-
 	private class KeyValueSeperatorHandler implements CharacterHandler {
 
 		@Override
@@ -262,8 +281,14 @@ public class JsonParser {
 	private class DefaultHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) {
-			sb.append(character);
+		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
+
+			if (Character.isWhitespace(character)) {
+				handler.get(' ').handleCharacter(sb, character);
+			} else {
+				sb.append(character);
+			}
+
 		}
 	}
 
@@ -286,6 +311,13 @@ public class JsonParser {
 			this.values.add(node);
 		}
 
+		public JsonNode remove(int index) throws JsonParseException{
+			if(this.keys.isEmpty()){
+				return this.values.remove(index);
+			}
+			throw new JsonParseException();
+		}
+		
 		public JsonNode build() throws JsonParseException {
 			JsonNode node;
 

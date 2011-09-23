@@ -43,7 +43,7 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 		batch.add(BuiltinFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final JsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), this.context);
-		final JsonNode[] expected = { new DoubleNode(1 + 2 + 3 + 4 + 5),
+		final JsonNode[] expected = { new IntNode(1 + 2 + 3 + 4 + 5),
 			new DoubleNode((double) (1 + 2 + 3 + 4 + 5) / 5),
 			new DoubleNode((double) (1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5) };
 		Assert.assertEquals(JsonUtil.asArray(expected), result);

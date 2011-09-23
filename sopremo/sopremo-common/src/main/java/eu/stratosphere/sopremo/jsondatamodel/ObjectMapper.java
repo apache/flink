@@ -17,6 +17,7 @@ public class ObjectMapper {
 			typeDict.put(BigInteger.class, BigIntegerNode.class.getConstructor(BigInteger.class));
 			typeDict.put(BigDecimal.class, DecimalNode.class.getConstructor(BigDecimal.class));
 			typeDict.put(Double.class, DoubleNode.class.getConstructor(Double.TYPE));
+			typeDict.put(Float.class, DoubleNode.class.getConstructor(Float.TYPE));
 			typeDict.put(String.class, TextNode.class.getConstructor(String.class));
 		} catch (SecurityException e) {
 			e.printStackTrace();
@@ -34,6 +35,9 @@ public class ObjectMapper {
 		Class<? extends Object> valueClass = value.getClass();
 		if(value instanceof JsonNode){
 			return (JsonNode)value;
+		}
+		if(value instanceof StringBuilder){
+			return TextNode.valueOf(((StringBuilder)value).toString());
 		}
 		if (valueClass.isArray()) {
 			Object[] array = (Object[]) value;

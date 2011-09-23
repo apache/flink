@@ -101,7 +101,7 @@ public class BuiltinFunctions {
 
 		@Override
 		public void aggregate(final JsonNode node, final EvaluationContext context) {
-			this.value += ((DoubleNode) node).getDoubleValue();
+			this.value += ((NumericNode) node).getDoubleValue();
 			this.count++;
 		}
 

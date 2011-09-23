@@ -65,7 +65,7 @@ public class FunctionRegistryTest {
 	public void shouldInvokeArrayJavaFunctionForArrayNode() {
 		this.registry.register(JavaFunctions.class);
 
-		Assert.assertSame(ARRAY_NODE, this.registry.evaluate("count", new ArrayNode(), this.context));
+		Assert.assertSame(ARRAY_NODE, this.registry.evaluate("count", JsonUtil.asArray(new ArrayNode()), this.context));
 	}
 
 	@Test
