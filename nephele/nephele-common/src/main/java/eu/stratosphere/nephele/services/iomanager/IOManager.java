@@ -286,6 +286,24 @@ public final class IOManager implements UncaughtExceptionHandler
 	}
 	
 	/**
+	 * Creates a block channel writer that writes to the given channel. The writer writes asynchronously (write-behind),
+	 * accepting write request, carrying them out at some time and returning the written segment its return queue afterwards.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @return A block channel writer that writes to the given channel.
+	 * @throws IOException Thrown, if the channel for the writer could not be opened.
+	 */
+	public BlockChannelWriter createBlockChannelWriter(Channel.ID channelID)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
+		return new BlockChannelWriter(channelID, this.writer.requestQueue, new LinkedBlockingQueue<MemorySegment>());
+	}
+	
+	/**
 	 * Creates a block channel reader that reads blocks from the given channel. The reader reads asynchronously,
 	 * such that a read request is accepted, carried out at some (close) point in time, and the full segment
 	 * is pushed to the given queue.
@@ -304,6 +322,25 @@ public final class IOManager implements UncaughtExceptionHandler
 		}
 		
 		return new BlockChannelReader(channelID, this.reader.requestQueue, returnQueue);
+	}
+	
+	/**
+	 * Creates a block channel reader that reads blocks from the given channel. The reader reads asynchronously,
+	 * such that a read request is accepted, carried out at some (close) point in time, and the full segment
+	 * is pushed to the reader's return queue.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @return A block channel reader that reads from the given channel.
+	 * @throws IOException Thrown, if the channel for the reader could not be opened.
+	 */
+	public BlockChannelReader createBlockChannelReader(Channel.ID channelID)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
+		return new BlockChannelReader(channelID, this.reader.requestQueue, new LinkedBlockingQueue<MemorySegment>());
 	}
 	
 	/**

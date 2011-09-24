@@ -50,7 +50,7 @@ public final class Channel {
 		 * 
 		 * @return
 		 */
-		protected String getPath() {
+		public String getPath() {
 			return path;
 		}
 
