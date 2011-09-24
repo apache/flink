@@ -45,6 +45,18 @@ public final class MathUtils
 		return log;
 	}
 	
+	/**
+	 * Decrements the given number down to the closest power of two. If the argument is a
+	 * power of two, it remains unchanged.
+	 * 
+	 * @param value The value to round down.
+	 * @return The closest value that is a power of to and less or equal than the given value.
+	 */
+	public static final int roundDownToPowerOf2(int value)
+	{
+		return Integer.highestOneBit(value);
+	}
+	
 	// ============================================================================================
 	
 	/**

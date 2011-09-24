@@ -45,4 +45,34 @@ public class MathUtilTest
 		}
 		catch (ArithmeticException aex) {}
 	}
+	
+	@Test
+	public void testRoundDownToPowerOf2()
+	{
+		assertEquals(0, MathUtils.roundDownToPowerOf2(0));
+		assertEquals(1, MathUtils.roundDownToPowerOf2(1));
+		assertEquals(2, MathUtils.roundDownToPowerOf2(2));
+		assertEquals(2, MathUtils.roundDownToPowerOf2(3));
+		assertEquals(4, MathUtils.roundDownToPowerOf2(4));
+		assertEquals(4, MathUtils.roundDownToPowerOf2(5));
+		assertEquals(4, MathUtils.roundDownToPowerOf2(6));
+		assertEquals(4, MathUtils.roundDownToPowerOf2(7));
+		assertEquals(8, MathUtils.roundDownToPowerOf2(8));
+		assertEquals(8, MathUtils.roundDownToPowerOf2(9));
+		assertEquals(8, MathUtils.roundDownToPowerOf2(15));
+		assertEquals(16, MathUtils.roundDownToPowerOf2(16));
+		assertEquals(16, MathUtils.roundDownToPowerOf2(17));
+		assertEquals(16, MathUtils.roundDownToPowerOf2(31));
+		assertEquals(32, MathUtils.roundDownToPowerOf2(32));
+		assertEquals(32, MathUtils.roundDownToPowerOf2(33));
+		assertEquals(32, MathUtils.roundDownToPowerOf2(42));
+		assertEquals(32, MathUtils.roundDownToPowerOf2(63));
+		assertEquals(64, MathUtils.roundDownToPowerOf2(64));
+		assertEquals(64, MathUtils.roundDownToPowerOf2(125));
+		assertEquals(16384, MathUtils.roundDownToPowerOf2(25654));
+		assertEquals(33554432, MathUtils.roundDownToPowerOf2(34366363));
+		assertEquals(33554432, MathUtils.roundDownToPowerOf2(63463463));
+		assertEquals(1073741824, MathUtils.roundDownToPowerOf2(1852987883));
+		assertEquals(1073741824, MathUtils.roundDownToPowerOf2(Integer.MAX_VALUE));
+	}
 }
