@@ -26,9 +26,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.services.iomanager.BlockChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
-import eu.stratosphere.nephele.services.iomanager.ChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -136,7 +136,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
-	 * @param ioMemory The amount of memory to be dedicated to writing sorted runs. Will be subtracted from the total
+	 * @param maxIoMemory The maximal amount of memory to be dedicated to writing sorted runs. Will be subtracted from the total
 	 *                 amount of memory (<code>totalMemory</code>).
 	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
@@ -155,13 +155,13 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 */
 	public CombiningUnilateralSortMerger(ReduceStub combineStub,
 			MemoryManager memoryManager, IOManager ioManager,
-			long totalMemory, long ioMemory, int numSortBuffers, int maxNumFileHandles,
+			long totalMemory, long maxIoMemory, int numSortBuffers, int maxNumFileHandles,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
 			MutableObjectIterator<PactRecord> input, AbstractTask parentTask,
 			float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
-		super(memoryManager, ioManager, totalMemory, ioMemory, numSortBuffers, maxNumFileHandles,
+		super(memoryManager, ioManager, totalMemory, maxIoMemory, numSortBuffers, maxNumFileHandles,
 			keyComparators, keyPositions, keyClasses, input, parentTask, startSpillingFraction);
 
 		this.combineStub = combineStub;
@@ -183,12 +183,11 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 */
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
+			MemoryManager memoryManager, IOManager ioManager, long readMemSize,
 			AbstractInvokable parentTask)
 	{
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager,
-			writeMemSize, readMemSize,
-			parentTask);
+			readMemSize, parentTask);
 	}
 
 	// ------------------------------------------------------------------------
@@ -207,23 +206,21 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 */
 	@Override
 	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, List<List<MemorySegment>> readBuffers,
-			List<MemorySegment> writeBuffers, int writeBufferSize)
+			List<MemorySegment> writeBuffers)
 	throws IOException
 	{
 		// the list with the readers, to be closed at shutdown
-		final List<ChannelAccess<?, ?>> channelAccesses = new ArrayList<ChannelAccess<?, ?>>(channelIDs.size());
+		final List<BlockChannelAccess<?, ?>> channelAccesses = new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size());
 
 		// the list with the target iterators
 		final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
 		final KeyGroupedIterator groupedIter = new KeyGroupedIterator(mergeIterator, this.keyPositions, this.keyClasses);
 		
 		// create a new channel writer
-		final LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
 		final Channel.ID mergedChannelID = this.ioManager.createChannel();
-		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(mergedChannelID, returnQueue);
+		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(mergedChannelID);
 		registerOpenChannelToBeRemovedAtShudown(writer);
-		
-		final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, writeBufferSize);
+		final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, this.ioBufferSize);
 		
 		final WriterCollector collector = new WriterCollector(output);
 		final ReduceStub combineStub = this.combineStub;
@@ -257,11 +254,10 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	protected class CombiningSpillingThread extends SpillingThread
 	{
 		public CombiningSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				MemoryManager memoryManager, IOManager ioManager,
-				long writeMemSize, long readMemSize,
+				MemoryManager memoryManager, IOManager ioManager, long readMemSize,
 				AbstractInvokable parentTask)
 		{
-			super(exceptionHandler, queues, memoryManager, ioManager, writeMemSize, readMemSize, parentTask);
+			super(exceptionHandler, queues, memoryManager, ioManager, readMemSize, parentTask);
 		}
 
 		/**
@@ -346,7 +342,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			
 			final Channel.Enumerator enumerator = this.ioManager.createChannelEnumerator();
 			final LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
-			final int writeBufferSize = (int) this.writeMemSize / NUM_WRITE_BUFFERS;
+			final int writeBufferSize = CombiningUnilateralSortMerger.this.ioBufferSize;
 			
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
 			List<MemorySegment> writeBuffers;
@@ -441,7 +437,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				if (LOG.isDebugEnabled())
 					LOG.debug("Combined and spilled buffer " + element.id + ".");
 
-				writeBuffers = output.close();
+				output.close();
 				unregisterOpenChannelToBeRemovedAtShudown(writer);
 				registerChannelToBeRemovedAtShudown(channel);
 
@@ -461,7 +457,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			try {
 				// merge channels until sufficient file handles are available
 				while (channelIDs.size() > CombiningUnilateralSortMerger.this.maxNumFileHandles) {
-					channelIDs = mergeChannelList(channelIDs, writeBuffers, writeBufferSize, this.readMemSize);
+					channelIDs = mergeChannelList(channelIDs, writeBuffers, this.readMemSize);
 				}
 				
 				// from here on, we won't write again
@@ -481,7 +477,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 					List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, this.readMemSize, channelIDs.size());
 					registerSegmentsToBeFreedAtShutdown(allBuffers);
 					
-					final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, new ArrayList<ChannelAccess<?, ?>>(channelIDs.size()));
+					final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size()));
 					
 					// set the target for the user iterator
 					// if the final merge combines, create a combining iterator around the merge iterator,
