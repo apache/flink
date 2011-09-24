@@ -42,6 +42,7 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	
 	private final Key[] keyHolders1, keyHolders2;
 	
+	private final PactRecord holder1, holder2;
 	
 	private final int[] normalizedKeyLengths;
 	
@@ -56,6 +57,9 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	{
 		this.keyFields = keyFields;
 		this.keyTypes = keyTypes;
+		
+		this.holder1 = new PactRecord();
+		this.holder2 = new PactRecord();
 		
 		// instantiate fields to extract keys into
 		this.keyHolders1 = new Key[keyTypes.length];
@@ -139,6 +143,36 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 		target.deserialize(sources, firstSegment, segmentOffset);
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copy(java.util.List, int, int, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
+	 */
+	@Override
+	public void copy(List<MemorySegment> sources, int firstSegment, int segmentOffset, DataOutputView target)
+	throws IOException
+	{
+		MemorySegment seg = sources.get(firstSegment);
+		int len = readLengthIncludingLengthBytes(seg, sources, firstSegment, segmentOffset);
+		
+		int remaining = seg.size() - segmentOffset;
+		if (remaining >= len) {
+			target.write(seg.getBackingArray(), seg.translateOffset(segmentOffset), len);
+		}
+		else while (true) {
+			int toPut = Math.min(remaining, len);
+			target.write(seg.getBackingArray(), seg.translateOffset(segmentOffset), toPut);
+			len -= toPut;
+			
+			if (len > 0) {
+				segmentOffset = 0;
+				seg = sources.get(++firstSegment);
+				remaining = seg.size();	
+			}
+			else {
+				break;
+			}
+		}
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
@@ -183,8 +217,7 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(java.util.List, java.util.List, int, int, int, int)
 	 */
 	@Override
-	public int compare(PactRecord holder1, PactRecord holder2,
-			List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1,
+	public int compare(List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1,
 			int firstSegment2, int offset1, int offset2)
 	{
 		if (holder1.readBinary(this.keyFields, this.keyHolders1, sources1, firstSegment1, offset1) &
@@ -199,6 +232,8 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 		}
 		else throw new NullKeyFieldException();
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#supportsNormalizedKey()
@@ -249,4 +284,54 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 			throw new NullKeyFieldException();
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static final int readLengthIncludingLengthBytes(MemorySegment seg, List<MemorySegment> sources, int segmentNum, int segmentOffset)
+	{
+		int lenBytes = 1;
+		
+		if (seg.size() - segmentOffset > 5) {
+			int val = seg.get(segmentOffset++) & 0xff;
+			if (val >= MAX_BIT) {
+				int shift = 7;
+				int curr;
+				val = val & 0x7f;
+				while ((curr = seg.get(segmentOffset++) & 0xff) >= MAX_BIT) {
+					val |= (curr & 0x7f) << shift;
+					shift += 7;
+					lenBytes++;
+				}
+				val |= curr << shift;
+			}
+			return val + lenBytes;
+		}
+		else {
+			int end = seg.size();
+			int val = seg.get(segmentOffset++) & 0xff;
+			if (segmentOffset == end) {
+				segmentOffset = 0;
+				seg = sources.get(++segmentNum);
+			}
+			
+			if (val >= MAX_BIT) {
+				int shift = 7;
+				int curr;
+				val = val & 0x7f;
+				while ((curr = seg.get(segmentOffset++) & 0xff) >= MAX_BIT) {
+					val |= (curr & 0x7f) << shift;
+					shift += 7;
+					lenBytes++;
+					if (segmentOffset == end) {
+						segmentOffset = 0;
+						seg = sources.get(++segmentNum);
+					}
+				}
+				val |= curr << shift;
+			}
+			return val + lenBytes;
+		}
+	}
+		
+	private static final int MAX_BIT = 0x1 << 7;
 }

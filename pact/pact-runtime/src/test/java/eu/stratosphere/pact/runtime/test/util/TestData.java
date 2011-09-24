@@ -167,7 +167,7 @@ public final class TestData {
 		};
 
 		public enum ValueMode {
-			FIX_LENGTH, RANDOM_LENGTH
+			FIX_LENGTH, RANDOM_LENGTH, CONSTANT
 		};
 
 		private static char[] alpha = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'a', 'b', 'c',
@@ -194,7 +194,12 @@ public final class TestData {
 			this(seed, keyMax, valueLength, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 		}
 
-		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode) {
+		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode)
+		{
+			this(seed, keyMax, valueLength, keyMode, valueMode, null);
+		}
+		
+		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode, Value constant) {
 			this.seed = seed;
 			this.keyMax = keyMax;
 			this.valueLength = valueLength;
@@ -205,12 +210,14 @@ public final class TestData {
 			this.counter = 0;
 			
 			this.key = new Key();
-			this.value = new Value();
+			this.value = constant == null ? new Value() : constant;
 		}
 
 		public boolean next(PactRecord target) {
 			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-			this.value.setValue(randomString());
+			if (this.valueMode != ValueMode.CONSTANT) {
+				this.value.setValue(randomString());
+			}
 			target.setField(0, this.key);
 			target.setField(1, this.value);
 			return true;

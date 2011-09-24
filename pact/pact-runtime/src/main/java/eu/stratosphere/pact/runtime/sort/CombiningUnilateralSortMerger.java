@@ -21,16 +21,15 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
-import eu.stratosphere.nephele.services.iomanager.StreamChannelAccess;
-import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
+import eu.stratosphere.nephele.services.iomanager.ChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -41,6 +40,7 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
@@ -207,23 +207,25 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 */
 	@Override
 	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, List<List<MemorySegment>> readBuffers,
-			List<MemorySegment> writeBuffers)
+			List<MemorySegment> writeBuffers, int writeBufferSize)
 	throws IOException
 	{
 		// the list with the readers, to be closed at shutdown
-		final List<StreamChannelAccess<?, ?>> channelAccesses = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
-		registerChannelsToBeRemovedAtShudown(channelAccesses);
+		final List<ChannelAccess<?, ?>> channelAccesses = new ArrayList<ChannelAccess<?, ?>>(channelIDs.size());
 
 		// the list with the target iterators
 		final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
 		final KeyGroupedIterator groupedIter = new KeyGroupedIterator(mergeIterator, this.keyPositions, this.keyClasses);
 		
-		// create a new channel writer and a collector that uses the writer to dump its data to disk
+		// create a new channel writer
+		final LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
 		final Channel.ID mergedChannelID = this.ioManager.createChannel();
-		final ChannelWriter writer = this.ioManager.createChannelWriter(mergedChannelID, writeBuffers);
-		channelAccesses.add(writer);
+		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(mergedChannelID, returnQueue);
+		registerOpenChannelToBeRemovedAtShudown(writer);
 		
-		final WriterCollector collector = new WriterCollector(writer);
+		final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, writeBufferSize);
+		
+		final WriterCollector collector = new WriterCollector(output);
 		final ReduceStub combineStub = this.combineStub;
 		
 		try {
@@ -236,9 +238,14 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		}
 		
 		writer.close();
+		// register merged result to be removed at shutdown
+		unregisterOpenChannelToBeRemovedAtShudown(writer);
+		registerChannelToBeRemovedAtShudown(mergedChannelID);
 
-		// all readers have finished, so they have closed themselves and deleted themselves
-		unregisterChannelsToBeRemovedAtShudown(channelAccesses);
+		// remove the merged channel readers from the clear-at-shutdown list
+		for (int i = 0; i < channelAccesses.size(); i++) {
+			unregisterOpenChannelToBeRemovedAtShudown(channelAccesses.get(i));
+		}
 
 		return mergedChannelID;
 	}
@@ -336,22 +343,22 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			}			
 			
 			// ------------------- Spilling Phase ------------------------
+			
 			final Channel.Enumerator enumerator = this.ioManager.createChannelEnumerator();
-			final List<MemorySegment> writeBuffers;
+			final LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
+			final int writeBufferSize = (int) this.writeMemSize / NUM_WRITE_BUFFERS;
 			
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
+			List<MemorySegment> writeBuffers;
 
 			// allocate memory segments for channel writer
 			try {
-				writeBuffers = this.memoryManager.allocate(CombiningUnilateralSortMerger.this.parent, writeMemSize, 
-					NUM_WRITE_BUFFERS, MIN_IO_BUFFER_SIZE);
+				writeBuffers = this.memoryManager.allocateStrict(CombiningUnilateralSortMerger.this.parent, NUM_WRITE_BUFFERS, writeBufferSize);
 				registerSegmentsToBeFreedAtShutdown(writeBuffers);
 			}
 			catch (MemoryAllocationException maex) {
 				throw new IOException("Spilling thread was unable to allocate memory for the channel writer.", maex);
 			}
-			
-			// ------------------- Spilling Phase ------------------------
 
 			// loop as long as the thread is marked alive and we do not see the final element
 			while (isRunning()) {
@@ -386,7 +393,10 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				if (LOG.isDebugEnabled())
 					LOG.debug("Creating temp file " + channel.toString() + '.');
 				
-				final ChannelWriter writer = ioManager.createChannelWriter(channel, writeBuffers);
+				// create writer
+				final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel, returnQueue);
+				registerOpenChannelToBeRemovedAtShudown(writer);
+				final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, writeBufferSize);
 
 				if (LOG.isDebugEnabled())
 					LOG.debug("Combining buffer " + element.id + '.');
@@ -394,7 +404,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				// set up the combining helpers
 				final NormalizedKeySorter<PactRecord> buffer = element.buffer;
 				final CombineValueIterator iter = new CombineValueIterator(buffer);
-				final WriterCollector collector = new WriterCollector(writer);
+				final WriterCollector collector = new WriterCollector(output);
 
 				int i = 0;
 				int stop = buffer.size() - 1;
@@ -408,7 +418,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	
 						if (i == seqStart) {
 							// no duplicate key, no need to combine. simply copy
-							buffer.writeToChannel(writer, seqStart, 1);
+							buffer.writeToOutput(output, seqStart, 1);
 						} else {
 							// get the iterator over the values
 							iter.set(seqStart, i);
@@ -424,14 +434,16 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 
 				// write the last pair, if it has not yet been included in the last iteration
 				if (i == stop) {
-					buffer.writeToChannel(writer, stop, 1);
+					buffer.writeToOutput(output, stop, 1);
 				}
 
 				// done combining and writing out
 				if (LOG.isDebugEnabled())
 					LOG.debug("Combined and spilled buffer " + element.id + ".");
 
-				writer.close();
+				writeBuffers = output.close();
+				unregisterOpenChannelToBeRemovedAtShudown(writer);
+				registerChannelToBeRemovedAtShudown(channel);
 
 				// pass empty sort-buffer to reading thread
 				element.buffer.reset();
@@ -449,12 +461,13 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			try {
 				// merge channels until sufficient file handles are available
 				while (channelIDs.size() > CombiningUnilateralSortMerger.this.maxNumFileHandles) {
-					channelIDs = mergeChannelList(channelIDs, writeBuffers, this.readMemSize);
+					channelIDs = mergeChannelList(channelIDs, writeBuffers, writeBufferSize, this.readMemSize);
 				}
 				
 				// from here on, we won't write again
 				this.memoryManager.release(writeBuffers);
 				unregisterSegmentsToBeFreedAtShutdown(writeBuffers);
+				writeBuffers.clear();
 
 				// check if we have spilled some data at all
 				if (channelIDs.isEmpty()) {
@@ -462,15 +475,13 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				}
 				else {
 					// allocate the memory for the final merging step
-					final List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
-					final List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, this.readMemSize, channelIDs.size());
+					List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
+					
+					// allocate the read memory and register it to be released
+					List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, this.readMemSize, channelIDs.size());
 					registerSegmentsToBeFreedAtShutdown(allBuffers);
 					
-					// get the readers and register them to be released
-					final List<StreamChannelAccess<?, ?>> readers = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
-					registerChannelsToBeRemovedAtShudown(readers);
-					
-					final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, readers);
+					final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, new ArrayList<ChannelAccess<?, ?>>(channelIDs.size()));
 					
 					// set the target for the user iterator
 					// if the final merge combines, create a combining iterator around the merge iterator,
@@ -585,16 +596,15 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 */
 	private static final class WriterCollector implements Collector
 	{	
-		private final Writer writer; // the writer to write to
+		private final ChannelWriterOutputView output; // the writer to write to
 
 		/**
 		 * Creates a new writer collector that writes to the given writer.
 		 * 
-		 * @param writer
-		 *        The writer to write to.
+		 * @param output The writer output view to write to.
 		 */
-		private WriterCollector(Writer writer) {
-			this.writer = writer;
+		private WriterCollector(ChannelWriterOutputView output) {
+			this.output = output;
 		}
 
 		/*
@@ -606,10 +616,10 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		@Override
 		public void collect(PactRecord record) {
 			try {
-				writer.write(record);
+				record.write(this.output);
 			}
 			catch (IOException ioex) {
-				throw new RuntimeException("An error occurred forwarding the key/value pair to the writer.", ioex);
+				throw new RuntimeException("An error occurred forwarding the record to the writer.", ioex);
 			}
 		}
 
@@ -618,8 +628,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @see eu.stratosphere.pact.common.stub.Collector#close()
 		 */
 		@Override
-		public void close() {
-		}
+		public void close() {}
 
 	}
 

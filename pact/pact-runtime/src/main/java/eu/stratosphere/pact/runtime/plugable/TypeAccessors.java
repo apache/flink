@@ -39,10 +39,23 @@ public interface TypeAccessors<T>
 	public void copyTo(T from, T to);
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	/* ----------------------------------------------------------------
+	 * Ideally, the signatures would look the following way:
+	 *
+	 * 
+	 * public long serialize(T record, DataOutputView target) throws IOException;
+	 * 
+	 * public void deserialize(T target, DataInputView source) throws IOException;
+	 * 
+	 * public void copy(DataInputView source, DataOutputView target) throws IOException;
+	 */
+
 	public long serialize(T record, DataOutputView target, Iterator<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther) throws IOException;
 	
-	public void deserialize(T target, List<MemorySegment> sources, int firstSegment, int segmentOffset) throws IOException;  
+	public void deserialize(T target, List<MemorySegment> sources, int firstSegment, int segmentOffset) throws IOException;
+	
+	public void copy(List<MemorySegment> sources, int firstSegment, int segmentOffset, DataOutputView target) throws IOException;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -50,7 +63,14 @@ public interface TypeAccessors<T>
 	
 	public int compare(T first, T second, Comparator<Key> comparator);
 	
-	public int compare(T holder1, T holder2, List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1, int firstSegment2, int offset1, int offset2);
+	/* ----------------------------------------------------------------
+	 * Ideally, the signature would look the following way:
+	 *
+	 * 
+	 * public int compare(DataInputView source1, DataInputView source2);
+	 */
+	
+	public int compare(List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1, int firstSegment2, int offset1, int offset2);
 	
 	// --------------------------------------------------------------------------------------------
 	

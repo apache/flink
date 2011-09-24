@@ -41,6 +41,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 public class NormalizedKeySorterTest
 {
 	private static final long SEED = 649180756312423613L;
+	
+	private static final long SEED2 = 97652436586326573L;
 
 	private static final int KEY_MAX = Integer.MAX_VALUE;
 
@@ -143,6 +145,62 @@ public class NormalizedKeySorterTest
 		
 		while (iter.next(readTarget)) {
 			generator.next(record);
+			
+			Key rk = readTarget.getField(0, Key.class);
+			Key gk = record.getField(0, Key.class);
+			
+			Value rv = readTarget.getField(1, Value.class);
+			Value gv = record.getField(1, Value.class);
+			
+			Assert.assertEquals("The re-read key is wrong", gk, rk);
+			Assert.assertEquals("The re-read value is wrong", gv, rv);
+		}
+		
+		// release the memory occupied by the buffers
+		this.memoryManager.release(sorter.dispose());
+	}
+	
+	@Test
+	public void testReset() throws Exception
+	{
+		final int numSegments = MEMORY_SIZE / MEMORY_SEGMENT_SIZE;
+		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
+		
+		NormalizedKeySorter<PactRecord> sorter = newSortBuffer(memory);
+		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+		
+		// write the buffer full with the first set of records
+		PactRecord record = new PactRecord();
+		int num = -1;
+		do {
+			generator.next(record);
+			num++;
+		}
+		while (sorter.write(record));
+		
+		sorter.reset();
+		
+		// write a second sequence of records. since the values are of fixed length, we must be able to write an equal number
+		generator = new TestData.Generator(SEED2, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+		
+		// write the buffer full with the first set of records
+		int num2 = -1;
+		do {
+			generator.next(record);
+			num2++;
+		}
+		while (sorter.write(record));
+		
+		Assert.assertEquals("The number of records written after the reset was not the same as before.", num, num2);
+		
+		// re-read the records
+		generator.reset();
+		PactRecord readTarget = new PactRecord();
+		
+		int i = 0;
+		while (i < num) {
+			generator.next(record);
+			sorter.getRecord(readTarget, i++);
 			
 			Key rk = readTarget.getField(0, Key.class);
 			Key gk = record.getField(0, Key.class);

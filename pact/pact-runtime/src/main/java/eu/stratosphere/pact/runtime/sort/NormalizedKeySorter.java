@@ -20,9 +20,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 import eu.stratosphere.pact.runtime.util.MemorySegmentListIterator;
@@ -48,8 +48,6 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	
 	private final TypeAccessors<T> accessors;
 	
-	private final T holder1, holder2;
-	
 	private final ArrayList<MemorySegment> freeMemory;
 	
 	private final Iterator<MemorySegment> memorySource;
@@ -67,7 +65,6 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	private int currentSortIndexOffset;
 	
 	private int numRecords;
-	
 	
 	private final int numKeyBytes;
 	
@@ -103,8 +100,6 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 			throw new IllegalArgumentException("Maximal number of normalized key bytes must not be negative.");
 		
 		this.accessors = accessors;
-		this.holder1 = accessors.createInstance();
-		this.holder2 = accessors.createInstance();
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
@@ -177,6 +172,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		this.currentSortIndexSegment = nextMemorySegment();
 		this.sortIndex.add(this.currentSortIndexSegment);
 		final MemorySegment dbs = nextMemorySegment();
+		dbs.outputView.reset();
 		this.recordBuffers.add(dbs);
 	}
 
@@ -195,7 +191,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return All memory segments from this sorter.
 	 */
-	public List<MemorySegment> dispose() {
+	public List<MemorySegment> dispose()
+	{
 		this.freeMemory.addAll(this.sortIndex);
 		this.freeMemory.addAll(this.recordBuffers);
 		
@@ -229,12 +226,26 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	// Retrieving and Writing
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Gets the record at the given logical position.
+	 * 
+	 * @param target The target object to deserialize the record into.
+	 * @param logicalPosition The logical position of the record.
+	 * @throws IOException Thrown, if an exception occurred during deserialization.
+	 */
 	public void getRecord(T target, int logicalPosition) throws IOException
 	{
 		getRecordFromBuffer(target, readDataBufferOffset(logicalPosition));
 	}
 
-
+	/**
+	 * Writes a given record to this sort buffer. The written record will be appended and take
+	 * the last logical position.
+	 * 
+	 * @param record The record to be written.
+	 * @return True, if the record was successfully written, false, if the sort buffer was full.
+	 * @throws IOException Thrown, if an error occurred while serializing the record into the buffers.
+	 */
 	public boolean write(T record) throws IOException
 	{
 		//check whether we need a new memory segment for the sort index
@@ -265,8 +276,9 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	}
 	
 	// ------------------------------------------------------------------------
+	//                           Access Utilities
+	// ------------------------------------------------------------------------
 	
-
 	private final long readDataBufferOffset(int logicalPosition)
 	{
 		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
@@ -292,7 +304,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		final int offsetI = (int) (pointer1 & this.segmentSizeMask);
 		final int bufferJ = (int) (pointer2 >>> this.segmentSizeBits);
 		final int offsetJ = (int) (pointer2 & this.segmentSizeMask);
-		return this.accessors.compare(this.holder1, this.holder2, this.recordBuffers, this.recordBuffers, bufferI, bufferJ, offsetI, offsetJ);
+		return this.accessors.compare(this.recordBuffers, this.recordBuffers, bufferI, bufferJ, offsetI, offsetJ);
 	}
 	
 	private final boolean memoryAvailable()
@@ -305,88 +317,13 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		return this.freeMemory.remove(this.freeMemory.size() - 1);
 	}
 
-	// ------------------------------------------------------------------------
-	
-//	/**
-//	 * Writes this buffer completely to the given writer.
-//	 * 
-//	 * @param writer The writer to write the segment to.
-//	 * @throws IOException Thrown, if the writer caused an I/O exception.
-//	 */
-//	public void writeToChannel(final Writer writer) throws IOException {
-//		if (!isBound()) {
-//			new UnboundMemoryBackedException();
-//		}
-//
-//		final MemoryIOWrapper memoryWrapper = new MemoryIOWrapper(this.memory);
-//
-//		// write according to index
-//		for (int i = 0; i < size(); i++)
-//		{
-//			int offsetPosition = readOffsetPosition(i);
-//
-//			// start and end within memory segment
-//			int kvstart = readPairOffset(offsetPosition);
-//			int kvend = 0;
-//			
-//			// for the last pair there is no next pair
-//			if(offsetPosition - STACK_ENTRY_SIZE > this.outputView.getStackEndRel()) {
-//				// -> kvend = kvstart of next pair
-//				kvend = readPairOffset(offsetPosition - STACK_ENTRY_SIZE);
-//			}
-//			else {
-//				kvend = this.position;
-//			}
-//
-//			// set offset within memory segment
-//			final int kvlength = kvend - kvstart;
-//			memoryWrapper.setIOBlock(kvstart, kvlength);
-//
-//			// copy serialized pair to writer
-//			writer.write(memoryWrapper);
-//		}
-//	}
-
-//	/**
-//	 * Writes a series of key/value pairs in this buffer to the given writer.
-//	 * 
-//	 * @param writer The writer to write the pairs to.
-//	 * @param start The position (logical number) of the first pair that is written.
-//	 * @param num The number of pairs to be written.
-//	 * @throws IOException Thrown, if the writer caused an I/O exception.
-//	 */
-//	public void writeToChannel(final Writer writer, final int start, final int num) throws IOException {
-//		// write according to index
-//		for (int i = start; i < start + num; i++) {
-//			// offset to index element
-//			int offsetPosition = readOffsetPosition(i);
-//
-//			// start and end within memory segment
-//			int kvstart = readPairOffset(offsetPosition);
-//			int kvend = 0;
-//			
-//			// for the last pair there is no next pair
-//			if(offsetPosition - STACK_ENTRY_SIZE > this.outputView.getStackEndRel()) {
-//				// -> kvend = kvstart of next pair
-//				kvend = readPairOffset(offsetPosition - STACK_ENTRY_SIZE);
-//			}
-//			else {
-//				kvend = this.position;
-//			}
-//
-//			// set offset within memory segment
-//			final int kvlength = kvend - kvstart;
-//			memoryWrapper.setIOBlock(kvstart, kvlength);
-//
-//			// copy serialized pair to writer
-//			writer.write(memoryWrapper);
-//		}
-//	}
-
 	// -------------------------------------------------------------------------
 	// Indexed Sorting
 	// -------------------------------------------------------------------------
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#compare(int, int)
+	 */
 	public int compare(int i, int j)
 	{
 		final int bufferNumI = i / this.indexEntriesPerSegment;
@@ -414,6 +351,9 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		return compareRecords(pointerI, pointerJ);
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#swap(int, int)
+	 */
 	@Override
 	public void swap(int i, int j)
 	{
@@ -431,6 +371,9 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		segJ.put(segmentOffsetJ, this.swapBuffer, 0, this.indexEntrySize);
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.sort.IndexedSortable#size()
+	 */
 	@Override
 	public int size()
 	{
@@ -440,7 +383,9 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	// -------------------------------------------------------------------------
 	
 	/**
-	 * @return
+	 * Gets an iterator over all records in this buffer in their logical order.
+	 * 
+	 * @return An iterator returning the records in their logical order.
 	 */
 	public final MutableObjectIterator<T> getIterator()
 	{
@@ -483,38 +428,84 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	}
 	
 	// ------------------------------------------------------------------------
+	//                Writing to a DataOutputView
+	// ------------------------------------------------------------------------
 	
 	/**
-	 * Writes this buffer completely to the given writer.
+	 * Writes the records in this buffer in their logical order to the given output.
 	 * 
-	 * @param writer The writer to write the segment to.
-	 * @throws IOException Thrown, if the writer caused an I/O exception.
+	 * @param output The output view to write the records to.
+	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToChannel(final Writer writer) throws IOException
+	public void writeToOutput(final ChannelWriterOutputView output) throws IOException
 	{
-		throw new UnsupportedOperationException();
-//		int recordsLeft = this.numRecords;
-//		int currentMemSeg = 0;
-//		while (recordsLeft > 0)
-//		{
-//			final MemorySegment currentIndexSegment = this.sortIndex.get(currentMemSeg++);
-//			int offset = 0;
-//			// check whether we have a full or partially full segment
-//			if (recordsLeft >= this.indexEntriesPerSegment) {
-//				// full segment
-//				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
-//					final long pointer = currentIndexSegment.getLong(offset);
-//					
-//				}
-//				recordsLeft -= this.indexEntriesPerSegment;
-//			} else {
-//				// partially filled segment
-//				for (; recordsLeft > 0; recordsLeft--, offset += this.indexEntrySize)
-//				{
-//					final long pointer = currentIndexSegment.getLong(offset);
-//					
-//				}
-//			}
-//		}
+		int recordsLeft = this.numRecords;
+		int currentMemSeg = 0;
+		while (recordsLeft > 0)
+		{
+			final MemorySegment currentIndexSegment = this.sortIndex.get(currentMemSeg++);
+			int offset = 0;
+			// check whether we have a full or partially full segment
+			if (recordsLeft >= this.indexEntriesPerSegment) {
+				// full segment
+				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
+					final long pointer = currentIndexSegment.getLong(offset);
+					final int buffer = (int) (pointer >>> this.segmentSizeBits);
+					final int segmentOffset = (int) (pointer & this.segmentSizeMask);
+					this.accessors.copy(this.recordBuffers, buffer, segmentOffset, output);
+					
+				}
+				recordsLeft -= this.indexEntriesPerSegment;
+			} else {
+				// partially filled segment
+				for (; recordsLeft > 0; recordsLeft--, offset += this.indexEntrySize)
+				{
+					final long pointer = currentIndexSegment.getLong(offset);
+					final int buffer = (int) (pointer >>> this.segmentSizeBits);
+					final int segmentOffset = (int) (pointer & this.segmentSizeMask);
+					this.accessors.copy(this.recordBuffers, buffer, segmentOffset, output);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Writes a subset of the records in this buffer in their logical order to the given output.
+	 * 
+	 * @param output The output view to write the records to.
+	 * @param start The logical start position of the subset.
+	 * @param len The number of elements to write.
+	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
+	 */
+	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException
+	{
+		int currentMemSeg = start / this.indexEntriesPerSegment;
+		int offset = (start % this.indexEntriesPerSegment) * this.indexEntrySize;
+		
+		while (num > 0)
+		{
+			final MemorySegment currentIndexSegment = this.sortIndex.get(currentMemSeg++);
+			// check whether we have a full or partially full segment
+			if (num >= this.indexEntriesPerSegment && offset == 0) {
+				// full segment
+				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
+					final long pointer = currentIndexSegment.getLong(offset);
+					final int buffer = (int) (pointer >>> this.segmentSizeBits);
+					final int segmentOffset = (int) (pointer & this.segmentSizeMask);
+					this.accessors.copy(this.recordBuffers, buffer, segmentOffset, output);
+				}
+				num -= this.indexEntriesPerSegment;
+			} else {
+				// partially filled segment
+				for (; num > 0 && offset <= this.lastIndexEntryOffset; num--, offset += this.indexEntrySize)
+				{
+					final long pointer = currentIndexSegment.getLong(offset);
+					final int buffer = (int) (pointer >>> this.segmentSizeBits);
+					final int segmentOffset = (int) (pointer & this.segmentSizeMask);
+					this.accessors.copy(this.recordBuffers, buffer, segmentOffset, output);
+				}
+			}
+			offset = 0;
+		}
 	}
 }
