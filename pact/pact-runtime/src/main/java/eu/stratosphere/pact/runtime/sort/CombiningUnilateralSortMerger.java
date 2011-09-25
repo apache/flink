@@ -186,7 +186,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			MemoryManager memoryManager, IOManager ioManager, long readMemSize,
 			AbstractInvokable parentTask)
 	{
-		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager,
+		return new CombiningSpillingThread(exceptionHandler, queues, memoryManager, ioManager,
 			readMemSize, parentTask);
 	}
 

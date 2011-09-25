@@ -95,6 +95,11 @@ public class UnilateralSortMerger implements SortMerger
 	 * The minimal size of a sort buffer, currently 2 MiBytes.
 	 */
 	protected static final int MIN_SORT_MEM = SORT_MEM_SEGMENT_SIZE * MIN_NUM_SORT_MEM_SEGMENTS;
+	
+	/**
+	 * The minimal amount of memory required for writing.
+	 */
+	protected static final int MIN_WRITE_MEM = NUM_WRITE_BUFFERS * MIN_IO_BUFFER_SIZE;
 
 	// ------------------------------------------------------------------------
 	//                               Fields
@@ -285,6 +290,10 @@ public class UnilateralSortMerger implements SortMerger
 			throw new IllegalArgumentException("The number of comparators, key columns and key types must match.");
 		}
 		
+		if (totalMemory < MIN_SORT_MEM + MIN_WRITE_MEM) {
+			throw new IllegalArgumentException("Too little memory provided to Sort-Merger to perform task.");
+		}
+		
 		this.maxNumFileHandles = maxNumFileHandles;
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
@@ -301,9 +310,9 @@ public class UnilateralSortMerger implements SortMerger
 		// the desired number of merges, plus the writing, from the total memory
 		if (maxWriteMem != 0)
 		{
-			if (maxWriteMem != -1 && maxWriteMem < NUM_WRITE_BUFFERS * MIN_IO_BUFFER_SIZE) {
+			if (maxWriteMem != -1 && maxWriteMem < MIN_WRITE_MEM) {
 				throw new IllegalArgumentException("The specified maximum write memory is to low. " +
-					"Required are at least " + (NUM_WRITE_BUFFERS * MIN_IO_BUFFER_SIZE) + " bytes.");
+					"Required are at least " + MIN_WRITE_MEM + " bytes.");
 			}
 			
 			// determine how the reading side limits the buffer size, because we buffers for the readers
@@ -323,9 +332,11 @@ public class UnilateralSortMerger implements SortMerger
 			else {
 				bufferSize = Math.min(MAX_IO_BUFFER_SIZE, MathUtils.roundDownToPowerOf2(bufferSize));
 			}
-			this.ioBufferSize = maxWriteMem > 0 ? 
-					Math.min(bufferSize, MathUtils.roundDownToPowerOf2((int) (maxWriteMem / NUM_WRITE_BUFFERS))) :
-					bufferSize;
+			
+			if (maxWriteMem < 0) {
+				maxWriteMem = Math.max(totalMemory / 64, MIN_WRITE_MEM);
+			}
+			this.ioBufferSize = Math.min(bufferSize, MathUtils.roundDownToPowerOf2((int) (maxWriteMem / NUM_WRITE_BUFFERS)));
 			maxWriteMem = NUM_WRITE_BUFFERS * this.ioBufferSize;
 		}
 		else {
@@ -335,9 +346,6 @@ public class UnilateralSortMerger implements SortMerger
 		
 		final long sortMem = totalMemory - maxWriteMem;
 		final long numSortMemSegments = sortMem / SORT_MEM_SEGMENT_SIZE;
-		if (sortMem < MIN_SORT_MEM) {
-			throw new IOException("Too little memory provided to Sort-Merger to perform task.");
-		}
 		
 		// decide how many sort buffers to use
 		if (numSortBuffers < 1) {
