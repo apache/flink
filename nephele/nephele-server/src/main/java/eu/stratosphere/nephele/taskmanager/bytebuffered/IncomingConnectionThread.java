@@ -39,13 +39,12 @@ public class IncomingConnectionThread extends Thread {
 
 	private final ServerSocketChannel listeningSocket;
 
-	public IncomingConnectionThread(ByteBufferedChannelManager networkChannelManager, boolean isListeningThread,
-			InetSocketAddress listeningAddress)
-												throws IOException {
+	public IncomingConnectionThread(ByteBufferedChannelManager byteBufferedChannelManager,
+			boolean isListeningThread, InetSocketAddress listeningAddress) throws IOException {
 		super("Incoming Connection Thread");
 
 		this.selector = Selector.open();
-		this.byteBufferedChannelManager = networkChannelManager;
+		this.byteBufferedChannelManager = byteBufferedChannelManager;
 
 		if (isListeningThread) {
 			this.listeningSocket = ServerSocketChannel.open();

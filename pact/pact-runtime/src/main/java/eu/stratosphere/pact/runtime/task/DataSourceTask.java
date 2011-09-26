@@ -221,7 +221,6 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		final int numOutputs = config.getNumOutputs();
 		
 		// create output collector
-		boolean fwdCopyFlag = false;
 		this.output = new OutputCollector();
 		
 		final JobID jobId = getEnvironment().getJobID();
@@ -256,8 +255,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 			RecordWriter<PactRecord> writer= new RecordWriter<PactRecord>(this, PactRecord.class, oe);
 
 			// add writer to output collector
-			output.addWriter(writer, fwdCopyFlag);
-			fwdCopyFlag = true;
+			output.addWriter(writer);
 		}
 	}
 	

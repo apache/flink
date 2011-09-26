@@ -17,14 +17,11 @@ package eu.stratosphere.pact.example.wordcount;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.StringTokenizer;
-import java.util.regex.Pattern;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -58,7 +55,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public boolean readRecord(PactRecord record, byte[] line, int numBytes)
 		{
-			this.string.setValue(line, 0, numBytes);
+			this.string.setValueAscii(line, 0, numBytes);
 			record.setField(0, this.string);
 			return true;
 		}
@@ -76,7 +73,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		public void writeRecord(PactRecord record) throws IOException {
 			this.buffer.setLength(0);
 			this.buffer.append(record.getField(0, PactString.class).toString());
-			this.buffer.append('|');
+			this.buffer.append(' ');
 			this.buffer.append(record.getField(1, PactInteger.class).getValue());
 			this.buffer.append('\n');
 			
@@ -93,11 +90,12 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 */
 	public static class TokenizeLine extends MapStub
 	{
-		private final Pattern pattern = Pattern.compile("\\W");
-		private final String replacement = " ";
-		
+		private final PactRecord outputRecord = new PactRecord();
 		private final PactString string = new PactString();
 		private final PactInteger integer = new PactInteger(1);
+		
+		private final AsciiUtils.WhitespaceTokenizer tokenizer = 
+						new AsciiUtils.WhitespaceTokenizer();
 		
 		@Override
 		public void map(PactRecord record, Collector collector)
@@ -106,22 +104,17 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 			PactString str = record.getField(0, PactString.class);
 			
 			// normalize the line
-			String line = pattern.matcher(str).replaceAll(this.replacement);
-			line = line.toLowerCase();
+			AsciiUtils.replaceNonWordChars(str, ' ');
+			AsciiUtils.toLowerCase(str);
 			
 			// tokenize the line
-			StringTokenizer tokenizer = new StringTokenizer(line);
-			while (tokenizer.hasMoreElements())
+			this.tokenizer.setStringToTokenize(str);
+			while (tokenizer.next(this.string))
 			{
-				// get the next token
-				String element = (String) tokenizer.nextElement();
-				this.string.setValue(element);
-				
-				// we reuse the record object here to store the (word, 1) pair 
-				record.clear();
-				record.setField(0, this.string);
-				record.setField(1, this.integer);
-				collector.collect(record);
+				// we emit a (word, 1) pair 
+				this.outputRecord.setField(0, this.string);
+				this.outputRecord.setField(1, this.integer);
+				collector.collect(this.outputRecord);
 			}
 		}
 	}
@@ -131,7 +124,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 * occurrences of a given token (word) is computed and emitted. The key is
 	 * not modified, hence a SameKey OutputContract is attached to this class.
 	 */
-	@Combinable
+//	@Combinable
 	public static class CountWords extends ReduceStub
 	{
 		private final PactInteger theInteger = new PactInteger();
@@ -149,6 +142,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 				sum += this.theInteger.getValue();
 			}
 
+			this.theInteger.setValue(sum);
 			element.setField(1, this.theInteger);
 			out.collect(element);
 		}
@@ -172,14 +166,16 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		String output    = (args.length > 2 ? args[2] : "");
 
 		FileDataSource source = new FileDataSource(LineInFormat.class, dataInput, "Input Lines");
+		source.setDegreeOfParallelism(noSubTasks);
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
+		mapper.setDegreeOfParallelism(noSubTasks);
 		ReduceContract reducer = new ReduceContract(CountWords.class, 0, PactString.class, mapper, "Count Words");
+		reducer.setDegreeOfParallelism(noSubTasks);
 		FileDataSink out = new FileDataSink(WordCountOutFormat.class, output, reducer, "Output");
-		
-		out.setDegreeOfParallelism(1); // write into a single file
+		out.setDegreeOfParallelism(noSubTasks);
 
 		Plan plan = new Plan(out, "WordCount Example");
-		plan.setDefaultParallelism(noSubTasks);
+//		plan.setDefaultParallelism(noSubTasks);
 		return plan;
 	}
 

@@ -59,7 +59,7 @@ public class Configuration implements IOReadableWritable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public String getString(String key, String defaultValue) {
+	public String getString(final String key, final String defaultValue) {
 
 		synchronized (this.confData) {
 
@@ -88,10 +88,11 @@ public class Configuration implements IOReadableWritable {
 	 * @see #setClass(String, Class)
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<T> ancestor) {
+	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor) {
 		String className = getString(key, null);
-		if (className == null)
+		if (className == null) {
 			return (Class<T>) defaultValue;
+		}
 		try {
 			return (Class<T>) Class.forName(className);
 		} catch (ClassNotFoundException e) {
@@ -111,7 +112,7 @@ public class Configuration implements IOReadableWritable {
 	 *         if the class identified by the associated value cannot be resolved
 	 * @see #setClass(String, Class)
 	 */
-	public Class<?> getClass(String key, Class<?> defaultValue) {
+	public Class<?> getClass(final String key, final Class<?> defaultValue) {
 		return getClass(key, defaultValue, Object.class);
 	}
 
@@ -126,7 +127,7 @@ public class Configuration implements IOReadableWritable {
 	 * @see #getClass(String, Class)
 	 * @see #getClass(String, Class, Class)
 	 */
-	public void setClass(String key, Class<?> klazz) {
+	public void setClass(final String key, final Class<?> klazz) {
 		setString(key, klazz.getName());
 	}
 
@@ -139,7 +140,7 @@ public class Configuration implements IOReadableWritable {
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setString(String key, String value) {
+	public void setString(final String key, final String value) {
 
 		if (key == null || value == null) {
 			// TODO: should probably throw an NullPointerException
@@ -161,7 +162,7 @@ public class Configuration implements IOReadableWritable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public int getInteger(String key, int defaultValue) {
+	public int getInteger(final String key, final int defaultValue) {
 
 		int retVal = defaultValue;
 
@@ -188,7 +189,7 @@ public class Configuration implements IOReadableWritable {
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setInteger(String key, int value) {
+	public void setInteger(final String key, final int value) {
 
 		if (key == null) {
 			LOG.warn("Cannot set integer: Given key is null!");
@@ -199,7 +200,7 @@ public class Configuration implements IOReadableWritable {
 			this.confData.put(key, Integer.toString(value));
 		}
 	}
-	
+
 	/**
 	 * Returns the value associated with the given key as a long.
 	 * 
@@ -209,7 +210,7 @@ public class Configuration implements IOReadableWritable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public long getLong(String key, long defaultValue) {
+	public long getLong(final String key, final long defaultValue) {
 		try {
 			synchronized (this.confData) {
 				String val = this.confData.get(key);
@@ -217,8 +218,7 @@ public class Configuration implements IOReadableWritable {
 					return Long.parseLong(val);
 				}
 			}
-		}
-		catch (NumberFormatException e) {
+		} catch (NumberFormatException e) {
 			LOG.debug(e);
 		}
 
@@ -234,7 +234,7 @@ public class Configuration implements IOReadableWritable {
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setLong(String key, long value) {
+	public void setLong(final String key, final long value) {
 		if (key == null) {
 			LOG.warn("Cannot set integer: Given key is null!");
 			return;
@@ -254,7 +254,7 @@ public class Configuration implements IOReadableWritable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public boolean getBoolean(String key, boolean defaultValue) {
+	public boolean getBoolean(final String key, final boolean defaultValue) {
 
 		boolean retVal = defaultValue;
 
@@ -277,7 +277,7 @@ public class Configuration implements IOReadableWritable {
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setBoolean(String key, boolean value) {
+	public void setBoolean(final String key, final boolean value) {
 
 		if (key == null) {
 			LOG.warn("Cannot set boolean: Given key is null!");
@@ -288,7 +288,7 @@ public class Configuration implements IOReadableWritable {
 			this.confData.put(key, Boolean.toString(value));
 		}
 	}
-	
+
 	/**
 	 * Returns the value associated with the given key as a float.
 	 * 
@@ -298,9 +298,8 @@ public class Configuration implements IOReadableWritable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public float getFloat(String key, float defaultValue) {
-		synchronized (this.confData)
-		{
+	public float getFloat(final String key, final float defaultValue) {
+		synchronized (this.confData) {
 			String val = this.confData.get(key);
 			return val == null ? defaultValue : Float.parseFloat(val);
 		}
@@ -315,7 +314,7 @@ public class Configuration implements IOReadableWritable {
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setFloat(String key, float value) {
+	public void setFloat(final String key, final float value) {
 
 		if (key == null) {
 			LOG.warn("Cannot set boolean: Given key is null!");
@@ -353,7 +352,7 @@ public class Configuration implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		synchronized (this.confData) {
 
@@ -371,7 +370,7 @@ public class Configuration implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		synchronized (this.confData) {
 
@@ -396,7 +395,7 @@ public class Configuration implements IOReadableWritable {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (this == obj) {
 			return true;

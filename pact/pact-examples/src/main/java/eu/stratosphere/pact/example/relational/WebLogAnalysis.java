@@ -273,12 +273,14 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		filterDocs.setDegreeOfParallelism(noSubTasks);
 		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
+		filterDocs.getCompilerHints().setAvgNumValuesPerKey(1.0f);
 
 		// Create MapContract for filtering the entries from the ranks relation
 		MapContract<PactString, Tuple, PactString, Tuple> filterRanks = new MapContract<PactString, Tuple, PactString, Tuple>(
 				FilterRanks.class, "Filter Ranks");
 		filterRanks.setDegreeOfParallelism(noSubTasks);
 		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
+		filterRanks.getCompilerHints().setAvgNumValuesPerKey(1.0f);
 
 		// Create MapContract for filtering the entries from the visits relation
 		MapContract<PactString, Tuple, PactString, PactNull> filterVisits = new MapContract<PactString, Tuple, PactString, PactNull>(

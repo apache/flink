@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
  * Null base type for PACT programs that implements the Key interface.
@@ -31,10 +32,12 @@ import eu.stratosphere.pact.common.type.Key;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public final class PactNull implements Key {
-	
-	// Singleton PactNull instance
-	public final static PactNull INSTANCE = new PactNull();
+public final class PactNull implements Key, NormalizableKey
+{	
+	/**
+	 * The PactNull singleton instance.
+	 */
+	private final static PactNull INSTANCE = new PactNull();
 
 	/**
 	 * Returns PactNull's singleton instance.
@@ -45,12 +48,16 @@ public final class PactNull implements Key {
 		return INSTANCE;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Creates a PactNull object.
 	 */
 	public PactNull() {
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
@@ -69,6 +76,8 @@ public final class PactNull implements Key {
 		out.writeBoolean(false);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
@@ -85,7 +94,7 @@ public final class PactNull implements Key {
 	@Override
 	public int compareTo(Key o) {
 		if (o.getClass() != PactNull.class) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to N_Null!");
+			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactNull!");
 		}
 
 		return 0;
@@ -107,5 +116,24 @@ public final class PactNull implements Key {
 	@Override
 	public int hashCode() {
 		return 53;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.NormalizableKey#getNormalizedKeyLen()
+	 */
+	@Override
+	public int getMaxNormalizedKeyLen()
+	{
+		return 0;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.type.NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 */
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		for (int i = offset; i < offset + len; i++) {
+			target[i] = 0;
+		}
 	}
 }

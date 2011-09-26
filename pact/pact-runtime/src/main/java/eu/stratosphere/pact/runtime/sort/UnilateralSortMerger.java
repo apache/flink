@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
+import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,39 +27,36 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.services.iomanager.BlockChannelAccess;
+import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
+import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
-import eu.stratosphere.nephele.services.iomanager.StreamChannelAccess;
-import eu.stratosphere.nephele.services.iomanager.ChannelReader;
-import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.RawComparator;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.io.ChannelReaderInputView;
+import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
+import eu.stratosphere.pact.runtime.plugable.PactRecordAccessors;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.util.MathUtils;
 
 /**
- * The {@link UnilateralSortMerger} is part of a merge-sort implementation.
- * 
- * Conceptually, a merge sort works as follows:
- * (1) Divide the unsorted list into n sublists of about 1/n the size.
- * (2) Sort each sublist recursively by re-applying merge sort.
- * (3) Merge the two sublists back into one sorted list.
- * 
- * Internally, the {@link UnilateralSortMerger} logic is factored into three threads (read, sort, spill) which
- * communicate through a set of blocking queues (forming a closed loop).
- * Memory is allocated using the {@link MemoryManager} interface. Thus the component will not exceed the
- * user-provided memory limits.
+ * The {@link UnilateralSortMerger} is a full fledged sorter. It implements a multi-way merge sort. Internally, 
+ * the logic is factored into three threads (read, sort, spill) which communicate through a set of blocking queues,
+ * forming a closed loop.  Memory is allocated using the {@link MemoryManager} interface. Thus the component will
+ * not exceed the provided memory limits.
  * 
  * @author Stephan Ewen
  * @author Erik Nijkamp
  */
 public class UnilateralSortMerger implements SortMerger
-{
+{	
 	// ------------------------------------------------------------------------
 	//                              Constants
 	// ------------------------------------------------------------------------
@@ -68,14 +67,9 @@ public class UnilateralSortMerger implements SortMerger
 	private static final Log LOG = LogFactory.getLog(UnilateralSortMerger.class);
 	
 	/**
-	 * A mask that is ANDed to the buffer size to make it a multiple of the minimal buffer size.
+	 * The minimal size of an IO buffer. Currently set to 32 KiBytes
 	 */
-	protected static final long BUFFER_ALIGNMENT_MASK = ~(0x1fffL);
-
-	/**
-	 * The minimal size of an IO buffer. Currently set to 8 KiBytes
-	 */
-	protected static final int MIN_IO_BUFFER_SIZE = 8 * 1024;
+	protected static final int MIN_IO_BUFFER_SIZE = 32 * 1024;
 
 	/**
 	 * The maximal size of an IO buffer. Currently set to 512 KiBytes
@@ -83,14 +77,29 @@ public class UnilateralSortMerger implements SortMerger
 	protected static final int MAX_IO_BUFFER_SIZE = 512 * 1024;
 	
 	/**
-	 * The minimal size of a sort buffer. Currently set to 2 MiBytes.
-	 */
-	protected static final int MIN_SORT_BUFFER_SIZE = 2 * 1024 * 1024;
-
-	/**
 	 * The number of buffers to use by the writers.
 	 */
 	protected static final int NUM_WRITE_BUFFERS = 2;
+	
+	/**
+	 * The size of a memory segment used for sorting.
+	 */
+	protected static final int SORT_MEM_SEGMENT_SIZE = 64 * 1024;
+	
+	/**
+	 * The minimum number of segments that are required for the sort to operate.
+	 */
+	protected static final int MIN_NUM_SORT_MEM_SEGMENTS = 32;
+	
+	/**
+	 * The minimal size of a sort buffer, currently 2 MiBytes.
+	 */
+	protected static final int MIN_SORT_MEM = SORT_MEM_SEGMENT_SIZE * MIN_NUM_SORT_MEM_SEGMENTS;
+	
+	/**
+	 * The minimal amount of memory required for writing.
+	 */
+	protected static final int MIN_WRITE_MEM = NUM_WRITE_BUFFERS * MIN_IO_BUFFER_SIZE;
 
 	// ------------------------------------------------------------------------
 	//                               Fields
@@ -103,14 +112,19 @@ public class UnilateralSortMerger implements SortMerger
 	private final List<List<MemorySegment>> memoryToReleaseAtShutdown;
 	
 	/**
+	 * A list of currently open channels, which need to be closed and removed when the sorter is closed.
+	 */
+	private final List<BlockChannelAccess<?, ?>> openChannels;
+	
+	/**
 	 * A list of lists containing channel readers and writers that will be closed at shutdown.
 	 */
-	private final List<List<StreamChannelAccess<?, ?>>> channelsToDeleteAtShutdown;
+	private final List<Channel.ID> channelsToDeleteAtShutdown;
 	
 	/**
 	 * The segments for the sort buffers.
 	 */
-	protected final List<MemorySegment> sortSegments;
+	protected final List<NormalizedKeySorter<?>> sortBuffers;
 
 	/**
 	 * The memory manager through which memory is allocated and released.
@@ -140,7 +154,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The parent task that owns this sorter.
 	 */
-	protected final AbstractTask parent;
+	protected final AbstractInvokable parent;
 	
 	/**
 	 * The monitor which guards the iterator field.
@@ -164,12 +178,17 @@ public class UnilateralSortMerger implements SortMerger
 	protected final int maxNumFileHandles;
 	
 	/**
+	 * The size of the buffers used for I/O.
+	 */
+	protected final int ioBufferSize;
+	
+	/**
 	 * Flag indicating that the sorter was closed.
 	 */
 	protected volatile boolean closed;
 	
 	// ------------------------------------------------------------------------
-	// Threads
+	//                                  Threads
 	// ------------------------------------------------------------------------
 
 	/**
@@ -188,9 +207,8 @@ public class UnilateralSortMerger implements SortMerger
 	private final ThreadBase spillThread;
 
 	// ------------------------------------------------------------------------
-	// Constructor & Shutdown
+	//                         Constructor & Shutdown
 	// ------------------------------------------------------------------------
-
 
 	/**
 	 * Creates a new sorter that reads the data from a given reader and provides an iterator returning that
@@ -233,7 +251,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
-	 * @param ioMemory The amount of memory to be dedicated to writing sorted runs. Will be subtracted from the total
+	 * @param maxWriteMem The maximal amount of memory to be dedicated to writing sorted runs. Will be subtracted from the total
 	 *                 amount of memory (<code>totalMemory</code>).
 	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
@@ -250,7 +268,7 @@ public class UnilateralSortMerger implements SortMerger
 	 *                                   perform the sort.
 	 */
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
-			long totalMemory, long ioMemory, int numSortBuffers, int maxNumFileHandles,
+			long totalMemory, long maxWriteMem, int numSortBuffers, int maxNumFileHandles,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
 			MutableObjectIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
@@ -265,14 +283,15 @@ public class UnilateralSortMerger implements SortMerger
 		if (maxNumFileHandles < 2) {
 			throw new IllegalArgumentException("Merger cannot work with less than two file handles.");
 		}
-		if (totalMemory < maxNumFileHandles * MIN_IO_BUFFER_SIZE) {
-			throw new IOException("Too little memory for merging operations.");
-		}
 		if (keyComparators.length < 1) {
 			throw new IllegalArgumentException("There must be at least one sort column and hence one comparator.");
 		}
 		if (keyComparators.length != keyPositions.length || keyPositions.length != keyClasses.length) {
 			throw new IllegalArgumentException("The number of comparators, key columns and key types must match.");
+		}
+		
+		if (totalMemory < MIN_SORT_MEM + MIN_WRITE_MEM) {
+			throw new IllegalArgumentException("Too little memory provided to Sort-Merger to perform task.");
 		}
 		
 		this.maxNumFileHandles = maxNumFileHandles;
@@ -284,64 +303,84 @@ public class UnilateralSortMerger implements SortMerger
 		this.parent = parentTask;
 		
 		this.memoryToReleaseAtShutdown = new ArrayList<List<MemorySegment>>();
-		this.channelsToDeleteAtShutdown = new ArrayList<List<StreamChannelAccess<?, ?>>>();
+		this.channelsToDeleteAtShutdown = new ArrayList<Channel.ID>();
+		this.openChannels = new ArrayList<BlockChannelAccess<?,?>>();
 		
-		// circular queues pass buffers between the threads
-		final CircularQueues circularQueues = new CircularQueues();
-		
-		// determine how to spit the memory between the I/O buffers and the sort buffers
-		// initially, only the spilling thread needs some I/O buffers for asynchronous writing,
-		// the remainder can be dedicated to sort memory
-		
-		long sortMem;
-		
-		if (ioMemory < 0) {
-			ioMemory = totalMemory / 64;
-			ioMemory = Math.max(
-					Math.min(ioMemory, NUM_WRITE_BUFFERS * MAX_IO_BUFFER_SIZE),
-						NUM_WRITE_BUFFERS * MIN_IO_BUFFER_SIZE);
-			ioMemory &= BUFFER_ALIGNMENT_MASK << 1; // align for two buffer sizes
+		// determine the size of the I/O buffers. the size must be chosen such that we can accommodate
+		// the desired number of merges, plus the writing, from the total memory
+		if (maxWriteMem != 0)
+		{
+			if (maxWriteMem != -1 && maxWriteMem < MIN_WRITE_MEM) {
+				throw new IllegalArgumentException("The specified maximum write memory is to low. " +
+					"Required are at least " + MIN_WRITE_MEM + " bytes.");
+			}
+			
+			// determine how the reading side limits the buffer size, because we buffers for the readers
+			// during the merging phase 
+			final int minBuffers = NUM_WRITE_BUFFERS + maxNumFileHandles;
+			final int desiredBuffers = NUM_WRITE_BUFFERS + 2 * maxNumFileHandles;
+			
+			int bufferSize = (int) (totalMemory / desiredBuffers);
+			if (bufferSize < MIN_IO_BUFFER_SIZE) {
+				bufferSize = MIN_IO_BUFFER_SIZE;
+				if (totalMemory / minBuffers < MIN_IO_BUFFER_SIZE) {
+					maxNumFileHandles = (int) (totalMemory / MIN_IO_BUFFER_SIZE) - NUM_WRITE_BUFFERS;
+					if (LOG.isWarnEnabled())
+						LOG.warn("Reducing maximal merge fan-in to " + maxNumFileHandles + " due to memory limitations.");
+				}
+			}
+			else {
+				bufferSize = Math.min(MAX_IO_BUFFER_SIZE, MathUtils.roundDownToPowerOf2(bufferSize));
+			}
+			
+			if (maxWriteMem < 0) {
+				maxWriteMem = Math.max(totalMemory / 64, MIN_WRITE_MEM);
+			}
+			this.ioBufferSize = Math.min(bufferSize, MathUtils.roundDownToPowerOf2((int) (maxWriteMem / NUM_WRITE_BUFFERS)));
+			maxWriteMem = NUM_WRITE_BUFFERS * this.ioBufferSize;
+		}
+		else {
+			// no I/O happening
+			this.ioBufferSize = -1;
 		}
 		
-		sortMem = totalMemory - ioMemory;
-		if (sortMem < MIN_SORT_BUFFER_SIZE) {
-			throw new IOException("Too little memory provided to Sort-Merger to perform task.");
-		}
+		final long sortMem = totalMemory - maxWriteMem;
+		final long numSortMemSegments = sortMem / SORT_MEM_SEGMENT_SIZE;
 		
 		// decide how many sort buffers to use
 		if (numSortBuffers < 1) {
 			if (sortMem > 96 * 1024 * 1024) {
 				numSortBuffers = 3;
 			}
-			else if (sortMem >= 2 * MIN_SORT_BUFFER_SIZE) {
+			else if (numSortMemSegments >= 2 * MIN_NUM_SORT_MEM_SEGMENTS) {
 				numSortBuffers = 2;
 			}
 			else {
 				numSortBuffers = 1;
 			}
 		}
+		final int numSegmentsPerSortBuffer = numSortMemSegments / numSortBuffers > Integer.MAX_VALUE ? 
+						Integer.MAX_VALUE : (int) (numSortMemSegments / numSortBuffers);
 		
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Instantiating unilateral sort-merger with " + ioMemory + " bytes of write cache and " + sortMem + 
+			LOG.debug("Instantiating unilateral sort-merger with " + maxWriteMem + " bytes of write cache and " + sortMem + 
 				" bytes of sorting/merging memory. Dividing sort memory over " + numSortBuffers + 
-				" buffers, merging maximally " + maxNumFileHandles + " streams at once.");
+				" buffers (" + numSegmentsPerSortBuffer + " pages with " + SORT_MEM_SEGMENT_SIZE + 
+				" bytes) , merging maximally " + maxNumFileHandles + " streams at once.");
 		}
 		
+		// circular queues pass buffers between the threads
+		final CircularQueues circularQueues = new CircularQueues();
 		
-		// allocate the memory for the sort buffers
-		final List<MemorySegment> sortSegments = this.memoryManager.allocate(parentTask, sortMem, numSortBuffers, MIN_SORT_BUFFER_SIZE);
-		registerSegmentsToBeFreedAtShutdown(sortSegments);
-		this.sortSegments = sortSegments;
+		this.sortBuffers = new ArrayList<NormalizedKeySorter<?>>(numSortBuffers);
+		final PactRecordAccessors accessors = new PactRecordAccessors(keyPositions, keyClasses);
 		
-		// fill empty queue with buffers
-		for (int i = 0; i < sortSegments.size(); i++) {
-			MemorySegment mseg = sortSegments.get(i);
-
-			// comparator
-			RawComparator comparator = new DeserializerComparator(keyPositions, keyClasses, keyComparators);
-
-			// sort-buffer
-			BufferSortableGuaranteed buffer = new BufferSortableGuaranteed(mseg, comparator);
+		// allocate the sort buffers and fill empty queue with them
+		for (int i = 0; i < numSortBuffers; i++)
+		{
+			final List<MemorySegment> sortSegments = memoryManager.allocateStrict(parentTask, numSegmentsPerSortBuffer, SORT_MEM_SEGMENT_SIZE);
+			final NormalizedKeySorter<PactRecord> buffer = new NormalizedKeySorter<PactRecord>(accessors, sortSegments);
+			this.sortBuffers.add(buffer);
 
 			// add to empty queue
 			CircularElement element = new CircularElement(i, buffer);
@@ -367,7 +406,7 @@ public class UnilateralSortMerger implements SortMerger
 		this.sortThread = getSortingThread(exceptionHandler, circularQueues, parentTask);
 
 		// start the thread that handles spilling to secondary storage
-		this.spillThread = getSpillingThread(exceptionHandler, circularQueues, memoryManager, ioManager, ioMemory,
+		this.spillThread = getSpillingThread(exceptionHandler, circularQueues, memoryManager, ioManager,
 			sortMem, parentTask);
 		
 		startThreads();
@@ -379,14 +418,15 @@ public class UnilateralSortMerger implements SortMerger
 	protected void startThreads()
 	{
 		// start threads
-		readThread.start();
-		sortThread.start();
-		spillThread.start();
+		this.readThread.start();
+		this.sortThread.start();
+		this.spillThread.start();
 	}
 
 	/**
 	 * Shuts down all the threads initiated by this sort/merger. Also releases all previously allocated
-	 * memory, if it has not yet been released by the threads.
+	 * memory, if it has not yet been released by the threads, and closes and deletes all channels (removing
+	 * the temporary files).
 	 * <p>
 	 * The threads are set to exit directly, but depending on their operation, it may take a while to actually happen.
 	 * The sorting thread will for example not finish before the current batch is sorted. This method attempts to wait
@@ -420,76 +460,106 @@ public class UnilateralSortMerger implements SortMerger
 			}
 			
 			// stop all the threads
-			if (readThread != null) {
+			if (this.readThread != null) {
 				try {
-					readThread.shutdown();
+					this.readThread.shutdown();
 				} catch (Throwable t) {
 					LOG.error("Error shutting down reader thread: " + t.getMessage(), t);
 				}
 			}
-			if (sortThread != null) {
+			if (this.sortThread != null) {
 				try {
-					sortThread.shutdown();
+					this.sortThread.shutdown();
 				} catch (Throwable t) {
 					LOG.error("Error shutting down sorter thread: " + t.getMessage(), t);
 				}
 			}
-			if (spillThread != null) {
+			if (this.spillThread != null) {
 				try {
-					spillThread.shutdown();
+					this.spillThread.shutdown();
 				} catch (Throwable t) {
 					LOG.error("Error shutting down spilling thread: " + t.getMessage(), t);
 				}
 			}
 
 			try {
-				if (readThread != null) {
-					readThread.join();
+				if (this.readThread != null) {
+					this.readThread.join();
 				}
 				
-				if (sortThread != null) {
-					sortThread.join();
+				if (this.sortThread != null) {
+					this.sortThread.join();
 				}
 				
-				if (spillThread != null) {
-					spillThread.join();
+				if (this.spillThread != null) {
+					this.spillThread.join();
 				}
 			}
 			catch (InterruptedException iex) {
 				LOG.debug("Closing of sort/merger was interrupted. " +
 						"The reading/sorting/spilling threads may still be working.", iex);
 			}
-		} finally {
-			// close all channel accesses
-			for (List<StreamChannelAccess<?, ?>> channels : this.channelsToDeleteAtShutdown)
-			{
-				for (StreamChannelAccess<?, ?> channel : channels) {
+		}
+		finally {
+			// we encapsulate each phase in a try-catch block to ensure that the succeeding phases happen anyways
+			
+			// PHASE 1: RELEASE ALL MEMORY. This should cause exceptions on all channels, because their memory segments are freed
+			try {
+				while (!this.memoryToReleaseAtShutdown.isEmpty()) {
 					try {
-						if (!channel.isClosed()) {
-							channel.close();
-						}
-						channel.deleteChannel();
+						List<MemorySegment> segments =  this.memoryToReleaseAtShutdown.remove(this.memoryToReleaseAtShutdown.size() - 1);
+						this.memoryManager.release(segments);
 					}
-					catch (Throwable t) {
-						// ignore any error at shutdown.
-					}
+					catch (Throwable t) {}
 				}
+				this.memoryToReleaseAtShutdown.clear();
+			}
+			catch (Throwable t) {}
+			
+			// PHASE 2: RELEASE ALL SORT BUFFERS. This should cause exceptions while sorting, because the segments are freed
+			try {
+				// release all sort buffers
+				for (NormalizedKeySorter<?> sorter : this.sortBuffers) {
+					this.memoryManager.release(sorter.dispose());
+				}
+				this.sortBuffers.clear();
+			}
+			catch (Throwable t) {}
+			
+			// PHASE 3: CLOSE ALL CURRENTLY OPEN CHANNELS
+			while (!this.openChannels.isEmpty()) {
+				try {
+					BlockChannelAccess<?, ?> channel = this.openChannels.remove(this.openChannels.size() - 1);
+					if (!channel.isClosed())
+						channel.close();
+					channel.deleteChannel();
+				}
+				catch (Throwable t) {}
 			}
 			
-			// release all memory
-			for (List<MemorySegment> segments: this.memoryToReleaseAtShutdown) {
-				memoryManager.release(segments);
+			///PHASE 4: DELETE ALL NON-OPEN CHANNELS
+			for (Channel.ID channel : this.channelsToDeleteAtShutdown) {
+				try {
+					final File f = new File(channel.getPath());
+					if (f.exists()) {
+						f.delete();
+					}
+				}
+				catch (Throwable t) {}
 			}
-			this.memoryToReleaseAtShutdown.clear();
 		}
 	}
+	
+	// ------------------------------------------------------------------------
+	//              Cleanup of Temp Files and Allocated Memory
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Adds a given collection of memory segments to the list of segments that are to be released at shutdown.
 	 * 
 	 * @param s The collection of memory segments.
 	 */
-	public void registerSegmentsToBeFreedAtShutdown(List<MemorySegment> s) {
+	protected void registerSegmentsToBeFreedAtShutdown(List<MemorySegment> s) {
 		this.memoryToReleaseAtShutdown.add(s);
 	}
 
@@ -498,26 +568,44 @@ public class UnilateralSortMerger implements SortMerger
 	 * 
 	 * @param s The collection of memory segments.
 	 */
-	public void unregisterSegmentsToBeFreedAtShutdown(List<MemorySegment> s) {
+	protected void unregisterSegmentsToBeFreedAtShutdown(List<MemorySegment> s) {
 		this.memoryToReleaseAtShutdown.remove(s);
 	}
 	
 	/**
-	 * Adds a given collection of readers / writers to the list of channels that are to be removed at shutdown.
+	 * Adds a channel to the list of channels that are to be removed at shutdown.
 	 * 
-	 * @param s The collection of readers/writers.
+	 * @param s The channel id.
 	 */
-	public void registerChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?, ?>> channels) {
-		this.channelsToDeleteAtShutdown.add(channels);
+	protected void registerChannelToBeRemovedAtShudown(Channel.ID channel) {
+		this.channelsToDeleteAtShutdown.add(channel);
 	}
 
 	/**
-	 * Removes a given collection of readers / writers from the list of channels that are to be removed at shutdown.
+	 * Removes a channel from the list of channels that are to be removed at shutdown.
 	 * 
-	 * @param s The collection of readers/writers.
+	 * @param s The channel id.
 	 */
-	public void unregisterChannelsToBeRemovedAtShudown(List<StreamChannelAccess<?, ?>> channels) {
-		this.channelsToDeleteAtShutdown.remove(channels);
+	protected void unregisterChannelToBeRemovedAtShudown(Channel.ID channel) {
+		this.channelsToDeleteAtShutdown.remove(channel);
+	}
+	
+	/**
+	 * Adds a channel reader/writer to the list of channels that are to be removed at shutdown.
+	 * 
+	 * @param s The channel reader/writer.
+	 */
+	protected void registerOpenChannelToBeRemovedAtShudown(BlockChannelAccess<?, ?> channel) {
+		this.openChannels.add(channel);
+	}
+
+	/**
+	 * Removes a channel reader/writer from the list of channels that are to be removed at shutdown.
+	 * 
+	 * @param s The channel reader/writer.
+	 */
+	protected void unregisterOpenChannelToBeRemovedAtShudown(BlockChannelAccess<?, ?> channel) {
+		this.openChannels.remove(channel);
 	}
 
 	// ------------------------------------------------------------------------
@@ -562,7 +650,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @return The sorting thread.
 	 */
 	protected ThreadBase getSortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			AbstractTask parentTask)
+			AbstractInvokable parentTask)
 	{
 		return new SortingThread(exceptionHandler, queues, parentTask);
 	}
@@ -575,18 +663,16 @@ public class UnilateralSortMerger implements SortMerger
 	 * @param queues The queues through which the thread communicates with the other threads.
 	 * @param memoryManager The memory manager from which the memory is allocated.
 	 * @param ioManager The I/O manager that creates channel readers and writers.
-	 * @param writeMemSize The amount of memory to be dedicated to writing buffers.
 	 * @param readMemSize The amount of memory to be dedicated to reading / pre-fetching buffers. This memory must
 	 *                    only be allocated once the sort buffers have been freed.
 	 * @param parentTask The task at which the thread registers itself (for profiling purposes).
 	 * @return The thread that does the spilling and pre-merging.
 	 */
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			MemoryManager memoryManager, IOManager ioManager, long readMemSize,
+			AbstractInvokable parentTask)
 	{
-		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, writeMemSize,
-			readMemSize, parentTask);
+		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager, readMemSize, parentTask);
 	}
 
 	// ------------------------------------------------------------------------
@@ -622,8 +708,8 @@ public class UnilateralSortMerger implements SortMerger
 	 * 
 	 * @param iterator The result iterator to set.
 	 */
-	protected final void setResultIterator(MutableObjectIterator<PactRecord> iterator) {
-		
+	protected final void setResultIterator(MutableObjectIterator<PactRecord> iterator)
+	{
 		synchronized (this.iteratorLock) {
 			// set the result iterator only, if no exception has occurred
 			if (this.iteratorException == null) {
@@ -638,7 +724,8 @@ public class UnilateralSortMerger implements SortMerger
 	 * 
 	 * @param ioex The exception to be reported to the threads that wait for the result iterator.
 	 */
-	protected final void setResultIteratorException(IOException ioex) {
+	protected final void setResultIteratorException(IOException ioex)
+	{
 		synchronized (this.iteratorLock) {
 			if (this.iteratorException == null) {
 				this.iteratorException = ioex;
@@ -662,7 +749,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @throws IOException Thrown, if the readers encounter an I/O problem.
 	 */
 	protected final MergeIterator getMergingIterator(final List<Channel.ID> channelIDs,
-		final List<List<MemorySegment>> inputSegments, List<StreamChannelAccess<?, ?>> readerList)
+		final List<List<MemorySegment>> inputSegments, List<BlockChannelAccess<?, ?>> readerList)
 	throws IOException
 	{
 		// create one iterator per channel id
@@ -676,14 +763,17 @@ public class UnilateralSortMerger implements SortMerger
 			final List<MemorySegment> segsForChannel = inputSegments.get(i);
 			
 			// wrap channel reader as iterator
-			final ChannelReader reader = ioManager.createChannelReader(id, segsForChannel, true);
+			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(id);
+			final ChannelReaderInputView inView = new ChannelReaderInputView(reader, segsForChannel);
 			readerList.add(reader);
+			registerOpenChannelToBeRemovedAtShudown(reader);
+			unregisterChannelToBeRemovedAtShudown(id);
 			
-			final MutableObjectIterator<PactRecord> iterator = new ChannelReaderIterator(reader);
+			final MutableObjectIterator<PactRecord> iterator = new ChannelReaderIterator(inView);
 			iterators.add(iterator);
 		}
 
-		return new MergeIterator(iterators, keyComparators, keyPositions, keyClasses);
+		return new MergeIterator(iterators, this.keyComparators, this.keyPositions, this.keyClasses);
 	}
 
 	/**
@@ -691,27 +781,23 @@ public class UnilateralSortMerger implements SortMerger
 	 * 
 	 * @param channelIDs The IDs of the sorted runs that need to be merged.
 	 * @param writeBuffers The buffers to be used by the writers.
-	 * @param  memorySize The amount of memory dedicated to the readers.
+	 * @param writeBufferSize The size of the write buffers.
+	 * @param  readMemorySize The amount of memory dedicated to the readers.
 	 * @return A list of the IDs of the merged channels.
 	 * @throws IOException Thrown, if the readers or writers encountered an I/O problem.
 	 * @throws MemoryAllocationException Thrown, if the specified memory is insufficient to merge the channels
 	 *                                   or if the memory manager could not provide the requested memory.
 	 */
-	protected final List<Channel.ID> mergeChannelList(final List<Channel.ID> channelIDs, final List<MemorySegment> writeBuffers,
-		final long memorySize)
+	protected final List<Channel.ID> mergeChannelList(final List<Channel.ID> channelIDs, 
+				final List<MemorySegment> writeBuffers,	final long readMemorySize)
 	throws IOException, MemoryAllocationException
 	{
-		final double numMerges = Math.ceil(channelIDs.size() / ((double) maxNumFileHandles));
+		final double numMerges = Math.ceil(channelIDs.size() / ((double) this.maxNumFileHandles));
 		final int channelsToMergePerStep = (int) Math.ceil(channelIDs.size() / numMerges);
-		
-		if (memorySize < channelsToMergePerStep * MIN_IO_BUFFER_SIZE) {
-			throw new MemoryAllocationException("Available memory of " + memorySize + " is not sufficient to merge " + 
-				channelsToMergePerStep + " channels.");
-		}
 		
 		// allocate the memory for the merging step
 		final List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelsToMergePerStep);
-		final List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, memorySize, channelsToMergePerStep);
+		final List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, readMemorySize, channelsToMergePerStep);
 		registerSegmentsToBeFreedAtShutdown(allBuffers);
 		
 		// the list containing the IDs of the merged channels
@@ -719,7 +805,8 @@ public class UnilateralSortMerger implements SortMerger
 		
 		final ArrayList<Channel.ID> channelsToMergeThisStep = new ArrayList<Channel.ID>(channelsToMergePerStep);
 		int channelNum = 0;
-		while (channelNum < channelIDs.size()) {
+		while (channelNum < channelIDs.size())
+		{
 			channelsToMergeThisStep.clear();
 
 			for (int i = 0; i < channelsToMergePerStep && channelNum < channelIDs.size(); i++, channelNum++) {
@@ -756,29 +843,36 @@ public class UnilateralSortMerger implements SortMerger
 	throws IOException
 	{
 		// the list with the readers, to be closed at shutdown
-		List<StreamChannelAccess<?, ?>> channelAccesses = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
-		registerChannelsToBeRemovedAtShudown(channelAccesses);
+		List<BlockChannelAccess<?, ?>> channelAccesses = new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size());
 
 		// the list with the target iterators
-		MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
+		final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
 
 		// create a new channel writer
 		final Channel.ID mergedChannelID = this.ioManager.createChannel();
-		final ChannelWriter writer = this.ioManager.createChannelWriter(mergedChannelID, writeBuffers);
-		channelAccesses.add(writer);
+		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(mergedChannelID);
+		registerOpenChannelToBeRemovedAtShudown(writer);
+		final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, this.ioBufferSize);
 
 		// read the merged stream and write the data back
 		PactRecord rec = new PactRecord();
 		while (mergeIterator.next(rec)) {
-			// read sorted pairs into memory buffer
-			if (!writer.write(rec)) {
-				throw new IOException("Writing of pair during merging failed");
-			}
+			rec.write(output);
 		}
-		writer.close();
+		output.close();
 		
-		// all readers have finished, so they have closed themselves and deleted themselves
-		unregisterChannelsToBeRemovedAtShudown(channelAccesses);
+		// register merged result to be removed at shutdown
+		unregisterOpenChannelToBeRemovedAtShudown(writer);
+		registerChannelToBeRemovedAtShudown(mergedChannelID);
+		
+		// remove the merged channel readers from the clear-at-shutdown list
+		for (int i = 0; i < channelAccesses.size(); i++) {
+			BlockChannelAccess<?, ?> access = channelAccesses.get(i);
+			if (!access.isClosed())
+				access.close();
+			access.deleteChannel();
+			unregisterOpenChannelToBeRemovedAtShudown(access);
+		}
 
 		return mergedChannelID;
 	}
@@ -799,15 +893,9 @@ public class UnilateralSortMerger implements SortMerger
 	throws MemoryAllocationException
 	{
 		// determine the memory to use per channel and the number of buffers
-		final long ioMemoryPerChannel = totalReadMemory / numChannels;
-		final int numBuffers = ioMemoryPerChannel < 2 * MIN_IO_BUFFER_SIZE ? 1 :
-			                    ioMemoryPerChannel < 2 * MAX_IO_BUFFER_SIZE ? 2 :
-			                    (int) (ioMemoryPerChannel / MAX_IO_BUFFER_SIZE);
-		final long bufferSize = (ioMemoryPerChannel / numBuffers) & BUFFER_ALIGNMENT_MASK;
-		
+		final int numBuffers = (int) (totalReadMemory / (numChannels * this.ioBufferSize));
 		// allocate all buffers in one step, for efficiency
-		final List<MemorySegment> memorySegments = this.memoryManager.allocate(this.parent, 
-			bufferSize * numBuffers * numChannels, numBuffers * numChannels, MIN_IO_BUFFER_SIZE);
+		final List<MemorySegment> memorySegments = this.memoryManager.allocateStrict(this.parent, numBuffers * numChannels, this.ioBufferSize);
 		
 		// get the buffers for all but the last channel
 		for (int i = 0, buffer = 0; i < numChannels - 1; i++) {
@@ -824,7 +912,6 @@ public class UnilateralSortMerger implements SortMerger
 		for (int i = (numChannels - 1) * numBuffers; i < memorySegments.size(); i++) {
 			segsForLast.add(memorySegments.get(i));
 		}
-		
 		return memorySegments;
 	}
 
@@ -848,14 +935,14 @@ public class UnilateralSortMerger implements SortMerger
 	protected static final class CircularElement
 	{
 		final int id;
-		final BufferSortableGuaranteed buffer;
+		final NormalizedKeySorter<PactRecord> buffer;
 
 		public CircularElement() {
 			this.buffer = null;
 			this.id = -1;
 		}
 
-		public CircularElement(int id, BufferSortableGuaranteed buffer) {
+		public CircularElement(int id, NormalizedKeySorter<PactRecord> buffer) {
 			this.id = id;
 			this.buffer = buffer;
 		}
@@ -890,7 +977,8 @@ public class UnilateralSortMerger implements SortMerger
 	 * The threads are designed to terminate themselves when the task they are set up to do is completed. Further more,
 	 * they terminate immediately when the <code>shutdown()</code> method is called.
 	 */
-	protected static abstract class ThreadBase extends Thread implements Thread.UncaughtExceptionHandler {
+	protected static abstract class ThreadBase extends Thread implements Thread.UncaughtExceptionHandler
+	{
 		/**
 		 * The queue of empty buffer that can be used for reading;
 		 */
@@ -904,7 +992,7 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * The parent task at whom the thread needs to register.
 		 */
-		private final AbstractTask parentTask;
+		private final AbstractInvokable parentTask;
 
 		/**
 		 * The flag marking this thread as alive.
@@ -914,15 +1002,13 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * Creates a new thread.
 		 * 
-		 * @param exceptionHandler
-		 *        The exception handler to call for all exceptions.
-		 * @param name
-		 *        The name of the thread.
-		 * @param queues
-		 *        The queues used to pass buffers between the threads.
+		 * @param exceptionHandler The exception handler to call for all exceptions.
+		 * @param name The name of the thread.
+		 * @param queues The queues used to pass buffers between the threads.
+		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
 		 */
 		protected ThreadBase(ExceptionHandler<IOException> exceptionHandler, String name, CircularQueues queues,
-				AbstractTask parentTask)
+				AbstractInvokable parentTask)
 		{
 			// thread setup
 			super(name);
@@ -932,11 +1018,8 @@ public class UnilateralSortMerger implements SortMerger
 			this.exceptionHandler = exceptionHandler;
 			this.setUncaughtExceptionHandler(this);
 
-			// queues
 			this.queues = queues;
-
 			this.parentTask = parentTask;
-
 			this.alive = true;
 		}
 
@@ -964,8 +1047,7 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * Equivalent to the run() method.
 		 * 
-		 * @throws Exception
-		 *         Exceptions that prohibit correct completion of the work may be thrown by the thread.
+		 * @throws IOException Exceptions that prohibit correct completion of the work may be thrown by the thread.
 		 */
 		protected abstract void go() throws IOException;
 
@@ -998,17 +1080,16 @@ public class UnilateralSortMerger implements SortMerger
 				// discard any exception that occurs when after the thread is killed.
 				return;
 			}
-			
-			if (exceptionHandler != null) {
+			if (this.exceptionHandler != null) {
 				try {
-					exceptionHandler.handleException(ioex);
+					this.exceptionHandler.handleException(ioex);
 				}
 				catch (Throwable t) {}
 			}
 		}
 
-		/**
-		 * {@inheritDoc}
+		/* (non-Javadoc)
+		 * @see java.lang.Thread.UncaughtExceptionHandler#uncaughtException(java.lang.Thread, java.lang.Throwable)
 		 */
 		@Override
 		public void uncaughtException(Thread t, Throwable e) {
@@ -1020,7 +1101,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The thread that consumes the input data and puts it into a buffer that will be sorted.
 	 */
-	private static class ReadingThread extends ThreadBase
+	protected static class ReadingThread extends ThreadBase
 	{
 		/**
 		 * The input channels to read from.
@@ -1035,12 +1116,10 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * Creates a new reading thread.
 		 * 
-		 * @param exceptionHandler
-		 *        The exception handler to call for all exceptions.
-		 * @param reader
-		 *        The reader to pull the data from.
-		 * @param queues
-		 *        The queues used to pass buffers between the threads.
+		 * @param exceptionHandler The exception handler to call for all exceptions.
+		 * @param reader The reader to pull the data from.
+		 * @param queues The queues used to pass buffers between the threads.
+		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
 		 */
 		public ReadingThread(ExceptionHandler<IOException> exceptionHandler,
 				MutableObjectIterator<PactRecord> reader, CircularQueues queues,
@@ -1058,10 +1137,10 @@ public class UnilateralSortMerger implements SortMerger
 		 * available.
 		 */
 		public void go() throws IOException
-		{
+		{	
 			final MutableObjectIterator<PactRecord> reader = this.reader;
 			
-			PactRecord current = new PactRecord();
+			final PactRecord current = new PactRecord();
 			PactRecord leftoverRecord = null;
 			
 			CircularElement element = null;
@@ -1093,7 +1172,7 @@ public class UnilateralSortMerger implements SortMerger
 				}
 				
 				// get the new buffer and check it
-				final BufferSortableGuaranteed buffer = element.buffer;
+				final NormalizedKeySorter<PactRecord> buffer = element.buffer;
 				if (!buffer.isEmpty()) {
 					throw new IOException("New buffer is not empty.");
 				}
@@ -1216,22 +1295,19 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The thread that sorts filled buffers.
 	 */
-	private static class SortingThread extends ThreadBase {
-		/**
-		 * The sorter.
-		 */
+	protected static class SortingThread extends ThreadBase
+	{		
 		private final IndexedSorter sorter;
 
 		/**
 		 * Creates a new sorting thread.
 		 * 
-		 * @param exceptionHandler
-		 *        The exception handler to call for all exceptions.
-		 * @param queues
-		 *        The queues used to pass buffers between the threads.
+		 * @param exceptionHandler The exception handler to call for all exceptions.
+		 * @param queues The queues used to pass buffers between the threads.
+		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
 		 */
 		public SortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				AbstractTask parentTask) {
+				AbstractInvokable parentTask) {
 			super(exceptionHandler, "SortMerger sorting thread", queues, parentTask);
 
 			// members
@@ -1241,14 +1317,15 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * Entry point of the thread.
 		 */
-		public void go() throws IOException {
+		public void go() throws IOException
+		{			
 			boolean alive = true;
 
 			// loop as long as the thread is marked alive
 			while (isRunning() && alive) {
 				CircularElement element = null;
 				try {
-					element = queues.sort.take();
+					element = this.queues.sort.take();
 				}
 				catch (InterruptedException iex) {
 					if (isRunning()) {
@@ -1267,7 +1344,7 @@ public class UnilateralSortMerger implements SortMerger
 					if (LOG.isDebugEnabled())
 						LOG.debug("Sorting buffer " + element.id + ".");
 					
-					sorter.sort(element.buffer);
+					this.sorter.sort(element.buffer);
 					
 					if (LOG.isDebugEnabled())
 						LOG.debug("Sorted buffer " + element.id + ".");
@@ -1277,35 +1354,43 @@ public class UnilateralSortMerger implements SortMerger
 						LOG.debug("Sorting thread done.");
 					alive = false;
 				}
-				queues.spill.add(element);
+				this.queues.spill.add(element);
 			}
 		}
 	}
 
 	/**
-	 *
+	 * The thread that handles the spilling of intermediate results and sets up the merging. It also merges the 
+	 * channels until sufficiently few channels remain to perform the final streamed merge. 
 	 */
-	private class SpillingThread extends ThreadBase
+	protected class SpillingThread extends ThreadBase
 	{
-		private final MemoryManager memoryManager;		// memory manager for memory allocation and release
+		protected final MemoryManager memoryManager;	// memory manager for memory allocation and release
 
-		private final IOManager ioManager;				// I/O manager to create channels
-
-		private final long writeMemSize;				// memory for output buffers
+		protected final IOManager ioManager;			// I/O manager to create channels
 		
-		private final long readMemSize;					// memory for reading and pre-fetching buffers
+		protected final long readMemSize;				// memory for reading and pre-fetching buffers
 
-
+		/**
+		 * Creates the spilling thread.
+		 * 
+		 * @param exceptionHandler The exception handler to call for all exceptions.
+		 * @param queues The queues used to pass buffers between the threads.
+		 * @param memoryManager The memory manager used to allocate buffers for the readers and writers.
+		 * @param ioManager The I/I manager used to instantiate readers and writers from.
+		 * @param writeMemSize The amount of memory to be used for spilling, if spilling is required.
+		 * @param readMemSize The amount of memory to be used for the readers that merge the sorted runs.
+		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
+		 */
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
 				MemoryManager memoryManager, IOManager ioManager,
-				long writeMemSize, long readMemSize, AbstractTask parentTask)
+				long readMemSize, AbstractInvokable parentTask)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
 
 			// members
 			this.memoryManager = memoryManager;
 			this.ioManager = ioManager;
-			this.writeMemSize = writeMemSize;
 			this.readMemSize = readMemSize;
 		}
 
@@ -1321,8 +1406,7 @@ public class UnilateralSortMerger implements SortMerger
 			boolean cacheOnly = false;
 			
 			// fill cache
-			while (isRunning())
-			{
+			while (isRunning()) {
 				// take next element from queue
 				try {
 					element = this.queues.spill.take();
@@ -1353,9 +1437,9 @@ public class UnilateralSortMerger implements SortMerger
 			
 			// ------------------- In-Memory Merge ------------------------
 			if (cacheOnly) {
-				/* # case 1: operates on in-memory segments only # */
+				/* operates on in-memory segments only */
 				if (LOG.isDebugEnabled())
-					LOG.debug("Initiating merge-iterator (in-memory segments).");
+					LOG.debug("Initiating in memory merge.");
 				
 				List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>(cache.size());
 								
@@ -1380,14 +1464,16 @@ public class UnilateralSortMerger implements SortMerger
 			// ------------------- Spilling Phase ------------------------
 			
 			final Channel.Enumerator enumerator = this.ioManager.createChannelEnumerator();
-			final List<MemorySegment> writeBuffers;
+			final LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
+			final int writeBufferSize = UnilateralSortMerger.this.ioBufferSize;
 			
 			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
+			List<MemorySegment> writeBuffers;
 
 			// allocate memory segments for channel writer
 			try {
-				writeBuffers = this.memoryManager.allocate(UnilateralSortMerger.this.parent, writeMemSize, 
-					NUM_WRITE_BUFFERS, MIN_IO_BUFFER_SIZE);
+				writeBuffers = this.memoryManager.allocateStrict(UnilateralSortMerger.this.parent, 
+												NUM_WRITE_BUFFERS, writeBufferSize);
 				registerSegmentsToBeFreedAtShutdown(writeBuffers);
 			}
 			catch (MemoryAllocationException maex) {
@@ -1395,10 +1481,9 @@ public class UnilateralSortMerger implements SortMerger
 			}
 			
 			// loop as long as the thread is marked alive and we do not see the final element
-			while (isRunning())
-			{
+			while (isRunning())	{
 				try {
-					element = takeNext(queues.spill, cache);
+					element = takeNext(this.queues.spill, cache);
 				}
 				catch (InterruptedException iex) {
 					if (isRunning()) {
@@ -1406,16 +1491,13 @@ public class UnilateralSortMerger implements SortMerger
 								"Retrying to grab buffer...");
 						continue;
 					}
-					else {
-						return;
-					}
+					else return;
 				}
 				
 				// check if we are still running
 				if (!isRunning()) {
 					return;
 				}
-				
 				// check if this is the end-of-work buffer
 				if (element == SENTINEL) {
 					break;
@@ -1426,18 +1508,20 @@ public class UnilateralSortMerger implements SortMerger
 				channelIDs.add(channel);
 
 				// create writer
-				ChannelWriter writer = this.ioManager.createChannelWriter(channel, writeBuffers);
+				final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel, returnQueue);
+				registerOpenChannelToBeRemovedAtShudown(writer);
+				final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, writeBufferSize);
 
 				// write sort-buffer to channel
 				if (LOG.isDebugEnabled())
 					LOG.debug("Spilling buffer " + element.id + ".");
-				element.buffer.writeToChannel(writer);
+				element.buffer.writeToOutput(output);
 				if (LOG.isDebugEnabled())
 					LOG.debug("Spilled buffer " + element.id + ".");
 
-				// make sure everything is on disk
-				// we do not need to re-collect the buffers, because we still have references to them
-				writer.close();
+				output.close();
+				unregisterOpenChannelToBeRemovedAtShudown(writer);
+				registerChannelToBeRemovedAtShudown(channel);
 
 				// pass empty sort-buffer to reading thread
 				element.buffer.reset();
@@ -1450,12 +1534,7 @@ public class UnilateralSortMerger implements SortMerger
 				LOG.debug("Releasing sort-buffer memory.");
 			}
 			
-			// release sort-buffers
 			releaseSortBuffers();
-			if (UnilateralSortMerger.this.sortSegments != null) {
-				unregisterSegmentsToBeFreedAtShutdown(UnilateralSortMerger.this.sortSegments);
-				UnilateralSortMerger.this.sortSegments.clear();
-			}
 
 			// ------------------- Merging Phase ------------------------
 			
@@ -1486,9 +1565,7 @@ public class UnilateralSortMerger implements SortMerger
 					registerSegmentsToBeFreedAtShutdown(allBuffers);
 					
 					// get the readers and register them to be released
-					List<StreamChannelAccess<?, ?>> readers = new ArrayList<StreamChannelAccess<?, ?>>(channelIDs.size());
-					registerChannelsToBeRemovedAtShudown(readers);
-					setResultIterator(getMergingIterator(channelIDs, readBuffers, readers));
+					setResultIterator(getMergingIterator(channelIDs, readBuffers, new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size())));
 				}
 			}
 			catch (MemoryAllocationException maex) {
@@ -1503,13 +1580,14 @@ public class UnilateralSortMerger implements SortMerger
 		/**
 		 * Releases the memory that is registered for in-memory sorted run generation.
 		 */
-		private void releaseSortBuffers()
+		protected final void releaseSortBuffers()
 		{
-			while (!queues.empty.isEmpty()) {
+			while (!this.queues.empty.isEmpty()) {
 				try {
-					MemorySegment segment = queues.empty.take().buffer.unbind();
-					UnilateralSortMerger.this.sortSegments.remove(segment);
-					memoryManager.release(segment);
+					final NormalizedKeySorter<?> sorter = this.queues.empty.take().buffer;
+					final List<MemorySegment> segments = sorter.dispose();
+					this.memoryManager.release(segments);
+					UnilateralSortMerger.this.sortBuffers.remove(sorter);
 				}
 				catch (InterruptedException iex) {
 					if (isRunning()) {
@@ -1523,7 +1601,7 @@ public class UnilateralSortMerger implements SortMerger
 			}
 		}
 		
-		private CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache)
+		protected final CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache)
 		throws InterruptedException
 		{
 			return cache.isEmpty() ? queue.take() : cache.remove(0);
@@ -1535,24 +1613,30 @@ public class UnilateralSortMerger implements SortMerger
 	 */
 	protected static final class ChannelReaderIterator implements MutableObjectIterator<PactRecord>
 	{
-		private final ChannelReader reader; // the reader from which to get the input
+		private final ChannelReaderInputView input; // the reader from which to get the input
 
 		/**
 		 * Creates a new reader iterator.
 		 * 
-		 * @param reader The reader from which to read the keys and values.
+		 * @param input The input from which to read the records.
 		 */
-		protected ChannelReaderIterator(ChannelReader reader) {
-			this.reader = reader;
+		protected ChannelReaderIterator(ChannelReaderInputView input) {
+			this.input = input;
 		}
 
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.pact.runtime.util.ReadingIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean next(PactRecord target) throws IOException {
-			return this.reader.read(target);
+		public boolean next(PactRecord target) throws IOException
+		{
+			try {
+				target.read(this.input);
+				return true;
+			}
+			catch (EOFException eofex) {
+				return false;
+			}
 		}
-
 	}
 }

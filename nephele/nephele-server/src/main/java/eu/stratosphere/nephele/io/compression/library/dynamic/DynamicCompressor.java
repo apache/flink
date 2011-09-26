@@ -18,6 +18,8 @@ package eu.stratosphere.nephele.io.compression.library.dynamic;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
@@ -34,13 +36,13 @@ public class DynamicCompressor implements Compressor {
 
 	private final DecisionModel decisionModel;
 
-	public DynamicCompressor(CompressionLibrary[] compressionLibraries)
-																		throws CompressionException {
+	public DynamicCompressor(final CompressionLibrary[] compressionLibraries,
+			final AbstractByteBufferedOutputChannel<?> outputChannel) throws CompressionException {
 
 		// Initialize the different compressors
 		this.compressors = new Compressor[compressionLibraries.length];
 		for (int i = 0; i < this.compressors.length; i++) {
-			this.compressors[i] = compressionLibraries[i].getCompressor();
+			this.compressors[i] = compressionLibraries[i].getCompressor(outputChannel);
 		}
 
 		// Initialize decision model
@@ -115,10 +117,10 @@ public class DynamicCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
+	public void shutdown(final ChannelID channelID) {
 
 		for (int i = 0; i < this.compressors.length; i++) {
-			this.compressors[i].shutdown();
+			this.compressors[i].shutdown(channelID);
 		}
 	}
 }

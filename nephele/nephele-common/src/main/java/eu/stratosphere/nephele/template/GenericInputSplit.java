@@ -19,67 +19,68 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-
 /**
  * A generic input split that has only a partition number.
  */
-public class GenericInputSplit implements InputSplit
-{
-	protected int partitionNumber;
-	
+public class GenericInputSplit implements InputSplit {
+
+	/**
+	 * The number of this split.
+	 */
+	protected int number;
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Default constructor for instantiation during de-serialization.
 	 */
-	public GenericInputSplit()
-	{}
-	
-	/**
-	 * Creates a generic input split with the given partition number.
-	 * 
-	 * @param partitionNumber The partition number of the split.
-	 */
-	public GenericInputSplit(int partitionNumber)
-	{
-		this.partitionNumber = partitionNumber;
+	public GenericInputSplit() {
 	}
-	
-	
-	// --------------------------------------------------------------------------------------------	
-	
-	/* (non-Javadoc)
+
+	/**
+	 * Creates a generic input split with the given split number.
+	 * 
+	 * @param number
+	 *        the number of the split
+	 */
+	public GenericInputSplit(final int number) {
+		this.number = number;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException
-	{
-		out.writeInt(this.partitionNumber);
+	public void write(final DataOutput out) throws IOException {
+		out.writeInt(this.number);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
-	public void read(DataInput in) throws IOException
-	{
-		this.partitionNumber = in.readInt();
+	public void read(final DataInput in) throws IOException {
+		this.number = in.readInt();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.InputSplit#getPartitionNumber()
 	 */
 	@Override
-	public int getPartitionNumber()
-	{
-		return this.partitionNumber;
+	public int getSplitNumber() {
+		return this.number;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
-	public String toString()
-	{
-		return "[" + this.partitionNumber + "]";
+	public String toString() {
+		return "[" + this.number + "]";
 	}
 }

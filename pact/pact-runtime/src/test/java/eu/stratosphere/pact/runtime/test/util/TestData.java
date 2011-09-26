@@ -15,15 +15,14 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Random;
 
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * Test data utilities classes.
@@ -51,102 +50,113 @@ public final class TestData {
 	/**
 	 * Key implementation.
 	 */
-	public static class Key implements eu.stratosphere.pact.common.type.Key {
-		private int key;
-
+	public static class Key extends PactInteger {
 		public Key() {
+			super();
 		}
 
 		public Key(int k) {
-			key = k;
+			super(k);
 		}
 
 		public int getKey() {
-			return key;
+			return getValue();
 		}
 		
 		public void setKey(int key) {
-			this.key = key;
-		}
-
-		@Override
-		public void read(DataInput in) throws IOException {
-			key = in.readInt();
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException {
-			out.writeInt(key);
-		}
-
-		@Override
-		public int compareTo(eu.stratosphere.pact.common.type.Key o) {
-			Key other = (Key) o;
-			return this.key - other.key;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return this.key == ((Key) obj).key;
-		}
-
-		@Override
-		public int hashCode() {
-			return key;
-		}
-
-		@Override
-		public String toString() {
-			return String.valueOf(key);
+			setValue(key);
 		}
 	}
 
 	/**
 	 * Value implementation.
 	 */
-	public static class Value implements eu.stratosphere.pact.common.type.Value {
-		private String value;
+	public static class Value extends PactString {
 
 		public Value() {
+			super();
 		}
 
 		public Value(String v) {
-			value = v;
-		}
-
-		public String getValue() {
-			return value;
+			super(v);
 		}
 		
-		public void setValue(String value) {
-			this.value = value;
-		}
-
+		/*
+		 * (non-Javadoc)
+		 * @see java.lang.Object#equals(java.lang.Object)
+		 */
 		@Override
-		public void read(DataInput in) throws IOException {
-			value = in.readUTF();
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException {
-			out.writeUTF(value);
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return this.value.equals(((Value) obj).value);
-		}
-		
-		@Override
-		public int hashCode() {
-			return this.value.hashCode();
-		}
-
-		@Override
-		public String toString() {
-			return value;
+		public boolean equals(final Object obj)
+		{
+			if (this == obj) {
+				return true;
+			}
+			
+			if (obj.getClass() == TestData.Value.class) {
+				final PactString other = (PactString) obj;
+				int len = this.length();
+				
+				if (len == other.length()) {
+					final char[] tc = this.getChars();
+					final char[] oc = other.getChars();
+					int i = 0, j = 0;
+					
+					while (len-- != 0) {
+						if (tc[i++] != oc[j++]) return false;
+					}
+					return true;
+				}
+			}
+			return false;
 		}
 	}
+	
+//	/**
+//	 * Value implementation.
+//	 */
+//	public static class Value implements eu.stratosphere.pact.common.type.Value {
+//		private String value;
+//
+//		public Value() {
+//		}
+//
+//		public Value(String v) {
+//			value = v;
+//		}
+//
+//		public String getValue() {
+//			return value;
+//		}
+//		
+//		public void setValue(String value) {
+//			this.value = value;
+//		}
+//
+//		@Override
+//		public void read(DataInput in) throws IOException {
+//			value = in.readUTF();
+//		}
+//
+//		@Override
+//		public void write(DataOutput out) throws IOException {
+//			out.writeUTF(value);
+//		}
+//
+//		@Override
+//		public boolean equals(Object obj) {
+//			return this.value.equals(((Value) obj).value);
+//		}
+//		
+//		@Override
+//		public int hashCode() {
+//			return this.value.hashCode();
+//		}
+//
+//		@Override
+//		public String toString() {
+//			return value;
+//		}
+//	}
 
 	/**
 	 * Pair generator.
@@ -157,7 +167,7 @@ public final class TestData {
 		};
 
 		public enum ValueMode {
-			FIX_LENGTH, RANDOM_LENGTH
+			FIX_LENGTH, RANDOM_LENGTH, CONSTANT
 		};
 
 		private static char[] alpha = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'a', 'b', 'c',
@@ -184,7 +194,12 @@ public final class TestData {
 			this(seed, keyMax, valueLength, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 		}
 
-		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode) {
+		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode)
+		{
+			this(seed, keyMax, valueLength, keyMode, valueMode, null);
+		}
+		
+		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode, Value constant) {
 			this.seed = seed;
 			this.keyMax = keyMax;
 			this.valueLength = valueLength;
@@ -195,12 +210,14 @@ public final class TestData {
 			this.counter = 0;
 			
 			this.key = new Key();
-			this.value = new Value();
+			this.value = constant == null ? new Value() : constant;
 		}
 
 		public boolean next(PactRecord target) {
-			this.key.key = keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1;
-			this.value.value = randomString();
+			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
+			if (this.valueMode != ValueMode.CONSTANT) {
+				this.value.setValue(randomString());
+			}
 			target.setField(0, this.key);
 			target.setField(1, this.value);
 			return true;
@@ -211,7 +228,7 @@ public final class TestData {
 			int valueLength = Integer.SIZE / 8;
 
 			// value
-			String text = rec.getField(1, Value.class).value;
+			String text = rec.getField(1, Value.class).getValue();
 			int strlen = text.length();
 			int utflen = 0;
 			int c;
@@ -360,7 +377,7 @@ public final class TestData {
 		@Override
 		public boolean next(PactRecord target) {
 			if (pos < this.numPairs) {
-				this.value.value = this.valueValue + ' ' + pos;
+				this.value.setValue(this.valueValue + ' ' + pos);
 				target.setField(0, this.key);
 				target.setField(1, this.value);
 				pos++;

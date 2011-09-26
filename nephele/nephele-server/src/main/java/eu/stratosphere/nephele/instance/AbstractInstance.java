@@ -18,7 +18,10 @@ package eu.stratosphere.nephele.instance;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Set;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -26,12 +29,14 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -76,8 +81,9 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @param hardwareDescription
 	 *        the hardware description provided by the instance itself
 	 */
-	public AbstractInstance(InstanceType instanceType, InstanceConnectionInfo instanceConnectionInfo,
-			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
+	public AbstractInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
+			final NetworkNode parentNode, final NetworkTopology networkTopology,
+			final HardwareDescription hardwareDescription) {
 		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
 		this.instanceType = instanceType;
 		this.instanceConnectionInfo = instanceConnectionInfo;
@@ -140,7 +146,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while checking for the libraries
 	 */
-	public synchronized void checkLibraryAvailability(JobID jobID) throws IOException {
+	public synchronized void checkLibraryAvailability(final JobID jobID) throws IOException {
 
 		// Now distribute the required libraries for the job
 		String[] requiredLibraries = LibraryCacheManager.getRequiredJarFiles(jobID);
@@ -174,14 +180,44 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the configuration of the overall job
 	 * @param environment
 	 *        the environment encapsulating the task
+	 * @param activeOutputChannels
+	 *        the set of initially active output channels
 	 * @return the result of the submission attempt
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the task
 	 */
-	public synchronized TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration,
-			Environment environment) throws IOException {
+	public synchronized TaskSubmissionResult submitTask(final ExecutionVertexID id,
+			final Configuration jobConfiguration,
+			final Environment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
 
-		return getTaskManager().submitTask(id, jobConfiguration, environment);
+		return getTaskManager().submitTask(id, jobConfiguration, environment, activeOutputChannels);
+	}
+
+	/**
+	 * Submits a list of tasks to the instance's {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
+	 * 
+	 * @param tasks
+	 *        the list of tasks to be submitted
+	 * @return the result of the submission attempt
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the task
+	 */
+	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks)
+			throws IOException {
+
+		return getTaskManager().submitTasks(tasks);
+	}
+
+	public synchronized List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs)
+			throws IOException {
+
+		return getTaskManager().replayCheckpoints(vertexIDs);
+	}
+
+	public synchronized void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions)
+			throws IOException {
+
+		getTaskManager().propagateCheckpointDecisions(checkpointDecisions);
 	}
 
 	/**
@@ -194,7 +230,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *         thrown if an error occurs while transmitting the request or receiving the response
 	 * @return the result of the cancel attempt
 	 */
-	public synchronized TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException {
+	public synchronized TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
 		return getTaskManager().cancelTask(id);
 	}
@@ -208,7 +244,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
 	 */
-	public synchronized void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
 
 		getTaskManager().removeCheckpoints(listOfVertexIDs);
 	}
@@ -253,8 +289,20 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
 	 */
-	public void logBufferUtilization() throws IOException {
+	public synchronized void logBufferUtilization() throws IOException {
 
 		getTaskManager().logBufferUtilization();
+	}
+
+	/**
+	 * Kills the task manager running on this instance. This method is mainly intended to test and debug Nephele's fault
+	 * tolerance mechanisms.
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the request
+	 */
+	public synchronized void killTaskManager() throws IOException {
+
+		getTaskManager().killTaskManager();
 	}
 }

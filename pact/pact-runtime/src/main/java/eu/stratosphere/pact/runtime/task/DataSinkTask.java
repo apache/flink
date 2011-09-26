@@ -25,18 +25,18 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-
+import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
-import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 /**
  * DataSinkTask which is executed by a Nephele task manager.
@@ -49,6 +49,8 @@ import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 public class DataSinkTask extends AbstractOutputTask
 {
 	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
+	
+	public static final String SORT_ORDER = "sink.sort.order";
 	
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
@@ -66,7 +68,7 @@ public class DataSinkTask extends AbstractOutputTask
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
-
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -104,8 +106,9 @@ public class DataSinkTask extends AbstractOutputTask
 				return;
 			}
 
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug(getLogString("Starting to produce output"));
+			}
 
 			// open
 			format.open(this.getEnvironment().getIndexInSubtaskGroup() + 1);
@@ -224,12 +227,15 @@ public class DataSinkTask extends AbstractOutputTask
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
 			break;
+		case PARTITION_RANGE:
+			dp = new BipartiteDistributionPattern();
+			break;
 		default:
 			throw new RuntimeException("No valid input ship strategy provided for DataSinkTask.");
 		}
 
 		// create reader
-		this.reader = new NepheleReaderIterator(new RecordReader<PactRecord>(this, PactRecord.class, dp));
+		this.reader = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, dp));
 	}
 	
 	// ------------------------------------------------------------------------

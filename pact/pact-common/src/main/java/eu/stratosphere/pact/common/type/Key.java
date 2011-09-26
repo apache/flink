@@ -30,7 +30,17 @@ package eu.stratosphere.pact.common.type;
  */
 public interface Key extends Value, Comparable<Key>
 {
+	/**
+	 * All keys must override the hash-code function to generate proper deterministic hash codes,
+	 * based on their contents.
+	 * 
+	 * @return The hash code of the key
+	 */
 	public int hashCode();
 	
+	/**
+	 * @param other
+	 * @return
+	 */
 	public boolean equals(Object other);
 }

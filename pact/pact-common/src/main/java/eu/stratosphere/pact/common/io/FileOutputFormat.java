@@ -145,21 +145,25 @@ public abstract class FileOutputFormat extends OutputFormat
 
 				// create output file
 				synchronized (this.lock) {
-					this.lock.notifyAll();
-					
-					if (!this.canceled) {
-						this.fdos = stream;
+					if (canceled) {
+						try {stream.close(); } catch (Throwable t) {}
 					}
 					else {
-						this.fdos = null;
-						stream.close();
+						this.fdos = stream;				
 					}
+					this.lock.notifyAll();
 				}
 			}
 			catch (Exception t) {
 				synchronized (this.lock) {
-					this.canceled = true;
 					this.exception = t;
+					this.lock.notifyAll();
+				}
+			}
+			catch (Throwable t) {
+				synchronized (this.lock) {
+					this.exception = new Exception(t);
+					this.lock.notifyAll();
 				}
 			}
 		}
@@ -170,42 +174,28 @@ public abstract class FileOutputFormat extends OutputFormat
 			long start = System.currentTimeMillis();
 			long remaining = this.timeoutMillies;
 			
-			if (this.exception != null) {
-				throw this.exception;
-			}
-			if (this.fdos != null) {
-				return this.fdos;
-			}
-			
 			synchronized (this.lock) {
-				do {
-					try {
+				boolean success = false;
+				try {
+					while (this.exception == null && this.fdos == null &&
+							(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0)
+					{
 						this.lock.wait(remaining);
 					}
-					catch (InterruptedException iex) {
-						this.canceled = true;
-						if (this.fdos != null) {
-							try  {
-								this.fdos.close();
-							} catch (Throwable t) {}
-						}
-						throw new Exception("Output Path Opener was interrupted.");
-					}
-				}
-				while (this.exception == null && this.fdos == null &&
-						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
-			
-				if (this.exception != null) {
-					if (this.fdos != null) {
-						try  {
-							this.fdos.close();
-						} catch (Throwable t) {}
-					}
-					throw this.exception;
-				}
 				
-				if (this.fdos != null) {
-					return this.fdos;
+					if (this.exception != null) {
+						throw this.exception;
+					}
+						
+					if (this.fdos != null) {
+						success = true;
+						return this.fdos;
+					}
+				}
+				finally {
+					if (!success) {
+						this.canceled = true;
+					}
 				}
 			}
 			

@@ -15,15 +15,20 @@
 
 package eu.stratosphere.pact.runtime.plugable;
 
+import java.io.IOException;
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
 
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.Key;
 
 
 /**
  *
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public interface TypeAccessors<T>
 {
@@ -33,7 +38,47 @@ public interface TypeAccessors<T>
 	
 	public void copyTo(T from, T to);
 	
+	// --------------------------------------------------------------------------------------------
+
+	/* ----------------------------------------------------------------
+	 * Ideally, the signatures would look the following way:
+	 *
+	 * 
+	 * public long serialize(T record, DataOutputView target) throws IOException;
+	 * 
+	 * public void deserialize(T target, DataInputView source) throws IOException;
+	 * 
+	 * public void copy(DataInputView source, DataOutputView target) throws IOException;
+	 */
+
+	public long serialize(T record, DataOutputView target, Iterator<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther) throws IOException;
+	
+	public void deserialize(T target, List<MemorySegment> sources, int firstSegment, int segmentOffset) throws IOException;
+	
+	public void copy(List<MemorySegment> sources, int firstSegment, int segmentOffset, DataOutputView target) throws IOException;
+	
+	// --------------------------------------------------------------------------------------------
+	
 	public int hash(T object);
 	
 	public int compare(T first, T second, Comparator<Key> comparator);
+	
+	/* ----------------------------------------------------------------
+	 * Ideally, the signature would look the following way:
+	 *
+	 * 
+	 * public int compare(DataInputView source1, DataInputView source2);
+	 */
+	
+	public int compare(List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1, int firstSegment2, int offset1, int offset2);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public boolean supportsNormalizedKey();
+	
+	public int getNormalizeKeyLen();
+	
+	public boolean isNormalizedKeyPrefixOnly(int keyBytes);
+	
+	public void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
 }

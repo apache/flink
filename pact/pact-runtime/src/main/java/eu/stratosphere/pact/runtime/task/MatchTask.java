@@ -169,4 +169,16 @@ public class MatchTask extends AbstractPactTask<MatchStub>
 			this.matchIterator = null;
 		}
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception
+	{
+		super.cancel();
+		if (this.matchIterator != null) {
+			matchIterator.abort();
+		}
+	}
 }

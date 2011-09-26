@@ -37,10 +37,6 @@ import eu.stratosphere.pact.common.type.Key;
 public class ReduceContract extends SingleInputContract<ReduceStub>
 {	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";	// the default name for contracts
-	
-	private Class<? extends Key>[] keyClasses;						// the classes of the keys
-	
-	private final int[] keyFields;									// the positions of the key fields in the record
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -91,9 +87,7 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * @param name The name of PACT.
 	 */
 	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses, String name) {
-		super(c, name);
-		this.keyFields = keyColumns;
-		this.keyClasses = keyClasses;
+		super(c, keyClasses, keyColumns, name);
 	}
 
 	/**
@@ -150,26 +144,6 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses, Contract input, String name) {
 		this(c, keyColumns, keyClasses, name);
 		setInput(input);
-	}
-	
-	/**
-	 * Gets the column numbers of the key fields in the input records.
-	 *  
-	 * @return The column numbers of the key fields.
-	 */
-	public int[] getKeyColumnNumbers()
-	{
-		return this.keyFields;
-	}
-	
-	/**
-	 * Gets the types of the key fields on which this reduce contract groups.
-	 * 
-	 * @return The types of the key fields.
-	 */
-	public Class<? extends Key>[] getKeyClasses()
-	{
-		return this.keyClasses;
 	}
 	
 	// --------------------------------------------------------------------------------------------

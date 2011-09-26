@@ -22,9 +22,7 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -32,15 +30,17 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 
 /**
  * @author Erik Nijkamp
+ * @author Stephan Ewen
  */
 public class UnilateralSortMergerITCase
 {
@@ -50,11 +50,13 @@ public class UnilateralSortMergerITCase
 
 	private static final int KEY_MAX = Integer.MAX_VALUE;
 
-	private static final int VALUE_LENGTH = 118;
+	private static final int VALUE_LENGTH = 114;
+	
+	private static final Value VAL = new Value("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
 	private static final int NUM_PAIRS = 200000;
 
-	public static final int MEMORY_SIZE = 1024 * 1024 * 64;
+	private static final int MEMORY_SIZE = 1024 * 1024 * 78;
 	
 	private final AbstractTask parentTask = new DummyInvokable();
 
@@ -62,14 +64,7 @@ public class UnilateralSortMergerITCase
 
 	private MemoryManager memoryManager;
 
-	@BeforeClass
-	public static void beforeClass() {
-		
-	}
-
-	@AfterClass
-	public static void afterClass() {
-	}
+	// --------------------------------------------------------------------------------------------
 
 	@Before
 	public void beforeTest() {
@@ -92,93 +87,27 @@ public class UnilateralSortMergerITCase
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	@Test
-	public void testSort() throws Exception
+	public void testInMemorySort() throws Exception
 	{
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-
-		// reader
-		MockRecordReader reader = new MockRecordReader();
+		
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
 
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
+		
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(
-			memoryManager, ioManager, 16 * 1024 * 1024, 1024 * 1024 * 4, 1, 2,
-			new Comparator[] {keyComparator},
-			new int[] {0},
-			new Class[] {TestData.Key.class}, reader, parentTask, 0.7f);
+		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 2,
+			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
+			source, this.parentTask, 0.9f);
 
 		// emit data
-		LOG.debug("Emitting data...");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
-			ValueMode.FIX_LENGTH);
-		PactRecord rec = new PactRecord();
-		
-		for (int i = 0; i < NUM_PAIRS; i++) {
-			generator.next(rec);
-			reader.emit(rec);
-		}
-		reader.close();
-
-		// check order
-		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
-		
-		LOG.debug("Checking results...");
-		int pairsEmitted = 1;
-
-		PactRecord rec1 = new PactRecord();
-		PactRecord rec2 = new PactRecord();
-		
-		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2)) {
-			final Key k1 = rec1.getField(0, TestData.Key.class);
-			final Key k2 = rec2.getField(0, TestData.Key.class);
-			pairsEmitted++;
-			
-			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
-			
-			PactRecord tmp = rec1;
-			rec1 = rec2;
-			k1.setKey(k2.getKey());
-			
-			rec2 = tmp;
-		}
-		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
-		
-		merger.close();
-	}
-
-	@Test
-	public void testSortInMemory() throws Exception
-	{
-		// comparator
-		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-
-		// reader
-		MockRecordReader reader = new MockRecordReader();
-
-		// merge iterator
-		LOG.debug("Initializing sortmerger...");
-		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(
-			memoryManager, ioManager, 40 * 1024 * 1024, 1024 * 1024 * 1, 10, 2,
-			new Comparator[] {keyComparator},
-			new int[] {0},
-			new Class[] {TestData.Key.class}, reader, parentTask, 0.7f);
-
-		// emit data
-		LOG.debug("Emitting data...");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
-			ValueMode.FIX_LENGTH);
-		PactRecord rec = new PactRecord();
-		
-		for (int i = 0; i < NUM_PAIRS; i++) {
-			generator.next(rec);
-			reader.emit(rec);
-		}
-		reader.close();
+		LOG.debug("Reading and sorting data...");
 
 		// check order
 		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
@@ -209,34 +138,24 @@ public class UnilateralSortMergerITCase
 	}
 	
 	@Test
-	public void testSortTenBuffers() throws Exception
+	public void testInMemorySortUsing10Buffers() throws Exception
 	{
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-
-		// reader
-		MockRecordReader reader = new MockRecordReader();
+		
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
 
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
+		
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(
-			memoryManager, ioManager, 1024 * 1024 * 42, 1024 * 1024 * 2, 10, 2, 
-			new Comparator[] {keyComparator},
-			new int[] {0},
-			new Class[] {TestData.Key.class}, reader, parentTask, 0.7f);
+		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 1 * 1024 * 1024, 10, 2,
+			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
+			source, this.parentTask, 0.9f);
 
 		// emit data
-		LOG.debug("Emitting data...");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
-			ValueMode.FIX_LENGTH);
-		PactRecord rec = new PactRecord();
-		
-		for (int i = 0; i < NUM_PAIRS; i++) {
-			generator.next(rec);
-			reader.emit(rec);
-		}
-		reader.close();
+		LOG.debug("Reading and sorting data...");
 
 		// check order
 		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
@@ -267,7 +186,55 @@ public class UnilateralSortMergerITCase
 	}
 
 	@Test
-	public void testSortHugeAmountOfPairs() throws Exception
+	public void testSpillingSort() throws Exception
+	{
+		// comparator
+		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+		
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
+
+		// merge iterator
+		LOG.debug("Initializing sortmerger...");
+		
+		@SuppressWarnings("unchecked")
+		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 16 * 1024 * 1024, 64,
+			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
+			source, this.parentTask, 0.7f);
+
+		// emit data
+		LOG.debug("Reading and sorting data...");
+
+		// check order
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
+		
+		LOG.debug("Checking results...");
+		int pairsEmitted = 1;
+
+		PactRecord rec1 = new PactRecord();
+		PactRecord rec2 = new PactRecord();
+		
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
+			final Key k1 = rec1.getField(0, TestData.Key.class);
+			final Key k2 = rec2.getField(0, TestData.Key.class);
+			pairsEmitted++;
+			
+			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
+			
+			PactRecord tmp = rec1;
+			rec1 = rec2;
+			k1.setKey(k2.getKey());
+			
+			rec2 = tmp;
+		}
+		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
+		
+		merger.close();
+	}
+
+	@Test
+	public void testSpillingSortWithIntermediateMerge() throws Exception
 	{
 		// amount of pairs
 		final int PAIRS = 10000000;
@@ -275,38 +242,19 @@ public class UnilateralSortMergerITCase
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
 
-		// reader
-		MockRecordReader reader = new MockRecordReader();
-
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, PAIRS);
+		
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
+		
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(
-			memoryManager, ioManager, 1024 * 1024 * 64, 16, 
-			new Comparator[] {keyComparator},
-			new int[] {0},
-			new Class[] {TestData.Key.class}, reader, parentTask, 0.7f);
+		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 1024 * 1024 * 64, 16, 
+			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
+			source, this.parentTask, 0.7f);
 		
 		// emit data
 		LOG.debug("Emitting data...");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
-			ValueMode.FIX_LENGTH);
-		PactRecord rec = new PactRecord();
-		System.out.println("Starting large sort test...");
-		
-		long start = System.currentTimeMillis();
-		for (int i = 0, percent = 0, nextPercent = PAIRS / 20; i < PAIRS; i++) {
-			generator.next(rec);
-			reader.emit(rec);
-			if (i == nextPercent) {
-				percent += 5;
-				nextPercent += PAIRS / 20;
-				System.out.println(percent + "% records emitted...");
-			}
-		}
-		reader.close();
-		System.out.println("100% records emitted...");
-		System.out.println("Final merge phase starting...");
 
 		// check order
 		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
@@ -334,19 +282,10 @@ public class UnilateralSortMergerITCase
 			// log
 			if (pairsRead == nextStep) {
 				nextStep += PAIRS / 20;
-				System.out.println((pairsRead * 100 / PAIRS) + "% pairs merged and read.");
 			}
 			
 		}
-		System.out.println("...Done");
 		Assert.assertEquals("Not all pairs were read back in.", PAIRS, pairsRead);
-		
 		merger.close();
-
-		// throughput
-		long end = System.currentTimeMillis();
-		long diff = end - start;
-		long secs = diff / 1000;
-		LOG.debug("sorting a workload of " + PAIRS + " pairs took " + secs + " seconds.");
 	}
 }

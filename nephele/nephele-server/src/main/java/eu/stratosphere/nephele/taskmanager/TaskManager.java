@@ -19,11 +19,14 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -35,6 +38,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayManager;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -42,31 +48,17 @@ import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelSetupException;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
-import eu.stratosphere.nephele.io.channels.direct.AbstractDirectInputChannel;
-import eu.stratosphere.nephele.io.channels.direct.AbstractDirectOutputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryInputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -80,11 +72,9 @@ import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedOutputChannelGroup;
-import eu.stratosphere.nephele.taskmanager.checkpointing.CheckpointManager;
-import eu.stratosphere.nephele.taskmanager.direct.DirectChannelManager;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -114,7 +104,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 * is stored inside this map and its thread status is TERMINATED, this indicates a virtual machine error.
 	 * As a result, task status will switch to FAILED and reported to the {@link JobManager}.
 	 */
-	private final Map<ExecutionVertexID, Environment> runningTasks = new HashMap<ExecutionVertexID, Environment>();
+	private final Map<ExecutionVertexID, Task> runningTasks = new HashMap<ExecutionVertexID, Task>();
 
 	private final InstanceConnectionInfo localInstanceConnectionInfo;
 
@@ -129,16 +119,10 @@ public class TaskManager implements TaskOperationProtocol {
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
 	/**
-	 * The instance of the {@link DirectChannelManager} which is responsible for
-	 * setting up and cleaning up the direct channels of the tasks.
-	 */
-	private final DirectChannelManager directChannelManager;
-
-	/**
-	 * The instance of the {@link CheckpointManager} to restore
+	 * The instance of the {@link CheckpointReplayManager} to restore
 	 * previously written checkpoints.
 	 */
-	private final CheckpointManager checkpointManager;
+	private final CheckpointReplayManager checkpointManager;
 
 	/**
 	 * Instance of the task manager profile if profiling is enabled.
@@ -281,19 +265,15 @@ public class TaskManager implements TaskOperationProtocol {
 		ByteBufferedChannelManager byteBufferedChannelManager = null;
 		try {
 			byteBufferedChannelManager = new ByteBufferedChannelManager(this.lookupService,
-				this.localInstanceConnectionInfo.getAddress(), this.localInstanceConnectionInfo.getDataPort(),
-				tmpDirPath);
+				this.localInstanceConnectionInfo);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
 			throw new Exception("Failed to instantiate Byte-buffered channel manager. " + ioe.getMessage(), ioe);
 		}
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 
-		// Initialize the direct channel manager
-		this.directChannelManager = new DirectChannelManager();
-
 		// Initialize the checkpoint manager
-		this.checkpointManager = new CheckpointManager(this.byteBufferedChannelManager, tmpDirPath);
+		this.checkpointManager = new CheckpointReplayManager(this.byteBufferedChannelManager);
 
 		// Determine hardware description
 		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
@@ -359,9 +339,8 @@ public class TaskManager implements TaskOperationProtocol {
 		TaskManager taskManager = null;
 		try {
 			taskManager = new TaskManager(configDir);
-		} catch (Throwable t) {
-			LOG.fatal("Taskmanager startup failed:" + t.getMessage());
-			LOG.error(System.err);
+		} catch (Exception e) {
+			LOG.fatal("Taskmanager startup failed:" + StringUtils.stringifyException(e));
 			System.exit(FAILURERETURNCODE);
 		}
 
@@ -370,133 +349,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Shut down
 		taskManager.shutdown();
-	}
-
-	/**
-	 * Registers the input channels of an incoming task with the task manager.
-	 * 
-	 * @param eig
-	 *        the input gate whose input channels should be registered
-	 * @throws ChannelSetupException
-	 *         thrown if one of the channels could not be set up correctly
-	 */
-	// This method is called by the RPC server thread
-	private void registerInputChannels(InputGate<? extends Record> eig) throws ChannelSetupException {
-
-		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
-
-		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
-
-			AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
-
-			if (eic instanceof NetworkInputChannel<?>) {
-				this.byteBufferedChannelManager
-					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
-			} else if (eic instanceof FileInputChannel<?>) {
-				this.byteBufferedChannelManager
-					.registerByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.registerChannelToGateMapping(eic.getConnectedChannelID(), eig);
-				// Start recovery of the checkpoint
-				this.checkpointManager.recoverChannelCheckpoint(eic.getConnectedChannelID());
-			} else if (eic instanceof InMemoryInputChannel<?>) {
-				this.directChannelManager
-					.registerDirectInputChannel((AbstractDirectInputChannel<? extends Record>) eic);
-			} else {
-				throw new ChannelSetupException("Type of input channel " + eic.getID() + " is not supported");
-			}
-		}
-	}
-
-	/**
-	 * Registers the output channels of an incoming task with the task manager.
-	 * 
-	 * @param eig
-	 *        the output gate whose input channels should be registered
-	 * @param channelGroup
-	 *        the channel group which is requied by byte buffered channel to create checkpoints
-	 * @throws ChannelSetupException
-	 *         thrown if one of the channels could not be registered
-	 */
-	// This method is called by the RPC server thread
-	private void registerOutputChannels(OutputGate<? extends Record> eog, ByteBufferedOutputChannelGroup channelGroup)
-			throws ChannelSetupException {
-
-		for (int i = 0; i < eog.getNumberOfOutputChannels(); i++) {
-
-			AbstractOutputChannel<? extends Record> eoc = eog.getOutputChannel(i);
-			if (eoc instanceof NetworkOutputChannel<?>) {
-				this.byteBufferedChannelManager.registerByteBufferedOutputChannel(
-					(AbstractByteBufferedOutputChannel<? extends Record>) eoc, channelGroup);
-			} else if (eoc instanceof FileOutputChannel<?>) {
-				this.byteBufferedChannelManager.registerByteBufferedOutputChannel(
-					(AbstractByteBufferedOutputChannel<? extends Record>) eoc, channelGroup);
-			} else if (eoc instanceof InMemoryOutputChannel<?>) {
-				this.directChannelManager
-					.registerDirectOutputChannel((AbstractDirectOutputChannel<? extends Record>) eoc);
-			} else {
-				throw new ChannelSetupException("Type of output channel " + eoc.getID() + " is not supported");
-			}
-		}
-	}
-
-	/**
-	 * Unregisters the input channels of a finished or aborted task.
-	 * 
-	 * @param eig
-	 *        the input gate whose input channels should be unregistered
-	 */
-	// This method is called by the respective task thread
-	private void unregisterInputChannels(InputGate<? extends Record> eig) {
-
-		final FileBufferManager fileBufferManager = this.byteBufferedChannelManager.getFileBufferManager();
-
-		for (int i = 0; i < eig.getNumberOfInputChannels(); i++) {
-			AbstractInputChannel<? extends Record> eic = eig.getInputChannel(i);
-
-			if (eic instanceof NetworkInputChannel<?>) {
-				this.byteBufferedChannelManager
-					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());
-			} else if (eic instanceof FileInputChannel<?>) {
-				this.byteBufferedChannelManager
-					.unregisterByteBufferedInputChannel((AbstractByteBufferedInputChannel<? extends Record>) eic);
-				fileBufferManager.unregisterChannelToGateMapping(eic.getConnectedChannelID());
-			} else if (eic instanceof InMemoryInputChannel<?>) {
-				this.directChannelManager
-					.unregisterDirectInputChannel((AbstractDirectInputChannel<? extends Record>) eic);
-			} else {
-				LOG.error("Type of input channel " + eic.getID() + " is not supported");
-			}
-		}
-	}
-
-	/**
-	 * Unregisters the output channels of a finished or aborted task.
-	 * 
-	 * @param eig
-	 *        the output gate whose input channels should be unregistered
-	 */
-	// This method is called by the respective task thread
-	private void unregisterOutputChannels(OutputGate<? extends Record> eog) {
-
-		for (int i = 0; i < eog.getNumberOfOutputChannels(); i++) {
-			AbstractOutputChannel<? extends Record> eoc = eog.getOutputChannel(i);
-
-			if (eoc instanceof NetworkOutputChannel<?>) {
-				this.byteBufferedChannelManager
-					.unregisterByteBufferedOutputChannel((AbstractByteBufferedOutputChannel<? extends Record>) eoc);
-			} else if (eoc instanceof FileOutputChannel<?>) {
-				this.byteBufferedChannelManager
-					.unregisterByteBufferedOutputChannel((AbstractByteBufferedOutputChannel<? extends Record>) eoc);
-			} else if (eoc instanceof InMemoryOutputChannel<?>) {
-				this.directChannelManager
-					.unregisterDirectOutputChannel((AbstractDirectOutputChannel<? extends Record>) eoc);
-			} else {
-				LOG.error("Type of output channel " + eoc.getID() + " is not supported");
-			}
-		}
-
 	}
 
 	// This method is called by the TaskManagers main thread
@@ -524,9 +376,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// Check the status of the task threads to detect unexpected thread terminations
 			checkTaskExecution();
-
-			// Clean up set of canceled channels
-			this.byteBufferedChannelManager.cleanUpCanceledChannelSet();
 		}
 
 		// Shutdown the individual components of the task manager
@@ -537,54 +386,31 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException {
+	public TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
 		// Check if the task is registered with our task manager
-		Environment tmpEnvironment;
+		Task tmpTask;
 
 		synchronized (this.runningTasks) {
 
-			tmpEnvironment = this.runningTasks.get(id);
+			tmpTask = this.runningTasks.get(id);
 
-			if (tmpEnvironment == null) {
+			if (tmpTask == null) {
 				final TaskCancelResult taskCancelResult = new TaskCancelResult(id, AbstractTaskResult.ReturnCode.ERROR);
 				taskCancelResult.setDescription("No task with ID + " + id + " is currently running");
 				return taskCancelResult;
 			}
 		}
 
-		final Environment environment = tmpEnvironment;
+		final Task task = tmpTask;
 		// Execute call in a new thread so IPC thread can return immediately
 		final Thread tmpThread = new Thread(new Runnable() {
 
 			@Override
 			public void run() {
 
-				// Mark all input channels as canceled
-				for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-					final InputGate<?> inputGate = environment.getInputGate(i);
-					for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
-						final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
-						if (inputChannel.getType() != ChannelType.INMEMORY) {
-							// Note that we always use the ID of the source channel
-							byteBufferedChannelManager.markChannelAsCanceled(inputChannel.getConnectedChannelID());
-						}
-					}
-				}
-
-				// Mark all output channels as canceled
-				for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-					final OutputGate<?> outputGate = environment.getOutputGate(i);
-					for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-						final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
-						if (outputChannel.getType() != ChannelType.INMEMORY) {
-							byteBufferedChannelManager.markChannelAsCanceled(outputChannel.getID());
-						}
-					}
-				}
-
 				// Finally, request user code to cancel
-				environment.cancelExecution();
+				task.cancelExecution();
 			}
 		});
 		tmpThread.start();
@@ -597,7 +423,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	@Override
 	public TaskSubmissionResult submitTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment ee)
+			final Environment ee, final Set<ChannelID> activeOutputChannels)
 			throws IOException {
 
 		// Register task manager components in environment
@@ -607,17 +433,70 @@ public class TaskManager implements TaskOperationProtocol {
 		// Register a new task input split provider
 		ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
 
+		// Create task object and register it with the environment
+		final Task task = new Task(id, ee, this);
+		ee.setExecutionObserver(task);
+
 		// Register the task
-		TaskSubmissionResult result = registerTask(id, jobConfiguration, ee);
+		TaskSubmissionResult result = registerTask(id, jobConfiguration, task, activeOutputChannels);
 		if (result != null) { // If result is non-null, an error occurred during task registration
 			return result;
 		}
 
 		// Start execution
-		LOG.debug("Starting execution of task with ID " + id);
-		ee.startExecution();
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Starting execution of task with ID " + id);
+		}
+		task.startExecution();
 
 		return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
+
+		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
+		final List<Task> tasksToStart = new ArrayList<Task>();
+
+		// Make sure all tasks are fully registered before they are started
+		for (final TaskSubmissionWrapper tsw : tasks) {
+
+			final Environment ee = tsw.getEnvironment();
+			final ExecutionVertexID id = tsw.getVertexID();
+			final Configuration jobConfiguration = tsw.getConfiguration();
+			final Set<ChannelID> activeOutputChannels = tsw.getActiveOutputChannels();
+
+			// Register task manager components in environment
+			ee.setMemoryManager(this.memoryManager);
+			ee.setIOManager(this.ioManager);
+
+			// Register a new task input split provider
+			ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
+
+			// Create task object and register it with the environment
+			final Task task = new Task(id, ee, this);
+			ee.setExecutionObserver(task);
+
+			// Register the task
+			TaskSubmissionResult result = registerTask(id, jobConfiguration, task, activeOutputChannels);
+			if (result != null) { // If result is non-null, an error occurred during task registration
+				submissionResultList.add(result);
+			} else {
+				submissionResultList.add(new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS));
+			}
+
+			tasksToStart.add(task);
+		}
+
+		// Now start the tasks
+		for (final Task task : tasksToStart) {
+			task.startExecution();
+		}
+
+		return submissionResultList;
 	}
 
 	/**
@@ -627,27 +506,22 @@ public class TaskManager implements TaskOperationProtocol {
 	 *        the ID of the task to register
 	 * @param jobConfiguration
 	 *        the job configuration that has been attached to the original job graph
-	 * @param ee
-	 *        the environment of the task to register
+	 * @param task
+	 *        the task to register
+	 * @param activeOutputChannels
+	 *        the set of initially active output channels
 	 * @return <code>null</code> if the registration has been successful or a {@link TaskSubmissionResult} containing
 	 *         the error that occurred
 	 */
-	private TaskSubmissionResult registerTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee) {
+	private TaskSubmissionResult registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final Task task, final Set<ChannelID> activeOutputChannels) {
 
-		// Check if incoming task has an ID
 		if (id == null) {
-			LOG.debug("Incoming task has no ID");
-			TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription("Incoming task has no ID");
-			return result;
+			throw new IllegalArgumentException("Argument id is null");
 		}
 
-		// Check if the received environment is not null
-		if (ee == null) {
-			LOG.debug("Incoming environment is null");
-			TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription("Incoming task with ID " + id + " has no environment");
-			return result;
+		if (task == null) {
+			throw new IllegalArgumentException("Argument task is null");
 		}
 
 		// Check if the task is already running
@@ -660,6 +534,8 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 
+		final Environment ee = task.getEnvironment();
+
 		// Check if the task has unbound input/output gates
 		if (ee.hasUnboundInputGates() || ee.hasUnboundOutputGates()) {
 			LOG.debug("Task with ID " + id + " has unbound gates");
@@ -668,44 +544,26 @@ public class TaskManager implements TaskOperationProtocol {
 			return result;
 		}
 
-		// Create wrapper object and register it as an observer
-		final EnvironmentWrapper wrapper = new EnvironmentWrapper(this, id, ee);
-		ee.registerExecutionListener(wrapper);
+		// Register the task with the byte buffered channel manager
+		this.byteBufferedChannelManager.register(task, activeOutputChannels);
 
 		boolean enableProfiling = false;
 		if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
 			enableProfiling = true;
 		}
 
+		// Register environment, input, and output gates for profiling
 		if (enableProfiling) {
-			this.profiler.registerExecutionListener(id, jobConfiguration, ee);
-		}
 
-		try {
-			// Register input gates
+			this.profiler.registerExecutionListener(task, jobConfiguration);
+
 			for (int i = 0; i < ee.getNumberOfInputGates(); i++) {
-				registerInputChannels(ee.getInputGate(i));
-				if (enableProfiling) {
-					this.profiler.registerInputGateListener(id, jobConfiguration, ee.getInputGate(i));
-				}
+				this.profiler.registerInputGateListener(id, jobConfiguration, ee.getInputGate(i));
 			}
 
-			// Try to find common channel type among the output channels
-			final ChannelType commonChannelType = hasCommonOutputChannelType(ee);
-			final ByteBufferedOutputChannelGroup channelGroup = new ByteBufferedOutputChannelGroup(
-				this.byteBufferedChannelManager, this.checkpointManager, commonChannelType, id);
-
-			// Register output gates
 			for (int i = 0; i < ee.getNumberOfOutputGates(); i++) {
-				registerOutputChannels(ee.getOutputGate(i), channelGroup);
-				if (enableProfiling) {
-					this.profiler.registerOutputGateListener(id, jobConfiguration, ee.getOutputGate(i));
-				}
+				this.profiler.registerOutputGateListener(id, jobConfiguration, ee.getOutputGate(i));
 			}
-		} catch (ChannelSetupException e) {
-			TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription(e.getMessage());
-			return result;
 		}
 
 		// The environment itself will put the task into the running task map
@@ -714,34 +572,42 @@ public class TaskManager implements TaskOperationProtocol {
 	}
 
 	/**
-	 * Checks if all output channels of the given environment have a common channel type.
-	 * 
-	 * @param environment
-	 *        the environment whose output channels are checked
-	 * @return the common {@link ChannelType} or <code>null</code> if no common channel type exists
+	 * {@inheritDoc}
 	 */
-	private ChannelType hasCommonOutputChannelType(Environment environment) {
+	@Override
+	public List<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs) throws IOException {
 
-		ChannelType outputChannelType = null;
+		final List<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
 
-		for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
+		for (final ExecutionVertexID vertexID : vertexIDs) {
 
-			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			if (!this.checkpointManager.hasCompleteCheckpointAvailable(vertexID)) {
 
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); j++) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-
-				if (outputChannelType == null) {
-					outputChannelType = outputChannel.getType();
-				} else {
-					if (!outputChannelType.equals(outputChannel.getType())) {
-						return null;
+				if (this.checkpointManager.hasPartialCheckpointAvailable(vertexID)) {
+					synchronized (this.runningTasks) {
+						if (!this.runningTasks.containsKey(vertexID)) {
+							final CheckpointReplayResult result = new CheckpointReplayResult(vertexID, ReturnCode.ERROR);
+							result
+								.setDescription("Checkpoint is only partial and corresponding task is no longer running");
+							checkpointResultList.add(result);
+							continue;
+						}
 					}
+				} else {
+					final CheckpointReplayResult result = new CheckpointReplayResult(vertexID, ReturnCode.ERROR);
+					result.setDescription("No checkpoint found");
+					checkpointResultList.add(result);
+					continue;
 				}
 			}
+
+			// Replay the checkpoint
+			this.checkpointManager.replayCheckpoint(vertexID);
+
+			checkpointResultList.add(new CheckpointReplayResult(vertexID, ReturnCode.SUCCESS));
 		}
 
-		return outputChannelType;
+		return checkpointResultList;
 	}
 
 	/**
@@ -749,42 +615,33 @@ public class TaskManager implements TaskOperationProtocol {
 	 * 
 	 * @param id
 	 *        the ID of the task to be unregistered
-	 * @param environment
-	 *        the {@link Environment} of the task to be unregistered
+	 * @param task
+	 *        the {@link Task} to be unregistered
 	 */
-	private void unregisterTask(ExecutionVertexID id, Environment environment) {
+	private void unregisterTask(final ExecutionVertexID id, final Task task) {
 
-		// Unregister channels
-		for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
-			unregisterOutputChannels(environment.getOutputGate(i));
-		}
+		// Unregister task from the byte buffered channel manager
+		this.byteBufferedChannelManager.unregister(id, task);
+
+		// Unregister task from profiling
 		if (this.profiler != null) {
 			this.profiler.unregisterOutputGateListeners(id);
-		}
-
-		for (int i = 0; i < environment.getNumberOfInputGates(); i++) {
-			unregisterInputChannels(environment.getInputGate(i));
-		}
-		if (this.profiler != null) {
 			this.profiler.unregisterInputGateListeners(id);
-		}
-
-		if (this.profiler != null) {
 			this.profiler.unregisterExecutionListener(id);
 		}
 
 		// Unregister task from memory manager
 		if (this.memoryManager != null) {
-			this.memoryManager.releaseAll(environment.getInvokable());
+			this.memoryManager.releaseAll(task.getEnvironment().getInvokable());
 		}
 
 		// Check if there are still vertices running that belong to the same job
 		int numberOfVerticesBelongingToThisJob = 0;
 		synchronized (this.runningTasks) {
-			final Iterator<Environment> iterator = this.runningTasks.values().iterator();
+			final Iterator<Task> iterator = this.runningTasks.values().iterator();
 			while (iterator.hasNext()) {
-				final Environment candidateEnvironment = iterator.next();
-				if (environment.getJobID().equals(candidateEnvironment.getJobID())) {
+				final Task candidateTask = iterator.next();
+				if (task.getJobID().equals(candidateTask.getJobID())) {
 					numberOfVerticesBelongingToThisJob++;
 				}
 			}
@@ -793,7 +650,7 @@ public class TaskManager implements TaskOperationProtocol {
 		// If there are no other vertices belonging to the same job, we can unregister the job's class loader
 		if (numberOfVerticesBelongingToThisJob == 0) {
 			try {
-				LibraryCacheManager.unregister(environment.getJobID());
+				LibraryCacheManager.unregister(task.getJobID());
 			} catch (IOException e) {
 				LOG.debug("Unregistering the job vertex ID " + id + " caused an IOException");
 			}
@@ -828,13 +685,13 @@ public class TaskManager implements TaskOperationProtocol {
 		// Nothing to to here
 	}
 
-	void executionStateChanged(JobID jobID, ExecutionVertexID id, Environment environment,
-			ExecutionState newExecutionState, String optionalDescription) {
+	void executionStateChanged(final JobID jobID, final ExecutionVertexID id, final Task task,
+			final ExecutionState newExecutionState, final String optionalDescription) {
 
 		if (newExecutionState == ExecutionState.RUNNING) {
 			// Mark task as running by putting it in the corresponding map
 			synchronized (this.runningTasks) {
-				this.runningTasks.put(id, environment);
+				this.runningTasks.put(id, task);
 			}
 		}
 
@@ -848,7 +705,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 
 			// Unregister the task (free all buffers, remove all channels, task-specific class loaders, etc...
-			unregisterTask(id, environment);
+			unregisterTask(id, task);
 		}
 
 		// Get lock on the jobManager object and propagate the state change
@@ -857,7 +714,41 @@ public class TaskManager implements TaskOperationProtocol {
 				this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
 					optionalDescription));
 			} catch (IOException e) {
-				LOG.error("Transmitting the task execution result for ID " + id + " caused an IO exception");
+				LOG.error(StringUtils.stringifyException(e));
+			}
+		}
+	}
+
+	/**
+	 * Called by an {@link EnvironmentWrapper} object to indicate that a task has exhausted its initial execution
+	 * resources.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the task belongs to
+	 * @param id
+	 *        the ID of the vertex representing the task
+	 * @param resourceUtilizationSnapshot
+	 *        snapshot of the task's resource utilization taken at the point in time when the exhaustion occurred
+	 */
+	void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID id,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+
+		synchronized (this.jobManager) {
+			try {
+				this.jobManager.initialExecutionResourcesExhausted(jobID, id, resourceUtilizationSnapshot);
+			} catch (IOException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
+		}
+	}
+
+	void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id, final CheckpointState newCheckpointState) {
+
+		synchronized (this.jobManager) {
+			try {
+				this.jobManager.updateCheckpointState(new TaskCheckpointState(jobID, id, newCheckpointState));
+			} catch (IOException e) {
+				LOG.error(StringUtils.stringifyException(e));
 			}
 		}
 	}
@@ -917,27 +808,27 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private void checkTaskExecution() {
 
-		final List<Environment> crashEnvironments = new LinkedList<Environment>();
+		final List<Task> failedTasks = new ArrayList<Task>();
 
 		synchronized (this.runningTasks) {
 
 			final Iterator<ExecutionVertexID> it = this.runningTasks.keySet().iterator();
 			while (it.hasNext()) {
 				final ExecutionVertexID executionVertexID = it.next();
-				final Environment environment = this.runningTasks.get(executionVertexID);
+				final Task task = this.runningTasks.get(executionVertexID);
 
-				if (environment.getExecutingThread().getState() == Thread.State.TERMINATED) {
+				if (task.isTerminated()) {
 					// Remove entry from the running tasks map
 					it.remove();
 					// Don't to IPC call while holding a lock on the runningTasks map
-					crashEnvironments.add(environment);
+					failedTasks.add(task);
 				}
 			}
 		}
 
-		final Iterator<Environment> it2 = crashEnvironments.iterator();
+		final Iterator<Task> it2 = failedTasks.iterator();
 		while (it2.hasNext()) {
-			it2.next().changeExecutionState(ExecutionState.FAILED, "Execution thread died unexpectedly");
+			it2.next().markAsFailed();
 		}
 	}
 
@@ -960,5 +851,34 @@ public class TaskManager implements TaskOperationProtocol {
 	public void logBufferUtilization() throws IOException {
 
 		this.byteBufferedChannelManager.logBufferUtilization();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions) throws IOException {
+
+		this.byteBufferedChannelManager.reportCheckpointDecisions(checkpointDecisions);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void killTaskManager() throws IOException {
+
+		// Kill the entire JVM after a delay of 10ms, so this RPC will finish properly before
+		final Timer timer = new Timer();
+		final TimerTask timerTask = new TimerTask() {
+
+			@Override
+			public void run() {
+
+				System.exit(0);
+			}
+		};
+
+		timer.schedule(timerTask, 10L);
 	}
 }

@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
- * This class can be used to updates about a task's execution state from the
+ * This class can be used to propagate updates about a task's execution state from the
  * task manager to the job manager.
  * 
  * @author warneke
@@ -43,16 +43,19 @@ public class TaskExecutionState implements IOReadableWritable {
 	private String description = null;
 
 	/**
-	 * Creates a new task execution result.
+	 * Creates a new task execution state.
 	 * 
+	 * @param jobID
+	 *        the ID of the job the task belongs to
 	 * @param id
-	 *        the ID of the task whose result is to be reported
+	 *        the ID of the task whose state is to be reported
 	 * @param executionState
-	 *        the execution state with which the task finished
+	 *        the execution state to be reported
 	 * @param description
 	 *        an optional description
 	 */
-	public TaskExecutionState(JobID jobID, ExecutionVertexID id, ExecutionState executionState, String description) {
+	public TaskExecutionState(final JobID jobID, final ExecutionVertexID id, final ExecutionState executionState,
+			final String description) {
 		this.jobID = jobID;
 		this.executionVertexID = id;
 		this.executionState = executionState;
@@ -60,15 +63,15 @@ public class TaskExecutionState implements IOReadableWritable {
 	}
 
 	/**
-	 * Creates an empty task execution result.
+	 * Creates an empty task execution state.
 	 */
 	public TaskExecutionState() {
 	}
 
 	/**
-	 * Returns the description of this task execution result.
+	 * Returns the description of this task execution state.
 	 * 
-	 * @return the description of this task execution result or <code>null</code> if there is no description available
+	 * @return the description of this task execution state or <code>null</code> if there is no description available
 	 */
 	public String getDescription() {
 		return this.description;
@@ -84,20 +87,28 @@ public class TaskExecutionState implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns the execution state with which the task finished.
+	 * Returns the new execution state of the task.
 	 * 
-	 * @return the execution state with which the task finished
+	 * @return the new execution state of the task
 	 */
 	public ExecutionState getExecutionState() {
 		return this.executionState;
 	}
 
+	/**
+	 * The ID of the job the task belongs to
+	 * 
+	 * @return the ID of the job the task belongs to
+	 */
 	public JobID getJobID() {
 		return this.jobID;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		boolean isNotNull = in.readBoolean();
 
@@ -125,8 +136,11 @@ public class TaskExecutionState implements IOReadableWritable {
 		this.description = StringRecord.readString(in);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		if (this.jobID == null) {
 			out.writeBoolean(false);

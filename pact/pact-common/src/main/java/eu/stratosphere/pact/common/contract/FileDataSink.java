@@ -53,6 +53,7 @@ public class FileDataSink extends GenericDataSink
 	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, String name) {
 		super(c, name);
 		this.filePath = filePath;
+		this.parameters.setString(FileOutputFormat.FILE_PARAMETER_KEY, filePath);
 	}
 
 	/**

@@ -35,7 +35,7 @@ import junit.framework.Assert;
 
 public class BlockResettableIteratorTest
 {
-	private static final int MEMORY_CAPACITY = 100000;
+	private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 	
 	private static final int NUM_VALUES = 20000;
 	

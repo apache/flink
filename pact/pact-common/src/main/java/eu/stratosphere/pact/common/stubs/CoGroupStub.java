@@ -17,7 +17,6 @@ package eu.stratosphere.pact.common.stubs;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
@@ -32,16 +31,14 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * For a coGroup implementation, the <code>coGroup()</code> method must be implemented.
  * 
  * @author Fabian Hueske
- * @param <K> Type of the input key.
  */
-public abstract class CoGroupStub<K extends Key> extends SingleInputKeyStub<K>
+public abstract class CoGroupStub extends Stub
 {
 	/**
 	 * This method must be implemented to provide a user implementation of a
 	 * matcher. It is called for each two key-value pairs that share the same
 	 * key and come from different inputs.
 	 * 
-	 * @param key The key that is paired with the records from both inputs.
 	 * @param records1 The records from the first input which were paired with the key.
 	 * @param records2 The records from the second input which were paired with the key.
 	 * @param out A collector that collects all output pairs.
@@ -50,5 +47,5 @@ public abstract class CoGroupStub<K extends Key> extends SingleInputKeyStub<K>
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
 	 *                   decide whether to retry the task execution.
 	 */
-	public abstract void coGroup(K key, Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector out);
+	public abstract void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector out);
 }

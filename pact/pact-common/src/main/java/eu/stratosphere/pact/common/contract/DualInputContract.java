@@ -15,15 +15,14 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.lang.annotation.Annotation;
-
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.type.Key;
 
 /**
  * Abstract contract superclass for for all contracts that have two inputs, like "match" or "cross".
  */
-public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> implements OutputContractConfigurable
+public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 {
 	/**
 	 * The contract producing the first input.
@@ -34,6 +33,16 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	 * The contract producing the second input.
 	 */
 	protected Contract input2;
+	
+	/**
+	 * The positions of the keys in the tuples of the first input.
+	 */
+	private final int[] keyFields1;
+	
+	/**
+	 * The positions of the keys in the tuples of the first input.
+	 */
+	private final int[] keyFields2;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -46,6 +55,22 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	protected DualInputContract(Class<? extends T> stubClass, String name)
 	{
 		super(stubClass, name);
+		this.keyFields1 = this.keyFields2 = new int[0];
+	}
+	
+	/**
+	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
+	 * This constructor is specialized only for Pacts that require no keys for their processing.
+	 * 
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param keyTypes The classes of the data types that act as keys in this stub.
+	 * @param stubClass The class containing the user function.
+	 */
+	protected DualInputContract(Class<? extends T> stubClass, Class<? extends Key>[] keyTypes, int[] keyPositions1, int[] keyPositions2, String name)
+	{
+		super(stubClass, keyTypes, name);
+		this.keyFields1 = keyPositions1;
+		this.keyFields2 = keyPositions2;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -85,30 +110,31 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T> 
 	public void setSecondInput(Contract input) {
 		this.input2 = input;
 	}
+
+	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getNumberOfInputs()
 	 */
 	@Override
-	public void addOutputContract(Class<? extends Annotation> oc)
-	{
-		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
-			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
-		}
-
-		this.ocs.add(oc);
+	public int getNumberOfInputs() {
+		return 2;
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#getOutputContracts()
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getKeyColumnNumbers(int)
 	 */
 	@Override
-	public Class<? extends Annotation>[] getOutputContracts() {
-		@SuppressWarnings("unchecked")
-		Class<? extends Annotation>[] targetArray = new Class[this.ocs.size()];
-		return (Class<? extends Annotation>[]) this.ocs.toArray(targetArray);
+	public int[] getKeyColumnNumbers(int inputNum) {
+		if (inputNum == 0) {
+			return this.keyFields1;
+		}
+		else if (inputNum == 1) {
+			return this.keyFields2;
+		}
+		else throw new IndexOutOfBoundsException();
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**

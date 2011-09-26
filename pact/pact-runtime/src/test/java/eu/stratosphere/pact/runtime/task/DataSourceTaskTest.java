@@ -32,11 +32,11 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 public class DataSourceTaskTest extends TaskTestBase {
 	

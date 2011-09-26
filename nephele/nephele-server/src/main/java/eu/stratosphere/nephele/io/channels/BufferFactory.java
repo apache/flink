@@ -16,30 +16,31 @@
 package eu.stratosphere.nephele.io.channels;
 
 import java.nio.ByteBuffer;
-import java.util.Deque;
+import java.util.Queue;
 
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
 public abstract class BufferFactory {
 
-	public static Buffer createFromCheckpoint(int bufferSize, ChannelID sourceChannelID, long offset,
-			FileBufferManager fileBufferManager) {
+	public static Buffer createFromFile(final int bufferSize, final AbstractID ownerID,
+			final FileBufferManager fileBufferManager) {
 
-		final InternalBuffer internalBuffer = new CheckpointFileBuffer(bufferSize, sourceChannelID, offset,
-			fileBufferManager);
+		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, ownerID, fileBufferManager);
 		return new Buffer(internalBuffer);
 	}
 
-	public static Buffer createFromFile(int bufferSize, ChannelID sourceChannelID, FileBufferManager fileBufferManager) {
+	public static Buffer createFromCheckpoint(final int bufferSize, final FileID fileID, final long offset,
+			final AbstractID ownerID, final FileBufferManager fileBufferManager) {
 
-		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, sourceChannelID, fileBufferManager);
+		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, fileID, offset, ownerID, fileBufferManager);
+		
 		return new Buffer(internalBuffer);
 	}
 
-	public static Buffer createFromMemory(int bufferSize, ByteBuffer byteBuffer,
-			Deque<ByteBuffer> queueForRecycledBuffers) {
+	public static Buffer createFromMemory(final int bufferSize, final ByteBuffer byteBuffer,
+			final Queue<ByteBuffer> queueForRecycledBuffers) {
 
 		final InternalBuffer internalBuffer = new MemoryBuffer(bufferSize, byteBuffer, queueForRecycledBuffers);
 		return new Buffer(internalBuffer);

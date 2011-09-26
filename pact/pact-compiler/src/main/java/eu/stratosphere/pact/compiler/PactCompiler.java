@@ -63,6 +63,7 @@ import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
+import eu.stratosphere.pact.runtime.task.HistogramTask;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -594,12 +595,13 @@ public class PactCompiler {
 		}
 
 		// set the default degree of parallelism
-		int defaultParallelism = this.defaultDegreeOfParallelism;
+		int defaultParallelism = pactPlan.getDefaultParallelism() > 0 ?
+			pactPlan.getDefaultParallelism() : this.defaultDegreeOfParallelism;
 		if (defaultParallelism < 1) {
-			defaultParallelism = maxMachinesJob * defaultIntraNodeParallelism;
-		} else if (defaultParallelism > maxMachinesJob * defaultIntraNodeParallelism) {
+			defaultParallelism = maxMachinesJob * this.defaultIntraNodeParallelism;
+		} else if (defaultParallelism > maxMachinesJob * this.defaultIntraNodeParallelism) {
 			int oldParallelism = defaultParallelism;
-			defaultParallelism = maxMachinesJob * defaultIntraNodeParallelism;
+			defaultParallelism = maxMachinesJob * this.defaultIntraNodeParallelism;
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Decreasing default degree of parallelism from " + oldParallelism +
@@ -690,6 +692,7 @@ public class PactCompiler {
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
 		plan.setInstanceTypeName(instanceName);
+		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
 		
 		return plan;
 	}
@@ -705,8 +708,10 @@ public class PactCompiler {
 	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan) {
 		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, -1, -1, false);
 		pactPlan.accept(graphCreator);
-		return new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
-			pactPlan.getJobName());
+		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
+				pactPlan.getJobName());
+		optPlan.setPlanConfiguration(pactPlan.getPlanConfiguration());
+		return optPlan;
 	}
 
 	/**
@@ -813,7 +818,6 @@ public class PactCompiler {
 			if (maxMachines > 0) {
 				int p = n.getDegreeOfParallelism();
 				tasksPerInstance = (p / maxMachines) + (p % maxMachines == 0 ? 0 : 1);
-
 				tasksPerInstance = Math.max(tasksPerInstance, this.defaultIntraNodeParallelism);
 			}
 
@@ -1007,6 +1011,13 @@ public class PactCompiler {
 						node.setMemoryPerTask(memoryPerTask * consumerCount);
 						LOG.debug("Assigned "+(memoryPerTask * consumerCount)+" MB to "+node.getPactContract().getName());
 					}
+					
+					for (PactConnection conn : node.getOutgoingConnections()) {
+						if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
+							node.getPactContract().getParameters().setInteger(HistogramTask.HISTOGRAM_MEMORY, memoryPerTask);
+							LOG.debug("Assigned "+(memoryPerTask)+" MB for histogram building during range partitioning");
+						}
+					}
 				}
 			}
 
@@ -1046,6 +1057,19 @@ public class PactCompiler {
 				}
 
 			}
+			
+			for (PactConnection conn : visitable.getOutgoingConnections()) {
+				if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
+					// One memory consumer for the histogram
+					memoryConsumers += visitable.getInstancesPerMachine();
+					//Reduce available memory because of temp task to avoid spilling
+					this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY *
+					conn.getSourcePact().getDegreeOfParallelism();
+					//TODO: is this correct reducing memory per INSTANCE by multiplying required
+					//memory * the TOTAL DoP?
+					LOG.debug("Memory reduced to "+memoryPerInstance+ " due to TempTask");
+				}
+			}
 
 			if (visitable instanceof DataSinkNode) {
 				sinks.add((DataSinkNode) visitable);
@@ -1055,7 +1079,7 @@ public class PactCompiler {
 
 			// count the memory consumption
 			memoryConsumers += visitable.getMemoryConsumerCount() * visitable.getInstancesPerMachine();
-
+			
 			return true;
 		}
 

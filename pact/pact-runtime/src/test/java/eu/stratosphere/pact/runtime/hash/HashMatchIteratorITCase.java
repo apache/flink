@@ -37,6 +37,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -44,7 +45,6 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 
 public class HashMatchIteratorITCase

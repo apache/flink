@@ -6,7 +6,7 @@
     <parent>
         <artifactId>stratosphere</artifactId>
         <groupId>eu.stratosphere</groupId>
-        <version>0.1</version>
+        <version>0.2</version>
     </parent>
 
     <groupId>eu.stratosphere</groupId>
@@ -14,7 +14,7 @@
 
     <packaging>pom</packaging>
 
-    <version>0.1</version>
+    <version>0.2</version>
     <name>nephele</name>
     <url>http://maven.apache.org</url>
 
@@ -99,6 +99,7 @@
       <module>nephele-ec2cloudmanager</module>
       <module>nephele-clustermanager</module>
       <module>nephele-hdfs</module>
+      <module>nephele-s3</module>
       <module>nephele-visualization</module>
       <module>nephele-server</module>
       <module>nephele-examples</module>

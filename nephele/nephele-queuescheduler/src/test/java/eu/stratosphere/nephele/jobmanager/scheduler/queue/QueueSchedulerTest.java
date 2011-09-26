@@ -25,8 +25,10 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.junit.Before;
@@ -176,15 +178,17 @@ public class QueueSchedulerTest {
 		final DeploymentManager deploymentManager = new TestDeploymentManager();
 
 		final QueueScheduler toTest = spy(new QueueScheduler(deploymentManager, this.instanceManager));
-		final JobID jobid = mock(JobID.class);
+		final JobID jobid = new JobID();
 		final AllocatedResource resource = mock(AllocatedResource.class);
+		final List<AllocatedResource> resources = new ArrayList<AllocatedResource>();
+		resources.add(resource);
 		final InstanceType instanceType = new InstanceType();
 		InstanceConnectionInfo instanceConnectionInfo = mock(InstanceConnectionInfo.class);
 		when(instanceConnectionInfo.toString()).thenReturn("");
 		LocalInstance instance = spy(new LocalInstance(instanceType, instanceConnectionInfo, null, null, null));
 
 		// given resource is null
-		toTest.resourceAllocated(null, null);
+		toTest.resourcesAllocated(null, null);
 		verify(this.loggerMock).error(Matchers.anyString());
 
 		// jobs have have been canceled
@@ -192,7 +196,7 @@ public class QueueSchedulerTest {
 		PowerMockito.when(toTest, methodToMock).withArguments(Matchers.any(JobID.class)).thenReturn(null);
 		when(resource.getInstance()).thenReturn(instance);
 
-		toTest.resourceAllocated(jobid, resource);
+		toTest.resourcesAllocated(jobid, resources);
 		try {
 			verify(this.instanceManager).releaseAllocatedResource(Matchers.any(JobID.class),
 				Matchers.any(Configuration.class), Matchers.any(AllocatedResource.class));
@@ -207,7 +211,7 @@ public class QueueSchedulerTest {
 		when(this.graphIterator.hasNext()).thenReturn(true, true, true, true, false);
 		when(this.graphIterator2.next()).thenReturn(this.vertex1);
 		when(this.graphIterator2.hasNext()).thenReturn(true, true, true, true, false);
-		when(this.vertex1.getExecutionState()).thenReturn(ExecutionState.ASSIGNING);
+		when(this.vertex1.getExecutionState()).thenReturn(ExecutionState.SCHEDULED);
 		try {
 			whenNew(ExecutionGraphIterator.class).withArguments(Matchers.any(ExecutionGraph.class),
 				Matchers.anyBoolean()).thenReturn(this.graphIterator);
@@ -223,7 +227,7 @@ public class QueueSchedulerTest {
 		when(this.vertex1.getAllocatedResource()).thenReturn(null);
 		when(resource.getInstance()).thenReturn(instance);
 
-		toTest.resourceAllocated(jobid, resource);
+		toTest.resourcesAllocated(jobid, resources);
 		verify(this.loggerMock).warn(Matchers.anyString());
 
 		// correct walk through method
@@ -232,8 +236,8 @@ public class QueueSchedulerTest {
 		when(this.vertex1.getAllocatedResource()).thenReturn(resource);
 		when(resource.getInstanceType()).thenReturn(instanceType);
 
-		toTest.resourceAllocated(jobid, resource);
-		verify(this.vertex1, times(4)).setExecutionState(ExecutionState.ASSIGNED);
+		toTest.resourcesAllocated(jobid, resources);
+		verify(this.vertex1, times(4)).updateExecutionState(ExecutionState.READY);
 
 	}
 

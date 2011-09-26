@@ -21,10 +21,11 @@ import java.util.Comparator;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 
 /**
@@ -65,9 +66,8 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 			MutableObjectIterator<PactRecord> input, AbstractTask parentTask)
 	throws IOException, MemoryAllocationException
 	{
-		super(memoryManager, ioManager, totalMemory, 
-			0,
-			totalMemory < 2 * MIN_SORT_BUFFER_SIZE ? 1 : Math.max((int) Math.ceil(totalMemory / (64.0 * 1024 * 1024)), 2),
+		super(memoryManager, ioManager, totalMemory, 0,
+			totalMemory < 2 * MIN_SORT_MEM ? 1 : Math.max((int) Math.ceil(totalMemory / (64.0 * 1024 * 1024)), 2),
 			2, keyComparators, keyPositions, keyClasses, input, parentTask, 0.0f);
 	}
 
@@ -86,15 +86,14 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 	 */
 	@Override
 	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			MemoryManager memoryManager, IOManager ioManager, long writeMemSize, long readMemSize,
-			AbstractTask parentTask)
+			MemoryManager memoryManager, IOManager ioManager, long readMemSize,
+			AbstractInvokable parentTask)
 	{
 		this.bufferIterator = new BufferQueueIterator(queues);
 		setResultIterator(this.bufferIterator);
 		
 		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager,
-			writeMemSize, readMemSize,
-			parentTask);
+			readMemSize, parentTask);
 	}
 	
 	/* (non-Javadoc)
@@ -124,9 +123,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 	private class SpillingThread extends ThreadBase
 	{
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				MemoryManager memoryManager, IOManager ioManager,
-				long writeMemSize, long readMemSize,
-				AbstractTask parentTask)
+				MemoryManager memoryManager, IOManager ioManager, long readMemSize, AbstractInvokable parentTask)
 		{
 			super(exceptionHandler, "Partial Sorter Iterator Thread.", queues, parentTask);
 		}

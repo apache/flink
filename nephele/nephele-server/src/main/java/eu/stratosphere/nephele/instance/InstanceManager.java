@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.instance;
 
+import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -39,12 +40,15 @@ public interface InstanceManager {
 	 *        the ID of the job this instance is requested for
 	 * @param conf
 	 *        a configuration object including additional request information (e.g. credentials)
-	 * @param instanceType
-	 *        the type of the requested instance
+	 * @param instanceRequestMap
+	 *        a map specifying the instances requested by this call
+	 * @param count
+	 *        the number of instances
 	 * @throws InstanceException
 	 *         thrown if an error occurs during the instance request
 	 */
-	void requestInstance(JobID jobID, Configuration conf, InstanceType instanceType) throws InstanceException;
+	void requestInstance(JobID jobID, Configuration conf, InstanceRequestMap instanceRequestMap,
+			List<String> splitAffinityList) throws InstanceException;
 
 	/**
 	 * Releases an allocated resource from a job.
@@ -137,6 +141,15 @@ public interface InstanceManager {
 	 * @return a list of all instance types available to Nephele
 	 */
 	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes();
+
+	/**
+	 * Returns the {@link AbstractInstance} with the given name.
+	 * 
+	 * @param name
+	 *        the name of the instance
+	 * @return the instance with the given name or <code>null</code> if no such instance could be found
+	 */
+	AbstractInstance getInstanceByName(String name);
 
 	/**
 	 * Shuts the instance manager down and stops all its internal processes.

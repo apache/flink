@@ -17,7 +17,8 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.Closeable;
 
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+
 
 
 /**

@@ -29,6 +29,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -40,9 +41,9 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(LibraryCacheManager.class)
@@ -80,6 +81,10 @@ public abstract class TaskTestBase {
 
 	public TaskConfig getTaskConfig() {
 		return new TaskConfig(mockEnv.getRuntimeConfiguration());
+	}
+	
+	public Configuration getConfiguration() {
+		return mockEnv.getRuntimeConfiguration();
 	}
 
 	public void registerTask(AbstractTask task, Class<? extends Stub> stubClass) {

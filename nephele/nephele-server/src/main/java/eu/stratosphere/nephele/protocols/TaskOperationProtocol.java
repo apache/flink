@@ -17,16 +17,21 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 
 /**
  * The task submission protocol is implemented by the task manager and allows the job manager
@@ -46,11 +51,26 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *        the job configuration that has been attached to the original job graph
 	 * @param ee
 	 *        the environment containing the task
+	 * @param activeOutputChannels
+	 *        the set of initially active output channels
 	 * @return the result of the task submission
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee)
+	TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee,
+			Set<ChannelID> activeOutputChannels)
+			throws IOException;
+
+	/**
+	 * Submits a list of tasks to the task manager.
+	 * 
+	 * @param tasks
+	 *        the tasks to be submitted
+	 * @return the result of the task submission
+	 * @throws IOException
+	 *         thrown if an error occurs during this remote procedure call
+	 */
+	List<TaskSubmissionResult> submitTasks(List<TaskSubmissionWrapper> tasks)
 			throws IOException;
 
 	/**
@@ -87,6 +107,10 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
 
+	List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException;
+
+	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
+
 	/**
 	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
 	 * 
@@ -105,4 +129,12 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         throws if an error occurs while transmitting the request
 	 */
 	void logBufferUtilization() throws IOException;
+
+	/**
+	 * Kills the task manager. This method is mainly intended to test and debug Nephele's fault tolerance mechanisms.
+	 * 
+	 * @throws IOException
+	 *         throws if an error occurs during this remote procedure call
+	 */
+	void killTaskManager() throws IOException;
 }

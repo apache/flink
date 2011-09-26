@@ -15,32 +15,51 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.lang.annotation.Annotation;
-
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.type.Key;
 
 /**
  * Abstract contract superclass for for all contracts that have one input like "map" or "reduce".
  */
-public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T> implements OutputContractConfigurable
+public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T>
 {
 	/**
 	 * The input which produces the data consumed by this Pact.
 	 */
 	protected Contract input;
+	
+	/**
+	 * The positions of the keys in the tuple.
+	 */
+	private final int[] keyFields;
 
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
 	 * 
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 * @param stubClass The class containing the user function.
+	 * @param keyTypes The classes of the data types that act as keys in this stub.
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 */
+	protected SingleInputContract(Class<? extends T> stubClass, Class<? extends Key>[] keyTypes, int[] keyPositions, String name)
+	{
+		super(stubClass, keyTypes, name);
+		this.keyFields = keyPositions;
+	}
+	
+	/**
+	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
+	 * This constructor is specialized only for Pacts that require no keys for their processing.
+	 * 
+	 * @param stubClass The class containing the user function.
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
 	protected SingleInputContract(Class<? extends T> stubClass, String name)
 	{
 		super(stubClass, name);
+		this.keyFields = new int[0];
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -63,27 +82,25 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 		this.input = input;
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getNumberOfInputs()
 	 */
 	@Override
-	public void addOutputContract(Class<? extends Annotation> oc)
-	{
-		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
-			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
-		}
-
-		this.ocs.add(oc);
+	public int getNumberOfInputs() {
+		return 1;
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#getOutputContracts()
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getKeyColumnNumbers(int)
 	 */
 	@Override
-	public Class<? extends Annotation>[] getOutputContracts() {
-		@SuppressWarnings("unchecked")
-		Class<? extends Annotation>[] targetArray = new Class[this.ocs.size()];
-		return (Class<? extends Annotation>[]) this.ocs.toArray(targetArray);
+	public int[] getKeyColumnNumbers(int inputNum) {
+		if (inputNum == 0) {
+			return this.keyFields;
+		}
+		else throw new IndexOutOfBoundsException();
 	}
 
 	// --------------------------------------------------------------------------------------------

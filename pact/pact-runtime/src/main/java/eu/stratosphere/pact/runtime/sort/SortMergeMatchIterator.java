@@ -30,6 +30,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
@@ -38,7 +39,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.util.LastRepeatableIterator;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.PactRecordRepeatableIterator;
 
 

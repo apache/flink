@@ -20,6 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).

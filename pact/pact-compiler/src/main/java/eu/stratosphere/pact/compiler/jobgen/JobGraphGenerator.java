@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.jobgen;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,20 +23,23 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
-import eu.stratosphere.nephele.jobgraph.JobGenericInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobGenericOutputVertex;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
+import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.pact.common.contract.AbstractPact;
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.CombinerNode;
@@ -51,9 +55,12 @@ import eu.stratosphere.pact.runtime.task.CombineTask;
 import eu.stratosphere.pact.runtime.task.CrossTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
+import eu.stratosphere.pact.runtime.task.HistogramTask;
 import eu.stratosphere.pact.runtime.task.MapTask;
 import eu.stratosphere.pact.runtime.task.MatchTask;
+import eu.stratosphere.pact.runtime.task.PartitionTask;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
+import eu.stratosphere.pact.runtime.task.SampleTask;
 import eu.stratosphere.pact.runtime.task.SelfMatchTask;
 import eu.stratosphere.pact.runtime.task.TempTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -80,6 +87,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private JobGraph jobGraph; // the job that is currently built
 
 	private Map<OptimizerNode, AbstractJobVertex> vertices; // a map from optimizer nodes to nephele vertices
+	
+	private List<AbstractJobVertex> auxVertices; // auxiliary vertices which are added during job graph generation
 
 	private AbstractJobVertex maxDegreeVertex; // the vertex with the highest degree of parallelism
 
@@ -103,8 +112,12 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	public JobGraph compileJobGraph(OptimizedPlan pactPlan) {
 		this.jobGraph = new JobGraph(pactPlan.getJobName());
 		this.vertices = new HashMap<OptimizerNode, AbstractJobVertex>();
+		this.auxVertices = new ArrayList<AbstractJobVertex>();
 		this.maxDegreeVertex = null;
-
+		
+		// set Nephele JobGraph config
+		pactPlan.getPlanConfiguration().extractNepheleConfiguration(this.jobGraph.getJobConfiguration());
+		
 		// generate Nephele job graph
 		pactPlan.accept(this);
 
@@ -122,6 +135,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			vertex.setVertexToShareInstancesWith(maxDegreeVertex);
 		}
 		
+		for (AbstractJobVertex vertex : this.auxVertices) {
+			if (vertex == maxDegreeVertex) {
+				continue;
+			}
+			vertex.setVertexToShareInstancesWith(maxDegreeVertex);
+		}
+		
 
 		JobGraph graph = this.jobGraph;
 
@@ -133,7 +153,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// return job graph
 		return graph;
 	}
-
+	
 	/**
 	 * This methods implements the pre-visiting during a depth-first traversal. It create the job vertex and
 	 * sets local strategy.
@@ -233,7 +253,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				return;
 			}
 
-			for (PactConnection connection : node.getIncomingConnections()) {
+			for (int i = 0; i < incomingConns.size(); i++)
+			{
+				final PactConnection connection = incomingConns.get(i);
 				// get parent vertex
 				AbstractJobVertex outputVertex = this.vertices.get(connection.getSourcePact());
 				if (outputVertex == null) {
@@ -242,13 +264,21 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 				switch (connection.getShipStrategy()) {
 				case FORWARD:
-					connectWithForwardStrategy(connection, outputVertex, inputVertex);
+					connectWithForwardStrategy(connection, i, outputVertex, inputVertex);
 					break;
+				case PARTITION_LOCAL_HASH:
 				case PARTITION_HASH:
-					connectWithPartitionStrategy(connection, outputVertex, inputVertex);
+					connectWithPartitionStrategy(connection, i, outputVertex, inputVertex);
 					break;
 				case BROADCAST:
-					connectWithBroadcastStrategy(connection, outputVertex, inputVertex);
+					connectWithBroadcastStrategy(connection, i, outputVertex, inputVertex);
+					break;
+				case PARTITION_RANGE:
+					if(isDistributionGiven(connection)) {
+						connectWithGivenDistributionPartitionRangeStrategy(connection, outputVertex, inputVertex);
+					} else {
+						connectWithSamplingPartitionRangeStrategy(connection, outputVertex, inputVertex);
+					}
 					break;
 				case SFR:
 					connectWithSFRStrategy(connection, outputVertex, inputVertex);
@@ -256,16 +286,21 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 					throw new Exception("Invalid ship strategy: " + connection.getShipStrategy());
 				}
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			throw new CompilerException(
 				"An error occurred while translating the optimized plan to a nephele JobGraph: " + e.getMessage(), e);
 		}
 	}
-
+	
 	// ------------------------------------------------------------------------
 	// Methods for creating individual vertices
 	// ------------------------------------------------------------------------
 
+	private boolean isDistributionGiven(PactConnection connection) {
+		return (connection.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass() != null);
+	}
+	
 	/**
 	 * @param mapNode
 	 * @return
@@ -316,6 +351,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		// we have currently only one strategy for combiners
 		combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
+		combineConfig.setLocalStrategyKeyTypes(0, combineNode.getPactContract().getKeyColumnNumbers(0));
+		combineConfig.setLocalStrategyKeyTypes(combineNode.getPactContract().getKeyClasses());
 
 		// assign the memory
 		assignMemory(combineConfig, combineNode.getMemoryPerTask());
@@ -331,7 +368,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobTaskVertex generateReduceVertex(ReduceNode reduceNode) throws CompilerException {
+	private JobTaskVertex generateReduceVertex(ReduceNode reduceNode) throws CompilerException
+	{
 		// create task vertex
 		JobTaskVertex reduceVertex = new JobTaskVertex(reduceNode.getPactContract().getName(), this.jobGraph);
 		// set task class
@@ -346,9 +384,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		switch (reduceNode.getLocalStrategy()) {
 		case SORT:
 			reduceConfig.setLocalStrategy(LocalStrategy.SORT);
+			reduceConfig.setLocalStrategyKeyTypes(0, reduceNode.getPactContract().getKeyColumnNumbers(0));
+			reduceConfig.setLocalStrategyKeyTypes(reduceNode.getPactContract().getKeyClasses());
 			break;
 		case COMBININGSORT:
 			reduceConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
+			reduceConfig.setLocalStrategyKeyTypes(0, reduceNode.getPactContract().getKeyColumnNumbers(0));
+			reduceConfig.setLocalStrategyKeyTypes(reduceNode.getPactContract().getKeyClasses());
 			break;
 		case NONE:
 			reduceConfig.setLocalStrategy(LocalStrategy.NONE);
@@ -554,7 +596,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		GenericDataSource<?> contract = dsn.getPactContract();
 
 		// create task vertex
-		JobGenericInputVertex sourceVertex = new JobGenericInputVertex(contract.getName(), this.jobGraph);
+		JobInputVertex sourceVertex = new JobInputVertex(contract.getName(), this.jobGraph);
 		// set task class
 		sourceVertex.setInputClass(DataSourceTask.class);
 
@@ -583,19 +625,20 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobOutputVertex generateDataSinkVertex(OptimizerNode sinkNode) throws CompilerException
+	private AbstractJobOutputVertex generateDataSinkVertex(OptimizerNode sinkNode) throws CompilerException
 	{
 		DataSinkNode sNode = (DataSinkNode) sinkNode;
 		GenericDataSink sinkContract = sNode.getPactContract();
 		
 		// create task vertex
-		JobGenericOutputVertex sinkVertex = new JobGenericOutputVertex(sinkNode.getPactContract().getName(), this.jobGraph);
+		JobOutputVertex sinkVertex = new JobOutputVertex(sinkNode.getPactContract().getName(), this.jobGraph);
 		// set task class
 		sinkVertex.setOutputClass(DataSinkTask.class);
 		
 		// set the degree-of-parallelism into the config to have it available during the output path checking.
 		sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, sinkNode.getDegreeOfParallelism());
-		
+		// set the sort order into config (can also be NONE)
+		sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getKeyOrder().name());
 		// get task configuration object
 		TaskConfig sinkConfig = new TaskConfig(sinkVertex.getConfiguration());
 		// set user code class
@@ -608,11 +651,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		case NONE:
 			sinkConfig.setLocalStrategy(LocalStrategy.NONE);
 			break;
+		case SORT:
+			sinkConfig.setLocalStrategy(LocalStrategy.SORT);
+			break;
 		default:
 			throw new CompilerException("Invalid local strategy for 'DataSink' (" + sinkNode.getName() + "): "
 				+ sinkNode.getLocalStrategy());
 		}
 
+		//HACK: Copied from Reduce task, is memory always assigned even if not needed?
+		//		could be same problem in reduce task
+		assignMemory(sinkConfig, sinkNode.getMemoryPerTask());
 		return sinkVertex;
 	}
 
@@ -621,7 +670,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @param dop
 	 * @return
 	 */
-	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop) {
+	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop, int instancesPerMachine) {
 		// create task vertex
 		JobTaskVertex tempVertex = new JobTaskVertex("TempVertex", this.jobGraph);
 		// set task class
@@ -636,6 +685,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		// set degree of parallelism
 		tempVertex.setNumberOfSubtasks(dop);
+		tempVertex.setNumberOfSubtasksPerInstance(instancesPerMachine);
 
 		return tempVertex;
 	}
@@ -650,8 +700,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @param inputVertex
 	 * @throws CompilerException
 	 */
-	private void connectWithForwardStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+	private void connectWithForwardStrategy(PactConnection connection, int inputNumber,
+			AbstractJobVertex outputVertex,	AbstractJobVertex inputVertex)
+	throws CompilerException, JobGraphDefinitionException {
 		// TODO: currently we do a 1-to-1 mapping one the same instance. Hence, we use INMEMORY channels
 		// We should add the possibility to distribute the load to multiple machines (one local, x remote)
 
@@ -680,7 +731,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, inputNumber, outputVertex, inputVertex);
 
 	}
 
@@ -691,25 +742,23 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 * @throws JobGraphDefinitionException
 	 */
-	private void connectWithPartitionStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+	private void connectWithPartitionStrategy(PactConnection connection, int inputNumber,
+			AbstractJobVertex outputVertex,	AbstractJobVertex inputVertex)
+	throws CompilerException, JobGraphDefinitionException
+	{
 		// check if shipStrategy suits child
-		switch (connection.getTargetPact().getPactType()) {
+		switch (connection.getTargetPact().getPactType())
+		{
 		case Map:
 			// ok (Partitioning before map increases data volume)
-			break;
 		case Reduce:
 			// ok (Default)
-			break;
 		case Match:
 			// ok (Partitioning exist already or forward for broadcast)
-			break;
 		case Cross:
 			// ok (Partitioning with broadcast before cross increases data volume)
-			break;
 		case Cogroup:
 			// ok (Default)
-			break;
 		case DataSink:
 			// ok
 			break;
@@ -718,7 +767,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, inputNumber, outputVertex, inputVertex);
 	}
 
 	/**
@@ -728,8 +777,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 * @throws JobGraphDefinitionException
 	 */
-	private void connectWithBroadcastStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+	private void connectWithBroadcastStrategy(PactConnection connection, int inputNumber,
+			AbstractJobVertex outputVertex,	AbstractJobVertex inputVertex)
+	throws CompilerException, JobGraphDefinitionException
+	{
 		// check if shipStrategy suits child
 		switch (connection.getTargetPact().getPactType()) {
 		case Match:
@@ -743,7 +794,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, inputNumber, outputVertex, inputVertex);
 	}
 
 	/**
@@ -753,8 +804,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 * @throws JobGraphDefinitionException
 	 */
-	private void connectWithSFRStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+	private void connectWithSFRStrategy(PactConnection connection,
+			AbstractJobVertex outputVertex, AbstractJobVertex inputVertex)
+	throws CompilerException, JobGraphDefinitionException
+	{
 		// check if shipStrategy suits child
 		switch (connection.getTargetPact().getPactType()) {
 		case Cross:
@@ -768,6 +821,178 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// TODO: implement SFR
 		throw new UnsupportedOperationException("SFR shipping strategy not supported yet");
 	}
+	
+	/**
+	 * Adds the necessary vertexes for sampling & histogram creation etc for range partitioning
+	 * @param connection
+	 * @param outputVertex
+	 * @param inputVertex
+	 * @throws JobGraphDefinitionException 
+	 */
+	private void connectWithSamplingPartitionRangeStrategy(PactConnection connection, AbstractJobVertex outputVertex,
+			AbstractJobVertex inputVertex) throws JobGraphDefinitionException {
+		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
+		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
+		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
+		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
+		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
+		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+		Class<?> sourceStub = connection.getSourcePact().getPactContract().getUserCodeClass();
+		
+		//TODO: Check for which pact types it makes sense
+		
+		//When parallelism is one there is nothing to partition
+		//if(sourceDOP == 1 && targetDOP == 1) {
+		if(targetDOP == 1) {
+			if(sourceDOP == 1) {
+				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			} else {
+				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			}
+			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+			return;
+		}
+		
+		//Add sample vertex
+		JobTaskVertex sampleVertex = new JobTaskVertex("Range partition - sampling", this.jobGraph);
+		auxVertices.add(sampleVertex);
+		sampleVertex.setTaskClass(SampleTask.class);
+		TaskConfig sampleConfig = new TaskConfig(sampleVertex.getConfiguration());
+		//sampleConfig.setStubClass((Class<? extends Stub<?, ?>>) AdaptiveKeySampleStub.class);
+		sampleVertex.setNumberOfSubtasks(sourceDOP);
+		if (sourceIPM >= 1) {
+			sampleVertex.setNumberOfSubtasksPerInstance(sourceIPM);
+		}
+		sampleConfig.setStubClass(sourceStub);
+		//Connect with input
+		outputVertex.connectTo(sampleVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+		sampleConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		
+		
+		//Add histogram building vertex;
+		JobTaskVertex histogramVertex = new JobTaskVertex("Range partition - histograming", this.jobGraph);
+		auxVertices.add(histogramVertex);
+		histogramVertex.setTaskClass(HistogramTask.class);
+		histogramVertex.setNumberOfSubtasks(1);
+		TaskConfig histogramConfig = new TaskConfig(histogramVertex.getConfiguration());
+		histogramConfig.setStubClass(sourceStub);
+		histogramConfig.setLocalStrategy(LocalStrategy.SORT);
+		Configuration histogramStubConfig = new Configuration();
+		histogramStubConfig.setInteger(HistogramTask.NUMBER_OF_BUCKETS, targetDOP);
+		histogramConfig.setStubParameters(histogramStubConfig);
+		assignMemory(histogramConfig, outputConfig.getStubParameters().getInteger(HistogramTask.HISTOGRAM_MEMORY,-1));
+		//Connect with input
+		histogramConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		sampleConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+		sampleVertex.connectTo(histogramVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		
+		//Add range distributor vertex
+		JobTaskVertex partitionVertex = new JobTaskVertex("Range partition - partitioning", this.jobGraph);
+		auxVertices.add(partitionVertex);
+		partitionVertex.setTaskClass(PartitionTask.class);
+		partitionVertex.setNumberOfSubtasks(sourceDOP);
+		if (sourceIPM >= 1) {
+			partitionVertex.setNumberOfSubtasksPerInstance(sourceIPM);
+		}
+		TaskConfig partitionConfig = new TaskConfig(partitionVertex.getConfiguration());
+		partitionConfig.setStubClass(sourceStub);
+		Configuration partitionStubConfig = new Configuration();
+		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
+			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
+		partitionConfig.setStubParameters(partitionStubConfig);
+		
+		//Add temp vertex to avoid blocking
+		JobTaskVertex tempVertex = generateTempVertex(
+				// source pact stub contains out key and value
+				connection.getSourcePact().getPactContract().getUserCodeClass(),
+				// keep parallelization of source pact
+				sourceDOP, sourceIPM);
+		
+		tempVertex.setVertexToShareInstancesWith(outputVertex);
+		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
+
+		//Connect data to tempVertex (partitioner)
+		outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		tempConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+		
+		//Connect tempVertex (data) to partitionVertex
+		tempVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+		
+		//Connect histogram with partitioner
+		histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST);
+		histogramConfig.addOutputShipStrategy(ShipStrategy.BROADCAST);
+
+		//Connect to receiving vertex
+		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE);
+		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
+	}
+	
+	/**
+	 * Implements range partitioning with a user-defined data distribution
+	 * @param connection
+	 * @param outputVertex
+	 * @param inputVertex
+	 * @throws JobGraphDefinitionException 
+	 */
+	private void connectWithGivenDistributionPartitionRangeStrategy(PactConnection connection,
+			AbstractJobVertex outputVertex, AbstractJobVertex inputVertex) throws JobGraphDefinitionException {
+		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
+		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
+		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
+		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
+		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
+		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+		Class<?> sourceStub = connection.getSourcePact().getPactContract().getUserCodeClass();
+		
+		//When parallelism is one there is nothing to partition
+		//if(sourceDOP == 1 && targetDOP == 1) {
+		if(targetDOP == 1) {
+			if(sourceDOP == 1) {
+				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			} else {
+				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			}
+			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+			return;
+		}
+		
+		//Add range distributor vertex
+		JobTaskVertex partitionVertex = new JobTaskVertex("Range partition - partitioning", this.jobGraph);
+		auxVertices.add(partitionVertex);
+		partitionVertex.setTaskClass(PartitionTask.class);
+		partitionVertex.setNumberOfSubtasks(sourceDOP);
+		if (sourceIPM >= 1) {
+			partitionVertex.setNumberOfSubtasksPerInstance(sourceIPM);
+		}
+		TaskConfig partitionConfig = new TaskConfig(partitionVertex.getConfiguration());
+		partitionConfig.setStubClass(sourceStub);
+		Configuration partitionStubConfig = new Configuration();
+		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
+			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
+		partitionStubConfig.setBoolean(PartitionTask.PARTITION_BY_SAMPLING, false);
+		partitionStubConfig.setInteger(PartitionTask.NUMBER_OF_PARTITIONS, targetDOP);
+		partitionStubConfig.setClass(PartitionTask.DATA_DISTRIBUTION_CLASS,
+			connection.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass());
+		partitionConfig.setStubParameters(partitionStubConfig);
+		
+		//Connect partitioner with sending vertex
+		outputVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+		
+		//Connect to receiving vertex
+		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE);
+		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
+	}
 
 	/**
 	 * @param connection
@@ -776,8 +1001,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException
 	 * @throws CompilerException
 	 */
-	private void connectJobVertices(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws JobGraphDefinitionException, CompilerException {
+	private void connectJobVertices(PactConnection connection, int inputNumber,
+			AbstractJobVertex outputVertex, AbstractJobVertex inputVertex)
+	throws JobGraphDefinitionException, CompilerException
+	{
 		ChannelType channelType = null;
 
 		switch (connection.getShipStrategy()) {
@@ -805,6 +1032,19 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		TaskConfig tempConfig = null;
+		
+		final int[] keyPositions;
+		final Class<? extends Key>[] keyTypes;
+		
+		final Contract targetContract = connection.getTargetPact().getPactContract();
+		if (targetContract instanceof AbstractPact<?>) {
+			AbstractPact<?> pact = (AbstractPact<?>) targetContract;
+			keyPositions = pact.getKeyColumnNumbers(inputNumber);
+			keyTypes = pact.getKeyClasses();
+		} else {
+			keyPositions = null;
+			keyTypes = null;
+		}
 
 		switch (connection.getTempMode()) {
 		case NONE:
@@ -813,23 +1053,30 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			// set ship strategy in vertex and child
 
 			// set strategies in task configs
-			outputConfig.addOutputShipStrategy(connection.getShipStrategy());
+			if ( (keyPositions == null | keyTypes == null) || (keyPositions.length == 0 | keyTypes.length == 0)) {
+				outputConfig.addOutputShipStrategy(connection.getShipStrategy());
+			} else {
+				outputConfig.addOutputShipStrategy(connection.getShipStrategy(), keyPositions, keyTypes);
+			}
 			inputConfig.addInputShipStrategy(connection.getShipStrategy());
 			break;
 		case TEMP_SENDER_SIDE:
 			// create tempTask
-			int pd = connection.getSourcePact().getDegreeOfParallelism();
+			int degreeOfParallelism = connection.getSourcePact().getDegreeOfParallelism();
+			int instancesPerMachine = connection.getSourcePact().getInstancesPerMachine();
 
 			JobTaskVertex tempVertex = generateTempVertex(
 			// source pact stub contains out key and value
 				connection.getSourcePact().getPactContract().getUserCodeClass(),
 				// keep parallelization of source pact
-				pd);
+				degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
 			outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 			tempVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION);
 
+			tempVertex.setVertexToShareInstancesWith(outputVertex);
+			
 			// get tempVertex config
 			tempConfig = new TaskConfig(tempVertex.getConfiguration());
 
@@ -841,19 +1088,22 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			break;
 		case TEMP_RECEIVER_SIDE:
-			int pdr = connection.getTargetPact().getDegreeOfParallelism();
+			degreeOfParallelism = connection.getTargetPact().getDegreeOfParallelism();
+			instancesPerMachine = connection.getTargetPact().getInstancesPerMachine();
 
 			// create tempVertex
 			tempVertex = generateTempVertex(
 			// source pact stub contains out key and value
 				connection.getSourcePact().getPactContract().getUserCodeClass(),
 				// keep parallelization of target pact
-				pdr);
+				degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
 			outputVertex.connectTo(tempVertex, channelType, CompressionLevel.NO_COMPRESSION);
 			tempVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
+			tempVertex.setVertexToShareInstancesWith(inputVertex);
+			
 			// get tempVertex config
 			tempConfig = new TaskConfig(tempVertex.getConfiguration());
 
@@ -878,7 +1128,4 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		config.setMemorySize(memSize * 1024L * 1024L);
 		config.setNumFilehandles(DEFAULT_MERGE_FACTOR);
 	}
-
-	// ------------------------------------------------------------------------
-
 }

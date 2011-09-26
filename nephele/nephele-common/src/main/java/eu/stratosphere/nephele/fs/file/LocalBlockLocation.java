@@ -31,7 +31,7 @@ public class LocalBlockLocation implements BlockLocation {
 
 	private final String[] hosts;
 
-	public LocalBlockLocation(String host, long length) {
+	public LocalBlockLocation(final String host, final long length) {
 		this.hosts = new String[] { host };
 		this.length = length;
 	}
@@ -62,12 +62,11 @@ public class LocalBlockLocation implements BlockLocation {
 		return 0;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Comparable#compareTo(java.lang.Object)
+	/**
+	 * {@inheritDoc}
 	 */
 	@Override
-	public int compareTo(BlockLocation o) {
+	public int compareTo(final BlockLocation o) {
 		return 0;
 	}
 

@@ -45,7 +45,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class GlobalConfiguration {
+public final class GlobalConfiguration {
 
 	/**
 	 * The log object used for debugging.
@@ -72,7 +72,7 @@ public class GlobalConfiguration {
 	 * 
 	 * @return the global configuration object
 	 */
-	private synchronized static GlobalConfiguration get() {
+	private static synchronized GlobalConfiguration get() {
 
 		if (configuration == null) {
 			configuration = new GlobalConfiguration();
@@ -96,7 +96,7 @@ public class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public static String getString(String key, String defaultValue) {
+	public static String getString(final String key, final String defaultValue) {
 
 		return get().getStringInternal(key, defaultValue);
 	}
@@ -110,7 +110,7 @@ public class GlobalConfiguration {
 	 *        defaultValue the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	private String getStringInternal(String key, String defaultValue) {
+	private String getStringInternal(final String key, final String defaultValue) {
 
 		synchronized (this.confData) {
 
@@ -131,7 +131,7 @@ public class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public static int getInteger(String key, int defaultValue) {
+	public static int getInteger(final String key, final int defaultValue) {
 
 		return get().getIntegerInternal(key, defaultValue);
 	}
@@ -145,7 +145,7 @@ public class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	private int getIntegerInternal(String key, int defaultValue) {
+	private int getIntegerInternal(final String key, final int defaultValue) {
 
 		int retVal = defaultValue;
 
@@ -157,7 +157,10 @@ public class GlobalConfiguration {
 				}
 			}
 		} catch (NumberFormatException e) {
-			// Nothing to do here
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(StringUtils.stringifyException(e));
+			}
 		}
 
 		return retVal;
@@ -172,7 +175,7 @@ public class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public static boolean getBoolean(String key, boolean defaultValue) {
+	public static boolean getBoolean(final String key, final boolean defaultValue) {
 
 		return get().getBooleanInternal(key, defaultValue);
 	}
@@ -186,7 +189,7 @@ public class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	private boolean getBooleanInternal(String key, boolean defaultValue) {
+	private boolean getBooleanInternal(final String key, final boolean defaultValue) {
 
 		boolean retVal = defaultValue;
 
@@ -207,7 +210,7 @@ public class GlobalConfiguration {
 	 * @param configDir
 	 *        the directory which contains the configuration files
 	 */
-	public static void loadConfiguration(String configDir) {
+	public static void loadConfiguration(final String configDir) {
 
 		if (configDir == null) {
 
@@ -223,9 +226,9 @@ public class GlobalConfiguration {
 		}
 
 		// get all XML files in the directory
-		File[] files = confDirFile.listFiles(new FilenameFilter() {
+		final File[] files = confDirFile.listFiles(new FilenameFilter() {
 			@Override
-			public boolean accept(File dir, String name) {
+			public boolean accept(final File dir, final String name) {
 				return dir == confDirFile && name != null && name.endsWith(".xml");
 			}
 
@@ -253,7 +256,7 @@ public class GlobalConfiguration {
 	 * @param uri
 	 *        the URI pointing to the XML document
 	 */
-	private void loadResource(String uri) {
+	private void loadResource(final String uri) {
 
 		final DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
 		// Ignore comments in the XML file
@@ -397,7 +400,7 @@ public class GlobalConfiguration {
 	 *        array of keys specifying the subset of pairs to copy.
 	 * @return the {@link Configuration} object including the key/value pairs
 	 */
-	public static Configuration getConfiguration(String[] keys) {
+	public static Configuration getConfiguration(final String[] keys) {
 
 		return get().getConfigurationInternal(keys);
 	}
@@ -409,7 +412,7 @@ public class GlobalConfiguration {
 	 *        array of keys specifying the subset of pairs to copy.
 	 * @return the {@link Configuration} object including the key/value pairs
 	 */
-	private Configuration getConfigurationInternal(String[] keys) {
+	private Configuration getConfigurationInternal(final String[] keys) {
 
 		Configuration conf = new Configuration();
 
@@ -450,7 +453,7 @@ public class GlobalConfiguration {
 	 * @param conf
 	 *        the {@link Configuration} object to merge into the global configuration
 	 */
-	public static void includeConfiguration(Configuration conf) {
+	public static void includeConfiguration(final Configuration conf) {
 
 		get().includeConfigurationInternal(conf);
 	}
@@ -461,7 +464,7 @@ public class GlobalConfiguration {
 	 * @param conf
 	 *        the {@link Configuration} object to merge into the global configuration
 	 */
-	private void includeConfigurationInternal(Configuration conf) {
+	private void includeConfigurationInternal(final Configuration conf) {
 
 		if (conf == null) {
 			LOG.error("Given configuration object is null, ignoring it...");

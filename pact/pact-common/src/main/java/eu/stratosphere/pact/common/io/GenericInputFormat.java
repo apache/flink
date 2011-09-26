@@ -84,7 +84,7 @@ public abstract class GenericInputFormat implements InputFormat<GenericInputSpli
 	@Override
 	public void open(GenericInputSplit split) throws IOException
 	{
-		this.partitionNumber = split.getPartitionNumber();		
+		this.partitionNumber = split.getSplitNumber();		
 	}
 
 	/* (non-Javadoc)

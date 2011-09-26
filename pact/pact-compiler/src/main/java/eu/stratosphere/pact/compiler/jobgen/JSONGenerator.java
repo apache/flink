@@ -26,7 +26,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.OutputContract;
+//import eu.stratosphere.pact.compiler.OutputContract;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
@@ -150,10 +150,10 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 		jsonString.append(",\n\t\t\"contents\": \"" + contents + "\"");
 
 		// output contract
-		OutputContract outContr = visitable.getOutputContract();
-		if (outContr != null && outContr != OutputContract.None) {
-			jsonString.append(",\n\t\t\"outputcontract\": \"" + outContr.name() + "\"");
-		}
+//		OutputContract outContr = visitable.getOutputContract();
+//		if (outContr != null && outContr != OutputContract.None) {
+//			jsonString.append(",\n\t\t\"outputcontract\": \"" + outContr.name() + "\"");
+//		}
 
 		// degree of parallelism
 		jsonString.append(",\n\t\t\"parallelism\": \""

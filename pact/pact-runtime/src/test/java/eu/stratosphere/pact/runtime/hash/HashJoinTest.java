@@ -32,11 +32,11 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.HashJoin.HashBucketIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -73,31 +73,6 @@ public class HashJoinTest
 		assertEquals(6, HashJoin.getNumWriteBehindBuffers(32768));
 		assertEquals(6, HashJoin.getNumWriteBehindBuffers(Integer.MAX_VALUE));
 	}
-	
-	@Test
-	public void testLog2Computation()
-	{
-		assertEquals(0, HashJoin.log2floor(1));
-		assertEquals(1, HashJoin.log2floor(2));
-		assertEquals(1, HashJoin.log2floor(3));
-		assertEquals(2, HashJoin.log2floor(4));
-		assertEquals(2, HashJoin.log2floor(5));
-		assertEquals(2, HashJoin.log2floor(7));
-		assertEquals(3, HashJoin.log2floor(8));
-		assertEquals(3, HashJoin.log2floor(9));
-		assertEquals(4, HashJoin.log2floor(16));
-		assertEquals(4, HashJoin.log2floor(17));
-		assertEquals(13, HashJoin.log2floor((0x1 << 13) + 1));
-		assertEquals(30, HashJoin.log2floor(Integer.MAX_VALUE));
-		assertEquals(31, HashJoin.log2floor(-1));
-		
-		try {
-			HashJoin.log2floor(0);
-			fail();
-		}
-		catch (ArithmeticException aex) {}
-	}
-	
 	
 	@Test
 	public void testInMemoryHashJoin() throws IOException

@@ -15,22 +15,23 @@
 
 package eu.stratosphere.nephele.io.compression.library.lzma;
 
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.CompressionException;
-import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.util.NativeCodeLoader;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class LzmaLibrary implements CompressionLibrary {
+public class LzmaLibrary extends AbstractCompressionLibrary {
 
 	/**
-	 * The file name of the native zlib library.
+	 * The file name of the native lzma library.
 	 */
 	private static final String NATIVELIBRARYFILENAME = "liblzmacompression.so.1.0";
 
-	public LzmaLibrary(String nativeLibraryDir)
-												throws CompressionException {
+	public LzmaLibrary(final String nativeLibraryDir) throws CompressionException {
 
 		if (!NativeCodeLoader.isLibraryLoaded(NATIVELIBRARYFILENAME)) {
 			try {
@@ -43,18 +44,6 @@ public class LzmaLibrary implements CompressionLibrary {
 				throw new CompressionException(StringUtils.stringifyException(e));
 			}
 		}
-	}
-
-	@Override
-	public Compressor getCompressor() throws CompressionException {
-
-		return new LzmaCompressor();
-	}
-
-	@Override
-	public Decompressor getDecompressor() throws CompressionException {
-
-		return new LzmaDecompressor();
 	}
 
 	@Override
@@ -71,5 +60,19 @@ public class LzmaLibrary implements CompressionLibrary {
 	@Override
 	public String getLibraryName() {
 		return "LZMA";
+	}
+
+	@Override
+	protected Compressor initNewCompressor(AbstractByteBufferedOutputChannel<?> outputChannel)
+			throws CompressionException {
+
+		return new LzmaCompressor(this);
+	}
+
+	@Override
+	protected Decompressor initNewDecompressor(AbstractByteBufferedInputChannel<?> inputChannel)
+			throws CompressionException {
+
+		return new LzmaDecompressor(this);
 	}
 }

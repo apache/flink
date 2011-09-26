@@ -27,15 +27,15 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.MutableObjectIteratorWrapper;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
 import junit.framework.Assert;
 
 public class BlockResettableMutableObjectIteratorTest
 {
-	private static final int MEMORY_CAPACITY = 100000;
+	private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 	
 	private static final int NUM_VALUES = 20000;
 	

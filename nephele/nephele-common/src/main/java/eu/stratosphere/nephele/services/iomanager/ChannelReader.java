@@ -395,7 +395,8 @@ public final class ChannelReader extends StreamChannelAccess<Buffer.Input, ReadR
 				return this.continuation.getNextByte();
 			}
 		}
-	}	
+	}
+	
 }
 
 // --------------------------------------------------------------------------------------------

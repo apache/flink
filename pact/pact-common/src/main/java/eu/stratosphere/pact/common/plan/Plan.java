@@ -45,12 +45,17 @@ public class Plan implements Visitable<Contract>
 	/**
 	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
 	 */
-	protected int defaultParallelism;
+	protected int defaultParallelism = -1;
 	
 	/**
 	 * The maximal number of machines to use in the job.
 	 */
 	protected int maxNumberMachines;
+	
+	/**
+	 * The plan's configuration 
+	 */
+	protected PlanConfiguration planConfiguration;
 
 	// ------------------------------------------------------------------------
 
@@ -68,6 +73,7 @@ public class Plan implements Visitable<Contract>
 	{
 		this.sinks = sinks;
 		this.jobName = jobName;
+		this.planConfiguration = new PlanConfiguration();
 	}
 
 	/**
@@ -84,6 +90,7 @@ public class Plan implements Visitable<Contract>
 		this.sinks = new ArrayList<GenericDataSink>();
 		this.sinks.add(sink);
 		this.jobName = jobName;
+		this.planConfiguration = new PlanConfiguration();
 	}
 
 	/**
@@ -144,6 +151,13 @@ public class Plan implements Visitable<Contract>
 	public String getJobName() {
 		return this.jobName;
 	}
+	
+	/**
+	 * Gets the plans configuration
+	 */
+	public PlanConfiguration getPlanConfiguration() {
+		return this.planConfiguration;
+	}
 
 	/**
 	 * Gets the maximum number of machines to be used for this job.
@@ -170,7 +184,7 @@ public class Plan implements Visitable<Contract>
 	 * @return The default parallelism for the plan.
 	 */
 	public int getDefaultParallelism() {
-		return defaultParallelism;
+		return this.defaultParallelism;
 	}
 	
 	/**

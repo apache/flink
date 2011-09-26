@@ -17,7 +17,6 @@ package eu.stratosphere.pact.common.contract;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 
 /**
@@ -30,118 +29,139 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * 
  * @see CoGroupStub
  */
-public class CoGroupContract extends DualInputContract<CoGroupStub<?>>
+public class CoGroupContract extends DualInputContract<CoGroupStub>
 {	
-	private static String DEFAULT_NAME = "<Unnamed Matcher>";		// the default name for contracts
+	private static String DEFAULT_NAME = "<Unnamed CoGrouper>";		// the default name for contracts
 	
-	private Class<? extends Key> keyClass;							// the class of the key
-	
-	private final int firstKeyFieldNumber;							// the key position in the first input's records
-	
-	private final int secondKeyFieldNumber;							// the key position in the second input's records
-	
-	// --------------------------------------------------------------------------------------------
-
 	/**
 	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation
-	 * and a default name.
+	 * and a default name. The match is performed on a single key column.
 	 * 
-	 * @param c The {@link CoGroupStub} implementation for this CoGroup InputContract.
+	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
 	 * @param firstKeyColumn The position of the key in the first input's records.
 	 * @param secondKeyColumn The position of the key in the second input's records.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn) {
-		this(c, firstKeyColumn, secondKeyColumn, DEFAULT_NAME);
+	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key> keyType, int firstKeyColumn, int secondKeyColumn) {
+		this(c, keyType, firstKeyColumn, secondKeyColumn, DEFAULT_NAME);
 	}
 	
 	/**
 	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation 
 	 * and the given name. 
 	 * 
-	 * @param c The {@link CoGroupStub} implementation for this CoGroup InputContract.
+	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
 	 * @param firstKeyColumn The position of the key in the first input's records.
 	 * @param secondKeyColumn The position of the key in the second input's records.
 	 * @param name The name of PACT.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn, String name) {
-		super(c, name);
-		this.firstKeyFieldNumber = firstKeyColumn;
-		this.secondKeyFieldNumber = secondKeyColumn;
-		this.keyClass = ReflectionUtil.getTemplateType(c, CoGroupStub.class, 0);
+	@SuppressWarnings("unchecked")
+	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key> keyType, int firstKeyColumn, int secondKeyColumn, String name) {
+		this(c, new Class[] {keyType}, new int[] {firstKeyColumn}, new int[] {secondKeyColumn}, name);
+	}
+	
+	/**
+	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation 
+	 * and the given name. The match is performed on a single key column.
+	 * 
+	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
+	 * @param keyType The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 */
+	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[]) {
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation 
+	 * and the given name. The match is performed on a single key column.
+	 * 
+	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param name The name of PACT.
+	 */
+	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], String name) {
+		super(c, keyTypes, firstKeyColumns, secondKeyColumns, name);
 	}
 
 	/**
 	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation the default name.
 	 * It uses the given contract as its input.
 	 * 
-	 * @param c The {@link CoGroupStub} implementation for this CoGroup InputContract.
+	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
 	 * @param firstKeyColumn The position of the key in the first input's records.
 	 * @param secondKeyColumn The position of the key in the second input's records.
 	 * @param input1 The contract to use as the first input.
 	 * @param input2 The contract to use as the second input.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn,
-															Contract input1, Contract input2)
+	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key> keyType,
+					int firstKeyColumn, int secondKeyColumn,
+					Contract input1, Contract input2)
 	{
-		this(c, firstKeyColumn, secondKeyColumn, input1, input2, DEFAULT_NAME);
+		this(c, keyType, firstKeyColumn, secondKeyColumn, input1, input2, DEFAULT_NAME);
 	}
 	
 	/**
 	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation and the given name.
 	 * It uses the given contract as its input.
 	 * 
-	 * @param c The {@link CoGroupStub} implementation for this CoGroup InputContract.
+	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
 	 * @param firstKeyColumn The position of the key in the first input's records.
 	 * @param secondKeyColumn The position of the key in the second input's records.
 	 * @param input1 The contract to use as the first input.
 	 * @param input2 The contract to use as the second input.
 	 * @param name The name of PACT.
 	 */
-	public CoGroupContract(Class<? extends CoGroupStub<?>> c, int firstKeyColumn, int secondKeyColumn,
-													Contract input1, Contract input2, String name)
+	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key> keyType, 
+					int firstKeyColumn, int secondKeyColumn,
+					Contract input1, Contract input2, String name)
 	{
-		this(c, firstKeyColumn, secondKeyColumn, name);
+		this(c, keyType, firstKeyColumn, secondKeyColumn, name);
 		setFirstInput(input1);
 		setSecondInput(input2);
 	}
 	
-	/**	/**
-	 * Gets the column number of the key in the first input's records.
-	 *  
-	 * @return The column number of the key field in the first input.
-	 */
-	public int getFirstKeyColumnNumber()
-	{
-		return this.firstKeyFieldNumber;
-	}
-	
 	/**
-	 * Gets the column number of the key in the second input's records.
-	 *  
-	 * @return The column number of the key field in the second input.
-	 */
-	public int getSecondKeyColumnNumber()
-	{
-		return this.secondKeyFieldNumber;
-	}
-	
-	/**
-	 * Gets the type of the key field on which this reduce contract groups.
+	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation the default name.
+	 * It uses the given contract as its input.
 	 * 
-	 * @return The type of the key field.
+	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contract to use as the second input.
 	 */
-	public Class<? extends Key> getKeyClass()
+	public CoGroupContract(Class<? extends CoGroupStub> c, 
+					Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], 
+					Contract input1, Contract input2)
 	{
-		return this.keyClass;
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, input1, input2, DEFAULT_NAME);
 	}
 	
 	/**
-	 * Sets the type of the key field on which this reduce contract groups.
+	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation and the given name.
+	 * It uses the given contract as its input.
 	 * 
-	 * @param clazz The type of the key field.
+	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 * @param name The name of PACT.
 	 */
-	public void setKeyClass(Class<? extends Key> clazz)
+	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], 
+											Contract input1, Contract input2, String name)
 	{
-		this.keyClass = clazz;
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, name);
+		setFirstInput(input1);
+		setSecondInput(input2);
 	}
 }

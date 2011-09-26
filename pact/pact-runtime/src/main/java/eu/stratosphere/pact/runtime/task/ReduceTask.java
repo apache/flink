@@ -109,7 +109,7 @@ public class ReduceTask extends AbstractPactTask<ReduceStub>
 		final float spillThreshold = this.config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
-		LocalStrategy ls = config.getLocalStrategy();
+		LocalStrategy ls = this.config.getLocalStrategy();
 		if ((ls == LocalStrategy.SORT || ls == LocalStrategy.COMBININGSORT) && availableMemory < MIN_REQUIRED_MEMORY)
 		{
 			throw new Exception("The Reduce task was initialized with too little memory for local strategy " +
@@ -159,6 +159,7 @@ public class ReduceTask extends AbstractPactTask<ReduceStub>
 			this.input = new CombiningUnilateralSortMerger(this.stub, memoryManager,
 					ioManager, availableMemory, maxFileHandles, comparators,
 					keyPositions, keyClasses, this.inputs[0], this, spillThreshold, false);
+			break;
 		default:
 			throw new Exception("Invalid local strategy provided for ReduceTask: " + ls.name());
 		}

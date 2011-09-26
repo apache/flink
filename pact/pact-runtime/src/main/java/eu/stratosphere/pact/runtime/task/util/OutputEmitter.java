@@ -26,8 +26,6 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * 
- * 
  * @author Erik Nijkamp
  * @author Alexander Alexandrov
  * @author Stephan Ewen
@@ -48,10 +46,12 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 		SFR,
 		NONE
 	}
-	
+
 	// ------------------------------------------------------------------------
-	//                       Fields
+	// Fields
 	// ------------------------------------------------------------------------
+
+	private static final byte[] DEFAULT_SALT = new byte[] { 17, 31, 47, 51, 83, 1 };
 	
 	private ShipStrategy strategy;				// the shipping strategy used by this output emitter
 	
@@ -67,9 +67,10 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	
 	private JobID jobId;						// the job ID is necessary to obtain the class loader
 
+	private PartitionFunction partitionFunction;
 
 	// ------------------------------------------------------------------------
-	//                           Constructors
+	// Constructors
 	// ------------------------------------------------------------------------
 
 	/**
@@ -77,28 +78,44 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	 */
 	public OutputEmitter()
 	{
-		this(ShipStrategy.NONE, null, null, null);
+		this(ShipStrategy.NONE);
 	}
 
+	/**
+	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...).
+	 * 
+	 * @param strategy
+	 *        The distribution strategy to be used.
+	 */
 	public OutputEmitter(ShipStrategy strategy)
 	{
-		this(strategy, null, null, null);
-	}
-	
+		this.strategy = strategy;
+		this.salt = DEFAULT_SALT;
+	}	
+		
 	public OutputEmitter(ShipStrategy strategy, JobID jobId, int[] keyPositions, Class<? extends Key>[] keyTypes)
 	{
-		this.strategy = strategy;
-		this.salt = new byte[] { 17, 31, 47, 51, 83, 1 };
-		this.keyPositions = keyPositions;
-		this.keyClasses = keyTypes;
+		this(strategy, jobId, DEFAULT_SALT, keyPositions, keyTypes);
 	}
 	
-	
+	public OutputEmitter(ShipStrategy strategy, JobID jobId, byte[] salt , int[] keyPositions, Class<? extends Key>[] keyTypes)
+	{
+		if (strategy == null | jobId == null | salt == null | keyPositions == null | keyTypes == null) { 
+			throw new NullPointerException();
+		}
+		this.strategy = strategy;
+		this.salt = salt;
+		this.keyPositions = keyPositions;
+		this.keyClasses = keyTypes;
+		this.jobId = jobId;
+	}
+
 	// ------------------------------------------------------------------------
-	//                          Channel Selection
+	// Channel Selection
 	// ------------------------------------------------------------------------
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.ChannelSelector#selectChannels(java.lang.Object, int)
 	 */
 	@Override
@@ -112,9 +129,23 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 			return hashPartitionDefault(record, numberOfChannels);
 		case FORWARD:
 			return robin(numberOfChannels);
+		case PARTITION_RANGE:
+			return partition_range(record, numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
+	}
+	
+	/**
+	 * Set the partition function that is used for range partitioning
+	 * @param func
+	 */
+	public void setPartitionFunction(PartitionFunction func) {
+		this.partitionFunction = func;
+	}
+
+	private int[] partition_range(PactRecord record, int numberOfChannels) {
+		return partitionFunction.selectChannels(record, numberOfChannels);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -139,7 +170,8 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 			channels = new int[numberOfChannels];
 			for (int i = 0; i < numberOfChannels; i++)
 				channels[i] = i;
-		}	
+		}
+
 		return channels;
 	}
 
@@ -162,12 +194,13 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
 		return this.channels;
 	}
-	
+
 	// ------------------------------------------------------------------------
-	//                            Serialization
+	// Serialization
 	// ------------------------------------------------------------------------
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
@@ -209,7 +242,8 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 		}
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override

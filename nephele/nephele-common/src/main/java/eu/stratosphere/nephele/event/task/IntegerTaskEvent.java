@@ -43,8 +43,14 @@ import java.io.IOException;
  */
 public class IntegerTaskEvent extends AbstractTaskEvent {
 
+	/**
+	 * The integer value transported by this integer task event.
+	 */
 	private int value = -1;
 
+	/**
+	 * Default constructor (should only be used for deserialization).
+	 */
 	public IntegerTaskEvent() {
 		// default constructor implementation.
 		// should only be used for deserialization
@@ -54,6 +60,7 @@ public class IntegerTaskEvent extends AbstractTaskEvent {
 	 * Constructs a new integer task event.
 	 * 
 	 * @param value
+	 *        the integer value to be transported inside this integer task event
 	 */
 	public IntegerTaskEvent(final int value) {
 		this.value = value;

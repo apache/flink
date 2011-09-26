@@ -7,12 +7,12 @@
   <parent>
     <artifactId>pact</artifactId>
     <groupId>eu.stratosphere</groupId>
-    <version>0.1</version>
+    <version>0.2</version>
   </parent>
 
   <groupId>eu.stratosphere</groupId>
   <artifactId>pact-clients</artifactId>
-  <version>0.1</version>
+  <version>0.2</version>
   <name>pact-clients</name>
 
   <packaging>jar</packaging>
@@ -96,14 +96,14 @@
 	<dependency>
 		<groupId>org.powermock</groupId>
 		<artifactId>powermock-module-junit4</artifactId>
-		<version>1.4.7</version>
+		<version>1.4.9</version>
 		<type>jar</type>
 	</dependency>
 	
 	<dependency>
 		<groupId>org.powermock</groupId>
 		<artifactId>powermock-api-mockito</artifactId>
-		<version>1.4.7</version>
+		<version>1.4.9</version>
 		<type>jar</type>
 	</dependency>
 	

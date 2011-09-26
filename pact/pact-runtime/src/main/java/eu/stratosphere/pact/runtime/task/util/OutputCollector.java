@@ -16,7 +16,8 @@
 package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.RecordWriter;
@@ -32,17 +33,12 @@ import eu.stratosphere.pact.common.type.PactRecord;
 public class OutputCollector implements Collector
 {	
 	// list of writers
-	protected final List<RecordWriter<PactRecord>> writers; 
-	
-	// bit mask for copy flags
-	protected int fwdCopyFlags;
+	protected RecordWriter<PactRecord>[] writers; 
 
 	/**
 	 * Initializes the output collector with no writers.
 	 */
 	public OutputCollector() {
-		this.writers = new ArrayList<RecordWriter<PactRecord>>();
-		this.fwdCopyFlags = 0;
 	}
 	
 	/**
@@ -51,24 +47,30 @@ public class OutputCollector implements Collector
 	 * corresponds to the position of the writer within the {@link List}.
 	 * 
 	 * @param writers List of all writers.
-	 * @param fwdCopyFlags Bit mask that specifies which writer is fed with deep-copies.
 	 */
-	public OutputCollector(List<RecordWriter<PactRecord>> writers, int fwdCopyFlags) {
+	@SuppressWarnings("unchecked")
+	public OutputCollector(List<RecordWriter<PactRecord>> writers) {
 		
-		this.writers = writers;
-		this.fwdCopyFlags = fwdCopyFlags;		
+		this.writers = (RecordWriter<PactRecord>[]) writers.toArray(new RecordWriter[writers.size()]);
 	}
 	
 	/**
 	 * Adds a writer to the OutputCollector.
 	 * 
 	 * @param writer The writer to add.
-	 * @param fwdCopy Set true if writer requires a deep-copy. Set to false otherwise.
 	 */
-	public void addWriter(RecordWriter<PactRecord> writer, boolean fwdCopy) {
-		this.writers.add(writer);
-		if (fwdCopy) {
-			this.fwdCopyFlags |= 0x1 << (this.writers.size() - 1);
+	@SuppressWarnings("unchecked")
+	public void addWriter(RecordWriter<PactRecord> writer)
+	{
+		// avoid using the array-list here to reduce one level of object indirection
+		if (this.writers == null) {
+			this.writers = new RecordWriter[] {writer};
+		}
+		else {
+			RecordWriter<PactRecord>[] ws = new RecordWriter[this.writers.length + 1];
+			System.arraycopy(this.writers, 0, ws, 0, this.writers.length);
+			ws[this.writers.length] = writer;
+			this.writers = ws;
 		}
 	}
 
@@ -80,19 +82,8 @@ public class OutputCollector implements Collector
 	public void collect(PactRecord record)
 	{
 		try {
-			if (fwdCopyFlags == 0) {
-				for (int i = 0; i < writers.size(); i++) {
-					writers.get(i).emit(record);
-				}
-			}
-			else {
-				for (int i = 0; i < writers.size(); i++) {
-					if (((fwdCopyFlags >> i) & 0x1) != 0) {
-						PactRecord copy = record.createCopy();
-						writers.get(i).emit(copy);
-					}
-					writers.get(i).emit(record);
-				}
+			for (int i = 0; i < writers.length; i++) {
+				this.writers[i].emit(record);	
 			}
 		}
 		catch (IOException e) {
@@ -109,5 +100,13 @@ public class OutputCollector implements Collector
 	 */
 	@Override
 	public void close() {
+	}
+
+	/**
+	 * List of writers that are associated with this output collector
+	 * @return list of writers
+	 */
+	public List<RecordWriter<PactRecord>> getWriters() {
+		return Collections.unmodifiableList(Arrays.asList(writers));
 	}
 }

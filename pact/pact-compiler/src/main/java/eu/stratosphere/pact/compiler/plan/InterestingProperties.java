@@ -15,13 +15,13 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.ArrayList;
+//import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.OutputContract;
+//import eu.stratosphere.pact.compiler.OutputContract;
 
 /**
  * The interesting properties that a node in the optimizer plan hands to its predecessors. It has the
@@ -268,42 +268,42 @@ public class InterestingProperties implements Cloneable {
 		}
 	}
 
-	/**
-	 * Utility method that checks, how the given interesting properties that a node receives from its
-	 * successors, are relevant to its predecessors. That depends, of course, on the output contract,
-	 * as that determines which properties can be inferred to be preserved by the node. The returned
-	 * set will not contain interesting properties objects that are reduced to trivial properties,
-	 * i.e. where all properties have the default value, such as for example <i>none</i> for the
-	 * partitioning.
-	 * 
-	 * @param props
-	 *        The collection of interesting properties that a node receives from its successors.
-	 * @param contract
-	 *        The output contract.
-	 * @return A collection with the interesting properties that are relevant with respect to the given output
-	 *         contract. Contains the same objects as in the input set, with properties accordingly restricted.
-	 *         Returns always a modifiable collection, even if no properties are preserved.
-	 */
-	public static final List<InterestingProperties> filterByOutputContract(List<InterestingProperties> props,
-			OutputContract contract) {
-		// if the output contract is NONE, it basically destroys all properties,
-		// as they always refer to the key, and the key is potentially switched
-		if (contract == OutputContract.None) {
-			return new ArrayList<InterestingProperties>();
-		} else {
-			List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
-
-			// process all interesting properties
-			for (InterestingProperties p : props) {
-				boolean nonTrivial = p.getGlobalProperties().filterByOutputContract(contract);
-				nonTrivial |= p.getLocalProperties().filterByOutputContract(contract);
-
-				if (nonTrivial) {
-					preserved.add(p);
-				}
-			}
-
-			return preserved;
-		}
-	}
+//	/**
+//	 * Utility method that checks, how the given interesting properties that a node receives from its
+//	 * successors, are relevant to its predecessors. That depends, of course, on the output contract,
+//	 * as that determines which properties can be inferred to be preserved by the node. The returned
+//	 * set will not contain interesting properties objects that are reduced to trivial properties,
+//	 * i.e. where all properties have the default value, such as for example <i>none</i> for the
+//	 * partitioning.
+//	 * 
+//	 * @param props
+//	 *        The collection of interesting properties that a node receives from its successors.
+//	 * @param contract
+//	 *        The output contract.
+//	 * @return A collection with the interesting properties that are relevant with respect to the given output
+//	 *         contract. Contains the same objects as in the input set, with properties accordingly restricted.
+//	 *         Returns always a modifiable collection, even if no properties are preserved.
+//	 */
+//	public static final List<InterestingProperties> filterByOutputContract(List<InterestingProperties> props,
+//			OutputContract contract) {
+//		// if the output contract is NONE, it basically destroys all properties,
+//		// as they always refer to the key, and the key is potentially switched
+//		if (contract == OutputContract.None) {
+//			return new ArrayList<InterestingProperties>();
+//		} else {
+//			List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
+//
+//			// process all interesting properties
+//			for (InterestingProperties p : props) {
+//				boolean nonTrivial = p.getGlobalProperties().filterByOutputContract(contract);
+//				nonTrivial |= p.getLocalProperties().filterByOutputContract(contract);
+//
+//				if (nonTrivial) {
+//					preserved.add(p);
+//				}
+//			}
+//
+//			return preserved;
+//		}
+//	}
 }

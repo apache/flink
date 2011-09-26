@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.runtime.util;
 
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+
 
 /**
  * An empty mutable object iterator that never returns anything.

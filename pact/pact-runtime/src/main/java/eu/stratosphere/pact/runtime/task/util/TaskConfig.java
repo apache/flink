@@ -189,11 +189,12 @@ public class TaskConfig
 	// --------------------------------------------------------------------------------------------
 
 	public void setLocalStrategy(LocalStrategy strategy) {
-		config.setString(LOCAL_STRATEGY, strategy.name());
+		this.config.setString(LOCAL_STRATEGY, strategy.name());
 	}
 
 	public LocalStrategy getLocalStrategy() {
-		return LocalStrategy.valueOf(config.getString(LOCAL_STRATEGY, ""));
+		String lsName = this.config.getString(LOCAL_STRATEGY, null);
+		return lsName != null ? LocalStrategy.valueOf(lsName) : LocalStrategy.NONE;
 	}
 	
 	public void setLocalStrategyKeyTypes(Class<? extends Key>[] keyTypes)
@@ -228,7 +229,7 @@ public class TaskConfig
 	
 	public int[] getLocalStrategyKeyPositions(int inputNum)
 	{		
-		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS + inputNum, -1);
+		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS , -1);
 		if (numKeys <= 0) {
 			return null;
 		}
@@ -312,14 +313,14 @@ public class TaskConfig
 			return null;
 		}
 		
-		final int numKeys = this.config.getInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputCnt, -1);
+		final int numKeys = this.config.getInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputId, -1);
 		if (numKeys <= 0) {
 			return null;
 		}
 		
 		final int[] keyPos = new int[numKeys];
 		for (int i = 0; i < numKeys; i++) {
-			int p = this.config.getInteger(OUTPUT_SHIP_KEY_POS_PREFIX + outputCnt + '.' + i, -1);
+			int p = this.config.getInteger(OUTPUT_SHIP_KEY_POS_PREFIX + outputId + '.' + i, -1);
 			if (p >= 0) {
 				keyPos[i] = p;
 			} else {
@@ -337,7 +338,7 @@ public class TaskConfig
 			return null;
 		}
 		
-		final int numKeys = this.config.getInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputCnt, -1);
+		final int numKeys = this.config.getInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputId, -1);
 		if (numKeys <= 0) {
 			return null;
 		}
@@ -345,7 +346,7 @@ public class TaskConfig
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyTypes = (Class<? extends Key>[]) new Class[numKeys];
 		for (int i = 0; i < numKeys; i++) {
-			String name = this.config.getString(OUTPUT_SHIP_KEY_CLASS_PREFIX + outputCnt + '.' + i, null);
+			String name = this.config.getString(OUTPUT_SHIP_KEY_CLASS_PREFIX + outputId + '.' + i, null);
 			if (name != null) {
 				keyTypes[i] = Class.forName(name, true, cl).asSubclass(Key.class);
 			} else {

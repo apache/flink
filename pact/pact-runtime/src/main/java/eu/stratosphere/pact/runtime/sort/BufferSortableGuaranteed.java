@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedExcepti
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * Sortable buffer based on heap/stack concept where pairs are written in the heap and index into stack.
@@ -52,10 +52,6 @@ import eu.stratosphere.pact.runtime.util.MutableObjectIterator;
  * and pointers.
  * 
  * @author Erik Nijkamp
- * @param <K>
- *        The type of the key.
- * @param <V>
- *        The type of the value.
  */
 public final class BufferSortableGuaranteed extends MemoryBacked implements IndexedSortable {
 	
@@ -320,6 +316,14 @@ public final class BufferSortableGuaranteed extends MemoryBacked implements Inde
 			}
 
 			write(bytearr, 0, utflen + 2);
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.nephele.services.memorymanager.DataOutputView#getRemainingBytes()
+		 */
+		@Override
+		public int getRemainingBytes() {
+			return this.stackEndAbs - this.position;
 		}
 	}
 
