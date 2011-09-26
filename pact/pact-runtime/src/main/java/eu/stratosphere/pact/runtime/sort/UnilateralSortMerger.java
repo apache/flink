@@ -56,7 +56,7 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
  * @author Erik Nijkamp
  */
 public class UnilateralSortMerger implements SortMerger
-{
+{	
 	// ------------------------------------------------------------------------
 	//                              Constants
 	// ------------------------------------------------------------------------
@@ -1137,7 +1137,7 @@ public class UnilateralSortMerger implements SortMerger
 		 * available.
 		 */
 		public void go() throws IOException
-		{
+		{	
 			final MutableObjectIterator<PactRecord> reader = this.reader;
 			
 			final PactRecord current = new PactRecord();
@@ -1296,7 +1296,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * The thread that sorts filled buffers.
 	 */
 	protected static class SortingThread extends ThreadBase
-	{
+	{		
 		private final IndexedSorter sorter;
 
 		/**
@@ -1318,7 +1318,7 @@ public class UnilateralSortMerger implements SortMerger
 		 * Entry point of the thread.
 		 */
 		public void go() throws IOException
-		{
+		{			
 			boolean alive = true;
 
 			// loop as long as the thread is marked alive

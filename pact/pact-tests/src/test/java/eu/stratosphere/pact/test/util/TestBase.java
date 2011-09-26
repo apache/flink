@@ -258,16 +258,21 @@ public abstract class TestBase extends TestCase {
 		}
 
 		// log expected and computed results
-		LOG.debug("Expected: " + expectedResult);
-		LOG.debug("Computed: " + computedResult);
+		if (LOG.isDebugEnabled()) {
+			LOG.info("Expected: " + expectedResult);
+			LOG.info("Computed: " + computedResult);
+		}
 
 		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult.size());
 
 		while (!expectedResult.isEmpty()) {
 			String expectedLine = expectedResult.poll();
 			String computedLine = computedResult.poll();
-			LOG.info("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
-			Assert.assertTrue("Computed and expected lines differ", comp.compare(expectedLine, computedLine) == 0);
+			
+			if (LOG.isDebugEnabled())
+				LOG.info("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
+			
+			Assert.assertTrue("Computed and expected lines differ", comp.compare(expectedLine, computedLine) != 0);
 		}
 	}
 
