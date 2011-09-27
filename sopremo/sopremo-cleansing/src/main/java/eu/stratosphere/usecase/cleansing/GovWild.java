@@ -58,8 +58,6 @@ import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.CsvInputFormat;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 
 public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 	private int noSubTasks;
@@ -935,15 +933,15 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 	}
 	
 
-	protected Class<? extends FileInputFormat<Key, PactJsonObject>> getInternalInputFormat() {
+	protected Class<? extends FileInputFormat<JsonNode, JsonNode>> getInternalInputFormat() {
 		return JsonInputFormat.class;
 	}
 
-	protected Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> getInternalOutputFormat() {
+	protected Class<? extends FileOutputFormat<JsonNode, JsonNode>> getInternalOutputFormat() {
 		return JsonOutputFormat.class;
 	}
 
-//	public static class InputFo extends SequentialInputFormat<PactJsonObject.Key, PactJsonObject> {
+//	public static class InputFo extends SequentialInputFormat<JsonNode.JsonNode, JsonNode> {
 //	};
 //	
 //	public static class OutputFo extends SequentialOutputFormat {

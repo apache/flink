@@ -8,9 +8,9 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
-public abstract class SopremoCross<IK1 extends PactJsonObject.Key, IV1 extends PactJsonObject, IK2 extends PactJsonObject.Key, IV2 extends PactJsonObject, OK extends Key, OV extends PactJsonObject>
+public abstract class SopremoCross<IK1 extends JsonNode, IV1 extends JsonNode, IK2 extends JsonNode, IV2 extends JsonNode, OK extends Key, OV extends JsonNode>
 		extends
-		CrossStub<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+		CrossStub<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 	private EvaluationContext context;
 
 	@Override
@@ -23,16 +23,16 @@ public abstract class SopremoCross<IK1 extends PactJsonObject.Key, IV1 extends P
 	protected abstract void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out);
 
 	@Override
-	public void cross(final PactJsonObject.Key key1, final PactJsonObject value1, final PactJsonObject.Key key2,
-			final PactJsonObject value2,
-			final Collector<PactJsonObject.Key, PactJsonObject> out) {
+	public void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
+			final JsonNode value2,
+			final Collector<JsonNode, JsonNode> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s %s/%s", this.getContext().operatorTrace(), key1, value1,
 				key2,
 				value2));
 		try {
-			this.cross(key1.getValue(), value1.getValue(), key2.getValue(), value2.getValue(), new JsonCollector(out));
+			this.cross(key1, value1, key2, value2, new JsonCollector(out));
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k1/v1 %s/%s k2/v2: %s", this.getContext()
 				.operatorTrace(), key1, value1, key2, value2, e));

@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
+import eu.stratosphere.pact.common.type.Key;
+
 public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 
 	/**
@@ -175,6 +177,11 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	@Override
 	public TYPES getType() {
 		return TYPES.ArrayNode;
+	}
+
+	@Override
+	public int compareTo(Key o) {
+		return 0;
 	}
 
 }

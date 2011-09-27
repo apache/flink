@@ -7,7 +7,6 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 public class Projection extends ElementaryOperator {
@@ -43,8 +42,8 @@ public class Projection extends ElementaryOperator {
 	// @Override
 	// public PactModule asPactModule(EvaluationContext context) {
 	// PactModule module = new PactModule(this.toString(), 1, 1);
-	// MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> projectionMap =
-	// new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
+	// MapContract<JsonNode, JsonNode, JsonNode, JsonNode> projectionMap =
+	// new MapContract<JsonNode, JsonNode, JsonNode, JsonNode>(
 	// ProjectionStub.class);
 	// module.getOutput(0).setInput(projectionMap);
 	// projectionMap.setInput(module.getInput(0));
@@ -103,7 +102,7 @@ public class Projection extends ElementaryOperator {
 	}
 
 	public static class ProjectionStub extends
-			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 
 		private EvaluationExpression keyTransformation, valueTransformation;
 

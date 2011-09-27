@@ -24,8 +24,8 @@ import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.util.ConversionIterator;
 import eu.stratosphere.util.dag.OneTimeTraverser;
@@ -36,8 +36,8 @@ public class SopremoTestPlan {
 	private ActualOutput[] actualOutputs;
 
 	//
-	// public static interface TestObjects extends Iterable<PactJsonObject> {
-	// public TestObjects add(PactJsonObject object);
+	// public static interface TestObjects extends Iterable<JsonNode> {
+	// public TestObjects add(JsonNode object);
 	//
 	// public TestObjects setEmpty();
 	// }
@@ -215,11 +215,11 @@ public class SopremoTestPlan {
 		this.inputs[index].setOperator(operator);
 		if (operator.getType() == PersistenceType.ADHOC)
 			for (final JsonNode node : (ArrayNode) operator.getAdhocValues())
-				this.inputs[index].add(new PactJsonObject(node));
+				this.inputs[index].add(node);
 		else {
-			final TestPairs<PactJsonObject.Key, PactJsonObject> testPairs = new TestPairs<PactJsonObject.Key, PactJsonObject>();
+			final TestPairs<JsonNode, JsonNode> testPairs = new TestPairs<JsonNode, JsonNode>();
 			testPairs.fromFile(JsonInputFormat.class, operator.getInputName());
-			for (final KeyValuePair<PactJsonObject.Key, PactJsonObject> kvPair : testPairs)
+			for (final KeyValuePair<JsonNode, JsonNode> kvPair : testPairs)
 				this.inputs[index].add(kvPair.getValue());
 			testPairs.close();
 		}
@@ -228,9 +228,9 @@ public class SopremoTestPlan {
 	public void setOutputOperator(final int index, final Sink operator) {
 		this.actualOutputs[index].setOperator(operator);
 
-		final TestPairs<PactJsonObject.Key, PactJsonObject> testPairs = new TestPairs<PactJsonObject.Key, PactJsonObject>();
+		final TestPairs<JsonNode, JsonNode> testPairs = new TestPairs<JsonNode, JsonNode>();
 		testPairs.fromFile(JsonInputFormat.class, operator.getOutputName());
-		for (final KeyValuePair<PactJsonObject.Key, PactJsonObject> kvPair : testPairs)
+		for (final KeyValuePair<JsonNode, JsonNode> kvPair : testPairs)
 			this.inputs[index].add(kvPair.getValue());
 		testPairs.close();
 	}
@@ -249,13 +249,13 @@ public class SopremoTestPlan {
 			this.setEmpty();
 			final TestPairs<Key, Value> actualOutput = testPlan.getActualOutput(this.getIndex());
 			for (final KeyValuePair<Key, Value> keyValuePair : actualOutput)
-				this.add((PactJsonObject) keyValuePair.getValue());
+				this.add((JsonNode) keyValuePair.getValue());
 			actualOutput.close();
 		}
 	}
 
 	static class Channel<O extends Operator, C extends Channel<O, C>> {
-		private final TestPairs<PactJsonObject.Key, PactJsonObject> pairs = new TestPairs<PactJsonObject.Key, PactJsonObject>();
+		private final TestPairs<JsonNode, JsonNode> pairs = new TestPairs<JsonNode, JsonNode>();
 
 		private O operator;
 
@@ -266,13 +266,13 @@ public class SopremoTestPlan {
 			this.index = index;
 		}
 
-		public C add(final PactJsonObject value) {
-			return this.add(PactJsonObject.Key.NULL, value);
+		public C add(final JsonNode value) {
+			return this.add(NullNode.getInstance(), value);
 		}
 
 		@SuppressWarnings("unchecked")
-		public C add(final PactJsonObject key, final PactJsonObject value) {
-			this.pairs.add(PactJsonObject.keyOf(key.getValue()), value);
+		public C add(final JsonNode key, final JsonNode value) {
+			this.pairs.add(key, value);
 			return (C) this;
 		}
 
@@ -296,7 +296,7 @@ public class SopremoTestPlan {
 			return this.operator;
 		}
 
-		TestPairs<PactJsonObject.Key, PactJsonObject> getPairs() {
+		TestPairs<JsonNode, JsonNode> getPairs() {
 			return this.pairs;
 		}
 
@@ -308,7 +308,7 @@ public class SopremoTestPlan {
 			return result;
 		}
 
-		public Iterator<KeyValuePair<eu.stratosphere.sopremo.pact.PactJsonObject.Key, PactJsonObject>> iterator() {
+		public Iterator<KeyValuePair<JsonNode, JsonNode>> iterator() {
 			return this.pairs.iterator();
 		}
 
@@ -331,11 +331,11 @@ public class SopremoTestPlan {
 			return this.pairs.toString();
 		}
 
-		public Iterator<PactJsonObject> valueIterator() {
-			return new ConversionIterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>, PactJsonObject>(
+		public Iterator<JsonNode> valueIterator() {
+			return new ConversionIterator<KeyValuePair<JsonNode, JsonNode>, JsonNode>(
 				this.pairs.iterator()) {
 				@Override
-				protected PactJsonObject convert(final KeyValuePair<PactJsonObject.Key, PactJsonObject> inputObject) {
+				protected JsonNode convert(final KeyValuePair<JsonNode, JsonNode> inputObject) {
 					return inputObject.getValue();
 				}
 			};
@@ -343,7 +343,7 @@ public class SopremoTestPlan {
 	}
 
 	public static class ExpectedOutput extends Channel<Source, ExpectedOutput> implements
-			Iterable<KeyValuePair<PactJsonObject.Key, PactJsonObject>> {
+			Iterable<KeyValuePair<JsonNode, JsonNode>> {
 		public ExpectedOutput(final int index) {
 			super(new MockupSource(index), index);
 		}
@@ -355,7 +355,7 @@ public class SopremoTestPlan {
 	}
 
 	public static class Input extends Channel<Source, Input> implements
-			Iterable<KeyValuePair<PactJsonObject.Key, PactJsonObject>> {
+			Iterable<KeyValuePair<JsonNode, JsonNode>> {
 		public Input(final int index) {
 			super(new MockupSource(index), index);
 		}

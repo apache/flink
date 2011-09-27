@@ -53,14 +53,14 @@ public class JsonParserTest {
 			result = parser.readValueAsTree();
 		}
 		Assert.assertEquals(this.expectedResult, result);
-
+		Assert.assertEquals(true, parser.checkEnd());
 	}
 
 	@Parameters
 	public static List<Object[]> combinations() {
 		return Arrays.asList(new Object[][] {
 			{ " [42] ", IntNode.valueOf(42), 1 },
-			{ "42", IntNode.valueOf(42), 1 },
+			{ "42", IntNode.valueOf(42),1},
 			{ "[null]", NullNode.getInstance(), 1 },
 			{ "[true]", BooleanNode.TRUE, 1 },
 			{ "[false]", BooleanNode.FALSE, 1 },
@@ -84,13 +84,14 @@ public class JsonParserTest {
 					new ArrayNode().add(IntNode.valueOf(23)).add(
 						new ArrayNode().add(new ArrayNode().add(IntNode.valueOf(24)).add(TextNode.valueOf("Test")))
 							.add(IntNode.valueOf(12)).add(TextNode.valueOf("17"))) ,2 },
-			{ "[{\"key1\" : 42}]", new ObjectNode().put("key1", IntNode.valueOf(42)) ,1},
+			{ "[{\"key1\" : 42}, 42]", IntNode.valueOf(42) ,2},
 			{ "{\"key1\" : 42}", new ObjectNode().put("key1", IntNode.valueOf(42)) ,1},
 			{
 				"[{\"key1\" : [1,3,\"Hello\"], \"key2\": {\"key3\": 23}}]",
 				new ObjectNode().put("key1",
 					new ArrayNode().add(IntNode.valueOf(1)).add(IntNode.valueOf(3)).add(TextNode.valueOf("Hello")))
-					.put("key2", new ObjectNode().put("key3", IntNode.valueOf(23))),1 }
+					.put("key2", new ObjectNode().put("key3", IntNode.valueOf(23))),1 },
+					{"[1 ,2 ,3, 4 , 5]", IntNode.valueOf(5), 5}
 
 		});
 	}

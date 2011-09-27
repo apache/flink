@@ -12,8 +12,8 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
-public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
-		extends ReduceStub<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+public abstract class SopremoReduce<IK extends JsonNode, IV extends JsonNode, OK extends JsonNode, OV extends JsonNode>
+		extends ReduceStub<JsonNode, JsonNode, JsonNode, JsonNode> {
 	private EvaluationContext context;
 
 	@Override
@@ -27,27 +27,26 @@ public abstract class SopremoReduce<IK extends PactJsonObject.Key, IV extends Pa
 		return this.context;
 	}
 
-	protected boolean needsResettableIterator(final PactJsonObject.Key key, final Iterator<PactJsonObject> values) {
+	protected boolean needsResettableIterator(final JsonNode key, final Iterator<JsonNode> values) {
 		return false;
 	}
 
 	protected abstract void reduce(JsonNode key, ArrayNode values, JsonCollector out);
 
 	@Override
-	public void reduce(final PactJsonObject.Key key, Iterator<PactJsonObject> values,
-			final Collector<PactJsonObject.Key, PactJsonObject> out) {
+	public void reduce(final JsonNode key, Iterator<JsonNode> values,
+			final Collector<JsonNode, JsonNode> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isTraceEnabled()) {
-			final ArrayList<PactJsonObject> cached = new ArrayList<PactJsonObject>();
+			final ArrayList<JsonNode> cached = new ArrayList<JsonNode>();
 			while (values.hasNext())
 				cached.add(values.next());
 			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), key, cached));
 			values = cached.iterator();
 		}
 		try {
-			this.reduce(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
-				new JsonCollector(
-					out));
+			this.reduce(key, JsonUtil.wrapWithNode(this.needsResettableIterator(key, values), values),
+				new JsonCollector(out));
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", this.getContext()
 				.operatorTrace(),

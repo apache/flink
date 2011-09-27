@@ -39,7 +39,7 @@ public class JsonInputFormatTest {
 	 */
 	@Test
 	public void completeTestPasses() throws IOException {
-		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSourceContract<JsonNode, JsonNode> read = new FileDataSourceContract<JsonNode, JsonNode>(
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map =
@@ -61,14 +61,14 @@ public class JsonInputFormatTest {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() throws IOException {
-		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSourceContract<JsonNode, JsonNode> read = new FileDataSourceContract<JsonNode, JsonNode>(
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
 		map.setInput(read);
 
-		final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> output = this.createOutput(map,
+		final FileDataSinkContract<JsonNode, JsonNode> output = this.createOutput(map,
 			JsonOutputFormat.class);
 
 		final TestPlan testPlan = new TestPlan(output);
@@ -119,13 +119,13 @@ public class JsonInputFormatTest {
 
 		final JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
 			.toString(), null);
-		final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair = inputFormat.createPair();
+		final KeyValuePair<JsonNode, JsonNode> pair = inputFormat.createPair();
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
 			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextRecord(pair));
 			Assert
 				.assertEquals("other order expected", Integer.valueOf(index),
-					((IntNode) ((ObjectNode) pair.getValue().getValue()).get("id")).getIntValue());
+					((IntNode) ((ObjectNode) pair.getValue()).get("id")).getIntValue());
 		}
 
 		if (!inputFormat.reachedEnd()) {
@@ -147,7 +147,7 @@ public class JsonInputFormatTest {
 
 		final JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
 			.toString(), null);
-		final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair = inputFormat.createPair();
+		final KeyValuePair<JsonNode, JsonNode> pair = inputFormat.createPair();
 
 		if (!inputFormat.reachedEnd())
 			if (!inputFormat.nextRecord(pair))
@@ -158,7 +158,7 @@ public class JsonInputFormatTest {
 			Assert.fail("value unexpected: " + pair);
 		}
 
-		final JsonNode arrayNode = ((ObjectNode) pair.getValue().getValue()).get("array");
+		final JsonNode arrayNode = ((ObjectNode) pair.getValue()).get("array");
 		Assert.assertNotNull("could not find top level node", arrayNode);
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertNotNull("could not find array element " + index, ((ArrayNode) arrayNode).get(index - 1));

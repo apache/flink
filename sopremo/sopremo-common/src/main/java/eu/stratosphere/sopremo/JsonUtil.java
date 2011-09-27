@@ -16,7 +16,6 @@ import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectMapper;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 
 /**
  * Provides a set of utility functions and objects to handle json data.
@@ -72,7 +71,7 @@ public class JsonUtil {
 	public static JsonNode wrapWithNode(final boolean resettable, final Iterator<?>... objectIterators) {
 		final JsonNode[] streamNodes = new JsonNode[objectIterators.length];
 		for (int index = 0; index < streamNodes.length; index++)
-			streamNodes[index] = wrapWithNode(resettable, (Iterator<PactJsonObject>) objectIterators[index]);
+			streamNodes[index] = wrapWithNode(resettable, (Iterator<JsonNode>) objectIterators[index]);
 		return new ArrayNode(streamNodes);
 	}
 
@@ -87,8 +86,8 @@ public class JsonUtil {
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the stream
 	 */
-	public static ArrayNode wrapWithNode(final boolean resettable, final Iterator<PactJsonObject> objectIterator) {
-		return ArrayNode.valueOf(new UnwrappingIterator(objectIterator)/*, resettable*/);
+	public static ArrayNode wrapWithNode(final boolean resettable, final Iterator<JsonNode> objectIterator) {
+		return ArrayNode.valueOf(objectIterator/*, resettable*/);
 	}
 
 	/**
@@ -103,7 +102,7 @@ public class JsonUtil {
 	 * @return the node wrapping the streams
 	 */
 	public static JsonNode wrapWithNode(final boolean resettable,
-			final List<? extends Iterator<PactJsonObject>> objectIterators) {
+			final List<? extends Iterator<JsonNode>> objectIterators) {
 		final JsonNode[] streamNodes = new JsonNode[objectIterators.size()];
 		for (int index = 0; index < streamNodes.length; index++)
 			streamNodes[index] = wrapWithNode(resettable, objectIterators.get(index));

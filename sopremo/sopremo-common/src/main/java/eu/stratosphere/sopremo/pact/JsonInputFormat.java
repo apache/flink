@@ -27,6 +27,8 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.io.JsonParseException;
 import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.io.JsonToken;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 
 /**
  * Reads json files with Jackson. The resulting key/value pair consists of an id and a {@link PactJsonObject}. The id is
@@ -34,9 +36,9 @@ import eu.stratosphere.sopremo.io.JsonToken;
  * 
  * @author Arvid Heise
  */
-public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJsonObject> {
+public class JsonInputFormat extends FileInputFormat<JsonNode, JsonNode> {
 
-	private boolean array;
+//	private boolean array;
 
 	private boolean end;
 
@@ -47,9 +49,9 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 	public static final String PARAMETER_ENCODING = "Encoding";
 
 	private void checkEnd() throws IOException, JsonParseException {
-		if (this.array && this.parser.nextToken() == JsonToken.END_ARRAY || !this.array
-			&& this.parser.nextToken() == null)
-			this.end = true;
+//		if (this.array && this.parser.nextToken() == JsonToken.END_ARRAY || !this.array
+//			&& this.parser.nextToken() == null)
+			this.end = this.parser.checkEnd();
 	}
 
 	@Override
@@ -68,15 +70,14 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 	}
 
 	@Override
-	public KeyValuePair<PactJsonObject.Key, PactJsonObject> createPair() {
-		return new KeyValuePair<PactJsonObject.Key, PactJsonObject>(PactJsonObject.Key.NULL,
-			new PactJsonObject());
+	public KeyValuePair<JsonNode, JsonNode> createPair() {
+		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), new PactJsonObject());
 	}
 
 	@Override
-	public boolean nextRecord(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws IOException {
+	public boolean nextRecord(final KeyValuePair<JsonNode, JsonNode> pair) throws IOException {
 		if (!this.end) {
-			pair.getValue().setValue(this.parser.readValueAsTree());
+			pair.setValue(this.parser.readValueAsTree());
 			this.checkEnd();
 			return true;
 		}
@@ -96,8 +97,8 @@ public class JsonInputFormat extends FileInputFormat<PactJsonObject.Key, PactJso
 //		this.parser.setCodec(JsonUtil.OBJECT_MAPPER);
 //		this.parser.enable(eu.stratosphere.sopremo.io.Feature.ALLOW_UNQUOTED_CONTROL_CHARS);
 //		this.parser.enable(eu.stratosphere.sopremo.io.Feature.INTERN_FIELD_NAMES);
-		if (this.array = this.parser.nextToken() == JsonToken.START_ARRAY)
-			this.parser.clearCurrentToken();
+//		if (this.array = this.parser.nextToken() == JsonToken.START_ARRAY)
+//			this.parser.clearCurrentToken();
 		this.checkEnd();
 	}
 

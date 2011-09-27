@@ -1,8 +1,6 @@
 package eu.stratosphere.sopremo;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
-import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 
 import java.io.IOException;
 import java.net.URL;
@@ -16,7 +14,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
@@ -116,16 +114,8 @@ public abstract class SopremoTest<T> {
 		equalVerifier.verify();
 	}
 
-	public static PactJsonObject createPactJsonArray(final Object... constants) {
-		return new PactJsonObject(createArrayNode(constants));
-	}
-
-	public static PactJsonObject createPactJsonObject(final Object... fields) {
-		return new PactJsonObject(createObjectNode(fields));
-	}
-
-	public static PactJsonObject createPactJsonValue(final Object value) {
-		return new PactJsonObject(createValueNode(value));
+	public static JsonNode createPactJsonObject(final Object... fields) {
+		return createObjectNode(fields);
 	}
 
 	public static String getResourcePath(final String resource) {

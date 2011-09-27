@@ -6,10 +6,9 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 
-public abstract class SopremoMatch<IK extends PactJsonObject.Key, IV1 extends PactJsonObject, IV2 extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
-		extends MatchStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+public abstract class SopremoMatch<IK extends JsonNode, IV1 extends JsonNode, IV2 extends JsonNode, OK extends JsonNode, OV extends JsonNode>
+		extends MatchStub<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 	private EvaluationContext context;
 
 	@Override
@@ -26,13 +25,13 @@ public abstract class SopremoMatch<IK extends PactJsonObject.Key, IV1 extends Pa
 	protected abstract void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out);
 
 	@Override
-	public void match(final PactJsonObject.Key key, final PactJsonObject value1, final PactJsonObject value2,
-			final Collector<Key, PactJsonObject> out) {
+	public void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
+			final Collector<JsonNode, JsonNode> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s/%s", this.getContext().operatorTrace(), key, value1, value2));
 		try {
-			this.match(key.getValue(), value1.getValue(), value2.getValue(), new JsonCollector(out));
+			this.match(key, value1, value2, new JsonCollector(out));
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", this.getContext()
 				.operatorTrace(), key, value1, value2, e));

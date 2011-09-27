@@ -10,7 +10,6 @@ import java.io.ObjectOutputStream;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 
 public abstract class TransitiveAggregationFunction extends AggregationFunction {
 	/**
@@ -41,10 +40,10 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	public void initialize() {
 		try {
 			final ByteArrayOutputStream cloneBuffer = new ByteArrayOutputStream();
-			final PactJsonObject cloner = new PactJsonObject(this.initialAggregate);
+			final JsonNode cloner = new JsonNode(this.initialAggregate);
 			cloner.write(new DataOutputStream(cloneBuffer));
 			cloner.read(new DataInputStream(new ByteArrayInputStream(cloneBuffer.toByteArray())));
-			this.aggregate = cloner.getValue();
+			this.aggregate = cloner;
 		} catch (final IOException e) {
 			throw new IllegalStateException("Cannot clone initial value");
 		}
@@ -52,13 +51,13 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 
 	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
-		final PactJsonObject pactJsonObject = new PactJsonObject();
+		final JsonNode pactJsonObject = new JsonNode();
 		pactJsonObject.read(ois);
-		this.initialAggregate = pactJsonObject.getValue();
+		this.initialAggregate = pactJsonObject;
 	}
 
 	private void writeObject(final ObjectOutputStream oos) throws IOException {
 		oos.defaultWriteObject();
-		new PactJsonObject(this.initialAggregate).write(oos);
+		new JsonNode(this.initialAggregate).write(oos);
 	}
 }

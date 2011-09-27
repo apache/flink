@@ -26,8 +26,6 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 /**
@@ -115,7 +113,7 @@ public class Fusion extends ElementaryOperator {
 	}
 
 	public static class Implementation extends
-			SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private Map<List<String>, FusionRule> rules;
 
 		private List<Object2DoubleMap<List<String>>> weights;

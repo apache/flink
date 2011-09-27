@@ -23,8 +23,6 @@ import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
@@ -216,7 +214,7 @@ public class Lookup extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private WritableEvaluable inputKeyExtractor;
 
 			@Override
@@ -246,7 +244,7 @@ public class Lookup extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 
 			private EvaluationExpression defaultExpression;
 
@@ -281,7 +279,7 @@ public class Lookup extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
@@ -301,7 +299,7 @@ public class Lookup extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoReduce<Key, PactJsonObject, Key, PactJsonObject> {
+				SopremoReduce<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void reduce(JsonNode key, ArrayNode values, JsonCollector out) {
 				JsonNode[] array = new JsonNode[((ArrayNode)key).size()];
@@ -346,7 +344,7 @@ public class Lookup extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private WritableEvaluable inputKeyExtractor;
 
 			private EvaluationExpression defaultExpression;

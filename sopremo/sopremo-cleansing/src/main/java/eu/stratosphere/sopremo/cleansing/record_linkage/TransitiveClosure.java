@@ -20,8 +20,6 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 
@@ -207,7 +205,7 @@ public class TransitiveClosure extends CompositeOperator {
 			super(input);
 		}
 
-		public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
 				out.collect(((ArrayNode)value).get(0), NullNode.getInstance());
@@ -226,7 +224,7 @@ public class TransitiveClosure extends CompositeOperator {
 			super(input);
 		}
 
-		public static class Implementation extends SopremoReduce<Key, PactJsonObject, Key, PactJsonObject> {
+		public static class Implementation extends SopremoReduce<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void reduce(final JsonNode key, final ArrayNode values, final JsonCollector out) {
 				out.collect(NullNode.getInstance(), key);
@@ -266,7 +264,7 @@ public class TransitiveClosure extends CompositeOperator {
 			}
 		}
 
-		public static class Link extends ImplementationBase<Key, PactJsonObject, Key, PactJsonObject> {
+		public static class Link extends ImplementationBase<JsonNode, JsonNode, JsonNode, JsonNode> {
 
 			@Override
 			protected void emit(final JsonNode key, BinarySparseMatrix<?> genMatrix, final JsonCollector out) {
@@ -278,7 +276,7 @@ public class TransitiveClosure extends CompositeOperator {
 			}
 		}
 
-		public static class Cluster extends ImplementationBase<Key, PactJsonObject, Key, PactJsonObject> {
+		public static class Cluster extends ImplementationBase<JsonNode, JsonNode, JsonNode, JsonNode> {
 
 			@Override
 			protected void emit(final JsonNode key, BinarySparseMatrix genMatrix, final JsonCollector out) {
@@ -298,7 +296,7 @@ public class TransitiveClosure extends CompositeOperator {
 			}
 		}
 
-		public static class Provenance extends ImplementationBase<Key, PactJsonObject, Key, PactJsonObject> {
+		public static class Provenance extends ImplementationBase<JsonNode, JsonNode, JsonNode, JsonNode> {
 			private transient int sourceCount;
 
 			private JsonNode toProvenanceCluster(ProvenancedItem<JsonNode> row,
@@ -353,8 +351,8 @@ public class TransitiveClosure extends CompositeOperator {
 			}
 		}
 
-		public abstract static class ImplementationBase<IK extends PactJsonObject.Key, IV extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
-				extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+		public abstract static class ImplementationBase<IK extends JsonNode, IV extends JsonNode, OK extends JsonNode, OV extends JsonNode>
+				extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 			private BinarySparseMatrix<Object> matrix = new BinarySparseMatrix<Object>();
 
 			@Override

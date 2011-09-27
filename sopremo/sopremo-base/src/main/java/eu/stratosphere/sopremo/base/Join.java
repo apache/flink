@@ -29,7 +29,6 @@ import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
@@ -152,8 +151,8 @@ public class Join extends CompositeOperator {
 	// List<TwoSourceJoin> joinOrder = this.getInitialJoinOrder(condition);
 	// List<Contract> inputs = SopremoUtil.wrapInputsWithArray(module, context);
 	//
-	// DualInputContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key,
-	// PactJsonObject> join = null;
+	// DualInputContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode,
+	// JsonNode> join = null;
 	// for (TwoSourceJoin twoSourceJoin : joinOrder) {
 	// join = twoSourceJoin.createJoinContract(module, context, inputs.get(twoSourceJoin.leftIndex),
 	// inputs.get(twoSourceJoin.rightIndex));
@@ -163,8 +162,8 @@ public class Join extends CompositeOperator {
 	// SopremoUtil.setTransformationAndContext(join.getStubParameters(), new ArrayMerger(), context);
 	// }
 	//
-	// MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject> projectionMap = new
-	// MapContract<PactNull, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
+	// MapContract<PactNull, JsonNode, JsonNode, JsonNode> projectionMap = new
+	// MapContract<PactNull, JsonNode, JsonNode, JsonNode>(
 	// Projection.ProjectionStub.class);
 	// module.getOutput(0).setInput(projectionMap);
 	// projectionMap.setInput(join);
@@ -193,7 +192,7 @@ public class Join extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
@@ -266,7 +265,7 @@ public class Join extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoMatch<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
@@ -299,7 +298,7 @@ public class Join extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private transient boolean leftOuter, rightOuter;
 
 			@Override
@@ -353,7 +352,7 @@ public class Join extends CompositeOperator {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
@@ -386,7 +385,7 @@ public class Join extends CompositeOperator {
 
 		public static class Implementation
 				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private ComparativeExpression comparison;
 
 			@Override

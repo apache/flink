@@ -15,6 +15,8 @@
 
 package eu.stratosphere.sopremo.testing;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -45,7 +47,6 @@ import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
@@ -62,17 +63,17 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	public void adhocInputAndOutputShouldTransparentlyWork() {
 		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
 		testPlan.getInput(0).
-			add(createPactJsonValue("test1")).
-			add(createPactJsonValue("test2"));
+			add(createValueNode("test1")).
+			add(createValueNode("test2"));
 		testPlan.run();
 
 		assertEquals("input and output should be equal in identity map", testPlan.getInput(0), testPlan
 			.getActualOutput(0));
 
 		// explicitly check output
-		final Iterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>> outputIterator = testPlan.getActualOutput(0)
+		final Iterator<KeyValuePair<JsonNode, JsonNode>> outputIterator = testPlan.getActualOutput(0)
 			.iterator();
-		final Iterator<KeyValuePair<PactJsonObject.Key, PactJsonObject>> inputIterator = testPlan.getInput(0)
+		final Iterator<KeyValuePair<JsonNode, JsonNode>> inputIterator = testPlan.getInput(0)
 			.iterator();
 		for (int index = 0; index < 2; index++) {
 			assertTrue("too few actual output values", outputIterator.hasNext());
@@ -132,11 +133,11 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
 		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity(null));
 		testPlan.getInput(0).
-			add(createPactJsonValue("test1")).
-			add(createPactJsonValue("test2"));
+			add(createValueNode("test1")).
+			add(createValueNode("test2"));
 		testPlan.getExpectedOutput(0).
-			add(createPactJsonValue("test1")).
-			add(createPactJsonValue("test2"));
+			add(createValueNode("test1")).
+			add(createValueNode("test2"));
 		testPlan.run();
 	}
 
@@ -148,14 +149,14 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 				new TestPairs<Key, Value>().add(PactNull.getInstance(), new PactString("red")),
 				new TestPairs<Key, Value>().add(PactNull.getInstance(), new PactString("black")))
 			.withPrefabValues(SopremoTestPlan.ActualOutput.class,
-				new SopremoTestPlan.ActualOutput(0).add(createPactJsonValue(0)),
-				new SopremoTestPlan.ActualOutput(1).add(createPactJsonValue(1)))
+				new SopremoTestPlan.ActualOutput(0).add(createValueNode((Object) 0)),
+				new SopremoTestPlan.ActualOutput(1).add(createValueNode((Object) 1)))
 			.withPrefabValues(SopremoTestPlan.ExpectedOutput.class,
-				new SopremoTestPlan.ExpectedOutput(0).add(createPactJsonValue(0)),
-				new SopremoTestPlan.ExpectedOutput(1).add(createPactJsonValue(1)))
+				new SopremoTestPlan.ExpectedOutput(0).add(createValueNode((Object) 0)),
+				new SopremoTestPlan.ExpectedOutput(1).add(createValueNode((Object) 1)))
 			.withPrefabValues(SopremoTestPlan.Input.class,
-				new SopremoTestPlan.Input(0).add(createPactJsonValue(0)),
-				new SopremoTestPlan.Input(1).add(createPactJsonValue(1)));
+				new SopremoTestPlan.Input(0).add(createValueNode((Object) 0)),
+				new SopremoTestPlan.Input(1).add(createValueNode((Object) 1)));
 	}
 
 	/**
@@ -166,16 +167,24 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		final CartesianProduct cartesianProduct = new CartesianProduct(null, null);
 		final SopremoTestPlan testPlan = new SopremoTestPlan(cartesianProduct);
 		testPlan.getInputForStream(cartesianProduct.getInput(0)).
-			add(createPactJsonValue("test1")).
-			add(createPactJsonValue("test2"));
+			add(createValueNode("test1")).
+			add(createValueNode("test2"));
 		testPlan.getInputForStream(cartesianProduct.getInput(1)).
-			add(createPactJsonValue("test3")).
-			add(createPactJsonValue("test4"));
+			add(createValueNode("test3")).
+			add(createValueNode("test4"));
+		Object[] constants = { null, null };
+		Object[] constants1 = { "test1", "test3" };
+		Object[] constants2 = { null, null };
+		Object[] constants3 = { "test1", "test4" };
+		Object[] constants4 = { null, null };
+		Object[] constants5 = { "test2", "test3" };
+		Object[] constants6 = { null, null };
+		Object[] constants7 = { "test2", "test4" };
 		testPlan.getExpectedOutputForStream(cartesianProduct.getOutput(0)).
-			add(createPactJsonArray(null, null), createPactJsonArray("test1", "test3")).
-			add(createPactJsonArray(null, null), createPactJsonArray("test1", "test4")).
-			add(createPactJsonArray(null, null), createPactJsonArray("test2", "test3")).
-			add(createPactJsonArray(null, null), createPactJsonArray("test2", "test4"));
+			add((JsonNode) createArrayNode(constants), (JsonNode) createArrayNode(constants1)).
+			add((JsonNode) createArrayNode(constants2), (JsonNode) createArrayNode(constants3)).
+			add((JsonNode) createArrayNode(constants4), (JsonNode) createArrayNode(constants5)).
+			add((JsonNode) createArrayNode(constants6), (JsonNode) createArrayNode(constants7));
 		testPlan.run();
 	}
 
@@ -191,7 +200,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 
 		public static class Implementation
 				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
 					final JsonNode value2, final JsonCollector out) {
@@ -212,7 +221,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 
 		public static class Implementation
 				extends
-				SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
 				out.collect(key, value);

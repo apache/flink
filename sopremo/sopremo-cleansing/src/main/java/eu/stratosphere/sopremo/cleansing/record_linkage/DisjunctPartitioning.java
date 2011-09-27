@@ -15,8 +15,6 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 public class DisjunctPartitioning extends MultiPassPartitioning {
 	public DisjunctPartitioning(final EvaluationExpression partitionKey) {
@@ -76,7 +74,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		}
 
 		public static class Implementation extends
-				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression resultProjection1, resultProjection2;
@@ -115,7 +113,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		}
 
 		public static class Implementation extends
-				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression resultProjection, idProjection;

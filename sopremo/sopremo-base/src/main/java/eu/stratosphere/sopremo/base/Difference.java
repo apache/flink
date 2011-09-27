@@ -9,7 +9,6 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 public class Difference extends MultiSourceOperator<Difference> {
@@ -60,15 +59,15 @@ public class Difference extends MultiSourceOperator<Difference> {
 
 		// @Override
 		// public PactModule asPactModule(EvaluationContext context) {
-		// CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>
+		// CoGroupContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode>
 		// difference =
-		// new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
+		// new CoGroupContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode>(
 		// Implementation.class);
 		// return PactModule.valueOf(toString(), difference);
 		// }
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {

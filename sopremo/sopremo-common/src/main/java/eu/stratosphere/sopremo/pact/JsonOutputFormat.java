@@ -21,22 +21,22 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
- * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link PactJsonObject}
- * .
+ * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link JsonNode} .
  * 
  * @author Arvid Heise
  */
-public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJsonObject> {
+public class JsonOutputFormat extends FileOutputFormat<JsonNode, JsonNode> {
 
 	private JsonGenerator generator;
 
 	public static final String PARAMETER_ENCODING = "Encoding";
 
 	public JsonOutputFormat() {
-		this.keyClass = PactJsonObject.Key.class;
-		this.valueClass = PactJsonObject.class;
+		this.keyClass = JsonNode.class;
+		this.valueClass = JsonNode.class;
 	}
 
 	@Override
@@ -45,7 +45,6 @@ public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJ
 		this.generator.close();
 		super.close();
 	}
-
 
 	@Override
 	public void open(final int taskNumber) throws IOException {
@@ -56,8 +55,8 @@ public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJ
 	}
 
 	@Override
-	public void writeRecord(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws IOException {
-		this.generator.writeTree(pair.getValue().getValue());
+	public void writeRecord(final KeyValuePair<JsonNode, JsonNode> pair) throws IOException {
+		this.generator.writeTree(pair.getValue());
 	}
 
 }

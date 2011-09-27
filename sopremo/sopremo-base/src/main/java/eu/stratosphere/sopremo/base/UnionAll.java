@@ -10,7 +10,6 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 public class UnionAll extends CompositeOperator {
@@ -51,9 +50,9 @@ public class UnionAll extends CompositeOperator {
 	// for (int index = 1; index < numInputs; index++) {
 	//
 	// // final Contract rightInput = module.getInput(index);
-	// // final CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>
+	// // final CoGroupContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode>
 	// union =
-	// // new CoGroupContract<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
+	// // new CoGroupContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode>(
 	// // TwoInputUnion.class);
 	// // union.setFirstInput(leftInput);
 	// // union.setSecondInput(rightInput);
@@ -79,7 +78,7 @@ public class UnionAll extends CompositeOperator {
 
 		// TODO: replace with efficient union operator
 		public static class TwoInputUnion extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {

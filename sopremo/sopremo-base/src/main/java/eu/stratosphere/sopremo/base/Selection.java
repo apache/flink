@@ -6,7 +6,6 @@ import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 public class Selection extends ElementaryOperator {
 	/**
@@ -48,8 +47,8 @@ public class Selection extends ElementaryOperator {
 	// @Override
 	// public PactModule asPactModule(EvaluationContext context) {
 	// PactModule module = new PactModule(this.toString(), 1, 1);
-	// MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> selectionMap =
-	// new MapContract<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject>(
+	// MapContract<JsonNode, JsonNode, JsonNode, JsonNode> selectionMap =
+	// new MapContract<JsonNode, JsonNode, JsonNode, JsonNode>(
 	// SelectionStub.class);
 	// module.getOutput(0).setInput(selectionMap);
 	// selectionMap.setInput(module.getInput(0));
@@ -66,7 +65,7 @@ public class Selection extends ElementaryOperator {
 	}
 
 	public static class SelectionStub extends
-			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private BooleanExpression condition;
 
 		@Override

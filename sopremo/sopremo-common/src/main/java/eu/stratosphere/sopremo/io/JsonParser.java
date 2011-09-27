@@ -18,8 +18,10 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import eu.stratosphere.nephele.fs.FSDataInputStream;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
@@ -34,7 +36,7 @@ import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 public class JsonParser {
 
 	private BufferedReader reader;
-	
+
 	private Stack<JsonNode> state = new ObjectArrayList<JsonNode>();
 
 	ContainerNode root = new ContainerNode();
@@ -42,13 +44,15 @@ public class JsonParser {
 	private boolean insideString = false;
 
 	private boolean wasString = false;
-	
+
 	private boolean isArray = false;
+
+	private boolean reachedEnd = false;
 
 	private Char2ObjectMap<CharacterHandler> handler = new Char2ObjectOpenHashMap<CharacterHandler>(
 		new char[] { '[', ']', '{', '}', ':', '\"', ',', ' ' },
-		new CharacterHandler[] { new OpenArrayHandler(), new CloseArrayHandler(), new OpenObjectHandler(),
-			new CloseObjectHandler(), new KeyValueSeperatorHandler(), new StringHandler(),
+		new CharacterHandler[] { new OpenArrayHandler(), new CloseHandler(), new OpenObjectHandler(),
+			new CloseHandler(), new KeyValueSeperatorHandler(), new StringHandler(),
 			new CommaHandler(), new WhiteSpaceHandler() });
 
 	public JsonParser(FSDataInputStream stream) {
@@ -75,7 +79,11 @@ public class JsonParser {
 		StringBuilder sb = new StringBuilder();
 		int nextChar = this.reader.read();
 
-		do {
+		if (reachedEnd || nextChar == -1) {
+			throw new NoSuchElementException("Reached end of json document!");
+		}
+
+		while ((this.state.top() != root || nextChar != ',') && (nextChar) != -1) {
 			char character = (char) nextChar;
 			if (insideString && character != '\"') {
 				sb.append(character);
@@ -85,29 +93,37 @@ public class JsonParser {
 			}
 			nextChar = this.reader.read();
 
-		} while ((this.state.top() != root || nextChar != ',')  && (nextChar) != -1);
+		}
+		; // while ((this.state.top() != root || nextChar != ',') && (nextChar) != -1);
 
 		if (sb.length() != 0) {
-			if(root == state.top())
+			// if(root == state.top())
 			root.addValue(JsonParser.parsePrimitive(sb.toString()));
-			else return JsonParser.parsePrimitive(sb.toString());
+			if (!isArray)
+				reachedEnd = true;
+			// else {
+			// return JsonParser.parsePrimitive(sb.toString());
+			// }
+			sb.setLength(0);
+
 		}
 
-		if(isArray){
-			return root.remove(0);
-		} else return ((ArrayNode) root.build()).get(0);
-		
+		// if(isArray){
+		return root.remove(0);
+		// } else {
+		// // ArrayNode result = (ArrayNode) root.build();
+		// // root.remove(0);
+		// return root.remove(0);
+		// }
+
 	}
 
-	public Object nextToken() {
-		return null;
+	public boolean checkEnd() {
+		return this.reachedEnd;
 	}
 
 	public void close() throws IOException {
 		this.reader.close();
-	}
-
-	public void clearCurrentToken() {
 	}
 
 	private static JsonNode parsePrimitive(String value) {
@@ -147,7 +163,7 @@ public class JsonParser {
 
 		@Override
 		public void handleCharacter(StringBuilder sb, char character) {
-			if (root == state.top() && !isArray) {				
+			if (root == state.top() && !isArray) {
 				isArray = true;
 			} else {
 				state.push(new ContainerNode());
@@ -157,25 +173,28 @@ public class JsonParser {
 	}
 
 	private class OpenObjectHandler implements CharacterHandler {
-	
+
 		@Override
 		public void handleCharacter(StringBuilder sb, char character) {
 			ContainerNode node = new ContainerNode();
 			state.push(node);
-	
+
 		}
-	
+
 	}
 
-	private class CloseArrayHandler implements CharacterHandler {
+	private class CloseHandler implements CharacterHandler {
 
 		@Override
 		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
 			ContainerNode node;
 			if (state.top() != root) {
 				node = (ContainerNode) state.pop();
+				if (state.top() == root && !isArray)
+					reachedEnd = true;
 			} else {
 				node = (ContainerNode) state.top();
+				reachedEnd = true;
 			}
 
 			if (sb.length() != 0) {
@@ -188,35 +207,10 @@ public class JsonParser {
 				sb.setLength(0);
 			}
 
-			((ContainerNode) state.top()).addValue(node.build());
-
-		}
-	}
-
-	private class CloseObjectHandler implements CharacterHandler {
-	
-		@Override
-		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
-			ContainerNode node;
-			if (state.top() != root) {
-				node = (ContainerNode) state.pop();
-			} else {
-				node = (ContainerNode) state.top();
+			if (node != root) {
+				((ContainerNode) state.top()).addValue(node.build());
 			}
-			if (sb.length() != 0) {
-				if (!wasString) {
-					node.addValue(JsonParser.parsePrimitive(sb.toString()));
-				} else {
-					node.addValue(TextNode.valueOf(sb.toString()));
-					wasString = false;
-				}
-				sb.setLength(0);
-			}
-	
-			((ContainerNode) state.top()).addValue(node.build());
-				
 		}
-	
 	}
 
 	private class StringHandler implements CharacterHandler {
@@ -311,13 +305,13 @@ public class JsonParser {
 			this.values.add(node);
 		}
 
-		public JsonNode remove(int index) throws JsonParseException{
-			if(this.keys.isEmpty()){
+		public JsonNode remove(int index) throws JsonParseException {
+			if (this.keys.isEmpty()) {
 				return this.values.remove(index);
 			}
 			throw new JsonParseException();
 		}
-		
+
 		public JsonNode build() throws JsonParseException {
 			JsonNode node;
 
@@ -370,6 +364,11 @@ public class JsonParser {
 		@Override
 		public StringBuilder toString(StringBuilder sb) {
 			return sb;
+		}
+
+		@Override
+		public int compareTo(Key arg0) {
+			return 0;
 		}
 
 	}

@@ -1,7 +1,8 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 import static eu.stratosphere.sopremo.JsonUtil.createPath;
-import static eu.stratosphere.sopremo.SopremoTest.createPactJsonArray;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
 
 import java.util.ArrayList;
@@ -28,7 +29,6 @@ import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 /**
@@ -60,15 +60,17 @@ public class InterSourceRecordLinkageTest {
 		final ArrayCreation fieldSimExpr = new ArrayCreation(firstNameLev, lastNameJaccard, ageDiff);
 		this.similarityFunction = new PathExpression(fieldSimExpr, BuiltinFunctions.AVERAGE.asExpression());
 
-		List<PactJsonObject> inputs1 = new ArrayList<PactJsonObject>();
-		inputs1.add(createPactJsonObject("id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80));
-		inputs1.add(createPactJsonObject("id", 1, "first name", "berta", "last name", "typo", "age", 70));
+		List<JsonNode> inputs1 = new ArrayList<JsonNode>();
+		Object[] fields = { "id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80 };
+		inputs1.add(createObjectNode(fields));
+		Object[] fields1 = { "id", 1, "first name", "berta", "last name", "typo", "age", 70 };
+		inputs1.add(createObjectNode(fields1));
 		inputs1.add(createPactJsonObject("id", 2, "first name", "charles", "last name", "age inaccurate", "age", 70));
 		inputs1.add(createPactJsonObject("id", 3, "first name", "dagmar", "last name", "unmatched", "age", 75));
 		inputs1.add(createPactJsonObject("id", 4, "first name", "elma", "last name", "firstNameDiffers", "age", 60));
 		inputs1.add(createPactJsonObject("id", 5, "first name", "frank", "last name", "transitive", "age", 65));
 
-		List<PactJsonObject> inputs2 = new ArrayList<PactJsonObject>();
+		List<JsonNode> inputs2 = new ArrayList<JsonNode>();
 		inputs2.add(createPactJsonObject("id2", 10, "firstName", "albert", "lastName", "perfect duplicate", "age", 80));
 		inputs2.add(createPactJsonObject("id2", 11, "firstName", "berta", "lastName", "tpyo", "age", 70));
 		inputs2.add(createPactJsonObject("id2", 12, "firstName", "charles", "lastName", "age inaccurate", "age", 69));
@@ -84,7 +86,7 @@ public class InterSourceRecordLinkageTest {
 			new ObjectAccess("id2") };
 	}
 
-	private List<List<PactJsonObject>> inputs = new ArrayList<List<PactJsonObject>>();
+	private List<List<JsonNode>> inputs = new ArrayList<List<JsonNode>>();
 
 	private EvaluationExpression[] resultProjections, idProjections;
 
@@ -195,20 +197,20 @@ public class InterSourceRecordLinkageTest {
 		testPlan.run();
 	}
 
-	private PactJsonObject arrayOfElement(SopremoTestPlan testPlan, int... ids) {
+	private JsonNode arrayOfElement(SopremoTestPlan testPlan, int... ids) {
 		Object[] array = new JsonNode[ids.length];
 
 		for (int index = 0; index < array.length; index++) {
 			EvaluationExpression resultProjection = this.resultProjections[index];
 			if (resultProjection == null)
 				resultProjection = EvaluationExpression.VALUE;
-			array[index] = resultProjection.evaluate(this.findTuple(testPlan, index, ids[index]).getValue(),
+			array[index] = resultProjection.evaluate(this.findTuple(testPlan, index, ids[index]),
 				testPlan.getEvaluationContext());
 		}
-		return createPactJsonArray(array);
+		return createArrayNode(array);
 	}
 
-	private PactJsonObject deepArrayOfElements(SopremoTestPlan testPlan, int[]... ids) {
+	private JsonNode deepArrayOfElements(SopremoTestPlan testPlan, int[]... ids) {
 		Object[][] array = new JsonNode[ids.length][];
 
 		for (int sourceIndex = 0; sourceIndex < array.length; sourceIndex++) {
@@ -219,13 +221,13 @@ public class InterSourceRecordLinkageTest {
 				resultProjection = EvaluationExpression.VALUE;
 			for (int tupleIndex = 0; tupleIndex < array[sourceIndex].length; tupleIndex++)
 				array[sourceIndex][tupleIndex] = resultProjection.evaluate(
-					this.findTuple(testPlan, sourceIndex, ids[sourceIndex][tupleIndex]).getValue(),
+					this.findTuple(testPlan, sourceIndex, ids[sourceIndex][tupleIndex]),
 					testPlan.getEvaluationContext());
 		}
-		return createPactJsonArray((Object[]) array);
+		return createArrayNode((Object[]) array);
 	}
 
-	private PactJsonObject flatArrayOfElements(SopremoTestPlan testPlan, int[]... ids) {
+	private JsonNode flatArrayOfElements(SopremoTestPlan testPlan, int[]... ids) {
 		ArrayNode array = new ArrayNode();
 
 		for (int sourceIndex = 0; sourceIndex < ids.length; sourceIndex++) {
@@ -234,15 +236,15 @@ public class InterSourceRecordLinkageTest {
 				resultProjection = EvaluationExpression.VALUE;
 			for (int tupleIndex = 0; tupleIndex < ids[sourceIndex].length; tupleIndex++)
 				array.add(resultProjection.evaluate(
-					this.findTuple(testPlan, sourceIndex, ids[sourceIndex][tupleIndex]).getValue(),
+					this.findTuple(testPlan, sourceIndex, ids[sourceIndex][tupleIndex]),
 					testPlan.getEvaluationContext()));
 		}
-		return new PactJsonObject(array);
+		return new JsonNode(array);
 	}
 
-	private PactJsonObject findTuple(SopremoTestPlan testPlan, int sourceIndex, int id) {
-		for (PactJsonObject object : this.inputs.get(sourceIndex))
-			if (((IntNode)this.idProjections[sourceIndex].evaluate(object.getValue(), testPlan.getEvaluationContext()))
+	private JsonNode findTuple(SopremoTestPlan testPlan, int sourceIndex, int id) {
+		for (JsonNode object : this.inputs.get(sourceIndex))
+			if (((IntNode)this.idProjections[sourceIndex].evaluate(object, testPlan.getEvaluationContext()))
 				.getIntValue() == id)
 				return object;
 		throw new IllegalStateException();
@@ -273,7 +275,7 @@ public class InterSourceRecordLinkageTest {
 				recordLinkage.getRecordLinkageInput(index).setResultProjection(this.resultProjections[index]);
 
 		for (int index = 0; index < this.inputs.size(); index++)
-			for (PactJsonObject object : this.inputs.get(index))
+			for (JsonNode object : this.inputs.get(index))
 				sopremoTestPlan.getInput(index).add(object);
 		return sopremoTestPlan;
 	}

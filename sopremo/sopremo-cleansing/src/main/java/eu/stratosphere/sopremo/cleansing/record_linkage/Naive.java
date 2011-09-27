@@ -10,7 +10,6 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 public class Naive extends RecordLinkageAlgorithm {
 	public Naive() {
@@ -49,7 +48,7 @@ public class Naive extends RecordLinkageAlgorithm {
 
 		public static class Implementation
 				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression resultProjection1, resultProjection2;
@@ -89,8 +88,8 @@ public class Naive extends RecordLinkageAlgorithm {
 
 		public static class Implementation
 				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key,
-				PactJsonObject> {
+				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode,
+				JsonNode> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression resultProjection1, resultProjection2, idProjection1, idProjection2;

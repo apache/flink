@@ -9,11 +9,13 @@ import com.csvreader.CsvReader;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 
-public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJsonObject> {
+public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 
 	private static final String FIELD_DELIMITER = "fieldDelimiter";
 
@@ -33,9 +35,8 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 	}
 
 	@Override
-	public KeyValuePair<PactJsonObject.Key, PactJsonObject> createPair() {
-		return new KeyValuePair<PactJsonObject.Key, PactJsonObject>(PactJsonObject.Key.NULL,
-			new PactJsonObject());
+	public KeyValuePair<JsonNode, JsonNode> createPair() {
+		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), null);
 	}
 
 	@Override
@@ -65,7 +66,7 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 	private final Charset charSet = Charset.forName("utf-8");
 
 	@Override
-	public boolean readLine(final KeyValuePair<Key, PactJsonObject> pair, final byte[] record) {
+	public boolean readLine(final KeyValuePair<JsonNode, JsonNode> pair, final byte[] record) {
 		// if (!this.end) {
 		final CsvReader reader = new CsvReader(new ByteArrayInputStream(record), this.charSet);
 		reader.setDelimiter(this.fieldDelimiter);
@@ -78,7 +79,7 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 				else
 					for (int i = 0; i < reader.getColumnCount(); i++)
 						node.put(String.format("key%d", i + 1), reader.get(i));
-				pair.getValue().setValue(node);
+				pair.setValue(node);
 				return true;
 			}
 

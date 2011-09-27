@@ -14,7 +14,7 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 @RunWith(Parameterized.class)
@@ -46,13 +46,13 @@ public class SchemaMappingTest {
 			);
 	}
 
-	private static final PactJsonObject ERROR = null;
+	private static final JsonNode ERROR = null;
 
 	private List<ValidationRule> validationRules;
 
-	private PactJsonObject expectedObject;
+	private JsonNode expectedObject;
 
-	public SchemaMappingTest(List<ValidationRule> validationRules, PactJsonObject expectedObject) {
+	public SchemaMappingTest(List<ValidationRule> validationRules, JsonNode expectedObject) {
 		this.validationRules = validationRules;
 		this.expectedObject = expectedObject;
 	}

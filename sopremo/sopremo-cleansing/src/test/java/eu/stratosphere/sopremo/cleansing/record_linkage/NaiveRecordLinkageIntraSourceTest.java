@@ -7,8 +7,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
 /**
@@ -36,9 +35,9 @@ public class NaiveRecordLinkageIntraSourceTest extends IntraSourceRecordLinkageT
 
 	@Override
 	protected void generateExpectedPairs(Input input) {
-		for (final KeyValuePair<Key, PactJsonObject> left : input) {
+		for (final KeyValuePair<JsonNode, JsonNode> left : input) {
 			boolean skipPairs = true;
-			for (final KeyValuePair<Key, PactJsonObject> right : input) {
+			for (final KeyValuePair<JsonNode, JsonNode> right : input) {
 				if (left == right) {
 					skipPairs = false;
 					continue;

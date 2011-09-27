@@ -16,7 +16,6 @@ import eu.stratosphere.sopremo.io.JsonProcessingException;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Source extends ElementaryOperator {
@@ -31,7 +30,7 @@ public class Source extends ElementaryOperator {
 
 	private EvaluationExpression adhocValue;
 
-	private final Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputFormat;
+	private final Class<? extends FileInputFormat<JsonNode, JsonNode>> inputFormat;
 
 	public Source(final EvaluationExpression adhocValue) {
 		super();
@@ -40,7 +39,7 @@ public class Source extends ElementaryOperator {
 		this.type = PersistenceType.ADHOC;
 	}
 
-	public Source(final Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputformat,
+	public Source(final Class<? extends FileInputFormat<JsonNode, JsonNode>> inputformat,
 			final String inputName) {
 		super();
 		this.inputName = inputName;
@@ -71,7 +70,7 @@ public class Source extends ElementaryOperator {
 				throw new IllegalStateException("Cannot create adhoc source", e);
 			}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
-		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSourceContract<JsonNode, JsonNode> contract = new FileDataSourceContract<JsonNode, JsonNode>(
 			this.inputFormat, inputName, name);
 		if (this.inputFormat == JsonInputFormat.class)
 			contract.setDegreeOfParallelism(1);

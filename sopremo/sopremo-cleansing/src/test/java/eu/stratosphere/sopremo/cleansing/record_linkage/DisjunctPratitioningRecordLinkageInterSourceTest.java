@@ -9,8 +9,7 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
 /**
@@ -45,12 +44,12 @@ public class DisjunctPratitioningRecordLinkageInterSourceTest extends
 
 	@Override
 	protected void generateExpectedPairs(Input leftInput, Input rightInput) {
-		for (final KeyValuePair<Key, PactJsonObject> left : leftInput)
-			for (final KeyValuePair<Key, PactJsonObject> right : rightInput) {
+		for (final KeyValuePair<JsonNode, JsonNode> left : leftInput)
+			for (final KeyValuePair<JsonNode, JsonNode> right : rightInput) {
 				boolean inSameBlockingBin = false;
 				for (int index = 0; index < this.leftBlockingKeys.length && !inSameBlockingBin; index++)
-					if (this.leftBlockingKeys[index].evaluate(left.getValue().getValue(), this.getContext()).equals(
-						this.rightBlockingKeys[index].evaluate(right.getValue().getValue(), this.getContext())))
+					if (this.leftBlockingKeys[index].evaluate(left.getValue(), this.getContext()).equals(
+						this.rightBlockingKeys[index].evaluate(right.getValue(), this.getContext())))
 						inSameBlockingBin = true;
 				if (inSameBlockingBin)
 					this.emitCandidate(left, right);

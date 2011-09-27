@@ -18,8 +18,6 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 public class ValueSplitter extends ElementaryOperator {
@@ -106,7 +104,7 @@ public class ValueSplitter extends ElementaryOperator {
 		return implementation;
 	}
 
-	public static class ExplicitProjections extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+	public static class ExplicitProjections extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private List<EvaluationExpression> projections = new ArrayList<EvaluationExpression>();
 
 		@Override
@@ -116,7 +114,7 @@ public class ValueSplitter extends ElementaryOperator {
 		}
 	}
 
-	public static class ArraySplit extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+	public static class ArraySplit extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private EvaluationExpression path, valueProjection, keyProjection;
 
 		@Override
@@ -136,7 +134,7 @@ public class ValueSplitter extends ElementaryOperator {
 		}
 	}
 
-	public static class ObjectSplit extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+	public static class ObjectSplit extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private EvaluationExpression path, valueProjection, keyProjection;
 
 		@Override

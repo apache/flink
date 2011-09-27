@@ -46,7 +46,7 @@ public class JoinTest extends SopremoTest<Join> {
 		sopremoPlan.getExpectedOutput(0).
 			add(createPactJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
 			add(createPactJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance"));
-
+		sopremoPlan.trace();
 		sopremoPlan.run();
 	}
 

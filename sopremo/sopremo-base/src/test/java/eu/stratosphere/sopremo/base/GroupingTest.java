@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.base;
 import static eu.stratosphere.sopremo.JsonUtil.createPath;
+import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 
 import org.junit.Test;
 
@@ -178,7 +179,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 			add(createPactJsonObject("id", 6, "dept", 2, "income", 5000)).
 			add(createPactJsonObject("id", 7, "dept", 1, "income", 24000));
 		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(7));
+			add(createValueNode((Object) 7));
 
 		sopremoPlan.run();
 	}

@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import static eu.stratosphere.sopremo.JsonUtil.createPath;
-import static eu.stratosphere.sopremo.SopremoTest.createPactJsonArray;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
 
 import java.util.ArrayList;
@@ -24,7 +24,6 @@ import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 /**
@@ -38,7 +37,7 @@ public class IntraSourceRecordLinkageTest {
 
 	private boolean useId;
 
-	private List<PactJsonObject> inputs = new ArrayList<PactJsonObject>();
+	private List<JsonNode> inputs = new ArrayList<JsonNode>();
 
 	private EvaluationExpression resultProjection;
 
@@ -80,7 +79,7 @@ public class IntraSourceRecordLinkageTest {
 		this.inputs.add(createPactJsonObject("id", 11, "first name", "frank", "last name", "transitive", "age", 70));
 	}
 
-	private PactJsonObject arrayOfElement(SopremoTestPlan testPlan, int... ids) {
+	private JsonNode arrayOfElement(SopremoTestPlan testPlan, int... ids) {
 		Object[] array = new JsonNode[ids.length];
 		EvaluationExpression resultProjection = this.resultProjection;
 		if (resultProjection == null)
@@ -88,8 +87,8 @@ public class IntraSourceRecordLinkageTest {
 
 		for (int index = 0; index < array.length; index++)
 			array[index] = resultProjection
-				.evaluate(this.inputs.get(ids[index]).getValue(), testPlan.getEvaluationContext());
-		return createPactJsonArray(array);
+				.evaluate(this.inputs.get(ids[index]), testPlan.getEvaluationContext());
+		return createArrayNode(array);
 	}
 
 	private SopremoTestPlan createTestPlan(final LinkageMode mode) {
@@ -104,7 +103,7 @@ public class IntraSourceRecordLinkageTest {
 		if (this.resultProjection != null)
 			recordLinkage.getRecordLinkageInput().setResultProjection(this.resultProjection);
 
-		for (PactJsonObject object : this.inputs)
+		for (JsonNode object : this.inputs)
 			sopremoTestPlan.getInput(0).add(object);
 		return sopremoTestPlan;
 	}

@@ -18,7 +18,6 @@ import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 
@@ -135,7 +134,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private EvaluationExpression projection;
 
 			@Override
@@ -160,7 +159,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		}
 
 		public static class Implementation extends
-				SopremoReduce<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoReduce<JsonNode, JsonNode, JsonNode, JsonNode> {
 			private EvaluationExpression projection;
 
 			@Override

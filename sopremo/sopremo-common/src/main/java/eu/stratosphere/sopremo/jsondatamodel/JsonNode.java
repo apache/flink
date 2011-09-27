@@ -5,9 +5,10 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.Serializable;
 
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
-public abstract class JsonNode implements Serializable, Value {
+public abstract class JsonNode implements Serializable, Value, Key {
 
 	/**
 	 * 
