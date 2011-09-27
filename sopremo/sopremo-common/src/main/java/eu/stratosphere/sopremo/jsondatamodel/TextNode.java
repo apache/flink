@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class TextNode extends JsonNode {
@@ -95,6 +96,11 @@ public class TextNode extends JsonNode {
 	@Override
 	public TYPES getType() {
 		return TYPES.TextNode;
+	}
+
+	@Override
+	public int compareTo(Key other) {
+		return this.value.compareTo(((TextNode)other).value);
 	}
 
 }

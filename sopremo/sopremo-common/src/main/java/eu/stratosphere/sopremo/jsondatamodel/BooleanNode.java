@@ -4,6 +4,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.pact.common.type.Key;
+
 public class BooleanNode extends JsonNode {
 
 	/**
@@ -85,5 +87,10 @@ public class BooleanNode extends JsonNode {
 	@Override
 	public TYPES getType() {
 		return TYPES.BooleanNode;
+	}
+
+	@Override
+	public int compareTo(Key other) {
+		return other == this ? 0 : 1;
 	}
 }

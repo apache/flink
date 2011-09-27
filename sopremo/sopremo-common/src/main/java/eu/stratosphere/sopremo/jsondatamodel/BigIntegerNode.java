@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import eu.stratosphere.pact.common.type.Key;
+
 public class BigIntegerNode extends NumericNode {
 
 	/**
@@ -115,6 +117,11 @@ public class BigIntegerNode extends NumericNode {
 	@Override
 	public StringBuilder toString(StringBuilder sb) {
 		return sb.append(this.value);
+	}
+
+	@Override
+	public int compareTo(Key o) {
+		return 0;
 	}
 	
 }

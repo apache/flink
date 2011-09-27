@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo.jsondatamodel;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import eu.stratosphere.pact.common.type.Key;
+
 public abstract class NumericNode extends JsonNode {
 
 	/**
@@ -22,13 +24,17 @@ public abstract class NumericNode extends JsonNode {
 
 	public abstract String getValueAsText();
 
-	// TODO check subclasses
 	public boolean isFloatingPointNumber() {
 		return false;
 	}
 
-	// TODO check subclasses
 	public boolean isIntegralNumber() {
 		return false;
+	}
+	
+	public int compareTo(Key o){
+	
+	return this.getDecimalValue().compareTo(((NumericNode)o).getDecimalValue());
+		
 	}
 }

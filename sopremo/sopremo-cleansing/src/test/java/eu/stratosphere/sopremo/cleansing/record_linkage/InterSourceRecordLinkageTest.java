@@ -239,7 +239,7 @@ public class InterSourceRecordLinkageTest {
 					this.findTuple(testPlan, sourceIndex, ids[sourceIndex][tupleIndex]),
 					testPlan.getEvaluationContext()));
 		}
-		return new JsonNode(array);
+		return new ArrayNode(array);
 	}
 
 	private JsonNode findTuple(SopremoTestPlan testPlan, int sourceIndex, int id) {

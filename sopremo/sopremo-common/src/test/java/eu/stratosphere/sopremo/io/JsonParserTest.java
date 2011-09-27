@@ -62,6 +62,8 @@ public class JsonParserTest {
 			{ " [42] ", IntNode.valueOf(42), 1 },
 			{ "42", IntNode.valueOf(42),1},
 			{ "[null]", NullNode.getInstance(), 1 },
+			{ "null", NullNode.getInstance(), 1 },
+			{ "[null,null]", NullNode.getInstance(), 2 },
 			{ "[true]", BooleanNode.TRUE, 1 },
 			{ "[false]", BooleanNode.FALSE, 1 },
 			{ "[42.42]", DecimalNode.valueOf(BigDecimal.valueOf(42.42)), 1 },
@@ -86,12 +88,13 @@ public class JsonParserTest {
 							.add(IntNode.valueOf(12)).add(TextNode.valueOf("17"))) ,2 },
 			{ "[{\"key1\" : 42}, 42]", IntNode.valueOf(42) ,2},
 			{ "{\"key1\" : 42}", new ObjectNode().put("key1", IntNode.valueOf(42)) ,1},
+			{ "{\"key1\" : null}", new ObjectNode().put("key1", NullNode.getInstance()) ,1},
 			{
 				"[{\"key1\" : [1,3,\"Hello\"], \"key2\": {\"key3\": 23}}]",
 				new ObjectNode().put("key1",
 					new ArrayNode().add(IntNode.valueOf(1)).add(IntNode.valueOf(3)).add(TextNode.valueOf("Hello")))
 					.put("key2", new ObjectNode().put("key3", IntNode.valueOf(23))),1 },
-					{"[1 ,2 ,3, 4 , 5]", IntNode.valueOf(5), 5}
+			{"[1 ,2 ,3, 4 , null]", NullNode.getInstance(), 5}
 
 		});
 	}

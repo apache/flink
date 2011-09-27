@@ -13,6 +13,7 @@ import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
@@ -87,7 +88,7 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 		final EvaluationContext context = this.getContext();
 
 		this.sopremoTestPlan.getExpectedOutput(0).add(
-			createPactJsonArray(resultProjection1.evaluate(left.getValue(), context),
+			new ArrayNode(resultProjection1.evaluate(left.getValue(), context),
 				resultProjection2.evaluate(right.getValue(), context)));
 	}
 

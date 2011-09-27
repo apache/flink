@@ -26,9 +26,9 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.io.JsonParseException;
 import eu.stratosphere.sopremo.io.JsonParser;
-import eu.stratosphere.sopremo.io.JsonToken;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 
 /**
  * Reads json files with Jackson. The resulting key/value pair consists of an id and a {@link PactJsonObject}. The id is
@@ -71,7 +71,7 @@ public class JsonInputFormat extends FileInputFormat<JsonNode, JsonNode> {
 
 	@Override
 	public KeyValuePair<JsonNode, JsonNode> createPair() {
-		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), new PactJsonObject());
+		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), new ObjectNode());
 	}
 
 	@Override

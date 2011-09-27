@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactNull;
 
 public class NullNode extends JsonNode {
@@ -61,5 +62,10 @@ public class NullNode extends JsonNode {
 	@Override
 	public TYPES getType() {
 		return TYPES.NullNode;
+	}
+
+	@Override
+	public int compareTo(Key other) {
+		return other == this ? 0 : 1;
 	}
 }

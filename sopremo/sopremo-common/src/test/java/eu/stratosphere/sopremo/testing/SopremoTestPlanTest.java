@@ -28,6 +28,7 @@ import java.util.Iterator;
 import junit.framework.AssertionFailedError;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
@@ -55,6 +56,7 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
  * 
  * @author Arvid Heise
  */
+
 public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	/**
 	 * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.

@@ -10,6 +10,7 @@ import java.io.ObjectOutputStream;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 
 public abstract class TransitiveAggregationFunction extends AggregationFunction {
 	/**
@@ -40,7 +41,7 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	public void initialize() {
 		try {
 			final ByteArrayOutputStream cloneBuffer = new ByteArrayOutputStream();
-			final JsonNode cloner = new JsonNode(this.initialAggregate);
+			final JsonNode cloner = this.initialAggregate;
 			cloner.write(new DataOutputStream(cloneBuffer));
 			cloner.read(new DataInputStream(new ByteArrayInputStream(cloneBuffer.toByteArray())));
 			this.aggregate = cloner;
@@ -50,14 +51,15 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	}
 
 	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();
-		final JsonNode pactJsonObject = new JsonNode();
-		pactJsonObject.read(ois);
-		this.initialAggregate = pactJsonObject;
+		ois.defaultReadObject();		
+		// TOFIX
+		final JsonNode jsonObject = new ObjectNode();
+		jsonObject.read(ois);
+		this.initialAggregate = jsonObject;
 	}
 
 	private void writeObject(final ObjectOutputStream oos) throws IOException {
 		oos.defaultWriteObject();
-		new JsonNode(this.initialAggregate).write(oos);
+		this.initialAggregate.write(oos);
 	}
 }

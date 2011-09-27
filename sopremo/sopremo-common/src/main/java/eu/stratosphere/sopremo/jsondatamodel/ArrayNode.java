@@ -180,7 +180,20 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	}
 
 	@Override
-	public int compareTo(Key o) {
+	public int compareTo(Key other) {
+//		if(!(other instanceof ArrayNode)){
+//			return -1;
+//		}
+		ArrayNode node = (ArrayNode) other;
+		if(node.size() != this.size()){
+			return 1;
+		}
+		for(int i = 0; i<this.size(); i++){
+			int comp = this.get(i).compareTo(node.get(i));
+			if(comp != 0){
+				return comp;
+			}
+		}
 		return 0;
 	}
 

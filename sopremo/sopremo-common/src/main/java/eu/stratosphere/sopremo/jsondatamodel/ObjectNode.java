@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import eu.stratosphere.pact.common.type.Key;
+
 public class ObjectNode extends JsonNode {
 
 	/**
@@ -199,6 +201,22 @@ public class ObjectNode extends JsonNode {
 	@Override
 	public TYPES getType() {
 		return TYPES.ObjectNode;
+	}
+
+	@Override
+	public int compareTo(Key other) {
+		
+		ObjectNode node = (ObjectNode) other;
+		if(node.size() != this.size()){
+			return 1;
+		}
+		for( Entry<String, JsonNode> entry  : this.children.entrySet()){
+			int comparison = entry.getValue().compareTo(node.get(entry.getKey()));
+			if(comparison != 0){
+				return comparison;
+			}
+		}
+		return 0;
 	}
 
 }

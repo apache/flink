@@ -13,7 +13,9 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 public class JsonGenerator {
 
 	BufferedWriter writer;
-	
+
+	boolean isFirst = true;
+
 	public JsonGenerator(FSDataOutputStream stream) {
 		this.writer = new BufferedWriter(new OutputStreamWriter(stream));
 	}
@@ -31,19 +33,25 @@ public class JsonGenerator {
 	}
 
 	public void writeTree(JsonNode value) throws IOException {
-		if(value!=null){
+		if (value != null) {
+			if (!this.isFirst) {
+				this.writer.write(",");
+			}
 			this.writer.write(value.toString());
 			this.writer.flush();
+			this.isFirst = false;
 		}
 	}
 
 	public void writeEndArray() throws IOException {
 		JsonToken.END_ARRAY.write(this.writer);
-		
+		this.writer.flush();
+
 	}
 
 	public void writeStartArray() throws IOException {
 		JsonToken.START_ARRAY.write(this.writer);
+		this.writer.flush();
 	}
 
 }
