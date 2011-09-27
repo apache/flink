@@ -31,7 +31,7 @@ public class NullNode extends JsonNode {
 
 	@Override
 	public boolean equals(final Object o) {
-		return o == this;
+		return (o instanceof NullNode) ? true : false;
 	}
 
 	@Override
@@ -58,7 +58,7 @@ public class NullNode extends JsonNode {
 	public boolean isNull() {
 		return true;
 	}
-	
+
 	@Override
 	public TYPES getType() {
 		return TYPES.NullNode;
@@ -66,6 +66,6 @@ public class NullNode extends JsonNode {
 
 	@Override
 	public int compareTo(Key other) {
-		return other == this ? 0 : 1;
+		return (other instanceof NullNode) ? 0 : 1;
 	}
 }

@@ -57,6 +57,7 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
  * @author Arvid Heise
  */
 
+@Ignore
 public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	/**
 	 * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.

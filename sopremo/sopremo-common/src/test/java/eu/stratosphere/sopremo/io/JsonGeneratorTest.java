@@ -74,6 +74,7 @@ public class JsonGeneratorTest {
 				gen.writeTree(parser.readValueAsTree());
 			}
 			gen.writeEndArray();
+			gen.close();
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}

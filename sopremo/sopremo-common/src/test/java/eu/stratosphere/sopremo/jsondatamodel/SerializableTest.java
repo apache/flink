@@ -4,7 +4,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 
 import junit.framework.Assert;
 
@@ -12,6 +14,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import eu.stratosphere.sopremo.SopremoTest;
+import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.io.JsonParser;
 
 public class SerializableTest {
 
@@ -89,6 +95,41 @@ public class SerializableTest {
 		}
 
 		Assert.assertEquals(obj, target);
+	}
+
+	@Test
+	public void shouldSerializeAndDeserializeGivenFile() {
+
+		ArrayNode array = new ArrayNode();
+
+		try {
+			final JsonParser parser = new JsonParser(new URL(
+				SopremoTest.getResourcePath("SopremoTestPlan/test.json")));
+			File file = File.createTempFile("test", "json");
+
+			while (!parser.checkEnd()) {
+				array.add(parser.readValueAsTree());
+			}
+
+			array.write(this.outStream);
+
+			final ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(this.byteArray.toByteArray());
+			final DataInputStream inStream = new DataInputStream(byteArrayIn);
+
+			ArrayNode target = new ArrayNode();
+			target.read(inStream);
+
+			//for watching the output
+			JsonGenerator gen = new JsonGenerator(file);
+			gen.writeStartArray();
+			gen.writeTree(target);
+			gen.writeEndArray();
+			gen.close();
+			
+			Assert.assertEquals(array, target);
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@After

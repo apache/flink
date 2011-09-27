@@ -91,6 +91,9 @@ public class BooleanNode extends JsonNode {
 
 	@Override
 	public int compareTo(Key other) {
-		return other == this ? 0 : 1;
+		if(other instanceof BooleanNode){
+			return (this.value == ((BooleanNode)other).value)? 0 : 1;
+		}
+		return -1;
 	}
 }
