@@ -1,4 +1,4 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-09-23 17:58:46
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-09-26 12:43:02
  
 package eu.stratosphere.simple.jaql; 
 
@@ -1304,7 +1304,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: e1, e1, e1, e2, e1, e2, e2
+            // elements: e2, e1, e2, e1, e2, e1, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -1496,7 +1496,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: e1, e2, e1
+            // elements: e2, e1, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -1658,7 +1658,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: e1, e2, e1
+            // elements: e2, e1, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -6309,7 +6309,7 @@ public class SJaqlParser extends SimpleParser {
                         int index7_4 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (((synpred7_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null))||synpred7_SJaql())) ) {s = 17;}
+                        if ( ((synpred7_SJaql()||(synpred7_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null)))) ) {s = 17;}
 
                         else if ( ((synpred8_SJaql()||(synpred8_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null)))) ) {s = 18;}
 

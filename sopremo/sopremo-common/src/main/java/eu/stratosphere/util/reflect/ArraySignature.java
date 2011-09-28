@@ -1,13 +1,12 @@
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.util.reflect;
 
-import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * Signature that takes an array of types as its only parameter.
  * 
  * @author Arvid Heise
  */
-public class ArraySignature extends MethodSignature {
+public class ArraySignature extends Signature {
 	/**
 	 * 
 	 */
@@ -32,7 +31,7 @@ public class ArraySignature extends MethodSignature {
 	 * @return the distance or {@link MethodSignature#INCOMPATIBLE}
 	 */
 	@Override
-	public int getDistance(final MethodSignature actualSignature) {
+	public int getDistance(final Signature actualSignature) {
 		final Class<?>[] actualParamTypes = actualSignature.getParameterTypes();
 		if (actualParamTypes.length == 0)
 			return 1;

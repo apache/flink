@@ -1,21 +1,20 @@
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.util.reflect;
 
 import java.util.Arrays;
 
 import eu.stratosphere.sopremo.SerializableSopremoType;
-import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * General signature of a method that handles exactly the specified argument types.
  * 
  * @author Arvid Heise
  */
-public class MethodSignature implements SerializableSopremoType {
+public class Signature implements SerializableSopremoType {
 	/**
 	 * Constant that is returned by {@link #getDistance(MethodSignature)} if the given actual signature is incompatible
 	 * with the declared signature.
 	 */
-	protected static final int INCOMPATIBLE = Integer.MAX_VALUE;
+	public static final int INCOMPATIBLE = Integer.MAX_VALUE;
 
 	/**
 	 * 
@@ -30,7 +29,7 @@ public class MethodSignature implements SerializableSopremoType {
 	 * @param parameterTypes
 	 *        the parameter types
 	 */
-	public MethodSignature(final Class<?>[] parameterTypes) {
+	public Signature(final Class<?>[] parameterTypes) {
 		this.parameterTypes = parameterTypes;
 	}
 
@@ -42,7 +41,7 @@ public class MethodSignature implements SerializableSopremoType {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final MethodSignature other = (MethodSignature) obj;
+		final Signature other = (Signature) obj;
 		return Arrays.equals(this.parameterTypes, other.parameterTypes);
 	}
 
@@ -54,7 +53,7 @@ public class MethodSignature implements SerializableSopremoType {
 	 *        the actual signature that should have equal or more specific types than this declared signature
 	 * @return the distance or {@link #INCOMPATIBLE}
 	 */
-	public int getDistance(final MethodSignature actualSignature) {
+	public int getDistance(final Signature actualSignature) {
 		final Class<?>[] actualParamTypes = actualSignature.parameterTypes;
 		if (this.parameterTypes.length != actualParamTypes.length)
 			return INCOMPATIBLE;

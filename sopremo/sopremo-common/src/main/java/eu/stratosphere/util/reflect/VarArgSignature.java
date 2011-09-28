@@ -1,13 +1,12 @@
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.util.reflect;
 
-import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * Signature with a number of fixed arguments followed by a variable number of arguments of a specific type.
  * 
  * @author Arvid Heise
  */
-public class VarArgSignature extends MethodSignature {
+public class VarArgSignature extends Signature {
 	/**
 	 * 
 	 */
@@ -25,7 +24,7 @@ public class VarArgSignature extends MethodSignature {
 	}
 
 	@Override
-	public int getDistance(final MethodSignature actualSignature) {
+	public int getDistance(final Signature actualSignature) {
 		final Class<?>[] actualParamTypes = actualSignature.getParameterTypes();
 		final int nonVarArgs = this.getParameterTypes().length - 1;
 		if (nonVarArgs > actualParamTypes.length)

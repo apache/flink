@@ -1,15 +1,10 @@
 package eu.stratosphere.util.reflect;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 /**
  * Convenience methods for reflective programming.
@@ -17,7 +12,7 @@ import java.util.Map.Entry;
  * @author Arvid Heise
  */
 public class ReflectUtil {
-	private static Map<Class<?>, Constructor<?>> CACHED_DEFAULT_CONSTRUCTORS = new HashMap<Class<?>, Constructor<?>>();
+	private static Map<Class<?>, OverloadedContructor<?>> CACHED_CONSTRUCTORS = new HashMap<Class<?>, OverloadedContructor<?>>();
 
 	@SuppressWarnings("serial")
 	private final static Map<Class<?>, Class<?>> BoxingClasses = new IdentityHashMap<Class<?>, Class<?>>() {
@@ -61,59 +56,6 @@ public class ReflectUtil {
 	 */
 	public static Class<?> getClassForPrimtive(final Class<?> primitive) {
 		return BoxingClasses.get(primitive);
-	}
-
-	private static <T> Map<Constructor<?>, Integer> getCompatibleConstructors(final Class<T> type,
-			final Object... params) {
-		final Constructor<?>[] constructors = type.getDeclaredConstructors();
-		final Map<Constructor<?>, Integer> candidateDistances = new HashMap<Constructor<?>, Integer>();
-		for (final Constructor<?> constructor : constructors) {
-			int distance = 0;
-			final Class<?>[] parameterTypes = constructor.getParameterTypes();
-			if (params.length != parameterTypes.length)
-				continue;
-
-			for (int index = 0; index < parameterTypes.length; index++) {
-				if (!parameterTypes[index].isInstance(params[index])) {
-					distance = Integer.MAX_VALUE;
-					break;
-				}
-
-				if (params[index] != null)
-					distance += getDistance(parameterTypes[index], params[index].getClass());
-			}
-			candidateDistances.put(constructor, distance);
-		}
-		return candidateDistances;
-	}
-
-	private static <T> Map<Method, Integer> getCompatibleMethods(final Class<T> type, final String name,
-			final Object... params) {
-		final Method[] methods = type.getDeclaredMethods();
-		final Map<Method, Integer> candidateDistances = new HashMap<Method, Integer>();
-		for (final Method method : methods) {
-			if (!method.getName().equals(name))
-				continue;
-
-			int distance = 0;
-			final Class<?>[] parameterTypes = method.getParameterTypes();
-			if (params.length != parameterTypes.length)
-				continue;
-
-			for (int index = 0; index < parameterTypes.length; index++) {
-				if (!parameterTypes[index].isInstance(params[index])) {
-					distance = Integer.MAX_VALUE;
-					break;
-				}
-
-				if (params[index] != null)
-					distance += getDistance(parameterTypes[index], params[index].getClass());
-			}
-			candidateDistances.put(method, distance);
-		}
-		if (type.getSuperclass() != null)
-			candidateDistances.putAll(getCompatibleMethods(type.getSuperclass(), name, params));
-		return candidateDistances;
 	}
 
 	/**
@@ -210,29 +152,7 @@ public class ReflectUtil {
 	 * @return true if such a method exists
 	 */
 	public static boolean hasFunction(final Object object, final String function, final Object... params) {
-		final Class<? extends Object> type = object.getClass();
-		try {
-			final Map<Method, Integer> candidateDistances = getCompatibleMethods(type, function, params);
-
-			if (candidateDistances.isEmpty())
-				return false;
-
-			if (candidateDistances.size() == 1)
-				return true;
-
-			return pickBest(candidateDistances) != null;
-		} catch (final Exception e) {
-			throw new IllegalArgumentException(String.format("Could not find method %s for type %s with parameters %s",
-				function, type, Arrays
-					.toString(params)), e);
-		}
-	}
-
-	private static Object invoke(final Method method, final Object object, final Object[] params)
-			throws IllegalArgumentException,
-			IllegalAccessException, InvocationTargetException {
-		method.setAccessible(true);
-		return method.invoke(object, params);
+		return OverloadedMethod.valueOf(object.getClass(), function).isInvokableFor(object, params);
 	}
 
 	/**
@@ -247,29 +167,7 @@ public class ReflectUtil {
 	 * @return the result of the invocation
 	 */
 	public static Object invoke(final Object object, final String function, final Object... params) {
-		final Class<? extends Object> type = object.getClass();
-		try {
-			final Map<Method, Integer> candidateDistances = getCompatibleMethods(type, function, params);
-
-			if (candidateDistances.isEmpty())
-				throw new IllegalArgumentException(String.format(
-					"no suitable method found in %s for name %s and parameters %s", type, function,
-					Arrays.toString(params)));
-
-			if (candidateDistances.size() == 1)
-				return invoke(candidateDistances.keySet().iterator().next(), object, params);
-
-			final Method bestMethod = pickBest(candidateDistances);
-			if (bestMethod == null)
-				throw new IllegalArgumentException(String.format(
-					"more than one suitable method found in %s for name %s and parameters %s", type,
-					function, Arrays.toString(params)));
-			return invoke(bestMethod, object, params);
-		} catch (final Exception e) {
-			throw new IllegalArgumentException(String.format(
-				"Could not invoke method %s for type %s with parameters %s", function, type, Arrays
-					.toString(params)), e);
-		}
+		return OverloadedMethod.valueOf(object.getClass(), function).invoke(object, params);
 	}
 
 	/**
@@ -280,19 +178,8 @@ public class ReflectUtil {
 	 *        the type to check
 	 * @return true if it has an accessible default constructor.
 	 */
-	public static Boolean isInstantiable(final Class<?> type) {
-		synchronized (CACHED_DEFAULT_CONSTRUCTORS) {
-			try {
-				Constructor<?> constructor = CACHED_DEFAULT_CONSTRUCTORS.get(type);
-				if (constructor == null) {
-					CACHED_DEFAULT_CONSTRUCTORS.put(type, constructor = type.getDeclaredConstructor());
-					constructor.setAccessible(true);
-				}
-				return true;
-			} catch (final NoSuchMethodException e) {
-				return false;
-			}
-		}
+	public static boolean isInstantiable(final Class<?> type) {
+		return OverloadedContructor.valueOf(type).isInvokableFor();
 	}
 
 	/**
@@ -327,18 +214,8 @@ public class ReflectUtil {
 	 *         possible causes are {@link NoSuchMethodException}, {@link InstantiationException} ,
 	 *         {@link IllegalAccessException}, * {@link InvocationTargetException}
 	 */
-	@SuppressWarnings("unchecked")
 	public static <T> T newInstance(final Class<T> type) throws IllegalArgumentException {
-		try {
-			Constructor<T> constructor = (Constructor<T>) CACHED_DEFAULT_CONSTRUCTORS.get(type);
-			if (constructor == null) {
-				CACHED_DEFAULT_CONSTRUCTORS.put(type, constructor = type.getDeclaredConstructor());
-				constructor.setAccessible(true);
-			}
-			return constructor.newInstance();
-		} catch (final Exception e) {
-			throw new IllegalArgumentException("Could not create an instance of type " + type, e);
-		}
+		return OverloadedContructor.valueOf(type).invoke();
 	}
 
 	/**
@@ -359,41 +236,7 @@ public class ReflectUtil {
 	 *         possible causes are {@link NoSuchMethodException}, {@link InstantiationException} ,
 	 *         {@link IllegalAccessException}, {@link InvocationTargetException}
 	 */
-	@SuppressWarnings("unchecked")
 	public static <T> T newInstance(final Class<T> type, final Object... params) throws IllegalArgumentException {
-		try {
-			final Map<Constructor<?>, Integer> candidateDistances = getCompatibleConstructors(type, params);
-
-			if (candidateDistances.isEmpty())
-				throw new IllegalArgumentException(String.format("no suitable constructor found in %s for %s", type,
-					Arrays.toString(params)));
-
-			if (candidateDistances.size() == 1)
-				return (T) candidateDistances.keySet().iterator().next().newInstance(params);
-
-			final Constructor<?> bestConstructor = pickBest(candidateDistances);
-			if (bestConstructor == null)
-				throw new IllegalArgumentException(String.format(
-					"more than one suitable constructor found in %s for %s", type, Arrays
-						.toString(params)));
-			return (T) bestConstructor.newInstance(params);
-		} catch (final Exception e) {
-			throw new IllegalArgumentException("Could not create an instance of type " + type, e);
-		}
-	}
-
-	private static <T> T pickBest(final Map<T, Integer> candidateDistances) {
-		int minDistance = Integer.MAX_VALUE;
-		int minCount = 0;
-		T minConstructor = null;
-		for (final Entry<T, Integer> entry : candidateDistances.entrySet())
-			if (entry.getValue() < minDistance) {
-				minDistance = entry.getValue();
-				minConstructor = entry.getKey();
-				minCount = 1;
-			} else if (entry.getValue() == minDistance)
-				minCount++;
-
-		return minCount == 1 ? minConstructor : null;
+		return OverloadedContructor.valueOf(type).invoke(params);
 	}
 }
