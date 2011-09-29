@@ -135,7 +135,6 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		out.writeInt(this.children.size());
 
 		for (final JsonNode child : this.children) {
-
 			out.writeInt(child.getTypePos());
 			child.write(out);
 		}

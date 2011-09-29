@@ -73,7 +73,7 @@ public class SopremoUtil {
 	public static JsonNode deserializeNode(final DataInput in) throws IOException {
 		SerializationString.get().read(in);
 		final JsonParser parser = new JsonParser(SerializationString.get().getValue());
-//		parser.setCodec(JsonUtil.OBJECT_MAPPER);
+		// parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		return parser.readValueAsTree();
 	}
 
@@ -158,7 +158,7 @@ public class SopremoUtil {
 	public static void serializeNode(final DataOutput out, final JsonNode value) throws IOException {
 		final StringWriter writer = new StringWriter();
 		final JsonGenerator generator = new JsonGenerator(writer);
-//		generator.setCodec(JsonUtil.OBJECT_MAPPER);
+		// generator.setCodec(JsonUtil.OBJECT_MAPPER);
 		generator.writeTree(value);
 		SerializationString.get().setValue(writer.toString());
 		SerializationString.get().write(out);
@@ -222,5 +222,13 @@ public class SopremoUtil {
 
 	public static void untrace() {
 		((Log4JLogger) LOG).getLogger().setLevel(((Log4JLogger) LOG).getLogger().getParent().getLevel());
+	}
+
+	public static JsonNode unwrap(JsonNodeWrapper wrapper) {
+		return wrapper.getValue();
+	}
+
+	public static JsonNodeWrapper wrap(JsonNode node) {
+		return new JsonNodeWrapper(node);
 	}
 }

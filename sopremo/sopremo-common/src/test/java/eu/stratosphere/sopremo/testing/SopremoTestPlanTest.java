@@ -57,7 +57,6 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
  * @author Arvid Heise
  */
 
-@Ignore
 public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	/**
 	 * Tests if a {@link SopremoTestPlan} without explicit data sources and sinks can be executed.
@@ -165,6 +164,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	/**
 	 * Tests a {@link SopremoTestPlan} with a {@link CrossContract}.
 	 */
+	@Ignore
 	@Test
 	public void settingValuesShouldWorkWithSourceContracts() {
 		final CartesianProduct cartesianProduct = new CartesianProduct(null, null);

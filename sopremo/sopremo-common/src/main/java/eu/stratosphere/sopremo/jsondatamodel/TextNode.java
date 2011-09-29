@@ -92,7 +92,7 @@ public class TextNode extends JsonNode {
 	public boolean isTextual() {
 		return true;
 	}
-	
+
 	@Override
 	public TYPES getType() {
 		return TYPES.TextNode;
@@ -100,7 +100,7 @@ public class TextNode extends JsonNode {
 
 	@Override
 	public int compareTo(Key other) {
-		return this.value.compareTo(((TextNode)other).value);
+		return this.value.compareTo(((TextNode) other).value);
 	}
 
 }
