@@ -14,7 +14,7 @@ public class Signature implements SerializableSopremoType {
 	 * Constant that is returned by {@link #getDistance(MethodSignature)} if the given actual signature is incompatible
 	 * with the declared signature.
 	 */
-	public static final int INCOMPATIBLE = Integer.MAX_VALUE;
+	public static final int INCOMPATIBLE = -1;
 
 	/**
 	 * 
@@ -60,9 +60,10 @@ public class Signature implements SerializableSopremoType {
 
 		int distance = 0;
 		for (int index = 0; index < this.parameterTypes.length; index++) {
-			if (!this.parameterTypes[index].isAssignableFrom(actualParamTypes[index]))
+			int actualDistance = ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
+			if(actualDistance < 0)
 				return INCOMPATIBLE;
-			distance += ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
+			distance += actualDistance;
 		}
 
 		return distance;
@@ -90,5 +91,9 @@ public class Signature implements SerializableSopremoType {
 		final StringBuilder builder = new StringBuilder();
 		builder.append("(").append(Arrays.toString(this.parameterTypes)).append(")");
 		return builder.toString();
+	}
+
+	public Object[] adjustParameters(Object[] params) {
+		return params;
 	}
 }

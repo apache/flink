@@ -1,5 +1,6 @@
 package eu.stratosphere.util.reflect;
 
+import java.lang.reflect.Array;
 
 /**
  * Signature with a number of fixed arguments followed by a variable number of arguments of a specific type.
@@ -38,14 +39,36 @@ public class VarArgSignature extends Signature {
 		}
 
 		if (nonVarArgs < actualParamTypes.length) {
-			final Class<?> varargType = this.getParameterTypes()[nonVarArgs].getComponentType();
-			for (int index = nonVarArgs; index < actualParamTypes.length; index++) {
-				if (!varargType.isAssignableFrom(actualParamTypes[index]))
-					return INCOMPATIBLE;
-				distance += ReflectUtil.getDistance(varargType, actualParamTypes[index]) + 1;
+			if (actualParamTypes.length > nonVarArgs + 1
+				|| !this.getParameterTypes()[nonVarArgs].isAssignableFrom(actualParamTypes[nonVarArgs])) {
+				final Class<?> varargType = this.getParameterTypes()[nonVarArgs].getComponentType();
+				for (int index = nonVarArgs; index < actualParamTypes.length; index++) {
+					if (!varargType.isAssignableFrom(actualParamTypes[index]))
+						return INCOMPATIBLE;
+					distance += ReflectUtil.getDistance(varargType, actualParamTypes[index]) + 1;
+				}
 			}
 		}
 
 		return distance;
+	}
+
+	@Override
+	public Object[] adjustParameters(Object[] params) {
+		Class<?>[] parameterTypes = getParameterTypes();
+		final int varArgIndex = parameterTypes.length - 1;
+		final int varArgCount = params.length - varArgIndex;
+
+		if (varArgCount == 1 && parameterTypes[varArgIndex].isInstance(params[varArgIndex]))
+			return params;
+
+		final Object vararg = Array.newInstance(parameterTypes[varArgIndex].getComponentType(), varArgCount);
+		for (int index = 0; index < varArgCount; index++)
+			Array.set(vararg, index, params[varArgIndex + index]);
+
+		Object[] actualParams = new Object[parameterTypes.length];
+		System.arraycopy(params, 0, actualParams, 0, varArgIndex);
+		actualParams[varArgIndex] = vararg;
+		return actualParams;
 	}
 }

@@ -3,7 +3,7 @@ package eu.stratosphere.util.reflect;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public class OverloadedMethod<ReturnType> extends OverloadedInvokable<Method, Object, ReturnType> {
+public class DynamicMethod<ReturnType> extends DynamicInvokable<Method, Object, ReturnType> {
 
 	/**
 	 * 
@@ -12,7 +12,7 @@ public class OverloadedMethod<ReturnType> extends OverloadedInvokable<Method, Ob
 
 	private Class<?> returnType;
 
-	public OverloadedMethod(String name) {
+	public DynamicMethod(String name) {
 		super(name);
 	}
 
@@ -29,7 +29,7 @@ public class OverloadedMethod<ReturnType> extends OverloadedInvokable<Method, Ob
 	@SuppressWarnings("unchecked")
 	@Override
 	public Class<ReturnType> getReturnType() {
-		return (Class<ReturnType>) returnType;
+		return (Class<ReturnType>) this.returnType;
 	}
 
 	@Override
@@ -55,8 +55,8 @@ public class OverloadedMethod<ReturnType> extends OverloadedInvokable<Method, Ob
 		return clazz.getDeclaredMethod(this.getName(), parameterTypes);
 	}
 
-	public static OverloadedMethod<?> valueOf(Class<?> clazz, String name) {
-		OverloadedMethod<?> method = new OverloadedMethod<Object>(name);
+	public static DynamicMethod<?> valueOf(Class<?> clazz, String name) {
+		DynamicMethod<?> method = new DynamicMethod<Object>(name);
 		for (Method m : clazz.getDeclaredMethods())
 			if (m.getName().equals(name))
 				method.addSignature(m);

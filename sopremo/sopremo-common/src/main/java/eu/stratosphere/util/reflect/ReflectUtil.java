@@ -1,7 +1,6 @@
 package eu.stratosphere.util.reflect;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -12,7 +11,7 @@ import java.util.Map;
  * @author Arvid Heise
  */
 public class ReflectUtil {
-	private static Map<Class<?>, OverloadedContructor<?>> CACHED_CONSTRUCTORS = new HashMap<Class<?>, OverloadedContructor<?>>();
+	private static Map<Class<?>, DynamicClass<?>> CACHED_CLASSES = new HashMap<Class<?>, DynamicClass<?>>();
 
 	@SuppressWarnings("serial")
 	private final static Map<Class<?>, Class<?>> BoxingClasses = new IdentityHashMap<Class<?>, Class<?>>() {
@@ -73,13 +72,13 @@ public class ReflectUtil {
 	 *        the super class in the hierarchy
 	 * @param subclass
 	 *        the sub class of the hierarchy
-	 * @return the minimum distance
+	 * @return the minimum distance or -1 if <code>subclass</code> is not a subclass of <code>superclass</code> 
 	 */
 	public static int getDistance(final Class<?> superClass, final Class<?> subclass) {
-		if (superClass == subclass)
+		if (isSameTypeOrPrimitive(superClass, subclass))
 			return 0;
 		if (!superClass.isAssignableFrom(subclass))
-			return Integer.MAX_VALUE;
+			return -1;
 
 		if (superClass.isInterface()) {
 			final Class<?>[] interfaces = subclass.getInterfaces();
@@ -100,47 +99,6 @@ public class ReflectUtil {
 	}
 
 	/**
-	 * Dynamically retrieves the value of the specified field of an object.
-	 * 
-	 * @param object
-	 *        the object to invoke on
-	 * @param fieldName
-	 *        the name of the field
-	 * @return the value of the field
-	 */
-	public static Object getFieldValue(final Object object, final String fieldName) {
-		final Class<? extends Object> type = object.getClass();
-		try {
-			final Field field = type.getDeclaredField(fieldName);
-			field.setAccessible(true);
-			return field.get(object);
-		} catch (final Exception e) {
-			throw new IllegalArgumentException(String.format("Could not get field value %s for type %s", fieldName,
-				type), e);
-		}
-	}
-
-	/**
-	 * Dynamically retrieves the static value of the specified field of a type.
-	 * 
-	 * @param type
-	 *        the type to invoke on
-	 * @param fieldName
-	 *        the name of the field
-	 * @return the value of the field
-	 */
-	public static Object getStaticValue(final Class<?> type, final String fieldName) {
-		try {
-			final Field field = type.getDeclaredField(fieldName);
-			field.setAccessible(true);
-			return field.get(null);
-		} catch (final Exception e) {
-			throw new IllegalArgumentException(String.format("Could not get field value %s for type %s", fieldName,
-				type), e);
-		}
-	}
-
-	/**
 	 * Checks dynamically whether the object has the specified function, which takes the given parameters.
 	 * 
 	 * @param object
@@ -152,7 +110,7 @@ public class ReflectUtil {
 	 * @return true if such a method exists
 	 */
 	public static boolean hasFunction(final Object object, final String function, final Object... params) {
-		return OverloadedMethod.valueOf(object.getClass(), function).isInvokableFor(object, params);
+		return getDynamicClass(object.getClass()).getMethod(function).isInvokableFor(params);
 	}
 
 	/**
@@ -166,8 +124,9 @@ public class ReflectUtil {
 	 *        the parameters of the function
 	 * @return the result of the invocation
 	 */
+	@SuppressWarnings("unchecked")
 	public static Object invoke(final Object object, final String function, final Object... params) {
-		return OverloadedMethod.valueOf(object.getClass(), function).invoke(object, params);
+		return getDynamicClass((Class<Object>) object.getClass()).getMethod(function).invoke(object, params);
 	}
 
 	/**
@@ -179,7 +138,7 @@ public class ReflectUtil {
 	 * @return true if it has an accessible default constructor.
 	 */
 	public static boolean isInstantiable(final Class<?> type) {
-		return OverloadedContructor.valueOf(type).isInvokableFor();
+		return getDynamicClass(type).isInstantiable();
 	}
 
 	/**
@@ -202,7 +161,7 @@ public class ReflectUtil {
 	 * public, the method will try to
 	 * gain access through {@link Constructor#setAccessible(boolean)}. <br>
 	 * <br>
-	 * Note: this method is not thread-safe
+	 * Note: this method is thread-safe
 	 * 
 	 * @param <T>
 	 *        the type to instantiate
@@ -215,7 +174,7 @@ public class ReflectUtil {
 	 *         {@link IllegalAccessException}, * {@link InvocationTargetException}
 	 */
 	public static <T> T newInstance(final Class<T> type) throws IllegalArgumentException {
-		return OverloadedContructor.valueOf(type).invoke();
+		return getDynamicClass(type).newInstance();
 	}
 
 	/**
@@ -237,6 +196,14 @@ public class ReflectUtil {
 	 *         {@link IllegalAccessException}, {@link InvocationTargetException}
 	 */
 	public static <T> T newInstance(final Class<T> type, final Object... params) throws IllegalArgumentException {
-		return OverloadedContructor.valueOf(type).invoke(params);
+		return getDynamicClass(type).newInstance(params);
+	}
+
+	public static synchronized <T> DynamicClass<T> getDynamicClass(Class<T> clazz) {
+		@SuppressWarnings("unchecked")
+		DynamicClass<T> dynamicClass = (DynamicClass<T>) CACHED_CLASSES.get(clazz);
+		if (dynamicClass == null)
+			CACHED_CLASSES.put(clazz, dynamicClass = new DynamicClass<T>(clazz));
+		return dynamicClass;
 	}
 }

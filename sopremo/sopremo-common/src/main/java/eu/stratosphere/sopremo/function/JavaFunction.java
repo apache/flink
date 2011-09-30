@@ -7,7 +7,7 @@ import org.codehaus.jackson.JsonNode;
 
 import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.util.reflect.OverloadedMethod;
+import eu.stratosphere.util.reflect.DynamicMethod;
 import eu.stratosphere.util.reflect.Signature;
 
 public class JavaFunction extends Function {
@@ -16,12 +16,12 @@ public class JavaFunction extends Function {
 	 */
 	private static final long serialVersionUID = -789826280721581321L;
 
-	private OverloadedMethod<JsonNode> method;
+	private DynamicMethod<JsonNode> method;
 
 	public JavaFunction(final String name) {
 		super(name);
 
-		this.method = new OverloadedMethod<JsonNode>(name);
+		this.method = new DynamicMethod<JsonNode>(name);
 	}
 
 	public void addSignature(final Method method) {

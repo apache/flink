@@ -80,7 +80,7 @@ private EvaluationExpression makePath(Token inputVar, String... path) {
 private Operator getVariable(Token variable) {
 	Operator op = variables.get(variable.getText());
 	if(op == null)
-		throw new IllegalArgumentException("Unknown variable" + variable.getText(), new RecognitionException(variable.getInputStream()));
+		throw new IllegalArgumentException("Unknown variable " + variable.getText(), new RecognitionException(variable.getInputStream()));
 	return op;
 }
 
@@ -109,7 +109,10 @@ script
 	:	 statement (';' statement)* ';' ->;
 
 statement
-	:	(assignment | operator) ->;	
+	:	(assignment | operator | packageImport) ->;
+	
+packageImport
+	:  'using' packageName=ID { importPackage($packageName.text); }->;
 	
 assignment
 	:	target=VAR '=' source=operator { variables.put($target.text, $source.op); } -> ;
@@ -133,9 +136,10 @@ andExpression
   -> ^(EXPRESSION["AndExpression"] { $exprs.toArray(new EvaluationExpression[$exprs.size()]) });
   
 elementExpression
-	:	comparisonExpression
-	|	elem=comparisonExpression 'in' set=comparisonExpression -> ^(EXPRESSION["ElementInSetExpression"] $elem {ElementInSetExpression.Quantor.EXISTS_IN} $set)
-	|	elem=comparisonExpression 'not in' set=comparisonExpression -> ^(EXPRESSION["ElementInSetExpression"] $elem {ElementInSetExpression.Quantor.EXISTS_NOT_IN} $set);
+	:	elem=comparisonExpression (not='not'? 'in' set=comparisonExpression)? 
+	-> { set == null }? $elem
+	-> ^(EXPRESSION["ElementInSetExpression"] $elem 
+	{ $not == null ? ElementInSetExpression.Quantor.EXISTS_IN : ElementInSetExpression.Quantor.EXISTS_NOT_IN} $set);
 	
 comparisonExpression
 	:	e1=arithmeticExpression ((s='<=' | s='>=' | s='<' | s='>' | s='==' | s='!=') e2=arithmeticExpression)?
@@ -273,13 +277,10 @@ writeOperator
 genericOperator
 scope { 
   OperatorFactory.OperatorInfo operatorInfo;
-}
-	:	name=ID {$genericOperator::operatorInfo = operatorFactory.getOperatorInfo($name.text);}
-({$genericOperator::operatorInfo == null}? moreName=ID 
-{$genericOperator::operatorInfo = operatorFactory.getOperatorInfo($name.text + " " + $moreName.text);})? 
+}	:	name=ID { $genericOperator::operatorInfo = findOperatorGreedily($name);}
 { 
   if($genericOperator::operatorInfo == null)
-    throw new IllegalArgumentException("Unknown operator:", new RecognitionException(name.getInputStream()));
+    throw new IllegalArgumentException("Unknown operator: " + $name.text, new RecognitionException(name.getInputStream()));
   $operator::result = $genericOperator::operatorInfo.newInstance();
 } 
 operatorFlag*

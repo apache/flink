@@ -1,5 +1,8 @@
 package eu.stratosphere.simple;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Modifier;
@@ -17,6 +20,7 @@ import org.antlr.runtime.MissingTokenException;
 import org.antlr.runtime.Parser;
 import org.antlr.runtime.RecognitionException;
 import org.antlr.runtime.RecognizerSharedState;
+import org.antlr.runtime.Token;
 import org.antlr.runtime.TokenStream;
 import org.antlr.runtime.UnwantedTokenException;
 import eu.stratosphere.sopremo.ExpressionTagFactory;
@@ -110,6 +114,30 @@ public abstract class SimpleParser extends Parser {
 	public Object recoverFromMismatchedSet(IntStream input, RecognitionException e, BitSet follow)
 			throws RecognitionException {
 		throw e;
+	}
+
+	public OperatorFactory.OperatorInfo<?> findOperatorGreedily(Token firstWord) {
+		StringBuilder name = new StringBuilder(firstWord.getText());
+		IntList wordBoundaries = new IntArrayList();
+		wordBoundaries.add(name.length());
+
+		// greedily concatenate as many tokens as possible
+		for (int lookAhead = 1; this.input.LA(lookAhead) == firstWord.getType(); lookAhead++) {
+			Token matchedToken = this.input.LT(lookAhead);
+			name.append(' ').append(matchedToken.getText());
+			wordBoundaries.add(name.length());
+		}
+
+		int tokenCount = wordBoundaries.size();
+		OperatorFactory.OperatorInfo<?> info = null;
+		for (; info == null && tokenCount > 0; )
+			info = this.operatorFactory.getOperatorInfo(name.substring(0, wordBoundaries.getInt(--tokenCount)));
+
+		// consume additional tokens
+		for (; tokenCount > 0; tokenCount--)
+			this.input.consume();
+
+		return info;
 	}
 
 	@Override

@@ -3,8 +3,8 @@ package eu.stratosphere.util.reflect;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
-public class OverloadedContructor<DeclaringClass> extends
-		OverloadedInvokable<Constructor<DeclaringClass>, DeclaringClass, DeclaringClass> {
+public class DynamicConstructor<DeclaringClass> extends
+		DynamicInvokable<Constructor<DeclaringClass>, DeclaringClass, DeclaringClass> {
 
 	/**
 	 * 
@@ -13,7 +13,7 @@ public class OverloadedContructor<DeclaringClass> extends
 
 	private Class<?> declaringClass;
 
-	public OverloadedContructor() {
+	public DynamicConstructor() {
 		super("<init>");
 	}
 
@@ -60,8 +60,8 @@ public class OverloadedContructor<DeclaringClass> extends
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <C> OverloadedContructor<C> valueOf(Class<C> clazz) {
-		OverloadedContructor<C> ctor = new OverloadedContructor<C>();
+	public static <C> DynamicConstructor<C> valueOf(Class<C> clazz) {
+		DynamicConstructor<C> ctor = new DynamicConstructor<C>();
 		for (Constructor<?> constructor : clazz.getDeclaredConstructors())
 			ctor.addSignature((Constructor<C>) constructor);
 		return ctor;

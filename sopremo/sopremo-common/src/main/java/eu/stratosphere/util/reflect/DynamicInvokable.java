@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.util.ArrayList;
@@ -20,14 +19,14 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.sopremo.EvaluationException;
 
-public abstract class OverloadedInvokable<MemberType extends Member, DeclaringType, ReturnType> implements Serializable {
+public abstract class DynamicInvokable<MemberType extends Member, DeclaringType, ReturnType> implements Serializable {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 715358230985689455L;
 
-	public static final Log LOG = LogFactory.getLog(OverloadedInvokable.class);
+	public static final Log LOG = LogFactory.getLog(DynamicInvokable.class);
 
 	private transient Map<Signature, MemberType> cachedSignatures = new HashMap<Signature, MemberType>();
 
@@ -44,7 +43,7 @@ public abstract class OverloadedInvokable<MemberType extends Member, DeclaringTy
 		for (int index = 0; index < size; index++)
 			try {
 				this.originalSignatures.put((Signature) ois.readObject(),
-					findMember((Class<DeclaringType>) ois.readObject(), (Class<?>[]) ois.readObject()));
+					this.findMember((Class<DeclaringType>) ois.readObject(), (Class<?>[]) ois.readObject()));
 			} catch (final NoSuchMethodException e) {
 				throw new EvaluationException("Cannot find registered java function " + this.getName(), e);
 			}
@@ -59,7 +58,7 @@ public abstract class OverloadedInvokable<MemberType extends Member, DeclaringTy
 		for (final Entry<Signature, MemberType> entry : this.originalSignatures.entrySet()) {
 			oos.writeObject(entry.getKey());
 			oos.writeObject(entry.getValue().getDeclaringClass());
-			oos.writeObject(getParameterTypes(entry.getValue()));
+			oos.writeObject(this.getParameterTypes(entry.getValue()));
 		}
 	}
 
@@ -67,16 +66,19 @@ public abstract class OverloadedInvokable<MemberType extends Member, DeclaringTy
 		return this.name;
 	}
 
-	public OverloadedInvokable(String name) {
+	public DynamicInvokable(String name) {
 		this.name = name;
 	}
 
 	public void addSignature(final MemberType member) {
 		final Class<?>[] parameterTypes = this.getParameterTypes(member);
 		Signature signature;
-		if (parameterTypes.length == 1 && parameterTypes[0].isArray())
-			signature = new ArraySignature(parameterTypes[0]);
-		else if (this.isVarargs(member))
+		/*
+		 * if (parameterTypes.length == 1 && parameterTypes[0].isArray())
+		 * signature = new ArraySignature(parameterTypes[0]);
+		 * else
+		 */
+		if (this.isVarargs(member))
 			signature = new VarArgSignature(parameterTypes);
 		else
 			signature = new Signature(parameterTypes);
@@ -91,16 +93,19 @@ public abstract class OverloadedInvokable<MemberType extends Member, DeclaringTy
 
 	protected abstract Class<?>[] getParameterTypes(final MemberType member);
 
-	private MemberType findBestOverload(final Signature signature) {
+	private Signature findBestSignature(final Signature signature) {
 		MemberType member = this.cachedSignatures.get(signature);
 		if (member != null)
-			return member;
+			return signature;
 
-		int minDistance = Signature.INCOMPATIBLE;
+		int minDistance = Integer.MAX_VALUE;
 		boolean ambiguous = false;
 		Signature bestSignatureSoFar = null;
 		for (final Entry<Signature, MemberType> originalSignature : this.originalSignatures.entrySet()) {
 			final int distance = originalSignature.getKey().getDistance(signature);
+			if (distance < 0)
+				continue;
+			
 			if (distance < minDistance) {
 				minDistance = distance;
 				bestSignatureSoFar = originalSignature.getKey();
@@ -109,7 +114,7 @@ public abstract class OverloadedInvokable<MemberType extends Member, DeclaringTy
 				ambiguous = true;
 		}
 
-		if (minDistance == Signature.INCOMPATIBLE)
+		if (minDistance == Integer.MAX_VALUE)
 			return null;
 
 		if (ambiguous && LOG.isWarnEnabled())
@@ -117,7 +122,7 @@ public abstract class OverloadedInvokable<MemberType extends Member, DeclaringTy
 
 		member = minDistance == Signature.INCOMPATIBLE ? null : this.originalSignatures.get(bestSignatureSoFar);
 		this.cachedSignatures.put(bestSignatureSoFar, member);
-		return member;
+		return bestSignatureSoFar;
 	}
 
 	private void warnForAmbiguity(final Signature signature, final int minDistance) {
@@ -135,38 +140,24 @@ public abstract class OverloadedInvokable<MemberType extends Member, DeclaringTy
 
 	public ReturnType invoke(final Object context, final Object... params) {
 		final Class<?>[] paramTypes = this.getParamTypes(params);
-		final MemberType member = this.findBestOverload(new Signature(paramTypes));
-		if (member == null)
+		final Signature signature = this.findBestSignature(new Signature(paramTypes));
+		if (signature == null)
 			throw new EvaluationException(String.format("No method %s found for parameter types %s", this.getName(),
 				Arrays.toString(paramTypes)));
-		return this.invokeMember(member, context, params);
+		return this.invokeSignature(signature, context, params);
 	}
 
 	public abstract Class<ReturnType> getReturnType();
 
 	public boolean isInvokableFor(Object... params) {
 		final Class<?>[] paramTypes = this.getParamTypes(params);
-		final MemberType member = this.findBestOverload(new Signature(paramTypes));
-		return member != null;
+		return this.findBestSignature(new Signature(paramTypes)) != null;
 	}
 
-	public ReturnType invokeMember(final MemberType method, final Object context, final Object... paramNodes) {
+	public ReturnType invokeSignature(final Signature signature, final Object context, final Object... paramNodes) {
 		try {
-			Object[] params = paramNodes;
-			final Class<?>[] parameterTypes = this.getParameterTypes(method);
-			if (this.isVarargs(method)) {
-				final int varArgIndex = parameterTypes.length - 1;
-				final int varArgCount = paramNodes.length - varArgIndex;
-				final Object vararg = Array.newInstance(parameterTypes[varArgIndex].getComponentType(), varArgCount);
-				for (int index = 0; index < varArgCount; index++)
-					Array.set(vararg, index, paramNodes[varArgIndex + index]);
-
-				params = new Object[parameterTypes.length];
-				System.arraycopy(paramNodes, 0, params, 0, varArgIndex);
-				params[varArgIndex] = vararg;
-			} else if (parameterTypes.length == 1 && params.length != 1)
-				params = new Object[] { params };
-			return this.invokeDirectly(method, context, params);
+			return this.invokeDirectly(this.cachedSignatures.get(signature), context,
+				signature.adjustParameters(paramNodes));
 		} catch (final Exception e) {
 			throw new EvaluationException("Cannot invoke " + this.getName() + " with " + Arrays.toString(paramNodes), e);
 		}

@@ -24,6 +24,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -39,6 +40,7 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
  * 
  * @author Arvid Heise
  */
+@Name(verb = "fuse")
 public class Fusion extends ElementaryOperator<Fusion> {
 	/**
 	 * 
