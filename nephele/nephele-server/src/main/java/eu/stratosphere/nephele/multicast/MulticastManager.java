@@ -15,12 +15,17 @@
 
 package eu.stratosphere.nephele.multicast;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -43,6 +48,14 @@ import eu.stratosphere.nephele.types.Record;
 
 public class MulticastManager implements ChannelLookupProtocol {
 
+	// Indicates if the arrangement of nodes within the overlay-tree should be randomized or not.
+	// If set to false, arrangement of the same set of receiver nodes is guaranteed to be the same
+	private final boolean randomized;
+
+	// Indicates the desired branching of the generated multicast-tree. 0 means unicast transmisison, 1 sequential tree
+	// 2 binomial tree, 3+ clustered tree
+	private final int treebranching;
+
 	private final AbstractScheduler scheduler;
 
 	private final Map<ChannelID, MulticastForwardingTable> cachedTrees = new HashMap<ChannelID, MulticastForwardingTable>();
@@ -51,6 +64,9 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 	public MulticastManager(final AbstractScheduler scheduler) {
 		this.scheduler = scheduler;
+
+		this.randomized = GlobalConfiguration.getBoolean("multicast.randomize", false);
+		this.treebranching = GlobalConfiguration.getInteger("multicast.branching", 1);
 	}
 
 	/**
@@ -67,13 +83,11 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 */
 	public synchronized ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
 			ChannelID sourceChannelID) {
-
 		System.out.println("==RECEIVING REQUEST FROM " + caller + " == SOURCE CHANNEL:  " + sourceChannelID);
 		// check, if the tree is already created and cached
 		if (this.cachedTrees.containsKey(sourceChannelID)) {
 			System.out.println("==RETURNING CACHED ENTRY TO " + caller + " ==");
 			System.out.println(cachedTrees.get(sourceChannelID).getConnectionInfo(caller));
-			System.out.println("==END ENTRY==");
 
 			return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 		} else {
@@ -94,10 +108,20 @@ public class MulticastManager implements ChannelLookupProtocol {
 			}
 
 			// receivers up and running.. create tree
-			LinkedList<TreeNode> treenodes = extractTreeNodes(caller, jobID, sourceChannelID);
+			LinkedList<TreeNode> treenodes = extractTreeNodes(caller, jobID, sourceChannelID, this.randomized);
 
-			cachedTrees.put(sourceChannelID, MulticastCluster.createClusteredTree(treenodes, 2));
+			if(this.treebranching == 0){
+				// We want a unicast tree.. 
+				cachedTrees.put(sourceChannelID, createUnicastTree(treenodes));
+			} else if(this.treebranching == 1){
+				cachedTrees.put(sourceChannelID, createSequentialTree(treenodes));
+			}else if(this.treebranching == 2){
+				cachedTrees.put(sourceChannelID, createBinaryTree(treenodes));
+			}else{
+				cachedTrees.put(sourceChannelID, MulticastCluster.createClusteredTree(treenodes, this.treebranching));
+			}
 
+			// cachedTrees.put(sourceChannelID, MulticastCluster.createClusteredTree(treenodes, 2));
 			// cachedTrees.put(sourceChannelID, createSequentialTree(treenodes));
 
 			System.out.println("==RETURNING ENTRY TO " + caller + " ==");
@@ -118,12 +142,42 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 */
 	private MulticastForwardingTable createSequentialTree(LinkedList<TreeNode> nodes) {
 		MulticastForwardingTable table = new MulticastForwardingTable();
+		String treelist = "";
 
-		System.out.println("+++TREE+++");
 		while (nodes.size() > 0) {
 			TreeNode actualnode = nodes.pollFirst();
+			treelist = treelist + "-> " + actualnode.getConnectionInfo();
 
-			System.out.println("POLL FIRST: " + actualnode.getConnectionInfo());
+			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
+
+			// add all local targets
+			for (ChannelID id : actualnode.getLocalTargets()) {
+				actualentry.addLocalTarget(id);
+			}
+
+			// add remote target - next node in the list
+			if (nodes.size() > 0) {
+				actualentry.addRemoteTarget(nodes.getFirst().getConnectionInfo());
+			}
+
+			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
+		}
+		System.out.println("Sequential TreeList: " + treelist);
+		return table;
+	}
+
+	private MulticastForwardingTable createBinaryTree(LinkedList<TreeNode> nodes) {
+		MulticastForwardingTable table = new MulticastForwardingTable();
+
+		LinkedList<TreeNode> unconnectedNodes = new LinkedList<TreeNode>();
+
+		unconnectedNodes.addAll(nodes);
+
+		// remove sender node...
+		unconnectedNodes.removeFirst();
+
+		while (nodes.size() > 0) {
+			TreeNode actualnode = nodes.pollFirst();
 
 			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
 
@@ -134,22 +188,61 @@ public class MulticastManager implements ChannelLookupProtocol {
 			}
 
 			// add remote target - next node in the list
-			if (nodes.size() > 0) {
-				System.out.println("remote target: " + nodes.getFirst().getConnectionInfo());
-				actualentry.addRemoteTarget(nodes.getFirst().getConnectionInfo());
+			if (unconnectedNodes.size() > 0) {
+				actualentry.addRemoteTarget(unconnectedNodes.pollFirst().getConnectionInfo());
+				if (unconnectedNodes.size() > 0) {
+					actualentry.addRemoteTarget(unconnectedNodes.pollFirst().getConnectionInfo());
+				}
 			}
 
 			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
 		}
-		System.out.println("+++END TREE+++");
 		return table;
 	}
 
-	private MulticastForwardingTable createClusteredTree(LinkedList<TreeNode> nodes) {
+	/**
+	 * Creates a simple unicast-like tree. The first node in the list has to forward entries to all other nodes.
+	 * 
+	 * @param nodes
+	 * @return
+	 */
+	private MulticastForwardingTable createUnicastTree(LinkedList<TreeNode> nodes) {
+		MulticastForwardingTable table = new MulticastForwardingTable();
 
-		return null;
 
+		// pop off the first tree node (the sender..)
+		TreeNode firstnode = nodes.pollFirst();
+		ConnectionInfoLookupResponse firstentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
+
+		// add all local targets
+		for (ChannelID id : firstnode.getLocalTargets()) {
+			firstentry.addLocalTarget(id);
+		}
+
+		// Add all other nodes as remote targets
+		for (TreeNode n : nodes) {
+			firstentry.addRemoteTarget(n.getConnectionInfo());
+		}
+
+		table.addConnectionInfo(firstnode.getConnectionInfo(), firstentry);
+
+		// Add local targets for all other nodes..
+		while (nodes.size() > 0) {
+			TreeNode actualnode = nodes.pollFirst();
+
+			
+			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
+
+			// add all local targets
+			for (ChannelID id : actualnode.getLocalTargets()) {
+				actualentry.addLocalTarget(id);
+			}
+
+			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
+		}
+		return table;
 	}
+
 
 	/**
 	 * Checks, if all target vertices for a multicast transmission exist.
@@ -216,7 +309,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 * @param sourceChannelID
 	 * @return
 	 */
-	private LinkedList<TreeNode> extractTreeNodes(InstanceConnectionInfo source, JobID jobID, ChannelID sourceChannelID) {
+	private LinkedList<TreeNode> extractTreeNodes(InstanceConnectionInfo source, JobID jobID, ChannelID sourceChannelID, boolean randomize) {
 		System.out.println("==NO CACHE ENTRY FOUND. CREATING TREE==");
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 
@@ -273,7 +366,10 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		treenodes.add(actualnode);
 
+
 		// now we have the root-node.. lets extract all other nodes
+
+		LinkedList<TreeNode> receivernodes = new LinkedList<TreeNode>();
 
 		while (outputChannels.size() > 0) {
 
@@ -307,10 +403,20 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			}// end for
 
-			treenodes.add(actualnode);
+			receivernodes.add(actualnode);
 
 		}// end while
 
+		// Do we want to shuffle the receiver nodes?
+		// Only randomize the receivers, as the sender (the first one) has to stay the same
+		if (randomize) {
+			Collections.shuffle(receivernodes);
+		} else {
+		// Sort Tree Nodes according to host name..
+			Collections.sort(receivernodes);
+		}
+
+		treenodes.addAll(receivernodes);
 		return treenodes;
 
 	}
