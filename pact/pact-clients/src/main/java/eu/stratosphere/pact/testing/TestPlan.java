@@ -134,7 +134,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 
 		@Override
 		public InputSplit getNextInputSplit() {
-			return inputSplitManager.getNextInputSplit(vertex);
+			return TestPlan.this.inputSplitManager.getNextInputSplit(this.vertex);
 		}
 	}
 
@@ -152,21 +152,31 @@ public class TestPlan implements Closeable, DeploymentManager {
 	}
 
 	private final class ExecutionExceptionHandler implements ExecutionListener {
-		private final ExecutionVertex executionVertex;
-
 		private String executionError;
 
-		private ExecutionExceptionHandler(final ExecutionVertex executionVertex) {
+		public ExecutionVertex executionVertex;
+
+		public ExecutionExceptionHandler(ExecutionVertex executionVertex) {
 			this.executionVertex = executionVertex;
 		}
 
 		@Override
-		public void executionStateChanged(final Environment ee,
+		public void executionStateChanged(final Environment environment,
 				final ExecutionState newExecutionState,
 				final String optionalMessage) {
 			if (newExecutionState == ExecutionState.FAILED) {
 				this.executionError = optionalMessage == null ? "FAILED" : optionalMessage;
-				ee.cancelExecution();
+
+				// close output channels for proper shutdown
+				for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
+					try {
+						environment.getOutputGate(i).requestClose();
+					} catch (IOException e) {
+						e.printStackTrace();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
 			}
 		}
 
@@ -261,8 +271,8 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 *        the delta that the actual value is allowed to differ from the expected value.
 	 */
 	public void setAllowedPactDoubleDelta(double delta) {
-		setFuzzyValueMatcher(new NaiveFuzzyValueMatcher<PactDouble>());
-		setFuzzyValueSimilarity(new DoubleValueSimilarity(delta));
+		this.setFuzzyValueMatcher(new NaiveFuzzyValueMatcher<PactDouble>());
+		this.setFuzzyValueSimilarity(new DoubleValueSimilarity(delta));
 	}
 
 	/**
@@ -406,13 +416,11 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 */
 	private void execute(final ExecutionGraph eg) {
 		while (!eg.isExecutionFinished()
-			&& eg.getJobStatus() != InternalJobStatus.FAILED) {
-
+			&& eg.getJobStatus() != InternalJobStatus.FAILED)
 			try {
 				Thread.sleep(10);
 			} catch (final InterruptedException e) {
 			}
-		}
 	}
 
 	/**
@@ -439,9 +447,8 @@ public class TestPlan implements Closeable, DeploymentManager {
 				}
 			});
 
-		for (FileDataSourceContract<?, ?> source : this.sources) {
-			getInput(source).fromFile(source.getFormatClass(), source.getFilePath());
-		}
+		for (FileDataSourceContract<?, ?> source : this.sources)
+			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath());
 	}
 
 	/**
@@ -496,9 +503,9 @@ public class TestPlan implements Closeable, DeploymentManager {
 			@Override
 			public boolean preVisit(final Contract visitable) {
 				int degree = TestPlan.this.getDegreeOfParallelism();
-				if (visitable instanceof FileDataSourceContract<?, ?>) {
+				if (visitable instanceof FileDataSourceContract<?, ?>)
 					degree = 1;
-				} else if (degree > 1 && visitable instanceof FileDataSinkContract<?, ?>) {
+				else if (degree > 1 && visitable instanceof FileDataSinkContract)
 					try {
 						Path path = new Path(
 							((FileDataSinkContract<?, ?>) visitable)
@@ -515,7 +522,6 @@ public class TestPlan implements Closeable, DeploymentManager {
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-				}
 				visitable.setDegreeOfParallelism(degree);
 				return true;
 			}
@@ -792,6 +798,8 @@ public class TestPlan implements Closeable, DeploymentManager {
 			number));
 	}
 
+	private LocalScheduler localScheduler;
+
 	/**
 	 * Compiles the plan to an {@link ExecutionGraph} and executes it. If
 	 * expected values have been specified, the actual outputs values are
@@ -801,15 +809,15 @@ public class TestPlan implements Closeable, DeploymentManager {
 		this.errorHandlers.clear();
 		try {
 			ExecutionGraph eg = this.getExecutionGraph();
-			final LocalScheduler localScheduler = new LocalScheduler(this, MockInstanceManager.INSTANCE);
+			this.localScheduler = new LocalScheduler(this, MockInstanceManager.INSTANCE);
 			this.inputSplitManager.registerJob(eg);
-			localScheduler.schedulJob(eg);
+			this.localScheduler.schedulJob(eg);
 			this.execute(eg);
 		} catch (final Exception e) {
 			Assert.fail("plan scheduling: " + StringUtils.stringifyException(e));
 		}
 
-		for (ExecutionExceptionHandler errorHandler : errorHandlers)
+		for (ExecutionExceptionHandler errorHandler : this.errorHandlers)
 			// these fields are set by the ExecutionExceptionHandler in case of error
 			if (errorHandler.executionError != null)
 				Assert.fail(String.format("Error @ %s: %s", errorHandler.executionVertex.getName(),
@@ -845,8 +853,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 				actualValues.fromFile(SequentialInputFormat.class,
 					sinkContract.getFilePath());
 
-				final TestPairs<Key, Value> expectedValues = (TestPairs<Key, Value>) this
-					.getExpectedOutput(sinkContract);
+				final TestPairs<Key, Value> expectedValues = this.getExpectedOutput(sinkContract);
 
 				FuzzyTestValueMatcher<Value> fuzzyMatcher = this.getFuzzyMatcher(sinkContract);
 				FuzzyTestValueSimilarity<Value> fuzzySimilarity = this.getFuzzySimilarity(sinkContract);
@@ -934,7 +941,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 			final Environment environment = executionVertex.getEnvironment();
 			environment.registerExecutionListener(executionListener);
 			environment.setInputSplitProvider(new MockInputSplitProvider(executionVertex));
-			errorHandlers.add(executionListener);
+			this.errorHandlers.add(executionListener);
 
 			final TaskSubmissionResult submissionResult = executionVertex
 				.startTask();

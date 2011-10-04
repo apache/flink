@@ -188,7 +188,7 @@ public class BuiltinFunctions {
 	 * @return a string node of the concatenated textual representations
 	 */
 	@OptimizerHints(minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode concat(final JsonNode[] params) {
+	public static JsonNode concat(final JsonNode... params) {
 		final StringBuilder builder = new StringBuilder();
 		for (final JsonNode jsonNode : params)
 			builder.append(jsonNode.isTextual() ? jsonNode.getTextValue() : jsonNode);

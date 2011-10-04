@@ -23,12 +23,11 @@ public class NaiveFuzzyValueMatcher<V extends Value> implements FuzzyTestValueMa
 		while (expectedIterator.hasNext()) {
 			V expected = expectedIterator.next();
 			boolean matched = false;
-			for (V actual : actualValues) {
+			for (V actual : actualValues)
 				if (matcher.getDistance(expected, actual) >= 0) {
 					matched = true;
 					matchedActualValues.add(actual);
 				}
-			}
 			if (matched)
 				expectedIterator.remove();
 		}

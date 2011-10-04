@@ -25,8 +25,6 @@ import java.util.NoSuchElementException;
 import junit.framework.Assert;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
@@ -70,14 +68,14 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 	public InputFileIterator(final boolean reusePair, final FileInputFormat<K, V>... inputFormats) {
 		this.inputFormats = Arrays.asList(inputFormats);
 		this.formatIterator = this.inputFormats.iterator();
-		this.currentFormat = formatIterator.next();
+		this.currentFormat = this.formatIterator.next();
 
 		this.reusePair = reusePair;
 		if (reusePair) {
 			this.buffer[0] = this.currentFormat.createPair();
 			this.buffer[1] = this.currentFormat.createPair();
 		}
-		loadNextPair();
+		this.loadNextPair();
 	}
 
 	@Override
@@ -93,18 +91,18 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 					if (this.formatIterator.hasNext())
 						this.currentFormat = this.formatIterator.next();
 					else {
-						nextPair = (KeyValuePair<K, V>) NO_MORE_PAIR;
+						this.nextPair = (KeyValuePair<K, V>) NO_MORE_PAIR;
 						return;
 					}
 
 				if (!this.reusePair)
-					nextPair = currentFormat.createPair();
+					this.nextPair = this.currentFormat.createPair();
 				else
-					nextPair = buffer[bufferIndex++ % 2];
-			} while (!currentFormat.nextRecord(this.nextPair));
+					this.nextPair = this.buffer[this.bufferIndex++ % 2];
+			} while (!this.currentFormat.nextRecord(this.nextPair));
 
 		} catch (final IOException e) {
-			nextPair = (KeyValuePair<K, V>) NO_MORE_PAIR;
+			this.nextPair = (KeyValuePair<K, V>) NO_MORE_PAIR;
 			Assert.fail("reading expected values " + StringUtils.stringifyException(e));
 		}
 	}
@@ -113,8 +111,8 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 	public KeyValuePair<K, V> next() {
 		if (!this.hasNext())
 			throw new NoSuchElementException();
-		final KeyValuePair<K, V> pair = nextPair;
-		loadNextPair();
+		final KeyValuePair<K, V> pair = this.nextPair;
+		this.loadNextPair();
 		return pair;
 	}
 

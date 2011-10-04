@@ -47,7 +47,7 @@ class MockInstanceManager implements InstanceManager {
 	@SuppressWarnings("serial")
 	private static final HashMap<InstanceType, InstanceTypeDescription> TYPE_DESCRIPTIONS = new HashMap<InstanceType, InstanceTypeDescription>() {
 		{
-			put(DEFAULT_INSTANCE_TYPE,
+			this.put(DEFAULT_INSTANCE_TYPE,
 				InstanceTypeDescriptionFactory.construct(DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1));
 		}
 	};
@@ -106,7 +106,7 @@ class MockInstanceManager implements InstanceManager {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
-				instanceListener.resourceAllocated(jobID, allocatedResource);
+				MockInstanceManager.this.instanceListener.resourceAllocated(jobID, MockInstanceManager.this.allocatedResource);
 			}
 		}).start();
 	}

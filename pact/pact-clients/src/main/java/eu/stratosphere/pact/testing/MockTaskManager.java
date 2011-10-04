@@ -44,7 +44,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
-import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.direct.DirectChannelManager;
@@ -59,7 +58,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author Arvid Heise
  */
 class MockTaskManager implements TaskOperationProtocol {
-	private static final long MEMORY_SIZE = Math.max(192<<16, Runtime.getRuntime().maxMemory() / 2);
+	private static final long MEMORY_SIZE = Math.max(192 << 16, Runtime.getRuntime().maxMemory() / 2);
 
 	public static final MockTaskManager INSTANCE = new MockTaskManager();
 
@@ -76,7 +75,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	private MockTaskManager() {
 		// 256 mb
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, (int) (MEMORY_SIZE / 10));
-//		this.memoryManager = new MockMemoryManager();
+		// this.memoryManager = new MockMemoryManager();
 		// Initialize the io manager
 		final String tmpDirPath = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
@@ -224,9 +223,8 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		final List<TaskSubmissionResult> resultList = new ArrayList<TaskSubmissionResult>();
 
-		for (final TaskSubmissionWrapper tsw : tasks) {
-			resultList.add(submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment()));
-		}
+		for (final TaskSubmissionWrapper tsw : tasks)
+			resultList.add(this.submitTask(tsw.getVertexID(), tsw.getConfiguration(), tsw.getEnvironment()));
 
 		return resultList;
 	}

@@ -135,7 +135,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	 * {@link #add(Iterable)} will reset the effect of this method invocation and vice-versa.
 	 */
 	public void setEmpty() {
-		setEmpty(true);
+		this.setEmpty(true);
 	}
 
 	/**
@@ -149,7 +149,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	public TestPairs<K, V> add(final Iterable<? extends KeyValuePair<? extends K, ? extends V>> pairs) {
 		for (final KeyValuePair<? extends K, ? extends V> pair : pairs)
 			this.pairs.add((KeyValuePair<K, V>) pair);
-		setEmpty(false);
+		this.setEmpty(false);
 		return this;
 	}
 
@@ -163,11 +163,11 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	@SuppressWarnings("unchecked")
 	public TestPairs<K, V> add(final TestPairs<? extends K, ? extends V> pairs) {
 		if (pairs.isEmpty())
-			setEmpty();
+			this.setEmpty();
 		else {
 			for (final KeyValuePair<? extends K, ? extends V> pair : pairs)
 				this.pairs.add((KeyValuePair<K, V>) pair);
-			setEmpty(false);
+			this.setEmpty(false);
 			pairs.close();
 		}
 		return this;
@@ -184,7 +184,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	 */
 	public TestPairs<K, V> add(final K key, final V value) {
 		this.pairs.add(new KeyValuePair<K, V>(key, value));
-		setEmpty(false);
+		this.setEmpty(false);
 		return this;
 	}
 
@@ -198,7 +198,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	public TestPairs<K, V> add(final KeyValuePair<K, V>... pairs) {
 		for (final KeyValuePair<K, V> pair : pairs)
 			this.pairs.add(pair);
-		setEmpty(false);
+		this.setEmpty(false);
 		return this;
 	}
 
@@ -211,7 +211,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	 */
 	public TestPairs<K, V> add(final KeyValuePair<K, V> pair) {
 		this.pairs.add(pair);
-		setEmpty(false);
+		this.setEmpty(false);
 		return this;
 	}
 
@@ -255,10 +255,9 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 
 			final StringBuilder testName = new StringBuilder();
 			StackTraceElement[] stackTrace = new Throwable().getStackTrace();
-			for (int index = stackTrace.length - 1; index > 0; index--) {
+			for (int index = stackTrace.length - 1; index > 0; index--)
 				if (stackTrace[index].getClassName().contains("Test"))
 					testName.append(stackTrace[index].toString());
-			}
 			// instantiate a sort-merger
 			AbstractTask parentTask = new ReduceTask() {
 				@Override
@@ -310,7 +309,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	 *         if the sets differ
 	 */
 	public void assertEquals(final TestPairs<K, V> expectedValues) throws ArrayComparisonFailure {
-		assertEquals(expectedValues, new EqualityValueMatcher<V>(), null);
+		this.assertEquals(expectedValues, new EqualityValueMatcher<V>(), null);
 	}
 
 	/**
@@ -359,7 +358,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 			if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
 				Assert.fail("Less elements expected: " + actualValuesWithCurrentKey + toString(actualIterator));
 		} finally {
-			close();
+			this.close();
 			expectedValues.close();
 		}
 	}
@@ -372,7 +371,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 		KeyValuePair<K, V> actualPair = null;
 		while (actualIterator.hasNext()) {
 			actualPair = actualIterator.next();
-			
+
 			int keyComparison = actualPair.getKey().compareTo(currentKey);
 			if (keyComparison < 0)
 				throw new ArrayComparisonFailure("Unexpected values for key " + currentKey + ": ",
@@ -425,7 +424,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 		final TestPairs<K, V> other = (TestPairs<K, V>) obj;
 
 		try {
-			assertEquals(other);
+			this.assertEquals(other);
 		} catch (AssertionError e) {
 			return false;
 		}
@@ -467,7 +466,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 		this.path = file;
 		this.inputFormatClass = (Class<? extends FileInputFormat<K, V>>) inputFormatClass;
 		this.configuration = configuration;
-		setEmpty(false);
+		this.setEmpty(false);
 		return this;
 	}
 
@@ -506,7 +505,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public Iterator<KeyValuePair<K, V>> iterator() {
-		if (isEmpty())
+		if (this.isEmpty())
 			return (Iterator) EMPTY_ITERATOR;
 
 		if (!this.isAdhoc() && this.inputFormatClass != null) {
@@ -517,7 +516,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 					!this.needsSorting(), FormatUtil.createInputFormats(
 						this.inputFormatClass, this.path, this.configuration));
 			} catch (final IOException e) {
-				Assert.fail("reading values from " + path + ": " + StringUtils.stringifyException(e));
+				Assert.fail("reading values from " + this.path + ": " + StringUtils.stringifyException(e));
 				return null;
 			} catch (final Exception e) {
 				Assert.fail("creating input format " + StringUtils.stringifyException(e));

@@ -38,14 +38,14 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 class MockInstance extends AbstractInstance {
 	public final static HardwareDescription DESCRIPTION = HardwareDescriptionFactory
-			.construct(1, 256 << 20, 128 << 20);
+		.construct(1, 256 << 20, 128 << 20);
 
 	// private final Map<ChannelID, String> fileNames = new HashMap<ChannelID,
 	// String>();
 
 	MockInstance(final InstanceType instanceType, final NetworkTopology networkTopology) {
 		super(instanceType, createConnectionInfo(), networkTopology
-				.getRootNode(), networkTopology, DESCRIPTION);
+			.getRootNode(), networkTopology, DESCRIPTION);
 	}
 
 	@Override

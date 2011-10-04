@@ -1,11 +1,11 @@
 package eu.stratosphere.pact.testing;
 
 /**
- * Distance function between two values. 
+ * Distance function between two values.
  * 
  * @author Arvid Heise
- *
- * @param <V> the value type
+ * @param <V>
+ *        the value type
  */
 public interface FuzzyTestValueSimilarity<V> {
 	/**
@@ -16,8 +16,10 @@ public interface FuzzyTestValueSimilarity<V> {
 	/**
 	 * Returns the distance between the first and the second value or {@link #NO_MATCH}.
 	 * 
-	 * @param value1 the first value
-	 * @param value2 the second value
+	 * @param value1
+	 *        the first value
+	 * @param value2
+	 *        the second value
 	 * @return a positive value corresponding to the distance or {@link #NO_MATCH}
 	 */
 	public double getDistance(V value1, V value2);
