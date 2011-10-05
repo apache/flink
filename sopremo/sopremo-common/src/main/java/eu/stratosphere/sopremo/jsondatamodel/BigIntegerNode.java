@@ -124,4 +124,9 @@ public class BigIntegerNode extends NumericNode {
 		return 0;
 	}
 	
+	@Override
+	public BigIntegerNode clone() {
+		return (BigIntegerNode) super.clone();
+	}
+	
 }

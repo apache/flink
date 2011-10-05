@@ -17,6 +17,36 @@ public abstract class SopremoCoGroup<IK extends JsonNode, IV1 extends JsonNode, 
 	private EvaluationContext context;
 
 	protected abstract void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out);
+	
+	@Override
+	public Class<JsonNode> getFirstInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getSecondInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+	
+	@Override
+	public Class<JsonNode> getFirstInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+	
+	@Override
+	public Class<JsonNode> getSecondInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
 
 	@Override
 	public void coGroup(final JsonNode key, Iterator<JsonNode> values1,
@@ -35,8 +65,8 @@ public abstract class SopremoCoGroup<IK extends JsonNode, IV1 extends JsonNode, 
 			values2 = cached2.iterator();
 		}
 		try {
-			this.coGroup(key, JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values1), values1),
-				JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values2), values2),
+			this.coGroup(SopremoUtil.unwrap(key), JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values1), new WrapperIterator(values1)),
+				JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values2), new WrapperIterator(values2)),
 				new JsonCollector(out));
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", this.getContext()

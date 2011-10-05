@@ -31,7 +31,7 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 
 	@Override
 	public JsonNode getFinalAggregate() {
-		final ArrayNode arrayNode = new ArrayNode(null);
+		final ArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(this.processNodes(this.nodes));
 		this.nodes = null;
 		return arrayNode;

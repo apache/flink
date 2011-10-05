@@ -8,7 +8,7 @@ import java.io.Serializable;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
-public abstract class JsonNode implements Serializable, Value, Key {
+public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 
 	/**
 	 * 
@@ -50,7 +50,15 @@ public abstract class JsonNode implements Serializable, Value, Key {
 	public JsonNode canonicalize() {
 		return this;
 	}
-
+@Override
+public JsonNode clone()  {
+	try {
+		JsonNode clone = (JsonNode) super.clone();
+		return clone;
+	} catch (CloneNotSupportedException e) {
+		return null;
+	}
+}
 	@Override
 	public abstract void read(DataInput in) throws IOException;
 

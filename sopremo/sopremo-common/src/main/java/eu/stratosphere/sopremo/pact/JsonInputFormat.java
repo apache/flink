@@ -77,7 +77,8 @@ public class JsonInputFormat extends FileInputFormat<JsonNode, JsonNode> {
 	@Override
 	public boolean nextRecord(final KeyValuePair<JsonNode, JsonNode> pair) throws IOException {
 		if (!this.end) {
-			pair.setValue(this.parser.readValueAsTree());
+			pair.setKey(SopremoUtil.wrap(pair.getKey()));
+			pair.setValue(SopremoUtil.wrap(this.parser.readValueAsTree()));
 			this.checkEnd();
 			return true;
 		}

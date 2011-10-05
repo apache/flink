@@ -13,6 +13,6 @@ public class JsonCollector {
 	public void collect(final JsonNode key, final JsonNode value) {
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format(" to %s/%s", key, value));
-		this.collector.collect(key, value);
+		this.collector.collect(SopremoUtil.wrap(key), SopremoUtil.wrap(value));
 	}
 }

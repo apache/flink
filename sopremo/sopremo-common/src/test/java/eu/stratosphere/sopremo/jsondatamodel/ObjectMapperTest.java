@@ -27,4 +27,11 @@ public class ObjectMapperTest {
 				.add(new ArrayNode().add(new TextNode("field2")).add(new IntNode(2))),
 			node);
 	}
+	
+	@Test
+	public void shouldMapIntArray(){
+		int[] root = {1,2,3};
+		JsonNode node = new ObjectMapper().valueToTree(root);
+		Assert.assertEquals(new ArrayNode().add(new IntNode(1)).add(new IntNode(2)).add(new IntNode(3)), node);
+	}
 }

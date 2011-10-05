@@ -56,7 +56,7 @@ public class JsonOutputFormat extends FileOutputFormat<JsonNode, JsonNode> {
 
 	@Override
 	public void writeRecord(final KeyValuePair<JsonNode, JsonNode> pair) throws IOException {
-		this.generator.writeTree(pair.getValue());
+		this.generator.writeTree(SopremoUtil.unwrap(pair.getValue()));
 	}
 
 }

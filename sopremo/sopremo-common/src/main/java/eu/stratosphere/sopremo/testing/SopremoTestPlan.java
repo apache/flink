@@ -26,6 +26,7 @@ import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
+import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.util.ConversionIterator;
 import eu.stratosphere.util.dag.OneTimeTraverser;
@@ -267,12 +268,25 @@ public class SopremoTestPlan {
 		}
 
 		public C add(final JsonNode value) {
+			
 			return this.add(NullNode.getInstance(), value);
 		}
 
 		@SuppressWarnings("unchecked")
 		public C add(final JsonNode key, final JsonNode value) {
-			this.pairs.add(key, value);
+//			if(value instanceof JsonNodeWrapper){
+//				if(key instanceof JsonNodeWrapper){
+//					this.pairs.add(key, value);
+//				}else {
+//					this.pairs.add(SopremoUtil.wrap(key), value);
+//				}
+//			}else{
+//				if(key instanceof JsonNodeWrapper){
+//					this.pairs.add(key, SopremoUtil.wrap(value));
+//				} else this.pairs.add(SopremoUtil.wrap(key), SopremoUtil.wrap(value));
+//			}
+//			this.pairs.add(key, value);
+			this.pairs.add(SopremoUtil.wrap(key), SopremoUtil.wrap(value));
 			return (C) this;
 		}
 

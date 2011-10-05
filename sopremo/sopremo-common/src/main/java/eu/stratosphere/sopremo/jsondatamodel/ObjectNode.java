@@ -145,6 +145,7 @@ public class ObjectNode extends JsonNode {
 
 	@Override
 	public void read(final DataInput in) throws IOException {
+		this.children.clear();
 		final int len = in.readInt();
 
 		for (int i = 0; i < len; i++) {
@@ -197,7 +198,7 @@ public class ObjectNode extends JsonNode {
 	public Iterator<Entry<String, JsonNode>> getFields() {
 		return this.children.entrySet().iterator();
 	}
-	
+
 	@Override
 	public TYPES getType() {
 		return TYPES.ObjectNode;
@@ -205,18 +206,24 @@ public class ObjectNode extends JsonNode {
 
 	@Override
 	public int compareTo(Key other) {
-		
+
 		ObjectNode node = (ObjectNode) other;
-		if(node.size() != this.size()){
+		if (node.size() != this.size()) {
 			return 1;
 		}
-		for( Entry<String, JsonNode> entry  : this.children.entrySet()){
+		for (Entry<String, JsonNode> entry : this.children.entrySet()) {
 			int comparison = entry.getValue().compareTo(node.get(entry.getKey()));
-			if(comparison != 0){
+			if (comparison != 0) {
 				return comparison;
 			}
 		}
 		return 0;
+	}
+
+	public ObjectNode clone() {
+		ObjectNode clone = (ObjectNode) super.clone();
+		clone.children = new LinkedHashMap<String, JsonNode>(children);
+		return clone;
 	}
 
 }

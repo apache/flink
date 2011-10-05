@@ -23,6 +23,36 @@ public abstract class SopremoCross<IK1 extends JsonNode, IV1 extends JsonNode, I
 	protected abstract void cross(JsonNode key1, JsonNode value1, JsonNode key2, JsonNode value2, JsonCollector out);
 
 	@Override
+	public Class<JsonNode> getFirstInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getSecondInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+	
+	@Override
+	public Class<JsonNode> getFirstInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+	
+	@Override
+	public Class<JsonNode> getSecondInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
 	public void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
 			final JsonNode value2,
 			final Collector<JsonNode, JsonNode> out) {
@@ -32,7 +62,8 @@ public abstract class SopremoCross<IK1 extends JsonNode, IV1 extends JsonNode, I
 				key2,
 				value2));
 		try {
-			this.cross(key1, value1, key2, value2, new JsonCollector(out));
+			this.cross(SopremoUtil.unwrap(key1), SopremoUtil.unwrap(value1), SopremoUtil.unwrap(key2),
+				SopremoUtil.unwrap(value2), new JsonCollector(out));
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k1/v1 %s/%s k2/v2: %s", this.getContext()
 				.operatorTrace(), key1, value1, key2, value2, e));

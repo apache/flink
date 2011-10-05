@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo.jsondatamodel;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
@@ -15,7 +17,7 @@ public class DoubleNode extends NumericNode {
 	 */
 	private static final long serialVersionUID = -192178456171338173L;
 
-	protected PactDouble value;
+	protected transient PactDouble value;
 
 	public DoubleNode() {
 		this.value = new PactDouble();
@@ -24,7 +26,7 @@ public class DoubleNode extends NumericNode {
 	public DoubleNode(final double v) {
 		this.value = new PactDouble(v);
 	}
-	
+
 	public DoubleNode(final float v) {
 		this.value = new PactDouble(v);
 	}
@@ -107,7 +109,7 @@ public class DoubleNode extends NumericNode {
 	public boolean isFloatingPointNumber() {
 		return true;
 	}
-	
+
 	@Override
 	public TYPES getType() {
 		return TYPES.DoubleNode;
@@ -115,5 +117,20 @@ public class DoubleNode extends NumericNode {
 
 	public String getValueAsText() {
 		return this.value.toString();
+	}
+
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.writeDouble(value.getValue());
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		value = new PactDouble(in.readDouble());
+	}
+	
+	@Override
+	public DoubleNode clone() {
+		DoubleNode clone = (DoubleNode) super.clone();
+		clone.value = new PactDouble(this.value.getValue());
+		return clone ;
 	}
 }

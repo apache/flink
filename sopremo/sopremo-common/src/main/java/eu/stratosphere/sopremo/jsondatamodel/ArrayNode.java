@@ -114,6 +114,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 
 	@Override
 	public void read(final DataInput in) throws IOException {
+		this.children.clear();
 		final int len = in.readInt();
 
 		for (int i = 0; i < len; i++) {
@@ -138,6 +139,13 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 			out.writeInt(child.getTypePos());
 			child.write(out);
 		}
+	}
+	
+	@Override
+	public ArrayNode clone() {
+		ArrayNode clone = (ArrayNode) super.clone();
+		clone.children = new ArrayList<JsonNode>(children);
+		return clone;
 	}
 
 	@Override

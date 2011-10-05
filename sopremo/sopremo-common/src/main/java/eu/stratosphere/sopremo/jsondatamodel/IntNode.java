@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo.jsondatamodel;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
@@ -15,7 +17,7 @@ public class IntNode extends NumericNode {
 	 */
 	private static final long serialVersionUID = -4250062919293345310L;
 
-	protected final PactInteger value;
+	protected transient PactInteger value;
 
 	public IntNode() {
 		this.value = new PactInteger();
@@ -105,9 +107,24 @@ public class IntNode extends NumericNode {
 	public String getValueAsText() {
 		return this.value.toString();
 	}
+
 	@Override
 	public TYPES getType() {
 		return TYPES.IntNode;
 	}
-	
+
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.writeInt(value.getValue());
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		value = new PactInteger(in.readInt());
+	}
+
+	@Override
+	public IntNode clone() {
+		IntNode clone = (IntNode) super.clone();
+		clone.value = new PactInteger(this.value.getValue());
+		return clone;
+	}
 }

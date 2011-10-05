@@ -9,7 +9,6 @@ import com.csvreader.CsvReader;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
@@ -36,7 +35,7 @@ public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 
 	@Override
 	public KeyValuePair<JsonNode, JsonNode> createPair() {
-		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), null);
+		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), new ObjectNode());
 	}
 
 	@Override
@@ -79,7 +78,8 @@ public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 				else
 					for (int i = 0; i < reader.getColumnCount(); i++)
 						node.put(String.format("key%d", i + 1), reader.get(i));
-				pair.setValue(node);
+				pair.setKey(SopremoUtil.wrap(pair.getKey()));
+				pair.setValue(SopremoUtil.wrap(node));
 				return true;
 			}
 

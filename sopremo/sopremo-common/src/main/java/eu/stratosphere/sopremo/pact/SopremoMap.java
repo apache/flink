@@ -12,6 +12,26 @@ public abstract class SopremoMap<IK extends JsonNode, IV extends JsonNode, OK ex
 	private EvaluationContext context;
 
 	@Override
+	public Class<JsonNode> getInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
 	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
 		this.context.setTaskId(parameters.getInteger(AbstractTask.TASK_ID, 0));
@@ -31,7 +51,7 @@ public abstract class SopremoMap<IK extends JsonNode, IV extends JsonNode, OK ex
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), key, value));
 		try {
-			this.map(key, value, new JsonCollector(out));
+			this.map(SopremoUtil.unwrap(key), SopremoUtil.unwrap(value), new JsonCollector(out));
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", this.getContext()
 				.operatorTrace(), key, value, e));

@@ -10,6 +10,36 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 public abstract class SopremoMatch<IK extends JsonNode, IV1 extends JsonNode, IV2 extends JsonNode, OK extends JsonNode, OV extends JsonNode>
 		extends MatchStub<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 	private EvaluationContext context;
+	
+	@Override
+	public Class<JsonNode> getFirstInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getSecondInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+	
+	@Override
+	public Class<JsonNode> getFirstInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+	
+	@Override
+	public Class<JsonNode> getSecondInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
 
 	@Override
 	public void configure(final Configuration parameters) {
@@ -31,7 +61,7 @@ public abstract class SopremoMatch<IK extends JsonNode, IV1 extends JsonNode, IV
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s/%s", this.getContext().operatorTrace(), key, value1, value2));
 		try {
-			this.match(key, value1, value2, new JsonCollector(out));
+			this.match(SopremoUtil.unwrap(key), SopremoUtil.unwrap(value1), SopremoUtil.unwrap(value2), new JsonCollector(out));
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", this.getContext()
 				.operatorTrace(), key, value1, value2, e));

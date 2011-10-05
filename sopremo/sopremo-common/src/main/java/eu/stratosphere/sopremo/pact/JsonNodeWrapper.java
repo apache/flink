@@ -52,12 +52,12 @@ public class JsonNodeWrapper extends JsonNode {
 
 	@Override
 	public int compareTo(Key o) {
-		return this.value.compareTo(o);
+		return this.value.compareTo(((JsonNodeWrapper) o).getValue());
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this.value.equals(o);
+		return this.value.equals(((JsonNodeWrapper) o).getValue());
 	}
 
 	@Override

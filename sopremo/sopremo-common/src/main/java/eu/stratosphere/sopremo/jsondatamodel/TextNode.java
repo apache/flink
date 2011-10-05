@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo.jsondatamodel;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -16,7 +18,7 @@ public class TextNode extends JsonNode {
 
 	final static TextNode EMPTY_STRING_NODE = new TextNode("");
 
-	protected PactString value;
+	protected transient PactString value;
 
 	public TextNode() {
 		this.value = new PactString();
@@ -101,6 +103,21 @@ public class TextNode extends JsonNode {
 	@Override
 	public int compareTo(Key other) {
 		return this.value.compareTo(((TextNode) other).value);
+	}
+
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.writeUTF(value.getValue());
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		value = new PactString(in.readUTF());
+	}
+
+	@Override
+	public TextNode clone() {
+		TextNode clone = (TextNode) super.clone();
+		clone.value = new PactString(this.value.getValue());
+		return clone;
 	}
 
 }

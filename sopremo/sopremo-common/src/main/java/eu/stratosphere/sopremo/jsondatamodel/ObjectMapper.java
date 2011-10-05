@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
@@ -40,12 +41,15 @@ public class ObjectMapper {
 			return TextNode.valueOf(((StringBuilder)value).toString());
 		}
 		if (valueClass.isArray()) {
-			Object[] array = (Object[]) value;
 			ArrayNode arrayNode = new ArrayNode();
-			for (int i = 0; i < array.length; i++) {
-				arrayNode.add(valueToTree(array[i]));
+			int length = Array.getLength(value);
+			for (int i = 0; i < length; i++) {
+				arrayNode.add(valueToTree(Array.get(value, i)));
 			}
 			return arrayNode;
+		}
+		if(value instanceof Boolean){
+			return BooleanNode.valueOf((Boolean)value);
 		}
 		try {
 			return typeDict.get(valueClass).newInstance(value);

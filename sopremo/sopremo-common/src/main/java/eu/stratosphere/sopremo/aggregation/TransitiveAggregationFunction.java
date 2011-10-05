@@ -18,7 +18,8 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	 */
 	private static final long serialVersionUID = -4836890030948315219L;
 
-	private transient JsonNode aggregate, initialAggregate;
+	private transient JsonNode aggregate;
+	private JsonNode initialAggregate;
 
 	public TransitiveAggregationFunction(final String name, final JsonNode initialAggregate) {
 		super(name);
@@ -39,27 +40,8 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 
 	@Override
 	public void initialize() {
-		try {
 			final ByteArrayOutputStream cloneBuffer = new ByteArrayOutputStream();
-			final JsonNode cloner = this.initialAggregate;
-			cloner.write(new DataOutputStream(cloneBuffer));
-			cloner.read(new DataInputStream(new ByteArrayInputStream(cloneBuffer.toByteArray())));
+			final JsonNode cloner = this.initialAggregate.clone();
 			this.aggregate = cloner;
-		} catch (final IOException e) {
-			throw new IllegalStateException("Cannot clone initial value");
-		}
-	}
-
-	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();		
-		// TOFIX
-		final JsonNode jsonObject = new ObjectNode();
-		jsonObject.read(ois);
-		this.initialAggregate = jsonObject;
-	}
-
-	private void writeObject(final ObjectOutputStream oos) throws IOException {
-		oos.defaultWriteObject();
-		this.initialAggregate.write(oos);
 	}
 }

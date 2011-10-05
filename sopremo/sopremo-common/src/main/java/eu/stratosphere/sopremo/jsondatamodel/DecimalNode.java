@@ -108,7 +108,7 @@ public class DecimalNode extends NumericNode {
 	public boolean isFloatingPointNumber() {
 		return true;
 	}
-	
+
 	@Override
 	public TYPES getType() {
 		return TYPES.DecimalNode;
@@ -116,5 +116,10 @@ public class DecimalNode extends NumericNode {
 
 	public String getValueAsText() {
 		return this.value.toString();
+	}
+
+	@Override
+	public DecimalNode clone() {
+		return (DecimalNode) super.clone();
 	}
 }

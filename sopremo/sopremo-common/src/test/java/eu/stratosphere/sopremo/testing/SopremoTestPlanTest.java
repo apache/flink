@@ -50,12 +50,14 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
  * Tests {@link SopremoTestPlan}.
  * 
  * @author Arvid Heise
  */
+
 
 public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	/**
@@ -164,7 +166,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	/**
 	 * Tests a {@link SopremoTestPlan} with a {@link CrossContract}.
 	 */
-	@Ignore
+
 	@Test
 	public void settingValuesShouldWorkWithSourceContracts() {
 		final CartesianProduct cartesianProduct = new CartesianProduct(null, null);
@@ -227,7 +229,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 				SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-				out.collect(key, value);
+				out.collect(key,value);
 			}
 		}
 	}

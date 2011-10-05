@@ -47,6 +47,9 @@ public class SopremoUtil {
 		};
 	};
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static final Class<JsonNode> WRAPPER_TYPE = (Class) JsonNodeWrapper.class;
+
 	static void configureStub(final Stub<?, ?> stub, final Configuration parameters) {
 		for (final Field stubField : stub.getClass().getDeclaredFields())
 			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0)
@@ -224,11 +227,15 @@ public class SopremoUtil {
 		((Log4JLogger) LOG).getLogger().setLevel(((Log4JLogger) LOG).getLogger().getParent().getLevel());
 	}
 
-	public static JsonNode unwrap(JsonNodeWrapper wrapper) {
-		return wrapper.getValue();
+	public static JsonNode unwrap(JsonNode wrapper) {
+		if(!(wrapper instanceof JsonNodeWrapper))
+			return wrapper;
+		return ((JsonNodeWrapper) wrapper).getValue();
 	}
 
-	public static JsonNodeWrapper wrap(JsonNode node) {
+	public static JsonNode wrap(JsonNode node) {
+		if(node instanceof JsonNodeWrapper)
+			return node;
 		return new JsonNodeWrapper(node);
 	}
 }
