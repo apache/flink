@@ -15,25 +15,24 @@
 
 package eu.stratosphere.nephele.example.broadcast;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
+import eu.stratosphere.nephele.jobgraph.JobInputVertex;
+import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.util.JarFileCreator;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class creates and submits a simple broadcast test job.
@@ -43,86 +42,214 @@ import eu.stratosphere.nephele.util.JarFileCreator;
 public class BroadcastJob {
 
 	/**
-	 * The logging object used to report errors.
+	 * The address of the job manager.
 	 */
-	private static final Log LOG = LogFactory.getLog(BroadcastJob.class);
+	private static String JOB_MANAGER_ADDRESS = null;
+
+	/**
+	 * The type of instances the job is supposed to run on.
+	 */
+	private static String INSTANCE_TYPE = null;
+
+	/**
+	 * The number of times the job execution shall be repeated.
+	 */
+	private static int NUMBER_OF_RUNS = -1;
+
+	/**
+	 * The number of consumers to create for the job execution.
+	 */
+	private static int NUMBER_OF_CONSUMERS = -1;
+
+	/**
+	 * The topology tree to use during the job execution.
+	 */
+	private static String TOPOLOGY_TREE = null;
+
+	/**
+	 * The number of records to send in one run.
+	 */
+	private static int NUMBER_OF_RECORDS = -1;
+
+	/**
+	 * The path to write the output to.
+	 */
+	private static String OUTPUT_PATH = null;
+
+	/**
+	 * The JAR file with the classes required to run the job
+	 */
+	private static File JAR_FILE = null;
 
 	/**
 	 * The entry point to the application.
 	 * 
 	 * @param args
-	 *        the command line arguments, possibly containing the job manager address
+	 *        the command line arguments
 	 */
 	public static void main(String[] args) {
 
-		String jobManagerAddress = null;
-
-		if (args.length > 0) {
-			jobManagerAddress = args[0];
+		// Parse the input parameters
+		if (args.length < 7) {
+			System.err.println("Please specify at least the following parameters:");
+			System.err
+				.println("<address of job manager> <instance type> <topology tree> <number of runs> <number of consumers> <number of records> <output path>");
+			System.exit(-1);
 		}
 
-		
-		// Construct job graph
-		final JobGraph jobGraph = new JobGraph("Broadcast Job");
+		// Parse the job manager address
+		JOB_MANAGER_ADDRESS = args[0];
 
-		final JobFileInputVertex producer = new JobFileInputVertex("Broadcast Producer", jobGraph);
-		producer.setFileInputClass(BroadcastProducer.class);
-		producer.setFilePath(new Path("file:///tmp/dummy/"));
+		// Parse the instance type
+		INSTANCE_TYPE = args[1];
 
-		final JobFileOutputVertex consumer = new JobFileOutputVertex("Broadcast Consumer", jobGraph);
-		consumer.setFileOutputClass(BroadcastConsumer.class);
-		consumer.setFilePath(new Path("file:///tmp/dummy"));
-		consumer.setNumberOfSubtasks(8);
-		consumer.setVertexToShareInstancesWith(producer);
+		// Parse topology tree
+		TOPOLOGY_TREE = args[2];
 
+		// Parse the number of runs
 		try {
-			producer.connectTo(consumer, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		} catch (JobGraphDefinitionException e) {
-			LOG.error(e);
-			return;
+			NUMBER_OF_RUNS = Integer.parseInt(args[3]);
+		} catch (NumberFormatException nfe) {
+			System.err.println("Invalid number of runs specified: " + args[3]);
+			System.exit(-1);
+		}
+		if (NUMBER_OF_RUNS <= 0) {
+			System.err.println("Number of runs must be greater than 0");
+			System.exit(-1);
 		}
 
-		// Create jar file and attach it
-		final File jarFile = new File("/tmp/broadcastJob.jar");
-		final JarFileCreator jarFileCreator = new JarFileCreator(jarFile);
+		// Parse number of consumer
+		try {
+			NUMBER_OF_CONSUMERS = Integer.parseInt(args[4]);
+		} catch (NumberFormatException nfe) {
+			System.err.println("Invalid number of consumers specified: " + args[4]);
+			System.exit(-1);
+		}
+		if (NUMBER_OF_CONSUMERS <= 0) {
+			System.err.println("Number of consumers must be greater than 0");
+			System.exit(-1);
+		}
+
+		// Parse number of records to send
+		try {
+			NUMBER_OF_RECORDS = Integer.parseInt(args[5]);
+		} catch (NumberFormatException nfe) {
+			System.err.println("Invalid number of records specified: " + args[5]);
+			System.exit(-1);
+		}
+
+		if (NUMBER_OF_RECORDS <= 0) {
+			System.err.println("Number of records to send must be greater or equal to 0");
+			System.exit(-1);
+		}
+
+		// Parse output path
+		OUTPUT_PATH = args[6];
+
+		// Prepare jar file
+		JAR_FILE = new File("/tmp/broadcastJob.jar");
+		final JarFileCreator jarFileCreator = new JarFileCreator(JAR_FILE);
 		jarFileCreator.addClass(BroadcastProducer.class);
 		jarFileCreator.addClass(BroadcastConsumer.class);
 		jarFileCreator.addClass(BroadcastRecord.class);
 
 		try {
 			jarFileCreator.createJarFile();
-			System.out.println("done creating!!");
 		} catch (IOException ioe) {
 
-			if (jarFile.exists()) {
-				jarFile.delete();
+			if (JAR_FILE.exists()) {
+				JAR_FILE.delete();
 			}
 
-			System.out.println("ERROR creating jar");
-			LOG.error(ioe);
-			return;
+			System.err.println("Error creating jar file: " + StringUtils.stringifyException(ioe));
+			System.exit(-1);
 		}
 
-		jobGraph.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+		try {
+			final BufferedWriter writer = new BufferedWriter(new FileWriter(getFilename()));
+
+			// Execute the individual job runs
+			for (int i = 0; i < NUMBER_OF_RUNS; ++i) {
+				try {
+					runJob(i, writer);
+				} catch (Exception e) {
+					System.err.println("Error executing run " + i + ": " + StringUtils.stringifyException(e));
+					break;
+				}
+			}
+
+			writer.close();
+		} catch (IOException ioe) {
+			System.err.println("An IO exception occurred " + StringUtils.stringifyException(ioe));
+		}
+
+		// Delete jar file
+		if (JAR_FILE.exists()) {
+			JAR_FILE.delete();
+		}
+	}
+
+	/**
+	 * Executes a specific run of the job.
+	 * 
+	 * @param run
+	 *        the run of the job
+	 * @param outputWriter
+	 *        writer object to write the throughput results for each run
+	 */
+	private static void runJob(final int run, final BufferedWriter outputWriter) throws JobGraphDefinitionException,
+			IOException, JobExecutionException {
+
+		// Construct job graph
+		final JobGraph jobGraph = new JobGraph("Broadcast Job (Run " + run + ")");
+
+		final JobInputVertex producer = new JobInputVertex("Broadcast Producer", jobGraph);
+		producer.setInputClass(BroadcastProducer.class);
+		producer.setInstanceType(INSTANCE_TYPE);
+		producer.getConfiguration().setInteger(BroadcastProducer.NUMBER_OF_RECORDS_KEY, NUMBER_OF_RECORDS);
+		producer.getConfiguration().setInteger(BroadcastProducer.RUN_KEY, run);
+		producer.setNumberOfSubtasks(1);
+		producer.setNumberOfSubtasksPerInstance(1);
+
+		final JobOutputVertex consumer = new JobOutputVertex("Broadcast Consumer", jobGraph);
+		consumer.setOutputClass(BroadcastConsumer.class);
+		consumer.setNumberOfSubtasks(NUMBER_OF_CONSUMERS);
+		consumer.setNumberOfSubtasksPerInstance(1);
+		consumer.setInstanceType(INSTANCE_TYPE);
+		consumer.getConfiguration().setInteger(BroadcastProducer.RUN_KEY, run);
+		consumer.getConfiguration().setString(BroadcastConsumer.OUTPUT_PATH_KEY, OUTPUT_PATH);
+		consumer.getConfiguration().setString(BroadcastConsumer.TOPOLOGY_TREE_KEY, TOPOLOGY_TREE);
+
+		// Connect both vertices
+		producer.connectTo(consumer, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+
+		// Attach jar file
+		jobGraph.addJar(new Path("file://" + JAR_FILE.getAbsolutePath()));
 
 		// Submit job
 		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
-		conf.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, "6123");
+		conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, JOB_MANAGER_ADDRESS);
+		conf.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
-		try {
-			final JobClient jobClient = new JobClient(jobGraph, conf);
-			System.out.println("submitting");
-			jobClient.submitJobAndWait();
-			System.out.println("done.");
-		} catch (IOException e) {
-			LOG.error(e);
-		} catch (JobExecutionException e) {
-			LOG.error(e);
-		}
+		final JobClient jobClient = new JobClient(jobGraph, conf);
+		final long jobDuration = jobClient.submitJobAndWait();
 
-		if (jarFile.exists()) {
-			jarFile.delete();
-		}
+		final long numberOfBytesSent = BroadcastRecord.RECORD_SIZE * NUMBER_OF_RECORDS * NUMBER_OF_CONSUMERS;
+		// Throughput in bits per second
+		final long throughput = numberOfBytesSent / (jobDuration * 1000) * 8;
+
+		// Write calculated throughput to file
+		outputWriter.write(throughput + "\n");
+	}
+
+	/**
+	 * Constructs the filename for the throughput result.
+	 * 
+	 * @return the filename for the throughput result
+	 */
+	private static String getFilename() {
+
+		return OUTPUT_PATH + File.separator + "throughput_" + INSTANCE_TYPE + "_" + TOPOLOGY_TREE + "_"
+			+ NUMBER_OF_CONSUMERS + "_" + NUMBER_OF_RECORDS + ".dat";
 	}
 }

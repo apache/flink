@@ -16,20 +16,30 @@
 package eu.stratosphere.nephele.example.broadcast;
 
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
 
 /**
  * This is a sample consumer task for the broadcast test job.
  * 
  * @author warneke
  */
-public class BroadcastConsumer extends AbstractFileOutputTask {
+public class BroadcastConsumer extends AbstractOutputTask {
+
+	/**
+	 * The key to access the output path configuration entry.
+	 */
+	public static final String OUTPUT_PATH_KEY = "broadcast.output.path";
+
+	/**
+	 * The key to access the output path configuration entry.
+	 */
+	public static final String TOPOLOGY_TREE_KEY = "broadcast.topology.tree";
 
 	/**
 	 * The record record through which this task receives incoming records.
 	 */
-	private RecordReader<BroadcastRecord> input;
+	private MutableRecordReader<BroadcastRecord> input;
 
 	/**
 	 * {@inheritDoc}
@@ -37,7 +47,7 @@ public class BroadcastConsumer extends AbstractFileOutputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.input = new RecordReader<BroadcastRecord>(this, BroadcastRecord.class, new BipartiteDistributionPattern());
+		this.input = new MutableRecordReader<BroadcastRecord>(this, new BipartiteDistributionPattern());
 	}
 
 	/**
@@ -46,22 +56,21 @@ public class BroadcastConsumer extends AbstractFileOutputTask {
 	@Override
 	public void invoke() throws Exception {
 
-		int count = 1;
+		int i = 0;
 
-		while (this.input.hasNext()) {
+		final BroadcastRecord record = new BroadcastRecord();
 
-			final BroadcastRecord record = this.input.next();
+		while (this.input.next(record)) {
 
-			// Check content of record
-			for (int i = 0; i < record.getSize(); i++) {
-
-				if (record.getData(i) != i) {
-					throw new RuntimeException(count + "th record has unexpected byte " + record.getData(i)
-						+ " at position " + i);
-				}
+			if ((i++ % BroadcastProducer.TIMESTAMP_INTERVAL) == 0) {
+				/*
+				 * final long timestamp = record.getTimestamp();
+				 * final long now = System.currentTimeMillis();
+				 * System.out.println(now - timestamp);
+				 */
+				// TODO: Calculate time stamp here
 			}
 
-			++count;
 		}
 	}
 }
