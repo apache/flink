@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.instance;
 
-import eu.stratosphere.nephele.io.ID;
+import eu.stratosphere.nephele.io.AbstractID;
 
 /**
  * An allocation ID unambiguously identifies the allocated resources
@@ -25,5 +25,5 @@ import eu.stratosphere.nephele.io.ID;
  * 
  * @author warneke
  */
-public class AllocationID extends ID {
+public class AllocationID extends AbstractID {
 }

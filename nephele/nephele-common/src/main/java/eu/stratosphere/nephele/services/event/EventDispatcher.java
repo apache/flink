@@ -22,16 +22,16 @@ public class EventDispatcher<T extends Event> {
 	public final Set<EventHandler<? extends T>> handlers;
 
 	public EventDispatcher() {
-		handlers = new HashSet<EventHandler<? extends T>>();
+		this.handlers = new HashSet<EventHandler<? extends T>>();
 	}
 
-	public <U extends T> void register(EventHandler<U> handler) {
+	public <U extends T> void register(final EventHandler<U> handler) {
 	}
 
-	public <U extends T> void unregister(EventHandler<U> handler) {
-		handlers.remove(handler);
+	public <U extends T> void unregister(final EventHandler<U> handler) {
+		this.handlers.remove(handler);
 	}
 
-	protected void dispatch(T event) {
+	protected void dispatch(final T event) {
 	}
 }

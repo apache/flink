@@ -16,5 +16,5 @@
 package eu.stratosphere.nephele.services.event;
 
 public interface EventHandler<T extends Event> {
-	public <U extends T> void handleEvent(U event);
+	<U extends T> void handleEvent(U event);
 }

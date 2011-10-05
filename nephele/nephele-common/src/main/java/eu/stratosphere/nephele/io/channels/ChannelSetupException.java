@@ -35,7 +35,7 @@ public class ChannelSetupException extends Exception {
 	 * @param msg
 	 *        the error message for this exception
 	 */
-	public ChannelSetupException(String msg) {
+	public ChannelSetupException(final String msg) {
 		super(msg);
 	}
 

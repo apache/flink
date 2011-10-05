@@ -167,7 +167,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		reducer.setDegreeOfParallelism(noSubTasks);
 
 		FileDataSinkContract<PactString, PactInteger> out = new FileDataSinkContract<PactString, PactInteger>(
-				WordCountOutFormat.class, output, "Output");
+				WordCountOutFormat.class, output, "Word Counts");
 		out.setDegreeOfParallelism(noSubTasks);
 
 		out.setInput(reducer);

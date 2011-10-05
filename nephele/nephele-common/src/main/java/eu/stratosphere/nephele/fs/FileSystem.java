@@ -49,7 +49,7 @@ public abstract class FileSystem {
 	/**
 	 * Object used to protect calls to specific methods.
 	 */
-	private static final Object synchronizationObject = new Object();
+	private static final Object SYNCHRONIZATION_OBJECT = new Object();
 
 	/**
 	 * An auxiliary class to identify a file system by its scheme
@@ -78,7 +78,7 @@ public abstract class FileSystem {
 		 * @param authority
 		 *        the authority of the file system
 		 */
-		public FSKey(String scheme, String authority) {
+		public FSKey(final String scheme, final String authority) {
 			this.scheme = scheme;
 			this.authority = authority;
 		}
@@ -87,7 +87,7 @@ public abstract class FileSystem {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 
 			if (obj instanceof FSKey) {
 				final FSKey key = (FSKey) obj;
@@ -136,12 +136,12 @@ public abstract class FileSystem {
 	/**
 	 * Data structure mapping file system keys (scheme + authority) to cached file system objects.
 	 */
-	private final static Map<FSKey, FileSystem> CACHE = new HashMap<FSKey, FileSystem>();
+	private static final Map<FSKey, FileSystem> CACHE = new HashMap<FSKey, FileSystem>();
 
 	/**
 	 * Data structure mapping file system schemes to the corresponding implementations
 	 */
-	private final static Map<String, String> FSDIRECTORY = new HashMap<String, String>();
+	private static final Map<String, String> FSDIRECTORY = new HashMap<String, String>();
 
 	static {
 		// TODO: Use configuration to retrieve this mapping
@@ -187,7 +187,7 @@ public abstract class FileSystem {
 
 		FileSystem fs = null;
 
-		synchronized (synchronizationObject) {
+		synchronized (SYNCHRONIZATION_OBJECT) {
 
 			if (uri.getScheme() == null) {
 				throw new IOException("FileSystem: Scheme is null");
@@ -313,7 +313,7 @@ public abstract class FileSystem {
 	 * @param f
 	 *        source file
 	 */
-	public boolean exists(Path f) throws IOException {
+	public boolean exists(final Path f) throws IOException {
 
 		try {
 			return (getFileStatus(f) != null);
@@ -379,14 +379,14 @@ public abstract class FileSystem {
 
 	/**
 	 * Returns the number of blocks this file/directory consists of
-	 * assuming the file system's standard block size
+	 * assuming the file system's standard block size.
 	 * 
 	 * @param file
 	 *        the file
 	 * @return the number of block's thie file/directory consists of
 	 * @throws IOException
 	 */
-	public int getNumberOfBlocks(FileStatus file) throws IOException {
+	public int getNumberOfBlocks(final FileStatus file) throws IOException {
 
 		int numberOfBlocks = 0;
 
@@ -400,7 +400,7 @@ public abstract class FileSystem {
 		}
 
 		// file is a directory
-		FileStatus[] files = this.listStatus(file.getPath());
+		final FileStatus[] files = this.listStatus(file.getPath());
 		for (int i = 0; i < files.length; i++) {
 
 			if (!files[i].isDir()) {
@@ -411,7 +411,7 @@ public abstract class FileSystem {
 		return numberOfBlocks;
 	}
 
-	private int getNumberOfBlocks(long length, long blocksize) {
+	private int getNumberOfBlocks(final long length, final long blocksize) {
 
 		if (blocksize != 0) {
 			int numberOfBlocks;

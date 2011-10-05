@@ -37,7 +37,7 @@ public class IntegerRecord implements Record {
 	 * @param value
 	 *        the integer value this record should wrap up
 	 */
-	public IntegerRecord(int value) {
+	public IntegerRecord(final int value) {
 		this.value = value;
 	}
 
@@ -63,7 +63,7 @@ public class IntegerRecord implements Record {
 	 * @param value
 	 *        the new value for this integer record
 	 */
-	public void setValue(int value) {
+	public void setValue(final int value) {
 		this.value = value;
 	}
 
@@ -91,7 +91,7 @@ public class IntegerRecord implements Record {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (!(obj instanceof IntegerRecord)) {
 			return false;

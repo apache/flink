@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.template.InputSplitProvider;
@@ -58,7 +59,9 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 		try {
 
 			synchronized (this.globalInputSplitProvider) {
-				return this.globalInputSplitProvider.requestNextInputSplit(this.jobID, this.executionVertexID);
+				final InputSplitWrapper wrapper = this.globalInputSplitProvider.requestNextInputSplit(this.jobID,
+					this.executionVertexID);
+				return wrapper.getInputSplit();
 			}
 
 		} catch (IOException ioe) {

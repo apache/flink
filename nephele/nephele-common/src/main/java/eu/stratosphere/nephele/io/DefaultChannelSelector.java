@@ -31,6 +31,9 @@ import eu.stratosphere.nephele.types.Record;
  */
 public class DefaultChannelSelector<T extends Record> implements ChannelSelector<T> {
 
+	/**
+	 * Stores the index of the channel to send the next record to.
+	 */
 	private final int[] nextChannelToSendTo = new int[1];
 
 	/**
@@ -39,18 +42,18 @@ public class DefaultChannelSelector<T extends Record> implements ChannelSelector
 	public DefaultChannelSelector() {
 		this.nextChannelToSendTo[0] = 0;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int[] selectChannels(T record, int numberOfOutpuChannels) {
-	
+	public int[] selectChannels(final T record, final int numberOfOutpuChannels) {
+
 		this.nextChannelToSendTo[0] = (this.nextChannelToSendTo[0] + 1) % numberOfOutpuChannels;
-		
+
 		return this.nextChannelToSendTo;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */

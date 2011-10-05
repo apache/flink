@@ -35,6 +35,7 @@ import eu.stratosphere.nephele.fs.Path;
  * @author warneke
  */
 public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputSplit> {
+
 	public static final String INPUT_PATH_CONFIG_KEY = "input.path";
 
 	/**
@@ -59,8 +60,8 @@ public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputS
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileInputSplit[] computeInputSplits(int minNumSplits) throws IOException {
-		
+	public FileInputSplit[] computeInputSplits(final int minNumSplits) throws IOException {
+
 		final String pathURI = getRuntimeConfiguration().getString(INPUT_PATH_CONFIG_KEY, null);
 		if (pathURI == null) {
 			throw new IOException("The path to the file was not found in the runtime configuration.");
@@ -76,7 +77,7 @@ public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputS
 		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>();
 
 		// get all the files that are involved in the splits
-		List<FileStatus> files = new ArrayList<FileStatus>();
+		final List<FileStatus> files = new ArrayList<FileStatus>();
 		long totalLength = 0;
 
 		final FileSystem fs = path.getFileSystem();
@@ -128,7 +129,7 @@ public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputS
 					// get the block containing the majority of the data
 					blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
 					// create a new split
-					FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), position, splitSize,
+					final FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), position, splitSize,
 						blocks[blockIndex]
 							.getHosts());
 					inputSplits.add(fis);
@@ -175,7 +176,9 @@ public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputS
 	 *        The earliest index to look at.
 	 * @return The index of the block containing the given position.
 	 */
-	private final int getBlockIndexForPosition(BlockLocation[] blocks, long offset, long halfSplitSize, int startIndex) {
+	private final int getBlockIndexForPosition(final BlockLocation[] blocks, final long offset,
+			final long halfSplitSize, final int startIndex) {
+		
 		// go over all indexes after the startIndex
 		for (int i = startIndex; i < blocks.length; i++) {
 			long blockStart = blocks[i].getOffset();
@@ -193,13 +196,13 @@ public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputS
 		}
 		throw new IllegalArgumentException("The given offset is not contained in the any block.");
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public Class<FileInputSplit> getInputSplitType() {
-		
+
 		return FileInputSplit.class;
 	}
 }

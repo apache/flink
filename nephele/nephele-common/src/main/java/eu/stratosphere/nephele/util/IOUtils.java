@@ -28,7 +28,7 @@ import org.apache.commons.logging.Log;
  * 
  * @author warneke
  */
-public class IOUtils {
+public final class IOUtils {
 
 	/**
 	 * The block size for byte operations in byte.
@@ -56,10 +56,11 @@ public class IOUtils {
 	 * @throws IOException
 	 *         thrown if an error occurred while writing to the output stream
 	 */
-	public static void copyBytes(InputStream in, OutputStream out, int buffSize, boolean close) throws IOException {
+	public static void copyBytes(final InputStream in, final OutputStream out, final int buffSize, final boolean close)
+			throws IOException {
 
 		final PrintStream ps = out instanceof PrintStream ? (PrintStream) out : null;
-		final byte buf[] = new byte[buffSize];
+		final byte[] buf = new byte[buffSize];
 		try {
 			int bytesRead = in.read(buf);
 			while (bytesRead >= 0) {
@@ -88,7 +89,7 @@ public class IOUtils {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while copying
 	 */
-	public static void copyBytes(InputStream in, OutputStream out) throws IOException {
+	public static void copyBytes(final InputStream in, final OutputStream out) throws IOException {
 		copyBytes(in, out, BLOCKSIZE, true);
 	}
 
@@ -105,7 +106,7 @@ public class IOUtils {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while copying
 	 */
-	public static void copyBytes(InputStream in, OutputStream out, boolean close) throws IOException {
+	public static void copyBytes(final InputStream in, final OutputStream out, final boolean close) throws IOException {
 		copyBytes(in, out, BLOCKSIZE, close);
 	}
 
@@ -123,7 +124,8 @@ public class IOUtils {
 	 * @throws IOException
 	 *         if it could not read requested number of bytes for any reason (including EOF)
 	 */
-	public static void readFully(InputStream in, byte buf[], int off, int len) throws IOException {
+	public static void readFully(final InputStream in, final byte[] buf, int off, final int len)
+			throws IOException {
 		int toRead = len;
 		while (toRead > 0) {
 			final int ret = in.read(buf, off, toRead);
@@ -145,7 +147,7 @@ public class IOUtils {
 	 * @throws IOException
 	 *         if it could not skip requested number of bytes for any reason (including EOF)
 	 */
-	public static void skipFully(InputStream in, long len) throws IOException {
+	public static void skipFully(final InputStream in, long len) throws IOException {
 		while (len > 0) {
 			final long ret = in.skip(len);
 			if (ret < 0) {
@@ -164,7 +166,7 @@ public class IOUtils {
 	 * @param closeables
 	 *        the objects to close
 	 */
-	public static void cleanup(Log log, java.io.Closeable... closeables) {
+	public static void cleanup(final Log log, final java.io.Closeable... closeables) {
 		for (java.io.Closeable c : closeables) {
 			if (c != null) {
 				try {
@@ -185,7 +187,7 @@ public class IOUtils {
 	 * @param stream
 	 *        the stream to close
 	 */
-	public static void closeStream(java.io.Closeable stream) {
+	public static void closeStream(final java.io.Closeable stream) {
 		cleanup(null, stream);
 	}
 
@@ -195,7 +197,7 @@ public class IOUtils {
 	 * @param sock
 	 *        the socket to close
 	 */
-	public static void closeSocket(Socket sock) {
+	public static void closeSocket(final Socket sock) {
 		// avoids try { close() } dance
 		if (sock != null) {
 			try {

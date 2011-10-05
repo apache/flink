@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * The job client is able to submit, control, and abort jobs.
+ * <p>
  * This class is thread-safe.
  * 
  * @author warneke
@@ -45,7 +46,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class JobClient {
 
 	/**
-	 * The logging object used for debugging
+	 * The logging object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(JobClient.class);
 
@@ -94,7 +95,7 @@ public class JobClient {
 		 * @param jobClient
 		 *        the job client this clean up object belongs to
 		 */
-		public JobCleanUp(JobClient jobClient) {
+		public JobCleanUp(final JobClient jobClient) {
 
 			this.jobClient = jobClient;
 		}
@@ -134,7 +135,7 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(JobGraph jobGraph) throws IOException {
+	public JobClient(final JobGraph jobGraph) throws IOException {
 
 		this(jobGraph, new Configuration());
 	}
@@ -150,7 +151,7 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(JobGraph jobGraph, Configuration configuration) throws IOException {
+	public JobClient(final JobGraph jobGraph, final Configuration configuration) throws IOException {
 
 		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		final int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
@@ -163,8 +164,7 @@ public class JobClient {
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
 	}
-	
-	
+
 	/**
 	 * Constructs a new job client object and instantiates a local
 	 * RPC proxy for the {@link JobSubmissionProtocol}.
@@ -177,16 +177,18 @@ public class JobClient {
 	 *        IP/Port of the jobmanager (not taken from provided configuration object).
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
-	 */	
-	public JobClient(JobGraph jobGraph, Configuration configuration, InetSocketAddress jobManagerAddress) throws IOException {
+	 */
+	public JobClient(final JobGraph jobGraph, final Configuration configuration,
+			final InetSocketAddress jobManagerAddress)
+			throws IOException {
 
-
-		this.jobSubmitClient = (JobManagementProtocol) RPC.getProxy(JobManagementProtocol.class, jobManagerAddress, NetUtils
-			.getSocketFactory());
+		this.jobSubmitClient = (JobManagementProtocol) RPC.getProxy(JobManagementProtocol.class, jobManagerAddress,
+			NetUtils
+				.getSocketFactory());
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
-	} 
+	}
 
 	/**
 	 * Close the <code>JobClient</code>.
@@ -282,12 +284,15 @@ public class JobClient {
 			final IntegerRecord interval = this.jobSubmitClient.getRecommendedPollingInterval();
 			sleep = interval.getValue() * 1000;
 		} catch (IOException ioe) {
-			logErrorAndRethrow(StringUtils.stringifyException(ioe));
+			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
+			// Rethrow error
+			throw ioe;
 		}
 
 		try {
 			Thread.sleep(sleep / 2);
 		} catch (InterruptedException e) {
+			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 			logErrorAndRethrow(StringUtils.stringifyException(e));
 		}
 
@@ -297,7 +302,14 @@ public class JobClient {
 				logErrorAndRethrow("Job client has been interrupted");
 			}
 
-			final JobProgressResult jobProgressResult = getJobProgress();
+			JobProgressResult jobProgressResult = null;
+			try {
+				jobProgressResult = getJobProgress();
+			} catch (IOException ioe) {
+				Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
+				// Rethrow error
+				throw ioe;
+			}
 
 			if (jobProgressResult == null) {
 				logErrorAndRethrow("Returned job progress is unexpectedly null!");
@@ -328,8 +340,11 @@ public class JobClient {
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
-						throw new JobExecutionException(jobEvent.getOptionalMessage(),
-							(jobStatus == JobStatus.CANCELED) ? true : false);
+						if (jobStatus == JobStatus.CANCELED) {
+							throw new JobExecutionException(jobEvent.getOptionalMessage(), true);
+						} else {
+							throw new JobExecutionException(jobEvent.getOptionalMessage(), false);
+						}
 					}
 				}
 			}
@@ -353,7 +368,7 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown after the error message is written to the log
 	 */
-	private void logErrorAndRethrow(String errorMessage) throws IOException {
+	private void logErrorAndRethrow(final String errorMessage) throws IOException {
 
 		LOG.error(errorMessage);
 		throw new IOException(errorMessage);
@@ -366,7 +381,7 @@ public class JobClient {
 	 * @param sleepTime
 	 *        the sleep time in milliseconds after which old events shall be removed from the processed event queue
 	 */
-	private void cleanUpOldEvents(long sleepTime) {
+	private void cleanUpOldEvents(final long sleepTime) {
 
 		long mostRecentTimestamp = 0;
 

@@ -119,13 +119,13 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			return;
 		}
 
-		synchronized (this.jobQueue) {
+		final List<ExecutionVertex> assignedVertices = executionGraph
+			.getVerticesAssignedToResource(allocatedResource);
+		if (assignedVertices.isEmpty()) {
+			return;
+		}
 
-			final List<ExecutionVertex> assignedVertices = executionGraph
-				.getVerticesAssignedToResource(allocatedResource);
-			if (assignedVertices.isEmpty()) {
-				return;
-			}
+		synchronized (this.jobQueue) {
 
 			boolean instanceCanBeReleased = true;
 			final Iterator<ExecutionVertex> it = assignedVertices.iterator();
@@ -158,10 +158,9 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	 */
 	@Override
 	public void schedulJob(final ExecutionGraph executionGraph) throws SchedulingException {
-		
-		
+
 		// First, check if there are enough resources to run this job
-		
+
 		// Get Map of all available Instance types
 		final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
 			.getMapOfAvailableInstanceTypes();
@@ -192,8 +191,6 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 				}
 			}
 		}
-		
-		
 
 		// Subscribe to job status notifications
 		executionGraph.registerJobStatusListener(this);
@@ -224,8 +221,10 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			try {
 				requestInstances(executionStage);
 			} catch (InstanceException e) {
-				// TODO: Handle this error correctly
-				LOG.error(StringUtils.stringifyException(e));
+				final String exceptionMessage = StringUtils.stringifyException(e);
+				LOG.error(exceptionMessage);
+				this.jobQueue.remove(executionGraph);
+				throw new SchedulingException(exceptionMessage);
 			}
 		}
 	}
