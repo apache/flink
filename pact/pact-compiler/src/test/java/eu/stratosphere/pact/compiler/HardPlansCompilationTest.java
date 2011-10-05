@@ -33,8 +33,8 @@ import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.SameKeyFirst;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -46,6 +46,7 @@ import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
+
 
 /**
  * This class tests plans that once failed because of a bug:
