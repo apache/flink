@@ -278,7 +278,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	}
 
 	/**
-	 * 
+	 * recovers the given channel
 	 */
 	public void recover(ChannelID sourceChannelID) {
 		try {
@@ -289,6 +289,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	}
 	public void recoverAll(ChannelID channelID) {
 		try {
+			
 			getTaskManager().recoverAll(channelID);
 		} catch (IOException e) {
 			e.printStackTrace();

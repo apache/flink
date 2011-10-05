@@ -23,6 +23,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -160,6 +161,19 @@ public class IncomingConnectionThread extends Thread {
 			incomingConnection.reportTransmissionProblem(key, ioe);
 		} catch (InterruptedException e) {
 
+		}
+	}
+	
+	public void clear(){
+		
+		Iterator<SelectionKey> iter = this.selector.keys().iterator();
+		while(iter.hasNext()){
+			SelectionKey key=  iter.next();
+			
+			 IncomingConnection incomingConnection = (IncomingConnection) key.attachment();
+			 if(incomingConnection != null){
+				 incomingConnection.clear();
+			 }
 		}
 	}
 }

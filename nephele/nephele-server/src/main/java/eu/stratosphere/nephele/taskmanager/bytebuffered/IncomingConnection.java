@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SelectionKey;
@@ -129,6 +130,21 @@ public class IncomingConnection {
 		// Cancel key
 		if (key != null) {
 			key.cancel();
+		}
+	}
+
+	/**
+	 * 
+	 */
+	public synchronized void clear() {
+		this.deserializer.cleanUp();
+		try {
+			ByteBuffer temp = ByteBuffer.allocate(64 * 1024);
+			while(this.readableByteChannel.read(temp) != -1){
+				temp.clear();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 }

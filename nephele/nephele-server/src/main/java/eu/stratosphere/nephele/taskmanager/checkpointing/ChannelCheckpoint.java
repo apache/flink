@@ -21,16 +21,19 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.CheckpointOutgoingConnection;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingConnection;
@@ -63,13 +66,15 @@ public class ChannelCheckpoint {
 
 	private TransferEnvelopeSerializer transferEnvelopeSerializer = null;
 
-	private boolean finishCheckpoint;
+	private boolean finishCheckpoint =false;
 
 	private FileChannel fileInputChannel;
 
 	private ByteBufferedChannelManager byteBufferedChannelManager;
 	
 	private CheckpointOutgoingConnection outgoingConnection;
+	
+	private ArrayList<Long> offsets = new ArrayList<Long>();
 
 	ChannelCheckpoint(ExecutionVertexID executionVertexID, ChannelID sourceChannelID, String tmpDir, ByteBufferedChannelManager byteBufferedChannelManager) {
 		this.executionVertexID = executionVertexID;
@@ -78,9 +83,10 @@ public class ChannelCheckpoint {
 	}
 
 	public synchronized void addToCheckpoint(TransferEnvelope transferEnvelope) throws IOException {
-
+		if(this.checkpointFinished){
+			LOG.error("Recieved Envelope" + transferEnvelope.getSequenceNumber() +" for a finished Checkpoint from " +transferEnvelope.getSource());
+		}
 		if (transferEnvelope.getSequenceNumber() != this.expectedSequenceNumber) {
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
 			throw new IOException("Expected envelope with sequence number " + this.expectedSequenceNumber
 				+ " but received " + transferEnvelope.getSequenceNumber());
 		}
@@ -94,9 +100,15 @@ public class ChannelCheckpoint {
 
 		if (this.isPersistent) {
 			this.writeEnvelopeToDisk(transferEnvelope);
+			Iterator<AbstractEvent> iter = transferEnvelope.getEventList().iterator();
+			while(iter.hasNext()){
+				if(iter.next() instanceof ByteBufferedChannelCloseEvent){
+					LOG.info("Envelope " + transferEnvelope.getSequenceNumber() + "contains Close Event");
+					markChannelCheckpointAsFinished(transferEnvelope.getSequenceNumber());
+				}
+			}
 		} else {
 			if(!this.queuedEnvelopes.contains(transferEnvelope)){
-			//System.out.println("add transferenvelop " + transferEnvelope.getSequenceNumber());
 			// Queue the buffer until there is a checkpointing decision
 			this.queuedEnvelopes.add(transferEnvelope);
 			}
@@ -109,7 +121,7 @@ public class ChannelCheckpoint {
 			.toString());
 	}
 
-	private void writeEnvelopeToDisk(TransferEnvelope transferEnvelope) throws IOException {
+	private synchronized void writeEnvelopeToDisk(TransferEnvelope transferEnvelope) throws IOException {
 		TransferEnvelope duplicatTransferEnvelope = transferEnvelope;
 		if (transferEnvelope.getProcessingLog().mustBeSentViaNetwork()) {
 			// Continue working with a copy of the transfer envelope
@@ -117,28 +129,31 @@ public class ChannelCheckpoint {
 		}
 		if (this.fileChannel == null) {
 
-			final FileOutputStream fos = new FileOutputStream(getFilename());
+			final FileOutputStream fos = new FileOutputStream(getFilename(),true);
 			this.fileChannel = fos.getChannel();
+
 		}
 
 		if (this.transferEnvelopeSerializer == null) {
 			this.transferEnvelopeSerializer = new TransferEnvelopeSerializer();
 		}
 
-		this.transferEnvelopeSerializer.setTransferEnvelope(duplicatTransferEnvelope);
-//		System.out.println("writing envelope " + duplicatTransferEnvelope.getSequenceNumber()); 
-		FileLock lock = this.fileChannel.lock();
-		while (this.transferEnvelopeSerializer.write(this.fileChannel));
-		lock.release();
-		transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
-		if(this.finishCheckpoint){
-			transferEnvelope.getProcessingLog().setSentViaNetwork();
+
+		synchronized (this.transferEnvelopeSerializer) {
+			this.transferEnvelopeSerializer.setTransferEnvelope(duplicatTransferEnvelope);
+			System.out.println("writing envelope " + duplicatTransferEnvelope.getSequenceNumber()); 
+
+			while (this.transferEnvelopeSerializer.write(this.fileChannel));
+			transferEnvelope.getProcessingLog().setWrittenToCheckpoint();
+			if(this.finishCheckpoint){
+				transferEnvelope.getProcessingLog().setSentViaNetwork();
+			}
+			this.offsets.add(this.fileChannel.size());
 		}
-		
 	}
 
 	public synchronized void makePersistent() throws IOException {
-
+		System.out.println("Make Persistent writting " + this.queuedEnvelopes.size() + " envelops for " + this.getFilename() );
 		while (!this.queuedEnvelopes.isEmpty()) {
 
 			final TransferEnvelope transferEnvelope = this.queuedEnvelopes.poll();
@@ -148,14 +163,17 @@ public class ChannelCheckpoint {
 		this.isPersistent = true;
 	}
 
-	public synchronized void markChannelCheckpointAsFinished() throws IOException {
+	public synchronized void markChannelCheckpointAsFinished(int sequenzNumber) throws IOException {
+		LOG.info("Marking checkpoint as finished after " + (this.expectedSequenceNumber -1) + " for " + sequenzNumber);
 
 		if (this.fileChannel != null) {
+			this.fileChannel.force(true);
 			this.fileChannel.close();
+			this.fileChannel = null;
 		}
-		if(this.outgoingConnection != null){
-			this.outgoingConnection.markfinished();
-		}
+//		if(this.outgoingConnection != null){
+//			this.outgoingConnection.markfinished();
+//		}
 		this.checkpointFinished = true;
 	}
 
@@ -185,14 +203,15 @@ public class ChannelCheckpoint {
 		}
 	}
 
-	public synchronized void recover(ByteBufferedChannelManager byteBufferedChannelManager) {
 
-		if (!this.checkpointFinished) {
-			LOG.error("Checkpoint is not finished!");
+	public synchronized void recover(final ByteBufferedChannelManager byteBufferedChannelManager) {
+		if(!this.checkpointFinished){
+			LOG.debug("Checkpoint is not yet finished!");
+
 		}
 
 		if (this.fileChannel.isOpen()) {
-			LOG.error("File channel is still open!");
+			LOG.debug("File channel is still open!");
 		}
 
 		// The name of the file which contains the checkpoint
@@ -203,7 +222,6 @@ public class ChannelCheckpoint {
 		try {
 			fis = new FileInputStream(filename);
 		} catch (IOException ioe) {
-			LOG.info("IO in new FileInputstream");
 			LOG.error(ioe);
 			return;
 		}
@@ -223,30 +241,28 @@ public class ChannelCheckpoint {
 		}
 
 		// Start recovering
-		System.out.println("Recovering from " + filename);
-		//final CheckpointConnection incomingConnection = new CheckpointConnection(byteBufferedChannelManager,
-		//	this.fileInputChannel);
-		final CheckpointOutgoingConnection outgoingConnection = byteBufferedChannelManager.createOutgoingCheckpointConnection(byteBufferedChannelManager,
+
+
+		final CheckpointOutgoingConnection outgoingConnection = byteBufferedChannelManager
+		.createOutgoingCheckpointConnection(byteBufferedChannelManager,
 			this.fileInputChannel, this.sourceChannelID);
+		LOG.info("Recovering from " + filename + " to " + outgoingConnection.getConnectionAddress().getHostName()
+			+ ":" + outgoingConnection.getConnectionAddress().getPort() + "//"
+			+ outgoingConnection.getConnectionAddress());
 		try {
-			while (true) {
-				outgoingConnection.write();
-			}
-		} catch (EOFException e) {
-			// EOF Exception is expected here
-		} catch (IOException e) {
+			outgoingConnection.write(this.fileChannel.size());
+
+		}catch (IOException e) {
 			e.printStackTrace();
 			outgoingConnection.reportTransmissionProblem(e);
 			// TODO: Unregister external data source
 			return;
 		}
-
-		// TODO: Unregister external data source
-		try {
-			outgoingConnection.closeConnection();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		LOG.info("Finished Recovery for channel " + this.sourceChannelID +" to " + outgoingConnection.getConnectionAddress().getHostName());
+		System.out.println("Finished Recovery");
+		//set ChannelCheckpoint back to normal state
+		this.finishCheckpoint = false;
+		
 	}
 	public synchronized void read(ByteBufferedChannelManager byteBufferedChannelManager) {	  
 		if (!this.checkpointFinished) {
@@ -301,8 +317,13 @@ public class ChannelCheckpoint {
 	public void finishCheckpoint() {
 		this.finishCheckpoint = true;
 	}
+	public boolean setFinishCeckpoint(){
+		return this.finishCheckpoint;
+	}
 	
 	public ChannelID getSourceChannelID(){
 		return this.sourceChannelID;
 	}
+
+
 }

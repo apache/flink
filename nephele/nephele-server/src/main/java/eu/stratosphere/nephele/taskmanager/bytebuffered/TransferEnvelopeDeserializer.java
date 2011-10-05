@@ -132,7 +132,7 @@ public class TransferEnvelopeDeserializer {
 			if (sequenceNumber < 0) {
 				throw new IOException("Received invalid sequence number: " + sequenceNumber);
 			}
-
+			System.out.println("INCOMING: Sequenznumber " + sequenceNumber);
 			this.deserializationState = DeserializationState.SEQUENCENUMBERDESERIALIZED;
 			this.sequenceNumberDeserializationStarted = false;
 			this.transferEnvelope = new TransferEnvelope();
@@ -343,5 +343,16 @@ public class TransferEnvelopeDeserializer {
 		}
 
 		return integer;
+	}
+	public void cleanUp(){
+		this.deserializationState = DeserializationState.NOTDESERIALIZED;
+		this.sequenceNumberDeserializationStarted = false;
+		this.lengthBuffer.clear();
+		this.buffer.recycleBuffer();
+		this.buffer = null;
+		this.transferEnvelope = null;
+		this.channelIDDeserializationBuffer.cleanUp();
+		this.notificationListDeserializationBuffer.cleanUp();
+		this.sizeOfBuffer = -1;
 	}
 }

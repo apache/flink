@@ -76,7 +76,7 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 			}
 
 			transferEnvelope = this.queuedEnvelopes.peek();
-
+			//LOG.info("Using Buffer of envelop " + transferEnvelope.getSequenceNumber());
 			// If envelope does not have a buffer, remove it immediately
 			if (transferEnvelope.getBuffer() == null) {
 				this.queuedEnvelopes.poll();
@@ -352,7 +352,10 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	}
 	
 	public void clear(){
+		
 		releaseAllResources();
 		this.nextExpectedSequenceNumber = 0;
+		this.byteBufferedInputChannel.clear();
 	}
+
 }

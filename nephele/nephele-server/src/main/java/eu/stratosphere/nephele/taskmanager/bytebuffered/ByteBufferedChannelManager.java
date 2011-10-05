@@ -691,22 +691,30 @@ public class ByteBufferedChannelManager {
 	 * @param byteBufferedChannelManager
 	 * @param fileInputChannel
 	 * @param sourceChannelID 
+	 * @param address 
 	 * @return CheckpointOutgoingConnection
 	 */
 	public CheckpointOutgoingConnection createOutgoingCheckpointConnection(
 			ByteBufferedChannelManager byteBufferedChannelManager, FileChannel fileInputChannel, ChannelID sourceChannelID) {
+
+
 		
+
+
+
 		try {
-			// Check to which host the transfer envelope shall be sent
 			final InetSocketAddress connectionAddress = getPeerConnectionAddress(sourceChannelID);
+			//LOG.info("Setting connection Adress to " +connectionAddress.getHostName() + " // " + connectionAddress.getPort());
+
+
 			OutgoingConnectionThread connectionThread = new OutgoingConnectionThread();
-			
+			connectionThread.start();
 			CheckpointOutgoingConnection outgoingConnection = new CheckpointOutgoingConnection(this, connectionAddress, connectionThread, 10, fileInputChannel);
-			this.outgoingConnections.put(connectionAddress, outgoingConnection);
+			this.outgoingConnections.put(connectionAddress,outgoingConnection);
 			return outgoingConnection;
-		} catch (InterruptedException e) {
-			e.printStackTrace();
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 		return null;
@@ -718,6 +726,7 @@ public class ByteBufferedChannelManager {
 	public void clear(ChannelID channelID) {
 		ByteBufferedChannelWrapper wrapper = this.registeredChannels.get(channelID);
 			wrapper.clear();
+		this.incomingConnectionThread.clear();	
 		
 	}
 }

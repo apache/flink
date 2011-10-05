@@ -1003,13 +1003,11 @@ public class TaskManager implements TaskOperationProtocol {
 		this.jobManager.reportPersistenCheckpoint(executionVertexID, this.runningTasks.get(executionVertexID).getJobID());
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#recover()
-	 */
 	@Override
 	public void recover(ChannelID sourceChannelID) {
 		this.checkpointManager.recoverChannelCheckpoint(sourceChannelID);
 	}
+	@Override
 	public void recoverAll(ChannelID sourceChannelID) {
 		this.checkpointManager.recoverAllChannelCheckpoints(sourceChannelID);
 	}
@@ -1017,13 +1015,14 @@ public class TaskManager implements TaskOperationProtocol {
 	@Override
 	public void restart(ExecutionVertexID executionVertexID,Configuration jobConfiguration ) {
 		Environment ee = this.runningTasks.remove(executionVertexID);
-		//unregisterTask(executionVertexID, ee);
 		ee.restartExecution();
-		
+		//set all in- and output-channels zu inital state
 		for(int i =0; i< ee.getNumberOfInputGates();i++){
 			InputGate<? extends Record> ingate = ee.getInputGate(i);
 			for(int j= 0; j < ingate.getNumberOfInputChannels(); j++){
-				this.byteBufferedChannelManager.clear(ingate.getInputChannel(j).getID());
+				if(!(ingate.getInputChannel(j) instanceof FileInputChannel<?>)){
+					this.byteBufferedChannelManager.clear(ingate.getInputChannel(j).getID());
+				}
 			}
 		}
 		for(int i =0; i< ee.getNumberOfOutputGates();i++){
@@ -1032,7 +1031,6 @@ public class TaskManager implements TaskOperationProtocol {
 				this.byteBufferedChannelManager.clear(outgate.getOutputChannel(j).getID());
 			}
 		}
-		//registerTask(executionVertexID, jobConfiguration, ee);
 	}
 
 }

@@ -566,6 +566,7 @@ public class Environment implements Runnable, IOReadableWritable {
 		}
 	
 		LOG.info("Execution canceled");
+		System.out.println("Execution canceled");
 		this.isCanceled= false;
 		this.executingThread = new Thread(this, this.taskName);
 		this.executingThread.start();
@@ -1039,7 +1040,12 @@ public class Environment implements Runnable, IOReadableWritable {
 			 */
 			unexpectedStateChange = false;
 		}
-
+		if (this.executionState == ExecutionState.RESTARTING && newExecutionState == ExecutionState.RUNNING) {
+			/**
+			 * This is a regular transition as a result of a recovery operation.
+			 */
+			unexpectedStateChange = false;
+		}
 		if (unexpectedStateChange) {
 			LOG.error("Unexpected state change: " + this.executionState + " -> " + newExecutionState);
 		}

@@ -17,11 +17,13 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
 
 import org.apache.commons.logging.Log;
@@ -38,22 +40,15 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 public class CheckpointOutgoingConnection extends OutgoingConnection {
 
 	private static final int DEFAULT_BUFFER_SIZE_IN_BYTES = 64 * 1024; // 64k
-	private ByteBufferedChannelManager byteBufferedChannelManager;
-	private InetSocketAddress connectionAddress;
-	private OutgoingConnectionThread connectionThread;
 	private int numberOfConnectionRetries;
-	private SelectionKey selectionKey;
 	private int bytesread = 0;
 	private FileChannel readableByteChannel;
 	private static final Log LOG = LogFactory.getLog(CheckpointOutgoingConnection.class);
-	private final ByteBuffer tempBuffer = ByteBuffer.allocate(64);
-	private boolean isConnected= false;
-	private int retriesLeft = 0 ;
-	private long timstampOfLastRetry;
+
 	private boolean isSubscribedToWriteEvent= false;
-	private final int bufferSizeInBytes;
+
 	private long eof = 0;
-	private boolean finished = false;
+
 	/**
 	 * Initializes CheckpointOutgoingConnection.
 	 *
@@ -66,25 +61,14 @@ public class CheckpointOutgoingConnection extends OutgoingConnection {
 			InetSocketAddress connectionAddress, OutgoingConnectionThread connectionThread,
 			int numberOfConnectionRetries, FileChannel fileInputChannel) {
 		super(byteBufferedChannelManager, connectionAddress, connectionThread, numberOfConnectionRetries);
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.connectionAddress = connectionAddress;
-		this.connectionThread = connectionThread;
-		this.numberOfConnectionRetries = numberOfConnectionRetries;
 		this.readableByteChannel = fileInputChannel;
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
-		this.bufferSizeInBytes = configuration.getInteger("channel.network.bufferSizeInBytes",
-			DEFAULT_BUFFER_SIZE_IN_BYTES);
-		
-		this.retriesLeft = this.numberOfConnectionRetries;
-		this.timstampOfLastRetry = System.currentTimeMillis();
-		this.connectionThread.triggerConnect(this);
-		this.isConnected = true;
-		this.isSubscribedToWriteEvent = true;
-		this.connectionThread.run();
-		
 		
 	}
-	public boolean write() throws IOException {
+	/**
+	 * @param l Size of Checkpoint-File
+	 * @throws IOException
+	 */
+	public void write(final long l) throws IOException {
 
 		if (!this.isConnected) {
 
@@ -100,43 +84,44 @@ public class CheckpointOutgoingConnection extends OutgoingConnection {
 				this.isSubscribedToWriteEvent = true;
 			}
 		}
-		final WritableByteChannel writableByteChannel = (WritableByteChannel) this.selectionKey.channel();
-		
-		LOG.info("position" + this.readableByteChannel.position() + " transfered " + this.eof);
-		LOG.info(this.readableByteChannel.size());
-		//FileLock lock = this.readableByteChannel.lock();
-		this.eof = this.readableByteChannel.transferTo(this.bytesread,this.readableByteChannel.size(),writableByteChannel );
-		//lock.release();
-		if(this.eof == 0){
-			if(this.finished && this.readableByteChannel.size() == this.bytesread){
-				throw new EOFException();
-			}
+		while(this.selectionKey == null){
+			System.out.println("selektionkey null");
+			this.connectionThread.triggerConnect(this);
 			try {
 				Thread.sleep(2000);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
+		WritableByteChannel writableByteChannel = null;
+		writableByteChannel = (WritableByteChannel) super.selectionKey.channel();
 
-		LOG.info(" transfered " + this.eof + " ALL " + this.bytesread);
-		this.bytesread += this.eof;
-		
-		return true;
+		synchronized (writableByteChannel) {
+
+			ByteBuffer tempBuffer = ByteBuffer.allocate(this.DEFAULT_BUFFER_SIZE_IN_BYTES);
+			while(l != this.bytesread){
+
+				try{
+					this.eof = this.readableByteChannel.transferTo(this.bytesread,l-this.bytesread,writableByteChannel );
+
+					this.bytesread += this.eof;
+					LOG.debug(" transfered " + this.eof + " ALL " + this.bytesread + " of " +l );
+				}catch(IOException e){
+					//Catch "java.io.IOException: Resource temporarily unavailable"
+					//See BUG http://bugs.sun.com/view_bug.do?bug_id=5103988
+
+					e.printStackTrace();
+					try {
+						Thread.sleep(120000); //2 min
+					} catch (InterruptedException ie) {
+						ie.printStackTrace();
+					}
+				}
+			}
+		}
 	}
 	
 	
-	/**
-	 * Sets the selection key representing the interest set of the underlying TCP NIO connection.
-	 * 
-	 * @param selectionKey
-	 *        the selection of the underlying TCP connection
-	 */
-	public void setSelectionKey(SelectionKey selectionKey) {
-		super.setSelectionKey(selectionKey);
-		this.selectionKey = selectionKey;
-	}
 	
-	public void markfinished(){
-		this.finished  = true;
-	}
+
 }

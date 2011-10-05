@@ -317,6 +317,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			while (it.hasNext()) {
 				final ExecutionVertex vertex = it.next();
 				if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
+					System.out.println("Found " + allocatedResource.getInstance().getName());
 					vertex.setAllocatedResource(allocatedResource);
 					vertex.setExecutionState(ExecutionState.ASSIGNED);
 				}
@@ -370,6 +371,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 				Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
 				instanceMap.put(allocatedResource.getInstanceType(), 1);
 				this.getInstanceManager().requestInstance(jobID, job.getJobConfiguration(),instanceMap,null);
+				
 			} catch (InstanceException e) {
 				e.printStackTrace();
 			}

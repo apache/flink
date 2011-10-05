@@ -742,7 +742,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				+ " but no instance assigned");
 			return ConnectionInfoLookupResponse.createReceiverNotReady();
 		}
-
+		LOG.info("Assinged instance is " + assignedInstance.getName());
 		return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance.getInstanceConnectionInfo());
 	}
 

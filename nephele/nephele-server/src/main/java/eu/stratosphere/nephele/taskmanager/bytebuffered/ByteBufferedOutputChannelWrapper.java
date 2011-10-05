@@ -329,7 +329,7 @@ public class ByteBufferedOutputChannelWrapper implements ByteBufferedOutputChann
 		}
 		this.sequenceNumber = 0;
 		if(this.uncompressedDataBuffer != null){
-			this.uncompressedDataBuffer.recycleBuffer();
+			this.uncompressedDataBuffer.getInternalBuffer().recycleBuffer();
 		}
 	}
 }

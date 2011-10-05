@@ -66,6 +66,7 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 	 */
 	private boolean finishCheckpoint = false;
 
+
 	/**
 	 * Constructs a new byte buffered output channel group object.
 	 * 
@@ -123,7 +124,7 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 		if (this.ephemeralCheckpoint != null && processingLog.mustBeWrittenToCheckpoint()) {
 
 			this.ephemeralCheckpoint.addTransferEnvelope(outgoingTransferEnvelope);
-
+			
 			// Look for a close event
 			final EventList eventList = outgoingTransferEnvelope.getEventList();
 			if (!eventList.isEmpty()) {
@@ -131,12 +132,13 @@ public class ByteBufferedOutputChannelGroup implements WriteBufferRequestor {
 				final Iterator<AbstractEvent> it = eventList.iterator();
 				while (it.hasNext()) {
 
-					if (it.next() instanceof ByteBufferedChannelCloseEvent) {
+					if (it.next() instanceof ByteBufferedChannelCloseEvent && this.commonChannelType == ChannelType.FILE) {;
+						System.out.println("Close Event in " + outgoingTransferEnvelope.getSequenceNumber() + " source " + outgoingTransferEnvelope.getSource());
 						// Mark corresponding channel as closed
-						this.ephemeralCheckpoint.markChannelAsFinished(outgoingTransferEnvelope.getSource());
+						this.ephemeralCheckpoint.markChannelAsFinished(outgoingTransferEnvelope.getSource(), outgoingTransferEnvelope.getSequenceNumber());
 
 						// If checkpoint is persistent it is save to acknowledge the close event
-						if (this.ephemeralCheckpoint.isPersistent()) {
+						if (this.ephemeralCheckpoint.isPersistent() && this.commonChannelType == ChannelType.FILE) {
 							channelWrapper.processEvent(new ByteBufferedChannelCloseEvent());
 						}
 

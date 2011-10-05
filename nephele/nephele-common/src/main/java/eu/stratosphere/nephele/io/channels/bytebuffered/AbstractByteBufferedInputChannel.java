@@ -309,4 +309,20 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			this.decompressor.shutdown(getID());
 		}
 	}
+
+	/**
+	 * 
+	 */
+	public void clear() {
+		this.deserializationBuffer.cleanUp();
+		releasedConsumedReadBuffer();
+		this.bufferedRecord = null;
+		if (this.decompressor != null) {
+			this.decompressor.shutdown(getID());
+		}
+//		if(this.uncompressedDataBuffer != null){
+//			this.uncompressedDataBuffer.recycleBuffer();
+//			this.uncompressedDataBuffer = null;
+//		}
+	}
 }

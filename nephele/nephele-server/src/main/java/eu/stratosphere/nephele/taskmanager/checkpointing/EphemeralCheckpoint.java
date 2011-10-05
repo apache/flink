@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -25,6 +26,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
 import eu.stratosphere.nephele.profiling.ProfilingException;
@@ -80,7 +82,6 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 */
 	private final Map<ChannelID, ChannelCheckpoint> channelCheckpoints = new HashMap<ChannelID, ChannelCheckpoint>();
 
-	private boolean finishCheckpoint = false;
 	
 	/**
 	 * Constructs a new ephemeral checkpoint.
@@ -299,8 +300,10 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 * 
 	 * @param sourceChannelID
 	 *        the ID of the output channel to be marked as finished
+	 *        
+	 * @param sequenzNumber the sequenznumber of the last envelope
 	 */
-	public synchronized void markChannelAsFinished(ChannelID sourceChannelID) {
+	public synchronized void markChannelAsFinished(ChannelID sourceChannelID, int sequenzNumber) {
 
 		final ChannelCheckpoint channelCheckpoint = this.channelCheckpoints.get(sourceChannelID);
 		if (channelCheckpoint == null) {
@@ -309,7 +312,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		}
 
 		try {
-			channelCheckpoint.markChannelCheckpointAsFinished();
+			channelCheckpoint.markChannelCheckpointAsFinished(sequenzNumber);
 		} catch (IOException ioe) {
 			LOG.error("Error while finishing channel checkpoint sourceChannelID: " + ioe);
 		}
@@ -326,6 +329,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 *        the byte buffered channel manager
 	 * @param sourceChannelID
 	 *        the ID of the output channel which shall be recovered
+	 * @param address 
 	 */
 	public synchronized void recoverIndividualChannel(ByteBufferedChannelManager byteBufferedChannelManager,
 			ChannelID sourceChannelID) {
@@ -346,6 +350,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 	 * 
 	 * @param byteBufferedChannelManager
 	 *        the byte buffered channel manager
+	 * @param address 
 	 *
 	 */
 	public synchronized void recoverAllChannels(ByteBufferedChannelManager byteBufferedChannelManager) {
@@ -357,10 +362,7 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			
 			ChannelID channelID = channelIDIterator.next();
 			recoverIndividualChannel(byteBufferedChannelManager, channelID);
-//			final CheckpointRecoveryThread thread = new CheckpointRecoveryThread(byteBufferedChannelManager,
-//			this.channelCheckpoints.get(channelID), channelID, false);
-//
-//			thread.start();
+
 		}
 	}
 	/**
@@ -405,7 +407,6 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 			
 			while (it.hasNext()) {
 				ChannelCheckpoint next = it.next();
-				//LOG.info("Creating permanent channel " + next.getSourceChannelID());
 				this.checkpointManager.reportPersistenCheckpoint(this.executionVertexID,next.getSourceChannelID() );
 				next.makePersistent();
 			}
@@ -422,15 +423,12 @@ public class EphemeralCheckpoint implements OutOfByteBuffersListener {
 		this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 	}
 
-	public boolean isDecided(){
-		return this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED;
-	}
 
 	/**
-	 * 
+	 * A call to this methods sets the checkpoint to a finishing state.
+	 * The Checkpoint will store all envelops to disk without sending them via network afterwards
 	 */
 	public void finishCheckpoint() {
-		this.finishCheckpoint  = true;
 		Iterator<ChannelCheckpoint> channelCheckpointIterator = this.channelCheckpoints.values().iterator();
 		while(channelCheckpointIterator.hasNext()){
 			channelCheckpointIterator.next().finishCheckpoint();

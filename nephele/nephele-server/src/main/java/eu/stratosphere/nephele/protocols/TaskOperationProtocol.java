@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -24,6 +25,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
@@ -119,18 +121,21 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 */
 	void logBufferUtilization() throws IOException;
 
-	/**
-	 * 
-	 */
-	void recover(ChannelID sourceChannelID);
-
-	/**
-	 * 
-	 */
-	void recoverAll(ChannelID sourceChannelID);
 
 	/**
 	 * @param executionVertexID
 	 */
 	void restart(ExecutionVertexID executionVertexID,Configuration jobConfiguration );
+
+	/**
+	 * @param sourceChannelID
+	 * @param address
+	 */
+	void recoverAll(ChannelID sourceChannelID);
+
+	/**
+	 * @param sourceChannelID
+	 * @param instanceConnectionInfo
+	 */
+	void recover(ChannelID sourceChannelID);
 }

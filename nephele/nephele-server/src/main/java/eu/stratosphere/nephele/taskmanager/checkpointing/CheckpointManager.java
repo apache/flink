@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
+import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -23,6 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.profiling.CheckpointProfilingData;
 import eu.stratosphere.nephele.profiling.ProfilingException;
@@ -211,6 +213,7 @@ public class CheckpointManager {
 	}
 	/**
 	 * @param sourceChannelID
+	 * @param address 
 	 */
 	public void recoverAllChannelCheckpoints(ChannelID sourceChannelID) {
 		ExecutionVertexID executionVertexID = null;

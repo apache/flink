@@ -116,7 +116,12 @@ public class RecoveryThread extends Thread {
 				if(!vertex.equals(failed)){
 				LOG.info("---------------");
 				LOG.info("Restarting " + vertex.getName() );
-				vertex.getAllocatedResource().getInstance().restart(vertex.getID(), job.getJobConfiguration());
+				try {
+					vertex.getAllocatedResource().getInstance().restart(vertex.getID(), job.getJobConfiguration());
+				} catch (Exception e) {
+					LOG.info("Catched Exception " + StringUtils.stringifyException(e) + "wihle restarting");
+				}
+				System.out.println("restarted " + vertex.getName());
 				LOG.info("---------------");
 				}
 				

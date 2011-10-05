@@ -199,6 +199,6 @@ public class MemoryBuffer implements InternalBuffer {
 	@Override
 	public void rewind() {
 		
-		this.byteBuffer.rewind();
+		this.byteBuffer.position(0);
 	}
 }

@@ -261,7 +261,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 					.getIdentifier());
 			}
 
-			this.eventCollector.updateManagementGraph(jobID, event);
+			this.eventCollector.updateManagementGraph(this.jobID, event);
 			this.eventCollector.addEvent(this.jobID, event);
 		}
 	}

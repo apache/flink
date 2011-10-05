@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.taskmanager.checkpointing;
 
+import java.net.InetAddress;
+
+import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 
@@ -25,6 +28,7 @@ public class CheckpointRecoveryThread extends Thread {
 	private final ChannelCheckpoint channelCheckpoint;
 
 	private boolean reading = false;
+
 	
 	public CheckpointRecoveryThread(ByteBufferedChannelManager byteBufferedChannelManager,
 			ChannelCheckpoint channelCheckpoint, ChannelID sourceChannelID,boolean reading) {
@@ -44,6 +48,7 @@ public class CheckpointRecoveryThread extends Thread {
 			this.channelCheckpoint.read(this.byteBufferedChannelManager);
 		}
 		else{
+			
 			this.channelCheckpoint.recover(this.byteBufferedChannelManager);
 		}
 		

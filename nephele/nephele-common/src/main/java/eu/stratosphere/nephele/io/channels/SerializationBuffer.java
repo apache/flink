@@ -139,6 +139,7 @@ public class SerializationBuffer<T extends IOReadableWritable> {
 
 		// Now record is completely in serializationBuffer;
 		integerToByteBuffer(this.serializationBuffer.getLength(), this.lengthBuf);
+		//System.out.println("OUTGOING: Length " + this.serializationBuffer.getLength());
 	}
 
 	public void clear() {

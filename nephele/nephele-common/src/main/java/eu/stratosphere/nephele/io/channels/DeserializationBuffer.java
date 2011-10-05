@@ -120,18 +120,29 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 			this.tempBuffer.position(0);
 			this.tempBuffer.limit(this.recordLength);
 		}
-
-		if (readableByteChannel.read(tempBuffer) == -1 && this.propagateEndOfStream) {
+		long read = readableByteChannel.read(this.tempBuffer);
+		if (read == -1 && this.propagateEndOfStream) {
 			throw new IOException("Deserilization error: Expected to read " + this.tempBuffer.remaining()
 				+ " more bytes from stream!");
 		}
-
+		if(read == -1){
+			System.out.println("Read EOF");
+			while(read == -1 && !this.propagateEndOfStream) {
+				read = readableByteChannel.read(this.tempBuffer);
+				try {
+					Thread.sleep(20000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+					break;
+				}
+			}
+		}
 		if (this.tempBuffer.hasRemaining()) {
 			return null;
 		}
 
 		this.deserializationBuffer.reset(this.tempBuffer.array(), this.recordLength);
-		final T record = deserializer.deserialize(this.deserializationBuffer);
+		final T record = this.deserializer.deserialize(this.deserializationBuffer);
 
 		this.recordLength = -1;
 		this.lengthBuf.clear();
@@ -163,11 +174,12 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 
 		this.recordLength = -1;
 		if (this.tempBuffer != null) {
-			this.tempBuffer.clear();
+			this.tempBuffer.clear();			
 		}
 		if (this.lengthBuf != null) {
 			this.lengthBuf.clear();
 		}
+
 	}
 
 	/**
@@ -189,4 +201,21 @@ public class DeserializationBuffer<T extends IOReadableWritable> {
 
 		return false;
 	}
+	/**
+	 * Clears the internal buffers of the deserializer and resets its state.
+	 */
+	public synchronized void cleanUp() {
+
+		this.recordLength = -1;
+		if (this.tempBuffer != null) {
+			this.tempBuffer.clear();
+			this.tempBuffer = null;
+			
+		}
+		if (this.lengthBuf != null) {
+			this.lengthBuf.clear();
+		}
+		this.deserializationBuffer = new DataInputBuffer();
+	}
+	
 }

@@ -46,12 +46,12 @@ public class OutgoingConnection {
 
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
-	private final InetSocketAddress connectionAddress;
+	protected final InetSocketAddress connectionAddress;
 
 	/**
 	 * The outgoing connection thread which actually transmits the queued transfer envelopes.
 	 */
-	private final OutgoingConnectionThread connectionThread;
+	protected final OutgoingConnectionThread connectionThread;
 
 	/**
 	 * The queue of transfer envelopes to be transmitted.
@@ -72,7 +72,7 @@ public class OutgoingConnection {
 	 * Stores whether the underlying TCP connection is established. As this variable is accessed by the byte buffered
 	 * channel manager and the outgoing connection thread, it must be protected by a monitor.
 	 */
-	private boolean isConnected = false;
+	protected boolean isConnected = false;
 
 	/**
 	 * Stores whether is underlying TCP connection is subscribed to the NIO write event. As this variable is accessed by
@@ -88,18 +88,18 @@ public class OutgoingConnection {
 	/**
 	 * The number of connection retries left before an I/O error is reported.
 	 */
-	private int retriesLeft = 0;
+	protected int retriesLeft = 0;
 
 	/**
 	 * The timestamp of the last connection retry.
 	 */
-	private long timstampOfLastRetry = 0;
+	protected long timstampOfLastRetry = 0;
 
 	/**
 	 * The current selection key representing the interest set of the underlying TCP NIO connection. This variable may
 	 * only be accessed the the outgoing connection thread.
 	 */
-	private SelectionKey selectionKey = null;
+	protected SelectionKey selectionKey = null;
 
 	/**
 	 * The period of time in milliseconds that shall be waited before a connection attempt is considered to be failed.
@@ -220,15 +220,16 @@ public class OutgoingConnection {
 
 			// Error is fatal
 			LOG.error(ioe);
-
+			this.connectionThread.interrupt();
 			// Notify source of current envelope and release buffer
 			if (this.currentEnvelope != null) {
 				this.byteBufferedChannelManager
 					.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
-//				if (this.currentEnvelope.getBuffer() != null) {
-//					this.currentEnvelope.getBuffer().recycleBuffer();
-//					this.currentEnvelope = null;
-//				}
+				if (this.currentEnvelope.getBuffer() != null) {
+					//this.currentEnvelope.getBuffer().recycleBuffer();
+					this.currentEnvelope.getProcessingLog().setSentViaNetwork();
+					this.currentEnvelope = null;
+				}
 			}
 
 			// Notify all other tasks which are waiting for data to be transmitted
@@ -238,9 +239,10 @@ public class OutgoingConnection {
 				iter.remove();
 				this.byteBufferedChannelManager.reportIOExceptionForOutputChannel(envelope.getSource(), ioe);
 				// Recycle the buffer inside the envelope
-//				if (envelope.getBuffer() != null) {
+				if (envelope.getBuffer() != null) {
+				 envelope.getProcessingLog().setSentViaNetwork();
 //					envelope.getBuffer().recycleBuffer();
-//				}
+				}
 			}
 
 //			this.queuedEnvelopes.clear();

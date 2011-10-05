@@ -121,7 +121,7 @@ public class EphemeralCheckpointTest {
 
 		final ChannelID[] registeredOutputChanelIDs = fileEC.getIDsOfCheckpointedOutputChannels();
 		for (int i = 0; i < 10; i++) {
-			fileEC.markChannelAsFinished(registeredOutputChanelIDs[i]);
+			fileEC.markChannelAsFinished(registeredOutputChanelIDs[i],0);
 		}
 
 		assertTrue(fileEC.isFinished());
