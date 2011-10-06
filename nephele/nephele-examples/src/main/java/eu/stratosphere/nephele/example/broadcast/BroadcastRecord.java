@@ -76,10 +76,10 @@ public class BroadcastRecord implements Record {
 	 *        the timestamp for this broadcast record
 	 */
 	public void setTimestamp(final long timestamp) {
-		
+
 		for (int i = 0; i < SIZE_OF_LONG; ++i) {
 			final int shift = i << 3; // i * 8
-			this.data[(SIZE_OF_LONG - 1) - i] = (byte) ((timestamp & (0xff << shift)) >>> shift);
+			this.data[(SIZE_OF_LONG - 1) - i] = (byte) ((timestamp & (0xffL << shift)) >>> shift);
 		}
 	}
 
@@ -93,9 +93,9 @@ public class BroadcastRecord implements Record {
 		long l = 0;
 
 		for (int i = 0; i < SIZE_OF_LONG; ++i) {
-			l |= (this.data[(SIZE_OF_LONG - 1) - i] & 0xff) << (i << 3);
+			l |= (this.data[(SIZE_OF_LONG - 1) - i] & 0xffL) << (i << 3);
 		}
-		
+
 		return l;
 	}
 

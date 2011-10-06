@@ -219,6 +219,8 @@ public class BroadcastJob {
 		consumer.getConfiguration().setInteger(BroadcastProducer.RUN_KEY, run);
 		consumer.getConfiguration().setString(BroadcastConsumer.OUTPUT_PATH_KEY, OUTPUT_PATH);
 		consumer.getConfiguration().setString(BroadcastConsumer.TOPOLOGY_TREE_KEY, TOPOLOGY_TREE);
+		consumer.getConfiguration().setString(BroadcastConsumer.INSTANCE_TYPE_KEY, INSTANCE_TYPE);
+		consumer.getConfiguration().setInteger(BroadcastProducer.NUMBER_OF_RECORDS_KEY, NUMBER_OF_RECORDS);
 
 		// Connect both vertices
 		producer.connectTo(consumer, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
@@ -236,7 +238,7 @@ public class BroadcastJob {
 
 		final long numberOfBytesSent = BroadcastRecord.RECORD_SIZE * NUMBER_OF_RECORDS * NUMBER_OF_CONSUMERS;
 		// Throughput in bits per second
-		final long throughput = numberOfBytesSent / (jobDuration * 1000) * 8;
+		final long throughput = numberOfBytesSent / jobDuration * 1000 * 8;
 
 		// Write calculated throughput to file
 		outputWriter.write(throughput + "\n");
