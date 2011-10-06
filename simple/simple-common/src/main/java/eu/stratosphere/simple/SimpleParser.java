@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.regex.Pattern;
 
 import org.antlr.runtime.BitSet;
 import org.antlr.runtime.IntStream;
@@ -23,11 +25,17 @@ import org.antlr.runtime.RecognizerSharedState;
 import org.antlr.runtime.Token;
 import org.antlr.runtime.TokenStream;
 import org.antlr.runtime.UnwantedTokenException;
+
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ExpressionTagFactory;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorFactory;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.function.JavaFunction;
+import eu.stratosphere.sopremo.function.SopremoFunction;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
 public abstract class SimpleParser extends Parser {
 	protected OperatorFactory operatorFactory = new OperatorFactory();
@@ -35,6 +43,8 @@ public abstract class SimpleParser extends Parser {
 	protected ExpressionTagFactory expressionTagFactory = new ExpressionTagFactory();
 
 	protected List<Sink> sinks = new ArrayList<Sink>();
+
+	private EvaluationContext context = new EvaluationContext();
 
 	public SimpleParser(TokenStream input, RecognizerSharedState state) {
 		super(input, state);
@@ -44,6 +54,10 @@ public abstract class SimpleParser extends Parser {
 	public SimpleParser(TokenStream input) {
 		super(input);
 		this.importPackage("base");
+	}
+
+	public OperatorFactory getOperatorFactory() {
+		return operatorFactory;
 	}
 
 	/**
@@ -130,7 +144,7 @@ public abstract class SimpleParser extends Parser {
 
 		int tokenCount = wordBoundaries.size();
 		OperatorFactory.OperatorInfo<?> info = null;
-		for (; info == null && tokenCount > 0; )
+		for (; info == null && tokenCount > 0;)
 			info = this.operatorFactory.getOperatorInfo(name.substring(0, wordBoundaries.getInt(--tokenCount)));
 
 		// consume additional tokens
@@ -160,7 +174,34 @@ public abstract class SimpleParser extends Parser {
 
 	public SopremoPlan parse() throws RecognitionException {
 		this.parseSinks();
-		return new SopremoPlan(this.sinks);
+		SopremoPlan plan = new SopremoPlan(this.sinks);
+		plan.setContext(this.context);
+		return plan;
+	}
+
+	public void addFunction(SopremoFunction function) {
+		this.context.getFunctionRegistry().register(function);
+	}
+
+	public void addFunction(String name, String udfPath) {
+		int delim = udfPath.lastIndexOf('.');
+		if (delim == -1)
+			throw new IllegalArgumentException("Invalid path");
+		String className = udfPath.substring(0, delim), methodName = udfPath.substring(delim + 1);
+
+		JavaFunction function = new JavaFunction(name);
+		try {
+			Class<?> clazz = Class.forName(className);
+			List<Method> functions = FunctionRegistry.getCompatibleMethods(
+				ReflectUtil.getMethods(clazz, methodName, Modifier.STATIC | Modifier.PUBLIC));
+			for (Method method : functions)
+				function.addSignature(method);
+		} catch (ClassNotFoundException e) {
+			throw new IllegalArgumentException("Unknown class " + className);
+		}
+		if (function.getSignatures().isEmpty())
+			throw new IllegalArgumentException("Unknown method " + methodName);
+		this.context.getFunctionRegistry().register(function);
 	}
 
 	protected Number parseInt(String text) {

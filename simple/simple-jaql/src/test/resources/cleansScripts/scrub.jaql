@@ -7,9 +7,8 @@ $scrubbed_earmarks = scrub $dirty_earmarks with rules {
 	// normalization with built-in expressions
 	amount: [type decimal, $ * 1000],
 	// normalization with user-defined functions
-	$.sponsorLastName: [required, 
-		NormalizeName($)],
-	$.sponsorFirstName: [required, 
+	sponsorLastName: [required,	NormalizeName($)],
+	sponsorFirstName: [required,
 		NormalizeName($), 
 		lookup $ in $nick_names default $],
 }

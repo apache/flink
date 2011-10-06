@@ -52,7 +52,7 @@ public class Replace extends CompositeOperator<Replace> {
 		private Object readResolve() {
 			return FILTER_RECORDS;
 		}
-		
+
 		@Override
 		protected void toString(StringBuilder builder) {
 			builder.append("<filter>");
@@ -66,7 +66,7 @@ public class Replace extends CompositeOperator<Replace> {
 	private boolean arrayElementsReplacement = false;
 
 	public JsonStreamExpression getDictionary() {
-		return new JsonStreamExpression(getInput(2));
+		return new JsonStreamExpression(getInput(1));
 	}
 
 	public Replace withDictionary(JsonStreamExpression dictionary) {

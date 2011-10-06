@@ -5,6 +5,7 @@ import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,19 +55,29 @@ public class OperatorFactory {
 			return this.operatorProperties.get(name) != null;
 		}
 
-		public void setProperty(String name, Op operator, Object value) {
+		public Object getProperty(String name, Operator<Op> operator) {
+			PropertyDescriptor propertyDescriptor = this.operatorProperties.get(name);
+			if (propertyDescriptor == null)
+				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
+					name, operator.getName(), this.operatorProperties.keySet()));
+			try {
+				return propertyDescriptor.getReadMethod().invoke(operator, new Object[0]);
+			} catch (Exception e) {
+				throw new RuntimeException(
+					String.format("Could not get property %s of %s", name, operator), e);
+			}
+		}
+
+		public void setProperty(String name, Operator<Op> operator, Object value) {
 			PropertyDescriptor propertyDescriptor = this.operatorProperties.get(name);
 			if (propertyDescriptor == null)
 				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
 					name, operator.getName(), this.operatorProperties.keySet()));
 			try {
 				propertyDescriptor.getWriteMethod().invoke(operator, value);
-			} catch (IllegalArgumentException e) {
-				e.printStackTrace();
-			} catch (IllegalAccessException e) {
-				e.printStackTrace();
-			} catch (InvocationTargetException e) {
-				e.printStackTrace();
+			} catch (Exception e) {
+				throw new RuntimeException(
+					String.format("Could not set property %s of %s to %s", name, operator, value), e);
 			}
 		}
 
@@ -75,13 +86,23 @@ public class OperatorFactory {
 		}
 
 		public boolean hasFlag(String name) {
-			return this.inputProperties.get(name) != null && this.inputProperties.get(name).getPropertyType() == Boolean.TYPE;
+			return this.operatorProperties.get(name) != null
+				&& this.operatorProperties.get(name).getPropertyType() == Boolean.TYPE;
 		}
 
-		public void setInputProperty(String name, Op operator, int inputIndex, EvaluationExpression expression) {
+		public Map<String, PropertyDescriptor> getOperatorProperties() {
+			return this.operatorProperties;
+		}
+
+		public Map<String, PropertyDescriptor> getInputProperties() {
+			return this.inputProperties;
+		}
+
+		public void setInputProperty(String name, Operator<Op> operator, int inputIndex, EvaluationExpression expression) {
 			PropertyDescriptor propertyDescriptor = this.inputProperties.get(name);
 			if (propertyDescriptor == null)
-				throw new IllegalArgumentException(String.format("Unknown property %s for operator %s (available %s)",
+				throw new IllegalArgumentException(String.format(
+					"Unknown input property %s for operator %s (available %s)",
 					name, operator.getName(), this.inputProperties.keySet()));
 			try {
 				((IndexedPropertyDescriptor) propertyDescriptor).getIndexedWriteMethod().invoke(operator, inputIndex,
@@ -95,7 +116,22 @@ public class OperatorFactory {
 			}
 		}
 
-		public Op newInstance() {
+		public Object getInputProperty(String name, Operator<Op> operator, int inputIndex) {
+			PropertyDescriptor propertyDescriptor = this.inputProperties.get(name);
+			if (propertyDescriptor == null)
+				throw new IllegalArgumentException(String.format(
+					"Unknown input property %s for operator %s (available %s)",
+					name, operator.getName(), this.inputProperties.keySet()));
+			try {
+				return ((IndexedPropertyDescriptor) propertyDescriptor).getIndexedReadMethod().invoke(operator,
+					new Object[] { inputIndex });
+			} catch (Exception e) {
+				throw new RuntimeException(
+					String.format("Could not get property %s of %s", name, operator), e);
+			}
+		}
+
+		public Operator<Op> newInstance() {
 			try {
 				return this.operatorClass.newInstance();
 			} catch (InstantiationException e) {
@@ -108,10 +144,20 @@ public class OperatorFactory {
 	}
 
 	public OperatorFactory() {
+		this.addOperator(Sink.class);
+		this.addOperator(Source.class);
 	}
 
 	public OperatorInfo<?> getOperatorInfo(String operator) {
 		return this.operators.get(operator.toLowerCase());
+	}
+
+	@SuppressWarnings("unchecked")
+	public <O extends Operator<O>> OperatorInfo<O> getOperatorInfo(Class<O> operatorClass) {
+		for (OperatorInfo<?> info : this.operators.values())
+			if (info.operatorClass == operatorClass)
+				return (OperatorInfo<O>) info;
+		return null;
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -119,7 +165,8 @@ public class OperatorFactory {
 		String name;
 		Name nameAnnotation = ReflectUtil.getAnnotation(operatorClass, Name.class);
 		if (nameAnnotation != null)
-			name = this.operatorNameChooser.choose(nameAnnotation.noun(), nameAnnotation.verb(), nameAnnotation.adjective(),
+			name = this.operatorNameChooser.choose(nameAnnotation.noun(), nameAnnotation.verb(),
+				nameAnnotation.adjective(),
 				nameAnnotation.preposition());
 		else
 			name = operatorClass.getSimpleName().toLowerCase();

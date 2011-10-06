@@ -16,6 +16,7 @@ import org.codehaus.jackson.node.NullNode;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.PactJsonObject;
@@ -28,7 +29,7 @@ public class Source extends ElementaryOperator<Source> {
 	 */
 	private static final long serialVersionUID = 4321371118396025441L;
 
-	private String inputName;
+	private String inputPath;
 
 	private EvaluationExpression adhocExpression;
 
@@ -40,31 +41,70 @@ public class Source extends ElementaryOperator<Source> {
 	}
 
 	public Source(Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputformat,
-			final String inputName) {
-		this.inputName = inputName;
+			final String inputPath) {
+		this.inputPath = inputPath;
 		this.inputFormat = inputformat;
 	}
 
-	public Source(final String inputName) {
-		this(JsonInputFormat.class, inputName);
+	public Source(final String inputPath) {
+		this(JsonInputFormat.class, inputPath);
+	}
+
+	public Source() {
+		this(new ArrayCreation());
+	}
+
+	public String getInputPath() {
+		return this.inputPath;
+	}
+
+	public void setInputPath(String inputPath) {
+		if (inputPath == null)
+			throw new NullPointerException("inputPath must not be null");
+
+		this.adhocExpression = null;
+		this.inputPath = inputPath;
+	}
+
+	public Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> getInputFormat() {
+		return this.inputFormat;
+	}
+
+	public void setInputFormat(Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputFormat) {
+		if (inputFormat == null)
+			throw new NullPointerException("inputFormat must not be null");
+
+		this.inputFormat = inputFormat;
+	}
+
+	public Map<String, Object> getParameters() {
+		return this.parameters;
+	}
+
+	public void setAdhocExpression(EvaluationExpression adhocExpression) {
+		if (adhocExpression == null)
+			throw new NullPointerException("adhocExpression must not be null");
+
+		this.inputPath = null;
+		this.adhocExpression = adhocExpression;
 	}
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		String inputName = this.inputName, name = this.inputName;
+		String inputPath = this.inputPath, name = this.inputPath;
 		if (this.isAdhoc())
 			try {
 				final File tempFile = File.createTempFile("Adhoc", "source");
 				this.writeValues(tempFile);
-				inputName = "file://localhost" + tempFile.getAbsolutePath();
-				SopremoUtil.LOG.info("temp file " + inputName);
+				inputPath = "file://localhost" + tempFile.getAbsolutePath();
+				SopremoUtil.LOG.info("temp file " + inputPath);
 				name = "Adhoc";
 			} catch (IOException e) {
 				throw new IllegalStateException("Cannot create adhoc source", e);
 			}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
-			this.inputFormat, inputName, name);
+			this.inputFormat, inputPath, name);
 		if (this.inputFormat == JsonInputFormat.class)
 			contract.setDegreeOfParallelism(1);
 
@@ -103,7 +143,7 @@ public class Source extends ElementaryOperator<Source> {
 		if (this.getClass() != obj.getClass())
 			return false;
 		final Source other = (Source) obj;
-		return (this.inputName == null ? other.inputFormat == null : this.inputName.equals(other.inputName))
+		return (this.inputPath == null ? other.inputFormat == null : this.inputPath.equals(other.inputPath))
 			&& (this.adhocExpression == null ? this.adhocExpression == null : this.adhocExpression
 				.equals(other.adhocExpression));
 	}
@@ -119,7 +159,7 @@ public class Source extends ElementaryOperator<Source> {
 	}
 
 	public String getInputName() {
-		return this.inputName;
+		return this.inputPath;
 	}
 
 	@Override
@@ -127,7 +167,7 @@ public class Source extends ElementaryOperator<Source> {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result + (this.adhocExpression == null ? 0 : this.adhocExpression.hashCode());
-		result = prime * result + (this.inputName == null ? 0 : this.inputName.hashCode());
+		result = prime * result + (this.inputPath == null ? 0 : this.inputPath.hashCode());
 		return result;
 	}
 
@@ -136,6 +176,6 @@ public class Source extends ElementaryOperator<Source> {
 		if (this.isAdhoc())
 			return "Source [" + this.adhocExpression + "]";
 
-		return "Source [" + this.inputName + "]";
+		return "Source [" + this.inputPath + "]";
 	}
 }

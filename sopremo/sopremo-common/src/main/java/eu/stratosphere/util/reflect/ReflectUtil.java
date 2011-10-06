@@ -1,8 +1,11 @@
 package eu.stratosphere.util.reflect;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,7 +75,7 @@ public class ReflectUtil {
 	 *        the super class in the hierarchy
 	 * @param subclass
 	 *        the sub class of the hierarchy
-	 * @return the minimum distance or -1 if <code>subclass</code> is not a subclass of <code>superclass</code> 
+	 * @return the minimum distance or -1 if <code>subclass</code> is not a subclass of <code>superclass</code>
 	 */
 	public static int getDistance(final Class<?> superClass, final Class<?> subclass) {
 		if (isSameTypeOrPrimitive(superClass, subclass))
@@ -206,4 +209,13 @@ public class ReflectUtil {
 			CACHED_CLASSES.put(clazz, dynamicClass = new DynamicClass<T>(clazz));
 		return dynamicClass;
 	}
+
+	public static synchronized List<Method> getMethods(Class<?> clazz, String name, int modifiers) {
+		ArrayList<Method> methods = new ArrayList<Method>();
+		for (Method method : clazz.getMethods())
+			if ((name == null || method.getName().equals(name)) && (method.getModifiers() & modifiers) != 0)
+				methods.add(method);
+		return methods;
+	}
+
 }

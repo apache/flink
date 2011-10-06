@@ -47,7 +47,7 @@ public class Join extends CompositeOperator<Join> {
 	 */
 	private static final long serialVersionUID = 6428723643579047169L;
 
-	private EvaluationExpression condition = new ConstantExpression(true);
+	private EvaluationExpression joinCondition = new ConstantExpression(true);
 
 	private EvaluationExpression resultProjection = ObjectCreation.CONCATENATION;
 
@@ -70,7 +70,7 @@ public class Join extends CompositeOperator<Join> {
 		if (joinCondition == null)
 			throw new NullPointerException("joinCondition must not be null");
 
-		this.condition = joinCondition;
+		this.joinCondition = joinCondition;
 	}
 
 	public Join withResultProjection(EvaluationExpression resultProjection) {
@@ -90,10 +90,10 @@ public class Join extends CompositeOperator<Join> {
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
 
 		List<TwoSourceJoin> joins;
-		if (this.condition instanceof AndExpression)
-			joins = this.getInitialJoinOrder((AndExpression) this.condition, module);
+		if (this.joinCondition instanceof AndExpression)
+			joins = this.getInitialJoinOrder((AndExpression) this.joinCondition, module);
 		else
-			joins = Arrays.asList(this.getTwoSourceJoinForExpression(this.condition, module));
+			joins = Arrays.asList(this.getTwoSourceJoinForExpression(this.joinCondition, module));
 
 		final List<Operator<?>> inputs = new ArrayList<Operator<?>>();
 		for (int index = 0; index < numInputs; index++) {
@@ -136,21 +136,21 @@ public class Join extends CompositeOperator<Join> {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		return super.equals(obj) && this.condition.equals(((Join) obj).condition)
+		return super.equals(obj) && this.joinCondition.equals(((Join) obj).joinCondition)
 			&& this.resultProjection.equals(((Join) obj).resultProjection);
 	}
 
 	@Override
 	public String toString() {
 		final StringBuilder builder = new StringBuilder(this.getName());
-		builder.append(" on ").append(this.getCondition());
+		builder.append(" on ").append(this.getJoinCondition());
 		if (this.getResultProjection() != EvaluationExpression.VALUE)
 			builder.append(" to ").append(this.getResultProjection());
 		return builder.toString();
 	}
 
-	public EvaluationExpression getCondition() {
-		return this.condition;
+	public EvaluationExpression getJoinCondition() {
+		return this.joinCondition;
 	}
 
 	private List<TwoSourceJoin> getInitialJoinOrder(final AndExpression condition, SopremoModule module) {
@@ -184,7 +184,7 @@ public class Join extends CompositeOperator<Join> {
 	public int hashCode() {
 		final int prime = 37;
 		int result = super.hashCode();
-		result = prime * result + this.condition.hashCode();
+		result = prime * result + this.joinCondition.hashCode();
 		result = prime * result + this.resultProjection.hashCode();
 		return result;
 	}

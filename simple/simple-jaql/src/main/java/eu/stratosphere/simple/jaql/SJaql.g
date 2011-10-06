@@ -39,6 +39,7 @@ import eu.stratosphere.simple.*;
 import eu.stratosphere.sopremo.pact.*;
 import eu.stratosphere.sopremo.expressions.*;
 import eu.stratosphere.sopremo.aggregation.*;
+import eu.stratosphere.sopremo.function.*;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.*;
 import java.math.*;
@@ -52,7 +53,7 @@ bindings.addScope();
 }
 
 @parser::members {
-private Map<String, Operator> variables = new HashMap<String, Operator>();
+private Map<String, Object> variables = new HashMap<String, Object>();
 
 public void parseSinks() throws RecognitionException {  
     script();
@@ -63,7 +64,7 @@ private EvaluationExpression makePath(Token inputVar, String... path) {
 
   int inputIndex = inputIndexForVariable(inputVar);
   if(inputIndex == -1) {
-    accesses.add(new JsonStreamExpression(getVariable(inputVar)));
+    accesses.add(new JsonStreamExpression(getVariable(inputVar, Operator.class)));
   } else {
     InputSelection inputSelection = new InputSelection(inputIndex);
     for (ExpressionTag tag : $operator::inputTags.get(inputIndex))
@@ -77,11 +78,13 @@ private EvaluationExpression makePath(Token inputVar, String... path) {
   return PathExpression.valueOf(accesses);
 }
 
-private Operator getVariable(Token variable) {
-	Operator op = variables.get(variable.getText());
+private <T> T getVariable(Token variable, Class<T> expectedType) {
+	Object op = variables.get(variable.getText());
 	if(op == null)
 		throw new IllegalArgumentException("Unknown variable " + variable.getText(), new RecognitionException(variable.getInputStream()));
-	return op;
+	if(!expectedType.isInstance(op))
+    throw new IllegalArgumentException("Variable has unexpected type " + variable.getText(), new RecognitionException(variable.getInputStream()));
+	return (T) op;
 }
 
 private int inputIndexForVariable(Token variable) {
@@ -109,13 +112,26 @@ script
 	:	 statement (';' statement)* ';' ->;
 
 statement
-	:	(assignment | operator | packageImport) ->;
+	:	(assignment | operator | packageImport | functionDefinition | javaudf) ->;
 	
 packageImport
-	:  'using' packageName=ID { importPackage($packageName.text); }->;
+  :  'using' packageName=ID { importPackage($packageName.text); }->;
 	
 assignment
 	:	target=VAR '=' source=operator { variables.put($target.text, $source.op); } -> ;
+
+functionDefinition
+@init { List<String> params = new ArrayList(); }
+  : name=ID '=' 'fn' '('  
+  (param=ID { params.add($param.text); }
+  (',' param=ID { params.add($param.text); })*)? 
+  ')' 
+  { for(int index = 0; index < params.size(); index++) variables.put(params.get(index), new InputSelection(0)); } 
+  def=contextAwareExpression[null] { addFunction(new SopremoFunction(name.getText(), def.tree)); } ->; 
+
+javaudf
+  : name=ID '=' 'javaudf' '(' path=STRING ')' 
+  { addFunction($name.getText(), path.getText().substring(1, path.getText().length() - 1)); } ->;
 
 contextAwareExpression [EvaluationExpression contextExpression]
 scope { EvaluationExpression context }
@@ -195,6 +211,7 @@ valueExpression
 	| parenthesesExpression 
 	| literal 
 	| VAR -> { makePath($VAR) }
+	| ID -> { getVariable($ID, EvaluationExpression.class) }
 	| arrayCreation 
 	| objectCreation 
 	| operatorExpression;
@@ -270,7 +287,7 @@ writeOperator
 { 
 	Sink sink = new Sink(JsonOutputFormat.class, $file.text);
   $operator::result = sink;
-  sink.setInputs(getVariable(from));
+  sink.setInputs(getVariable(from, Operator.class));
   this.sinks.add(sink);
 } ->;
 
@@ -309,7 +326,7 @@ input
 	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
 { 
   int inputIndex = $operator::inputNames.size();
-  $operator::result.setInput(inputIndex, getVariable(from));
+  $operator::result.setInput(inputIndex, getVariable(from, Operator.class));
   $operator::inputNames.add(name != null ? name.getText() : from.getText());
   $operator::hasExplicitName.set(inputIndex, name != null); 
   $operator::inputTags.add(preserveFlag == null ? new ArrayList<ExpressionTag>() : Arrays.asList(ExpressionTag.RETAIN));
@@ -348,13 +365,17 @@ COMMENT
     |   '/*' ( options {greedy=false;} : . )* '*/' {$channel=HIDDEN;}
     ;
     
-fragment QUOTE
-	:	'\'';
+fragment APOSTROPHE
+  : '\'';
+  
+fragment QUOTATION
+  : '\"';
     
 WS 	:	(' '|'\t'|'\n'|'\r')+ { skip(); };
     
 STRING
-	:	QUOTE (options {greedy=false;} : .)* QUOTE { setText(getText().substring(1, getText().length()-1)); };
+	:	QUOTATION (options {greedy=false;} : .)* QUOTATION | APOSTROPHE (options {greedy=false;} : .)* APOSTROPHE
+	{ setText(getText().substring(1, getText().length()-1)); };
 
 fragment
 ESC_SEQ

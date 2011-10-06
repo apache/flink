@@ -1,0 +1,7 @@
+square = fn(x) x * x;
+
+$input = read 'input.json';
+
+$result = project $input into { oneMore: square($input) };
+
+write $result to 'output.json'; 

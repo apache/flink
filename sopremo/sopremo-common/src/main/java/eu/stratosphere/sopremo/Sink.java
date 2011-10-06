@@ -22,9 +22,24 @@ public class Sink extends ElementaryOperator<Sink> {
 		this.outputFormat = outputFormat;
 		this.outputName = outputName;
 	}
-	
+
 	public Sink(final String outputName) {
 		this(JsonOutputFormat.class, outputName);
+	}
+
+	public Sink() {
+		this("");
+	}
+
+	public Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> getOutputFormat() {
+		return this.outputFormat;
+	}
+
+	public void setOutputFormat(Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat) {
+		if (outputFormat == null)
+			throw new NullPointerException("outputFormat must not be null");
+
+		this.outputFormat = outputFormat;
 	}
 
 	@Override

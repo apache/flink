@@ -115,7 +115,12 @@ public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
 			return null;
 		assert expressionClass != null : "could not determine expression class";
 
-		return ReflectUtil.newInstance(expressionClass, placeholder.params.toArray(new Object[0]));
+		Object[] params = placeholder.params.toArray(new Object[0]);
+		return instantiate(expressionClass, params);
+	}
+
+	protected Object instantiate(Class<?> expressionClass, Object[] params) {
+		return ReflectUtil.newInstance(expressionClass, params);
 	}
 
 	@Override
