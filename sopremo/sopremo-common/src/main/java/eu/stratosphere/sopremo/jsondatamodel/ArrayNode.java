@@ -7,8 +7,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.type.Key;
-
 public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 
 	/**
@@ -71,7 +69,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		sb.append('[');
 
 		for (int i = 0; i < this.children.size(); i++) {
@@ -140,11 +138,11 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 			child.write(out);
 		}
 	}
-	
+
 	@Override
 	public ArrayNode clone() {
-		ArrayNode clone = (ArrayNode) super.clone();
-		clone.children = new ArrayList<JsonNode>(children);
+		final ArrayNode clone = (ArrayNode) super.clone();
+		clone.children = new ArrayList<JsonNode>(this.children);
 		return clone;
 	}
 
@@ -168,12 +166,10 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.isEmpty();
 	}
 
-	public static ArrayNode valueOf(Iterator<JsonNode> iterator) {
-		ArrayNode array = new ArrayNode();
+	public static ArrayNode valueOf(final Iterator<JsonNode> iterator) {
+		final ArrayNode array = new ArrayNode();
 		while (iterator.hasNext())
-		{
 			array.add(iterator.next());
-		}
 		return array;
 	}
 
@@ -187,19 +183,17 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	}
 
 	@Override
-	public int compareTo(Key other) {
-//		if(!(other instanceof ArrayNode)){
-//			return -1;
-//		}
-		ArrayNode node = (ArrayNode) other;
-		if(node.size() != this.size()){
-			return 1;
-		}
-		for(int i = 0; i<this.size(); i++){
-			int comp = this.get(i).compareTo(node.get(i));
-			if(comp != 0){
+	public int compareToSameType(final JsonNode other) {
+		// if(!(other instanceof ArrayNode)){
+		// return -1;
+		// }
+		final ArrayNode node = (ArrayNode) other;
+		if (node.size() != this.size())
+			return this.size() - node.size();
+		for (int i = 0; i < this.size(); i++) {
+			final int comp = this.get(i).compareTo(node.get(i));
+			if (comp != 0)
 				return comp;
-			}
 		}
 		return 0;
 	}

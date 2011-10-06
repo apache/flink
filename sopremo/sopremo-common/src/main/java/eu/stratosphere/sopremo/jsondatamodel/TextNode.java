@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class TextNode extends JsonNode {
@@ -41,7 +40,7 @@ public class TextNode extends JsonNode {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		appendQuoted(sb, this.value.toString());
 		return sb;
 	}
@@ -101,21 +100,21 @@ public class TextNode extends JsonNode {
 	}
 
 	@Override
-	public int compareTo(Key other) {
+	public int compareToSameType(final JsonNode other) {
 		return this.value.compareTo(((TextNode) other).value);
 	}
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.writeUTF(value.getValue());
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		out.writeUTF(this.value.getValue());
 	}
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		value = new PactString(in.readUTF());
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+		this.value = new PactString(in.readUTF());
 	}
 
 	@Override
 	public TextNode clone() {
-		TextNode clone = (TextNode) super.clone();
+		final TextNode clone = (TextNode) super.clone();
 		clone.value = new PactString(this.value.getValue());
 		return clone;
 	}

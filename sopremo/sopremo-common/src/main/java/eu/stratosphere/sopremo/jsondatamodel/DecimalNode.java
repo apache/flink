@@ -30,7 +30,7 @@ public class DecimalNode extends NumericNode {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		return sb.append(this.value);
 	}
 
@@ -114,6 +114,7 @@ public class DecimalNode extends NumericNode {
 		return TYPES.DecimalNode;
 	}
 
+	@Override
 	public String getValueAsText() {
 		return this.value.toString();
 	}

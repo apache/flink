@@ -10,8 +10,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import eu.stratosphere.pact.common.type.Key;
-
 public class ObjectNode extends JsonNode {
 
 	/**
@@ -93,7 +91,7 @@ public class ObjectNode extends JsonNode {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		sb.append('{');
 
 		int count = 0;
@@ -205,24 +203,23 @@ public class ObjectNode extends JsonNode {
 	}
 
 	@Override
-	public int compareTo(Key other) {
+	public int compareToSameType(final JsonNode other) {
 
-		ObjectNode node = (ObjectNode) other;
-		if (node.size() != this.size()) {
-			return 1;
-		}
-		for (Entry<String, JsonNode> entry : this.children.entrySet()) {
-			int comparison = entry.getValue().compareTo(node.get(entry.getKey()));
-			if (comparison != 0) {
+		final ObjectNode node = (ObjectNode) other;
+		if (node.size() != this.size())
+			return this.size() - node.size();
+		for (final Entry<String, JsonNode> entry : this.children.entrySet()) {
+			final int comparison = entry.getValue().compareTo(node.get(entry.getKey()));
+			if (comparison != 0)
 				return comparison;
-			}
 		}
 		return 0;
 	}
 
+	@Override
 	public ObjectNode clone() {
-		ObjectNode clone = (ObjectNode) super.clone();
-		clone.children = new LinkedHashMap<String, JsonNode>(children);
+		final ObjectNode clone = (ObjectNode) super.clone();
+		clone.children = new LinkedHashMap<String, JsonNode>(this.children);
 		return clone;
 	}
 

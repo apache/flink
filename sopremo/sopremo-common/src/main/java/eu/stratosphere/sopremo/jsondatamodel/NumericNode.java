@@ -31,10 +31,17 @@ public abstract class NumericNode extends JsonNode {
 	public boolean isIntegralNumber() {
 		return false;
 	}
-	
-	public int compareTo(Key o){
-	
-	return this.getDecimalValue().compareTo(((NumericNode)o).getDecimalValue());
-		
+
+	@Override
+	public int compareTo(final Key other) {
+		if (((JsonNode) other).getType().isNumeric())
+			return this.getDecimalValue().compareTo(((NumericNode) other).getDecimalValue());
+
+		return super.compareTo(other);
+	}
+
+	@Override
+	public int compareToSameType(final JsonNode other) {
+		return 0;
 	}
 }

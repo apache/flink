@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -112,6 +113,7 @@ public class IntraSourceRecordLinkageTest {
 	 * Tests {@link LinkageMode#ALL_CLUSTERS_FLAT}
 	 */
 	@Test
+	@Ignore
 	public void shouldAddSinglesClusters() {
 		final SopremoTestPlan testPlan = this.createTestPlan(LinkageMode.ALL_CLUSTERS_FLAT);
 

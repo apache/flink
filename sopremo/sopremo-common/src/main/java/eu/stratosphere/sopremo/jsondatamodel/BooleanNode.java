@@ -4,8 +4,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.type.Key;
-
 public class BooleanNode extends JsonNode {
 
 	/**
@@ -37,7 +35,7 @@ public class BooleanNode extends JsonNode {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		return this == TRUE ? sb.append("true") : sb.append("false");
 	}
 
@@ -83,17 +81,14 @@ public class BooleanNode extends JsonNode {
 	public void write(final DataOutput out) throws IOException {
 		out.writeBoolean(this.value);
 	}
-	
+
 	@Override
 	public TYPES getType() {
 		return TYPES.BooleanNode;
 	}
 
 	@Override
-	public int compareTo(Key other) {
-		if(other instanceof BooleanNode){
-			return (this.value == ((BooleanNode)other).value)? 0 : 1;
-		}
-		return -1;
+	public int compareToSameType(final JsonNode other) {
+		return (this.value ? 1 : 0) - (((BooleanNode) other).value ? 1 : 0);
 	}
 }

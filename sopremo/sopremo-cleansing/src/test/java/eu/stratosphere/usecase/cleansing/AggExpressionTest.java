@@ -25,7 +25,7 @@ public class AggExpressionTest extends EvaluableExpressionTest<AggExpression> {
 	public void testAggregation() {
 		context.getFunctionRegistry().register(BuiltinFunctions.class);
 		
-		ArrayNode input = new ArrayNode(null);
+		ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));
 		input.add(createObjectNode("key", 2, "value", 24));
 		input.add(createObjectNode("key", 3, "value", 33));
@@ -37,7 +37,7 @@ public class AggExpressionTest extends EvaluableExpressionTest<AggExpression> {
 
 		JsonNode result = aggExpression.evaluate(input, context);
 
-		ArrayNode expected = new ArrayNode(null);
+		ArrayNode expected = new ArrayNode();
 		expected.add(createValueNode(23));
 		expected.add(createValueNode(49));
 		expected.add(createValueNode(33));

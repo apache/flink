@@ -81,7 +81,7 @@ public class LookupTest extends SopremoTest<Lookup> {
 	}
 
 	@Test
-	public void shouldLookupArrayValuesStrictly() {		
+	public void shouldLookupArrayValuesStrictly() {
 		final Lookup lookup = new Lookup(null, null);
 		lookup.setInputKeyExtractor(new ObjectAccess("fieldToReplace"));
 		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
@@ -106,6 +106,7 @@ public class LookupTest extends SopremoTest<Lookup> {
 			add(createPactJsonObject("field1", 3, "fieldToReplace", new int[] { 22, 33 }, "field2", 2)).
 			add(createPactJsonObject("field1", 4, "fieldToReplace", new int[] {}, "field2", 2));
 
+		sopremoPlan.trace();
 		sopremoPlan.run();
 	}
 
@@ -133,12 +134,17 @@ public class LookupTest extends SopremoTest<Lookup> {
 			add((JsonNode) createArrayNode(constants)).
 			add((JsonNode) createArrayNode(constants1)).
 			add((JsonNode) createArrayNode(constants2));
-		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonObject("field1", 1, "fieldToReplace", new int[] { 11, 22, 33 }, "field2", 2)).
-			add(createPactJsonObject("field1", 2, "fieldToReplace", new Object[] { 11, "default notInList" }, "field2", 2)).
+		sopremoPlan
+			.getExpectedOutput(0)
+			.
+			add(createPactJsonObject("field1", 1, "fieldToReplace", new int[] { 11, 22, 33 }, "field2", 2))
+			.
+			add(createPactJsonObject("field1", 2, "fieldToReplace", new Object[] { 11, "default notInList" }, "field2",
+				2)).
 			add(createPactJsonObject("field1", 3, "fieldToReplace", new int[] { 22, 33 }, "field2", 2)).
 			add(createPactJsonObject("field1", 4, "fieldToReplace", new int[] {}, "field2", 2));
 
+		sopremoPlan.trace();
 		sopremoPlan.run();
 	}
 }

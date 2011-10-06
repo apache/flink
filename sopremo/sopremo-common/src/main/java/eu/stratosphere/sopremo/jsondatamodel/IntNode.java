@@ -32,7 +32,7 @@ public class IntNode extends NumericNode {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		return sb.append(this.value);
 	}
 
@@ -104,6 +104,7 @@ public class IntNode extends NumericNode {
 		return true;
 	}
 
+	@Override
 	public String getValueAsText() {
 		return this.value.toString();
 	}
@@ -113,17 +114,17 @@ public class IntNode extends NumericNode {
 		return TYPES.IntNode;
 	}
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.writeInt(value.getValue());
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		out.writeInt(this.value.getValue());
 	}
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		value = new PactInteger(in.readInt());
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+		this.value = new PactInteger(in.readInt());
 	}
 
 	@Override
 	public IntNode clone() {
-		IntNode clone = (IntNode) super.clone();
+		final IntNode clone = (IntNode) super.clone();
 		clone.value = new PactInteger(this.value.getValue());
 		return clone;
 	}

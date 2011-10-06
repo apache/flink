@@ -115,7 +115,7 @@ public class UnionTest extends SopremoTest<Union> {
 			add(createValueNode((Object) 2)).
 			add(createValueNode((Object) 3)).
 			add(createValueNode((Object) 4));
-
+		
 		sopremoPlan.run();
 	}
 

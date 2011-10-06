@@ -370,6 +370,9 @@ public class JsonParser {
 		public int compareTo(Key arg0) {
 			return 0;
 		}
-
+@Override
+public int compareToSameType(JsonNode other) {
+	return 0;
+}
 	}
 }

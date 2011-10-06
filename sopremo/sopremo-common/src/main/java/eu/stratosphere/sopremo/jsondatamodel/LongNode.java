@@ -99,26 +99,27 @@ public class LongNode extends NumericNode {
 		return TYPES.LongNode;
 	}
 
+	@Override
 	public String getValueAsText() {
 		return this.value.toString();
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		return sb.append(this.value);
 	}
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.writeLong(value.getValue());
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		out.writeLong(this.value.getValue());
 	}
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		value = new PactLong(in.readLong());
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+		this.value = new PactLong(in.readLong());
 	}
 
 	@Override
 	public LongNode clone() {
-		LongNode clone = (LongNode) super.clone();
+		final LongNode clone = (LongNode) super.clone();
 		clone.value = new PactLong(this.value.getValue());
 		return clone;
 	}

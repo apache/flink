@@ -36,7 +36,7 @@ public class DoubleNode extends NumericNode {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		return sb.append(this.value);
 	}
 
@@ -115,22 +115,23 @@ public class DoubleNode extends NumericNode {
 		return TYPES.DoubleNode;
 	}
 
+	@Override
 	public String getValueAsText() {
 		return this.value.toString();
 	}
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.writeDouble(value.getValue());
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		out.writeDouble(this.value.getValue());
 	}
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		value = new PactDouble(in.readDouble());
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+		this.value = new PactDouble(in.readDouble());
 	}
-	
+
 	@Override
 	public DoubleNode clone() {
-		DoubleNode clone = (DoubleNode) super.clone();
+		final DoubleNode clone = (DoubleNode) super.clone();
 		clone.value = new PactDouble(this.value.getValue());
-		return clone ;
+		return clone;
 	}
 }

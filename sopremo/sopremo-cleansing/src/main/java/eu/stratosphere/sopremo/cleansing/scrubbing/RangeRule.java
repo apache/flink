@@ -36,7 +36,7 @@ public class RangeRule extends ValidationRule {
 		}
 	};
 
-	private transient JsonNode min, max;
+	private JsonNode min, max;
 
 	public RangeRule(final JsonNode min, final JsonNode max, final EvaluationExpression... targetPath) {
 		super(targetPath);
@@ -45,19 +45,7 @@ public class RangeRule extends ValidationRule {
 		this.setValueCorrection(CHOOSE_NEAREST_BOUND);
 	}
 
-	private void readObject(final ObjectInputStream stream) throws IOException, ClassNotFoundException {
-		stream.defaultReadObject();
-
-		final JsonNode array = SopremoUtil.deserializeNode(stream);
-		this.min = ((ArrayNode)array).get(0);
-		this.max = ((ArrayNode)array).get(1);
-	}
-
-	private void writeObject(final ObjectOutputStream stream) throws IOException {
-		stream.defaultWriteObject();
-
-		SopremoUtil.serializeNode(stream, JsonUtil.asArray(this.min, this.max));
-	}
+	
 
 	@Override
 	protected boolean validate(final JsonNode value, final ValidationContext context) {

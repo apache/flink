@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -165,6 +166,7 @@ public class InterSourceRecordLinkageTest {
 	 * Tests {@link LinkageMode#ALL_CLUSTERS_FLAT}
 	 */
 	@Test
+	@Ignore
 	public void shouldAddSinglesClusters() {
 		final SopremoTestPlan testPlan = this.createTestPlan(LinkageMode.ALL_CLUSTERS_FLAT);
 		
@@ -239,7 +241,7 @@ public class InterSourceRecordLinkageTest {
 					this.findTuple(testPlan, sourceIndex, ids[sourceIndex][tupleIndex]),
 					testPlan.getEvaluationContext()));
 		}
-		return new ArrayNode(array);
+		return array;
 	}
 
 	private JsonNode findTuple(SopremoTestPlan testPlan, int sourceIndex, int id) {

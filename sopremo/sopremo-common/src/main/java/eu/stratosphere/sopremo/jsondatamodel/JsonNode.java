@@ -16,22 +16,29 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 	private static final long serialVersionUID = 7164528435336585193L;
 
 	public enum TYPES {
-		IntNode(IntNode.class),
-		LongNode(LongNode.class),
-		BigIntegerNode(BigIntegerNode.class),
-		DecimalNode(DecimalNode.class),
-		DoubleNode(DoubleNode.class),
+		IntNode(IntNode.class, true),
+		LongNode(LongNode.class, true),
+		BigIntegerNode(BigIntegerNode.class, true),
+		DecimalNode(DecimalNode.class, true),
+		DoubleNode(DoubleNode.class, true),
 
-		ArrayNode(ArrayNode.class),
-		ObjectNode(ObjectNode.class),
-		TextNode(TextNode.class),
-		BooleanNode(BooleanNode.class),
-		NullNode(NullNode.class);
+		ArrayNode(ArrayNode.class, false),
+		ObjectNode(ObjectNode.class, false),
+		TextNode(TextNode.class, false),
+		BooleanNode(BooleanNode.class, false),
+		NullNode(NullNode.class, false);
 
 		private final Class<? extends JsonNode> clazz;
 
-		private TYPES(final Class<? extends JsonNode> clazz) {
+		private final boolean numeric;
+
+		private TYPES(final Class<? extends JsonNode> clazz, final boolean isNumeric) {
 			this.clazz = clazz;
+			this.numeric = isNumeric;
+		}
+
+		public boolean isNumeric() {
+			return this.numeric;
 		}
 
 		public Class<? extends JsonNode> getClazz() {
@@ -50,15 +57,17 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 	public JsonNode canonicalize() {
 		return this;
 	}
-@Override
-public JsonNode clone()  {
-	try {
-		JsonNode clone = (JsonNode) super.clone();
-		return clone;
-	} catch (CloneNotSupportedException e) {
-		return null;
+
+	@Override
+	public JsonNode clone() {
+		try {
+			final JsonNode clone = (JsonNode) super.clone();
+			return clone;
+		} catch (final CloneNotSupportedException e) {
+			return null;
+		}
 	}
-}
+
 	@Override
 	public abstract void read(DataInput in) throws IOException;
 
@@ -82,8 +91,17 @@ public JsonNode clone()  {
 	}
 
 	@Override
+	public int compareTo(final Key other) {
+		if (this.getType() != ((JsonNode) other).getType())
+			return this.getType().compareTo(((JsonNode) other).getType());
+		return this.compareToSameType((JsonNode) other);
+	}
+
+	public abstract int compareToSameType(JsonNode other);
+
+	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder();
+		final StringBuilder sb = new StringBuilder();
 		this.toString(sb);
 		return sb.toString();
 	}

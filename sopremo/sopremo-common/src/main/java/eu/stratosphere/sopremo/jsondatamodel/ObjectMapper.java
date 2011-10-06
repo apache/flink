@@ -9,59 +9,54 @@ import java.util.HashMap;
 
 public class ObjectMapper {
 
-	private HashMap<Class<? extends Object>, Constructor<? extends JsonNode>> typeDict = new HashMap<Class<? extends Object>, Constructor<? extends JsonNode>>();
+	private final HashMap<Class<? extends Object>, Constructor<? extends JsonNode>> typeDict = new HashMap<Class<? extends Object>, Constructor<? extends JsonNode>>();
 
 	public ObjectMapper() {
 		try {
-			typeDict.put(Integer.class, IntNode.class.getConstructor(Integer.TYPE));
-			typeDict.put(Long.class, LongNode.class.getConstructor(Long.TYPE));
-			typeDict.put(BigInteger.class, BigIntegerNode.class.getConstructor(BigInteger.class));
-			typeDict.put(BigDecimal.class, DecimalNode.class.getConstructor(BigDecimal.class));
-			typeDict.put(Double.class, DoubleNode.class.getConstructor(Double.TYPE));
-			typeDict.put(Float.class, DoubleNode.class.getConstructor(Float.TYPE));
-			typeDict.put(String.class, TextNode.class.getConstructor(String.class));
-		} catch (SecurityException e) {
+			this.typeDict.put(Integer.class, IntNode.class.getConstructor(Integer.TYPE));
+			this.typeDict.put(Long.class, LongNode.class.getConstructor(Long.TYPE));
+			this.typeDict.put(BigInteger.class, BigIntegerNode.class.getConstructor(BigInteger.class));
+			this.typeDict.put(BigDecimal.class, DecimalNode.class.getConstructor(BigDecimal.class));
+			this.typeDict.put(Double.class, DoubleNode.class.getConstructor(Double.TYPE));
+			this.typeDict.put(Float.class, DoubleNode.class.getConstructor(Float.TYPE));
+			this.typeDict.put(String.class, TextNode.class.getConstructor(String.class));
+		} catch (final SecurityException e) {
 			e.printStackTrace();
-		} catch (NoSuchMethodException e) {
+		} catch (final NoSuchMethodException e) {
 			e.printStackTrace();
 		}
 
 	}
 
-	public JsonNode valueToTree(Object value) {
+	public JsonNode valueToTree(final Object value) {
 
-		if (value == null) {
+		if (value == null)
 			return NullNode.getInstance();
-		}
-		Class<? extends Object> valueClass = value.getClass();
-		if(value instanceof JsonNode){
-			return (JsonNode)value;
-		}
-		if(value instanceof StringBuilder){
-			return TextNode.valueOf(((StringBuilder)value).toString());
-		}
+		final Class<? extends Object> valueClass = value.getClass();
+		if (value instanceof JsonNode)
+			return (JsonNode) value;
+		if (value instanceof StringBuilder)
+			return TextNode.valueOf(((StringBuilder) value).toString());
 		if (valueClass.isArray()) {
-			ArrayNode arrayNode = new ArrayNode();
-			int length = Array.getLength(value);
-			for (int i = 0; i < length; i++) {
-				arrayNode.add(valueToTree(Array.get(value, i)));
-			}
+			final ArrayNode arrayNode = new ArrayNode();
+			final int length = Array.getLength(value);
+			for (int i = 0; i < length; i++)
+				arrayNode.add(this.valueToTree(Array.get(value, i)));
 			return arrayNode;
 		}
-		if(value instanceof Boolean){
-			return BooleanNode.valueOf((Boolean)value);
-		}
+		if (value instanceof Boolean)
+			return BooleanNode.valueOf((Boolean) value);
 		try {
-			return typeDict.get(valueClass).newInstance(value);
-		} catch (IllegalArgumentException e) {
+			return this.typeDict.get(valueClass).newInstance(value);
+		} catch (final IllegalArgumentException e) {
 			e.printStackTrace();
-		} catch (SecurityException e) {
+		} catch (final SecurityException e) {
 			e.printStackTrace();
-		} catch (InstantiationException e) {
+		} catch (final InstantiationException e) {
 			e.printStackTrace();
-		} catch (IllegalAccessException e) {
+		} catch (final IllegalAccessException e) {
 			e.printStackTrace();
-		} catch (InvocationTargetException e) {
+		} catch (final InvocationTargetException e) {
 			e.printStackTrace();
 		}
 		return NullNode.getInstance();

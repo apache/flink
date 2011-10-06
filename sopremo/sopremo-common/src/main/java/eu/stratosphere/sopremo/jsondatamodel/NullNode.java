@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.base.PactNull;
 
 public class NullNode extends JsonNode {
@@ -27,13 +26,13 @@ public class NullNode extends JsonNode {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		return sb.append("null");
 	}
 
 	@Override
 	public boolean equals(final Object o) {
-		return (o instanceof NullNode) ? true : false;
+		return o instanceof NullNode ? true : false;
 	}
 
 	@Override
@@ -67,15 +66,15 @@ public class NullNode extends JsonNode {
 	}
 
 	@Override
-	public int compareTo(Key other) {
-		return (other instanceof NullNode) ? 0 : 1;
+	public int compareToSameType(final JsonNode other) {
+		return 0;
 	}
-	
-	private void writeObject(ObjectOutputStream out) throws IOException {
+
+	private void writeObject(final ObjectOutputStream out) throws IOException {
 		out.writeBoolean(false);
 	}
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.readBoolean();
 	}
 }

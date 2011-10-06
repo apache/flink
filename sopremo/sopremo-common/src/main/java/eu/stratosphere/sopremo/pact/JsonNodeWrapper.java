@@ -49,10 +49,9 @@ public class JsonNodeWrapper extends JsonNode {
 	public JsonNode getValue() {
 		return this.value;
 	}
-
-	@Override
-	public int compareTo(Key o) {
-		return this.value.compareTo(((JsonNodeWrapper) o).getValue());
+@Override
+public int compareToSameType(JsonNode other) {
+		return this.value.compareTo(((JsonNodeWrapper) other).getValue());
 	}
 
 	@Override
