@@ -891,6 +891,10 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 						// Found..
 						it.remove();
 						foundfloatinginstances.add(i);
+						if(foundfloatinginstances.size() >= count){
+							// We have enough floating instances!
+							break;
+						}
 					}
 				}
 			}
