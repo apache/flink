@@ -150,6 +150,7 @@ public final class PactRecord implements Value
 			// be reused when the record is re-filled
 			if (this.lastUnmodifiedPos >= numFields)
 				this.lastUnmodifiedPos = numFields - 1;
+			markModified(numFields);
 		}
 		this.numFields = numFields;
 	}
