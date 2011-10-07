@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import static eu.stratosphere.sopremo.SopremoTest.createPactJsonArray;
-import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 
 import org.junit.Ignore;
 import org.junit.Test;
@@ -13,8 +12,8 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
@@ -77,7 +76,7 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 	 * @param left
 	 * @param right
 	 */
-	protected void emitCandidate(KeyValuePair<Key, PactJsonObject> left, KeyValuePair<Key, PactJsonObject> right) {
+	protected void emitCandidate(KeyValuePair<JsonNode, JsonNode> left, KeyValuePair<JsonNode, JsonNode> right) {
 		EvaluationExpression resultProjection1 = this.resultProjection1, resultProjection2 = this.resultProjection2;
 		if (resultProjection1 == null)
 			resultProjection1 = EvaluationExpression.VALUE;
@@ -87,8 +86,8 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 		final EvaluationContext context = this.getContext();
 
 		this.sopremoTestPlan.getExpectedOutput(0).add(
-			createPactJsonArray(resultProjection1.evaluate(left.getValue().getValue(), context),
-				resultProjection2.evaluate(right.getValue().getValue(), context)));
+			new ArrayNode(resultProjection1.evaluate(left.getValue(), context),
+				resultProjection2.evaluate(right.getValue(), context)));
 	}
 
 	@Override
@@ -133,18 +132,27 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 			recordLinkage.getRecordLinkageInput(0).setResultProjection(resultProjection1);
 		if (resultProjection2 != null)
 			recordLinkage.getRecordLinkageInput(1).setResultProjection(resultProjection2);
+		Object[] fields = { "id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80 };
+		Object[] fields1 = { "id", 1, "first name", "berta", "last name", "typo", "age", 70 };
+		Object[] fields2 = { "id", 2, "first name", "charles", "last name", "age inaccurate", "age", 70 };
+		Object[] fields3 = { "id", 3, "first name", "dagmar", "last name", "unmatched", "age", 75 };
+		Object[] fields4 = { "id", 4, "first name", "elma", "last name", "firstNameDiffers", "age", 60 };
 
 		sopremoTestPlan.getInput(0).
-			add(createPactJsonObject("id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80)).
-			add(createPactJsonObject("id", 1, "first name", "berta", "last name", "typo", "age", 70)).
-			add(createPactJsonObject("id", 2, "first name", "charles", "last name", "age inaccurate", "age", 70)).
-			add(createPactJsonObject("id", 3, "first name", "dagmar", "last name", "unmatched", "age", 75)).
-			add(createPactJsonObject("id", 4, "first name", "elma", "last name", "firstNameDiffers", "age", 60));
+			add((JsonNode) createObjectNode(fields)).
+			add((JsonNode) createObjectNode(fields1)).
+			add((JsonNode) createObjectNode(fields2)).
+			add((JsonNode) createObjectNode(fields3)).
+			add((JsonNode) createObjectNode(fields4));
+		Object[] fields5 = { "id2", 10, "firstName", "albert", "lastName", "perfect duplicate", "age", 80 };
+		Object[] fields6 = { "id2", 11, "firstName", "berta", "lastName", "tpyo", "age", 70 };
+		Object[] fields7 = { "id2", 12, "firstName", "charles", "lastName", "age inaccurate", "age", 69 };
+		Object[] fields8 = { "id2", 14, "firstName", "elmar", "lastName", "firstNameDiffers", "age", 60 };
 		sopremoTestPlan.getInput(1).
-			add(createPactJsonObject("id2", 10, "firstName", "albert", "lastName", "perfect duplicate", "age", 80)).
-			add(createPactJsonObject("id2", 11, "firstName", "berta", "lastName", "tpyo", "age", 70)).
-			add(createPactJsonObject("id2", 12, "firstName", "charles", "lastName", "age inaccurate", "age", 69)).
-			add(createPactJsonObject("id2", 14, "firstName", "elmar", "lastName", "firstNameDiffers", "age", 60));
+			add((JsonNode) createObjectNode(fields5)).
+			add((JsonNode) createObjectNode(fields6)).
+			add((JsonNode) createObjectNode(fields7)).
+			add((JsonNode) createObjectNode(fields8));
 		return sopremoTestPlan;
 	}
 

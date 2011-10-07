@@ -3,8 +3,6 @@ package eu.stratosphere.sopremo.cleansing.scrubbing;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
@@ -13,9 +11,8 @@ import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.cleansing.fusion.FusionRule;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
@@ -58,7 +55,7 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 	}
 
 	public static class Implementation extends
-			SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private List<ValidationRule> rules;
 
 		private transient ValidationContext context;

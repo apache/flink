@@ -1,11 +1,14 @@
 package eu.stratosphere.sopremo.expressions;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
+import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class FieldAccessTest extends EvaluableExpressionTest<ObjectAccess> {
 	@Override

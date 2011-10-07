@@ -18,6 +18,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @Ignore
 public class CsvInputFormatTest {
@@ -28,7 +29,7 @@ public class CsvInputFormatTest {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() throws IOException {
-		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> read = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSourceContract<JsonNode, JsonNode> read = new FileDataSourceContract<JsonNode, JsonNode>(
 			CsvInputFormat.class, this.getResource("SopremoTestPlan/restaurant_short.csv"), "Input");
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,

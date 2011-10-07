@@ -94,7 +94,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 * @return a short circuit module
 	 */
 	protected PactModule createShortCircuitModule() {
-		PactModule module = new PactModule("Short circuit", 1, 1);
+		final PactModule module = new PactModule("Short circuit", 1, 1);
 		module.getOutput(0).setInput(module.getInput(0));
 		return module;
 	}

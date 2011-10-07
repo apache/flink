@@ -1,13 +1,11 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser.NumberType;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.NumericNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.NumberCoercer;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
@@ -81,7 +79,7 @@ public class ComparativeExpression extends BooleanExpression {
 	public static enum BinaryOperator {
 		EQUAL("=") {
 			@Override
-			public boolean isTrue(int comparisonResult) {
+			public boolean isTrue(final int comparisonResult) {
 				return comparisonResult == 0;
 			}
 			// @Override
@@ -91,7 +89,7 @@ public class ComparativeExpression extends BooleanExpression {
 		},
 		NOT_EQUAL("<>") {
 			@Override
-			public boolean isTrue(int comparisonResult) {
+			public boolean isTrue(final int comparisonResult) {
 				return comparisonResult != 0;
 			}
 			// @Override
@@ -101,7 +99,7 @@ public class ComparativeExpression extends BooleanExpression {
 		},
 		LESS("<") {
 			@Override
-			public boolean isTrue(int comparisonResult) {
+			public boolean isTrue(final int comparisonResult) {
 				return comparisonResult < 0;
 			}
 			// @Override
@@ -111,7 +109,7 @@ public class ComparativeExpression extends BooleanExpression {
 		},
 		LESS_EQUAL("<=") {
 			@Override
-			public boolean isTrue(int comparisonResult) {
+			public boolean isTrue(final int comparisonResult) {
 				return comparisonResult <= 0;
 			}
 			// @Override
@@ -121,7 +119,7 @@ public class ComparativeExpression extends BooleanExpression {
 		},
 		GREATER(">") {
 			@Override
-			public boolean isTrue(int comparisonResult) {
+			public boolean isTrue(final int comparisonResult) {
 				return comparisonResult > 0;
 			}
 			// @Override
@@ -131,7 +129,7 @@ public class ComparativeExpression extends BooleanExpression {
 		},
 		GREATER_EQUAL(">=") {
 			@Override
-			public boolean isTrue(int comparisonResult) {
+			public boolean isTrue(final int comparisonResult) {
 				return comparisonResult >= 0;
 			}
 			// @Override
@@ -149,7 +147,7 @@ public class ComparativeExpression extends BooleanExpression {
 		public boolean evaluate(final JsonNode e1, final JsonNode e2) {
 			if (e1.getClass() != e2.getClass()) {
 				if (e1 instanceof NumericNode && e2 instanceof NumericNode) {
-					NumberType widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
+					final JsonNode.TYPES widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
 					return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(
 						NumberCoercer.INSTANCE.coerce((NumericNode) e1, widerType),
 						NumberCoercer.INSTANCE.coerce((NumericNode) e2, widerType),
@@ -162,7 +160,9 @@ public class ComparativeExpression extends BooleanExpression {
 			return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(e1, e2, e1.getClass()));
 		}
 
-		public abstract boolean isTrue(int comparisonResult);
+		public boolean isTrue(final int comparisonResult) {
+			return false;
+		}
 
 		//
 		// public boolean evaluateComparable(final T e1, final T e2) {

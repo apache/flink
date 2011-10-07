@@ -1,9 +1,8 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import static eu.stratosphere.sopremo.SopremoTest.createPactJsonArray;
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -14,9 +13,8 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
@@ -83,22 +81,22 @@ public abstract class IntraSourceRecordLinkageTestBase<P extends RecordLinkageAl
 	 * @param left
 	 * @param right
 	 */
-	protected void emitCandidate(KeyValuePair<Key, PactJsonObject> left, KeyValuePair<Key, PactJsonObject> right) {
+	protected void emitCandidate(KeyValuePair<JsonNode, JsonNode> left, KeyValuePair<JsonNode, JsonNode> right) {
 		EvaluationExpression resultProjection = this.resultProjection;
 		if (resultProjection == null)
 			resultProjection = EvaluationExpression.VALUE;
 
 		final EvaluationContext context = this.getContext();
 
-		JsonNode smaller = left.getValue().getValue(), bigger = right.getValue().getValue();
+		JsonNode smaller = left.getValue(), bigger = right.getValue();
 		if (JsonNodeComparator.INSTANCE.compare(bigger, smaller) < 0) {
 			JsonNode temp = smaller;
 			smaller = bigger;
 			bigger = temp;
 		}
+		Object[] constants = { resultProjection.evaluate(smaller, context), resultProjection.evaluate(bigger, context) };
 		this.sopremoTestPlan.getExpectedOutput(0).add(
-			createPactJsonArray(resultProjection.evaluate(smaller, context),
-				resultProjection.evaluate(bigger, context)));
+			(JsonNode) createArrayNode(constants));
 	}
 
 	/**

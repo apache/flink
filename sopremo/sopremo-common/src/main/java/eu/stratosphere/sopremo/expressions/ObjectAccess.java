@@ -1,11 +1,10 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.NullNode;
-import org.codehaus.jackson.node.ObjectNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 
 /**
  * Returns the value of an attribute of one or more Json nodes.
@@ -34,7 +33,7 @@ public class ObjectAccess extends EvaluationExpression {
 		this(field, false);
 	}
 
-	public ObjectAccess(String field, boolean safeDereference) {
+	public ObjectAccess(final String field, final boolean safeDereference) {
 		this.field = field;
 		this.safeDereference = safeDereference;
 	}
@@ -60,7 +59,7 @@ public class ObjectAccess extends EvaluationExpression {
 			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", this.field, node
 				.getClass().getSimpleName()));
 		}
-		JsonNode value = node.get(this.field);
+		final JsonNode value = ((ObjectNode) node).get(this.field);
 		return value == null ? NullNode.getInstance() : value;
 	}
 

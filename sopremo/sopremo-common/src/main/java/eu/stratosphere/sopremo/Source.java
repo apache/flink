@@ -7,19 +7,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.codehaus.jackson.JsonEncoding;
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonProcessingException;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.io.JsonProcessingException;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 @InputCardinality(min = 0, max = 0)
@@ -33,14 +30,14 @@ public class Source extends ElementaryOperator<Source> {
 
 	private EvaluationExpression adhocExpression;
 
-	private Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputFormat;
+	private Class<? extends FileInputFormat<JsonNode, JsonNode>> inputFormat;
 
 	public Source(final EvaluationExpression adhocValue) {
 		this.adhocExpression = adhocValue;
 		this.inputFormat = JsonInputFormat.class;
 	}
 
-	public Source(Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputformat,
+	public Source(Class<? extends FileInputFormat<JsonNode, JsonNode>> inputformat,
 			final String inputPath) {
 		this.inputPath = inputPath;
 		this.inputFormat = inputformat;
@@ -66,11 +63,11 @@ public class Source extends ElementaryOperator<Source> {
 		this.inputPath = inputPath;
 	}
 
-	public Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> getInputFormat() {
+	public Class<? extends FileInputFormat<JsonNode, JsonNode>> getInputFormat() {
 		return this.inputFormat;
 	}
 
-	public void setInputFormat(Class<? extends FileInputFormat<PactJsonObject.Key, PactJsonObject>> inputFormat) {
+	public void setInputFormat(Class<? extends FileInputFormat<JsonNode, JsonNode>> inputFormat) {
 		if (inputFormat == null)
 			throw new NullPointerException("inputFormat must not be null");
 
@@ -99,16 +96,16 @@ public class Source extends ElementaryOperator<Source> {
 				inputPath = "file://localhost" + tempFile.getAbsolutePath();
 				SopremoUtil.LOG.info("temp file " + inputPath);
 				name = "Adhoc";
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				throw new IllegalStateException("Cannot create adhoc source", e);
 			}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
-		final FileDataSourceContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSourceContract<JsonNode, JsonNode> contract = new FileDataSourceContract<JsonNode, JsonNode>(
 			this.inputFormat, inputPath, name);
 		if (this.inputFormat == JsonInputFormat.class)
 			contract.setDegreeOfParallelism(1);
 
-		for (Entry<String, Object> parameter : this.parameters.entrySet())
+		for (final Entry<String, Object> parameter : this.parameters.entrySet())
 			if (parameter.getValue() instanceof Serializable)
 				SopremoUtil
 					.serialize(contract.getParameters(), parameter.getKey(), (Serializable) parameter.getValue());
@@ -128,8 +125,7 @@ public class Source extends ElementaryOperator<Source> {
 	}
 
 	private void writeValues(final File tempFile) throws IOException, JsonProcessingException {
-		JsonGenerator writer = JsonUtil.FACTORY.createJsonGenerator(tempFile, JsonEncoding.UTF8);
-		writer.setCodec(JsonUtil.OBJECT_MAPPER);
+		final JsonGenerator writer = new JsonGenerator(tempFile);
 		writer.writeTree(this.getAdhocValues());
 		writer.close();
 	}

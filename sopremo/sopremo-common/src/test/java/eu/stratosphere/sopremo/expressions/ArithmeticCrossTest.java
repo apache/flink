@@ -7,9 +7,6 @@ import java.util.List;
 
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BigIntegerNode;
-import org.codehaus.jackson.node.DecimalNode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -19,6 +16,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.DivisionEvaluator;
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
+import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 @RunWith(Parameterized.class)
 public class ArithmeticCrossTest {
@@ -46,14 +47,15 @@ public class ArithmeticCrossTest {
 		final JsonNode expectedNode = JsonUtil.OBJECT_MAPPER.valueToTree(this.expected);
 		Assert.assertEquals(
 			String.format("%s%s%s", this.left.getClass().getSimpleName(),
-				this.operator, this.right.getClass().getSimpleName(), result.getNumberType(),
-				expectedNode.getNumberType()),
-			expectedNode.getNumberType(), result.getNumberType());
+				this.operator, this.right.getClass().getSimpleName(), result.getType(),
+				expectedNode.getType()),
+			expectedNode.getType(), result.getType());
 		// workaround for BigIntegerNode bug
 		if (expectedNode instanceof BigIntegerNode)
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
-					result, expectedNode), expectedNode.getBigIntegerValue(), result.getBigIntegerValue());
+					result, expectedNode), ((BigIntegerNode) expectedNode).getBigIntegerValue(),
+				((BigIntegerNode) result).getBigIntegerValue());
 		else if (expectedNode instanceof DecimalNode)
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
@@ -61,7 +63,7 @@ public class ArithmeticCrossTest {
 		else
 			Assert.assertEquals(
 				String.format("%s%s%s", this.left, this.operator, this.right,
-					result, expectedNode), this.expected.doubleValue(), result.getDoubleValue(), 0.0001);
+					result, expectedNode), this.expected.doubleValue(), ((NumericNode) result).getDoubleValue(), 0.0001);
 	}
 
 	@Parameters

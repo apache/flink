@@ -1,25 +1,28 @@
 package eu.stratosphere.sopremo.expressions;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
 import org.junit.Test;
+
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 
 	@Override
-	protected ArrayCreation createDefaultInstance(int index) {
+	protected ArrayCreation createDefaultInstance(final int index) {
 		return new ArrayCreation(new ConstantExpression(IntNode.valueOf(index)));
 	}
 
 	@Test
 	public void shouldCreateArrayWithListAsParam() {
-		List<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
+		final List<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
 		list.add(new ConstantExpression(IntNode.valueOf(0)));
 		list.add(new ConstantExpression(IntNode.valueOf(1)));
 
@@ -36,9 +39,8 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 			IntNode.valueOf(1)), new ConstantExpression(IntNode.valueOf(2)),
 			new ConstantExpression(IntNode.valueOf(3)), new ConstantExpression(IntNode.valueOf(4))).iterator();
 
-		while (it.hasNext()) {
+		while (it.hasNext())
 			Assert.assertEquals(new ConstantExpression(IntNode.valueOf(index++)), it.next());
-		}
 	}
 
 	@Test

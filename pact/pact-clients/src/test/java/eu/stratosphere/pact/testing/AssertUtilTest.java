@@ -21,8 +21,6 @@ import java.util.List;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.testing.AssertUtil;
-
 /**
  * Tests {@link AssertUtil}.
  * 

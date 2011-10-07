@@ -61,7 +61,7 @@ public class Signature implements SerializableSopremoType {
 		int distance = 0;
 		for (int index = 0; index < this.parameterTypes.length; index++) {
 			int actualDistance = ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
-			if(actualDistance < 0)
+			if (actualDistance < 0)
 				return INCOMPATIBLE;
 			distance += actualDistance;
 		}

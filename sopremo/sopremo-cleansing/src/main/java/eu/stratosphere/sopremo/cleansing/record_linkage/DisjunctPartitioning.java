@@ -1,10 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.NullNode;
-
-import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
@@ -15,12 +10,13 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
-
 public class DisjunctPartitioning extends MultiPassPartitioning {
 	public DisjunctPartitioning(final EvaluationExpression partitionKey) {
 		super(partitionKey);
@@ -80,7 +76,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		}
 
 		public static class Implementation extends
-				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression resultProjection1, resultProjection2;
@@ -88,7 +84,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
-				final CompactArrayNode pair = JsonUtil.asArray(value1, value2);
+				final ArrayNode pair = JsonUtil.asArray(value1, value2);
 				if (this.similarityCondition.evaluate(pair, this.getContext()) == BooleanNode.TRUE)
 					out.collect(NullNode.getInstance(),
 						JsonUtil.asArray(this.resultProjection1.evaluate(value1, this.getContext()),
@@ -120,7 +116,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		}
 
 		public static class Implementation extends
-				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression resultProjection, idProjection;

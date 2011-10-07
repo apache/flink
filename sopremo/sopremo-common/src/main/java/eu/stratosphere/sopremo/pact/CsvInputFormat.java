@@ -4,18 +4,17 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
-import org.codehaus.jackson.node.JsonNodeFactory;
-import org.codehaus.jackson.node.ObjectNode;
-
 import com.csvreader.CsvReader;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 
-public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJsonObject> {
+public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 
 	private static final String FIELD_DELIMITER = "fieldDelimiter";
 
@@ -26,22 +25,21 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 	private String[] keyNames;
 
 	@Override
-	public void configure(Configuration parameters) {
+	public void configure(final Configuration parameters) {
 		super.configure(parameters);
 		this.keyNames = SopremoUtil.deserialize(parameters, COLUMN_NAMES, String[].class);
-		Character delimiter = SopremoUtil.deserialize(parameters, FIELD_DELIMITER, Character.class);
+		final Character delimiter = SopremoUtil.deserialize(parameters, FIELD_DELIMITER, Character.class);
 		if (delimiter != null)
 			this.fieldDelimiter = delimiter;
 	}
 
 	@Override
-	public KeyValuePair<PactJsonObject.Key, PactJsonObject> createPair() {
-		return new KeyValuePair<PactJsonObject.Key, PactJsonObject>(PactJsonObject.Key.NULL,
-			new PactJsonObject());
+	public KeyValuePair<JsonNode, JsonNode> createPair() {
+		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), new ObjectNode());
 	}
 
 	@Override
-	public void open(FileInputSplit split) throws IOException {
+	public void open(final FileInputSplit split) throws IOException {
 		super.open(split);
 
 		// this.end = false;
@@ -64,28 +62,29 @@ public class CsvInputFormat extends TextInputFormat<PactJsonObject.Key, PactJson
 	// return this.end;
 	// }
 
-	private Charset charSet = Charset.forName("utf-8");
+	private final Charset charSet = Charset.forName("utf-8");
 
 	@Override
-	public boolean readLine(KeyValuePair<Key, PactJsonObject> pair, byte[] record) {
+	public boolean readLine(final KeyValuePair<JsonNode, JsonNode> pair, final byte[] record) {
 		// if (!this.end) {
-		CsvReader reader = new CsvReader(new ByteArrayInputStream(record), this.charSet);
+		final CsvReader reader = new CsvReader(new ByteArrayInputStream(record), this.charSet);
 		reader.setDelimiter(this.fieldDelimiter);
 		try {
 			if (reader.readRecord()) {
-				ObjectNode node = new ObjectNode(JsonNodeFactory.instance);
+				final ObjectNode node = new ObjectNode();
 				if (this.keyNames != null)
 					for (int i = 0; i < this.keyNames.length; i++)
 						node.put(this.keyNames[i], reader.get(i));
 				else
 					for (int i = 0; i < reader.getColumnCount(); i++)
 						node.put(String.format("key%d", i + 1), reader.get(i));
-				pair.getValue().setValue(node);
+				pair.setKey(SopremoUtil.wrap(pair.getKey()));
+				pair.setValue(SopremoUtil.wrap(node));
 				return true;
 			}
 
 			// this.end = true;
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			SopremoUtil.LOG.warn("Parsing CSV record", e);
 		}
 		return false;

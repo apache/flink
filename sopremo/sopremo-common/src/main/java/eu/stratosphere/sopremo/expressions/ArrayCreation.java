@@ -4,11 +4,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
  * Creates an array of the given expressions.
@@ -53,7 +51,7 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final ArrayNode arrayNode = JsonUtil.NODE_FACTORY.arrayNode();
+		final ArrayNode arrayNode = new ArrayNode();
 		for (final EvaluationExpression expression : this.elements)
 			arrayNode.add(expression.evaluate(node, context));
 		return arrayNode;

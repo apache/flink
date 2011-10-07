@@ -15,20 +15,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.NullNode;
-import org.codehaus.jackson.node.ObjectNode;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 /**
@@ -113,7 +110,7 @@ public class Fusion extends ElementaryOperator<Fusion> {
 	}
 
 	public static class Implementation extends
-			SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private Map<List<String>, FusionRule> rules;
 
 		private List<Object2DoubleMap<List<String>>> weights;
@@ -169,9 +166,9 @@ public class Fusion extends ElementaryOperator<Fusion> {
 		}
 
 		private JsonNode fuseArrays(final JsonNode[] values) {
-			final ArrayNode fusedArray = new ArrayNode(null);
+			final ArrayNode fusedArray = new ArrayNode();
 			for (final JsonNode array : values)
-				for (final JsonNode element : array)
+				for (final JsonNode element : (ArrayNode) array)
 					fusedArray.add(element);
 			return fusedArray;
 		}
@@ -182,15 +179,16 @@ public class Fusion extends ElementaryOperator<Fusion> {
 			final List<String> childPath = new ArrayList<String>(currentPath);
 			final double[] childWeights = new double[weights.length];
 
-			final ObjectNode fusedObject = new ObjectNode(null);
+			final ObjectNode fusedObject = new ObjectNode();
 			final int lastPath = childPath.size();
 			childPath.add(null);
 			while (fieldNames.hasNext()) {
 				final String fieldName = fieldNames.next();
 
 				for (int index = 0; index < values.length; index++) {
-					children[index] = values[index] == NullNode.getInstance() ? values[index] : values[index]
-						.get(fieldName);
+					children[index] = values[index] == NullNode.getInstance() ? values[index]
+						: ((ObjectNode) values[index])
+							.get(fieldName);
 					childWeights[index] = weights[index] * this.getWeight(index, childPath);
 				}
 
@@ -210,17 +208,17 @@ public class Fusion extends ElementaryOperator<Fusion> {
 			try {
 				this.contextNodes.clear();
 				if (this.multipleRecordsPerSource) {
-					final Iterator<JsonNode> iterator = values.iterator();
+					final Iterator<JsonNode> iterator = ((ArrayNode) values).iterator();
 					final IntList sourceIndexes = new IntArrayList();
 					for (int sourceIndex = 0; iterator.hasNext(); sourceIndex++)
-						for (final JsonNode value : iterator.next()) {
+						for (final JsonNode value : (ArrayNode)iterator.next()) {
 							this.contextNodes.add(value);
 							sourceIndexes.add(sourceIndex);
 						}
 
 					this.context.setSourceIndexes(sourceIndexes.toIntArray());
 				} else {
-					for (final JsonNode value : values)
+					for (final JsonNode value : (ArrayNode)values)
 						this.contextNodes.add(value);
 
 					final int[] sourceIndexes = new int[this.contextNodes.size()];

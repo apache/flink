@@ -3,8 +3,8 @@ package eu.stratosphere.sopremo;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 
 public class Sink extends ElementaryOperator<Sink> {
 	/**
@@ -14,9 +14,9 @@ public class Sink extends ElementaryOperator<Sink> {
 
 	private final String outputName;
 
-	private Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat;
+	private Class<? extends FileOutputFormat<JsonNode, JsonNode>> outputFormat;
 
-	public Sink(Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat,
+	public Sink(final Class<? extends FileOutputFormat<JsonNode, JsonNode>> outputFormat,
 			final String outputName) {
 		super(0);
 		this.outputFormat = outputFormat;
@@ -31,11 +31,11 @@ public class Sink extends ElementaryOperator<Sink> {
 		this("");
 	}
 
-	public Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> getOutputFormat() {
+	public Class<? extends FileOutputFormat<JsonNode, JsonNode>> getOutputFormat() {
 		return this.outputFormat;
 	}
 
-	public void setOutputFormat(Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> outputFormat) {
+	public void setOutputFormat(Class<? extends FileOutputFormat<JsonNode, JsonNode>> outputFormat) {
 		if (outputFormat == null)
 			throw new NullPointerException("outputFormat must not be null");
 
@@ -50,7 +50,7 @@ public class Sink extends ElementaryOperator<Sink> {
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		final PactModule pactModule = new PactModule(this.toString(), 1, 0);
-		final FileDataSinkContract<PactJsonObject.Key, PactJsonObject> contract = new FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
+		final FileDataSinkContract<JsonNode, JsonNode> contract = new FileDataSinkContract<JsonNode, JsonNode>(
 			this.outputFormat, this.outputName, this.outputName);
 		contract.setInput(pactModule.getInput(0));
 		// if(this.outputFormat == JsonOutputFormat.class)
@@ -61,8 +61,8 @@ public class Sink extends ElementaryOperator<Sink> {
 
 	@Override
 	public SopremoModule toElementaryOperators() {
-		SopremoModule module = new SopremoModule(this.getName(), 1, 0);
-		Sink clone = (Sink) this.clone();
+		final SopremoModule module = new SopremoModule(this.getName(), 1, 0);
+		final Sink clone = (Sink) this.clone();
 		module.addInternalOutput(clone);
 		clone.setInput(0, module.getInput(0));
 		return module;

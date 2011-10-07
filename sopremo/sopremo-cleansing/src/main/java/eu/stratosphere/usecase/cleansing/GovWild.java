@@ -1,39 +1,27 @@
 package eu.stratosphere.usecase.cleansing;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.DecimalNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.TextNode;
-
 import uk.ac.shef.wit.simmetrics.similaritymetrics.JaccardSimilarity;
 import uk.ac.shef.wit.simmetrics.similaritymetrics.JaroWinkler;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
-import eu.stratosphere.pact.testing.ioformats.SequentialInputFormat;
-import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
+import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.ArraySplit;
-import eu.stratosphere.sopremo.base.BuiltinFunctions;
 import eu.stratosphere.sopremo.base.Grouping;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.base.Selection;
-import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.base.UnionAll;
-import eu.stratosphere.sopremo.base.ValueSplit;
 import eu.stratosphere.sopremo.cleansing.record_linkage.DisjunctPartitioning;
 import eu.stratosphere.sopremo.cleansing.record_linkage.InterSourceRecordLinkage;
 import eu.stratosphere.sopremo.cleansing.record_linkage.LinkageMode;
@@ -43,7 +31,6 @@ import eu.stratosphere.sopremo.cleansing.scrubbing.NonNullRule;
 import eu.stratosphere.sopremo.cleansing.scrubbing.PatternValidationExpression;
 import eu.stratosphere.sopremo.cleansing.scrubbing.SchemaMapping;
 import eu.stratosphere.sopremo.cleansing.scrubbing.Scrubbing;
-import eu.stratosphere.sopremo.cleansing.similarity.MongeElkanSimilarity;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.AndExpression;
@@ -63,12 +50,13 @@ import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.TernaryExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
+import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.CsvInputFormat;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
-import eu.stratosphere.util.reflect.ReflectUtil;
 
 @SuppressWarnings("unused")
 public class GovWild implements PlanAssembler, PlanAssemblerDescription {
@@ -1026,26 +1014,26 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		return "Parameters: [noSubStasks] [inputDir] [outputDir]";
 	}
 
-	protected Class<? extends FileInputFormat<Key, PactJsonObject>> getInternalInputFormat() {
+	protected Class<? extends FileInputFormat<JsonNode, JsonNode>> getInternalInputFormat() {
 		return JsonInputFormat.class;
 	}
 
-	protected Class<? extends FileOutputFormat<PactJsonObject.Key, PactJsonObject>> getInternalOutputFormat() {
+	protected Class<? extends FileOutputFormat<JsonNode, JsonNode>> getInternalOutputFormat() {
 		return JsonOutputFormat.class;
 	}
 
-	// public static class InputFo extends SequentialInputFormat<PactJsonObject.Key, PactJsonObject> {
-	// };
-	//
-	// public static class OutputFo extends SequentialOutputFormat {
-	// public OutputFo() {
-	// try {
-	// Field declaredField = SequentialOutputFormat.class.getDeclaredField("typesWritten");
-	// declaredField.setAccessible(true);
-	// declaredField.setBoolean(this, true);
-	// } catch ( Exception e) {
-	// throw new RuntimeException(e);
-	// }
-	// }
-	// };
+//	public static class InputFo extends SequentialInputFormat<JsonNode.JsonNode, JsonNode> {
+//	};
+//	
+//	public static class OutputFo extends SequentialOutputFormat {
+//		public OutputFo() {
+//			try {
+//				Field declaredField = SequentialOutputFormat.class.getDeclaredField("typesWritten");
+//				declaredField.setAccessible(true);
+//				declaredField.setBoolean(this, true);
+//			} catch ( Exception e) {
+//				throw new RuntimeException(e);
+//			}
+//		}		
+//	};
 }

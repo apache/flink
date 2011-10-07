@@ -1,9 +1,9 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 1, maxNodes = OptimizerHints.UNBOUND)
 public class InputSelection extends EvaluationExpression {
@@ -29,7 +29,7 @@ public class InputSelection extends EvaluationExpression {
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (!node.isArray())
 			throw new EvaluationException("Cannot access index of non-array " + node.getClass().getSimpleName());
-		return node.get(this.index);
+		return ((ArrayNode) node).get(this.index);
 	}
 
 	//

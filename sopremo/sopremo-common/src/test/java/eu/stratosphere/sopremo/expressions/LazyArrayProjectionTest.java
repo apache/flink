@@ -1,9 +1,12 @@
 package eu.stratosphere.sopremo.expressions;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
+
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjection> {
 	@Override
@@ -23,10 +26,10 @@ public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjec
 	@Test
 	public void shouldAccessFieldOfStreamArray() {
 		final JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
-			createStreamArray(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
+			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			this.context);
-		Assert.assertEquals(createStreamArray(1, 2, 3), result);
+		Assert.assertEquals(createArrayNode(1, 2, 3), result);
 	}
 
 }

@@ -1,16 +1,35 @@
 package eu.stratosphere.sopremo.pact;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
-public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
-		extends MapStub<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+public abstract class SopremoMap<IK extends JsonNode, IV extends JsonNode, OK extends JsonNode, OV extends JsonNode>
+		extends MapStub<JsonNode, JsonNode, JsonNode, JsonNode> {
 	private EvaluationContext context;
+
+	@Override
+	public Class<JsonNode> getInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
 
 	@Override
 	public void configure(final Configuration parameters) {
@@ -26,14 +45,14 @@ public abstract class SopremoMap<IK extends PactJsonObject.Key, IV extends PactJ
 	protected abstract void map(JsonNode key, JsonNode value, JsonCollector out);
 
 	@Override
-	public void map(final PactJsonObject.Key key, final PactJsonObject value,
-			final Collector<PactJsonObject.Key, PactJsonObject> out) {
+	public void map(final JsonNode key, final JsonNode value,
+			final Collector<JsonNode, JsonNode> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), key, value));
 		try {
-			this.map(key.getValue(), value.getValue(), new JsonCollector(out));
-		} catch (RuntimeException e) {
+			this.map(SopremoUtil.unwrap(key), SopremoUtil.unwrap(value), new JsonCollector(out));
+		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", this.getContext()
 				.operatorTrace(), key, value, e));
 			throw e;

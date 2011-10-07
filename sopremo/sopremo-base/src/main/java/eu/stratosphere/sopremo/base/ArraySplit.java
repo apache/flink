@@ -1,23 +1,21 @@
 package eu.stratosphere.sopremo.base;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
-
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 /**
  * Splits an array into multiple tuples.<br>
  * This operator provides a means to emit more than one tuple in contrast to most other base operators.
- *  
+ * 
  * @author Arvid Heise
  */
 public class ArraySplit extends ElementaryOperator<ArraySplit> {
@@ -77,7 +75,7 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 		return this.keyProjection;
 	}
 
-	public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+	public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private EvaluationExpression arrayPath, valueProjection, keyProjection;
 
 		@Override
@@ -88,7 +86,7 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 
 			int index = 0;
 			final EvaluationContext context = this.getContext();
-			for (JsonNode element : array) {
+			for (JsonNode element : (ArrayNode) array) {
 				JsonNode indexNode = IntNode.valueOf(index++);
 				out.collect(
 					this.keyProjection.evaluate(JsonUtil.asArray(element, indexNode, array, value), context),

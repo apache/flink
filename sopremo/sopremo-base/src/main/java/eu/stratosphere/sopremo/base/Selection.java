@@ -1,16 +1,14 @@
 package eu.stratosphere.sopremo.base;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 @Name(verb = "select")
@@ -67,7 +65,7 @@ public class Selection extends ElementaryOperator<Selection> {
 	}
 
 	public static class Implementation extends
-			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private BooleanExpression condition;
 
 		@Override

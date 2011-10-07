@@ -58,11 +58,11 @@ import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
+import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
-import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.runtime.task.HistogramTask;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 

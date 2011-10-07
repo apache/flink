@@ -17,32 +17,25 @@ package eu.stratosphere.sopremo.pact;
 
 import java.io.IOException;
 
-import org.codehaus.jackson.JsonEncoding;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.map.ObjectMapper;
-
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
- * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link PactJsonObject}
- * .
+ * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link JsonNode} .
  * 
  * @author Arvid Heise
  */
-public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJsonObject> {
-
-	private JsonEncoding encoding;
+public class JsonOutputFormat extends FileOutputFormat<JsonNode, JsonNode> {
 
 	private JsonGenerator generator;
 
 	public static final String PARAMETER_ENCODING = "Encoding";
 
 	public JsonOutputFormat() {
-		this.keyClass = PactJsonObject.Key.class;
-		this.valueClass = PactJsonObject.class;
+		this.keyClass = JsonNode.class;
+		this.valueClass = JsonNode.class;
 	}
 
 	@Override
@@ -53,29 +46,16 @@ public class JsonOutputFormat extends FileOutputFormat<PactJsonObject.Key, PactJ
 	}
 
 	@Override
-	public void configure(final Configuration parameters) {
-		super.configure(parameters);
-
-		final String encoding = parameters.getString(PARAMETER_ENCODING, null);
-		if (encoding != null)
-			this.encoding = JsonEncoding.valueOf(encoding);
-		else
-			this.encoding = JsonEncoding.UTF8;
-	}
-
-	@Override
-	public void open(int taskNumber) throws IOException {
+	public void open(final int taskNumber) throws IOException {
 		super.open(taskNumber);
 
-		this.generator = new JsonFactory().createJsonGenerator(this.stream, this.encoding);
-		this.generator.setCodec(new ObjectMapper());
-		this.generator.useDefaultPrettyPrinter();
+		this.generator = new JsonGenerator(this.stream);
 		this.generator.writeStartArray();
 	}
 
 	@Override
-	public void writeRecord(final KeyValuePair<PactJsonObject.Key, PactJsonObject> pair) throws IOException {
-		this.generator.writeTree(pair.getValue().getValue());
+	public void writeRecord(final KeyValuePair<JsonNode, JsonNode> pair) throws IOException {
+		this.generator.writeTree(SopremoUtil.unwrap(pair.getValue()));
 	}
 
 }

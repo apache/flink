@@ -2,17 +2,15 @@ package eu.stratosphere.sopremo.base;
 
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 
 @Name(verb = "intersect")
@@ -47,9 +45,9 @@ public class Intersection extends SetOperation<Intersection> {
 		private static final long serialVersionUID = -7207641826328647442L;
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
-			protected void coGroup(final JsonNode key1, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key1, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				if (!values1.isEmpty() && !values2.isEmpty())
 					out.collect(key1, values1.get(0));

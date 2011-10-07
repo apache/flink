@@ -20,14 +20,11 @@ import java.util.Arrays;
 import org.junit.Before;
 import org.junit.Test;
 
-
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.testing.AssertUtil;
-import eu.stratosphere.pact.testing.TestPairs;
 
 /**
  * Tests {@link TestPairs}.

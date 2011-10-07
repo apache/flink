@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,9 +34,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
-import junit.framework.Assert;
 
 public class SpillingResettableIteratorTest {
 

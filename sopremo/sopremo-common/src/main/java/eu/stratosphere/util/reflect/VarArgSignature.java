@@ -38,7 +38,7 @@ public class VarArgSignature extends Signature {
 			distance += ReflectUtil.getDistance(this.getParameterTypes()[index], actualParamTypes[index]);
 		}
 
-		if (nonVarArgs < actualParamTypes.length) {
+		if (nonVarArgs < actualParamTypes.length)
 			if (actualParamTypes.length > nonVarArgs + 1
 				|| !this.getParameterTypes()[nonVarArgs].isAssignableFrom(actualParamTypes[nonVarArgs])) {
 				final Class<?> varargType = this.getParameterTypes()[nonVarArgs].getComponentType();
@@ -48,14 +48,13 @@ public class VarArgSignature extends Signature {
 					distance += ReflectUtil.getDistance(varargType, actualParamTypes[index]) + 1;
 				}
 			}
-		}
 
 		return distance;
 	}
 
 	@Override
 	public Object[] adjustParameters(Object[] params) {
-		Class<?>[] parameterTypes = getParameterTypes();
+		Class<?>[] parameterTypes = this.getParameterTypes();
 		final int varArgIndex = parameterTypes.length - 1;
 		final int varArgCount = params.length - varArgIndex;
 

@@ -1,10 +1,9 @@
 package eu.stratosphere.sopremo.aggregation;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public abstract class AggregationFunction implements SerializableSopremoType, Cloneable {
 	/**
@@ -22,6 +21,31 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 
 	public AggregationExpression asExpression() {
 		return new AggregationExpression(this);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (this.name == null ? 0 : this.name.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		final AggregationFunction other = (AggregationFunction) obj;
+		if (this.name == null) {
+			if (other.name != null)
+				return false;
+		} else if (!this.name.equals(other.name))
+			return false;
+		return true;
 	}
 
 	@Override

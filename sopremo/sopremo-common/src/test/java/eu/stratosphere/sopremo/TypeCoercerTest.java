@@ -7,21 +7,22 @@ import java.util.List;
 
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.BigIntegerNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.DecimalNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.LongNode;
-import org.codehaus.jackson.node.NumericNode;
-import org.codehaus.jackson.node.ObjectNode;
-import org.codehaus.jackson.node.TextNode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.LongNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 @RunWith(Parameterized.class)
 public class TypeCoercerTest {
@@ -51,7 +52,7 @@ public class TypeCoercerTest {
 					this.targetType.isInstance(result));
 				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result),
 					((BigIntegerNode) this.expectedResult).getBigIntegerValue(),
-					result.getBigIntegerValue());
+					((BigIntegerNode) result).getBigIntegerValue());
 			} else {
 				Assert.assertTrue(
 					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
@@ -128,7 +129,7 @@ public class TypeCoercerTest {
 	}
 
 	protected static ArrayNode createArray(final JsonNode... elems) {
-		final ArrayNode arrayNode = new ArrayNode(null);
+		final ArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(Arrays.asList(elems));
 		return arrayNode;
 	}

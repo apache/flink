@@ -3,29 +3,58 @@ package eu.stratosphere.sopremo.pact;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.CoGroupStub;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
-public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends PactJsonObject, IV2 extends PactJsonObject, OK extends PactJsonObject.Key, OV extends PactJsonObject>
-		extends CoGroupStub<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+public abstract class SopremoCoGroup<IK extends JsonNode, IV1 extends JsonNode, IV2 extends JsonNode, OK extends JsonNode, OV extends JsonNode>
+		extends CoGroupStub<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 	private EvaluationContext context;
 
-	protected abstract void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out);
+	protected abstract void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out);
 
 	@Override
-	public void coGroup(final PactJsonObject.Key key, Iterator<PactJsonObject> values1,
-			Iterator<PactJsonObject> values2,
-			final Collector<PactJsonObject.Key, PactJsonObject> out) {
+	public Class<JsonNode> getFirstInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getSecondInKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getFirstInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getSecondInValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutKeyType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public Class<JsonNode> getOutValueType() {
+		return SopremoUtil.WRAPPER_TYPE;
+	}
+
+	@Override
+	public void coGroup(final JsonNode key, Iterator<JsonNode> values1,
+			Iterator<JsonNode> values2,
+			final Collector<JsonNode, JsonNode> out) {
 		this.context.increaseInputCounter();
 		if (SopremoUtil.LOG.isTraceEnabled()) {
-			final ArrayList<PactJsonObject> cached1 = new ArrayList<PactJsonObject>(), cached2 = new ArrayList<PactJsonObject>();
+			final ArrayList<JsonNode> cached1 = new ArrayList<JsonNode>(), cached2 = new ArrayList<JsonNode>();
 			while (values1.hasNext())
 				cached1.add(values1.next());
 			while (values2.hasNext())
@@ -36,10 +65,11 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 			values2 = cached2.iterator();
 		}
 		try {
-			this.coGroup(key.getValue(), JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values1), values1),
-				JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values2), values2),
+			this.coGroup(SopremoUtil.unwrap(key),
+				JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values1), new WrapperIterator(values1)),
+				JsonUtil.wrapWithNode(this.needsResettableIterator(0, key, values2), new WrapperIterator(values2)),
 				new JsonCollector(out));
-		} catch (RuntimeException e) {
+		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", this.getContext()
 				.operatorTrace(), key, values1, values2, e));
 			throw e;
@@ -57,9 +87,8 @@ public abstract class SopremoCoGroup<IK extends PactJsonObject.Key, IV1 extends 
 		return this.context;
 	}
 
-	@SuppressWarnings("unused")
-	protected boolean needsResettableIterator(final int input, final PactJsonObject.Key key,
-			final Iterator<PactJsonObject> values) {
+	protected boolean needsResettableIterator(final int input, final JsonNode key,
+			final Iterator<JsonNode> values) {
 		return false;
 	}
 }

@@ -1,17 +1,8 @@
 package eu.stratosphere.sopremo.aggregation;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public abstract class TransitiveAggregationFunction extends AggregationFunction {
 	/**
@@ -19,7 +10,9 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	 */
 	private static final long serialVersionUID = -4836890030948315219L;
 
-	private transient JsonNode aggregate, initialAggregate;
+	private transient JsonNode aggregate;
+
+	private JsonNode initialAggregate;
 
 	public TransitiveAggregationFunction(final String name, final JsonNode initialAggregate) {
 		super(name);
@@ -40,26 +33,8 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 
 	@Override
 	public void initialize() {
-		try {
-			final ByteArrayOutputStream cloneBuffer = new ByteArrayOutputStream();
-			final PactJsonObject cloner = new PactJsonObject(this.initialAggregate);
-			cloner.write(new DataOutputStream(cloneBuffer));
-			cloner.read(new DataInputStream(new ByteArrayInputStream(cloneBuffer.toByteArray())));
-			this.aggregate = cloner.getValue();
-		} catch (final IOException e) {
-			throw new IllegalStateException("Cannot clone initial value");
-		}
-	}
-
-	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();
-		final PactJsonObject pactJsonObject = new PactJsonObject();
-		pactJsonObject.read(ois);
-		this.initialAggregate = pactJsonObject.getValue();
-	}
-
-	private void writeObject(final ObjectOutputStream oos) throws IOException {
-		oos.defaultWriteObject();
-		new PactJsonObject(this.initialAggregate).write(oos);
+		final ByteArrayOutputStream cloneBuffer = new ByteArrayOutputStream();
+		final JsonNode cloner = this.initialAggregate.clone();
+		this.aggregate = cloner;
 	}
 }

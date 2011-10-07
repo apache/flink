@@ -11,13 +11,13 @@ import java.util.List;
 import junit.framework.Assert;
 
 import org.antlr.runtime.RecognitionException;
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @RunWith(Parameterized.class)
 public class ExpressionTest {

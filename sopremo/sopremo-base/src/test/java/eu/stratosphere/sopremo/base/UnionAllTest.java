@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo.base;
 
+import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
+
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
@@ -19,25 +21,25 @@ public class UnionAllTest extends SopremoTest<UnionAll> {
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2));
 		sopremoPlan.getInput(1).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(4)).
-			add(createPactJsonValue(5));
+			add(createValueNode((Object) 3)).
+			add(createValueNode((Object) 4)).
+			add(createValueNode((Object) 5));
 		sopremoPlan.getInput(2).
-			add(createPactJsonValue(6)).
-			add(createPactJsonValue(7)).
-			add(createPactJsonValue(8));
+			add(createValueNode((Object) 6)).
+			add(createValueNode((Object) 7)).
+			add(createValueNode((Object) 8));
 		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(4)).
-			add(createPactJsonValue(5)).
-			add(createPactJsonValue(6)).
-			add(createPactJsonValue(7)).
-			add(createPactJsonValue(8));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2)).
+			add(createValueNode((Object) 3)).
+			add(createValueNode((Object) 4)).
+			add(createValueNode((Object) 5)).
+			add(createValueNode((Object) 6)).
+			add(createValueNode((Object) 7)).
+			add(createValueNode((Object) 8));
 
 		sopremoPlan.run();
 	}
@@ -51,11 +53,11 @@ public class UnionAllTest extends SopremoTest<UnionAll> {
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2));
 		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2));
 
 		sopremoPlan.run();
 	}
@@ -69,18 +71,18 @@ public class UnionAllTest extends SopremoTest<UnionAll> {
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2));
 		sopremoPlan.getInput(1).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(4)).
-			add(createPactJsonValue(5));
+			add(createValueNode((Object) 3)).
+			add(createValueNode((Object) 4)).
+			add(createValueNode((Object) 5));
 		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(4)).
-			add(createPactJsonValue(5));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2)).
+			add(createValueNode((Object) 3)).
+			add(createValueNode((Object) 4)).
+			add(createValueNode((Object) 5));
 
 		sopremoPlan.run();
 	}
@@ -94,18 +96,18 @@ public class UnionAllTest extends SopremoTest<UnionAll> {
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 
 		sopremoPlan.getInput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2));
 		sopremoPlan.getInput(1).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2)).
+			add(createValueNode((Object) 3));
 		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2)).
-			add(createPactJsonValue(3)).
-			add(createPactJsonValue(1)).
-			add(createPactJsonValue(2));
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2)).
+			add(createValueNode((Object) 3)).
+			add(createValueNode((Object) 1)).
+			add(createValueNode((Object) 2));
 
 		sopremoPlan.run();
 	}

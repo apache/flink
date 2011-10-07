@@ -1,15 +1,19 @@
 package eu.stratosphere.sopremo.base;
 
+import static eu.stratosphere.sopremo.JsonUtil.createPath;
+import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
+
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.BatchAggregationExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
@@ -178,7 +182,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 			add(createPactJsonObject("id", 6, "dept", 2, "income", 5000)).
 			add(createPactJsonObject("id", 7, "dept", 1, "income", 24000));
 		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonValue(7));
+			add(createValueNode((Object) 7));
 
 		sopremoPlan.run();
 	}

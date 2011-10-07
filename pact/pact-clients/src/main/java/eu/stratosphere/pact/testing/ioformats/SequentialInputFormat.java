@@ -25,6 +25,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
@@ -40,22 +41,10 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  */
 public class SequentialInputFormat<K extends Key, V extends Value> extends FileInputFormat<K, V>
 {
-	private Class<K> keyClass;
-	
-	private Class<V> valueClass;
 	
 	private DataInputStream dataInputStream;
 
-	@SuppressWarnings("unchecked")
 	public SequentialInputFormat() {
-		if (this.getClass() != SequentialInputFormat.class) {
-			this.keyClass = ReflectionUtil.getTemplateType1(this.getClass());
-			this.valueClass = ReflectionUtil.getTemplateType2(this.getClass());
-		} else {
-			// default values -> should be overwritten when file is opened and nonempty
-			this.keyClass = (Class<K>) PactInteger.class;
-			this.valueClass = (Class<V>) PactInteger.class;
-		}
 	}
 	
 	
@@ -69,24 +58,28 @@ public class SequentialInputFormat<K extends Key, V extends Value> extends FileI
 	public void configure(final Configuration parameters)
 	{
 		super.configure(parameters);
-		
-		final Class<K> keyClass = parameters.getClass("key", null, (Class<K>) null);
-		if (keyClass != null)
-			this.keyClass = keyClass;
-		final Class<V> valueClass = parameters.getClass("value", null, (Class<V>) null);
-		if (keyClass != null)
-			this.valueClass = valueClass;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public KeyValuePair<K, V> createPair() {
-		return new KeyValuePair<K, V>(ReflectionUtil.newInstance(this.keyClass), ReflectionUtil.newInstance(this.valueClass));
+		return new KeyValuePair(PactNull.getInstance(), PactNull.getInstance());
 	}
 
 	@Override
 	public boolean nextRecord(final KeyValuePair<K, V> pair) throws IOException {
 		if (this.dataInputStream.available() == 0)
 			return false;
+		try {
+			pair.setKey(ReflectionUtil.newInstance((Class<K>) Class.forName(this.dataInputStream.readUTF())));
+		} catch (final ClassNotFoundException e) {
+			throw new IOException("Cannot resolve key type " + e);
+		}
+		try {
+			pair.setValue(ReflectionUtil.newInstance((Class<V>) Class.forName(this.dataInputStream.readUTF())));
+		} catch (final ClassNotFoundException e) {
+			throw new IOException("Cannot resolve value type " + e);
+		}
 
 		pair.read(this.dataInputStream);
 		return true;
@@ -100,18 +93,6 @@ public class SequentialInputFormat<K extends Key, V extends Value> extends FileI
 		
 		this.dataInputStream = new DataInputStream(this.stream);
 
-		if (this.dataInputStream.available() > 0) {
-			try {
-				this.keyClass = (Class<K>) Class.forName(this.dataInputStream.readUTF());
-			} catch (final ClassNotFoundException e) {
-				throw new IOException("Cannot resolve key type " + e);
-			}
-			try {
-				this.valueClass = (Class<V>) Class.forName(this.dataInputStream.readUTF());
-			} catch (final ClassNotFoundException e) {
-				throw new IOException("Cannot resolve value type " + e);
-			}
-		}
 	}
 
 	@Override

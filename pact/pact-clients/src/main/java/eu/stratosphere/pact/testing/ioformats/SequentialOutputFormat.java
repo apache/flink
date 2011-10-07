@@ -34,8 +34,6 @@ public class SequentialOutputFormat extends FileOutputFormat<Key, Value>
 {
 	private DataOutputStream dataOutputStream;
 
-	private boolean typesWritten = false;
-
 	public SequentialOutputFormat() {
 		super.keyClass = Key.class;
 		super.valueClass = Value.class;
@@ -55,17 +53,13 @@ public class SequentialOutputFormat extends FileOutputFormat<Key, Value>
 	@Override
 	public void open(int taskNumber) throws IOException {
 		super.open(taskNumber);
-		typesWritten = false;
 		this.dataOutputStream = new DataOutputStream(this.stream);
 	}
 
 	@Override
 	public void writeRecord(final KeyValuePair<Key, Value> pair) throws IOException {
-		if (!this.typesWritten) {
-			this.dataOutputStream.writeUTF(pair.getKey().getClass().getName());
-			this.dataOutputStream.writeUTF(pair.getValue().getClass().getName());
-			this.typesWritten = true;
-		}
+		this.dataOutputStream.writeUTF(pair.getKey().getClass().getName());
+		this.dataOutputStream.writeUTF(pair.getValue().getClass().getName());
 		pair.write(this.dataOutputStream);
 	}
 }

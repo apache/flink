@@ -1,21 +1,19 @@
 package eu.stratosphere.sopremo.base;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.LongNode;
-import org.codehaus.jackson.node.TextNode;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.LongNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
@@ -32,7 +30,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return TextNode.valueOf(String.format("%d_%d", node.get(0), node.get(1)));
+			return TextNode.valueOf(String.format("%d_%d", ((ArrayNode)node).get(0), ((ArrayNode)node).get(1)));
 		}
 	};
 
@@ -44,7 +42,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return LongNode.valueOf((node.get(0).getLongValue() << 48) + node.get(1).getLongValue());
+			return LongNode.valueOf((((LongNode)((ArrayNode)node).get(0)).getLongValue() << 48) + ((LongNode)((ArrayNode)node).get(1)).getLongValue());
 		}
 	};
 
@@ -92,12 +90,12 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	}
 
 	public static class Implementation extends
-			SopremoMap<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private EvaluationExpression enumerationExpression, idGeneration;
 
 		private long counter;
 
-		private CompactArrayNode params;
+		private ArrayNode params;
 
 		@Override
 		public void configure(final Configuration parameters) {
@@ -109,7 +107,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 
 		@Override
 		protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-			this.params.getChildren()[1] = LongNode.valueOf(this.counter++);
+			this.params.set(1, LongNode.valueOf(this.counter++));
 			final JsonNode id = this.idGeneration.evaluate(this.params, this.getContext());
 
 			if (this.enumerationExpression == EvaluationExpression.AS_KEY)

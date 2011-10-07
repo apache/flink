@@ -1,9 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @OptimizerHints(scope = Scope.NUMBER)
 public class CoerceExpression extends EvaluationExpression {
@@ -37,7 +36,7 @@ public class CoerceExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -45,7 +44,7 @@ public class CoerceExpression extends EvaluationExpression {
 		if (this.getClass() != obj.getClass())
 			return false;
 
-		CoerceExpression other = (CoerceExpression) obj;
+		final CoerceExpression other = (CoerceExpression) obj;
 		if (this.targetType == null) {
 			if (other.targetType != null)
 				return false;

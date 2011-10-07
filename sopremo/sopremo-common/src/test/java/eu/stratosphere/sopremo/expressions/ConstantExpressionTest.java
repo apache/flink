@@ -4,25 +4,26 @@ import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
 import org.junit.Test;
+
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class ConstantExpressionTest extends EvaluableExpressionTest<ConstantExpression> {
 
 	@Override
-	protected ConstantExpression createDefaultInstance(int index) {
+	protected ConstantExpression createDefaultInstance(final int index) {
 		return new ConstantExpression(IntNode.valueOf(index));
 	}
 
 	@Override
-	protected void initVerifier(EqualsVerifier<ConstantExpression> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<ConstantExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier.withPrefabValues(JsonNode.class, IntNode.valueOf(23), IntNode.valueOf(42));
 		equalVerifier.suppress(Warning.TRANSIENT_FIELDS);
 	}
-	
+
 	@Test
 	public void shouldCastNumericNodeCorrectly() {
 		final int result = new ConstantExpression(IntNode.valueOf(42)).asInt();

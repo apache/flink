@@ -1,21 +1,22 @@
 package eu.stratosphere.sopremo.expressions;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.NumericNode;
-import org.codehaus.jackson.node.TextNode;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.CoercionException;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpression> {
 
 	@Override
-	protected CoerceExpression createDefaultInstance(int index) {
+	protected CoerceExpression createDefaultInstance(final int index) {
 		switch (index) {
 		case 0: {
 			return new CoerceExpression(BooleanNode.class);
@@ -47,14 +48,15 @@ public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpressi
 	}
 
 	@Test
-	public void shouldOnlyChangeOuterType(){
-		final JsonNode result = new CoerceExpression(ArrayNode.class).evaluate(createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), this.context);
-		
+	public void shouldOnlyChangeOuterType() {
+		final JsonNode result = new CoerceExpression(ArrayNode.class).evaluate(
+			createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), this.context);
+
 		Assert.assertEquals(createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), result);
 	}
-	
+
 	@Test(expected = CoercionException.class)
-	public void shouldThrowExceptionWhenChangeingTextToInt(){
+	public void shouldThrowExceptionWhenChangeingTextToInt() {
 		new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("testname"), this.context);
 	}
 }

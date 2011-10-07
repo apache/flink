@@ -1,11 +1,11 @@
 package eu.stratosphere.sopremo.cleansing.similarity;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.DoubleNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 public class NumericDifference extends EvaluationExpression {
 	/**
@@ -26,8 +26,8 @@ public class NumericDifference extends EvaluationExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final double left = this.leftExpression.evaluate(node, context).getDoubleValue();
-		final double right = this.rightExpression.evaluate(node, context).getDoubleValue();
+		final double left = ((NumericNode)this.leftExpression.evaluate(node, context)).getDoubleValue();
+		final double right = ((NumericNode)this.rightExpression.evaluate(node, context)).getDoubleValue();
 		final double diff = Math.abs(left - right);
 		if (diff > this.maxDiff)
 			return JsonUtil.ZERO;

@@ -1,11 +1,9 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 
 /**
  * Returns one or more elements of an array.<br>
@@ -77,28 +75,28 @@ public class ArrayAccess extends EvaluationExpression {
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (this.isSelectingAll())
 			return node;
-		final int size = node.size();
+		final int size = ((ArrayNode) node).size();
 		if (this.isSelectingRange()) {
-			final ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
+			final ArrayNode arrayNode = new ArrayNode();
 			int index = this.resolveIndex(this.startIndex, size);
 			final int endIndex = this.resolveIndex(this.endIndex, size);
 			final int increment = index < endIndex ? 1 : -1;
 
 			for (boolean moreElements = true; moreElements; index += increment) {
-				arrayNode.add(node.get(index));
+				arrayNode.add(((ArrayNode) node).get(index));
 				moreElements = index != endIndex;
 			}
 			return arrayNode;
 		}
-		JsonNode value = node.get(this.resolveIndex(this.startIndex, size));
+		final JsonNode value = ((ArrayNode) node).get(this.resolveIndex(this.startIndex, size));
 		return value == null ? NullNode.getInstance() : value;
 	}
 
 	@Override
-	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 		if (this.isSelectingAll())
 			return value;
-		final int size = node.size();
+		final int size = ((ArrayNode) node).size();
 		if (this.isSelectingRange()) {
 			final ArrayNode arrayNode = (ArrayNode) node;
 			int index = this.resolveIndex(this.startIndex, size), replaceIndex = 0;
@@ -107,7 +105,7 @@ public class ArrayAccess extends EvaluationExpression {
 			final int increment = index < endIndex ? 1 : -1;
 
 			for (boolean moreElements = true; moreElements; index += increment, replaceIndex++) {
-				arrayNode.set(index, value.get(replaceIndex));
+				arrayNode.set(index, ((ArrayNode) node).get(replaceIndex));
 				moreElements = index != endIndex;
 			}
 		} else

@@ -22,9 +22,9 @@ import java.util.List;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;
@@ -58,10 +58,10 @@ public class PactModule extends
 		super(name, new FileDataSourceContract[numberOfInputs], new FileDataSinkContract[numberOfOutputs],
 			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new FileDataSourceContract<PactJsonObject.Key, PactJsonObject>(
+			this.inputNodes[index] = new FileDataSourceContract<JsonNode, JsonNode>(
 				JsonInputFormat.class, String.format("%s %d", name, index));
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new FileDataSinkContract<PactJsonObject.Key, PactJsonObject>(
+			this.outputNodes[index] = new FileDataSinkContract<JsonNode, JsonNode>(
 				JsonOutputFormat.class, String.format("%s %d", name, index));
 	}
 

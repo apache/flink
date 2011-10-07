@@ -9,23 +9,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.BigIntegerNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.DecimalNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.LongNode;
-import org.codehaus.jackson.node.NullNode;
-import org.codehaus.jackson.node.NumericNode;
-import org.codehaus.jackson.node.ObjectNode;
-import org.codehaus.jackson.node.TextNode;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.LongNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class TypeCoercer {
 	@SuppressWarnings("unchecked")
 	private static final Class<? extends JsonNode>[] ARRAY_TYPES =
-		(Class<? extends JsonNode>[]) new Class<?>[] { ArrayNode.class, CompactArrayNode.class, StreamArrayNode.class };
+		(Class<? extends JsonNode>[]) new Class<?>[] { ArrayNode.class };
 
 	private final Map<Class<? extends JsonNode>, Map<Class<? extends JsonNode>, Coercer>> coercers = new IdentityHashMap<Class<? extends JsonNode>, Map<Class<? extends JsonNode>, Coercer>>();
 
@@ -105,7 +105,7 @@ public class TypeCoercer {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
 				try {
-					return IntNode.valueOf(Integer.parseInt(node.getTextValue()));
+					return IntNode.valueOf(Integer.parseInt(((TextNode) node).getTextValue()));
 				} catch (final NumberFormatException e) {
 					return null;
 				}
@@ -115,7 +115,7 @@ public class TypeCoercer {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
 				try {
-					return DoubleNode.valueOf(Double.parseDouble(node.getTextValue()));
+					return DoubleNode.valueOf(Double.parseDouble(((TextNode) node).getTextValue()));
 				} catch (final NumberFormatException e) {
 					return null;
 				}
@@ -125,7 +125,7 @@ public class TypeCoercer {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
 				try {
-					return LongNode.valueOf(Long.parseLong(node.getTextValue()));
+					return LongNode.valueOf(Long.parseLong(((TextNode) node).getTextValue()));
 				} catch (final NumberFormatException e) {
 					return null;
 				}
@@ -135,7 +135,7 @@ public class TypeCoercer {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
 				try {
-					return DecimalNode.valueOf(new BigDecimal(node.getTextValue()));
+					return DecimalNode.valueOf(new BigDecimal(((TextNode) node).getTextValue()));
 				} catch (final NumberFormatException e) {
 					return null;
 				}
@@ -145,7 +145,7 @@ public class TypeCoercer {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
 				try {
-					return BigIntegerNode.valueOf(new BigInteger(node.getTextValue()));
+					return BigIntegerNode.valueOf(new BigInteger(((TextNode) node).getTextValue()));
 				} catch (final NumberFormatException e) {
 					return null;
 				}
@@ -191,7 +191,7 @@ public class TypeCoercer {
 			toCoercer.put(node.getClass(), fromCoercer);
 		}
 
-		T result = (T) fromCoercer.coerce(node);
+		final T result = (T) fromCoercer.coerce(node);
 		if (result == null)
 			return defaultValue;
 		return result;
@@ -207,7 +207,7 @@ public class TypeCoercer {
 		toArrayCoercers.put(JsonNode.class, new Coercer() {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
-				final ArrayNode arrayNode = new ArrayNode(null);
+				final ArrayNode arrayNode = new ArrayNode();
 				arrayNode.add(node);
 				return arrayNode;
 			}
@@ -215,8 +215,9 @@ public class TypeCoercer {
 		final Coercer containerToArray = new Coercer() {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
-				final ArrayNode arrayNode = new ArrayNode(null);
-				final Iterator<JsonNode> iterator = node.iterator();
+				final ArrayNode arrayNode = new ArrayNode();
+				final Iterator<JsonNode> iterator = ((ArrayNode) node)
+					.iterator();
 				while (iterator.hasNext())
 					arrayNode.add(iterator.next());
 				return arrayNode;
@@ -233,13 +234,13 @@ public class TypeCoercer {
 		toBooleanCoercers.put(NumericNode.class, new Coercer() {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
-				return BooleanNode.valueOf(node.getValueAsDouble() != 0);
+				return BooleanNode.valueOf(((NumericNode) node).getDoubleValue() != 0);
 			}
 		});
 		toBooleanCoercers.put(TextNode.class, new Coercer() {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
-				return BooleanNode.valueOf(node.getTextValue().length() > 0);
+				return BooleanNode.valueOf(((TextNode) node).getTextValue().length() > 0);
 			}
 		});
 		toBooleanCoercers.put(NullNode.class, new Coercer() {
@@ -251,7 +252,7 @@ public class TypeCoercer {
 		final Coercer containerToBoolean = new Coercer() {
 			@Override
 			public JsonNode coerce(final JsonNode node) {
-				return BooleanNode.valueOf(node.size() > 0);
+				return BooleanNode.valueOf(((ArrayNode) node).size() > 0);
 			}
 		};
 		for (final Class<? extends JsonNode> arrayType : ARRAY_TYPES)

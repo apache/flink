@@ -6,25 +6,20 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.BigIntegerNode;
-import org.codehaus.jackson.node.BinaryNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.DecimalNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.LongNode;
-import org.codehaus.jackson.node.MissingNode;
-import org.codehaus.jackson.node.NullNode;
-import org.codehaus.jackson.node.ObjectNode;
-import org.codehaus.jackson.node.POJONode;
-import org.codehaus.jackson.node.TextNode;
-
-import eu.stratosphere.sopremo.CompactArrayNode;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.StreamArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.LongNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
 public class JsonNodeComparator implements Comparator<JsonNode> {
 	public final static JsonNodeComparator INSTANCE = new JsonNodeComparator();
@@ -41,10 +36,7 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 				e.printStackTrace();
 			}
 
-		ArrayNodeComparator arrayNodeComparator = new ArrayNodeComparator();
-		this.nodeComparators.put(ArrayNode.class, arrayNodeComparator);
-		this.nodeComparators.put(CompactArrayNode.class, arrayNodeComparator);
-		this.nodeComparators.put(StreamArrayNode.class, arrayNodeComparator);
+		this.nodeComparators.put(ArrayNode.class, ArrayNodeComparator.INSTANCE);
 
 		final Comparator<ObjectNode> cannotCompare = new Comparator<ObjectNode>() {
 			@Override
@@ -52,9 +44,11 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 				throw new EvaluationException("Cannot compare two objects");
 			}
 		};
-		this.nodeComparators.put(POJONode.class, cannotCompare);
-		this.nodeComparators.put(BinaryNode.class, cannotCompare);
-		this.nodeComparators.put(MissingNode.class, cannotCompare);
+		/*
+		 * this.nodeComparators.put(POJONode.class, cannotCompare);
+		 * this.nodeComparators.put(BinaryNode.class, cannotCompare);
+		 * this.nodeComparators.put(MissingNode.class, cannotCompare);
+		 */
 	}
 
 	@Override
@@ -72,12 +66,16 @@ public class JsonNodeComparator implements Comparator<JsonNode> {
 	}
 
 	public final static class ArrayNodeComparator implements Comparator<JsonNode> {
+		public static final Comparator INSTANCE = new ArrayNodeComparator();
+
 		@Override
 		public int compare(final JsonNode value1, final JsonNode value2) {
-			if (value1.size() != value2.size())
-				return value1.size() - value2.size();
-			for (int index = 0, size = value1.size(); index < size; index++) {
-				final int comparisonResult = JsonNodeComparator.INSTANCE.compare(value1.get(index), value2.get(index));
+			final int size1 = ((ArrayNode) value1).size(), size2 = ((ArrayNode) value2).size();
+			if (size1 != size2)
+				return size1 - size2;
+			for (int index = 0, size = size1; index < size; index++) {
+				final int comparisonResult = JsonNodeComparator.INSTANCE.compare(((ArrayNode) value1).get(index),
+					((ArrayNode) value2).get(index));
 				if (comparisonResult != 0)
 					return comparisonResult;
 			}

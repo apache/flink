@@ -5,12 +5,11 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ObjectNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.util.ConversionIterator;
 
 @OptimizerHints(scope = Scope.ANY)
@@ -28,8 +27,8 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			final ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
-			final Iterator<JsonNode> elements = node.getElements();
+			final ObjectNode objectNode = new ObjectNode();
+			final Iterator<JsonNode> elements = ((ArrayNode) node).iterator();
 			while (elements.hasNext()) {
 				final JsonNode jsonNode = elements.next();
 				if (!jsonNode.isNull())
@@ -75,7 +74,7 @@ public class ObjectCreation extends ContainerExpression {
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final ObjectNode transformedNode = JsonUtil.OBJECT_MAPPER.createObjectNode();
+		final ObjectNode transformedNode = new ObjectNode();
 		for (final Mapping mapping : this.mappings)
 			mapping.evaluate(transformedNode, node, context);
 		return transformedNode;
@@ -182,7 +181,7 @@ public class ObjectCreation extends ContainerExpression {
 		}
 
 		protected void evaluate(final ObjectNode transformedNode, final JsonNode node, final EvaluationContext context) {
-			JsonNode value = this.expression.evaluate(node, context);
+			final JsonNode value = this.expression.evaluate(node, context);
 			// if (!value.isNull())
 			transformedNode.put(this.target, value);
 		}

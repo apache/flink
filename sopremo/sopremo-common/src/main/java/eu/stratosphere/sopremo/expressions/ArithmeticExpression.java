@@ -6,17 +6,16 @@ import java.math.MathContext;
 import java.util.EnumMap;
 import java.util.Map;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser.NumberType;
-import org.codehaus.jackson.node.BigIntegerNode;
-import org.codehaus.jackson.node.DecimalNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.LongNode;
-import org.codehaus.jackson.node.NumericNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.NumberCoercer;
+import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
+import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode.TYPES;
+import eu.stratosphere.sopremo.jsondatamodel.LongNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for
@@ -187,20 +186,19 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		private final String sign;
 
-		private final Map<NumberType, NumberEvaluator> typeEvaluators = new EnumMap<NumberType, NumberEvaluator>(
-			NumberType.class);
+		private final Map<JsonNode.TYPES, NumberEvaluator> typeEvaluators = new EnumMap<JsonNode.TYPES, NumberEvaluator>(
+			JsonNode.TYPES.class);
 
 		private ArithmeticOperator(final String sign, final NumberEvaluator integerEvaluator,
 				final NumberEvaluator longEvaluator,
 				final NumberEvaluator doubleEvaluator, final NumberEvaluator bigIntegerEvaluator,
 				final NumberEvaluator bigDecimalEvaluator) {
 			this.sign = sign;
-			this.typeEvaluators.put(NumberType.INT, integerEvaluator);
-			this.typeEvaluators.put(NumberType.LONG, longEvaluator);
-			this.typeEvaluators.put(NumberType.FLOAT, doubleEvaluator);
-			this.typeEvaluators.put(NumberType.DOUBLE, doubleEvaluator);
-			this.typeEvaluators.put(NumberType.BIG_INTEGER, bigIntegerEvaluator);
-			this.typeEvaluators.put(NumberType.BIG_DECIMAL, bigDecimalEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.IntNode, integerEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.LongNode, longEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.DoubleNode, doubleEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.BigIntegerNode, bigIntegerEvaluator);
+			this.typeEvaluators.put(JsonNode.TYPES.DecimalNode, bigDecimalEvaluator);
 		}
 
 		/**
@@ -213,8 +211,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 * @return the result of the operation
 		 */
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			final NumberType widerType = NumberCoercer.INSTANCE.getWiderType(left.getNumberType(),
-				right.getNumberType());
+			final TYPES widerType = NumberCoercer.INSTANCE.getWiderType(left,
+				right);
 			return this.typeEvaluators.get(widerType).evaluate(left, right);
 		}
 
@@ -229,7 +227,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return DecimalNode.valueOf(this.evaluate(left.getDecimalValue(), right.getDecimalValue()));
+			return DecimalNode.valueOf(this.evaluate(left.getDecimalValue(),
+				right.getDecimalValue()));
 		}
 	}
 
@@ -238,7 +237,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return BigIntegerNode.valueOf(this.evaluate(left.getBigIntegerValue(), right.getBigIntegerValue()));
+			return BigIntegerNode.valueOf(this.evaluate(left.getBigIntegerValue(),
+				right.getBigIntegerValue()));
 		}
 	}
 
@@ -260,7 +260,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return DecimalNode.valueOf(divideImpl(left.getDecimalValue(), right.getDecimalValue()));
+			return DecimalNode.valueOf(divideImpl(left.getDecimalValue(),
+				right.getDecimalValue()));
 		}
 
 		public static BigDecimal divideImpl(final BigDecimal bigLeft, final BigDecimal bigRight) {
@@ -283,7 +284,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		@Override
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(), right.getDoubleValue()));
+			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(),
+				right.getDoubleValue()));
 		}
 	}
 

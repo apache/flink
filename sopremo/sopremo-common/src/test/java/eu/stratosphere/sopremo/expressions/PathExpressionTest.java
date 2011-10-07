@@ -9,15 +9,12 @@ import java.util.List;
 import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonProcessingException;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.TextNode;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.io.JsonParser;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> {
 
@@ -25,22 +22,18 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 	private static JsonNode getJsonNode() {
 		try {
-			JsonParser parser = JsonUtil.FACTORY.createJsonParser(new URL(
+			final JsonParser parser = new JsonParser(new URL(
 				getResourcePath("PathExpressionTest/test.json")));
-			parser.setCodec(JsonUtil.OBJECT_MAPPER);
+			// parser.setCodec(JsonUtil.OBJECT_MAPPER);
 			return parser.readValueAsTree();
-		} catch (JsonParseException e) {
-			e.printStackTrace();
-		} catch (JsonProcessingException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 		return null;
 	}
 
 	@Override
-	protected PathExpression createDefaultInstance(int index) {
+	protected PathExpression createDefaultInstance(final int index) {
 
 		return new PathExpression(new ConstantExpression(IntNode.valueOf(index)));
 	}
@@ -57,7 +50,7 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 	@Test
 	public void shouldAddNewExpression() {
-		PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+		final PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
 			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"));
 		expr.add(new ObjectAccess("ID"));
 		final JsonNode result = expr.evaluate(doc, this.context);
@@ -124,12 +117,12 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 		Assert.assertEquals(new ObjectAccess("GlossDiv"), result);
 	}
-	
+
 	@Override
-	protected void initVerifier(EqualsVerifier<PathExpression> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<PathExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
-		equalVerifier.withPrefabValues(List.class, 
-			new ArrayList<Object>(), 
+		equalVerifier.withPrefabValues(List.class,
+			new ArrayList<Object>(),
 			new ArrayList<Object>(Arrays.asList(new ObjectAccess("field"))));
 	}
 }

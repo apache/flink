@@ -38,9 +38,9 @@ import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
-import eu.stratosphere.pact.runtime.test.util.TestData.RecordReaderMock;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
+import eu.stratosphere.pact.runtime.test.util.TestData.RecordReaderMock;
 
 
 public class HashVsSortTest {

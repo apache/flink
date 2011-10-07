@@ -28,10 +28,10 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.Channel;
-import eu.stratosphere.nephele.services.iomanager.StreamChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
+import eu.stratosphere.nephele.services.iomanager.StreamChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;

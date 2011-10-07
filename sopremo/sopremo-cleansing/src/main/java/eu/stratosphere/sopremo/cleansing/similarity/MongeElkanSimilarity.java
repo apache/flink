@@ -1,16 +1,17 @@
 package eu.stratosphere.sopremo.cleansing.similarity;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.DoubleNode;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class MongeElkanSimilarity extends EvaluationExpression {
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 3635602165354195576L;
+	private static final long serialVersionUID = 1688822374984917780L;
 
 	private EvaluationExpression baseMeasure;
 
@@ -28,19 +29,21 @@ public class MongeElkanSimilarity extends EvaluationExpression {
 		JsonNode leftValues = this.leftExpression.evaluate(node, context);
 		JsonNode rightValues = this.rightExpression.evaluate(node, context);
 
-		if (leftValues.size() == 0 || rightValues.size() == 0)
+		if (((ArrayNode) leftValues).size() == 0 || ((ArrayNode) rightValues).size() == 0)
 			return DoubleNode.valueOf(0);
 
 		double sum = 0;
-		for (JsonNode leftValue : leftValues) {
+		for (JsonNode leftValue : (ArrayNode) leftValues) {
 			double max = 0;
-			for (JsonNode rightValue : rightValues)
-				max = Math.max(max, this.baseMeasure.evaluate(JsonUtil.asArray(leftValue, rightValue), context)
-					.getDoubleValue());
+			for (JsonNode rightValue : (ArrayNode) rightValues) {
+				max = Math.max(max,
+					((DoubleNode) baseMeasure.evaluate(JsonUtil.asArray(leftValue, rightValue), context))
+						.getDoubleValue());
+			}
 			sum += max;
 		}
 
-		return DoubleNode.valueOf(sum / leftValues.size());
+		return DoubleNode.valueOf(sum / ((ArrayNode)leftValues).size());
 	}
 
 	@Override

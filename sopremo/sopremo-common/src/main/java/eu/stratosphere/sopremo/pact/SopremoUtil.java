@@ -23,19 +23,18 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.impl.Log4JLogger;
 import org.apache.log4j.Level;
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.io.JsonParser;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class SopremoUtil {
 	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
@@ -46,6 +45,9 @@ public class SopremoUtil {
 			return new PactString();
 		};
 	};
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static final Class<JsonNode> WRAPPER_TYPE = (Class) JsonNodeWrapper.class;
 
 	static void configureStub(final Stub<?, ?> stub, final Configuration parameters) {
 		for (final Field stubField : stub.getClass().getDeclaredFields())
@@ -72,8 +74,8 @@ public class SopremoUtil {
 
 	public static JsonNode deserializeNode(final DataInput in) throws IOException {
 		SerializationString.get().read(in);
-		final JsonParser parser = JsonUtil.FACTORY.createJsonParser(SerializationString.get().getValue());
-		parser.setCodec(JsonUtil.OBJECT_MAPPER);
+		final JsonParser parser = new JsonParser(SerializationString.get().getValue());
+		// parser.setCodec(JsonUtil.OBJECT_MAPPER);
 		return parser.readValueAsTree();
 	}
 
@@ -158,8 +160,8 @@ public class SopremoUtil {
 
 	public static void serializeNode(final DataOutput out, final JsonNode value) throws IOException {
 		final StringWriter writer = new StringWriter();
-		final JsonGenerator generator = JsonUtil.FACTORY.createJsonGenerator(writer);
-		generator.setCodec(JsonUtil.OBJECT_MAPPER);
+		final JsonGenerator generator = new JsonGenerator(writer);
+		// generator.setCodec(JsonUtil.OBJECT_MAPPER);
 		generator.writeTree(value);
 		SerializationString.get().setValue(writer.toString());
 		SerializationString.get().write(out);
@@ -223,5 +225,17 @@ public class SopremoUtil {
 
 	public static void untrace() {
 		((Log4JLogger) LOG).getLogger().setLevel(((Log4JLogger) LOG).getLogger().getParent().getLevel());
+	}
+
+	public static JsonNode unwrap(JsonNode wrapper) {
+		if (!(wrapper instanceof JsonNodeWrapper))
+			return wrapper;
+		return ((JsonNodeWrapper) wrapper).getValue();
+	}
+
+	public static JsonNode wrap(JsonNode node) {
+		if (node instanceof JsonNodeWrapper)
+			return node;
+		return new JsonNodeWrapper(node);
 	}
 }

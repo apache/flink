@@ -3,11 +3,10 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.Arrays;
 import java.util.Iterator;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.BooleanNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, iterating = true)
 public class ElementInSetExpression extends BooleanExpression {
@@ -108,7 +107,7 @@ public class ElementInSetExpression extends BooleanExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -116,7 +115,7 @@ public class ElementInSetExpression extends BooleanExpression {
 		if (this.getClass() != obj.getClass())
 			return false;
 
-		ElementInSetExpression other = (ElementInSetExpression) obj;
+		final ElementInSetExpression other = (ElementInSetExpression) obj;
 		if (this.elementExpr == null) {
 			if (other.elementExpr != null)
 				return false;

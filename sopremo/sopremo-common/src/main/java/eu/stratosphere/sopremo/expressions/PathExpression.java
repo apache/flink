@@ -5,9 +5,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
 public class PathExpression extends ContainerExpression {
@@ -144,33 +143,33 @@ public class PathExpression extends ContainerExpression {
 		fragments.get(fragments.size() - 1).set(node, value, context);
 		return node;
 	}
-//	
-//	public static class Writable extends PathExpression implements WritableEvaluable {
-//
-//		/**
-//		 * 
-//		 */
-//		private static final long serialVersionUID = 2014987314121118540L;
-//
-//		public <T extends EvaluationExpression & WritableEvaluable> Writable(final List<T> fragments) {
-//			super(fragments);
-//		}
-//
-//		public <T extends EvaluationExpression & WritableEvaluable> Writable(final T... fragments) {
-//			super(fragments);
-//		}
-//
-//		@Override
-//		public void add(final EvaluationExpression fragment) {
-//			if (!(fragment instanceof WritableEvaluable))
-//				throw new IllegalArgumentException();
-//			super.add(fragment);
-//		}
-//
-//		@Override
-//		public EvaluationExpression asExpression() {
-//			return this;
-//		}
-//
-//	}
+	//
+	// public static class Writable extends PathExpression implements WritableEvaluable {
+	//
+	// /**
+	// *
+	// */
+	// private static final long serialVersionUID = 2014987314121118540L;
+	//
+	// public <T extends EvaluationExpression & WritableEvaluable> Writable(final List<T> fragments) {
+	// super(fragments);
+	// }
+	//
+	// public <T extends EvaluationExpression & WritableEvaluable> Writable(final T... fragments) {
+	// super(fragments);
+	// }
+	//
+	// @Override
+	// public void add(final EvaluationExpression fragment) {
+	// if (!(fragment instanceof WritableEvaluable))
+	// throw new IllegalArgumentException();
+	// super.add(fragment);
+	// }
+	//
+	// @Override
+	// public EvaluationExpression asExpression() {
+	// return this;
+	// }
+	//
+	// }
 }

@@ -1,45 +1,56 @@
 package eu.stratosphere.sopremo.expressions;
 
+import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+
 import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.TextNode;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 @RunWith(Parameterized.class)
 public class ComparativeExpressionParameterizedTest {
 
-	private JsonNode expr1, expr2;
+	private final JsonNode expr1, expr2;
 
-	private BinaryOperator op;
+	private final BinaryOperator op;
 
-	private BooleanNode expectedResult;
+	private final BooleanNode ExpectedResult;
 
-	public ComparativeExpressionParameterizedTest(JsonNode expr1, BinaryOperator op, JsonNode expr2,
-			BooleanNode ExpectedResult) {
+	private EvaluationContext context = new EvaluationContext();
+
+	public ComparativeExpressionParameterizedTest(final JsonNode expr1, final BinaryOperator op, final JsonNode expr2,
+			final BooleanNode ExpectedResult) {
 		this.expr1 = expr1;
 		this.expr2 = expr2;
 		this.op = op;
-		this.expectedResult = ExpectedResult;
+		this.ExpectedResult = ExpectedResult;
+	}
+
+	@Ignore
+	public JsonNode evaluate(final JsonNode expr1, final BinaryOperator op, final JsonNode expr2) {
+		return new ComparativeExpression(new InputSelection(0), op, new InputSelection(1)).evaluate(
+			createArrayNode(expr1, expr2), this.context);
+
 	}
 
 	@Test
-	public void shouldPerformComparisonAsExpected() {
-		JsonNode result = new ComparativeExpression(new InputSelection(0), this.op, new InputSelection(1)).
-			evaluate(SopremoTest.createArrayNode(this.expr1, this.expr2), new EvaluationContext());
-		Assert.assertEquals(this.expectedResult, result);
+	public void shouldReturnExpectedResultsForComparators() {
+		final JsonNode result = this.evaluate(this.expr1, this.op, this.expr2);
+		Assert.assertEquals(this.ExpectedResult, result);
+
 	}
 
 	@Parameters

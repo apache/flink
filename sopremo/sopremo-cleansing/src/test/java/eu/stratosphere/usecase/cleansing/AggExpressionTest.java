@@ -1,18 +1,19 @@
 package eu.stratosphere.usecase.cleansing;
-
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
+import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 import junit.framework.Assert;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.base.BuiltinFunctions;
+import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluableExpressionTest;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class AggExpressionTest extends EvaluableExpressionTest<AggExpression> {
 	@Override
@@ -22,9 +23,9 @@ public class AggExpressionTest extends EvaluableExpressionTest<AggExpression> {
 
 	@Test
 	public void testAggregation() {
-		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
-
-		ArrayNode input = new ArrayNode(null);
+		context.getFunctionRegistry().register(BuiltinFunctions.class);
+		
+		ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));
 		input.add(createObjectNode("key", 2, "value", 24));
 		input.add(createObjectNode("key", 3, "value", 33));
@@ -36,7 +37,7 @@ public class AggExpressionTest extends EvaluableExpressionTest<AggExpression> {
 
 		JsonNode result = aggExpression.evaluate(input, this.context);
 
-		ArrayNode expected = new ArrayNode(null);
+		ArrayNode expected = new ArrayNode();
 		expected.add(createValueNode(23));
 		expected.add(createValueNode(49));
 		expected.add(createValueNode(33));

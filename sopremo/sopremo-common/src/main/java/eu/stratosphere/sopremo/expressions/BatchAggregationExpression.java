@@ -4,11 +4,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
  * Batch aggregates one stream of {@link JsonNode} with several {@link AggregationFunction}s.
@@ -56,7 +55,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		for (final Partial partial : this.partials)
 			partial.getFunction().initialize();
-		for (final JsonNode input : node)
+		for (final JsonNode input : (ArrayNode) node)
 			for (final Partial partial : this.partials)
 				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, context), context);
 
@@ -64,7 +63,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		for (int index = 0; index < results.length; index++)
 			results[index] = this.partials.get(index).getFunction().getFinalAggregate();
 
-		return this.lastResult = JsonUtil.asArray(results);
+		return this.lastResult = new ArrayNode(results);
 	}
 
 	private class Partial extends AggregationExpression {
@@ -82,7 +81,37 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return BatchAggregationExpression.this.evaluate(node, context).get(this.index);
+			return ((ArrayNode) BatchAggregationExpression.this.evaluate(node, context)).get(this.index);
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (this.partials == null ? 0 : this.partials.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		final BatchAggregationExpression other = (BatchAggregationExpression) obj;
+		if (this.partials == null) {
+			if (other.partials != null)
+				return false;
+		} else if (!this.partials.equals(other.partials))
+			return false;
+		return true;
+	}
+
+	@Override
+	protected void toString(final StringBuilder builder) {
+		builder.append("batch");
 	}
 }

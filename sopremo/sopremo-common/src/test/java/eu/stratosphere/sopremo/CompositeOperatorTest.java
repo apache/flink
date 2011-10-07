@@ -7,7 +7,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.Contract;
@@ -15,8 +14,8 @@ import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.ContractNavigator;
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.util.dag.GraphLevelPartitioner;
 import eu.stratosphere.util.dag.GraphLevelPartitioner.Level;
@@ -113,7 +112,7 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 
 		static class Implementation
 				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
 					final JsonNode value2,

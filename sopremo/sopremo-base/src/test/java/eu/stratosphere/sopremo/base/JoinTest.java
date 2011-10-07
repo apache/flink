@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo.base;
 
+import static eu.stratosphere.sopremo.JsonUtil.createPath;
+
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.ExpressionTag;
@@ -46,7 +48,7 @@ public class JoinTest extends SopremoTest<Join> {
 		sopremoPlan.getExpectedOutput(0).
 			add(createPactJsonObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance")).
 			add(createPactJsonObject("Name", "George", "EmpId", 3401, "DeptName", "Finance"));
-
+		sopremoPlan.trace();
 		sopremoPlan.run();
 	}
 

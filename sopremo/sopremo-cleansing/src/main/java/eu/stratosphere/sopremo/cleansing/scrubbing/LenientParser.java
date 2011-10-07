@@ -8,13 +8,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.NumericNode;
-import org.codehaus.jackson.node.TextNode;
-
 import eu.stratosphere.sopremo.TypeCoercer;
-
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 public class LenientParser {
 	/**
 	 * Fail if no exact parse is possible.

@@ -2,12 +2,11 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.Set;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.ExpressionTag;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.util.IdentitySet;
 
 public abstract class EvaluationExpression extends SopremoExpression<EvaluationContext, EvaluationExpression> {
@@ -30,12 +29,12 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 		}
 
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			return this == obj;
 		}
 
 		@Override
-		public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 			return value;
 		}
 

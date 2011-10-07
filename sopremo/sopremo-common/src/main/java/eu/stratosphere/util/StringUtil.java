@@ -21,16 +21,16 @@ public class StringUtil {
 	public static String lowerFirstChar(String input) {
 		if (input.isEmpty())
 			return input;
-		
+
 		char[] chars = input.toCharArray();
 		chars[0] = Character.toLowerCase(chars[0]);
 		return new String(chars);
 	}
-	
+
 	public static String upperFirstChar(String input) {
 		if (input.isEmpty())
 			return input;
-		
+
 		char[] chars = input.toCharArray();
 		chars[0] = Character.toUpperCase(chars[0]);
 		return new String(chars);

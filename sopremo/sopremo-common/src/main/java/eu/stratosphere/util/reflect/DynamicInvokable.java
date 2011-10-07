@@ -105,7 +105,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 			final int distance = originalSignature.getKey().getDistance(signature);
 			if (distance < 0)
 				continue;
-			
+
 			if (distance < minDistance) {
 				minDistance = distance;
 				bestSignatureSoFar = originalSignature.getKey();

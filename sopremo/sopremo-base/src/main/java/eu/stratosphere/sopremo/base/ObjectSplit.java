@@ -2,18 +2,16 @@ package eu.stratosphere.sopremo.base;
 
 import java.util.Iterator;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.TextNode;
-
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 /**
@@ -84,7 +82,7 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 		return this;
 	}
 
-	public static class Implementation extends SopremoMap<Key, PactJsonObject, Key, PactJsonObject> {
+	public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 		private EvaluationExpression objectPath, valueProjection, keyProjection;
 
 		@Override
@@ -93,14 +91,14 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 			if (!object.isObject())
 				throw new EvaluationException("Cannot split non-object");
 
-			final Iterator<String> fieldNames = object.getFieldNames();
+			final Iterator<String> fieldNames = ((ObjectNode) object).getFieldNames();
 			final EvaluationContext context = this.getContext();
 			while (fieldNames.hasNext()) {
 				String field = fieldNames.next();
 				final TextNode fieldNode = TextNode.valueOf(field);
 				out.collect(
-					this.keyProjection.evaluate(JsonUtil.asArray(value.get(field), fieldNode, object, value), context),
-					this.valueProjection.evaluate(JsonUtil.asArray(value.get(field), fieldNode, object, value), context));
+					this.keyProjection.evaluate(JsonUtil.asArray(((ObjectNode) value).get(field), fieldNode, object, value), context),
+					this.valueProjection.evaluate(JsonUtil.asArray(((ObjectNode) value).get(field), fieldNode, object, value), context));
 			}
 		}
 	}

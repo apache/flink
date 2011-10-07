@@ -1,10 +1,9 @@
 package eu.stratosphere.sopremo.function;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
  * A base for built-in and user-defined functions.

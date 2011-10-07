@@ -7,20 +7,19 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.DoubleNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.NullNode;
-import org.codehaus.jackson.node.NumericNode;
-import org.codehaus.jackson.node.TextNode;
-
+import eu.stratosphere.sopremo.BuiltinFunctions;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
 import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
-import eu.stratosphere.sopremo.base.BuiltinFunctions;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class CleansFunctions extends BuiltinFunctions {
 	public static JsonNode length(final TextNode node) {
@@ -41,10 +40,11 @@ public class CleansFunctions extends BuiltinFunctions {
 
 	public static JsonNode average(NumericNode... inputs) {
 		double sum = 0;
-
-		for (NumericNode numericNode : inputs)
-			sum += numericNode.getDoubleValue();
-
+		
+		for (NumericNode numericNode : inputs) {
+			sum += ((DoubleNode)numericNode).getDoubleValue();
+		}
+		
 		return DoubleNode.valueOf(sum / inputs.length);
 	}
 
@@ -54,8 +54,8 @@ public class CleansFunctions extends BuiltinFunctions {
 
 	public static JsonNode split(TextNode input, TextNode splitString) {
 		String[] split = input.getTextValue().split(splitString.getTextValue());
-		ArrayNode splitNode = new ArrayNode(null);
-		for (String string : split)
+		ArrayNode splitNode = new ArrayNode();
+		for (String string : split) 
 			splitNode.add(TextNode.valueOf(string));
 		return splitNode;
 	}
@@ -73,7 +73,7 @@ public class CleansFunctions extends BuiltinFunctions {
 		if (matcher.groupCount() == 1)
 			return TextNode.valueOf(matcher.group(1));
 
-		ArrayNode result = new ArrayNode(null);
+		ArrayNode result = new ArrayNode();
 		for (int index = 1; index <= matcher.groupCount(); index++)
 			result.add(TextNode.valueOf(matcher.group(index)));
 		return result;
@@ -88,7 +88,7 @@ public class CleansFunctions extends BuiltinFunctions {
 	}
 
 	public static JsonNode filter(ArrayNode input, JsonNode... elementsToFilter) {
-		ArrayNode output = new ArrayNode(null);
+		ArrayNode output = new ArrayNode();
 		HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
 		for (int index = 0; index < input.size(); index++)
 			if (!filterSet.contains(input.get(index)))

@@ -1,20 +1,18 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCross;
-
 public class Naive extends RecordLinkageAlgorithm {
 	@Override
 	public Operator<?> getInterSource(ComparativeExpression similarityCondition, RecordLinkageInput input1,
@@ -50,7 +48,7 @@ public class Naive extends RecordLinkageAlgorithm {
 
 		public static class Implementation
 				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression resultProjection1, resultProjection2;
@@ -88,8 +86,8 @@ public class Naive extends RecordLinkageAlgorithm {
 
 		public static class Implementation
 				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key,
-				PactJsonObject> {
+				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode,
+				JsonNode> {
 			private ComparativeExpression similarityCondition;
 
 			private EvaluationExpression resultProjection, idProjection;

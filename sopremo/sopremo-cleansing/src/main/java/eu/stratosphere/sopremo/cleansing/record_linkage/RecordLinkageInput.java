@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.Operator.Output;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public class RecordLinkageInput implements JsonStream, Cloneable {

@@ -4,10 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.BooleanNode;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.sopremo.CompositeOperator;
@@ -22,7 +18,6 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ArrayMerger;
@@ -34,8 +29,11 @@ import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
@@ -197,9 +195,9 @@ public class Join extends CompositeOperator<Join> {
 		private static final long serialVersionUID = 2672827253341673832L;
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
-			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				if (values2.isEmpty())
 					for (final JsonNode value : values1)
@@ -267,7 +265,7 @@ public class Join extends CompositeOperator<Join> {
 		private static final long serialVersionUID = 7145499293300473008L;
 
 		public static class Implementation extends
-				SopremoMatch<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
@@ -299,11 +297,11 @@ public class Join extends CompositeOperator<Join> {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private transient boolean leftOuter, rightOuter;
 
 			@Override
-			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				if (values1.isEmpty()) {
 					// special case: no items from first source
@@ -350,9 +348,9 @@ public class Join extends CompositeOperator<Join> {
 		private static final long serialVersionUID = -7624313431291367616L;
 
 		public static class Implementation extends
-				SopremoCoGroup<PactJsonObject.Key, PactJsonObject, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
-			protected void coGroup(final JsonNode key, final StreamArrayNode values1, final StreamArrayNode values2,
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
 					final JsonCollector out) {
 				if (!values2.isEmpty())
 					for (final JsonNode value : values1)
@@ -377,13 +375,14 @@ public class Join extends CompositeOperator<Join> {
 
 		public static class Implementation
 				extends
-				SopremoCross<PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject, PactJsonObject.Key, PactJsonObject> {
+				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private ComparativeExpression comparison;
 
 			@Override
 			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
 					final JsonNode value2, final JsonCollector out) {
-				if (this.comparison.evaluate(JsonUtil.asArray(value1.get(0), value2.get(1)), this.getContext()) == BooleanNode.TRUE)
+				if (this.comparison.evaluate(
+					JsonUtil.asArray(((ArrayNode) value1).get(0), ((ArrayNode) value2).get(1)), this.getContext()) == BooleanNode.TRUE)
 					out.collect(JsonUtil.asArray(key1, key2), JsonUtil.asArray(value1, value2));
 			}
 		}

@@ -1,12 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.StreamArrayNode;
-import eu.stratosphere.util.ConversionIterator;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
 public class ArrayProjection extends EvaluationExpression {
@@ -36,25 +32,27 @@ public class ArrayProjection extends EvaluationExpression {
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		// lazy spread
-		if (node instanceof StreamArrayNode)
-			return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
-				@Override
-				protected JsonNode convert(final JsonNode element) {
-					return ArrayProjection.this.expression.evaluate(element, context);
-				}
-			}, ((StreamArrayNode) node).isResettable());
+		// TODO
+		// if (node instanceof StreamArrayNode)
+		// return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
+		// @Override
+		// protected JsonNode convert(final JsonNode element) {
+		// return ArrayProjection.this.expression.evaluate(element, context);
+		// }
+		// }, ((StreamArrayNode) node).isResettable());
 		// spread
-		final ArrayNode arrayNode = new ArrayNode(JsonUtil.NODE_FACTORY);
-		for (int index = 0, size = node.size(); index < size; index++)
-			arrayNode.add(this.expression.evaluate(node.get(index), context));
+		final ArrayNode array = (ArrayNode) node;
+		final ArrayNode arrayNode = new ArrayNode();
+		for (int index = 0, size = array.size(); index < size; index++)
+			arrayNode.add(this.expression.evaluate(array.get(index), context));
 		return arrayNode;
 	}
 
 	@Override
-	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
-		ArrayNode arrayNode = (ArrayNode) node;
-		for (int index = 0, size = node.size(); index < size; index++)
-			arrayNode.set(index, this.expression.set(node.get(index), value, context));
+	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+		final ArrayNode arrayNode = (ArrayNode) node;
+		for (int index = 0, size = arrayNode.size(); index < size; index++)
+			arrayNode.set(index, this.expression.set(arrayNode.get(index), value, context));
 		return arrayNode;
 	}
 

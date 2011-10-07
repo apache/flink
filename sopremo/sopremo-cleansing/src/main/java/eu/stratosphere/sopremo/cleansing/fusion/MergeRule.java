@@ -1,8 +1,8 @@
 package eu.stratosphere.sopremo.cleansing.fusion;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 
 public class MergeRule extends FusionRule {
 	/**
@@ -17,7 +17,7 @@ public class MergeRule extends FusionRule {
 
 	@Override
 	public JsonNode fuse(final JsonNode[] values, final double[] weights, final FusionContext context) {
-		final ArrayNode array = new ArrayNode(null);
+		final ArrayNode array = new ArrayNode();
 		for (final JsonNode value : values)
 			if (value != NullNode.getInstance())
 				array.add(value);

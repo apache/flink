@@ -7,12 +7,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.codehaus.jackson.JsonNode;
-
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.reflect.ReflectUtil;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class FunctionRegistry implements SerializableSopremoType {
 	/**
@@ -41,6 +40,9 @@ public class FunctionRegistry implements SerializableSopremoType {
 	}
 
 	private static boolean isCompatibleSignature(final Method method) {
+		if (!JsonNode.class.isAssignableFrom(method.getReturnType()))
+			return false;
+
 		boolean compatibleSignature;
 		Class<?>[] parameterTypes = method.getParameterTypes();
 		if (parameterTypes.length == 1 && parameterTypes[0].isArray()

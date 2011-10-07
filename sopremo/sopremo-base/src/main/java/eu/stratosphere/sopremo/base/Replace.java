@@ -2,9 +2,6 @@ package eu.stratosphere.sopremo.base;
 
 import java.util.Iterator;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.NullNode;
-
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -15,14 +12,16 @@ import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.StreamArrayNode;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
-import eu.stratosphere.sopremo.pact.PactJsonObject.Key;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
@@ -249,14 +248,14 @@ public class Replace extends CompositeOperator<Replace> {
 		private static final long serialVersionUID = 7334161941683036846L;
 
 		public static class Implementation extends
-				SopremoReduce<Key, PactJsonObject, Key, PactJsonObject> {
+				SopremoReduce<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
-			protected void reduce(JsonNode key, StreamArrayNode values, JsonCollector out) {
-				JsonNode[] array = new JsonNode[key.size()];
+			protected void reduce(JsonNode key, ArrayNode values, JsonCollector out) {
+				JsonNode[] array = new JsonNode[values.size()];
 				int replacedCount = 0;
 				for (JsonNode value : values) {
-					int index = value.get(0).getIntValue();
-					JsonNode element = value.get(1);
+					int index = ((NumericNode) ((ArrayNode) value).get(0)).getIntValue();
+					JsonNode element = ((ArrayNode) value).get(1);
 					array[index] = element;
 					replacedCount++;
 				}
@@ -294,12 +293,12 @@ public class Replace extends CompositeOperator<Replace> {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 
 			private EvaluationExpression defaultExpression;
 
 			@Override
-			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
 
 				final Iterator<JsonNode> replaceValueIterator = values2.iterator();
 				JsonNode replaceValue = replaceValueIterator.hasNext() ? replaceValueIterator.next() : null;
@@ -308,10 +307,11 @@ public class Replace extends CompositeOperator<Replace> {
 				final EvaluationContext context = this.getContext();
 				while (valueIterator.hasNext()) {
 					JsonNode value = valueIterator.next();
-					final JsonNode index = value.get(0);
+					final JsonNode index = ((ArrayNode) value).get(0);
 					JsonNode replacement = replaceValue != null ? replaceValue :
-						this.defaultExpression.evaluate(value.get(1).get(index.getIntValue()), context);
-					out.collect(value.get(1), JsonUtil.asArray(index, replacement));
+						defaultExpression.evaluate(
+							((ArrayNode) ((ArrayNode) value).get(1)).get(((IntNode) index).getIntValue()), context);
+					out.collect(((ArrayNode) value).get(1), JsonUtil.asArray(index, replacement));
 				}
 			}
 		}
@@ -325,11 +325,11 @@ public class Replace extends CompositeOperator<Replace> {
 		private static final long serialVersionUID = 7334161941683036846L;
 
 		public static class Implementation extends
-				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
-				out.collect(value1.get(1), JsonUtil.asArray(value1.get(0), value2));
+				out.collect(((ArrayNode) value1).get(1), JsonUtil.asArray(((ArrayNode) value1).get(0), value2));
 			}
 		}
 	}
@@ -378,13 +378,13 @@ public class Replace extends CompositeOperator<Replace> {
 		}
 
 		public static class Implementation extends
-				SopremoCoGroup<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private EvaluationExpression inputKeyExtractor;
 
 			private EvaluationExpression defaultExpression;
 
 			@Override
-			protected void coGroup(JsonNode key, StreamArrayNode values1, StreamArrayNode values2, JsonCollector out) {
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
 				final Iterator<JsonNode> replaceValueIterator = values2.iterator();
 				JsonNode replaceValue = replaceValueIterator.hasNext() ? replaceValueIterator.next() : null;
 
@@ -426,7 +426,7 @@ public class Replace extends CompositeOperator<Replace> {
 		}
 
 		public static class Implementation extends
-				SopremoMatch<Key, PactJsonObject, PactJsonObject, Key, PactJsonObject> {
+				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 			private EvaluationExpression inputKeyExtractor;
 
 			@Override

@@ -76,7 +76,8 @@ public class ElementaryOperatorTest {
 
 	@SuppressWarnings({ "serial", "rawtypes" })
 	public ElementaryOperator<?> getDefault() {
-		return new ElementaryOperator() {};
+		return new ElementaryOperator() {
+		};
 	}
 
 	@Test

@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo;
 
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -16,20 +18,11 @@ import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.expressions.ArrayAccess;
-import eu.stratosphere.sopremo.expressions.ArrayProjection;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.pact.PactJsonObject;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
@@ -141,74 +134,8 @@ public abstract class SopremoTest<T> {
 		equalVerifier.verify();
 	}
 
-	public static ArrayNode createArrayNode(final Object... constants) {
-		return JsonUtil.OBJECT_MAPPER.valueToTree(constants);
-	}
-
-	public static CompactArrayNode createCompactArray(final Object... constants) {
-		final JsonNode[] nodes = new JsonNode[constants.length];
-		for (int index = 0; index < nodes.length; index++)
-			nodes[index] = createValueNode(constants[index]);
-		return JsonUtil.asArray(nodes);
-	}
-
-	public static ObjectNode createObjectNode(final Object... fields) {
-		if (fields.length % 2 != 0)
-			throw new IllegalArgumentException("must have an even number of params");
-		final ObjectNode objectNode = JsonUtil.NODE_FACTORY.objectNode();
-		for (int index = 0; index < fields.length; index += 2)
-			objectNode.put(fields[index].toString(), JsonUtil.OBJECT_MAPPER.valueToTree(fields[index + 1]));
-		return objectNode;
-	}
-
-	public static PactJsonObject createPactJsonArray(final Object... constants) {
-		return new PactJsonObject(createArrayNode(constants));
-	}
-
-	public static PactJsonObject createPactJsonObject(final Object... fields) {
-		return new PactJsonObject(createObjectNode(fields));
-	}
-
-	public static PactJsonObject createPactJsonValue(final Object value) {
-		return new PactJsonObject(createValueNode(value));
-	}
-
-	public static PathExpression createPath(final List<String> parts) {
-		final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
-		for (int index = 0; index < parts.size(); index++) {
-			EvaluationExpression segment;
-			final String part = parts.get(index);
-			if (part.equals("$"))
-				segment = new InputSelection(0);
-			else if (part.matches("[0-9]+"))
-				segment = new InputSelection(Integer.parseInt(part));
-			else if (part.matches("\\[.*\\]")) {
-				if (part.charAt(1) == '*') {
-					segment = new ArrayProjection(createPath(parts.subList(index + 1, parts.size())));
-					index = parts.size();
-				} else if (part.contains(":")) {
-					final int delim = part.indexOf(":");
-					segment = new ArrayAccess(Integer.parseInt(part.substring(1, delim)),
-						Integer.parseInt(part.substring(delim + 1, part.length() - 1)));
-				} else
-					segment = new ArrayAccess(Integer.parseInt(part.substring(1, part.length() - 1)));
-			} else
-				segment = new ObjectAccess(part);
-			fragments.add(segment);
-		}
-		return new PathExpression(fragments);
-	}
-
-	public static PathExpression createPath(final String... parts) {
-		return createPath(Arrays.asList(parts));
-	}
-
-	public static StreamArrayNode createStreamArray(final Object... constants) {
-		return StreamArrayNode.valueOf(createArrayNode(constants).getElements(), true);
-	}
-
-	public static JsonNode createValueNode(final Object value) {
-		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
+	public static JsonNode createPactJsonObject(final Object... fields) {
+		return createObjectNode(fields);
 	}
 
 	public static String getResourcePath(final String resource) {
