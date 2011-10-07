@@ -102,7 +102,7 @@ public final class CheckpointDecisionCoordinator {
 		final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
 
 		synchronized (graph) {
-			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), true));
+			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), false)); //Disabled checkpoints
 			checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
 		}
 		
