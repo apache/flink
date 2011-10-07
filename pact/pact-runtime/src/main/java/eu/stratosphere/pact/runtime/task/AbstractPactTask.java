@@ -179,7 +179,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			// drop exception, if task was canceled, because we already have a root exception.
 			if (this.running) {
 				if (LOG.isErrorEnabled())
-					LOG.error(getLogString("Unexpected ERROR in PACT code."));
+					LOG.error(getLogString("Unexpected ERROR in PACT code."), ex);
 				throw ex;
 			}
 		}

@@ -563,7 +563,7 @@ public class PactCompiler {
 		}
 		
 		String instanceName = type.getInstanceType().getIdentifier();
-		long memoryPerInstance = type.getHardwareDescription().getSizeOfFreeMemory();
+		long memoryPerInstance = (long) (type.getHardwareDescription().getSizeOfFreeMemory() * 0.95f);
 		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
 		int numInstances = type.getMaximumNumberOfAvailableInstances();
 		
