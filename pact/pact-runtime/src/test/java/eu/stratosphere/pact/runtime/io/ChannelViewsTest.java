@@ -117,7 +117,7 @@ public class ChannelViewsTest
 		// create the reader input view
 		memory = this.memoryManager.allocateStrict(this.parentTask, NUM_MEMORY_SEGMENTS, MEMORY_SEGMENT_SIZE);
 		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
-		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount());
+		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 		
 		// read and re-generate all records and compare them
@@ -161,7 +161,7 @@ public class ChannelViewsTest
 		// create the reader input view
 		memory = this.memoryManager.allocateStrict(this.parentTask, NUM_MEMORY_SEGMENTS, MEMORY_SEGMENT_SIZE);
 		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
-		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount());
+		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 		
 		// read and re-generate all records and compare them
@@ -202,7 +202,7 @@ public class ChannelViewsTest
 		// create the reader input view
 		memory = this.memoryManager.allocateStrict(this.parentTask, NUM_MEMORY_SEGMENTS, MEMORY_SEGMENT_SIZE);
 		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
-		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount());
+		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 		
 		// read and re-generate all records and compare them
@@ -253,7 +253,7 @@ public class ChannelViewsTest
 		// create the reader input view
 		memory = this.memoryManager.allocateStrict(this.parentTask, NUM_MEMORY_SEGMENTS, MEMORY_SEGMENT_SIZE);
 		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
-		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory);
+		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, true);
 		generator.reset();
 		
 		// read and re-generate all records and cmpare them
@@ -297,7 +297,7 @@ public class ChannelViewsTest
 		// create the reader input view
 		memory = this.memoryManager.allocateStrict(this.parentTask, 1, MEMORY_SEGMENT_SIZE);
 		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
-		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount());
+		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 		
 		// read and re-generate all records and compare them

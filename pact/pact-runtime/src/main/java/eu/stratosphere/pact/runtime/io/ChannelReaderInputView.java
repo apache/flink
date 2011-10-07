@@ -59,13 +59,13 @@ public class ChannelReaderInputView implements DataInputView
 	// --------------------------------------------------------------------------------------------
 	
 	
-	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory)
+	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, boolean waitForFirstBlock)
 	throws IOException
 	{
-		this(reader, memory, -1);
+		this(reader, memory, -1, waitForFirstBlock);
 	}
 	
-	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, int numBlocks)
+	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, int numBlocks, boolean waitForFirstBlock)
 	throws IOException
 	{
 		if (reader == null || memory == null)
@@ -83,7 +83,17 @@ public class ChannelReaderInputView implements DataInputView
 		for (int i = 0; i < memory.size(); i++) {
 			sendReadRequest(memory.get(i));
 		}
-		nextSegment();
+		
+		if (waitForFirstBlock) {
+			nextSegment();
+		}
+	}
+	
+	public void waitForFirstBlock() throws IOException
+	{
+		if (this.currentSegment == null) {
+			nextSegment();
+		}
 	}
 	
 	/**
