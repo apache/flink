@@ -123,11 +123,11 @@ public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLin
 			}
 		else {
 			ArraySplit allTuples = new ArraySplit().
+					withInputs(closure).
 				withArrayPath(EvaluationExpression.VALUE).
 				withKeyProjection(new ArrayAccess(0)).
-				withValueProjection(EvaluationExpression.NULL).
-				withInputs(closure);
-
+				withValueProjection(EvaluationExpression.NULL);
+			
 			for (int index = 0; index < originalInputs.size(); index++) {
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
 				Difference singleRecords = new Difference().
@@ -137,6 +137,7 @@ public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLin
 					withIdentityKey(1, EvaluationExpression.KEY);
 				outputs.add(new Projection().
 					withInputs(singleRecords).
+					withKeyTransformation(EvaluationExpression.NULL).
 					withValueTransformation(new ArrayCreation(EvaluationExpression.VALUE)));
 			}
 		}

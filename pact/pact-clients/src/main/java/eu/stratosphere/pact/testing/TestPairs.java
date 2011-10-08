@@ -398,7 +398,7 @@ public class TestPairs<K extends Key, V extends Value> implements Closeable, Ite
 
 	private static Object toString(Iterator<? extends KeyValuePair<?, ?>> iterator) {
 		StringBuilder builder = new StringBuilder();
-		for (int index = 0; index < 10 && iterator.hasNext(); index++) {
+		for (int index = 0; index < 20 && iterator.hasNext(); index++) {
 			builder.append(iterator.next());
 			if (iterator.hasNext())
 				builder.append(", ");

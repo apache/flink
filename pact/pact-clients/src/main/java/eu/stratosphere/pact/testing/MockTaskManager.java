@@ -57,7 +57,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author Arvid Heise
  */
 class MockTaskManager implements TaskOperationProtocol {
-	private static final long MEMORY_SIZE = Math.max(192 << 16, Runtime.getRuntime().maxMemory() / 2);
+	private static final long MEMORY_SIZE = Math.max(192 << 20, Runtime.getRuntime().maxMemory() / 2);
 
 	public static final MockTaskManager INSTANCE = new MockTaskManager();
 

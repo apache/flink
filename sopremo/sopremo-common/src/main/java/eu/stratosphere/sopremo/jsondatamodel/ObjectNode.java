@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 
 public class ObjectNode extends JsonNode {
 
@@ -17,7 +18,10 @@ public class ObjectNode extends JsonNode {
 	 */
 	private static final long serialVersionUID = 222657144282059523L;
 
-	protected LinkedHashMap<String, JsonNode> children = new LinkedHashMap<String, JsonNode>();
+	/**
+	 * Do not store null nodes
+	 */
+	protected Map<String, JsonNode> children = new TreeMap<String, JsonNode>();
 
 	public int size() {
 		return this.children.size();
@@ -27,7 +31,10 @@ public class ObjectNode extends JsonNode {
 		if (value == null)
 			throw new NullPointerException();
 
-		this._put(fieldName, value);
+		if (value.isNull())
+			children.remove(fieldName);
+		else
+			this._put(fieldName, value);
 		return this;
 	}
 
@@ -131,9 +138,8 @@ public class ObjectNode extends JsonNode {
 			return false;
 
 		final ObjectNode other = (ObjectNode) obj;
-		if (!this.children.equals(other.children))
-			return false;
-		return true;
+		// TODO: improve?
+		return this.compareTo(other) == 0 ? true : false;
 	}
 
 	@Override
@@ -206,13 +212,24 @@ public class ObjectNode extends JsonNode {
 	public int compareToSameType(final JsonNode other) {
 
 		final ObjectNode node = (ObjectNode) other;
-		if (node.size() != this.size())
-			return this.size() - node.size();
-		for (final Entry<String, JsonNode> entry : this.children.entrySet()) {
-			final int comparison = entry.getValue().compareTo(node.get(entry.getKey()));
-			if (comparison != 0)
-				return comparison;
+		final Iterator<Entry<String, JsonNode>> entries1 = this.children.entrySet().iterator(), entries2 = node.children
+			.entrySet().iterator();
+
+		while (entries1.hasNext() && entries2.hasNext()) {
+			Entry<String, JsonNode> entry1 = entries1.next(), entry2 = entries2.next();
+			final int keyComparison = entry1.getKey().compareTo(entry2.getKey());
+			if (keyComparison != 0)
+				return keyComparison;
+
+			final int valueComparison = entry1.getValue().compareTo(node.get(entry1.getKey()));
+			if (valueComparison != 0)
+				return valueComparison;
 		}
+
+		if (!entries1.hasNext())
+			return entries2.hasNext() ? -1 : 0;
+		if (!entries2.hasNext())
+			return 1;
 		return 0;
 	}
 

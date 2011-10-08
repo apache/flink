@@ -251,7 +251,7 @@ public class Replace extends CompositeOperator<Replace> {
 				SopremoReduce<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void reduce(JsonNode key, ArrayNode values, JsonCollector out) {
-				JsonNode[] array = new JsonNode[values.size()];
+				JsonNode[] array = new JsonNode[((ArrayNode) key).size()];
 				int replacedCount = 0;
 				for (JsonNode value : values) {
 					int index = ((NumericNode) ((ArrayNode) value).get(0)).getIntValue();

@@ -6,7 +6,9 @@ import static eu.stratosphere.sopremo.JsonUtil.createPath;
 import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Ignore;
@@ -166,7 +168,6 @@ public class InterSourceRecordLinkageTest {
 	 * Tests {@link LinkageMode#ALL_CLUSTERS_FLAT}
 	 */
 	@Test
-	@Ignore
 	public void shouldAddSinglesClusters() {
 		final SopremoTestPlan testPlan = this.createTestPlan(LinkageMode.ALL_CLUSTERS_FLAT);
 
@@ -209,6 +210,8 @@ public class InterSourceRecordLinkageTest {
 			array[index] = resultProjection.evaluate(this.findTuple(testPlan, index, ids[index]),
 				testPlan.getEvaluationContext());
 		}
+		
+		Arrays.sort(array);
 		return createArrayNode(array);
 	}
 
@@ -225,12 +228,13 @@ public class InterSourceRecordLinkageTest {
 				array[sourceIndex][tupleIndex] = resultProjection.evaluate(
 					this.findTuple(testPlan, sourceIndex, ids[sourceIndex][tupleIndex]),
 					testPlan.getEvaluationContext());
+			Arrays.sort(array[sourceIndex]);
 		}
 		return createArrayNode((Object[]) array);
 	}
 
 	private JsonNode flatArrayOfElements(SopremoTestPlan testPlan, int[]... ids) {
-		ArrayNode array = new ArrayNode();
+		ArrayList<JsonNode> array = new ArrayList<JsonNode>();
 
 		for (int sourceIndex = 0; sourceIndex < ids.length; sourceIndex++) {
 			EvaluationExpression resultProjection = this.resultProjections[sourceIndex];
@@ -241,7 +245,10 @@ public class InterSourceRecordLinkageTest {
 					this.findTuple(testPlan, sourceIndex, ids[sourceIndex][tupleIndex]),
 					testPlan.getEvaluationContext()));
 		}
-		return array;
+
+		final JsonNode[] nodes = array.toArray(new JsonNode[array.size()]);
+		Arrays.sort(nodes);
+		return new ArrayNode(nodes);
 	}
 
 	private JsonNode findTuple(SopremoTestPlan testPlan, int sourceIndex, int id) {
