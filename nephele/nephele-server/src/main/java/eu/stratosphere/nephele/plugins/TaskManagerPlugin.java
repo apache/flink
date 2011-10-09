@@ -13,18 +13,8 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.optimizer;
+package eu.stratosphere.nephele.plugins;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-
-/**
- * Common interface for Nephele execution graph optimizer.
- * 
- * @author warneke
- *         TODO
- */
-public interface Optimizer {
-
-	void optimize(ExecutionGraph executionGraph);
+public interface TaskManagerPlugin {
 
 }

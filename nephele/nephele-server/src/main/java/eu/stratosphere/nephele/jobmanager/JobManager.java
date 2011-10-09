@@ -105,7 +105,8 @@ import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.multicast.MulticastManager;
-import eu.stratosphere.nephele.optimizer.Optimizer;
+import eu.stratosphere.nephele.plugins.JobManagerPlugin;
+import eu.stratosphere.nephele.plugins.PluginManager;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
@@ -144,8 +145,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final JobManagerProfiler profiler;
 
-	private final Optimizer optimizer;
-
 	private final EventCollector eventCollector;
 
 	private final InputSplitManager inputSplitManager;
@@ -157,6 +156,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private InstanceManager instanceManager;
 
 	private final CheckpointDecisionCoordinator checkpointDecisionCoordinator;
+
+	private final List<JobManagerPlugin> jobManagerPlugins;
 
 	private final int recommendedClientPollingInterval;
 
@@ -286,51 +287,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.debug("Profiler disabled");
 		}
 
-		// Load optimizer if it should be used
-		if (GlobalConfiguration.getBoolean("jobmanager.optimizer.enable", false)) {
-			final String optimizerClassName = GlobalConfiguration.getString("jobmanager.optimizer.classname", null);
-			if (optimizerClassName == null) {
-				LOG.error("Cannot find class name for the optimizer");
-				System.exit(FAILURERETURNCODE);
-			}
-			this.optimizer = loadOptimizer(optimizerClassName);
-		} else {
-			this.optimizer = null;
-			LOG.debug("Optimizer disabled");
-		}
+		// Load the plugins
+		this.jobManagerPlugins = PluginManager.getJobManagerPlugins(configDir);
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new JobManagerCleanUp(this));
 
-	}
-
-	@SuppressWarnings("unchecked")
-	private Optimizer loadOptimizer(String optimizerClassName) {
-
-		final Class<? extends Optimizer> optimizerClass;
-		try {
-			optimizerClass = (Class<? extends Optimizer>) Class.forName(optimizerClassName);
-		} catch (ClassNotFoundException e) {
-			LOG.error("Cannot find class " + optimizerClassName + ": " + StringUtils.stringifyException(e));
-			return null;
-		}
-
-		Optimizer optimizer = null;
-
-		try {
-			optimizer = optimizerClass.newInstance();
-		} catch (InstantiationException e) {
-			LOG.error("Cannot create optimizer: " + StringUtils.stringifyException(e));
-			return null;
-		} catch (IllegalAccessException e) {
-			LOG.error("Cannot create optimizer: " + StringUtils.stringifyException(e));
-			return null;
-		} catch (IllegalArgumentException e) {
-			LOG.error("Cannot create optimizer: " + StringUtils.stringifyException(e));
-			return null;
-		}
-
-		return optimizer;
 	}
 
 	/**
@@ -506,11 +468,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		synchronized (eg) {
-
-			// Perform graph optimizations
-			if (this.optimizer != null) {
-				this.optimizer.optimize(eg);
-			}
 
 			// Check if profiling should be enabled for this job
 			boolean profilingEnabled = false;
