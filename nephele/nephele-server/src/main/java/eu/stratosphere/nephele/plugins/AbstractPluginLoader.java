@@ -33,16 +33,6 @@ public abstract class AbstractPluginLoader {
 	private final Configuration pluginConfiguration;
 
 	/**
-	 * Protected constructor, so sub-classes are not forced to provide their own constructors. This constructor is not
-	 * expected to ever be called.
-	 */
-	protected AbstractPluginLoader() {
-		this.pluginConfiguration = null;
-
-		throw new IllegalStateException("Subclass must not call default constructor");
-	}
-
-	/**
 	 * Constructs the plugin loader.
 	 * 
 	 * @param pluginConfiguration
