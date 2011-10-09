@@ -15,6 +15,39 @@
 
 package eu.stratosphere.nephele.plugins;
 
+import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+
+/**
+ * This interface must be implemented by every plugin component which is supposed to run inside Nephele's job manager.
+ * 
+ * @author warneke
+ */
 public interface JobManagerPlugin {
 
+	/**
+	 * This method is called upon the reception of a new job graph. It gives the plugin the possibility to to rewrite
+	 * the job graph before it is processed further.
+	 * 
+	 * @param jobGraph
+	 *        the original job graph
+	 * @return the rewritten job graph
+	 */
+	JobGraph rewriteJobGraph(JobGraph jobGraph);
+
+	/**
+	 * This method is called after the initial execution graph has been created from the user's job graph. It gives the
+	 * plugin the possibility to rewrite the execution graph before it is processed further or to register to particular
+	 * events.
+	 * 
+	 * @param executionGraph
+	 *        the initial execution graph
+	 * @return the rewritten execution graph
+	 */
+	ExecutionGraph rewriteExecutionGraph(ExecutionGraph executionGraph);
+
+	/**
+	 * Called by the job manager to indicate that Nephele is about to shut down.
+	 */
+	void shutdown();
 }

@@ -343,6 +343,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		}
 
+		// Stop the plugins
+		for (JobManagerPlugin plugin : this.jobManagerPlugins) {
+			plugin.shutdown();
+		}
+
 		// Stop and clean up the job progress collector
 		if (this.eventCollector != null) {
 			this.eventCollector.shutdown();
@@ -436,7 +441,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		LOG.debug("The graph of job " + job.getName() + " is acyclic");
-
+		
 		// Check constrains on degree
 		jv = job.areVertexDegreesCorrect();
 		if (jv != null) {
@@ -456,6 +461,19 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		LOG.debug("The dependency chain for instance sharing is acyclic");
 
+		// Allow plugins to rewrite the job graph
+		for(final JobManagerPlugin plugin : this.jobManagerPlugins) {
+			final JobGraph inputJob = job;
+			job = plugin.rewriteJobGraph(inputJob);
+			if(job == null) {
+				LOG.warn("Plugin " + plugin + " set job graph to null, reverting changes...");
+				job = inputJob;
+			}
+			if(job != inputJob) {
+				LOG.debug("Plugin " + plugin + " rewrote job graph");
+			}
+		}
+		
 		// Try to create initial execution graph from job graph
 		LOG.info("Creating initial execution graph from job graph " + job.getName());
 		ExecutionGraph eg = null;
@@ -467,8 +485,21 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return result;
 		}
 
+		// Allow plugins to rewrite the execution graph
+		for(final JobManagerPlugin plugin : this.jobManagerPlugins) {
+			final ExecutionGraph inputGraph = eg;
+			eg = plugin.rewriteExecutionGraph(inputGraph);
+			if(eg == null) {
+				LOG.warn("Plugin " + plugin + " set execution graph to null, reverting changes...");
+				eg = inputGraph;
+			}
+			if(eg != inputGraph) {
+				LOG.debug("Plugin " + plugin + " rewrote execution graph");
+			}
+		}
+		
 		synchronized (eg) {
-
+			
 			// Check if profiling should be enabled for this job
 			boolean profilingEnabled = false;
 			if (this.profiler != null && job.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
