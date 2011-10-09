@@ -17,4 +17,8 @@ package eu.stratosphere.nephele.plugins;
 
 public interface TaskManagerPlugin {
 
+	/**
+	 * Called by the task manager to indicate that Nephele is about to shut down.
+	 */
+	void shutdown();
 }
