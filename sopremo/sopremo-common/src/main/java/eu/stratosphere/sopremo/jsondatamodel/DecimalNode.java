@@ -80,12 +80,12 @@ public class DecimalNode extends NumericNode {
 	}
 
 	@Override
-	public Integer getIntValue() {
+	public int getIntValue() {
 		return this.value.intValue();
 	}
 
 	@Override
-	public Long getLongValue() {
+	public long getLongValue() {
 		return this.value.longValue();
 	}
 
@@ -100,7 +100,7 @@ public class DecimalNode extends NumericNode {
 	}
 
 	@Override
-	public Double getDoubleValue() {
+	public double getDoubleValue() {
 		return this.value.doubleValue();
 	}
 
@@ -122,5 +122,10 @@ public class DecimalNode extends NumericNode {
 	@Override
 	public DecimalNode clone() {
 		return (DecimalNode) super.clone();
+	}
+
+	@Override
+	public int compareToSameType(JsonNode other) {
+		return this.value.compareTo(((DecimalNode) other).value);
 	}
 }

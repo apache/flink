@@ -12,15 +12,15 @@ public abstract class NumericNode extends JsonNode {
 	 */
 	private static final long serialVersionUID = 677420673530449343L;
 
-	public abstract Integer getIntValue();
+	public abstract int getIntValue();
 
-	public abstract Long getLongValue();
+	public abstract long getLongValue();
 
 	public abstract BigInteger getBigIntegerValue();
 
 	public abstract BigDecimal getDecimalValue();
 
-	public abstract Double getDoubleValue();
+	public abstract double getDoubleValue();
 
 	public abstract String getValueAsText();
 
@@ -38,10 +38,5 @@ public abstract class NumericNode extends JsonNode {
 			return this.getDecimalValue().compareTo(((NumericNode) other).getDecimalValue());
 
 		return super.compareTo(other);
-	}
-
-	@Override
-	public int compareToSameType(final JsonNode other) {
-		return 0;
 	}
 }

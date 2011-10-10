@@ -319,11 +319,6 @@ public class JsonParser {
 		}
 
 		@Override
-		public boolean equals(Object o) {
-			return false;
-		}
-
-		@Override
 		public int getTypePos() {
 			return 0;
 		}

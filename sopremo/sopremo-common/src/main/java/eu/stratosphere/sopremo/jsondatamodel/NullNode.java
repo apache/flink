@@ -74,7 +74,12 @@ public class NullNode extends JsonNode {
 		out.writeBoolean(false);
 	}
 
-	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream in) throws IOException {
 		in.readBoolean();
+	}
+
+	@Override
+	public int hashCode() {
+		return 37;
 	}
 }

@@ -65,12 +65,12 @@ public class LongNode extends NumericNode {
 	}
 
 	@Override
-	public Integer getIntValue() {
+	public int getIntValue() {
 		return (int) this.value.getValue();
 	}
 
 	@Override
-	public Long getLongValue() {
+	public long getLongValue() {
 		return this.value.getValue();
 	}
 
@@ -85,7 +85,7 @@ public class LongNode extends NumericNode {
 	}
 
 	@Override
-	public Double getDoubleValue() {
+	public double getDoubleValue() {
 		return Double.valueOf(this.value.getValue());
 	}
 
@@ -113,7 +113,7 @@ public class LongNode extends NumericNode {
 		out.writeLong(this.value.getValue());
 	}
 
-	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream in) throws IOException {
 		this.value = new PactLong(in.readLong());
 	}
 
@@ -122,5 +122,10 @@ public class LongNode extends NumericNode {
 		final LongNode clone = (LongNode) super.clone();
 		clone.value = new PactLong(this.value.getValue());
 		return clone;
+	}
+
+	@Override
+	public int compareToSameType(JsonNode other) {
+		return Long.signum(this.value.getValue() - ((LongNode) other).value.getValue());
 	}
 }

@@ -81,12 +81,12 @@ public class DoubleNode extends NumericNode {
 	}
 
 	@Override
-	public Integer getIntValue() {
+	public int getIntValue() {
 		return (int) this.value.getValue();
 	}
 
 	@Override
-	public Long getLongValue() {
+	public long getLongValue() {
 		return (long) this.value.getValue();
 	}
 
@@ -101,7 +101,7 @@ public class DoubleNode extends NumericNode {
 	}
 
 	@Override
-	public Double getDoubleValue() {
+	public double getDoubleValue() {
 		return this.value.getValue();
 	}
 
@@ -124,7 +124,7 @@ public class DoubleNode extends NumericNode {
 		out.writeDouble(this.value.getValue());
 	}
 
-	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream in) throws IOException {
 		this.value = new PactDouble(in.readDouble());
 	}
 
@@ -133,5 +133,10 @@ public class DoubleNode extends NumericNode {
 		final DoubleNode clone = (DoubleNode) super.clone();
 		clone.value = new PactDouble(this.value.getValue());
 		return clone;
+	}
+
+	@Override
+	public int compareToSameType(JsonNode other) {
+		return Double.compare(this.value.getValue(), ((DoubleNode) other).value.getValue());
 	}
 }

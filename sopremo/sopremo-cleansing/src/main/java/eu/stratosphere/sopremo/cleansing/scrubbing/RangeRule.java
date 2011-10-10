@@ -1,15 +1,7 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class RangeRule extends ValidationRule {
 	/**
@@ -30,7 +22,7 @@ public class RangeRule extends ValidationRule {
 		@Override
 		public JsonNode fix(final JsonNode value, final ValidationContext context) {
 			final RangeRule that = (RangeRule) context.getViolatedRule();
-			if (JsonNodeComparator.INSTANCE.compare(that.min, value) > 0)
+			if (that.min.compareTo(value) > 0)
 				return that.min;
 			return that.max;
 		}
@@ -45,11 +37,8 @@ public class RangeRule extends ValidationRule {
 		this.setValueCorrection(CHOOSE_NEAREST_BOUND);
 	}
 
-	
-
 	@Override
 	protected boolean validate(final JsonNode value, final ValidationContext context) {
-		return JsonNodeComparator.INSTANCE.compare(this.min, value) <= 0
-			&& JsonNodeComparator.INSTANCE.compare(value, this.max) <= 0;
+		return this.min.compareTo(value) <= 0 && value.compareTo(this.max) <= 0;
 	}
 }

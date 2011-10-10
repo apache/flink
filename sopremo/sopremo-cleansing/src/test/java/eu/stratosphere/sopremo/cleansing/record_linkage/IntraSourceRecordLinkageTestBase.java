@@ -11,7 +11,6 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
 
@@ -86,13 +85,13 @@ public abstract class IntraSourceRecordLinkageTestBase<P extends RecordLinkageAl
 		final EvaluationContext context = this.getContext();
 
 		JsonNode smaller = left.getValue(), bigger = right.getValue();
-		if (JsonNodeComparator.INSTANCE.compare(bigger, smaller) < 0) {
+		if (bigger.compareTo(smaller) < 0) {
 			JsonNode temp = smaller;
 			smaller = bigger;
 			bigger = temp;
 		}
-		Object[] constants = { resultProjection.evaluate(smaller, context), resultProjection.evaluate(bigger, context) };
-		this.sopremoTestPlan.getExpectedOutput(0).addArray(constants);
+		this.sopremoTestPlan.getExpectedOutput(0).addArray(resultProjection.evaluate(smaller, context),
+			resultProjection.evaluate(bigger, context));
 	}
 
 	/**

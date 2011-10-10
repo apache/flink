@@ -73,12 +73,12 @@ public class BigIntegerNode extends NumericNode {
 	}
 
 	@Override
-	public Integer getIntValue() {
+	public int getIntValue() {
 		return this.value.intValue();
 	}
 
 	@Override
-	public Long getLongValue() {
+	public long getLongValue() {
 		return this.value.longValue();
 	}
 
@@ -93,7 +93,7 @@ public class BigIntegerNode extends NumericNode {
 	}
 
 	@Override
-	public Double getDoubleValue() {
+	public double getDoubleValue() {
 		return this.value.doubleValue();
 	}
 
@@ -122,4 +122,8 @@ public class BigIntegerNode extends NumericNode {
 		return (BigIntegerNode) super.clone();
 	}
 
+	@Override
+	public int compareToSameType(JsonNode other) {
+		return this.value.compareTo(((BigIntegerNode) other).value);
+	}
 }

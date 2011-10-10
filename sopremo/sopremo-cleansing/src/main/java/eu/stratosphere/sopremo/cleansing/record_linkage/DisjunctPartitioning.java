@@ -15,8 +15,8 @@ import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
+
 public class DisjunctPartitioning extends MultiPassPartitioning {
 	public DisjunctPartitioning(final EvaluationExpression partitionKey) {
 		super(partitionKey);
@@ -124,8 +124,9 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 			@Override
 			protected void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
 					final JsonCollector out) {
-				if (JsonNodeComparator.INSTANCE.compare(this.idProjection.evaluate(value1, this.getContext()),
-					this.idProjection.evaluate(value2, this.getContext())) < 0
+				JsonNode id1 = this.idProjection.evaluate(value1, this.getContext());
+				JsonNode id2 = this.idProjection.evaluate(value2, this.getContext());
+				if (id1.compareTo(id2) < 0
 					&& this.similarityCondition.evaluate(JsonUtil.asArray(value1, value2), this.getContext()) == BooleanNode.TRUE)
 					out.collect(NullNode.getInstance(),
 						JsonUtil.asArray(this.resultProjection.evaluate(value1, this.getContext()),

@@ -2,11 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.NumberCoercer;
 import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
 public class ComparativeExpression extends BooleanExpression {
@@ -146,23 +144,16 @@ public class ComparativeExpression extends BooleanExpression {
 
 		public boolean evaluate(final JsonNode e1, final JsonNode e2) {
 			if (e1.getClass() != e2.getClass()) {
-				if (e1 instanceof NumericNode && e2 instanceof NumericNode) {
-					final JsonNode.TYPES widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
-					return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(
-						NumberCoercer.INSTANCE.coerce((NumericNode) e1, widerType),
-						NumberCoercer.INSTANCE.coerce((NumericNode) e2, widerType),
-						NumberCoercer.INSTANCE.getImplementationType(widerType)));
-				}
+				if (e1 instanceof NumericNode && e2 instanceof NumericNode)
+					return this.isTrue(e1.compareTo(e2));
 
 				throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));
 			}
 
-			return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(e1, e2, e1.getClass()));
+			return this.isTrue(e1.compareToSameType(e2));
 		}
 
-		public boolean isTrue(final int comparisonResult) {
-			return false;
-		}
+		public abstract boolean isTrue(final int comparisonResult);
 
 		//
 		// public boolean evaluateComparable(final T e1, final T e2) {

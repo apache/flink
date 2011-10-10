@@ -123,9 +123,8 @@ public class JsonInputFormatTest {
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
 			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextRecord(pair));
-			Assert
-				.assertEquals("other order expected", Integer.valueOf(index),
-					((IntNode) ((ObjectNode) SopremoUtil.unwrap(pair.getValue())).get("id")).getIntValue());
+			Assert.assertEquals("other order expected", index,
+				((IntNode) ((ObjectNode) SopremoUtil.unwrap(pair.getValue())).get("id")).getIntValue());
 		}
 
 		if (!inputFormat.reachedEnd()) {
@@ -162,7 +161,7 @@ public class JsonInputFormatTest {
 		Assert.assertNotNull("could not find top level node", arrayNode);
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertNotNull("could not find array element " + index, ((ArrayNode) arrayNode).get(index - 1));
-			Assert.assertEquals("other order expected", Integer.valueOf(index),
+			Assert.assertEquals("other order expected", index,
 				((IntNode) ((ObjectNode) ((ArrayNode) arrayNode).get(index - 1)).get("id")).getIntValue());
 		}
 	}

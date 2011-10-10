@@ -32,7 +32,7 @@ public class ObjectNode extends JsonNode {
 			throw new NullPointerException();
 
 		if (value.isNull())
-			children.remove(fieldName);
+			this.children.remove(fieldName);
 		else
 			this._put(fieldName, value);
 		return this;

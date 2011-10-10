@@ -108,7 +108,7 @@ public class TextNode extends JsonNode {
 		out.writeUTF(this.value.getValue());
 	}
 
-	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream in) throws IOException {
 		this.value = new PactString(in.readUTF());
 	}
 

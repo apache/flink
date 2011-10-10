@@ -56,6 +56,11 @@ public class JsonNodeWrapper extends JsonNode {
 	}
 
 	@Override
+	public int hashCode() {
+		return this.value.hashCode();
+	}
+
+	@Override
 	public boolean equals(Object o) {
 		return this.value.equals(((JsonNodeWrapper) o).getValue());
 	}

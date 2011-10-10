@@ -21,7 +21,6 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
 /**
@@ -76,7 +75,7 @@ public class BuiltinFunctions {
 
 		@Override
 		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
-			Collections.sort(nodes, JsonNodeComparator.INSTANCE);
+			Collections.sort(nodes);
 			return nodes;
 		}
 	};
@@ -210,7 +209,7 @@ public class BuiltinFunctions {
 		final List<JsonNode> nodes = new ArrayList<JsonNode>();
 		for (final JsonNode jsonNode : (ArrayNode) node)
 			nodes.add(jsonNode);
-		Collections.sort(nodes, JsonNodeComparator.INSTANCE);
+		Collections.sort(nodes);
 		final ArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(nodes);
 		return arrayNode;

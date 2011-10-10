@@ -47,9 +47,6 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 
 	};
 
-	@Override
-	public abstract boolean equals(Object o);
-
 	public abstract int getTypePos();
 
 	public abstract JsonNode.TYPES getType();
@@ -107,4 +104,5 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 	}
 
 	public abstract StringBuilder toString(StringBuilder sb);
+
 }
