@@ -130,7 +130,7 @@ public class ExecutionGraph implements ExecutionListener {
 	private List<ExecutionStageListener> executionStageListeners = new ArrayList<ExecutionStageListener>();
 
 	private List<ExecutionVertex> recovering = new ArrayList<ExecutionVertex>();
-	
+
 	/**
 	 * Private constructor used for duplicating execution vertices.
 	 * 
@@ -1229,8 +1229,18 @@ public class ExecutionGraph implements ExecutionListener {
 					}
 				}
 			}
+			if (latestStateChange == ExecutionState.RECOVERING) {
+				this.jobStatus = InternalJobStatus.RECOVERING;
+				return;
+			}
 			if (jobHasFinishedStatus()) {
 				this.jobStatus = InternalJobStatus.FINISHED;
+			}
+			break;
+		case RECOVERING:
+			if (latestStateChange == ExecutionState.RERUNNING) {
+				this.recovering.clear();
+				this.jobStatus = InternalJobStatus.RUNNING;
 			}
 			break;
 		case FAILING:
@@ -1274,6 +1284,10 @@ public class ExecutionGraph implements ExecutionListener {
 
 		final InternalJobStatus oldStatus = this.jobStatus;
 
+		if (newExecutionState == ExecutionState.RERUNNING) {
+			this.recovering.remove(getVertexByID(vertexID));
+		}
+
 		checkAndUpdateJobStatus(newExecutionState);
 
 		if (newExecutionState == ExecutionState.FINISHED) {
@@ -1291,6 +1305,11 @@ public class ExecutionGraph implements ExecutionListener {
 				}
 			}
 		}
+		if (this.jobStatus == InternalJobStatus.RECOVERING){
+            LOG.info("RECOVERING");
+           //FIXME (marrus) see if we even need that
+           this.recovering.add(this.getVertexByID(vertexID));
+   }
 
 		if (this.jobStatus != oldStatus) {
 
@@ -1449,7 +1468,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Nothing to do here
 	}
-	
+
 	public List<ExecutionVertex> getFailedVertices() {
 
 		return this.recovering;

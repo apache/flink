@@ -15,43 +15,21 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.discovery.DiscoveryException;
-import eu.stratosphere.nephele.discovery.DiscoveryService;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
-import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -183,7 +161,7 @@ public class RecoveryThread extends Thread {
 				restart.add(successor);
 				LOG.info("add " + successor.getName() + " torestart");
 				// totest.add(successor);
-				if (successor.getCheckpointState() == CheckpointState.COMPLETE) {
+				if (successor.getCheckpointState() == CheckpointState.PARTIAL) {
 					this.checkpoints.remove(successor);
 				}
 
@@ -200,7 +178,7 @@ public class RecoveryThread extends Thread {
 			}
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
 				ExecutionVertex predecessor = vertex.getPredecessor(j);
-				if (predecessor.getCheckpointState() != CheckpointState.COMPLETE) {
+				if (predecessor.getCheckpointState() != CheckpointState.PARTIAL) {
 					LOG.info("add " + predecessor.getName() + " torestart");
 
 					restart.add(predecessor);
@@ -244,7 +222,7 @@ public class RecoveryThread extends Thread {
 			ExecutionVertex successor = vertex.getSuccessor(i);
 			if (!restart.contains(successor)) {
 				follower.add(successor);
-				if (successor.getCheckpointState() == CheckpointState.COMPLETE) {
+				if (successor.getCheckpointState() == CheckpointState.PARTIAL) {
 					this.checkpoints.remove(successor);
 					// TODO(marrus) remove File
 					final List<ExecutionVertexID> checkpointsToRemove = new ArrayList<ExecutionVertexID>();

@@ -688,7 +688,7 @@ public class TaskManager implements TaskOperationProtocol {
 	void executionStateChanged(final JobID jobID, final ExecutionVertexID id, final Task task,
 			final ExecutionState newExecutionState, final String optionalDescription) {
 
-		if (newExecutionState == ExecutionState.RUNNING) {
+		if (newExecutionState == ExecutionState.RUNNING || newExecutionState == ExecutionState.RUNNING) {
 			// Mark task as running by putting it in the corresponding map
 			synchronized (this.runningTasks) {
 				this.runningTasks.put(id, task);

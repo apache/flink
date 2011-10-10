@@ -1053,6 +1053,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			// Unregister job for Nephele's monitoring, optimization components, and dynamic input split assignment
 			unregisterJob(executionGraph);
 		}
+		if (newJobStatus == InternalJobStatus.RECOVERING) {
+			try {
+				RecoveryThread recoverythread = new RecoveryThread(executionGraph, this);
+				recoverythread.start();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+		}
 
 	}
 

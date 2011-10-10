@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
@@ -195,8 +196,58 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	 */
 	@Override
 	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
-		// TODO Auto-generated method stub
 
+		for (final AllocatedResource allocatedResource : allocatedResources) {
+
+			LOG.info("Resource on " + allocatedResource.getInstance().getName() + " for Job " + jobID + " died.");
+			// TODO (marrus)
+
+			ExecutionGraph job = this.jobQueue.getFirst();
+			synchronized (job) {
+
+				Iterator<ExecutionGraph> iterator = this.jobQueue.descendingIterator();
+				while (job.getJobID() != jobID) {
+					if (iterator.hasNext()) {
+						job = iterator.next();
+					} else {
+						LOG.error("No Job with ID " + jobID + " in Queue");
+						return;
+					}
+				}
+				List<ExecutionVertex> vertices = job.getVerticesAssignedToResource(allocatedResource);
+				Iterator<ExecutionVertex> vertexIter = vertices.iterator();
+				while (vertexIter.hasNext()) {
+					ExecutionVertex vertex = vertexIter.next();
+					vertex.updateExecutionState(ExecutionState.FAILED, "The Resource "
+						+ allocatedResource.getInstance().getName() + " the Vertex "
+						+ vertex.getEnvironment().getTaskName() + " was assigned to, died");
+					if (vertex.getExecutionState() == ExecutionState.FAILED) {
+						job.executionStateChanged(jobID, vertex.getID(), ExecutionState.FAILED, "The Resource "
+							+ allocatedResource.getInstance().getName() + " the Vertex "
+							+ vertex.getEnvironment().getTaskName() + " was assigned to, died");
+						return;
+					}
+
+					vertex.setAllocatedResource(new AllocatedResource(DummyInstance
+						.createDummyInstance(allocatedResource
+							.getInstanceType()), allocatedResource.getInstanceType(),
+							null));
+				}
+
+				try {
+					LOG.info("Trying to allocate instance of type "
+						+ allocatedResource.getInstanceType().getIdentifier());
+					final InstanceRequestMap instanceMap = new InstanceRequestMap();
+					instanceMap.setMaximumNumberOfInstances(allocatedResource.getInstanceType(), 1);
+					instanceMap.setMinimumNumberOfInstances(allocatedResource.getInstanceType(), 1);
+					this.getInstanceManager().requestInstance(jobID, job.getJobConfiguration(), instanceMap, null);
+
+				} catch (InstanceException e) {
+					e.printStackTrace();
+				}
+				job.executionStateChanged(jobID, vertices.get(0).getID(), ExecutionState.RECOVERING, null);
+			}
+		}
 	}
 
 	/**
