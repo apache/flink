@@ -1,0 +1,128 @@
+package eu.stratosphere.sopremo.pact;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
+<<<<<<< HEAD
+
+import org.codehaus.jackson.node.JsonNodeFactory;
+import org.codehaus.jackson.node.ObjectNode;
+=======
+>>>>>>> 082f89a35aa389ea6271765d2b5db6f13914f3ec
+
+import com.csvreader.CsvReader;
+
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.fs.FileInputSplit;
+import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+
+public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
+
+	private static final String FIELD_DELIMITER = "fieldDelimiter";
+
+	public static final String COLUMN_NAMES = "columnNames";
+
+	private char fieldDelimiter = ',';
+
+	private String[] keyNames;
+
+	@Override
+	public void configure(final Configuration parameters) {
+		super.configure(parameters);
+		this.keyNames = SopremoUtil.deserialize(parameters, COLUMN_NAMES, String[].class);
+		final Character delimiter = SopremoUtil.deserialize(parameters, FIELD_DELIMITER, Character.class);
+		if (delimiter != null)
+			this.fieldDelimiter = delimiter;
+	}
+
+	@Override
+	public KeyValuePair<JsonNode, JsonNode> createPair() {
+		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), new ObjectNode());
+	}
+
+	@Override
+	public void open(final FileInputSplit split) throws IOException {
+		super.open(split);
+
+		// this.end = false;
+		// this.reader = new CsvReader(new InputStreamReader(this.stream, "UTF8"));
+		// this.reader.setDelimiter(this.fieldDelimiter);
+		//
+		// if (this.keyNames == null) {
+		// this.reader.readHeaders();
+		// this.keyNames = this.reader.getHeaders();
+		//
+		// // for any reason, there is a BOM symbol in front of the first character
+		// if (keyNames.length > 0)
+		// this.keyNames[0] = this.keyNames[0].replaceAll("^\\ufeff", "");
+		// }
+	}
+<<<<<<< HEAD
+
+	//
+	// @Override
+	// public boolean reachedEnd() {
+	// return this.end;
+	// }
+
+	private Charset charSet = Charset.forName("utf-8");
+
+	@Override
+	public boolean readLine(KeyValuePair<Key, PactJsonObject> pair, byte[] record) {
+		// if (!this.end) {
+		CsvReader reader = new CsvReader(new ByteArrayInputStream(record), this.charSet);
+		reader.setDelimiter(this.fieldDelimiter);
+		try {
+			if (reader.readRecord()) {
+				ObjectNode node = new ObjectNode(JsonNodeFactory.instance);
+=======
+
+	//
+	// @Override
+	// public boolean reachedEnd() {
+	// return this.end;
+	// }
+
+	private final Charset charSet = Charset.forName("utf-8");
+
+	@Override
+	public boolean readLine(final KeyValuePair<JsonNode, JsonNode> pair, final byte[] record) {
+		// if (!this.end) {
+		final CsvReader reader = new CsvReader(new ByteArrayInputStream(record), this.charSet);
+		reader.setDelimiter(this.fieldDelimiter);
+		try {
+			if (reader.readRecord()) {
+				final ObjectNode node = new ObjectNode();
+>>>>>>> 082f89a35aa389ea6271765d2b5db6f13914f3ec
+				if (this.keyNames != null)
+					for (int i = 0; i < this.keyNames.length; i++)
+						node.put(this.keyNames[i], reader.get(i));
+				else
+					for (int i = 0; i < reader.getColumnCount(); i++)
+						node.put(String.format("key%d", i + 1), reader.get(i));
+<<<<<<< HEAD
+				pair.getValue().setValue(node);
+=======
+				pair.setKey(SopremoUtil.wrap(pair.getKey()));
+				pair.setValue(SopremoUtil.wrap(node));
+>>>>>>> 082f89a35aa389ea6271765d2b5db6f13914f3ec
+				return true;
+			}
+
+			// this.end = true;
+<<<<<<< HEAD
+		} catch (IOException e) {
+=======
+		} catch (final IOException e) {
+>>>>>>> 082f89a35aa389ea6271765d2b5db6f13914f3ec
+			SopremoUtil.LOG.warn("Parsing CSV record", e);
+		}
+		return false;
+		// }
+		// return false;
+	}
+}

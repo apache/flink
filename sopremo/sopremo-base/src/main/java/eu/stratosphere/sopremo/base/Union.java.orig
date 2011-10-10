@@ -1,0 +1,76 @@
+package eu.stratosphere.sopremo.base;
+
+import java.util.List;
+
+import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.Operator;
+<<<<<<< HEAD
+import eu.stratosphere.sopremo.StreamArrayNode;
+=======
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+>>>>>>> 082f89a35aa389ea6271765d2b5db6f13914f3ec
+import eu.stratosphere.sopremo.pact.JsonCollector;
+import eu.stratosphere.sopremo.pact.SopremoCoGroup;
+
+@Name(verb = "union")
+public class Union extends SetOperation<Union> {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7834959246166207667L;
+
+	@Override
+	protected Operator<?> createElementaryOperations(final List<Operator<?>> inputs) {
+		if (inputs.size() <= 1)
+			return inputs.get(0);
+
+		Operator<?> leftInput = inputs.get(0);
+		for (int index = 1; index < inputs.size(); index++)
+			leftInput = new TwoInputUnion().withInputs(leftInput, inputs.get(index));
+
+		return leftInput;
+	}
+
+	@InputCardinality(min = 2, max = 2)
+	public static class TwoInputUnion extends ElementaryOperator<TwoInputUnion> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4170491578238695354L;
+
+<<<<<<< HEAD
+=======
+		public TwoInputUnion(final JsonStream input1, final JsonStream input2) {
+			super(input1, input2);
+		}
+
+		//
+		// @Override
+		// public PactModule asPactModule(EvaluationContext context) {
+		// CoGroupContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> union
+		// =
+		// new CoGroupContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode>(
+		// Implementation.class);
+		// return PactModule.valueOf(toString(), union);
+		// }
+
+>>>>>>> 082f89a35aa389ea6271765d2b5db6f13914f3ec
+		public static class Implementation extends
+				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+			@Override
+			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
+					final JsonCollector out) {
+				if (!values1.isEmpty())
+					out.collect(key, values1.get(0));
+				else if (!values2.isEmpty())
+					out.collect(key, values2.get(0));
+			}
+		}
+
+	}
+
+}

@@ -1,0 +1,80 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.sopremo.pact;
+
+import java.io.IOException;
+
+import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.type.KeyValuePair;
+<<<<<<< HEAD
+=======
+import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+>>>>>>> 082f89a35aa389ea6271765d2b5db6f13914f3ec
+
+/**
+ * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link JsonNode} .
+ * 
+ * @author Arvid Heise
+ */
+public class JsonOutputFormat extends FileOutputFormat<JsonNode, JsonNode> {
+
+	private JsonGenerator generator;
+
+	public static final String PARAMETER_ENCODING = "Encoding";
+
+	public JsonOutputFormat() {
+		this.keyClass = JsonNode.class;
+		this.valueClass = JsonNode.class;
+	}
+
+	@Override
+	public void close() throws IOException {
+		this.generator.writeEndArray();
+		this.generator.close();
+		super.close();
+	}
+
+	@Override
+<<<<<<< HEAD
+	public void configure(final Configuration parameters) {
+		super.configure(parameters);
+
+		final String encoding = parameters.getString(PARAMETER_ENCODING, null);
+		if (encoding != null)
+			this.encoding = JsonEncoding.valueOf(encoding);
+		else
+			this.encoding = JsonEncoding.UTF8;
+	}
+
+	@Override
+	public void open(int taskNumber) throws IOException {
+=======
+	public void open(final int taskNumber) throws IOException {
+>>>>>>> 082f89a35aa389ea6271765d2b5db6f13914f3ec
+		super.open(taskNumber);
+
+		this.generator = new JsonGenerator(this.stream);
+		this.generator.writeStartArray();
+	}
+
+	@Override
+	public void writeRecord(final KeyValuePair<JsonNode, JsonNode> pair) throws IOException {
+		this.generator.writeTree(SopremoUtil.unwrap(pair.getValue()));
+	}
+
+}
