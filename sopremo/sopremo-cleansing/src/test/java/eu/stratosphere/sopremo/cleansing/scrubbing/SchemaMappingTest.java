@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
+import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,16 +22,16 @@ public class SchemaMappingTest {
 	public static Collection<Object[]> getParameters() {
 		return Arrays.asList(
 			new Object[] { Arrays.asList(),
-				createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull", null) },
+				createObjectNode(new Object[] { "stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull", null }) },
 
 			new Object[] {
 				Arrays.asList(new TypeValidationExpression(IntNode.class, new ObjectAccess("stringInsteadOfInteger"))),
-				createPactJsonObject("stringInsteadOfInteger", 12, "outsideMonthRange", 14, "shouldBeNonNull", null) },
+				createObjectNode(new Object[] { "stringInsteadOfInteger", 12, "outsideMonthRange", 14, "shouldBeNonNull", null }) },
 
 			new Object[] {
 				Arrays.asList(new RangeRule(IntNode.valueOf(1), IntNode.valueOf(12), new ObjectAccess(
 					"outsideMonthRange"))),
-				createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 12, "shouldBeNonNull", null) },
+				createObjectNode(new Object[] { "stringInsteadOfInteger", "12", "outsideMonthRange", 12, "shouldBeNonNull", null }) },
 
 			new Object[] { Arrays.asList(new NonNullRule(new ObjectAccess("shouldBeNonNull"))), ERROR });
 	}
@@ -53,9 +53,9 @@ public class SchemaMappingTest {
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(schemaMapping);
 		for (ValidationRule rule : this.validationRules)
 			schemaMapping.addRule(rule);
+		Object[] fields = { "stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull", null };
 
-		sopremoTestPlan.getInput(0).add(
-			createPactJsonObject("stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull", null));
+		sopremoTestPlan.getInput(0).addObject(fields);
 		if (this.expectedObject == ERROR)
 			sopremoTestPlan.getExpectedOutput(0).setEmpty();
 		else

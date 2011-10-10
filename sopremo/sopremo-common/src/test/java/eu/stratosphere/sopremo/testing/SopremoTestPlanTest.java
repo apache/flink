@@ -16,7 +16,6 @@
 package eu.stratosphere.sopremo.testing;
 
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
-import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -62,8 +61,8 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	public void adhocInputAndOutputShouldTransparentlyWork() {
 		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity());
 		testPlan.getInput(0).
-			add(createValueNode("test1")).
-			add(createValueNode("test2"));
+			addValue("test1").
+			addValue("test2");
 		testPlan.run();
 
 		assertEquals("input and output should be equal in identity map", testPlan.getInput(0), testPlan
@@ -132,30 +131,30 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
 		final SopremoTestPlan testPlan = new SopremoTestPlan(new Identity());
 		testPlan.getInput(0).
-			add(createValueNode("test1")).
-			add(createValueNode("test2"));
+			addValue("test1").
+			addValue("test2");
 		testPlan.getExpectedOutput(0).
-			add(createValueNode("test1")).
-			add(createValueNode("test2"));
+			addValue("test1").
+			addValue("test2");
 		testPlan.run();
 	}
 
 	@Override
 	protected void initVerifier(final EqualsVerifier<SopremoTestPlan> equalVerifier) {
 		super.initVerifier(equalVerifier);
-		equalVerifier
-			.withPrefabValues(TestPairs.class,
+		equalVerifier.
+			withPrefabValues(TestPairs.class,
 				new TestPairs<Key, Value>().add(PactNull.getInstance(), new PactString("red")),
-				new TestPairs<Key, Value>().add(PactNull.getInstance(), new PactString("black")))
-			.withPrefabValues(SopremoTestPlan.ActualOutput.class,
-				new SopremoTestPlan.ActualOutput(0).add(createValueNode(0)),
-				new SopremoTestPlan.ActualOutput(1).add(createValueNode(1)))
-			.withPrefabValues(SopremoTestPlan.ExpectedOutput.class,
-				new SopremoTestPlan.ExpectedOutput(0).add(createValueNode(0)),
-				new SopremoTestPlan.ExpectedOutput(1).add(createValueNode(1)))
-			.withPrefabValues(SopremoTestPlan.Input.class,
-				new SopremoTestPlan.Input(0).add(createValueNode(0)),
-				new SopremoTestPlan.Input(1).add(createValueNode(1)));
+				new TestPairs<Key, Value>().add(PactNull.getInstance(), new PactString("black"))).
+			withPrefabValues(SopremoTestPlan.ActualOutput.class,
+				new SopremoTestPlan.ActualOutput(0).addValue(0),
+				new SopremoTestPlan.ActualOutput(1).addValue(1)).
+			withPrefabValues(SopremoTestPlan.ExpectedOutput.class,
+				new SopremoTestPlan.ExpectedOutput(0).addValue(0),
+				new SopremoTestPlan.ExpectedOutput(1).addValue(1)).
+			withPrefabValues(SopremoTestPlan.Input.class,
+				new SopremoTestPlan.Input(0).addValue(0),
+				new SopremoTestPlan.Input(1).addValue(1));
 	}
 
 	/**
@@ -167,24 +166,16 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		final CartesianProduct cartesianProduct = new CartesianProduct();
 		final SopremoTestPlan testPlan = new SopremoTestPlan(cartesianProduct);
 		testPlan.getInputForStream(cartesianProduct.getInput(0)).
-			add(createValueNode("test1")).
-			add(createValueNode("test2"));
+			addValue("test1").
+			addValue("test2");
 		testPlan.getInputForStream(cartesianProduct.getInput(1)).
-			add(createValueNode("test3")).
-			add(createValueNode("test4"));
-		Object[] constants = { null, null };
-		Object[] constants1 = { "test1", "test3" };
-		Object[] constants2 = { null, null };
-		Object[] constants3 = { "test1", "test4" };
-		Object[] constants4 = { null, null };
-		Object[] constants5 = { "test2", "test3" };
-		Object[] constants6 = { null, null };
-		Object[] constants7 = { "test2", "test4" };
+			addValue("test3").
+			addValue("test4");
 		testPlan.getExpectedOutputForStream(cartesianProduct.getOutput(0)).
-			add(createArrayNode(constants), createArrayNode(constants1)).
-			add(createArrayNode(constants2), createArrayNode(constants3)).
-			add(createArrayNode(constants4), createArrayNode(constants5)).
-			add(createArrayNode(constants6), createArrayNode(constants7));
+			add(createArrayNode(new Object[] { null, null }), createArrayNode(new Object[] { "test1", "test3" })).
+			add(createArrayNode(new Object[] { null, null }), createArrayNode(new Object[] { "test1", "test4" })).
+			add(createArrayNode(new Object[] { null, null }), createArrayNode(new Object[] { "test2", "test3" })).
+			add(createArrayNode(new Object[] { null, null }), createArrayNode(new Object[] { "test2", "test4" }));
 		testPlan.run();
 	}
 

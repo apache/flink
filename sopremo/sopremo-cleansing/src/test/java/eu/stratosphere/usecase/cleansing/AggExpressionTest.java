@@ -23,7 +23,7 @@ public class AggExpressionTest extends EvaluableExpressionTest<AggExpression> {
 
 	@Test
 	public void testAggregation() {
-		context.getFunctionRegistry().register(BuiltinFunctions.class);
+		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
 		
 		ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));

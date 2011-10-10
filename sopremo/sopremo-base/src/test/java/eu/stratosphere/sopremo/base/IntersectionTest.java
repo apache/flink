@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo.base;
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import static eu.stratosphere.sopremo.JsonUtil.createPath;
-import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 
 import org.junit.Test;
 
@@ -11,7 +9,6 @@ import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class IntersectionTest extends SopremoTest<Intersection> {
@@ -30,26 +27,17 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 		final Intersection intersection = new Intersection();
 		intersection.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
-		Object[] constants = { 1, 2 };
-		Object[] constants1 = { 3, 4 };
-		Object[] constants2 = { 5, 6 };
-
 		sopremoPlan.getInput(0).
-			add((JsonNode) createArrayNode(constants)).
-			add((JsonNode) createArrayNode(constants1)).
-			add((JsonNode) createArrayNode(constants2));
-		Object[] constants3 = { 1, 2 };
-		Object[] constants4 = { 3, 4 };
-		Object[] constants5 = { 7, 8 };
+			addArray(1, 2).
+			addArray(3, 4).
+			addArray(5, 6);
 		sopremoPlan.getInput(1).
-			add((JsonNode) createArrayNode(constants3)).
-			add((JsonNode) createArrayNode(constants4)).
-			add((JsonNode) createArrayNode(constants5));
-		Object[] constants6 = { 1, 2 };
-		Object[] constants7 = { 3, 4 };
+			addArray(1, 2).
+			addArray(3, 4).
+			addArray(7, 8);
 		sopremoPlan.getExpectedOutput(0).
-			add((JsonNode) createArrayNode(constants6)).
-			add((JsonNode) createArrayNode(constants7));
+			addArray(1, 2).
+			addArray(3, 4);
 
 		sopremoPlan.run();
 	}
@@ -65,18 +53,17 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 		intersection.setIdentityKey(1, new FunctionCall("concat", createPath("first name"),
 			new ConstantExpression(" "), createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
-
 		sopremoPlan.getInput(0).
-			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2)).
-			add(createPactJsonObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3));
+			addObject("name", "Jon Doe", "password", "asdf1234", "id", 1).
+			addObject("name", "Jane Doe", "password", "qwertyui", "id", 2).
+			addObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3);
 		sopremoPlan.getInput(1).
-			add(createPactJsonObject("first name", "Jon", "last name", "Doe", "password", "asdf1234", "id", 1)).
-			add(createPactJsonObject("first name", "Jane", "last name", "Doe", "password", "qwertyui", "id", 2)).
-			add(createPactJsonObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4));
+			addObject("first name", "Jon", "last name", "Doe", "password", "asdf1234", "id", 1).
+			addObject("first name", "Jane", "last name", "Doe", "password", "qwertyui", "id", 2).
+			addObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4);
 		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonObject("name", "Jon Doe", "password", "asdf1234", "id", 1)).
-			add(createPactJsonObject("name", "Jane Doe", "password", "qwertyui", "id", 2));
+			addObject("name", "Jon Doe", "password", "asdf1234", "id", 1).
+			addObject("name", "Jane Doe", "password", "qwertyui", "id", 2);
 
 		sopremoPlan.run();
 	}
@@ -90,16 +77,16 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
-			add(createValueNode((Object) 1)).
-			add(createValueNode((Object) 2)).
-			add(createValueNode((Object) 3));
+			addValue(1).
+			addValue(2).
+			addValue(3);
 		sopremoPlan.getInput(1).
-			add(createValueNode((Object) 1)).
-			add(createValueNode((Object) 2)).
-			add(createValueNode((Object) 4));
+			addValue(1).
+			addValue(2).
+			addValue(4);
 		sopremoPlan.getExpectedOutput(0).
-			add(createValueNode((Object) 1)).
-			add(createValueNode((Object) 2));
+			addValue(1).
+			addValue(2);
 
 		sopremoPlan.run();
 	}
@@ -116,13 +103,13 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
-			add(createValueNode((Object) 1)).
-			add(createValueNode((Object) 2)).
-			add(createValueNode((Object) 3));
+			addValue(1).
+			addValue(2).
+			addValue(3);
 		sopremoPlan.getExpectedOutput(0).
-			add(createValueNode((Object) 1)).
-			add(createValueNode((Object) 2)).
-			add(createValueNode((Object) 3));
+			addValue(1).
+			addValue(2).
+			addValue(3);
 
 		sopremoPlan.run();
 	}
@@ -139,19 +126,19 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 		sopremoPlan.getOutputOperator(0).setInputs(intersection);
 
 		sopremoPlan.getInput(0).
-			add(createValueNode((Object) 1)).
-			add(createValueNode((Object) 2)).
-			add(createValueNode((Object) 3));
+			addValue(1).
+			addValue(2).
+			addValue(3);
 		sopremoPlan.getInput(1).
-			add(createValueNode((Object) 1)).
-			add(createValueNode((Object) 2)).
-			add(createValueNode((Object) 4));
+			addValue(1).
+			addValue(2).
+			addValue(4);
 		sopremoPlan.getInput(2).
-			add(createValueNode((Object) 2)).
-			add(createValueNode((Object) 3)).
-			add(createValueNode((Object) 5));
+			addValue(2).
+			addValue(3).
+			addValue(5);
 		sopremoPlan.getExpectedOutput(0).
-			add(createValueNode((Object) 2));
+			addValue(2);
 
 		sopremoPlan.run();
 	}

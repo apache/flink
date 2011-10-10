@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
-
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -132,27 +130,17 @@ public abstract class InterSourceRecordLinkageAlgorithmTestBase<P extends Record
 			recordLinkage.getRecordLinkageInput(0).setResultProjection(resultProjection1);
 		if (resultProjection2 != null)
 			recordLinkage.getRecordLinkageInput(1).setResultProjection(resultProjection2);
-		Object[] fields = { "id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80 };
-		Object[] fields1 = { "id", 1, "first name", "berta", "last name", "typo", "age", 70 };
-		Object[] fields2 = { "id", 2, "first name", "charles", "last name", "age inaccurate", "age", 70 };
-		Object[] fields3 = { "id", 3, "first name", "dagmar", "last name", "unmatched", "age", 75 };
-		Object[] fields4 = { "id", 4, "first name", "elma", "last name", "firstNameDiffers", "age", 60 };
-
 		sopremoTestPlan.getInput(0).
-			add((JsonNode) createObjectNode(fields)).
-			add((JsonNode) createObjectNode(fields1)).
-			add((JsonNode) createObjectNode(fields2)).
-			add((JsonNode) createObjectNode(fields3)).
-			add((JsonNode) createObjectNode(fields4));
-		Object[] fields5 = { "id2", 10, "firstName", "albert", "lastName", "perfect duplicate", "age", 80 };
-		Object[] fields6 = { "id2", 11, "firstName", "berta", "lastName", "tpyo", "age", 70 };
-		Object[] fields7 = { "id2", 12, "firstName", "charles", "lastName", "age inaccurate", "age", 69 };
-		Object[] fields8 = { "id2", 14, "firstName", "elmar", "lastName", "firstNameDiffers", "age", 60 };
+			addObject("id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80).
+			addObject("id", 1, "first name", "berta", "last name", "typo", "age", 70).
+			addObject("id", 2, "first name", "charles", "last name", "age inaccurate", "age", 70).
+			addObject("id", 3, "first name", "dagmar", "last name", "unmatched", "age", 75).
+			addObject("id", 4, "first name", "elma", "last name", "firstNameDiffers", "age", 60);
 		sopremoTestPlan.getInput(1).
-			add((JsonNode) createObjectNode(fields5)).
-			add((JsonNode) createObjectNode(fields6)).
-			add((JsonNode) createObjectNode(fields7)).
-			add((JsonNode) createObjectNode(fields8));
+			addObject("id2", 10, "firstName", "albert", "lastName", "perfect duplicate", "age", 80).
+			addObject("id2", 11, "firstName", "berta", "lastName", "tpyo", "age", 70).
+			addObject("id2", 12, "firstName", "charles", "lastName", "age inaccurate", "age", 69).
+			addObject("id2", 14, "firstName", "elmar", "lastName", "firstNameDiffers", "age", 60);
 		return sopremoTestPlan;
 	}
 

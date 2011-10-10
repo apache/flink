@@ -33,15 +33,14 @@ public class SelectionTest extends SopremoTest<Selection> {
 			new Selection().
 				withCondition(condition).
 				withInputs(sopremoPlan.getInputOperator(0)));
-
 		sopremoPlan.getInput(0).
-			add(createPactJsonObject("name", "Jon Doe", "income", 20000, "mgr", false)).
-			add(createPactJsonObject("name", "Vince Wayne", "income", 32500, "mgr", false)).
-			add(createPactJsonObject("name", "Jane Dean", "income", 72000, "mgr", true)).
-			add(createPactJsonObject("name", "Alex Smith", "income", 25000, "mgr", false));
+			addObject("name", "Jon Doe", "income", 20000, "mgr", false).
+			addObject("name", "Vince Wayne", "income", 32500, "mgr", false).
+			addObject("name", "Jane Dean", "income", 72000, "mgr", true).
+			addObject("name", "Alex Smith", "income", 25000, "mgr", false);
 		sopremoPlan.getExpectedOutput(0).
-			add(createPactJsonObject("name", "Vince Wayne", "income", 32500, "mgr", false)).
-			add(createPactJsonObject("name", "Jane Dean", "income", 72000, "mgr", true));
+			addObject("name", "Vince Wayne", "income", 32500, "mgr", false).
+			addObject("name", "Jane Dean", "income", 72000, "mgr", true);
 
 		sopremoPlan.run();
 	}

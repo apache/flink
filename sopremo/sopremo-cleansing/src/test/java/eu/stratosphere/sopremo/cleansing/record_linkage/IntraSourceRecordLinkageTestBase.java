@@ -1,8 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
-import static eu.stratosphere.sopremo.SopremoTest.createPactJsonObject;
-
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -95,8 +92,7 @@ public abstract class IntraSourceRecordLinkageTestBase<P extends RecordLinkageAl
 			bigger = temp;
 		}
 		Object[] constants = { resultProjection.evaluate(smaller, context), resultProjection.evaluate(bigger, context) };
-		this.sopremoTestPlan.getExpectedOutput(0).add(
-			(JsonNode) createArrayNode(constants));
+		this.sopremoTestPlan.getExpectedOutput(0).addArray(constants);
 	}
 
 	/**
@@ -130,17 +126,16 @@ public abstract class IntraSourceRecordLinkageTestBase<P extends RecordLinkageAl
 			recordLinkage.getRecordLinkageInput().setIdProjection(new ObjectAccess("id"));
 		if (projection != null)
 			recordLinkage.getRecordLinkageInput().setResultProjection(projection);
-
 		sopremoTestPlan.getInput(0).
-			add(createPactJsonObject("id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80)).
-			add(createPactJsonObject("id", 1, "first name", "berta", "last name", "typo", "age", 70)).
-			add(createPactJsonObject("id", 2, "first name", "charles", "last name", "age inaccurate", "age", 70)).
-			add(createPactJsonObject("id", 3, "first name", "dagmar", "last name", "unmatched", "age", 75)).
-			add(createPactJsonObject("id", 4, "first name", "elma", "last name", "first nameDiffers", "age", 60)).
-			add(createPactJsonObject("id", 5, "first name", "albert", "last name", "perfect duplicate", "age", 80)).
-			add(createPactJsonObject("id", 6, "first name", "berta", "last name", "tpyo", "age", 70)).
-			add(createPactJsonObject("id", 7, "first name", "charles", "last name", "age inaccurate", "age", 69)).
-			add(createPactJsonObject("id", 8, "first name", "elmar", "last name", "first nameDiffers", "age", 60));
+			addObject("id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80).
+			addObject("id", 1, "first name", "berta", "last name", "typo", "age", 70).
+			addObject("id", 2, "first name", "charles", "last name", "age inaccurate", "age", 70).
+			addObject("id", 3, "first name", "dagmar", "last name", "unmatched", "age", 75).
+			addObject("id", 4, "first name", "elma", "last name", "first nameDiffers", "age", 60).
+			addObject("id", 5, "first name", "albert", "last name", "perfect duplicate", "age", 80).
+			addObject("id", 6, "first name", "berta", "last name", "tpyo", "age", 70).
+			addObject("id", 7, "first name", "charles", "last name", "age inaccurate", "age", 69).
+			addObject("id", 8, "first name", "elmar", "last name", "first nameDiffers", "age", 60);
 		return sopremoTestPlan;
 	}
 

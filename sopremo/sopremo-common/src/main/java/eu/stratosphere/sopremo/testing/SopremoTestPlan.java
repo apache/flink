@@ -15,6 +15,7 @@ import eu.stratosphere.pact.testing.TestPairs;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorNavigator;
 import eu.stratosphere.sopremo.Sink;
@@ -268,8 +269,19 @@ public class SopremoTestPlan {
 		}
 
 		public C add(final JsonNode value) {
-
 			return this.add(NullNode.getInstance(), value);
+		}
+
+		public C addObject(final Object... fields) {
+			return this.add(JsonUtil.createObjectNode(fields));
+		}
+
+		public C addValue(final Object value) {
+			return this.add(JsonUtil.createValueNode(value));
+		}
+
+		public C addArray(final Object... values) {
+			return this.add(JsonUtil.createArrayNode(values));
 		}
 
 		@SuppressWarnings("unchecked")
