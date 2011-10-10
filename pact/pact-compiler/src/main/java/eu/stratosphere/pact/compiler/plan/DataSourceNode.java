@@ -21,8 +21,8 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.contract.GenericDataSourceContract;
+import eu.stratosphere.pact.common.io.input.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.Costs;
@@ -50,7 +50,7 @@ public class DataSourceNode extends OptimizerNode
 	 * @param pactContract
 	 *        The data source contract object.
 	 */
-	public DataSourceNode(GenericDataSource<?, ?> pactContract) {
+	public DataSourceNode(GenericDataSourceContract<?, ?> pactContract) {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
@@ -74,8 +74,8 @@ public class DataSourceNode extends OptimizerNode
 	 * 
 	 * @return The contract.
 	 */
-	public GenericDataSource<?, ?> getPactContract() {
-		return (GenericDataSource<?, ?>) super.getPactContract();
+	public GenericDataSourceContract<?, ?> getPactContract() {
+		return (GenericDataSourceContract<?, ?>) super.getPactContract();
 	}
 
 	/*

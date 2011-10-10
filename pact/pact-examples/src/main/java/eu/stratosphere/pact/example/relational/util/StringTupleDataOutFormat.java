@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.example.relational.util;
 
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.output.TextOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactString;
 

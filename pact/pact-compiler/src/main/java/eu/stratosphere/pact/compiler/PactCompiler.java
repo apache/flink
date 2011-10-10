@@ -41,6 +41,8 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.GenericDataSinkContract;
+import eu.stratosphere.pact.common.contract.GenericDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -778,12 +780,12 @@ public class PactCompiler {
 			OptimizerNode n = null;
 
 			// create a node for the pact (or sink or source) if we have not been here before
-			if (c instanceof FileDataSinkContract<?, ?>) {
-				DataSinkNode dsn = new DataSinkNode((FileDataSinkContract<?, ?>) c);
+			if (c instanceof GenericDataSinkContract<?, ?>) {
+				DataSinkNode dsn = new DataSinkNode((GenericDataSinkContract<?, ?>) c);
 				sinks.add(dsn);
 				n = dsn;
-			} else if (c instanceof FileDataSourceContract<?, ?>) {
-				DataSourceNode dsn = new DataSourceNode((FileDataSourceContract<?, ?>) c);
+			} else if (c instanceof GenericDataSourceContract<?, ?>) {
+				DataSourceNode dsn = new DataSourceNode((GenericDataSourceContract<?, ?>) c);
 				sources.add(dsn);
 				n = dsn;
 			} else if (c instanceof MapContract<?, ?, ?, ?>) {
@@ -1484,7 +1486,12 @@ public class PactCompiler {
 				// instead of temping connection duplicate DataSourceNode
 				
 				// duplicate DataSourceNode
-				DataSourceNode duplicateDataSource = new DataSourceNode((FileDataSourceContract<?, ?>)sourcePact.getPactContract());
+				DataSourceNode duplicateDataSource;
+				if(sourcePact.getPactContract() instanceof FileDataSinkContract<?, ?>) {
+					duplicateDataSource = new DataSourceNode((FileDataSourceContract<?, ?>)sourcePact.getPactContract());
+				} else {
+					duplicateDataSource = new DataSourceNode((GenericDataSourceContract<?, ?>)sourcePact.getPactContract());
+				}
 				duplicateDataSource.setDegreeOfParallelism(sourcePact.getDegreeOfParallelism());
 				duplicateDataSource.setInstancesPerMachine(sourcePact.getInstancesPerMachine());
 				// create new connection

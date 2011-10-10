@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.output.FileOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
@@ -26,7 +26,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Erik Nijkamp
  * @author Moritz Kaufmann
  */
-public class FileDataSinkContract<KT extends Key, VT extends Value> extends GenericDataSink<KT, VT>
+public class FileDataSinkContract<KT extends Key, VT extends Value> extends GenericDataSinkContract<KT, VT>
 {
 	private static String DEFAULT_NAME = "<Unnamed File Data Sink>";
 

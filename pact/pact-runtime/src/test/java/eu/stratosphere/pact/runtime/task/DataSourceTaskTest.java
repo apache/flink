@@ -32,7 +32,7 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.io.input.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;

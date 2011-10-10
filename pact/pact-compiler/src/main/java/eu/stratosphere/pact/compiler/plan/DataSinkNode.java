@@ -22,6 +22,7 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.GenericDataSinkContract;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -48,7 +49,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The data sink contract object.
 	 */
-	public DataSinkNode(FileDataSinkContract<?, ?> pactContract) {
+	public DataSinkNode(GenericDataSinkContract<?, ?> pactContract) {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
