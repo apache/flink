@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.instance;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -40,7 +39,6 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * An abstract instance represents a resource a {@link eu.stratosphere.nephele.taskmanager.TaskManager} runs on.
@@ -212,12 +210,8 @@ public abstract class AbstractInstance extends NetworkNode {
 
 	public synchronized List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs)
 			throws IOException {
-		final List<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
 
-		for (ExecutionVertexID vertexID : vertexIDs){	
-			checkpointResultList.add(getTaskManager().replayCheckpoints(vertexID));
-		}
-		return checkpointResultList;
+		return getTaskManager().replayCheckpoints(vertexIDs);
 	}
 
 	public synchronized void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions)
@@ -251,10 +245,8 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *         thrown if an error occurs while transmitting the request
 	 */
 	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
-		Iterator<ExecutionVertexID> iter = listOfVertexIDs.iterator();
-		while(iter.hasNext()){
-			getTaskManager().removeCheckpoints(iter.next());
-		}
+
+		getTaskManager().removeCheckpoints(listOfVertexIDs);
 	}
 
 	/**

@@ -107,7 +107,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
 
-	CheckpointReplayResult replayCheckpoints(ExecutionVertexID vertexID) throws IOException;
+	List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException;
 
 	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
 
@@ -119,7 +119,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @throws IOException
 	 *         if an error occurs during this remote procedure call
 	 */
-	void removeCheckpoints(ExecutionVertexID vertexID) throws IOException;
+	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException;
 
 	/**
 	 * Triggers the task manager write the current utilization of its read and write buffers to its logs.
