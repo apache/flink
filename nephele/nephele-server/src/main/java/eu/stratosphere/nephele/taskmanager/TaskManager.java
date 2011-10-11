@@ -575,12 +575,8 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs) throws IOException {
-
-		final List<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
-
-		for (final ExecutionVertexID vertexID : vertexIDs) {
-
+	public CheckpointReplayResult replayCheckpoints(final ExecutionVertexID vertexID) throws IOException {
+		
 			if (!this.checkpointManager.hasCompleteCheckpointAvailable(vertexID)) {
 
 				if (this.checkpointManager.hasPartialCheckpointAvailable(vertexID)) {
@@ -589,25 +585,23 @@ public class TaskManager implements TaskOperationProtocol {
 							final CheckpointReplayResult result = new CheckpointReplayResult(vertexID, ReturnCode.ERROR);
 							result
 								.setDescription("Checkpoint is only partial and corresponding task is no longer running");
-							checkpointResultList.add(result);
-							continue;
+							return result;
 						}
 					}
 				} else {
 					final CheckpointReplayResult result = new CheckpointReplayResult(vertexID, ReturnCode.ERROR);
 					result.setDescription("No checkpoint found");
-					checkpointResultList.add(result);
-					continue;
+					return result;
 				}
 			}
 
 			// Replay the checkpoint
 			this.checkpointManager.replayCheckpoint(vertexID);
 
-			checkpointResultList.add(new CheckpointReplayResult(vertexID, ReturnCode.SUCCESS));
-		}
+			return new CheckpointReplayResult(vertexID, ReturnCode.SUCCESS);
+		
 
-		return checkpointResultList;
+		
 	}
 
 	/**
@@ -836,12 +830,10 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+	public void removeCheckpoints(ExecutionVertexID vertexID) throws IOException {
 
-		final Iterator<ExecutionVertexID> it = listOfVertexIDs.iterator();
-		while (it.hasNext()) {
-			this.checkpointManager.removeCheckpoint(it.next());
-		}
+			this.checkpointManager.removeCheckpoint(vertexID);
+		
 	}
 
 	/**
