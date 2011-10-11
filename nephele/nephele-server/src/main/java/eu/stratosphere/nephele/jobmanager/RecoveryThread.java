@@ -72,7 +72,6 @@ public class RecoveryThread extends Thread {
 	 */
 	@Override
 	public void run() {
-		LOG.info("recovery running");
 		if (this.failedVertices.isEmpty()) {
 			LOG.error("No failed vertices to recover");
 		}
@@ -85,18 +84,12 @@ public class RecoveryThread extends Thread {
 
 			LOG.info("Staring Recovery for " + failed);
 			List<ExecutionVertex> restart = findRestarts(failed);
-			if (restart.size() < 2) {
-				LOG.info("No other Vertices have to be restarted?");
-			} else {
-				LOG.info(restart.size());
-			}
 
 			Iterator<ExecutionVertex> restartIterator = restart.iterator();
 			while (restartIterator.hasNext()) {
 				ExecutionVertex vertex = restartIterator.next();
 
 				if (!vertex.equals(failed)) {
-					LOG.info("---------------");
 					LOG.info("Restarting " + vertex.getName());
 					final List<ExecutionVertexID> checkpointsToReplay = new ArrayList<ExecutionVertexID>();
 					checkpointsToReplay.add(vertex.getID());
@@ -106,8 +99,6 @@ public class RecoveryThread extends Thread {
 					} catch (Exception e) {
 						LOG.info("Catched Exception " + StringUtils.stringifyException(e) + "wihle restarting");
 					}
-					System.out.println("restarted " + vertex.getName());
-					LOG.info("---------------");
 				}
 
 			}
