@@ -575,9 +575,9 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs) throws IOException {
+	public SerializableArrayList<CheckpointReplayResult> replayCheckpoints(final List <ExecutionVertexID> vertexIDs) throws IOException {
 
-		final List<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
+		final SerializableArrayList<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
 
 		for (final ExecutionVertexID vertexID : vertexIDs) {
 
@@ -706,7 +706,9 @@ public class TaskManager implements TaskOperationProtocol {
 			// Unregister the task (free all buffers, remove all channels, task-specific class loaders, etc...
 			unregisterTask(id, task);
 		}
-
+		if (newExecutionState == ExecutionState.FAILED){
+			this.runningTasks.remove(id);
+		}
 		// Get lock on the jobManager object and propagate the state change
 		synchronized (this.jobManager) {
 			try {

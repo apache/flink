@@ -383,8 +383,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private boolean processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
 			final TransferEnvelopeReceiverList receiverList) {
 
-		System.out.println("Received envelope without buffer with event list size "
-			+ transferEnvelope.getEventList().size());
+		//System.out.println("Received envelope without buffer with event list size "
+		//	+ transferEnvelope.getEventList().size());
 
 		// No need to copy anything
 		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
@@ -496,7 +496,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
 
-		System.out.println("Received envelope from input channel");
+		//System.out.println("Received envelope from input channel");
 
 		processEnvelope(transferEnvelope, false);
 	}
