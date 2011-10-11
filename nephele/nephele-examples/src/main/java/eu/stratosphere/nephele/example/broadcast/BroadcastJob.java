@@ -166,19 +166,21 @@ public class BroadcastJob {
 		}
 
 		try {
-			final BufferedWriter writer = new BufferedWriter(new FileWriter(getFilename()));
+			final BufferedWriter throughputWriter = new BufferedWriter(new FileWriter(getThroughputFilename()));
+			final BufferedWriter durationWriter = new BufferedWriter(new FileWriter(getDurationFilename()));
 
 			// Execute the individual job runs
 			for (int i = 0; i < NUMBER_OF_RUNS; ++i) {
 				try {
-					runJob(i, writer);
+					runJob(i, throughputWriter, durationWriter);
 				} catch (Exception e) {
 					System.err.println("Error executing run " + i + ": " + StringUtils.stringifyException(e));
 					break;
 				}
 			}
 
-			writer.close();
+			throughputWriter.close();
+			durationWriter.close();
 		} catch (IOException ioe) {
 			System.err.println("An IO exception occurred " + StringUtils.stringifyException(ioe));
 		}
@@ -194,11 +196,13 @@ public class BroadcastJob {
 	 * 
 	 * @param run
 	 *        the run of the job
-	 * @param outputWriter
+	 * @param throughputWriter
 	 *        writer object to write the throughput results for each run
+	 * @param durationWriter
+	 *        writer object to write the duration results for each run
 	 */
-	private static void runJob(final int run, final BufferedWriter outputWriter) throws JobGraphDefinitionException,
-			IOException, JobExecutionException {
+	private static void runJob(final int run, final BufferedWriter throughputWriter, final BufferedWriter durationWriter)
+			throws JobGraphDefinitionException, IOException, JobExecutionException {
 
 		// Construct job graph
 		final JobGraph jobGraph = new JobGraph("Broadcast Job (Run " + run + ")");
@@ -219,6 +223,8 @@ public class BroadcastJob {
 		consumer.getConfiguration().setInteger(BroadcastProducer.RUN_KEY, run);
 		consumer.getConfiguration().setString(BroadcastConsumer.OUTPUT_PATH_KEY, OUTPUT_PATH);
 		consumer.getConfiguration().setString(BroadcastConsumer.TOPOLOGY_TREE_KEY, TOPOLOGY_TREE);
+		consumer.getConfiguration().setString(BroadcastConsumer.INSTANCE_TYPE_KEY, INSTANCE_TYPE);
+		consumer.getConfiguration().setInteger(BroadcastProducer.NUMBER_OF_RECORDS_KEY, NUMBER_OF_RECORDS);
 
 		// Connect both vertices
 		producer.connectTo(consumer, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
@@ -234,12 +240,16 @@ public class BroadcastJob {
 		final JobClient jobClient = new JobClient(jobGraph, conf);
 		final long jobDuration = jobClient.submitJobAndWait();
 
-		final long numberOfBytesSent = BroadcastRecord.RECORD_SIZE * NUMBER_OF_RECORDS * NUMBER_OF_CONSUMERS;
+		final long numberOfBytesSent = (long) BroadcastRecord.RECORD_SIZE * (long) NUMBER_OF_RECORDS
+			* (long) NUMBER_OF_CONSUMERS;
 		// Throughput in bits per second
-		final long throughput = numberOfBytesSent / (jobDuration * 1000) * 8;
+		final double throughput = (double) (numberOfBytesSent * 1000L * 8L) / (double) (jobDuration * 1024L * 1024L);
 
 		// Write calculated throughput to file
-		outputWriter.write(throughput + "\n");
+		throughputWriter.write(throughput + "\n");
+
+		// Write the job duration
+		durationWriter.write(jobDuration + "\n");
 	}
 
 	/**
@@ -247,9 +257,15 @@ public class BroadcastJob {
 	 * 
 	 * @return the filename for the throughput result
 	 */
-	private static String getFilename() {
+	private static String getThroughputFilename() {
 
 		return OUTPUT_PATH + File.separator + "throughput_" + INSTANCE_TYPE + "_" + TOPOLOGY_TREE + "_"
+			+ NUMBER_OF_CONSUMERS + "_" + NUMBER_OF_RECORDS + ".dat";
+	}
+
+	private static String getDurationFilename() {
+
+		return OUTPUT_PATH + File.separator + "duration_" + INSTANCE_TYPE + "_" + TOPOLOGY_TREE + "_"
 			+ NUMBER_OF_CONSUMERS + "_" + NUMBER_OF_RECORDS + ".dat";
 	}
 }
