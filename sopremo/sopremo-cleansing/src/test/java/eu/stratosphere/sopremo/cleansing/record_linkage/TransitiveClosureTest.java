@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
+
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 import junit.framework.Assert;
@@ -59,16 +60,12 @@ public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
 		transitiveClosure.setClosureMode(ClosureMode.LINKS);
 		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
-		Object[] constants = { createObjectNode("id", 11, "name", "a"), createObjectNode("id", 22, "name", "b") };
-		Object[] constants1 = { createObjectNode("id", 11, "name", "a"), createObjectNode("id", 23, "name", "c") };
-		Object[] constants2 = { createObjectNode("id", 14, "name", "e"), createObjectNode("id", 25, "name", "d") };
-		Object[] constants3 = { createObjectNode("id", 16, "name", "a"), createObjectNode("id", 25, "name", "d") };
 
 		sopremoTestPlan.getInput(0).
-			add((JsonNode) createArrayNode(constants)).
-			add((JsonNode) createArrayNode(constants1)).
-			add((JsonNode) createArrayNode(constants2)).
-			add((JsonNode) createArrayNode(constants3));
+			add(createArrayNode(createObjectNode("id", 11, "name", "a"), createObjectNode("id", 22, "name", "b"))).
+			add(createArrayNode(createObjectNode("id", 11, "name", "a"), createObjectNode("id", 23, "name", "c"))).
+			add(createArrayNode(createObjectNode("id", 14, "name", "e"), createObjectNode("id", 25, "name", "d"))).
+			add(createArrayNode(createObjectNode("id", 16, "name", "a"), createObjectNode("id", 25, "name", "d")));
 		Object[] constants4 = { createObjectNode("id", 11, "name", "a"), createObjectNode("id", 22, "name", "b") };
 		Object[] constants5 = { createObjectNode("id", 11, "name", "a"), createObjectNode("id", 23, "name", "c") };
 		Object[] constants6 = { createObjectNode("id", 22, "name", "b"), createObjectNode("id", 23, "name", "c") };
@@ -77,12 +74,12 @@ public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
 		Object[] constants9 = { createObjectNode("id", 14, "name", "e"), createObjectNode("id", 16, "name", "a") };
 
 		sopremoTestPlan.getExpectedOutput(0).
-			add((JsonNode) createArrayNode(constants4)).
-			add((JsonNode) createArrayNode(constants5)).
-			add((JsonNode) createArrayNode(constants6)).
-			add((JsonNode) createArrayNode(constants7)).
-			add((JsonNode) createArrayNode(constants8)).
-			add((JsonNode) createArrayNode(constants9));
+			add(createArrayNode(constants4)).
+			add(createArrayNode(constants5)).
+			add(createArrayNode(constants6)).
+			add(createArrayNode(constants7)).
+			add(createArrayNode(constants8)).
+			add(createArrayNode(constants9));
 		sopremoTestPlan.run();
 	}
 }

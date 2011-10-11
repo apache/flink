@@ -272,6 +272,10 @@ public class SopremoTestPlan {
 			return this.add(NullNode.getInstance(), value);
 		}
 
+		public void load(String path) {
+			this.pairs.fromFile(JsonInputFormat.class, path);
+		}
+
 		@SuppressWarnings("unchecked")
 		public C add(final JsonNode key, final JsonNode value) {
 			// if(value instanceof JsonNodeWrapper){
@@ -385,6 +389,7 @@ public class SopremoTestPlan {
 			if (this.getOperator() instanceof MockupSource)
 				testPlan.getInput(this.getIndex()).add(this.getPairs());
 		}
+
 	}
 
 	public static class MockupSink extends Sink {

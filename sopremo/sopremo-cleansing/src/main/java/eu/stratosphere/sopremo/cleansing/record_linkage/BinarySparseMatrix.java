@@ -5,7 +5,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-class BinarySparseMatrix<T> {
+public class BinarySparseMatrix<T> {
 	private final Map<T, Set<T>> sparseMatrix = new HashMap<T, Set<T>>();
 
 	@Override
