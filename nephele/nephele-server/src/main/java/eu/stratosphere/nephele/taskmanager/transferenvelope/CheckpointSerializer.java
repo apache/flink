@@ -124,7 +124,7 @@ public class CheckpointSerializer extends AbstractSerializer {
 
 		for (int i = 0; i < SIZEOFLONG; ++i) {
 			final int shift = i << 3; // i * 8
-			byteBuffer.put((SIZEOFLONG - 1) - i, (byte) ((longToSerialize & (0xff << shift)) >>> shift));
+			byteBuffer.put((SIZEOFLONG - 1) - i, (byte) ((longToSerialize & (0xffL << shift)) >>> shift));
 		}
 	}
 }

@@ -89,7 +89,7 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 		}
 
 		for (int i = 0; i < SIZEOFLONG; ++i) {
-			l |= (byteBuffer.get((SIZEOFLONG - 1) - i) & 0xff) << (i << 3);
+			l |= (byteBuffer.get((SIZEOFLONG - 1) - i) & 0xffL) << (i << 3);
 		}
 
 		return l;

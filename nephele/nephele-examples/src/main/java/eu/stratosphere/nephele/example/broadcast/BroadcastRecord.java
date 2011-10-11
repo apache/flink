@@ -31,7 +31,12 @@ public class BroadcastRecord implements Record {
 	/**
 	 * The size of a broadcast record.
 	 */
-	private static final int RECORD_SIZE = 127;
+	public static final int RECORD_SIZE = 128;
+
+	/**
+	 * The size of a long variable.
+	 */
+	private static final int SIZE_OF_LONG = 8;
 
 	/**
 	 * The actual data of the broadcast record.
@@ -50,7 +55,7 @@ public class BroadcastRecord implements Record {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		out.write(this.data);
 	}
@@ -59,40 +64,39 @@ public class BroadcastRecord implements Record {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		in.readFully(this.data);
 	}
 
 	/**
-	 * Sets the byte at position <code>pos</code> of the record's internal buffer to <code>data</code>.
+	 * Sets a timestamp for this broadcast record.
 	 * 
-	 * @param pos
-	 *        the position of the byte to set
-	 * @param data
-	 *        the value of the byte to set
+	 * @param timestamp
+	 *        the timestamp for this broadcast record
 	 */
-	public void setData(int pos, byte data) {
+	public void setTimestamp(final long timestamp) {
 
-		if (pos >= 0 && pos < RECORD_SIZE) {
-			this.data[pos] = data;
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
+			final int shift = i << 3; // i * 8
+			this.data[(SIZE_OF_LONG - 1) - i] = (byte) ((timestamp & (0xffL << shift)) >>> shift);
 		}
 	}
 
 	/**
-	 * Returns the byte stored at position <code>pos</code> of the record's internal buffer.
+	 * Returns the timestamp of this broadcast record.
 	 * 
-	 * @param pos
-	 *        the position of the byte to retrieve
-	 * @return the byte at position <code>pos</code>
+	 * @return the timestamp of this broadcast record
 	 */
-	public byte getData(int pos) {
+	public long getTimestamp() {
 
-		if (pos < 0 || pos >= RECORD_SIZE) {
-			throw new IllegalArgumentException("pos must be smaller than " + RECORD_SIZE);
+		long l = 0;
+
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
+			l |= (this.data[(SIZE_OF_LONG - 1) - i] & 0xffL) << (i << 3);
 		}
 
-		return this.data[pos];
+		return l;
 	}
 
 	/**

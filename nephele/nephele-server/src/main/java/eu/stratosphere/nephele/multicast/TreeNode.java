@@ -28,7 +28,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
  *
  */
 
-public class TreeNode {
+public class TreeNode implements Comparable<TreeNode>{
 
 	private final InstanceConnectionInfo nodeConnectionInfo;
 	
@@ -64,6 +64,11 @@ public class TreeNode {
 	
 	public InstanceConnectionInfo getConnectionInfo(){
 		return this.nodeConnectionInfo;
+	}
+
+	@Override
+	public int compareTo(TreeNode o) {
+		return this.nodeConnectionInfo.compareTo(o.nodeConnectionInfo);
 	}
 	
 }
