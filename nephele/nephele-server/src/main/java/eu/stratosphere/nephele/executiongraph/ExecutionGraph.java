@@ -1226,6 +1226,9 @@ public class ExecutionGraph implements ExecutionListener {
 					if (vertex.getExecutionState() == ExecutionState.FAILED && !vertex.hasRetriesLeft()) {
 						this.jobStatus = InternalJobStatus.FAILING;
 						return;
+					}else{
+						this.jobStatus = InternalJobStatus.RECOVERING;
+						return;
 					}
 				}
 			}
