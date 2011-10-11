@@ -8,7 +8,7 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND)
-public class FunctionCall extends ContainerExpression {
+public class MethodCall extends ContainerExpression {
 
 	/**
 	 * 
@@ -19,34 +19,44 @@ public class FunctionCall extends ContainerExpression {
 
 	private final EvaluationExpression[] paramExprs;
 
-	public FunctionCall(final String name, final EvaluationExpression... params) {
+	private final EvaluationExpression target;
+	
+	public final static EvaluationExpression NO_TARGET = new EvaluationExpression() {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 5225392174862839012L;
+
+		@Override
+		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+			return null;
+		}
+	};
+
+	public MethodCall(final String name, final EvaluationExpression target, final EvaluationExpression... params) {
 		this.name = name;
 		this.paramExprs = params;
+		this.target = target;
 	}
 
 	@Override
 	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
-		return this.name.equals(((FunctionCall) obj).name)
-			&& Arrays.equals(this.paramExprs, ((FunctionCall) obj).paramExprs);
+		return this.name.equals(((MethodCall) obj).name)
+			&& this.target.equals(((MethodCall) obj).target)
+			&& Arrays.equals(this.paramExprs, ((MethodCall) obj).paramExprs);
 	}
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		// System.err.println("undefined function " + this.name);
+		final JsonNode target = this.target.evaluate(node, context);
+		
 		final JsonNode[] params = new JsonNode[this.paramExprs.length];
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs[index].evaluate(node, context);
-		// SopremoUtil.LOG.warn(name + " " + Arrays.asList(params) + " " +Arrays.asList(paramExprs) );
-		// if (name.equals("count"))
-		// return BuiltinFunctions.count(JsonUtils.asArray(params));
-		// if (name.equals("sum"))
-		// return BuiltinFunctions.sum(JsonUtils.asArray(params));
-		//
-		// throw new EvaluationException("undefined function " + this.name);
 
-		return context.getFunctionRegistry().evaluate(this.name, JsonUtil.asArray(params), context);
+		return context.getFunctionRegistry().evaluate(this.name, target, JsonUtil.asArray(params), context);
 	}
 
 	@Override

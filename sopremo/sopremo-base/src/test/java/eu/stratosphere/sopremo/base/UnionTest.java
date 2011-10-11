@@ -8,7 +8,7 @@ import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.FunctionCall;
+import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class UnionTest extends SopremoTest<Union> {
@@ -52,7 +52,7 @@ public class UnionTest extends SopremoTest<Union> {
 		final Union union = new Union();
 		union.setInputs(sopremoPlan.getInputOperators(0, 2));
 		union.setIdentityKey(0, createPath("name"));
-		union.setIdentityKey(1, new FunctionCall("concat", createPath("first name"), new ConstantExpression(" "),
+		union.setIdentityKey(1, new MethodCall("concat", createPath("first name"), new ConstantExpression(" "),
 			createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 		sopremoPlan.getInput(0).

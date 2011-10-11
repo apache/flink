@@ -34,7 +34,7 @@ public abstract class JsonNodeTest<T extends JsonNode> {
 
 	@Test
 	public void testTypeNumber() {
-		Assert.assertNotNull("every JsonNode must have a TypeNumber", this.node.getTypePos());
+		Assert.assertNotNull("every JsonNode must have a TypeNumber", this.node.getType().ordinal());
 	}
 
 	@Test

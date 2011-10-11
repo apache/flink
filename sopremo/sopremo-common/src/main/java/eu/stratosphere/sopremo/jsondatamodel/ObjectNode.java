@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.jsondatamodel;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -27,6 +26,11 @@ public class ObjectNode extends JsonNode {
 		return this.children.size();
 	}
 
+	@Override
+	public Map<String, JsonNode> getJavaValue() {
+		return this.children;
+	}
+
 	public ObjectNode put(final String fieldName, final JsonNode value) {
 		if (value == null)
 			throw new NullPointerException();
@@ -34,47 +38,7 @@ public class ObjectNode extends JsonNode {
 		if (value.isNull())
 			this.children.remove(fieldName);
 		else
-			this._put(fieldName, value);
-		return this;
-	}
-
-	public ObjectNode put(final String fieldName, final String value) {
-		if (value == null)
-			throw new NullPointerException();
-
-		this._put(fieldName, new TextNode(value));
-		return this;
-	}
-
-	public ObjectNode put(final String fieldName, final Integer value) {
-		if (value == null)
-			throw new NullPointerException();
-
-		this._put(fieldName, new IntNode(value));
-		return this;
-	}
-
-	public ObjectNode put(final String fieldName, final Double value) {
-		if (value == null)
-			throw new NullPointerException();
-
-		this._put(fieldName, new DoubleNode(value));
-		return this;
-	}
-
-	public ObjectNode put(final String fieldName, final BigDecimal value) {
-		if (value == null)
-			throw new NullPointerException();
-
-		this._put(fieldName, new DecimalNode(value));
-		return this;
-	}
-
-	public ObjectNode put(final String fieldName, final Boolean value) {
-		if (value == null)
-			throw new NullPointerException();
-
-		this._put(fieldName, value ? BooleanNode.TRUE : BooleanNode.FALSE);
+			this.children.put(fieldName, value);
 		return this;
 	}
 
@@ -116,10 +80,6 @@ public class ObjectNode extends JsonNode {
 		return sb;
 	}
 
-	private JsonNode _put(final String fieldName, final JsonNode value) {
-		return this.children.put(fieldName, value);
-	}
-
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -143,11 +103,6 @@ public class ObjectNode extends JsonNode {
 	}
 
 	@Override
-	public int getTypePos() {
-		return TYPES.ObjectNode.ordinal();
-	}
-
-	@Override
 	public void read(final DataInput in) throws IOException {
 		this.children.clear();
 		final int len = in.readInt();
@@ -157,7 +112,7 @@ public class ObjectNode extends JsonNode {
 			final String key = in.readUTF();
 
 			try {
-				node = TYPES.values()[in.readInt()].getClazz().newInstance();
+				node = Type.values()[in.readInt()].getClazz().newInstance();
 				node.read(in);
 				this.put(key, node.canonicalize());
 			} catch (final InstantiationException e) {
@@ -174,7 +129,7 @@ public class ObjectNode extends JsonNode {
 
 		for (final Entry<String, JsonNode> entry : this.children.entrySet()) {
 			out.writeUTF(entry.getKey());
-			out.writeInt(entry.getValue().getTypePos());
+			out.writeInt(entry.getValue().getType().ordinal());
 			entry.getValue().write(out);
 		}
 
@@ -204,8 +159,8 @@ public class ObjectNode extends JsonNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.ObjectNode;
+	public Type getType() {
+		return Type.ObjectNode;
 	}
 
 	@Override
@@ -237,6 +192,8 @@ public class ObjectNode extends JsonNode {
 	public ObjectNode clone() {
 		final ObjectNode clone = (ObjectNode) super.clone();
 		clone.children = new LinkedHashMap<String, JsonNode>(this.children);
+		for (Entry<String, JsonNode> entry : clone.children.entrySet())
+			entry.setValue(entry.getValue().clone());
 		return clone;
 	}
 

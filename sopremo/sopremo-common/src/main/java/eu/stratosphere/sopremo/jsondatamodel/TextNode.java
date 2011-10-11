@@ -26,6 +26,11 @@ public class TextNode extends JsonNode {
 	public TextNode(final String v) {
 		this.value = new PactString(v);
 	}
+	
+	@Override
+	public Object getJavaValue() {
+		return this.value.getValue();
+	}
 
 	public static TextNode valueOf(final String v) {
 		if (v == null)
@@ -75,11 +80,6 @@ public class TextNode extends JsonNode {
 	}
 
 	@Override
-	public int getTypePos() {
-		return TYPES.TextNode.ordinal();
-	}
-
-	@Override
 	public void read(final DataInput in) throws IOException {
 		this.value.read(in);
 	}
@@ -95,8 +95,8 @@ public class TextNode extends JsonNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.TextNode;
+	public Type getType() {
+		return Type.TextNode;
 	}
 
 	@Override

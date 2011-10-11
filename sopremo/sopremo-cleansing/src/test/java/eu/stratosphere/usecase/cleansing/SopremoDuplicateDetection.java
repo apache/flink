@@ -17,7 +17,7 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.FunctionCall;
+import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
@@ -34,9 +34,9 @@ public class SopremoDuplicateDetection {
 			"type" });
 
 		// block first 2 letters
-		EvaluationExpression firstTwoLettersEqual = new ComparativeExpression(new FunctionCall("substring",
+		EvaluationExpression firstTwoLettersEqual = new ComparativeExpression(new MethodCall("substring",
 			createPath("0", "name"), new ConstantExpression(IntNode.valueOf(0)), new ConstantExpression(
-				IntNode.valueOf(2))), BinaryOperator.EQUAL, new FunctionCall("substring",
+				IntNode.valueOf(2))), BinaryOperator.EQUAL, new MethodCall("substring",
 			createPath("1", "name"), new ConstantExpression(IntNode.valueOf(0)), new ConstantExpression(
 				IntNode.valueOf(2))));
 		EvaluationExpression condition = new AndExpression(firstTwoLettersEqual);
@@ -52,10 +52,10 @@ public class SopremoDuplicateDetection {
 				new ComparativeExpression(createPath("0", "name"), BinaryOperator.EQUAL, createPath("1", "name")));
 
 		// selection phone number equality
-		EvaluationExpression phone1 = new FunctionCall("replaceAll", createPath("0", "phone"),
+		EvaluationExpression phone1 = new MethodCall("replaceAll", createPath("0", "phone"),
 			new ConstantExpression(new TextNode("\\W")), new ConstantExpression(
 				new TextNode("")));
-		EvaluationExpression phone2 = new FunctionCall("replaceAll", createPath("1", "phone"),
+		EvaluationExpression phone2 = new MethodCall("replaceAll", createPath("1", "phone"),
 			new ConstantExpression(new TextNode("\\W")), new ConstantExpression(
 				new TextNode("")));
 		Selection phoneSimilarity = new Selection().withInputs(sim).

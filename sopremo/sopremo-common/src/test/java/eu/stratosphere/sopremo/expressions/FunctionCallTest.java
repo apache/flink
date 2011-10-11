@@ -1,6 +1,9 @@
 package eu.stratosphere.sopremo.expressions;
 
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+
+import java.util.Iterator;
+
 import junit.framework.Assert;
 
 import org.junit.Before;
@@ -12,13 +15,13 @@ import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
-public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
+public class FunctionCallTest extends EvaluableExpressionTest<MethodCall> {
 
 	private FunctionRegistry registry;
 
 	@Override
-	protected FunctionCall createDefaultInstance(final int index) {
-		return new FunctionCall(String.valueOf(index));
+	protected MethodCall createDefaultInstance(final int index) {
+		return new MethodCall(String.valueOf(index), MethodCall.NO_TARGET);
 	}
 
 	@Before
@@ -30,7 +33,7 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 
 	@Test
 	public void shouldCallFunction() {
-		final JsonNode result = new FunctionCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
+		final JsonNode result = new MethodCall("sum", MethodCall.NO_TARGET, new ArrayAccess(0), new ArrayAccess(1)).evaluate(
 			createArrayNode(1, 2), this.context);
 		Assert.assertEquals(new DoubleNode(3), result);
 	}
@@ -38,8 +41,10 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 	@Test
 	public void shouldGetIteratorOverAllParams() {
 
-		final FunctionCall func = new FunctionCall("sum");
-		func.iterator();
+		final MethodCall func = new MethodCall("sum", MethodCall.NO_TARGET);
+		Iterator<EvaluationExpression> iterator = func.iterator();
+
+		Assert.assertFalse(iterator.hasNext());
 
 	}
 

@@ -31,7 +31,7 @@ public class JsonNodeWrapper extends JsonNode {
 	@Override
 	public void read(DataInput in) throws IOException {
 		try {
-			this.value = TYPES.values()[in.readInt()].getClazz().newInstance();
+			this.value = Type.values()[in.readInt()].getClazz().newInstance();
 			this.value.read(in);
 		} catch (InstantiationException e) {
 			e.printStackTrace();
@@ -42,7 +42,7 @@ public class JsonNodeWrapper extends JsonNode {
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeInt(this.value.getTypePos());
+		out.writeInt(this.value.getType().ordinal());
 		this.value.write(out);
 	}
 
@@ -56,6 +56,11 @@ public class JsonNodeWrapper extends JsonNode {
 	}
 
 	@Override
+	public Object getJavaValue() {
+		return this.value.getJavaValue();
+	}
+
+	@Override
 	public int hashCode() {
 		return this.value.hashCode();
 	}
@@ -66,12 +71,7 @@ public class JsonNodeWrapper extends JsonNode {
 	}
 
 	@Override
-	public int getTypePos() {
-		return this.value.getTypePos();
-	}
-
-	@Override
-	public TYPES getType() {
+	public Type getType() {
 		return this.value.getType();
 	}
 

@@ -13,7 +13,7 @@ public class DecimalNode extends NumericNode {
 	 */
 	private static final long serialVersionUID = 5311351904115190425L;
 
-	protected BigDecimal value;
+	private BigDecimal value;
 
 	public DecimalNode() {
 		this.value = new BigDecimal(0);
@@ -32,6 +32,11 @@ public class DecimalNode extends NumericNode {
 	@Override
 	public StringBuilder toString(final StringBuilder sb) {
 		return sb.append(this.value);
+	}
+
+	@Override
+	public BigDecimal getJavaValue() {
+		return this.value;
 	}
 
 	@Override
@@ -55,11 +60,6 @@ public class DecimalNode extends NumericNode {
 		if (!this.value.equals(other.value))
 			return false;
 		return true;
-	}
-
-	@Override
-	public int getTypePos() {
-		return TYPES.DecimalNode.ordinal();
 	}
 
 	@Override
@@ -110,8 +110,8 @@ public class DecimalNode extends NumericNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.DecimalNode;
+	public Type getType() {
+		return Type.DecimalNode;
 	}
 
 	@Override

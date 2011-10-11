@@ -1,8 +1,8 @@
 package eu.stratosphere.sopremo.function;
 
-import eu.stratosphere.sopremo.Evaluable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 /**
@@ -10,7 +10,7 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
  * 
  * @author Arvid Heise
  */
-public abstract class Function implements Evaluable, SerializableSopremoType {
+public abstract class Function implements SerializableSopremoType {
 	/**
 	 * 
 	 */
@@ -42,6 +42,5 @@ public abstract class Function implements Evaluable, SerializableSopremoType {
 		return this.name + "()";
 	}
 
-	@Override
-	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
+	public abstract JsonNode evaluate(JsonNode target, ArrayNode params, EvaluationContext context);
 }

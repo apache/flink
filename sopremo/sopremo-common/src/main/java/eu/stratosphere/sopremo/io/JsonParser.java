@@ -319,12 +319,12 @@ public class JsonParser {
 		}
 
 		@Override
-		public int getTypePos() {
-			return 0;
+		public Object getJavaValue() {
+			return null;
 		}
 
 		@Override
-		public TYPES getType() {
+		public Type getType() {
 			return null;
 		}
 

@@ -13,6 +13,7 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 
 public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 
@@ -74,10 +75,10 @@ public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 				final ObjectNode node = new ObjectNode();
 				if (this.keyNames != null)
 					for (int i = 0; i < this.keyNames.length; i++)
-						node.put(this.keyNames[i], reader.get(i));
+						node.put(this.keyNames[i], TextNode.valueOf(reader.get(i)));
 				else
 					for (int i = 0; i < reader.getColumnCount(); i++)
-						node.put(String.format("key%d", i + 1), reader.get(i));
+						node.put(String.format("key%d", i + 1), TextNode.valueOf(reader.get(i)));
 				pair.setKey(SopremoUtil.wrap(pair.getKey()));
 				pair.setValue(SopremoUtil.wrap(node));
 				return true;

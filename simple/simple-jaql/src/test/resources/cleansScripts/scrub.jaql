@@ -11,4 +11,4 @@ $scrubbed_earmarks = scrub $dirty_earmarks with rules {
 	sponsorFirstName: [required,
 		NormalizeName($), 
 		lookup $ in $nick_names default $],
-}
+};

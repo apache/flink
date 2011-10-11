@@ -2,16 +2,21 @@ package eu.stratosphere.sopremo.jsondatamodel;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
-public class ObjectMapper {
+import eu.stratosphere.util.reflect.ReflectUtil;
+
+public class JavaToJsonMapper {
+	public static final JavaToJsonMapper INSTANCE = new JavaToJsonMapper();
 
 	private final HashMap<Class<? extends Object>, Constructor<? extends JsonNode>> typeDict = new HashMap<Class<? extends Object>, Constructor<? extends JsonNode>>();
 
-	public ObjectMapper() {
+	public JavaToJsonMapper() {
 		try {
 			this.typeDict.put(Integer.class, IntNode.class.getConstructor(Integer.TYPE));
 			this.typeDict.put(Long.class, LongNode.class.getConstructor(Long.TYPE));
@@ -25,18 +30,42 @@ public class ObjectMapper {
 		} catch (final NoSuchMethodException e) {
 			e.printStackTrace();
 		}
+	}
 
+	@SuppressWarnings("unchecked")
+	public Class<? extends JsonNode> classToJsonType(final Class<?> javaClass) {
+		if (JsonNode.class.isAssignableFrom(javaClass))
+			return (Class<? extends JsonNode>) javaClass;
+
+		if (javaClass == Void.TYPE)
+			return NullNode.class;
+
+		if (CharSequence.class.isAssignableFrom(javaClass))
+			return TextNode.class;
+
+		if (javaClass.isArray() || Collection.class.isAssignableFrom(javaClass))
+			return ArrayNode.class;
+
+		if (Map.class.isAssignableFrom(javaClass))
+			return ObjectNode.class;
+
+		if (ReflectUtil.isSameTypeOrPrimitive(javaClass, Boolean.class))
+			return BooleanNode.class;
+
+		return this.typeDict.get(ReflectUtil.getClassForPrimtive(javaClass)).getDeclaringClass();
 	}
 
 	public JsonNode valueToTree(final Object value) {
-
 		if (value == null)
 			return NullNode.getInstance();
+
 		final Class<? extends Object> valueClass = value.getClass();
 		if (value instanceof JsonNode)
 			return (JsonNode) value;
-		if (value instanceof StringBuilder)
-			return TextNode.valueOf(((StringBuilder) value).toString());
+
+		if (value instanceof CharSequence)
+			return TextNode.valueOf(value.toString());
+
 		if (valueClass.isArray()) {
 			final ArrayNode arrayNode = new ArrayNode();
 			final int length = Array.getLength(value);
@@ -44,22 +73,29 @@ public class ObjectMapper {
 				arrayNode.add(this.valueToTree(Array.get(value, i)));
 			return arrayNode;
 		}
+
+		if (Collection.class.isAssignableFrom(valueClass)) {
+			ArrayNode arrayNode = new ArrayNode();
+			for (Object element : (Collection<?>) value)
+				arrayNode.add(this.valueToTree(element));
+			return arrayNode;
+		}
+
+		if (Map.class.isAssignableFrom(valueClass)) {
+			ObjectNode objectNode = new ObjectNode();
+			for (Entry<?, ?> element : ((Map<?, ?>) value).entrySet())
+				objectNode.put(element.getKey().toString(), this.valueToTree(element.getValue()));
+			return objectNode;
+		}
+
 		if (value instanceof Boolean)
 			return BooleanNode.valueOf((Boolean) value);
+
 		try {
 			return this.typeDict.get(valueClass).newInstance(value);
-		} catch (final IllegalArgumentException e) {
-			e.printStackTrace();
-		} catch (final SecurityException e) {
-			e.printStackTrace();
-		} catch (final InstantiationException e) {
-			e.printStackTrace();
-		} catch (final IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (final InvocationTargetException e) {
-			e.printStackTrace();
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Cannot map object " + value + " to json node", e);
 		}
-		return NullNode.getInstance();
 
 	}
 

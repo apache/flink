@@ -51,6 +51,10 @@ public abstract class SopremoExpression<ContextType extends EvaluationContext, E
 
 	@SuppressWarnings("rawtypes")
 	private final static Iterator EMPTY_ITERATOR = Collections.EMPTY_LIST.iterator();
+	
+	public void inferSchema(JsonSchema requiredInput, JsonSchema output, ContextType context) {
+		
+	}
 
 	@SuppressWarnings("unchecked")
 	@Override

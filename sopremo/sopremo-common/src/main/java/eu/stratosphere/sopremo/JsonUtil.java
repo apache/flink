@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectMapper;
+import eu.stratosphere.sopremo.jsondatamodel.JavaToJsonMapper;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 
 /**
@@ -27,7 +27,7 @@ public class JsonUtil {
 	 * A general purpose {@link ObjectMapper}. No state of this mapper should be changed. If a specifically configured
 	 * ObjectMapper is needed, a new instance should be created.
 	 */
-	public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+	public static final JavaToJsonMapper OBJECT_MAPPER = new JavaToJsonMapper();
 
 	// /**
 	// * A general purpose {@link JsonNodeFactory}. No state of this node factory should be changed. If a specifically

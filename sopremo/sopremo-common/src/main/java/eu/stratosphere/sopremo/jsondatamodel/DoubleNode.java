@@ -10,14 +10,14 @@ import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 
-public class DoubleNode extends NumericNode {
+public class DoubleNode extends NumericNode{
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -192178456171338173L;
 
-	protected transient PactDouble value;
+	private transient PactDouble value;
 
 	public DoubleNode() {
 		this.value = new PactDouble();
@@ -29,6 +29,11 @@ public class DoubleNode extends NumericNode {
 
 	public DoubleNode(final float v) {
 		this.value = new PactDouble(v);
+	}
+	
+	@Override
+	public Double getJavaValue() {
+		return this.value.getValue();
 	}
 
 	public static DoubleNode valueOf(final double v) {
@@ -63,11 +68,6 @@ public class DoubleNode extends NumericNode {
 		if (Double.doubleToLongBits(this.value.getValue()) != Double.doubleToLongBits(other.value.getValue()))
 			return false;
 		return true;
-	}
-
-	@Override
-	public int getTypePos() {
-		return TYPES.DoubleNode.ordinal();
 	}
 
 	@Override
@@ -111,8 +111,8 @@ public class DoubleNode extends NumericNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.DoubleNode;
+	public Type getType() {
+		return Type.DoubleNode;
 	}
 
 	@Override

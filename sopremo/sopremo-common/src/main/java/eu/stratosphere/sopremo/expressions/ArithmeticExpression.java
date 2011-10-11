@@ -13,7 +13,7 @@ import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
 import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode.TYPES;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode.Type;
 import eu.stratosphere.sopremo.jsondatamodel.LongNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 
@@ -186,19 +186,19 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		private final String sign;
 
-		private final Map<JsonNode.TYPES, NumberEvaluator> typeEvaluators = new EnumMap<JsonNode.TYPES, NumberEvaluator>(
-			JsonNode.TYPES.class);
+		private final Map<JsonNode.Type, NumberEvaluator> typeEvaluators = new EnumMap<JsonNode.Type, NumberEvaluator>(
+			JsonNode.Type.class);
 
 		private ArithmeticOperator(final String sign, final NumberEvaluator integerEvaluator,
 				final NumberEvaluator longEvaluator,
 				final NumberEvaluator doubleEvaluator, final NumberEvaluator bigIntegerEvaluator,
 				final NumberEvaluator bigDecimalEvaluator) {
 			this.sign = sign;
-			this.typeEvaluators.put(JsonNode.TYPES.IntNode, integerEvaluator);
-			this.typeEvaluators.put(JsonNode.TYPES.LongNode, longEvaluator);
-			this.typeEvaluators.put(JsonNode.TYPES.DoubleNode, doubleEvaluator);
-			this.typeEvaluators.put(JsonNode.TYPES.BigIntegerNode, bigIntegerEvaluator);
-			this.typeEvaluators.put(JsonNode.TYPES.DecimalNode, bigDecimalEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.IntNode, integerEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.LongNode, longEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.DoubleNode, doubleEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.BigIntegerNode, bigIntegerEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.DecimalNode, bigDecimalEvaluator);
 		}
 
 		/**
@@ -211,7 +211,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 * @return the result of the operation
 		 */
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			final TYPES widerType = NumberCoercer.INSTANCE.getWiderType(left,
+			final Type widerType = NumberCoercer.INSTANCE.getWiderType(left,
 				right);
 			return this.typeEvaluators.get(widerType).evaluate(left, right);
 		}

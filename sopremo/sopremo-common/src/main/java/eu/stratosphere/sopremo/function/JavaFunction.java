@@ -1,15 +1,39 @@
 package eu.stratosphere.sopremo.function;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.JavaToJsonMapper;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.util.reflect.DynamicMethod;
 import eu.stratosphere.util.reflect.Signature;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class JavaFunction extends Function {
+	private final class AutoBoxingMethod extends DynamicMethod<JsonNode> {
+		private AutoBoxingMethod(String name) {
+			super(name);
+		}
+
+		@Override
+		protected Class<?>[] getSignatureTypes(Method member) {
+			Class<?>[] parameterTypes = super.getParameterTypes(member);
+			for (int index = 0; index < parameterTypes.length; index++)
+				parameterTypes[index] = JavaToJsonMapper.INSTANCE.classToJsonType(parameterTypes[index]);
+			return parameterTypes;
+		}
+
+		@Override
+		protected JsonNode invokeDirectly(Method method, Object context, Object[] params)
+				throws IllegalAccessException, InvocationTargetException {
+			for (int index = 0; index < params.length; index++)
+				params[index] = JavaToJsonMapper.INSTANCE.valueToTree(params[index]);
+			return JavaToJsonMapper.INSTANCE.valueToTree(super.invokeDirectly(method, context, params));
+		}
+	}
+
 	/**
 	 * 
 	 */
@@ -20,7 +44,7 @@ public class JavaFunction extends Function {
 	public JavaFunction(final String name) {
 		super(name);
 
-		this.method = new DynamicMethod<JsonNode>(name);
+		this.method = new AutoBoxingMethod(name);
 	}
 
 	public void addSignature(final Method method) {
@@ -32,20 +56,7 @@ public class JavaFunction extends Function {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		return this.method.invoke(null, this.getParams(node));
+	public JsonNode evaluate(final JsonNode targetNode, final ArrayNode paramNode, final EvaluationContext context) {
+		return this.method.invoke(targetNode, (Object[]) paramNode.toArray());
 	}
-
-	private Object[] getParams(final JsonNode node) {
-		JsonNode[] params;
-		if (node instanceof ArrayNode) {
-			params = new JsonNode[((ArrayNode) node).size()];
-
-			for (int index = 0; index < params.length; index++)
-				params[index] = ((ArrayNode) node).get(index);
-		} else
-			params = new JsonNode[] { node };
-		return params;
-	}
-
 }

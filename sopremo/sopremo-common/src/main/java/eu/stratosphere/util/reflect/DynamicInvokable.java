@@ -71,13 +71,9 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 	}
 
 	public void addSignature(final MemberType member) {
-		final Class<?>[] parameterTypes = this.getParameterTypes(member);
+		final Class<?>[] parameterTypes = this.getSignatureTypes(member);
 		Signature signature;
-		/*
-		 * if (parameterTypes.length == 1 && parameterTypes[0].isArray())
-		 * signature = new ArraySignature(parameterTypes[0]);
-		 * else
-		 */
+
 		if (this.isVarargs(member))
 			signature = new VarArgSignature(parameterTypes);
 		else
@@ -87,6 +83,10 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		// However, how often are method signatures actually added after first invocation?
 		this.cachedSignatures.clear();
 		this.cachedSignatures.putAll(this.originalSignatures);
+	}
+
+	protected Class<?>[] getSignatureTypes(MemberType member) {
+		return getParameterTypes(member);
 	}
 
 	protected abstract boolean isVarargs(final MemberType member);
@@ -139,7 +139,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 	}
 
 	public ReturnType invoke(final Object context, final Object... params) {
-		final Class<?>[] paramTypes = this.getParamTypes(params);
+		final Class<?>[] paramTypes = this.getActualParameterTypes(params);
 		final Signature signature = this.findBestSignature(new Signature(paramTypes));
 		if (signature == null)
 			throw new EvaluationException(String.format("No method %s found for parameter types %s", this.getName(),
@@ -147,10 +147,14 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		return this.invokeSignature(signature, context, params);
 	}
 
+	public ReturnType invokeStatic(final Object... params) {
+		return invoke(null, params);
+	}
+
 	public abstract Class<ReturnType> getReturnType();
 
 	public boolean isInvokableFor(Object... params) {
-		final Class<?>[] paramTypes = this.getParamTypes(params);
+		final Class<?>[] paramTypes = this.getActualParameterTypes(params);
 		return this.findBestSignature(new Signature(paramTypes)) != null;
 	}
 
@@ -166,7 +170,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 	protected abstract ReturnType invokeDirectly(final MemberType member, final Object context, Object[] params)
 			throws IllegalAccessException, InvocationTargetException, IllegalArgumentException, InstantiationException;
 
-	private Class<?>[] getParamTypes(final Object[] params) {
+	protected Class<?>[] getActualParameterTypes(final Object[] params) {
 		final Class<?>[] paramTypes = new Class<?>[params.length];
 		for (int index = 0; index < paramTypes.length; index++)
 			paramTypes[index] = params[index].getClass();

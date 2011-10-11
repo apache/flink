@@ -15,14 +15,14 @@ public class NullNode extends JsonNode {
 	 */
 	private static final long serialVersionUID = 5057162510515824922L;
 
-	private final static NullNode instance = new NullNode();
+	private final static NullNode Instance = new NullNode();
 
 	public NullNode() {
 
 	}
 
 	public static NullNode getInstance() {
-		return instance;
+		return Instance;
 	}
 
 	@Override
@@ -36,13 +36,8 @@ public class NullNode extends JsonNode {
 	}
 
 	@Override
-	public int getTypePos() {
-		return TYPES.NullNode.ordinal();
-	}
-
-	@Override
 	public NullNode canonicalize() {
-		return instance;
+		return Instance;
 	}
 
 	@Override
@@ -61,8 +56,18 @@ public class NullNode extends JsonNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.NullNode;
+	public Type getType() {
+		return Type.NullNode;
+	}
+
+	@Override
+	public JsonNode clone() {
+		return this;
+	}
+
+	@Override
+	public Object getJavaValue() {
+		return null;
 	}
 
 	@Override

@@ -52,12 +52,12 @@ public class ReflectUtil {
 	 * Returns the boxing class for the given primitive type. A primitive type returns true for
 	 * {@link Class#isPrimitive()}.
 	 * 
-	 * @param primitive
-	 *        the primitive type
-	 * @return the boxing class or null if the given class is not a primitive
+	 * @param type
+	 *        the type
+	 * @return the boxing class or type if the given class is not a primitive
 	 */
-	public static Class<?> getClassForPrimtive(final Class<?> primitive) {
-		return BoxingClasses.get(primitive);
+	public static Class<?> getClassForPrimtive(final Class<?> type) {
+		return type.isPrimitive() ? BoxingClasses.get(type)  : type;
 	}
 
 	/**
@@ -154,9 +154,7 @@ public class ReflectUtil {
 	 * @return the boxing class or null if the given class is not a primitive
 	 */
 	public static boolean isSameTypeOrPrimitive(final Class<?> type1, final Class<?> type2) {
-		final Class<?> t1 = type1.isPrimitive() ? getClassForPrimtive(type1) : type1;
-		final Class<?> t2 = type2.isPrimitive() ? getClassForPrimtive(type2) : type2;
-		return t1 == t2;
+		return getClassForPrimtive(type1) == getClassForPrimtive(type2);
 	}
 
 	/**
@@ -210,11 +208,15 @@ public class ReflectUtil {
 		return dynamicClass;
 	}
 
-	public static synchronized List<Method> getMethods(Class<?> clazz, String name, int modifiers) {
+	public static synchronized List<Method> getMethods(Class<?> clazz, String name, int... modifierBitsets) {
 		ArrayList<Method> methods = new ArrayList<Method>();
 		for (Method method : clazz.getMethods())
-			if ((name == null || method.getName().equals(name)) && (method.getModifiers() & modifiers) != 0)
+			if ((name == null || method.getName().equals(name))) {
+				for (int modifiers : modifierBitsets)
+					if ((method.getModifiers() & modifiers) != modifiers)
+						continue;
 				methods.add(method);
+			}
 		return methods;
 	}
 

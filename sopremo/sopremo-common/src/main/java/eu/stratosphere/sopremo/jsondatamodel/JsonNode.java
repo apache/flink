@@ -15,7 +15,7 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 	 */
 	private static final long serialVersionUID = 7164528435336585193L;
 
-	public enum TYPES {
+	public enum Type {
 		IntNode(IntNode.class, true),
 		LongNode(LongNode.class, true),
 		BigIntegerNode(BigIntegerNode.class, true),
@@ -32,7 +32,7 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 
 		private final boolean numeric;
 
-		private TYPES(final Class<? extends JsonNode> clazz, final boolean isNumeric) {
+		private Type(final Class<? extends JsonNode> clazz, final boolean isNumeric) {
 			this.clazz = clazz;
 			this.numeric = isNumeric;
 		}
@@ -47,9 +47,7 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 
 	};
 
-	public abstract int getTypePos();
-
-	public abstract JsonNode.TYPES getType();
+	public abstract JsonNode.Type getType();
 
 	public JsonNode canonicalize() {
 		return this;
@@ -58,8 +56,7 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 	@Override
 	public JsonNode clone() {
 		try {
-			final JsonNode clone = (JsonNode) super.clone();
-			return clone;
+			return (JsonNode) super.clone();
 		} catch (final CloneNotSupportedException e) {
 			return null;
 		}
@@ -86,6 +83,8 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 	public boolean isTextual() {
 		return false;
 	}
+
+	public abstract Object getJavaValue();
 
 	@Override
 	public int compareTo(final Key other) {

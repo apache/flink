@@ -1,19 +1,31 @@
 package eu.stratosphere.sopremo;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.sun.el.parser.BooleanNode;
 
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
 import eu.stratosphere.sopremo.aggregation.MaterializingAggregationFunction;
 import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
 import eu.stratosphere.sopremo.expressions.Scope;
+import eu.stratosphere.sopremo.function.AutoBoxingJavaFunction;
+import eu.stratosphere.sopremo.function.FunctionRegistry;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
@@ -22,13 +34,14 @@ import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.util.ConcatenatingIterator;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * Base built-in functions.
  * 
  * @author Arvid Heise
  */
-public class BuiltinFunctions {
+public class BuiltinFunctions implements FunctionRegistryCallback {
 	private static final NumericNode ZERO = new IntNode(0), ONE = new IntNode(1);
 
 	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
@@ -135,6 +148,7 @@ public class BuiltinFunctions {
 
 		return TextNode.valueOf(string.substring(fromPos, toPos));
 	}
+
 
 	// public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
 	// Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
@@ -280,4 +294,125 @@ public class BuiltinFunctions {
 				union.add(child);
 		return union;
 	}
+
+	private static Map<String, Class<? extends JsonNode>> typeNameToType = new HashMap<String, Class<? extends JsonNode>>();
+
+	static {
+		typeNameToType.put("string", TextNode.class);
+		typeNameToType.put("text", TextNode.class);
+		typeNameToType.put("int", IntNode.class);
+	}
+
+	public static JsonNode coerce(JsonNode input, TextNode type) {
+		return TypeCoercer.INSTANCE.coerce(input, typeNameToType.get(type));
+	}
+
+	public static JsonNode average(NumericNode... inputs) {
+		double sum = 0;
+
+		for (NumericNode numericNode : inputs) {
+			sum += ((DoubleNode) numericNode).getDoubleValue();
+		}
+
+		return DoubleNode.valueOf(sum / inputs.length);
+	}
+
+	public static JsonNode trim(TextNode input) {
+		return TextNode.valueOf(input.getTextValue().trim());
+	}
+
+	public static JsonNode split(TextNode input, TextNode splitString) {
+		String[] split = input.getTextValue().split(splitString.getTextValue());
+		ArrayNode splitNode = new ArrayNode();
+		for (String string : split)
+			splitNode.add(TextNode.valueOf(string));
+		return splitNode;
+	}
+
+	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
+		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
+		Matcher matcher = compiledPattern.matcher(input.getTextValue());
+
+		if (!matcher.find())
+			return defaultValue;
+
+		if (matcher.groupCount() == 0)
+			return TextNode.valueOf(matcher.group(0));
+
+		if (matcher.groupCount() == 1)
+			return TextNode.valueOf(matcher.group(1));
+
+		ArrayNode result = new ArrayNode();
+		for (int index = 1; index <= matcher.groupCount(); index++)
+			result.add(TextNode.valueOf(matcher.group(index)));
+		return result;
+	}
+
+	public static JsonNode extract(TextNode input, TextNode pattern) {
+		return extract(input, pattern, NullNode.getInstance());
+	}
+
+	public static JsonNode replace(TextNode input, TextNode search, TextNode replace) {
+		return TextNode.valueOf(input.getTextValue().replaceAll(search.getTextValue(), replace.getTextValue()));
+	}
+
+	public static JsonNode filter(ArrayNode input, JsonNode... elementsToFilter) {
+		ArrayNode output = new ArrayNode();
+		HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
+		for (int index = 0; index < input.size(); index++)
+			if (!filterSet.contains(input.get(index)))
+				output.add(input.get(index));
+		return output;
+	}
+	
+	@Override
+	public void registerFunctions(FunctionRegistry registry) {
+		List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
+		for (Method method : methods) 
+			registry.register(method);		
+	}
+
+	//
+	// public static JsonNode group(ArrayNode array, TextNode elementName) {
+	// return extract(input, pattern, NullNode.getInstance());
+	// }
+	//
+	// public static JsonNode aggregate(ArrayNode array, EvaluationExpression groupingExpression, EvaluationExpression
+	// aggregation) {
+	// final List<CompactArrayNode> nodes = new ArrayList<CompactArrayNode>();
+	// for (final JsonNode jsonNode : array)
+	// nodes.add(JsonUtil.asArray(groupingExpression.evaluate(jsonNode, null)));
+	// Collections.sort(nodes, JsonNodeComparator.INSTANCE);
+	// final ArrayNode arrayNode = new ArrayNode(null);
+	// arrayNode.addAll(nodes);
+	// return arrayNode;
+	// }
+
+	public static final AggregationFunction MIN = new TransitiveAggregationFunction("min", NullNode.getInstance()) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -8124401653435722884L;
+
+		@Override
+		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+			if (aggregate.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(node, aggregate))
+				return node;
+			return aggregate;
+		}
+	};
+
+	public static final AggregationFunction MAX = new TransitiveAggregationFunction("max", NullNode.getInstance()) {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -1735264603829085865L;
+
+		@Override
+		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+			if (aggregate.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(aggregate, node))
+				return node;
+			return aggregate;
+		}
+	};
 }

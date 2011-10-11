@@ -24,8 +24,8 @@ public class LongNode extends NumericNode {
 	}
 
 	@Override
-	public int getTypePos() {
-		return JsonNode.TYPES.LongNode.ordinal();
+	public Long getJavaValue() {
+		return this.value.getValue();
 	}
 
 	@Override
@@ -95,8 +95,8 @@ public class LongNode extends NumericNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.LongNode;
+	public Type getType() {
+		return Type.LongNode;
 	}
 
 	@Override

@@ -17,7 +17,7 @@ public class IntNode extends NumericNode {
 	 */
 	private static final long serialVersionUID = -4250062919293345310L;
 
-	protected transient PactInteger value;
+	private transient PactInteger value;
 
 	public IntNode() {
 		this.value = new PactInteger();
@@ -57,11 +57,6 @@ public class IntNode extends NumericNode {
 		if (!this.value.equals(other.value))
 			return false;
 		return true;
-	}
-
-	@Override
-	public int getTypePos() {
-		return TYPES.IntNode.ordinal();
 	}
 
 	@Override
@@ -110,8 +105,13 @@ public class IntNode extends NumericNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.IntNode;
+	public Integer getJavaValue() {
+		return this.value.getValue();
+	}
+
+	@Override
+	public Type getType() {
+		return Type.IntNode;
 	}
 
 	private void writeObject(final ObjectOutputStream out) throws IOException {

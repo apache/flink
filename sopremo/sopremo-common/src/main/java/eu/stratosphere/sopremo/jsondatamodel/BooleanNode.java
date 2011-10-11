@@ -15,7 +15,7 @@ public class BooleanNode extends JsonNode {
 
 	public final static BooleanNode FALSE = new BooleanNode(false);
 
-	protected boolean value;
+	private boolean value;
 
 	public BooleanNode() {
 		this.value = false;
@@ -23,7 +23,12 @@ public class BooleanNode extends JsonNode {
 
 	private BooleanNode(final boolean v) {
 		this.value = v;
-	};
+	}
+
+	@Override
+	public Boolean getJavaValue() {
+		return this.value;
+	}
 
 	public static BooleanNode valueOf(final boolean b) {
 
@@ -32,6 +37,11 @@ public class BooleanNode extends JsonNode {
 
 	public boolean getBooleanValue() {
 		return this == TRUE;
+	}
+
+	@Override
+	public JsonNode clone() {
+		return this;
 	}
 
 	@Override
@@ -63,11 +73,6 @@ public class BooleanNode extends JsonNode {
 	}
 
 	@Override
-	public int getTypePos() {
-		return TYPES.BooleanNode.ordinal();
-	}
-
-	@Override
 	public BooleanNode canonicalize() {
 		return this.value ? TRUE : FALSE;
 	}
@@ -83,8 +88,8 @@ public class BooleanNode extends JsonNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.BooleanNode;
+	public Type getType() {
+		return Type.BooleanNode;
 	}
 
 	@Override

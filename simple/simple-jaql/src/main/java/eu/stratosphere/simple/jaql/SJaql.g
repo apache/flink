@@ -9,19 +9,7 @@ options {
     superClass=SimpleParser;
 }
 
-tokens {	/*
-    SCRIPT;
-    ASSIGNMENT;
-    JSON_FIELD;
-    JSON_OBJECT;
-    FUNCTION_CALL;
-    OBJECT_EXPR;
-    METHOD_CALL;
-    FIELD;
-    ARRAY_ACCESS;
-    ARRAY_CREATION;
-    BIND;
-        */
+tokens {	
     EXPRESSION;
     OPERATOR;
 }

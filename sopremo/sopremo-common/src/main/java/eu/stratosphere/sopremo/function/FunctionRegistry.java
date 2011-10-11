@@ -9,8 +9,10 @@ import java.util.Map;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.FunctionRegistryCallback;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.util.reflect.ReflectUtil;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class FunctionRegistry implements SerializableSopremoType {
@@ -24,11 +26,12 @@ public class FunctionRegistry implements SerializableSopremoType {
 	public FunctionRegistry() {
 	}
 
-	public JsonNode evaluate(final String functionName, final JsonNode node, final EvaluationContext context) {
+	public JsonNode evaluate(final String functionName, final JsonNode targetNode, final ArrayNode params,
+			final EvaluationContext context) {
 		final Function function = this.getFunction(functionName);
 		if (function == null)
 			throw new EvaluationException(String.format("Unknown function %s", functionName));
-		return function.evaluate(node, context);
+		return function.evaluate(targetNode, params, context);
 	}
 
 	public Function getFunction(final String functionName) {
@@ -65,16 +68,26 @@ public class FunctionRegistry implements SerializableSopremoType {
 		List<Method> functions = getCompatibleMethods(
 			ReflectUtil.getMethods(javaFunctions, null, Modifier.STATIC | Modifier.PUBLIC));
 
-		for (Method method : functions) {
-			Function javaFunction = this.registeredFunctions.get(method.getName());
-			if (javaFunction == null)
-				this.registeredFunctions.put(method.getName(), javaFunction = new JavaFunction(method.getName()));
-			else if (!(javaFunction instanceof JavaFunction))
-				throw new IllegalArgumentException(String.format(
-					"a function with the name %s is already registered and not a java function: %s",
-					method.getName(), javaFunction));
-			((JavaFunction) javaFunction).addSignature(method);
-		}
+		for (Method method : functions) 
+			registerInternal(method);
+
+		if (FunctionRegistryCallback.class.isAssignableFrom(javaFunctions))
+			((FunctionRegistryCallback) ReflectUtil.newInstance(javaFunctions)).registerFunctions(this);
+	}
+
+	public void register(Method method) {
+		registerInternal(method);
+	}
+
+	private void registerInternal(Method method) {
+		Function javaFunction = this.registeredFunctions.get(method.getName());
+		if (javaFunction == null)
+			this.registeredFunctions.put(method.getName(), javaFunction = new JavaFunction(method.getName()));
+		else if (!(javaFunction instanceof JavaFunction))
+			throw new IllegalArgumentException(String.format(
+				"a function with the name %s is already registered and not a java function: %s",
+				method.getName(), javaFunction));
+		((JavaFunction) javaFunction).addSignature(method);
 	}
 
 	public static List<Method> getCompatibleMethods(List<Method> methods) {

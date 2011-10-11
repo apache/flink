@@ -13,7 +13,7 @@ public class BigIntegerNode extends NumericNode {
 	 */
 	private static final long serialVersionUID = 1758754799197009675L;
 
-	protected BigInteger value;
+	private BigInteger value;
 
 	public BigIntegerNode(final BigInteger v) {
 		this.value = v;
@@ -22,10 +22,10 @@ public class BigIntegerNode extends NumericNode {
 	public BigIntegerNode() {
 		this.value = BigInteger.ZERO;
 	}
-
+	
 	@Override
-	public int getTypePos() {
-		return JsonNode.TYPES.BigIntegerNode.ordinal();
+	public BigInteger getJavaValue() {
+		return this.value;
 	}
 
 	@Override
@@ -108,8 +108,8 @@ public class BigIntegerNode extends NumericNode {
 	}
 
 	@Override
-	public TYPES getType() {
-		return TYPES.BigIntegerNode;
+	public Type getType() {
+		return Type.BigIntegerNode;
 	}
 
 	@Override

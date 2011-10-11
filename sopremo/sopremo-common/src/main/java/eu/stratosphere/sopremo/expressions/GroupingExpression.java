@@ -1,4 +1,4 @@
-package eu.stratosphere.usecase.cleansing;
+package eu.stratosphere.sopremo.expressions;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,11 +7,10 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
-public class AggExpression extends EvaluationExpression {
+public class GroupingExpression extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -19,7 +18,7 @@ public class AggExpression extends EvaluationExpression {
 
 	private EvaluationExpression groupingExpression, resultExpression;
 
-	public AggExpression(EvaluationExpression groupingExpression, EvaluationExpression resultExpression) {
+	public GroupingExpression(EvaluationExpression groupingExpression, EvaluationExpression resultExpression) {
 		this.groupingExpression = groupingExpression;
 		this.resultExpression = resultExpression;
 	}
@@ -84,7 +83,7 @@ public class AggExpression extends EvaluationExpression {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		AggExpression other = (AggExpression) obj;
+		GroupingExpression other = (GroupingExpression) obj;
 		return this.groupingExpression.equals(other.groupingExpression)
 			&& this.resultExpression.equals(other.resultExpression);
 	}

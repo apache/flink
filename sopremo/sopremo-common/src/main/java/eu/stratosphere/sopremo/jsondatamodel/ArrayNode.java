@@ -6,20 +6,26 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
 
 public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
-
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 898220542834090837L;
 
-	protected ArrayList<JsonNode> children = new ArrayList<JsonNode>();
+	private List<JsonNode> children = new ArrayList<JsonNode>();
 
 	public ArrayNode() {
 	}
 
 	public ArrayNode(final JsonNode... nodes) {
+		for (final JsonNode node : nodes)
+			this.add(node);
+	}
+
+	public ArrayNode(final Collection<? extends JsonNode> nodes) {
 		for (final JsonNode node : nodes)
 			this.add(node);
 	}
@@ -30,42 +36,31 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 
 	public ArrayNode add(JsonNode node) {
 		if (node == null)
-			node = NullNode.getInstance();
-		this._add(node);
+			throw new NullPointerException();
+		this.children.add(node);
 		return this;
 	}
 
 	public JsonNode get(final int index) {
-		if (index >= 0 && index < this.children.size())
+		if (0 <= index && index < this.children.size())
 			return this.children.get(index);
-		return NullNode.getInstance();
+		throw new ArrayIndexOutOfBoundsException();
 	}
 
 	public JsonNode set(final int index, JsonNode node) {
 		if (node == null)
-			node = NullNode.getInstance();
-		return this._set(index, node);
+			throw new NullPointerException();
+		return this.children.set(index, node);
 	}
 
 	public JsonNode remove(final int index) {
-		if (index >= 0 && index < this.children.size())
+		if (0 <= index && index < this.children.size())
 			return this.children.remove(index);
-		return NullNode.getInstance();
+		throw new ArrayIndexOutOfBoundsException();
 	}
 
-	public ArrayNode removeAll() {
+	public void clear() {
 		this.children.clear();
-		return this;
-	}
-
-	private void _add(final JsonNode node) {
-		this.children.add(node);
-	}
-
-	private JsonNode _set(final int index, final JsonNode node) {
-		if (index < 0 || index >= this.children.size())
-			throw new IndexOutOfBoundsException("Illegal index " + index + ", array size " + this.children.size());
-		return this.children.set(index, node);
 	}
 
 	@Override
@@ -106,11 +101,6 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	}
 
 	@Override
-	public int getTypePos() {
-		return TYPES.ArrayNode.ordinal();
-	}
-
-	@Override
 	public void read(final DataInput in) throws IOException {
 		this.children.clear();
 		final int len = in.readInt();
@@ -118,7 +108,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		for (int i = 0; i < len; i++) {
 			JsonNode node;
 			try {
-				node = TYPES.values()[in.readInt()].getClazz().newInstance();
+				node = Type.values()[in.readInt()].getClazz().newInstance();
 				node.read(in);
 				this.add(node.canonicalize());
 			} catch (final InstantiationException e) {
@@ -130,11 +120,16 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	}
 
 	@Override
+	public List<JsonNode> getJavaValue() {
+		return this.children;
+	}
+
+	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.children.size());
 
 		for (final JsonNode child : this.children) {
-			out.writeInt(child.getTypePos());
+			out.writeInt(child.getType().ordinal());
 			child.write(out);
 		}
 	}
@@ -143,6 +138,9 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	public ArrayNode clone() {
 		final ArrayNode clone = (ArrayNode) super.clone();
 		clone.children = new ArrayList<JsonNode>(this.children);
+		ListIterator<JsonNode> listIterator = clone.children.listIterator();
+		while (listIterator.hasNext())
+			listIterator.set(listIterator.next().clone());
 		return clone;
 	}
 
@@ -154,12 +152,6 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	@Override
 	public boolean isArray() {
 		return true;
-	}
-
-	public ArrayNode addAll(final Collection<JsonNode> values) {
-		for (final JsonNode node : values)
-			this.add(node);
-		return this;
 	}
 
 	public boolean isEmpty() {
@@ -177,9 +169,15 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.toArray(new JsonNode[this.children.size()]);
 	}
 
+	public ArrayNode addAll(Collection<? extends JsonNode> c) {
+		for (JsonNode jsonNode : c)
+			add(jsonNode);
+		return this;
+	}
+
 	@Override
-	public TYPES getType() {
-		return TYPES.ArrayNode;
+	public Type getType() {
+		return Type.ArrayNode;
 	}
 
 	@Override
