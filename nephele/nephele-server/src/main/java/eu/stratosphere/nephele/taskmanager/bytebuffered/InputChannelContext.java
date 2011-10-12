@@ -47,6 +47,8 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
+	private int lastReceivedEnvelope = -1;
+
 	InputChannelContext(final InputGateContext inputGateContext,
 			final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel) {
@@ -155,10 +157,26 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
+	public void queueTransferEnvelope(final TransferEnvelope transferEnvelope) {
+
+		// The sequence number of the envelope to be queued
+		final int sequenceNumber = transferEnvelope.getSequenceNumber();
 
 		synchronized (this.queuedEnvelopes) {
+
+			if (sequenceNumber <= this.lastReceivedEnvelope) {
+
+				final Buffer buffer = transferEnvelope.getBuffer();
+				if (buffer != null) {
+					buffer.recycleBuffer();
+				}
+
+				return;
+			}
+
 			this.queuedEnvelopes.add(transferEnvelope);
+
+			this.lastReceivedEnvelope = sequenceNumber;
 		}
 
 		// Notify the channel about the new data
