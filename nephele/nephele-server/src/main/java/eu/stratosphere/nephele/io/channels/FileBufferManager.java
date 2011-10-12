@@ -72,7 +72,7 @@ public final class FileBufferManager {
 	private FileBufferManager() {
 
 		this.tmpDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":")[0];
 	}
 
 	private ReadableSpillingFile getReadableSpillingFile(final AbstractID ownerID, final FileID fileID)

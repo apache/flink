@@ -13,23 +13,31 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.testing;
-
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+package eu.stratosphere.nephele.template;
 
 /**
- * Trivial PACT stub which emits the pairs without modifications.
- * 
- * @author Arvid Heise
+ * An input task that processes generic input splits (partitions).
  */
-@SameKey
-public class IdentityMap extends MapStub<Key, Value, Key, Value> {
+public abstract class GenericInputTask extends AbstractInputTask<GenericInputSplit> {
+
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void map(Key key, Value value, Collector<Key, Value> out) {
-		out.collect(key, value);
+	public GenericInputSplit[] computeInputSplits(final int requestedMinNumber) throws Exception {
+		GenericInputSplit[] splits = new GenericInputSplit[requestedMinNumber];
+		for (int i = 0; i < requestedMinNumber; i++) {
+			splits[i] = new GenericInputSplit(i);
+		}
+		return splits;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Class<GenericInputSplit> getInputSplitType() {
+
+		return GenericInputSplit.class;
 	}
 }

@@ -15,21 +15,40 @@
 
 package eu.stratosphere.nephele.example.broadcast;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
 
 /**
  * This is a sample consumer task for the broadcast test job.
  * 
  * @author warneke
  */
-public class BroadcastConsumer extends AbstractFileOutputTask {
+public class BroadcastConsumer extends AbstractOutputTask {
+
+	/**
+	 * The key to access the output path configuration entry.
+	 */
+	public static final String OUTPUT_PATH_KEY = "broadcast.output.path";
+
+	/**
+	 * The key to access the output path configuration entry.
+	 */
+	public static final String TOPOLOGY_TREE_KEY = "broadcast.topology.tree";
+
+	/**
+	 * The key to access the instance type configuration entry.
+	 */
+	public static final String INSTANCE_TYPE_KEY = "broadcast.instance.type";
 
 	/**
 	 * The record record through which this task receives incoming records.
 	 */
-	private RecordReader<BroadcastRecord> input;
+	private MutableRecordReader<BroadcastRecord> input;
 
 	/**
 	 * {@inheritDoc}
@@ -37,7 +56,7 @@ public class BroadcastConsumer extends AbstractFileOutputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.input = new RecordReader<BroadcastRecord>(this, BroadcastRecord.class, new BipartiteDistributionPattern());
+		this.input = new MutableRecordReader<BroadcastRecord>(this, new BipartiteDistributionPattern());
 	}
 
 	/**
@@ -46,22 +65,49 @@ public class BroadcastConsumer extends AbstractFileOutputTask {
 	@Override
 	public void invoke() throws Exception {
 
-		int count = 1;
+		int i = 0;
 
-		while (this.input.hasNext()) {
+		final BroadcastRecord record = new BroadcastRecord();
 
-			final BroadcastRecord record = this.input.next();
+		// Open file
+		BufferedWriter writer = null;
 
-			// Check content of record
-			for (int i = 0; i < record.getSize(); i++) {
+		try {
 
-				if (record.getData(i) != i) {
-					throw new RuntimeException(count + "th record has unexpected byte " + record.getData(i)
-						+ " at position " + i);
+			writer = new BufferedWriter(new FileWriter(getFilename()));
+
+			while (this.input.next(record)) {
+
+				if ((i++ % BroadcastProducer.TIMESTAMP_INTERVAL) == 0) {
+					final long timestamp = record.getTimestamp();
+					writer.write((System.currentTimeMillis() - timestamp) + "\n");
 				}
+
 			}
 
-			++count;
+		} finally {
+
+			if (writer != null) {
+				writer.close();
+			}
 		}
+	}
+
+	/**
+	 * Constructs and returns the name of the file which is supposed to store the latency values.
+	 * 
+	 * @return the name of the file which is supposed to store the latency values
+	 */
+	private String getFilename() {
+
+		final String outputPath = getRuntimeConfiguration().getString(OUTPUT_PATH_KEY, "");
+		final String instanceType = getRuntimeConfiguration().getString(INSTANCE_TYPE_KEY, "unknown");
+		final String topologyTree = getRuntimeConfiguration().getString(TOPOLOGY_TREE_KEY, "unknown");
+		final int numberOfRecords = getRuntimeConfiguration().getInteger(BroadcastProducer.NUMBER_OF_RECORDS_KEY, 0);
+
+		return outputPath + File.separator + "latency_" + instanceType + "_" + topologyTree + "_"
+			+ getCurrentNumberOfSubtasks() + "_" + numberOfRecords + "_" + getIndexInSubtaskGroup() + "_"
+			+ getEnvironment().getJobID() + ".dat";
+
 	}
 }

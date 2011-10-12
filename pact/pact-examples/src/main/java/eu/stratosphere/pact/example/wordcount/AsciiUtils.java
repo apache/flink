@@ -20,7 +20,9 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 
 /**
- * 
+ * Utility class for efficient string operations on strings containing ASCII characters only. The Operations are more
+ * efficient, because they use a very simple encoding logic and operate on mutable objects, sparing object allocation
+ * and garbage collection overhead. 
  */
 public class AsciiUtils
 {
@@ -42,6 +44,15 @@ public class AsciiUtils
 		}
 	}
 	
+	/**
+	 * Replaces all non-word characters in a string by a given character. The only
+	 * characters not replaces are <code>A-Z, a-z, 0-9, and _</code>.
+	 * <p>
+	 * This operation is intended to simplify strings for counting distinct words.
+	 * 
+	 * @param string The pact string to have the non-word characters replaced.
+	 * @param replacement The character to use as the replacement.
+	 */
 	public static void replaceNonWordChars(PactString string, char replacement)
 	{
 		final char[] chars = string.getChars();
@@ -57,15 +68,28 @@ public class AsciiUtils
 	
 	// ============================================================================================
 	
+	/**
+	 * A tokenizer for pact strings that uses whitespace characters as token delimiters.
+	 * The tokenizer is designed to have a resettable state and operate on mutable objects,
+	 * sparing object allocation and garbage collection overhead.
+	 */
 	public static final class WhitespaceTokenizer implements MutableObjectIterator<PactString>
 	{		
-		private PactString toTokenize;
-		private int pos;
-		private int limit;
+		private PactString toTokenize;		// the string to tokenize
+		private int pos;					// the current position in the string
+		private int limit;					// the limit in the string's character data
 		
+		/**
+		 * Creates a new tokenizer with an undefined internal state.
+		 */
 		public WhitespaceTokenizer()
 		{}
 		
+		/**
+		 * Sets the string to be tokenized and resets the state of the tokenizer.
+		 * 
+		 * @param string The pact string to be tokenized.
+		 */
 		public void setStringToTokenize(PactString string)
 		{
 			this.toTokenize = string;
@@ -73,7 +97,13 @@ public class AsciiUtils
 			this.limit = string.length();
 		}
 		
-		/* (non-Javadoc)
+		/**
+		 * Gets the next token from the string. If another token is available, the token is stored
+		 * in the given target string object and <code>true</code> is returned. Otherwise,
+		 * the target object is left unchanged and <code>false</code> is returned.
+		 * 
+		 * @param target The PactString object to store the next token in.
+		 * @return True, if there was another token, false if not.
 		 * @see eu.stratosphere.pact.common.util.MutableObjectIterator#next(java.lang.Object)
 		 */
 		@Override
@@ -101,5 +131,8 @@ public class AsciiUtils
 	
 	// ============================================================================================
 	
+	/**
+	 * Private constructor to prevent instantiation, as this is a utility method encapsulating class.
+	 */
 	private AsciiUtils() {}
 }

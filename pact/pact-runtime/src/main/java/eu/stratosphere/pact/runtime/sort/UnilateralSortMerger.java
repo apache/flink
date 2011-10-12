@@ -756,21 +756,27 @@ public class UnilateralSortMerger implements SortMerger
 		if (LOG.isDebugEnabled())
 			LOG.debug("Performing merge of " + channelIDs.size() + " sorted streams.");
 		
-		final List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>(channelIDs.size());
-		
+		final List<ChannelReaderInputView> inViews = new ArrayList<ChannelReaderInputView>(channelIDs.size());
 		for (int i = 0; i < channelIDs.size(); i++) {
 			final Channel.ID id = channelIDs.get(i);
 			final List<MemorySegment> segsForChannel = inputSegments.get(i);
 			
 			// wrap channel reader as iterator
 			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(id);
-			final ChannelReaderInputView inView = new ChannelReaderInputView(reader, segsForChannel);
 			readerList.add(reader);
 			registerOpenChannelToBeRemovedAtShudown(reader);
 			unregisterChannelToBeRemovedAtShudown(id);
 			
-			final MutableObjectIterator<PactRecord> iterator = new ChannelReaderIterator(inView);
-			iterators.add(iterator);
+			final ChannelReaderInputView inView = new ChannelReaderInputView(reader, segsForChannel, false);
+			inViews.add(inView);
+		}
+		
+		
+		final List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>(channelIDs.size());
+		for (int i = 0; i < inViews.size(); i++) {
+			final ChannelReaderInputView inView = inViews.get(i);
+			inView.waitForFirstBlock();
+			iterators.add(new ChannelReaderIterator(inView));
 		}
 
 		return new MergeIterator(iterators, this.keyComparators, this.keyPositions, this.keyClasses);

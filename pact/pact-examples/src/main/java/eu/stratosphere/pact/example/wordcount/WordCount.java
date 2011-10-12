@@ -22,6 +22,7 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -62,8 +63,8 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * Writes a (String,Integer)-KeyValuePair to a string. The output format is:
-	 * "&lt;key&gt;|;&lt;value&gt;\n"
+	 * Writes <tt>PactRecord</tt> containing an string (word) and an integer (count) to a file.
+	 * The output format is: "&lt;word&gt; &lt;count&gt;\n"
 	 */
 	public static class WordCountOutFormat extends FileOutputFormat
 	{
@@ -83,10 +84,9 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * Converts a (String,Integer)-KeyValuePair into multiple KeyValuePairs. The
-	 * key string is tokenized by spaces. For each token a new
-	 * (String,Integer)-KeyValuePair is emitted where the Token is the key and
-	 * an Integer(1) is the value.
+	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
+	 * The string is tokenized by whitespaces. For each token a new record is emitted,
+	 * where the Token is the first field and an Integer(1) is the second field.
 	 */
 	public static class TokenizeLine extends MapStub
 	{
@@ -120,11 +120,10 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * Counts the number of values for a given key. Hence, the number of
-	 * occurrences of a given token (word) is computed and emitted. The key is
-	 * not modified, hence a SameKey OutputContract is attached to this class.
+	 * Sums up the counts for a certain given key. The counts are assumed to be at position <code>1</code>
+	 * in the record. The other fields are not modified.
 	 */
-//	@Combinable
+	@Combinable
 	public static class CountWords extends ReduceStub
 	{
 		private final PactInteger theInteger = new PactInteger();
@@ -138,7 +137,6 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 				element = records.next();
 				element.getField(1, this.theInteger);
 				// we could have equivalently used PactInteger i = record.getField(1, PactInteger.class);
-				
 				sum += this.theInteger.getValue();
 			}
 
@@ -147,9 +145,13 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 			out.collect(element);
 		}
 		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.ReduceStub#combine(java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
+		 */
 		@Override
 		public void combine(Iterator<PactRecord> records, Collector out) throws Exception
 		{
+			// the logic is the same as in the reduce function, so simply call the reduce method
 			this.reduce(records, out);
 		}
 	}
@@ -166,16 +168,12 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		String output    = (args.length > 2 ? args[2] : "");
 
 		FileDataSource source = new FileDataSource(LineInFormat.class, dataInput, "Input Lines");
-		source.setDegreeOfParallelism(noSubTasks);
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
-		mapper.setDegreeOfParallelism(noSubTasks);
 		ReduceContract reducer = new ReduceContract(CountWords.class, 0, PactString.class, mapper, "Count Words");
-		reducer.setDegreeOfParallelism(noSubTasks);
 		FileDataSink out = new FileDataSink(WordCountOutFormat.class, output, reducer, "Output");
-		out.setDegreeOfParallelism(noSubTasks);
 
 		Plan plan = new Plan(out, "WordCount Example");
-//		plan.setDefaultParallelism(noSubTasks);
+		plan.setDefaultParallelism(noSubTasks);
 		return plan;
 	}
 

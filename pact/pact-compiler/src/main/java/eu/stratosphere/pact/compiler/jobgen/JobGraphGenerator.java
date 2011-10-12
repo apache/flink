@@ -38,6 +38,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -46,6 +47,7 @@ import eu.stratosphere.pact.compiler.plan.CombinerNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.MapNode;
+import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
@@ -414,74 +416,62 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobTaskVertex generateMatchVertex(OptimizerNode matchNode) throws CompilerException {
+	private JobTaskVertex generateMatchVertex(OptimizerNode matchNode) throws CompilerException
+	{
+		MatchContract matchContract = ((MatchNode) matchNode).getPactContract();
+		
 		// create task vertex
 		JobTaskVertex matchVertex = new JobTaskVertex(matchNode.getPactContract().getName(), this.jobGraph);
-
+		
 		// get task configuration object
 		TaskConfig matchConfig = new TaskConfig(matchVertex.getConfiguration());
-		// set user code class
+		
 		matchConfig.setStubClass(matchNode.getPactContract().getUserCodeClass());
+		
+		matchConfig.setLocalStrategyKeyTypes(matchContract.getKeyClasses());
+		matchConfig.setLocalStrategyKeyTypes(0, matchContract.getKeyColumnNumbers(0));
+		matchConfig.setLocalStrategyKeyTypes(1, matchContract.getKeyColumnNumbers(1));
 
-		switch (matchNode.getLocalStrategy()) {
+		switch (matchNode.getLocalStrategy())
+		{
 		case SORT_BOTH_MERGE:
-			// set task class
 			matchVertex.setTaskClass(MatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 			break;
 		case SORT_FIRST_MERGE:
-			// set task class
 			matchVertex.setTaskClass(MatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 			break;
 		case SORT_SECOND_MERGE:
-			// set task class
 			matchVertex.setTaskClass(MatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 			break;
 		case MERGE:
-			// set task class
 			matchVertex.setTaskClass(MatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		case HYBRIDHASH_FIRST:
-			// set task class
 			matchVertex.setTaskClass(MatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			break;
 		case HYBRIDHASH_SECOND:
-			// set task class
 			matchVertex.setTaskClass(MatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 			break;
 		case MMHASH_FIRST:
-			// set task class
 			matchVertex.setTaskClass(MatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_FIRST);
 			break;
 		case MMHASH_SECOND:
-			// set task class
 			matchVertex.setTaskClass(MatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_SECOND);
 			break;
 		case SORT_SELF_NESTEDLOOP:
-			// set task class
 			matchVertex.setTaskClass(SelfMatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
 			break;
 		case SELF_NESTEDLOOP:
-			// set task class
 			matchVertex.setTaskClass(SelfMatchTask.class);
-			// set local strategy
 			matchConfig.setLocalStrategy(LocalStrategy.SELF_NESTEDLOOP);
 			break;
 		default:
