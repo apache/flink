@@ -59,8 +59,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 	private boolean brokerAggreedToCloseChannel = false;
 
-	private T bufferedRecord = null;
-
 	/**
 	 * The Decompressor-Object to decompress incoming data
 	 */
@@ -104,12 +102,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 */
 	private T deserializeNextRecord(final T target) throws IOException {
 
-		if (this.bufferedRecord != null) {
-			final T record = this.bufferedRecord;
-			this.bufferedRecord = null;
-			return record;
-		}
-
 		if (this.uncompressedDataBuffer == null) {
 
 			synchronized (this.synchronisationObject) {
@@ -134,8 +126,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 		if (this.uncompressedDataBuffer.remaining() == 0) {
 			releasedConsumedReadBuffer();
-			this.bufferedRecord = nextRecord;
-			return null;
 		}
 
 		return nextRecord;
@@ -180,7 +170,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 		// TODO: check for decompressor
 
-		if (this.bufferedRecord != null || this.uncompressedDataBuffer != null) {
+		if (this.uncompressedDataBuffer != null) {
 			return false;
 		}
 
@@ -221,7 +211,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 						}
 						this.synchronisationObject.wait(500);
 					}
-					this.bufferedRecord = null;
 				}
 			}
 		}
@@ -310,23 +299,23 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			this.decompressor.shutdown(getID());
 		}
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void activate() throws IOException, InterruptedException {
-		
+
 		transferEvent(new ByteBufferedChannelActivateEvent());
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public long getAmountOfDataTransmitted() {
-		
-		//TODO: Implement me
+
+		// TODO: Implement me
 		return 0L;
 	}
 }
