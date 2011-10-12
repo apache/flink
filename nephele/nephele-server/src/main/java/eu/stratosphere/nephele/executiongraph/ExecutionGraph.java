@@ -129,6 +129,8 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private List<ExecutionStageListener> executionStageListeners = new ArrayList<ExecutionStageListener>();
 
+	private List<ExecutionVertex> recovering = new ArrayList<ExecutionVertex>();
+	
 	/**
 	 * Private constructor used for duplicating execution vertices.
 	 * 
@@ -1446,5 +1448,10 @@ public class ExecutionGraph implements ExecutionListener {
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 
 		// Nothing to do here
+	}
+	
+	public List<ExecutionVertex> getFailedVertices() {
+
+		return this.recovering;
 	}
 }
