@@ -281,4 +281,22 @@ public class BuiltinFunctions {
 				union.add(child);
 		return union;
 	}
+	
+	/**
+	 * Adds the specified node to the array at the given index
+	 * 
+	 * @param array
+	 * 		the array which should be extended
+	 * @param node
+	 * 		the node to add
+	 * @param index
+	 * 		the position of the node
+	 * 			
+	 * @return array with the added node
+	 */
+	public static JsonNode add(JsonNode array, JsonNode node, int index){
+		((ArrayNode) array).add(index, node);
+		
+		return array;
+	}
 }

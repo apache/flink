@@ -35,6 +35,10 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this;
 	}
 
+	public void add(int index, JsonNode element) {
+		children.add(index, element);
+	}
+
 	public JsonNode get(final int index) {
 		if (index >= 0 && index < this.children.size())
 			return this.children.get(index);
