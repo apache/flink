@@ -349,7 +349,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				final ChannelContext cc = this.registeredChannels.get(localReceiver);
 				if (cc == null) {
-					throw new IOException("Cannot find channel context for local receiver " + localReceiver);
+					//TODO: Make this more robust, for example by introducing a separate map for failed channel IDs.
+					LOG.warn("Cannot find channel context for local receiver " + localReceiver);
+					continue;
 				}
 
 				if (!cc.isInputChannel()) {
