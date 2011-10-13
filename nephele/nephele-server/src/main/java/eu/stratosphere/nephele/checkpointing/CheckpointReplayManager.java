@@ -62,7 +62,12 @@ public class CheckpointReplayManager {
 
 	public boolean hasPartialCheckpointAvailable(final ExecutionVertexID vertexID) {
 
-		final File file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_0");
+		File file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_0");
+		if (file.exists()) {
+			return true;
+		}
+
+		file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_part");
 		if (file.exists()) {
 			return true;
 		}
@@ -74,7 +79,7 @@ public class CheckpointReplayManager {
 
 		final CheckpointReplayTask replayTask = new CheckpointReplayTask(vertexID, this.checkpointDirectory,
 			this.transferEnvelopeDispatcher, hasCompleteCheckpointAvailable(vertexID));
-		
+
 		replayTask.start();
 
 		LOG.info("Replaying checkpoint for vertex " + vertexID);

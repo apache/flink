@@ -84,7 +84,7 @@ class CheckpointReplayTask extends Thread {
 					return;
 				}
 
-				if (metaDataIndex == 0 || this.isCheckpointComplete) {
+				if (this.isCheckpointComplete) {
 					throw new FileNotFoundException("Cannot find meta data file " + metaDataIndex
 						+ " for checkpoint of vertex " + this.vertexID);
 				}

@@ -215,8 +215,30 @@ public class EphemeralCheckpoint {
 		}
 	}
 
+	private boolean renameCheckpointPart(final String checkpointDir) {
+
+		final File oldFile = new File(checkpointDir + File.separator
+			+ CheckpointReplayManager.METADATA_PREFIX + "_"
+			+ this.task.getVertexID() + "_part");
+
+		final File newFile = new File(checkpointDir + File.separator
+			+ CheckpointReplayManager.METADATA_PREFIX + "_"
+			+ this.task.getVertexID() + "_" + this.metaDataSuffix);
+
+		if (!oldFile.renameTo(newFile)) {
+			LOG.error("Unable to rename " + oldFile.getAbsoluteFile() + " to " + newFile.getAbsoluteFile());
+			return false;
+		}
+
+		return true;
+	}
+
 	private void writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
+
+		final String checkpointDir = GlobalConfiguration.getString(
+			CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
+			CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
 
 		final Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer != null) {
@@ -238,6 +260,9 @@ public class EphemeralCheckpoint {
 				this.metaDataFileChannel.close();
 				this.metaDataFileChannel = null;
 
+				// Rename file
+				renameCheckpointPart(checkpointDir);
+
 				// Increase the meta data suffix
 				++this.metaDataSuffix;
 			}
@@ -245,15 +270,12 @@ public class EphemeralCheckpoint {
 
 		if (this.metaDataFileChannel == null) {
 
-			final String checkpointDir = GlobalConfiguration.getString(
-				CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
-				CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Writing checkpointing meta data to directory " + checkpointDir);
 			}
 			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator
 				+ CheckpointReplayManager.METADATA_PREFIX
-				+ "_" + this.task.getVertexID() + "_" + this.metaDataSuffix);
+				+ "_" + this.task.getVertexID() + "_part");
 			this.metaDataFileChannel = fos.getChannel();
 		}
 
@@ -279,11 +301,10 @@ public class EphemeralCheckpoint {
 
 			if (this.metaDataFileChannel != null) {
 				this.metaDataFileChannel.close();
-			}
 
-			final String checkpointDir = GlobalConfiguration.getString(
-				CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
-				CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
+				// Rename file
+				renameCheckpointPart(checkpointDir);
+			}
 
 			new FileOutputStream(checkpointDir + File.separator + CheckpointReplayManager.METADATA_PREFIX + "_"
 				+ this.task.getVertexID() + "_final").close();
