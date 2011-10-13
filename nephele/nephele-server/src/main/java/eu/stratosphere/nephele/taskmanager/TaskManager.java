@@ -695,7 +695,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 
-		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED) {
+		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED ||newExecutionState == ExecutionState.FAILED) {
 
 			// In any of these states the task's thread will be terminated, so we remove the task from the running tasks
 			// map
@@ -705,9 +705,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// Unregister the task (free all buffers, remove all channels, task-specific class loaders, etc...
 			unregisterTask(id, task);
-		}
-		if (newExecutionState == ExecutionState.FAILED){
-			this.runningTasks.remove(id);
 		}
 		// Get lock on the jobManager object and propagate the state change
 		synchronized (this.jobManager) {
@@ -881,5 +878,17 @@ public class TaskManager implements TaskOperationProtocol {
 		};
 
 		timer.schedule(timerTask, 10L);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @throws IOException 
+	 */
+	@Override
+	public void restartTask(ExecutionVertexID id, Configuration jobConfiguration,
+			Environment environment, Set<ChannelID> activeOutputChannels) throws IOException {
+		unregisterTask(id, this.runningTasks.get(id));
+		submitTask(id, jobConfiguration, environment, activeOutputChannels);
+		
 	}
 }

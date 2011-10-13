@@ -89,53 +89,66 @@ public class RecoveryThread extends Thread {
 			ExecutionVertex failed = vertexIter.next();
 
 			LOG.info("Staring Recovery for " + failed);
-			findRestarts(failed);
+			//findRestarts(failed);
 			
-			/*List<ExecutionVertex> restart = findRestarts(failed);
+			List<ExecutionVertex> restart = findRestarts(failed);
 			
+			//restart all predecessors without checkpoint
 			Iterator<ExecutionVertex> restartIterator = restart.iterator();
 			while (restartIterator.hasNext()) {
 				ExecutionVertex vertex = restartIterator.next();
-
-				if (!vertex.equals(failed)) {
-					LOG.info("Restarting " + vertex.getName());
-					final SerializableArrayList<ExecutionVertexID> checkpointsToReplay = new SerializableArrayList<ExecutionVertexID>();
-					checkpointsToReplay.add(vertex.getID());
-
+				if(vertex.getID() != failed.getID()){
 					try {
-						vertex.getAllocatedResource().getInstance().replayCheckpoints(checkpointsToReplay);
-					} catch (Exception e) {
-						LOG.info("Catched Exception " + StringUtils.stringifyException(e) + "wihle restarting");
+						vertex.getAllocatedResource().getInstance().restartTask(vertex.getID(),this.job.getJobConfiguration(), vertex.getEnvironment(), vertex.constructInitialActiveOutputChannelsSet() );
+					} catch (IOException e) {
+						e.printStackTrace();
+						this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
+						return;
 					}
 				}
 
 			}
-			*/
-			
-			Iterator<ExecutionVertexID> checkpointIterator = this.globalConsistentCheckpoint.iterator();
-			//replay all necessary checkpoints
-			while (checkpointIterator.hasNext()) {
-				ExecutionVertexID checkpoint = checkpointIterator.next();
-				AbstractInstance instance = job.getVertexByID(checkpoint).getAllocatedResource().getInstance();
-
-					try {
-						replayCheckpoints.addAll(instance.replayCheckpoints(this.globalConsistentCheckpoint));
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+			//restart failed vertex
+			try {
+				failed.getAllocatedResource().getInstance().submitTask(failed.getID(), this.job.getJobConfiguration(), failed.getEnvironment(), failed.constructInitialActiveOutputChannelsSet());
+			} catch (IOException e1) {
+				e1.printStackTrace();
+				this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
+				return;
 			}
+
+			//get list of instances of consistencheckpoints
+			List<AbstractInstance> instances = new SerializableArrayList<AbstractInstance>();
+			for(ExecutionVertexID id : this.globalConsistentCheckpoint){
+				AbstractInstance instance = this.job.getVertexByID(id).getAllocatedResource().getInstance();
+				if(!instances.contains(instance)){
+					instances.add(instance);
+				}
+			}
+			Iterator<AbstractInstance> instanceIterator = instances.iterator();
+			while(instanceIterator.hasNext()){
+				//replay all necessary checkpoints
+				try {
+
+					replayCheckpoints.addAll(instanceIterator.next().replayCheckpoints(this.globalConsistentCheckpoint));
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			
 		}
 		for(CheckpointReplayResult replayResult : replayCheckpoints ){
 			if(replayResult.getReturnCode() == ReturnCode.ERROR){
 				LOG.info("Replay of Checkpoints return Error " + replayResult.getDescription() );
-				//this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
+				this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
 				return;
 			}
 		}
 		
 		this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.RERUNNING, null);
-		LOG.info("Recovery Finsihed");
+		LOG.info("Recovery Finished");
 	}
 
 	/**
@@ -155,26 +168,26 @@ public class RecoveryThread extends Thread {
 			if (!restart.contains(vertex)) {
 				restart.add(vertex);
 			}
-			for (int i = 0; i < vertex.getNumberOfSuccessors(); i++) {
-				//all successors must be restarted 
-				ExecutionVertex successor = vertex.getSuccessor(i);
-				restart.add(successor);
-				if (successor.getCheckpointState() == CheckpointState.PARTIAL) {
-					//these tasks will be restarted, delete checkpoints
-					this.checkpoints.remove(successor);
-					this.globalConsistentCheckpoint.remove(successor.getID());
-				}
-				//all followers must be restarted 
-				List<ExecutionVertex> follower = findFollowers(successor, restart);
-				restart.addAll(follower);
-				Iterator<ExecutionVertex> iter = follower.iterator();
-				while (iter.hasNext()) {
-					ExecutionVertex follow = iter.next();
-					if (!visited.contains(follow)) {
-						totest.add(follow);
-					}
-				}
-			}
+//			for (int i = 0; i < vertex.getNumberOfSuccessors(); i++) {
+//				//all successors must be restarted 
+//				ExecutionVertex successor = vertex.getSuccessor(i);
+//				restart.add(successor);
+//				if (successor.getCheckpointState() == CheckpointState.PARTIAL) {
+//					//these tasks will be restarted, delete checkpoints
+//					this.checkpoints.remove(successor);
+//					this.globalConsistentCheckpoint.remove(successor.getID());
+//				}
+//				//all followers must be restarted 
+//				List<ExecutionVertex> follower = findFollowers(successor, restart);
+//				restart.addAll(follower);
+//				Iterator<ExecutionVertex> iter = follower.iterator();
+//				while (iter.hasNext()) {
+//					ExecutionVertex follow = iter.next();
+//					if (!visited.contains(follow)) {
+//						totest.add(follow);
+//					}
+//				}
+//			}
 			//predecessors must be either checkpoints or need to be restarted too
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
 				ExecutionVertex predecessor = vertex.getPredecessor(j);
@@ -189,26 +202,21 @@ public class RecoveryThread extends Thread {
 						this.globalConsistentCheckpoint.add(predecessor.getID());
 					}
 
-					List<ExecutionVertex> follower = findFollowers(predecessor, restart);
-					for (int i = 0; i < follower.size(); i++) {
-						LOG.info("add " + follower.get(i) + " torestart");
-					}
-					restart.addAll(follower);
-					Iterator<ExecutionVertex> iter = follower.iterator();
-					while (iter.hasNext()) {
-						ExecutionVertex follow = iter.next();
-						if (!visited.contains(follow)) {
-							LOG.info("add totest" + follow.getName());
-							totest.add(follow);
-						}
-					}
+					
+//					List<ExecutionVertex> follower = findFollowers(predecessor, restart);
+//					restart.addAll(follower);
+//					Iterator<ExecutionVertex> iter = follower.iterator();
+//					while (iter.hasNext()) {
+//						ExecutionVertex follow = iter.next();
+//						if (!visited.contains(follow)) {
+//							totest.add(follow);
+//						}
+//					}
 
 				}
 			}
 			visited.add(vertex);
 		}
-
-		LOG.info("finderestartsfinished");
 
 		return restart;
 	}

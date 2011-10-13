@@ -39,6 +39,7 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
+import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
  * An abstract instance represents a resource a {@link eu.stratosphere.nephele.taskmanager.TaskManager} runs on.
@@ -304,5 +305,18 @@ public abstract class AbstractInstance extends NetworkNode {
 	public synchronized void killTaskManager() throws IOException {
 
 		getTaskManager().killTaskManager();
+	}
+
+	/**
+	 * @param executionVertexID 
+	 * @param serializableHashSet 
+	 * @param environment 
+	 * @param configuration 
+	 * @throws IOException 
+	 * 
+	 */
+	public void restartTask(final ExecutionVertexID id,	final Configuration jobConfiguration,
+			final Environment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
+		getTaskManager().restartTask(id, jobConfiguration, environment, activeOutputChannels);
 	}
 }
