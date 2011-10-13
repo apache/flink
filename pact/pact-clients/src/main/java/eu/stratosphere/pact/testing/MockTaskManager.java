@@ -196,4 +196,9 @@ class MockTaskManager implements TaskOperationProtocol {
 		// TODO Auto-generated method stub
 		
 	}
+
+	@Override
+	public void restartTask(ExecutionVertexID executionVertexID, Configuration jobConfiguration,
+			Environment environment, Set<ChannelID> activeOutputChannels) throws IOException {
+	}
 }
