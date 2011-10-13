@@ -164,7 +164,7 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		synchronized (this.queuedEnvelopes) {
 
-			if (sequenceNumber <= this.lastReceivedEnvelope) {
+			if (sequenceNumber != (this.lastReceivedEnvelope + 1)) {
 
 				final Buffer buffer = transferEnvelope.getBuffer();
 				if (buffer != null) {
