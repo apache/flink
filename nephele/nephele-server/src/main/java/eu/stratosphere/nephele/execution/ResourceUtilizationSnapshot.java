@@ -41,8 +41,13 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 	 * Stores the utilization of task's output channels at the time when the snapshot was created.
 	 */
 	private final Map<ChannelID, Long> channelUtilization;
+	
+	/**
+	 * userCPu Time in percent
+	 */
+	private long userCPU;
 
-	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization) {
+	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU) {
 
 		if (timestamp <= 0L) {
 			throw new IllegalArgumentException("Argument timestamp must be larger than zero");
@@ -54,6 +59,7 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 
 		this.timestamp = timestamp;
 		this.channelUtilization = channelUtilization;
+		this.userCPU = userCPU;
 	}
 
 	public ResourceUtilizationSnapshot() {
@@ -127,5 +133,15 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		}
 
 		return l.longValue();
+	}
+
+
+	/**
+	 * Returns the userCPU.
+	 * 
+	 * @return the userCPU
+	 */
+	public long getUserCPU() {
+		return this.userCPU;
 	}
 }

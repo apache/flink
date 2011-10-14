@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -48,6 +50,8 @@ public class Task implements ExecutionObserver {
 	 */
 	private static final Log LOG = LogFactory.getLog(Task.class);
 
+	private static final long NANO_TO_MILLISECONDS = 1000 * 1000;
+	
 	private final ExecutionVertexID vertexID;
 
 	private final Environment environment;
@@ -65,6 +69,8 @@ public class Task implements ExecutionObserver {
 	private volatile ExecutionState executionState = ExecutionState.STARTING;
 
 	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
+
+	private long startTime;
 
 	Task(final ExecutionVertexID vertexID, final Environment environment, final TaskManager taskManager) {
 
@@ -104,8 +110,8 @@ public class Task implements ExecutionObserver {
 	 */
 	private String getTaskName() {
 
-		return this.environment.getTaskName() + " (" + (environment.getIndexInSubtaskGroup() + 1) + "/"
-			+ environment.getCurrentNumberOfSubtasks() + ")";
+		return this.environment.getTaskName() + " (" + (this.environment.getIndexInSubtaskGroup() + 1) + "/"
+			+ this.environment.getCurrentNumberOfSubtasks() + ")";
 	}
 
 	/**
@@ -218,6 +224,7 @@ public class Task implements ExecutionObserver {
 
 		final Thread thread = this.environment.getExecutingThread();
 		thread.start();
+		this.startTime = System.currentTimeMillis();
 	}
 
 	/**
@@ -241,6 +248,11 @@ public class Task implements ExecutionObserver {
 
 		// Construct a resource utilization snapshot
 		final long timestamp = System.currentTimeMillis();
+		//Get CPU-Usertime in percent
+		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+		long userCPU = (threadBean.getCurrentThreadUserTime()/NANO_TO_MILLISECONDS) * 100 / (timestamp - this.startTime);
+		
+		//collect outputChannelUtilization
 		final Map<ChannelID, Long> outputChannelUtilization = new HashMap<ChannelID, Long>();
 
 		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
@@ -251,8 +263,8 @@ public class Task implements ExecutionObserver {
 					Long.valueOf(outputChannel.getAmountOfDataTransmitted()));
 			}
 		}
-
-		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization);
+		
+		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization, userCPU);
 
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
