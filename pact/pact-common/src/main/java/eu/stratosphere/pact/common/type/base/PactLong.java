@@ -152,7 +152,9 @@ public class PactLong implements Key, NormalizableKey
 	{
 		if (len == 8) {
 			// default case, full normalized key
-			target[offset    ] = (byte) (value >>> 56);
+			long highByte = ((value >>> 56) & 0xff);
+			highByte -= Byte.MIN_VALUE;
+			target[offset    ] = (byte) highByte;
 			target[offset + 1] = (byte) (value >>> 48);
 			target[offset + 2] = (byte) (value >>> 40);
 			target[offset + 3] = (byte) (value >>> 32);
@@ -161,13 +163,21 @@ public class PactLong implements Key, NormalizableKey
 			target[offset + 6] = (byte) (value >>>  8);
 			target[offset + 7] = (byte) (value       );
 		}
+		else if (len <= 0) {
+		}
 		else if (len < 8) {
-			for (int i = 0; len > 0; len--, i++) {
+			long highByte = ((value >>> 56) & 0xff);
+			highByte -= Byte.MIN_VALUE;
+			target[offset] = (byte) highByte;
+			len--;
+			for (int i = 1; len > 0; len--, i++) {
 				target[offset + i] = (byte) (value >>> ((7-i)<<3));
 			}
 		}
 		else {
-			target[offset    ] = (byte) (value >>> 56);
+			long highByte = ((value >>> 56) & 0xff);
+			highByte -= Byte.MIN_VALUE;
+			target[offset    ] = (byte) highByte;
 			target[offset + 1] = (byte) (value >>> 48);
 			target[offset + 2] = (byte) (value >>> 40);
 			target[offset + 3] = (byte) (value >>> 32);

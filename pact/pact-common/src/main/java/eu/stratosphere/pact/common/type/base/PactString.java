@@ -103,7 +103,8 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Returns this PactString's internal character data.
+	 * Returns this PactString's internal character data. The array might be larger than the string
+	 * which is currently stored in the PactString.
 	 * 
 	 * @return The character data.
 	 */
@@ -390,7 +391,12 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	@Override
 	public char charAt(int index)
 	{
-		return this.value[index];
+		if (index < len) {
+			return this.value[index];	
+		}
+		else {
+			throw new IndexOutOfBoundsException();
+		}
 	}
 
 	/* (non-Javadoc)

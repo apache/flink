@@ -30,7 +30,7 @@ package eu.stratosphere.pact.common.type;
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface NormalizableKey
+public interface NormalizableKey extends Key
 {
 	/**
 	 * Gets the maximal length of normalized keys produced by this data type.

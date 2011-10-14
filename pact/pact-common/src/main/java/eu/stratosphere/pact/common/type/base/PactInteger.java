@@ -150,18 +150,28 @@ public class PactInteger implements Key, NormalizableKey
 	{
 		if (len == 4) {
 			// default case, full normalized key
-			target[offset    ] = (byte) ((value >>> 24) & 0xff);
+			int highByte = ((value >>> 24) & 0xff);
+			highByte -= Byte.MIN_VALUE;
+			target[offset    ] = (byte) highByte;
 			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
 			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
 			target[offset + 3] = (byte) ((value       ) & 0xff);
 		}
+		else if (len <= 0) {
+		}
 		else if (len < 4) {
-			for (int i = 0; len > 0; len--, i++) {
+			int highByte = ((value >>> 24) & 0xff);
+			highByte -= Byte.MIN_VALUE;
+			target[offset    ] = (byte) highByte;
+			len--;
+			for (int i = 1; len > 0; len--, i++) {
 				target[offset + i] = (byte) ((value >>> ((3-i)<<3)) & 0xff);
 			}
 		}
 		else {
-			target[offset    ] = (byte) ((value >>> 24) & 0xff);
+			int highByte = ((value >>> 24) & 0xff);
+			highByte -= Byte.MIN_VALUE;
+			target[offset    ] = (byte) highByte;
 			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
 			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
 			target[offset + 3] = (byte) ((value       ) & 0xff);
