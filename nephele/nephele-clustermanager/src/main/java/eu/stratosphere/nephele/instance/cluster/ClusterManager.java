@@ -105,7 +105,7 @@ public class ClusterManager implements InstanceManager {
 	/**
 	 * The key to extract the configuration directory from the global configuration.
 	 */
-	private final static String CONFIG_DIR_KEY = "config.dir";
+	private static final String CONFIG_DIR_KEY = "config.dir";
 
 	/**
 	 * Default duration after which a host is purged in case it did not send
@@ -187,7 +187,7 @@ public class ClusterManager implements InstanceManager {
 	private final NetworkTopology networkTopology;
 
 	/**
-	 * Object that is notified if instances become available or vanish
+	 * Object that is notified if instances become available or vanish.
 	 */
 	private InstanceListener instanceListener;
 
@@ -207,7 +207,9 @@ public class ClusterManager implements InstanceManager {
 
 			synchronized (ClusterManager.this) {
 
-				final List<Map.Entry<InstanceConnectionInfo, ClusterInstance>> hostsToRemove = new ArrayList<Map.Entry<InstanceConnectionInfo, ClusterInstance>>();
+				final List<Map.Entry<InstanceConnectionInfo, ClusterInstance>> hostsToRemove =
+					new ArrayList<Map.Entry<InstanceConnectionInfo, ClusterInstance>>();
+
 				final Map<JobID, List<AllocatedResource>> staleResources = new HashMap<JobID, List<AllocatedResource>>();
 
 				// check all hosts whether they did not send heat-beat messages.
@@ -896,6 +898,12 @@ public class ClusterManager implements InstanceManager {
 		}
 	}
 
+	/**
+	 * Removes all slices allocated to the job with the given ID and releases the corresponding resources.
+	 * 
+	 * @param jobID
+	 *        the ID of the job to remove all allocated slices for
+	 */
 	private void removeAllSlicesOfJob(final JobID jobID) {
 
 		final List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.remove(jobID);
