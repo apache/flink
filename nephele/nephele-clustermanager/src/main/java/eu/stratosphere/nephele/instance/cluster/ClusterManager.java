@@ -24,6 +24,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -173,6 +174,12 @@ public class ClusterManager implements InstanceManager {
 	 * Map of IP addresses to instance types.
 	 */
 	private final Map<InetAddress, InstanceType> ipToInstanceTypeMapping = new HashMap<InetAddress, InstanceType>();
+
+	/**
+	 * Map of pending requests of a job, i.e. the instance requests that could not be fulfilled during the initial
+	 * instance request.
+	 */
+	private final Map<JobID, PendingRequestsMap> pendingRequestsOfJob = new LinkedHashMap<JobID, PendingRequestsMap>();
 
 	/**
 	 * The network topology of the cluster.
@@ -556,6 +563,9 @@ public class ClusterManager implements InstanceManager {
 		if (slicesOfJob.isEmpty()) {
 			this.slicesOfJobs.remove(jobID);
 		}
+
+		// Check pending requests
+		checkPendingRequests();
 	}
 
 	/**
@@ -701,9 +711,119 @@ public class ClusterManager implements InstanceManager {
 
 			// Update the list of instance type descriptions
 			updateInstaceTypeDescriptionMap();
+
+			// Check if a pending request can be fulfilled by the new host
+			checkPendingRequests();
 		}
 
 		host.reportHeartBeat();
+	}
+
+	/**
+	 * Checks if a pending request can be fulfilled.
+	 */
+	private void checkPendingRequests() {
+
+		final Iterator<Map.Entry<JobID, PendingRequestsMap>> it = this.pendingRequestsOfJob.entrySet().iterator();
+		while (it.hasNext()) {
+
+			final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
+			final Map.Entry<JobID, PendingRequestsMap> entry = it.next();
+			final JobID jobID = entry.getKey();
+			final PendingRequestsMap pendingRequestsMap = entry.getValue();
+			final Iterator<Map.Entry<InstanceType, Integer>> it2 = pendingRequestsMap.iterator();
+			while (it2.hasNext()) {
+
+				final Map.Entry<InstanceType, Integer> entry2 = it2.next();
+				final InstanceType requestedInstanceType = entry2.getKey();
+				int numberOfPendingInstances = entry2.getValue().intValue();
+
+				// Consistency check
+				if (numberOfPendingInstances <= 0) {
+					LOG.error("Inconsistency: Job " + jobID + " has " + numberOfPendingInstances
+						+ " requests for instance type " + requestedInstanceType.getIdentifier());
+					continue;
+				}
+
+				while (numberOfPendingInstances > 0) {
+
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Trying to allocate instance of type " + requestedInstanceType.getIdentifier());
+					}
+
+					// TODO: Introduce topology awareness here
+					final AllocatedSlice slice = getSliceOfType(jobID, requestedInstanceType);
+					if (slice == null) {
+						break;
+					} else {
+
+						LOG.info("Allocated instance of type " + requestedInstanceType.getIdentifier()
+							+ " as a result of pending request for job " + jobID);
+
+						// Decrease number of pending instances
+						--numberOfPendingInstances;
+						pendingRequestsMap.decreaseNumberOfPendingInstances(requestedInstanceType);
+
+						List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.get(jobID);
+						if (allocatedSlices == null) {
+							allocatedSlices = new ArrayList<AllocatedSlice>();
+							this.slicesOfJobs.put(jobID, allocatedSlices);
+						}
+						allocatedSlices.add(slice);
+
+						allocatedResources.add(new AllocatedResource(slice.getHostingInstance(), slice.getType(), slice
+							.getAllocationID()));
+					}
+				}
+			}
+
+			if (!allocatedResources.isEmpty() && this.instanceListener != null) {
+
+				final ClusterInstanceNotifier clusterInstanceNotifier = new ClusterInstanceNotifier(
+					this.instanceListener, jobID, allocatedResources);
+
+				clusterInstanceNotifier.start();
+			}
+		}
+	}
+
+	/**
+	 * Attempts to allocate a slice of the given type for the given job. The method first attempts to allocate this
+	 * slice by finding a physical host which exactly matches the given instance type. If this attempt failed, it tries
+	 * to allocate the slice by partitioning the resources of a more powerful host.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the slice shall be allocated for
+	 * @param instanceType
+	 *        the instance type of the requested slice
+	 * @return the allocated slice or <code>null</code> if no such slice could be allocated
+	 */
+	private AllocatedSlice getSliceOfType(final JobID jobID, final InstanceType instanceType) {
+
+		AllocatedSlice slice = null;
+
+		// Try to match the instance type without slicing first
+		for (final ClusterInstance host : this.registeredHosts.values()) {
+			if (host.getType().equals(instanceType)) {
+				slice = host.createSlice(instanceType, jobID);
+				if (slice != null) {
+					break;
+				}
+			}
+		}
+
+		// Use slicing now if necessary
+		if (slice == null) {
+
+			for (final ClusterInstance host : this.registeredHosts.values()) {
+				slice = host.createSlice(instanceType, jobID);
+				if (slice != null) {
+					break;
+				}
+			}
+		}
+
+		return slice;
 	}
 
 	/**
@@ -730,35 +850,29 @@ public class ClusterManager implements InstanceManager {
 
 				// TODO: Introduce topology awareness here
 				// TODO: Daniel: Code taken from AbstractScheduler..
-				AllocatedSlice slice = null;
-
-				// Try to match the instance type without slicing first
-				for (final ClusterInstance host : this.registeredHosts.values()) {
-					if (host.getType().equals(entry.getKey())) {
-						slice = host.createSlice(entry.getKey(), jobID);
-						if (slice != null) {
-							break;
-						}
-					}
-				}
-
-				// Use slicing now if necessary
-				if (slice == null) {
-
-					for (final ClusterInstance host : this.registeredHosts.values()) {
-						slice = host.createSlice(entry.getKey(), jobID);
-						if (slice != null) {
-							break;
-						}
-					}
-
-				}
+				final AllocatedSlice slice = getSliceOfType(jobID, entry.getKey());
 
 				if (slice == null) {
 					if (i < instanceRequestMap.getMinimumNumberOfInstances(entry.getKey())) {
 						removeAllSlicesOfJob(jobID);
 						throw new InstanceException("Could not find a suitable instance");
 					} else {
+
+						// Remaining instances are pending
+						final int numberOfRemainingInstances = maximumNumberOfInstances - i;
+						if (numberOfRemainingInstances > 0) {
+
+							// Get pending requests map for this job
+							PendingRequestsMap pendingRequests = this.pendingRequestsOfJob.get(jobID);
+							if (pendingRequests == null) {
+								pendingRequests = new PendingRequestsMap();
+								this.pendingRequestsOfJob.put(jobID, pendingRequests);
+							}
+
+							// Store the request for the missing instances
+							pendingRequests.addRequest(entry.getKey(), numberOfRemainingInstances);
+						}
+
 						break;
 					}
 				}
@@ -788,6 +902,9 @@ public class ClusterManager implements InstanceManager {
 		for (final AllocatedSlice slice : allocatedSlices) {
 			slice.getHostingInstance().removeAllocatedSlice(slice.getAllocationID());
 		}
+
+		// Remove all pending requests of the job
+		this.pendingRequestsOfJob.remove(jobID);
 	}
 
 	/**
@@ -995,5 +1112,15 @@ public class ClusterManager implements InstanceManager {
 		}
 
 		return null;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public synchronized void cancelPendingRequests(final JobID jobID) {
+
+		// Simple remove the entire map
+		this.pendingRequestsOfJob.remove(jobID);
 	}
 }

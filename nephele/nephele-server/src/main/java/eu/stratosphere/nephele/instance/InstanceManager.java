@@ -152,6 +152,14 @@ public interface InstanceManager {
 	AbstractInstance getInstanceByName(String name);
 
 	/**
+	 * Cancels all pending instance requests that might still exist for the job with the given ID.
+	 * 
+	 * @param jobID
+	 *        the ID of the job to cancel the pending instance requests for
+	 */
+	void cancelPendingRequests(JobID jobID);
+
+	/**
 	 * Shuts the instance manager down and stops all its internal processes.
 	 */
 	void shutdown();

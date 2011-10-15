@@ -133,8 +133,12 @@ class MockInstanceManager implements InstanceManager {
 
 	@Override
 	public AbstractInstance getInstanceByName(String name) {
-		
+
 		return null;
+	}
+
+	@Override
+	public void cancelPendingRequests(JobID jobID) {
 	}
 
 }
