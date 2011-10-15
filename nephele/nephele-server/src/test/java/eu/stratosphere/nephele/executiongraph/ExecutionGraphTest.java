@@ -195,6 +195,14 @@ public class ExecutionGraphTest {
 			throw new IllegalStateException("getInstanceByName called on TestInstanceManager");
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void cancelPendingRequests(final JobID jobID) {
+			throw new IllegalStateException("cancelPendingRequests called on TestInstanceManager");
+		}
+
 	}
 
 	private static final InstanceManager INSTANCE_MANAGER = new TestInstanceManager();
