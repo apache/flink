@@ -380,4 +380,13 @@ public class LocalInstanceManager implements InstanceManager {
 		}
 		return null;
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void cancelPendingRequests(final JobID jobID) {
+
+		// The local instance manager does not support pending requests, so nothing to do here
+	}
 }

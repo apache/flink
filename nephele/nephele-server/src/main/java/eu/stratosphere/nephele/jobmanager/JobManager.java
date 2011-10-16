@@ -402,7 +402,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 *        arguments from the command line
 	 */
 	@SuppressWarnings("static-access")
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 
 		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
 			.withDescription("Specify configuration directory.").create("configDir");
@@ -436,7 +436,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	}
 
 	@Override
-	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
+	public JobSubmissionResult submitJob(final JobGraph job) throws IOException {
 
 		// First check if job is null
 		if (job == null) {
@@ -579,6 +579,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				}
 			}
 		}
+
+		// Cancel all pending requests for instances
+		this.instanceManager.cancelPendingRequests(executionGraph.getJobID()); // getJobID is final member, no
+																				// synchronization necessary
 
 		// Remove job from input split manager
 		if (this.inputSplitManager != null) {
