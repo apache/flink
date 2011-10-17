@@ -191,7 +191,7 @@ public class RecoveryThread extends Thread {
 			//predecessors must be either checkpoints or need to be restarted too
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
 				ExecutionVertex predecessor = vertex.getPredecessor(j);
-				if (predecessor.getCheckpointState() != CheckpointState.PARTIAL) {
+				if (predecessor.getCheckpointState() != CheckpointState.PARTIAL &&  predecessor.getCheckpointState() != CheckpointState.COMPLETE) {
 
 					restart.add(predecessor);
 					if (!visited.contains(predecessor)) {

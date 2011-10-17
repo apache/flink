@@ -103,16 +103,8 @@ public final class CheckpointDecisionCoordinator {
 			//CPU bottleneck 
 			checkpointDesicion = true;
 		}else{
-			Environment ee = vertex.getEnvironment();
-			double in = 0;
-			for(int i = 0; i < ee.getNumberOfInputGates(); i++){
-				in += ee.getInputGate(i).getNumberOfInputChannels();
-			}
-			double out = 0;
-			for(int i = 0; i < ee.getNumberOfOutputGates(); i++){
-				out += ee.getOutputGate(i).getNumberOfOutputChannels();
-			}
-			if( out != 0 && in/out > 1.5){
+		
+			if( vertex.getNumberOfSuccessors() != 0 && vertex.getNumberOfPredecessors()*1.0/vertex.getNumberOfSuccessors() > 1.5){
 				LOG.info("vertex.getNumberOfPredecessors()/vertex.getNumberOfSuccessors() > 1.5");
 				//less output-channels than input-channels 
 				//checkpoint at this position probably saves network-traffic 
