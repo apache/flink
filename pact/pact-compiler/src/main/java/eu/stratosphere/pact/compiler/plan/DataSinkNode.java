@@ -98,7 +98,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @return The input connection.
 	 */
 	public PactConnection getInputConnection() {
-		return input;
+		return this.input;
 	}
 
 	/**
@@ -116,6 +116,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * 
 	 * @return The contract.
 	 */
+	@Override
 	public FileDataSinkContract<?, ?> getPactContract() {
 		return (FileDataSinkContract<?, ?>) super.getPactContract();
 	}
@@ -147,8 +148,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
 	 */
 	@Override
-	public List<PactConnection> getIncomingConnections() {
-		return Collections.<PactConnection> singletonList(input);
+	public List<List<PactConnection>> getIncomingConnections() {
+		return Collections.<List<PactConnection>>singletonList(Collections.<PactConnection>singletonList(this.input));
 	}
 
 	/*
@@ -178,7 +179,7 @@ public class DataSinkNode extends OptimizerNode {
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// we copy the output estimates from the input
-		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		OptimizerNode pred = this.input == null ? null : this.input.getSourcePact();
 
 		if (pred != null) {
 			this.estimatedKeyCardinality = pred.estimatedKeyCardinality;
@@ -210,22 +211,22 @@ public class DataSinkNode extends OptimizerNode {
 			// costs are a range partitioning and a local sort
 			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
 			Costs c = new Costs();
-			estimator.getLocalSortCost(this, this.input, c);
+			estimator.getLocalSortCost(this, Collections.<PactConnection>singletonList(this.input), c);
 			i1.getMaximalCosts().addCosts(c);
 
 			InterestingProperties i2 = new InterestingProperties();
 			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED);
 			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
 
-			input.addInterestingProperties(i1);
-			input.addInterestingProperties(i2);
+			this.input.addInterestingProperties(i1);
+			this.input.addInterestingProperties(i2);
 		} else if (getPactContract().getLocalOrder() != Order.NONE) {
 			InterestingProperties i = new InterestingProperties();
 			i.getLocalProperties().setKeyOrder(getPactContract().getLocalOrder());
-			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
-			input.addInterestingProperties(i);
+			estimator.getLocalSortCost(this,  Collections.<PactConnection>singletonList(this.input), i.getMaximalCosts());
+			this.input.addInterestingProperties(i);
 		} else {
-			input.setNoInterestingProperties();
+			this.input.setNoInterestingProperties();
 		}
 	}
 
@@ -239,7 +240,7 @@ public class DataSinkNode extends OptimizerNode {
 			// we don't join branches, so we merely have to check, whether out immediate child is a
 			// branch (has multiple outputs). If yes, we add that one as a branch, otherwise out
 			// branch stack is the same as the child's
-			this.openBranches = input.getSourcePact().getBranchesForParent(this);
+			this.openBranches = this.input.getSourcePact().getBranchesForParent(this);
 		}
 	}
 	
@@ -260,7 +261,7 @@ public class DataSinkNode extends OptimizerNode {
 	@Override
 	public List<DataSinkNode> getAlternativePlans(CostEstimator estimator) {
 		// the alternative plans are the ones that we have incoming, plus the attached output node
-		List<? extends OptimizerNode> inPlans = input.getSourcePact().getAlternativePlans(estimator);
+		List<? extends OptimizerNode> inPlans = this.input.getSourcePact().getAlternativePlans(estimator);
 		List<DataSinkNode> plans = new ArrayList<DataSinkNode>(inPlans.size());
 
 		for (OptimizerNode pred : inPlans) {
@@ -276,8 +277,8 @@ public class DataSinkNode extends OptimizerNode {
 			if (go != Order.NONE && go != gp.getKeyOrder()) {
 				// requires global sort
 
-				if (input.getShipStrategy() == ShipStrategy.NONE
-					|| input.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
+				if (this.input.getShipStrategy() == ShipStrategy.NONE
+					|| this.input.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
 					// strategy not fixed a priori, or strategy fixed, but valid
 					ss = ShipStrategy.PARTITION_RANGE;
 				} else {
@@ -286,7 +287,7 @@ public class DataSinkNode extends OptimizerNode {
 					continue;
 				}
 
-				if (localStrategy == LocalStrategy.NONE || localStrategy == LocalStrategy.SORT) {
+				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
 					// strategy not fixed a priori, or strategy fixed, but valid
 					ls = LocalStrategy.SORT;
 				} else {
@@ -301,7 +302,7 @@ public class DataSinkNode extends OptimizerNode {
 			} else if (lo != Order.NONE && lo != lp.getKeyOrder()) {
 
 				// requires local sort
-				if (localStrategy == LocalStrategy.NONE || localStrategy == LocalStrategy.SORT) {
+				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
 					// strategy not fixed a priori, or strategy fixed, but valid
 					ls = LocalStrategy.SORT;
 				} else {
@@ -315,7 +316,7 @@ public class DataSinkNode extends OptimizerNode {
 			}
 
 			// create the new node and connection
-			DataSinkNode ns = new DataSinkNode(this, pred, input, gp, lp);
+			DataSinkNode ns = new DataSinkNode(this, pred, this.input, gp, lp);
 
 			// check, if a shipping strategy applies
 			if (ss == null) {
@@ -359,8 +360,8 @@ public class DataSinkNode extends OptimizerNode {
 		boolean descend = visitor.preVisit(this);
 
 		if (descend) {
-			if (input != null) {
-				input.getSourcePact().accept(visitor);
+			if (this.input != null) {
+				this.input.getSourcePact().accept(visitor);
 			}
 
 			visitor.postVisit(this);

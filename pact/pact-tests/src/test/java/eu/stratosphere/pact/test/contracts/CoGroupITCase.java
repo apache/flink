@@ -175,8 +175,8 @@ public class CoGroupITCase extends TestBase
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testCoGrouper);
-		testCoGrouper.setFirstInput(input_left);
-		testCoGrouper.setSecondInput(input_right);
+		testCoGrouper.addFirstInput(input_left);
+		testCoGrouper.addSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 

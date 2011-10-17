@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stub.SingleInputStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -26,12 +29,18 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * 
  * @author Erik Nijkamp
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * @author mjsax@informatik.hu-berlin.de
+ * 
+ * @param <IK> type of key of input key/value-pair
+ * @param <IV> type of value of input key/value-pair
+ * @param <OK> type of key of output key/value-pair
+ * @param <OV> type of value of output key/value-pair
  */
 public abstract class SingleInputContract<IK extends Key, IV extends Value, OK extends Key, OV extends Value> extends
 		AbstractPact<OK, OV, SingleInputStub<IK, IV, OK, OV>>
 {
 	// input contract of this contract
-	protected Contract input;
+	final protected List<Contract> input = new ArrayList<Contract>();
 
 	/**
 	 * Creates a new contract using the given stub and the given name
@@ -87,8 +96,8 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	 * 
 	 * @return The contract's input contract.
 	 */
-	public Contract getInput() {
-		return input;
+	public List<Contract> getInputs() {
+		return this.input;
 	}
 
 	/**
@@ -96,8 +105,8 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	 * 
 	 * @param input The contract will be set as input.
 	 */
-	public void setInput(Contract input) {
-		this.input = input;
+	public void addInput(Contract input) {
+		this.input.add(input);
 	}
 
 
@@ -106,8 +115,8 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 		boolean descend = visitor.preVisit(this);
 		
 		if (descend) {
-			if (input != null) {
-				input.accept(visitor);
+			for(Contract c : this.input) {
+				c.accept(visitor);
 			}
 			visitor.postVisit(this);
 		}

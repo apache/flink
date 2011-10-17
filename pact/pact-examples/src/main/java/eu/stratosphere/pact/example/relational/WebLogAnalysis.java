@@ -308,13 +308,13 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		result.setDegreeOfParallelism(noSubTasks);
 
 		// Assemble plan
-		filterDocs.setInput(docs);
-		filterRanks.setInput(ranks);
-		filterVisits.setInput(visits);
-		joinDocsRanks.setFirstInput(filterRanks);
-		joinDocsRanks.setSecondInput(filterDocs);
-		antiJoinVisits.setFirstInput(filterVisits);
-		antiJoinVisits.setSecondInput(joinDocsRanks);
+		filterDocs.addInput(docs);
+		filterRanks.addInput(ranks);
+		filterVisits.addInput(visits);
+		joinDocsRanks.addFirstInput(filterRanks);
+		joinDocsRanks.addSecondInput(filterDocs);
+		antiJoinVisits.addFirstInput(filterVisits);
+		antiJoinVisits.addSecondInput(joinDocsRanks);
 		result.setInput(antiJoinVisits);
 
 		// Return the PACT plan

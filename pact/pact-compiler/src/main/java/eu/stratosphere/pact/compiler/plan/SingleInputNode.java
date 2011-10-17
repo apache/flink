@@ -15,7 +15,9 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +26,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
@@ -36,7 +39,7 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  */
 public abstract class SingleInputNode extends OptimizerNode {
 
-	protected PactConnection input; // The input edge
+	final protected List<PactConnection> input = new ArrayList<PactConnection>(); // The list of input edges
 
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
@@ -64,18 +67,25 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected SingleInputNode(OptimizerNode template, OptimizerNode pred, PactConnection conn,
+	protected SingleInputNode(OptimizerNode template, List<OptimizerNode> pred, List<PactConnection> conn,
 			GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, globalProps, localProps);
 
-		this.input = new PactConnection(conn, pred, this);
+		int i = 0;
+		for(PactConnection c: conn) {
+			this.input.add(new PactConnection(c, pred.get(i++), this));
+		}
 
 		// copy the child's branch-plan map
 		if (this.branchPlan == null) {
-			this.branchPlan = pred.branchPlan;
-		} else if (pred.branchPlan != null) {
-			this.branchPlan.putAll(pred.branchPlan);
+			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>();
 		}
+		for(OptimizerNode n : pred) {
+			if(n.branchPlan != null)
+				this.branchPlan.putAll(n.branchPlan);
+		}
+		if(this.branchPlan.size() == 0)
+			this.branchPlan = null;
 	}
 
 	/**
@@ -83,8 +93,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @return The input connection.
 	 */
-	public PactConnection getInputConnection() {
-		return input;
+	public List<PactConnection> getInputConnections() {
+		return this.input;
 	}
 
 	/**
@@ -93,8 +103,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * @param conn
 	 *        The input connection to set.
 	 */
-	public void setInputConnection(PactConnection conn) {
-		this.input = conn;
+	public void addInputConnection(PactConnection conn) {
+		this.input.add(conn);
 	}
 
 	/*
@@ -102,12 +112,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
 	 */
 	@Override
-	public List<PactConnection> getIncomingConnections() {
-		if (input != null) {
-			return Collections.<PactConnection> singletonList(input);
-		} else {
-			return null;
-		}
+	public List<List<PactConnection>> getIncomingConnections() {
+		return Collections.singletonList(this.input);
 	}
 
 	/*
@@ -117,25 +123,28 @@ public abstract class SingleInputNode extends OptimizerNode {
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) throws CompilerException {
 		// get the predecessor node
-		Contract child = ((SingleInputContract<?, ?, ?, ?>) getPactContract()).getInput();
-		OptimizerNode pred = contractToNode.get(child);
-
-		// create a connection
-		PactConnection conn = new PactConnection(pred, this);
-		setInputConnection(conn);
-		pred.addOutgoingConnection(conn);
-
-		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getParameters();
-		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
-		if (shipStrategy != null) {
-			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				conn.setShipStrategy(ShipStrategy.FORWARD);
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				conn.setShipStrategy(ShipStrategy.PARTITION_HASH);
-			} else {
-				throw new CompilerException("Invalid hint for the shipping strategy of a single input connection: "
-					+ shipStrategy);
+		List<Contract> children = ((SingleInputContract<?, ?, ?, ?>) getPactContract()).getInputs();
+		
+		for(Contract child : children) {
+			OptimizerNode pred = contractToNode.get(child);
+	
+			// create a connection
+			PactConnection conn = new PactConnection(pred, this);
+			addInputConnection(conn);
+			pred.addOutgoingConnection(conn);
+	
+			// see if an internal hint dictates the strategy to use
+			Configuration conf = getPactContract().getParameters();
+			String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
+			if (shipStrategy != null) {
+				if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
+					conn.setShipStrategy(ShipStrategy.FORWARD);
+				} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
+					conn.setShipStrategy(ShipStrategy.PARTITION_HASH);
+				} else {
+					throw new CompilerException("Invalid hint for the shipping strategy of a single input connection: "
+						+ shipStrategy);
+				}
 			}
 		}
 	}
@@ -150,7 +159,14 @@ public abstract class SingleInputNode extends OptimizerNode {
 			// we don't join branches, so we merely have to check, whether out immediate child is a
 			// branch (has multiple outputs). If yes, we add that one as a branch, otherwise out
 			// branch stack is the same as the child's
-			this.openBranches = input.getSourcePact().getBranchesForParent(this);
+			this.openBranches = new ArrayList<UnclosedBranchDescriptor>();
+			for(PactConnection c : this.input) {
+				List<UnclosedBranchDescriptor> parentBranchList = c.getSourcePact().getBranchesForParent(this);
+				if(parentBranchList != null)
+					this.openBranches.addAll(parentBranchList);
+			}
+			if(this.openBranches.size() == 0)
+				this.openBranches = null;
 		}
 	}
 
@@ -167,11 +183,29 @@ public abstract class SingleInputNode extends OptimizerNode {
 		boolean descend = visitor.preVisit(this);
 
 		if (descend) {
-			if (input != null && input.getSourcePact() != null) {
-				input.getSourcePact().accept(visitor);
+			for(PactConnection c : this.input) {
+				OptimizerNode n = c.getSourcePact();
+				if (n != null) {
+					n.accept(visitor);
+				}
 			}
 
 			visitor.postVisit(this);
 		}
+	}
+	
+	/**
+	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.OptimizerNode}.
+	 * Since nodes with multiple inputs may join branched plans, care must be taken not to double-count the costs of the subtree rooted
+	 * at the last unjoined branch.
+	 * 
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setCosts(eu.stratosphere.pact.compiler.Costs)
+	 */
+	@Override
+	public void setCosts(Costs nodeCosts) {
+		super.setCosts(nodeCosts);
+		
+		// TODO: mjsax
+		// see TwoInputNode.java
 	}
 }

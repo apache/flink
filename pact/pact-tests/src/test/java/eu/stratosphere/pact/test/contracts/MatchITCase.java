@@ -184,8 +184,8 @@ public class MatchITCase extends TestBase
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testMatcher);
-		testMatcher.setFirstInput(input_left);
-		testMatcher.setSecondInput(input_right);
+		testMatcher.addFirstInput(input_left);
+		testMatcher.addSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 

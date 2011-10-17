@@ -65,7 +65,7 @@ public class MapNode extends SingleInputNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected MapNode(MapNode template, OptimizerNode pred, PactConnection conn, GlobalProperties globalProps,
+	protected MapNode(MapNode template, List<OptimizerNode> pred, List<PactConnection> conn, GlobalProperties globalProps,
 			LocalProperties localProps) {
 		super(template, pred, conn, globalProps, localProps);
 		setLocalStrategy(LocalStrategy.NONE);
@@ -76,6 +76,7 @@ public class MapNode extends SingleInputNode {
 	 * 
 	 * @return The contract.
 	 */
+	@Override
 	public MapContract<?, ?, ?, ?> getPactContract() {
 		return (MapContract<?, ?, ?, ?>) super.getPactContract();
 	}
@@ -119,15 +120,18 @@ public class MapNode extends SingleInputNode {
 
 		OutputContract oc = getOutputContract();
 		if (oc == OutputContract.None) {
-			input.setNoInterestingProperties();
+			for(PactConnection c : this.input)
+				c.setNoInterestingProperties();
 		} else if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
 			List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
 			List<InterestingProperties> props = InterestingProperties.filterByOutputContract(thisNodesIntProps,
 				getOutputContract());
 			if (!props.isEmpty()) {
-				input.addAllInterestingProperties(props);
+				for(PactConnection c : this.input)
+					c.addAllInterestingProperties(props);
 			} else {
-				input.setNoInterestingProperties();
+				for(PactConnection c : this.input)
+					c.setNoInterestingProperties();
 			}
 		}
 	}
@@ -139,8 +143,8 @@ public class MapNode extends SingleInputNode {
 	@Override
 	public List<MapNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version
-		if (cachedPlans != null) {
-			return cachedPlans;
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
 		}
 
 		// when generating the different alternative plans for a map,
@@ -150,32 +154,43 @@ public class MapNode extends SingleInputNode {
 
 		// the map itself also adds no cost for local strategies!
 
-		List<? extends OptimizerNode> inPlans = input.getSourcePact().getAlternativePlans(estimator);
-		List<MapNode> outputPlans = new ArrayList<MapNode>();
-
-		for (OptimizerNode pred : inPlans) {
-
-			ShipStrategy ss = input.getShipStrategy() == ShipStrategy.NONE ? ShipStrategy.FORWARD : input
-				.getShipStrategy();
-			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
-			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
-
-			// we take each input and add a mapper to it
-			// the properties of the inputs are copied
-			MapNode nMap = new MapNode(this, pred, input, gp, lp);
-			nMap.input.setShipStrategy(ss);
-
-			// now, the properties (copied from the inputs) are filtered by the
-			// output contracts
-			nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
-			nMap.getLocalProperties().filterByOutputContract(getOutputContract());
-
-			// copy the cumulative costs and set the costs of the map itself to zero
-			estimator.costOperator(nMap);
-
-			outputPlans.add(nMap);
+		// TODO: mjsax
+		// right now we do not enumerate all plans
+		// -> because of union we have to do a recursive enumeration, what is missing right now
+		List<OptimizerNode> allPreds = new ArrayList<OptimizerNode>(this.input.size());
+		for(PactConnection c : this.input) {
+			allPreds.add(c.getSourcePact());
 		}
 
+		List<MapNode> outputPlans = new ArrayList<MapNode>();
+		for(PactConnection c : this.input) {
+			List<? extends OptimizerNode> inPlans = c.getSourcePact().getAlternativePlans(estimator);
+	
+			for (OptimizerNode pred : inPlans) {
+	
+				ShipStrategy ss = c.getShipStrategy() == ShipStrategy.NONE ? ShipStrategy.FORWARD : c.getShipStrategy();
+				GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
+				LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
+	
+				// we take each input and add a mapper to it
+				// the properties of the inputs are copied
+				MapNode nMap = new MapNode(this, allPreds, this.input, gp, lp);
+				for(PactConnection cc : nMap.getInputConnections()) {
+					cc.setShipStrategy(ss);
+				}
+	
+				// now, the properties (copied from the inputs) are filtered by the
+				// output contracts
+				nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
+				nMap.getLocalProperties().filterByOutputContract(getOutputContract());
+	
+				// copy the cumulative costs and set the costs of the map itself to zero
+				estimator.costOperator(nMap);
+	
+				outputPlans.add(nMap);
+			}
+		}
+		
 		// prune the plans
 		prunePlanAlternatives(outputPlans);
 
@@ -193,14 +208,24 @@ public class MapNode extends SingleInputNode {
 	 * @return the number of keys processed by the PACT.
 	 */
 	private long computeNumberOfProcessedKeys() {
-		OptimizerNode pred = input == null ? null : input.getSourcePact();
-
-		if(pred != null) {
-			// Each key is processed by Map
-			return pred.getEstimatedKeyCardinality();
-		} else {
-			return -1;
+		long keySum = 0;
+		
+		for(PactConnection c : this.input) {
+			OptimizerNode pred = c.getSourcePact();
+		
+			if(pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its record count, we a pessimistic and return "unknown" as well
+				if(pred.estimatedKeyCardinality == -1)
+					return -1;
+				
+				// Each key is processed by Map
+				// all inputs are union -> we sum up the keyCounts
+				keySum += pred.estimatedKeyCardinality;
+			} 
 		}
+		
+		return keySum;
 	}
 	
 	/**
@@ -209,17 +234,17 @@ public class MapNode extends SingleInputNode {
 	 * @return the number of stub calls for one processed key.
 	 */
 	private double computeStubCallsPerProcessedKey() {
-		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		// we are pessimistic -> if one value is unknown we return "unknown" as well
 		
-		if(pred != null) {
-			if(pred.getEstimatedNumRecords() != -1 && pred.getEstimatedKeyCardinality() != -1) {
-				return (pred.getEstimatedNumRecords() / pred.getEstimatedKeyCardinality());
-			} else {
-				return -1;
-			}
-		} else {
+		long numRecords = computeNumberOfStubCalls();
+		if(numRecords == -1)
 			return -1;
-		}
+		
+		long keyCardinality = computeNumberOfProcessedKeys();
+		if(keyCardinality == -1)
+			return -1;
+
+		return numRecords / (double)keyCardinality;
 	}
 	
 	/**
@@ -228,14 +253,25 @@ public class MapNode extends SingleInputNode {
 	 * @return the number of stub calls.
 	 */
 	private long computeNumberOfStubCalls() {
-		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		long sumStubCalls = 0;
 		
-		if(pred != null) {
-			// Map is called once per record
-			return pred.getEstimatedNumRecords();
-		} else {
-			return -1;
+		for(PactConnection c : this.input) {
+			OptimizerNode pred = c.getSourcePact();
+
+			if(pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its stub call count, we a pessimistic and return "unknown" as well
+				if(pred.estimatedNumRecords == -1)
+					return -1;
+				
+				// Map is called once per record
+				// all inputs are union -> we sum up the stubCallCount
+				sumStubCalls += pred.estimatedNumRecords; 
+			}
+			
 		}
+		
+		return sumStubCalls;
 	}
 	
 	/**
@@ -244,26 +280,39 @@ public class MapNode extends SingleInputNode {
 	 * @return width of output records
 	 */
 	private double computeAverageRecordWidth() {
-		OptimizerNode pred = input == null ? null : input.getSourcePact();
 		CompilerHints hints = getPactContract().getCompilerHints();
 		
-		if(hints.getAvgBytesPerRecord() != -1) {
-			// use hint if available
+		// use hint if available
+		if(hints != null && hints.getAvgBytesPerRecord() != -1) {
 			return hints.getAvgBytesPerRecord();
-		
-		} else if (pred != null) {
-			// use record width of previous node
-			
-			if(pred.estimatedOutputSize != -1 && pred.estimatedNumRecords != -1) {
-				return (pred.getEstimatedOutputSize() / pred.getEstimatedNumRecords()) >= 1 ? 
-						(long) (pred.getEstimatedOutputSize() / pred.getEstimatedNumRecords()) : 1;
-			} else {
-				return -1.0;
-			}
-			
-		} else {
-			return -1.0;
 		}
+
+		long numRecords = computeNumberOfStubCalls();
+		// if unioned number of records is unknown,
+		// we are pessimistic and return "unknown" as well
+		if(numRecords == -1)
+			return -1;
+		
+		long outputSize = 0;
+		for(PactConnection c : this.input) {
+			OptimizerNode pred = c.getSourcePact();
+			
+			if(pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its output size, we a pessimistic and return "unknown" as well
+				if(pred.estimatedOutputSize == -1)
+					return -1;
+				
+				outputSize += pred.estimatedOutputSize;
+			}
+		}
+		
+		double result = outputSize / (double)numRecords;
+		// a record must have at least one byte...
+		if(result < 1)
+			return 1;
+		
+		return result;
 	}
 	
 	/*
@@ -272,7 +321,9 @@ public class MapNode extends SingleInputNode {
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		// TODO: mjsax
+		//OptimizerNode pred = input == null ? null : input.getSourcePact();
+		OptimizerNode pred = null;
 		CompilerHints hints = getPactContract().getCompilerHints();
 
 		// check if preceding node is available

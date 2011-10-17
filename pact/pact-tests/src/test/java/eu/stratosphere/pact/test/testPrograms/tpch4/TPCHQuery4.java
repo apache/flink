@@ -265,11 +265,11 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 				CountAgg.class, "AggregateGroupBy");
 		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		lineFilter.setInput(lineItems);
-		ordersFilter.setInput(orders);
-		join.setFirstInput(ordersFilter);
-		join.setSecondInput(lineFilter);
-		aggregation.setInput(join);
+		lineFilter.addInput(lineItems);
+		ordersFilter.addInput(orders);
+		join.addFirstInput(ordersFilter);
+		join.addSecondInput(lineFilter);
+		aggregation.addInput(join);
 		result.setInput(aggregation);
 		
 			

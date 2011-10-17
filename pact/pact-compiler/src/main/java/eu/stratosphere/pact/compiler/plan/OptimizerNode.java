@@ -244,7 +244,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * 
 	 * @return The list of incoming links.
 	 */
-	public abstract List<PactConnection> getIncomingConnections();
+	public abstract List<List<PactConnection>> getIncomingConnections();
 
 	/**
 	 * Causes this node to compute its output estimates (such as number of rows, size in bytes)
@@ -295,6 +295,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 *        The graph traversing visitor.
 	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
 	 */
+	@Override
 	public abstract void accept(Visitor<OptimizerNode> visitor);
 
 	/**
@@ -314,7 +315,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return This node's id, or -1, if not yet set.
 	 */
 	public int getId() {
-		return id;
+		return this.id;
 	}
 
 	/**
@@ -369,7 +370,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The type of the PACT.
 	 */
 	public PactType getPactType() {
-		return PactType.getType(pactContract.getClass());
+		return PactType.getType(this.pactContract.getClass());
 	}
 
 	/**
@@ -378,7 +379,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
 	 */
 	public OutputContract getOutputContract() {
-		return outputContract;
+		return this.outputContract;
 	}
 
 	/**
@@ -390,7 +391,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The degree of parallelism.
 	 */
 	public int getDegreeOfParallelism() {
-		return degreeOfParallelism;
+		return this.degreeOfParallelism;
 	}
 
 	/**
@@ -419,7 +420,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The number of instances per machine.
 	 */
 	public int getInstancesPerMachine() {
-		return instancesPerMachine;
+		return this.instancesPerMachine;
 	}
 
 	/**
@@ -444,7 +445,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The memory per task, in MiBytes.
 	 */
 	public int getMemoryPerTask() {
-		return memoryPerTask;
+		return this.memoryPerTask;
 	}
 
 	/**
@@ -464,7 +465,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The node-costs, or null, if not yet set.
 	 */
 	public Costs getNodeCosts() {
-		return nodeCosts;
+		return this.nodeCosts;
 	}
 
 	/**
@@ -474,7 +475,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The cumulative costs, or null, if not yet set.
 	 */
 	public Costs getCumulativeCosts() {
-		return cumulativeCosts;
+		return this.cumulativeCosts;
 	}
 
 	/**
@@ -484,7 +485,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The local strategy.
 	 */
 	public LocalStrategy getLocalStrategy() {
-		return localStrategy;
+		return this.localStrategy;
 	}
 
 	/**
@@ -513,7 +514,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The local properties.
 	 */
 	public LocalProperties getLocalProperties() {
-		return localProps;
+		return this.localProps;
 	}
 
 	/**
@@ -522,7 +523,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The global properties.
 	 */
 	public GlobalProperties getGlobalProperties() {
-		return globalProps;
+		return this.globalProps;
 	}
 
 	/**
@@ -531,7 +532,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The estimated output size.
 	 */
 	public long getEstimatedOutputSize() {
-		return estimatedOutputSize;
+		return this.estimatedOutputSize;
 	}
 
 	/**
@@ -540,7 +541,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The estimated number of records.
 	 */
 	public long getEstimatedNumRecords() {
-		return estimatedNumRecords;
+		return this.estimatedNumRecords;
 	}
 
 	/**
@@ -549,7 +550,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The estimated key cardinality.
 	 */
 	public long getEstimatedKeyCardinality() {
-		return estimatedKeyCardinality;
+		return this.estimatedKeyCardinality;
 	}
 
 	/**
@@ -570,8 +571,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.cumulativeCosts = new Costs(0, 0);
 		this.cumulativeCosts.addCosts(nodeCosts);
 
-		for (PactConnection p : getIncomingConnections()) {
-			this.cumulativeCosts.addCosts(p.getSourcePact().cumulativeCosts);
+		for(List<PactConnection> pl : getIncomingConnections()) {
+			for (PactConnection p : pl) {
+				Costs parentCosts = p.getSourcePact().cumulativeCosts;
+				if(parentCosts != null)
+					this.cumulativeCosts.addCosts(parentCosts);
+			}
 		}
 	}
 
@@ -585,11 +590,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return True, if on all outgoing connections, the interesting properties are set. False otherwise.
 	 */
 	public boolean haveAllOutputConnectionInterestingProperties() {
-		if (outgoingConnections == null) {
+		if (this.outgoingConnections == null) {
 			return true;
 		}
 
-		for (PactConnection conn : outgoingConnections) {
+		for (PactConnection conn : this.outgoingConnections) {
 			if (conn.getInterestingProperties() == null) {
 				return false;
 			}
@@ -659,7 +664,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 						if (oc == null) {
 							oc = cc;
 						} else {
-							throw new CompilerException("Contract '" + pactContract.getName() + "' ("
+							throw new CompilerException("Contract '" + this.pactContract.getName() + "' ("
 								+ getPactType().name() + ") has more than one output contract.");
 						}
 					}
@@ -732,9 +737,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 
 	private final <T extends OptimizerNode> void prunePlansWithCommonBranchAlternatives(List<T> plans) {
-		List<List<T>> toKeep = new ArrayList<List<T>>(intProps.size()); // for each interesting property, which plans
+		List<List<T>> toKeep = new ArrayList<List<T>>(this.intProps.size()); // for each interesting property, which plans
 		// are cheapest
-		for (int i = 0; i < intProps.size(); i++) {
+		for (int i = 0; i < this.intProps.size(); i++) {
 			toKeep.add(null);
 		}
 
@@ -748,8 +753,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			}
 
 			// find the interesting properties that this plan matches
-			for (int i = 0; i < intProps.size(); i++) {
-				if (intProps.get(i).isMetBy(candidate)) {
+			for (int i = 0; i < this.intProps.size(); i++) {
+				if (this.intProps.get(i).isMetBy(candidate)) {
 					// the candidate meets them
 					if (toKeep.get(i) == null) {
 						// first one to meet the interesting properties, so store it
@@ -807,7 +812,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			List<T> l = toKeep.get(i);
 
 			if (l != null) {
-				Costs maxDelta = intProps.get(i).getMaximalCosts();
+				Costs maxDelta = this.intProps.get(i).getMaximalCosts();
 
 				for (T plan : l) {
 					if (plan != null && !plan.pFlag) {
@@ -832,20 +837,25 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
+	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder();
 
 		bld.append(getName());
 		bld.append(" (").append(getPactType().name()).append(") ");
 
-		if (localStrategy != null) {
+		if (this.localStrategy != null) {
 			bld.append('(');
 			bld.append(getLocalStrategy().name());
 			bld.append(") ");
 		}
 
-		for (PactConnection conn : getIncomingConnections()) {
-			bld.append('(').append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
+		List<List<PactConnection>> pl = getIncomingConnections();
+		final int size = pl.size();
+		for(int i = 0; i < size; ++i) {
+			for (PactConnection conn : pl.get(i)) {
+				bld.append('(').append(i).append(":").append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
+			}
 		}
 
 		return bld.toString();
@@ -857,16 +867,16 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	public boolean hasUnclosedBranches()
 	{
-		return openBranches != null && !openBranches.isEmpty();
+		return this.openBranches != null && !this.openBranches.isEmpty();
 	}
 
 	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent)
 	{
-		if (outgoingConnections.size() == 1) {
+		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
 			return this.openBranches;
 		}
-		else if (outgoingConnections.size() > 1) {
+		else if (this.outgoingConnections.size() > 1) {
 			// we branch add a branch info to the stack
 			List<UnclosedBranchDescriptor> branches = new ArrayList<UnclosedBranchDescriptor>(4);
 			if (this.openBranches != null) {
@@ -875,12 +885,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 			// find out, which output number the connection to the parent
 			int num;
-			for (num = 0; num < outgoingConnections.size(); num++) {
-				if (outgoingConnections.get(num).getTargetPact() == parent) {
+			for (num = 0; num < this.outgoingConnections.size(); num++) {
+				if (this.outgoingConnections.get(num).getTargetPact() == parent) {
 					break;
 				}
 			}
-			if (num >= outgoingConnections.size()) {
+			if (num >= this.outgoingConnections.size()) {
 				throw new CompilerException("Error in compiler: "
 					+ "Parent to get branch info for is not contained in the outgoing connections.");
 			}
@@ -913,11 +923,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 
 		public OptimizerNode getBranchingNode() {
-			return branchingNode;
+			return this.branchingNode;
 		}
 
 		public long getJoinedPathsVector() {
-			return joinedPathsVector;
+			return this.joinedPathsVector;
 		}
 	}
 }

@@ -26,13 +26,12 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
+import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
@@ -59,8 +58,8 @@ import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.SampleTask;
 import eu.stratosphere.pact.runtime.task.SelfMatchTask;
 import eu.stratosphere.pact.runtime.task.TempTask;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -242,42 +241,44 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		try {
 			// get pact vertex
 			AbstractJobVertex inputVertex = this.vertices.get(node);
-			List<PactConnection> incomingConns = node.getIncomingConnections();
+			List<List<PactConnection>> incomingConns = node.getIncomingConnections();
 
 			if (incomingConns == null) {
 				// data source
 				return;
 			}
 
-			for (PactConnection connection : node.getIncomingConnections()) {
-				// get parent vertex
-				AbstractJobVertex outputVertex = this.vertices.get(connection.getSourcePact());
-				if (outputVertex == null) {
-					throw new Exception("Parent vertex was not initialized");
-				}
-
-				switch (connection.getShipStrategy()) {
-				case FORWARD:
-					connectWithForwardStrategy(connection, outputVertex, inputVertex);
-					break;
-				case PARTITION_LOCAL_HASH:
-				case PARTITION_HASH:
-					connectWithPartitionStrategy(connection, outputVertex, inputVertex);
-					break;
-				case BROADCAST:
-					connectWithBroadcastStrategy(connection, outputVertex, inputVertex);
-					break;
-				case PARTITION_RANGE:
-					if(isDistributionGiven(connection)) {
-						connectWithGivenDistributionPartitionRangeStrategy(connection, outputVertex, inputVertex);
-					} else {
-						connectWithSamplingPartitionRangeStrategy(connection, outputVertex, inputVertex);
+			for(List<PactConnection> cl : incomingConns) {
+				for (PactConnection connection : cl) {
+					// get parent vertex
+					AbstractJobVertex outputVertex = this.vertices.get(connection.getSourcePact());
+					if (outputVertex == null) {
+						throw new Exception("Parent vertex was not initialized");
 					}
-					break;
-				case SFR:
-					connectWithSFRStrategy(connection, outputVertex, inputVertex);
-				default:
-					throw new Exception("Invalid ship strategy: " + connection.getShipStrategy());
+	
+					switch (connection.getShipStrategy()) {
+					case FORWARD:
+						connectWithForwardStrategy(connection, outputVertex, inputVertex);
+						break;
+					case PARTITION_LOCAL_HASH:
+					case PARTITION_HASH:
+						connectWithPartitionStrategy(connection, outputVertex, inputVertex);
+						break;
+					case BROADCAST:
+						connectWithBroadcastStrategy(connection, outputVertex, inputVertex);
+						break;
+					case PARTITION_RANGE:
+						if(isDistributionGiven(connection)) {
+							connectWithGivenDistributionPartitionRangeStrategy(connection, outputVertex, inputVertex);
+						} else {
+							connectWithSamplingPartitionRangeStrategy(connection, outputVertex, inputVertex);
+						}
+						break;
+					case SFR:
+						connectWithSFRStrategy(connection, outputVertex, inputVertex);
+					default:
+						throw new Exception("Invalid ship strategy: " + connection.getShipStrategy());
+					}
 				}
 			}
 		} catch (Exception e) {

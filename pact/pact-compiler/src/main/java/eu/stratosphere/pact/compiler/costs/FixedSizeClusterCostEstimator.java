@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.compiler.costs;
 
+import java.util.List;
+
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
@@ -129,12 +131,14 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getLocalSortCost(OptimizerNode node, PactConnection input, Costs costs) {
+	public void getLocalSortCost(OptimizerNode node, List<PactConnection> input, Costs costs) {
 		costs.setNetworkCost(0);
 
+		long s = 0;
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block
-		long s = input.getSourcePact().getEstimatedOutputSize() * input.getReplicationFactor();
-		costs.setSecondaryStorageCost(s == -1 ? -1 : 2 * s);
+		for(PactConnection c : input) 
+			s += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
+		costs.setSecondaryStorageCost(s < 0 ? -1 : 2 * s);
 	}
 
 	/*
@@ -146,14 +150,18 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getLocalDoubleSortMergeCost(OptimizerNode node, PactConnection input1, PactConnection input2, Costs costs) {
+	public void getLocalDoubleSortMergeCost(OptimizerNode node, List<PactConnection> input1, List<PactConnection> input2, Costs costs) {
 		costs.setNetworkCost(0);
 
+		long s1 = 0, s2 = 0;
+		
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block for both sides
-		long s1 = input1.getSourcePact().getEstimatedOutputSize() * input1.getReplicationFactor();
-		long s2 = input2.getSourcePact().getEstimatedOutputSize() * input2.getReplicationFactor();
+		for(PactConnection c : input1) 
+			s1 += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
+		for(PactConnection c : input2)
+			s2 += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
 
-		costs.setSecondaryStorageCost(s1 == -1 || s2 == -1 ? -1 : 2 * (s1 + s2));
+		costs.setSecondaryStorageCost(s1 < 0 || s2 < 0 ? -1 : 2 * (s1 + s2));
 	}
 
 	/*
@@ -165,13 +173,15 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getLocalSingleSortMergeCost(OptimizerNode node, PactConnection unsortedInput, PactConnection sortedInput, Costs costs) {
+	public void getLocalSingleSortMergeCost(OptimizerNode node, List<PactConnection> unsortedInput, List<PactConnection> sortedInput, Costs costs) {
 		costs.setNetworkCost(0);
 		
+		long s1 = 0;
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block for the unsorted input
-		long s1 = unsortedInput.getSourcePact().getEstimatedOutputSize() * unsortedInput.getReplicationFactor();
+		for(PactConnection c : unsortedInput)
+			s1 += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
 		
-		costs.setSecondaryStorageCost(s1 == -1 ? -1 : 2 * s1);
+		costs.setSecondaryStorageCost(s1 < 0 ? -1 : 2 * s1);
 	}
 
 	/*
@@ -183,7 +193,7 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getLocalMergeCost(OptimizerNode node, PactConnection input1, PactConnection input2, Costs costs) {
+	public void getLocalMergeCost(OptimizerNode node, List<PactConnection> input1, List<PactConnection> input2, Costs costs) {
 		costs.setNetworkCost(0);
 
 		// inputs are sorted. No network and secondary storage costs produced
@@ -199,17 +209,20 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getLocalSortSelfNestedLoopCost(OptimizerNode node, PactConnection input, int bufferSize, Costs costs) {
-		
+	public void getLocalSortSelfNestedLoopCost(OptimizerNode node, List<PactConnection> input, int bufferSize, Costs costs) {
 		costs.setNetworkCost(0);
 
+		long is = 0, ic = 0;
+		
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block
 		// plus I/O for the SpillingResettableIterators: 2 for writing plus reading 
-		long is = input.getSourcePact().getEstimatedOutputSize() * input.getReplicationFactor();
-		long ic = input.getSourcePact().getEstimatedNumRecords();
-		long loops = ic == -1 ? 1000 : ic / bufferSize;
+		for(PactConnection c : input) {
+			is += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
+			ic += c.getSourcePact().getEstimatedNumRecords();
+		}
+		long loops = ic < 0 ? 1000 : ic / bufferSize;
 		
-		costs.setSecondaryStorageCost(is == -1 ? -1 : (loops + 4) * is);
+		costs.setSecondaryStorageCost(is < 0 ? -1 : (loops + 4) * is);
 		
 	}
 
@@ -222,10 +235,13 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getLocalSelfNestedLoopCost(OptimizerNode node, PactConnection input, int bufferSize, Costs costs) {
+	public void getLocalSelfNestedLoopCost(OptimizerNode node, List<PactConnection> input, int bufferSize, Costs costs) {
+		long is = 0, ic = 0;
 		
-		long is = input.getSourcePact().getEstimatedOutputSize() * input.getReplicationFactor();
-		long ic = input.getSourcePact().getEstimatedNumRecords();
+		for(PactConnection c : input) {
+			is += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
+			ic += c.getSourcePact().getEstimatedNumRecords();
+		}
 		long loops = ic == -1 ? 10 : ic / bufferSize;
 		
 		costs.setSecondaryStorageCost(is == -1 ? -1 : (loops + 2) * is);
@@ -241,18 +257,22 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getHybridHashCosts(OptimizerNode node, PactConnection buildSideInput, PactConnection probeSideInput,
+	public void getHybridHashCosts(OptimizerNode node, List<PactConnection> buildSideInput, List<PactConnection> probeSideInput,
 			Costs costs) {
 		costs.setNetworkCost(0);
 
+		long bs = 0, ps = 0;
+		
 		// we assume that the build side has to spill and requires one recursive repartitioning
 		// so 4 I/O operations per block on the build side, and 2 on the probe side
 		// NOTE: This is currently artificially expensive to prevent the compiler from using the hash-strategies, which are
 		// being reworked from in-memory and grace towards a gradually degrading hybrid hash join
-		long bs = buildSideInput.getSourcePact().getEstimatedOutputSize() * buildSideInput.getReplicationFactor();
-		long ps = probeSideInput.getSourcePact().getEstimatedOutputSize() * probeSideInput.getReplicationFactor();
+		for(PactConnection c : buildSideInput)
+			bs += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
+		for(PactConnection c : probeSideInput)
+			ps += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
 
-		costs.setSecondaryStorageCost(bs == -1 || ps == -1 ? -1 : 2 * bs + ps);
+		costs.setSecondaryStorageCost(bs < 0 || ps < 0 ? -1 : 2 * bs + ps);
 	}
 
 	/*
@@ -264,7 +284,7 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getMainMemHashCosts(OptimizerNode node, PactConnection buildSideInput, PactConnection probeSideInput,
+	public void getMainMemHashCosts(OptimizerNode node, List<PactConnection> buildSideInput, List<PactConnection> probeSideInput,
 			Costs target) {
 		target.setNetworkCost(0);
 		target.setSecondaryStorageCost(0);
@@ -279,16 +299,23 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getStreamedNestedLoopsCosts(OptimizerNode node, PactConnection outerSide, PactConnection innerSide,
+	public void getStreamedNestedLoopsCosts(OptimizerNode node, List<PactConnection> outerSide, List<PactConnection> innerSide,
 			int bufferSize, Costs costs)
 	{
 		costs.setNetworkCost(0);
 
-		long is = innerSide.getSourcePact().getEstimatedOutputSize() * innerSide.getReplicationFactor();
-		long oc = outerSide.getSourcePact().getEstimatedNumRecords() * outerSide.getReplicationFactor();
+		long is = 0, oc = 0;
+		int repFac = 0;
+		
+		for(PactConnection c : innerSide) {
+			is += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
+			repFac = Math.max(repFac, c.getReplicationFactor());
+		}
+		for(PactConnection c : outerSide)
+			oc += c.getSourcePact().getEstimatedNumRecords() * c.getReplicationFactor();
 		
 		// check whether the inner side can be cached
-		if (is < (bufferSize * innerSide.getReplicationFactor())) {
+		if (is < (bufferSize * repFac)) {
 			is = 0;
 		}
 
@@ -305,13 +332,17 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getBlockNestedLoopsCosts(OptimizerNode node, PactConnection outerSide, PactConnection innerSide,
+	public void getBlockNestedLoopsCosts(OptimizerNode node, List<PactConnection> outerSide, List<PactConnection> innerSide,
 			int blockSize, Costs costs)
 	{
 		costs.setNetworkCost(0);
 
-		long is = innerSide.getSourcePact().getEstimatedOutputSize() * innerSide.getReplicationFactor();
-		long os = outerSide.getSourcePact().getEstimatedOutputSize() * outerSide.getReplicationFactor();
+		long is = 0, os = 0;
+		
+		for(PactConnection c : innerSide)
+			is += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
+		for(PactConnection c : outerSide)
+			os += c.getSourcePact().getEstimatedOutputSize() * c.getReplicationFactor();
 
 		long loops = Math.max(os < 0 ? 1000 : os / blockSize, 1);
 

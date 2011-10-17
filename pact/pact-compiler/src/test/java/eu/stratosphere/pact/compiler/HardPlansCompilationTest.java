@@ -111,30 +111,30 @@ public class HardPlansCompilationTest {
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
 		map.setDegreeOfParallelism(defaultParallelism);
-		map.setInput(source);
+		map.addInput(source);
 		
 		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce1 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce1");
 		reduce1.setDegreeOfParallelism(defaultParallelism);
-		reduce1.setInput(map);
+		reduce1.addInput(map);
 		
 		CrossContract<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> cross1 = new CrossContract<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger>(DummyCrossStub.class, "Cross1");
 		cross1.setDegreeOfParallelism(defaultParallelism);
-		cross1.setFirstInput(reduce1);
-		cross1.setSecondInput(source);
+		cross1.addFirstInput(reduce1);
+		cross1.addSecondInput(source);
 		cross1.setOutputContract(SameKeyFirst.class);
 		
 		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce2 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce2");
 		reduce2.setDegreeOfParallelism(defaultParallelism);
-		reduce2.setInput(cross1);
+		reduce2.addInput(cross1);
 		
 		CrossContract<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> cross2 = new CrossContract<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger>(DummyCrossStub.class, "Cross2");
 		cross2.setDegreeOfParallelism(defaultParallelism);
-		cross2.setFirstInput(reduce2);
-		cross2.setSecondInput(source);
+		cross2.addFirstInput(reduce2);
+		cross2.addSecondInput(source);
 		
 		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce3 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce3");
 		reduce3.setDegreeOfParallelism(defaultParallelism);
-		reduce3.setInput(cross2);
+		reduce3.addInput(cross2);
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(defaultParallelism);

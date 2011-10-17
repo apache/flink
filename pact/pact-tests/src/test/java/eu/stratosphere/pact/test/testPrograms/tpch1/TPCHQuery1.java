@@ -77,8 +77,8 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 		ReduceContract<PactString, Tuple, PactString, Tuple> groupByReturnFlag = 
 			new ReduceContract<PactString, Tuple, PactString, Tuple>(GroupByReturnFlag.class, "groupyBy");
 		
-		lineItemFilter.setInput(lineItems);
-		groupByReturnFlag.setInput(lineItemFilter);
+		lineItemFilter.addInput(lineItems);
+		groupByReturnFlag.addInput(lineItemFilter);
 		result.setInput(groupByReturnFlag);
 		
 		return new Plan(result, "TPC-H 1");

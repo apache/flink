@@ -308,17 +308,17 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 		result.setDegreeOfParallelism(degreeOfParallelism);
 
 		result.setInput(reduce);
-		reduce.setInput(joinNCOL);
-		joinNCOL.setFirstInput(joinCOL);
-		joinNCOL.setSecondInput(projectN);
-		joinCOL.setFirstInput(projectC);
-		joinCOL.setSecondInput(joinOL);
-		joinOL.setFirstInput(mapO);
-		joinOL.setSecondInput(mapLi);
-		projectC.setInput(customers);
-		projectN.setInput(nations);
-		mapLi.setInput(lineitems);
-		mapO.setInput(orders);
+		reduce.addInput(joinNCOL);
+		joinNCOL.addFirstInput(joinCOL);
+		joinNCOL.addSecondInput(projectN);
+		joinCOL.addFirstInput(projectC);
+		joinCOL.addSecondInput(joinOL);
+		joinOL.addFirstInput(mapO);
+		joinOL.addSecondInput(mapLi);
+		projectC.addInput(customers);
+		projectN.addInput(nations);
+		mapLi.addInput(lineitems);
+		mapO.addInput(orders);
 
 		// return the PACT plan
 		return new Plan(result, "TPCH Q10");

@@ -24,9 +24,9 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
@@ -48,15 +48,15 @@ class InputOutputAdder implements Visitor<Contract> {
 		if (contract instanceof FileDataSinkContract<?, ?>)
 			((FileDataSinkContract<?, ?>) contract).setInput(TestPlan.createDefaultSource(contract.getName() + "-input"));
 		else if (contract instanceof SingleInputContract<?, ?, ?, ?>)
-			((SingleInputContract<?, ?, ?, ?>) contract).setInput(TestPlan.createDefaultSource(contract.getName()
+			((SingleInputContract<?, ?, ?, ?>) contract).addInput(TestPlan.createDefaultSource(contract.getName()
 				+ "-input"));
 		else if (contract instanceof DualInputContract<?, ?, ?, ?, ?, ?>) {
-			if (((DualInputContract<?, ?, ?, ?, ?, ?>) contract).getFirstInput() == null)
-				((DualInputContract<?, ?, ?, ?, ?, ?>) contract).setFirstInput(TestPlan.createDefaultSource(contract
+			if (((DualInputContract<?, ?, ?, ?, ?, ?>) contract).getFirstInputs().size() == 0)
+				((DualInputContract<?, ?, ?, ?, ?, ?>) contract).addFirstInput(TestPlan.createDefaultSource(contract
 					.getName()
 					+ "-input1"));
-			if (((DualInputContract<?, ?, ?, ?, ?, ?>) contract).getSecondInput() == null)
-				((DualInputContract<?, ?, ?, ?, ?, ?>) contract).setSecondInput(TestPlan.createDefaultSource(contract
+			if (((DualInputContract<?, ?, ?, ?, ?, ?>) contract).getSecondInputs().size() == 0)
+				((DualInputContract<?, ?, ?, ?, ?, ?>) contract).addSecondInput(TestPlan.createDefaultSource(contract
 					.getName()
 					+ "-input2"));
 		}

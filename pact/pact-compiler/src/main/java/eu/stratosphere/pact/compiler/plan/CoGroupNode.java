@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -95,8 +96,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected CoGroupNode(CoGroupNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
+	protected CoGroupNode(CoGroupNode template, List<OptimizerNode> pred1, List<OptimizerNode> pred2, List<PactConnection> conn1,
+			List<PactConnection> conn2, GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
 	}
 
@@ -107,6 +108,7 @@ public class CoGroupNode extends TwoInputNode {
 	 * 
 	 * @return The contract.
 	 */
+	@Override
 	public CoGroupContract<?, ?, ?, ?, ?> getPactContract() {
 		return (CoGroupContract<?, ?, ?, ?, ?>) super.getPactContract();
 	}
@@ -168,11 +170,14 @@ public class CoGroupNode extends TwoInputNode {
 		// a co-group is always interested in the following properties from both inputs:
 		// 1) any-partition and order
 		// 2) partition only
-		createInterestingProperties(input1, props1, estimator);
-		createInterestingProperties(input2, props2, estimator);
-
-		input1.addAllInterestingProperties(props1);
-		input2.addAllInterestingProperties(props2);
+		for(PactConnection c : this.input1){ 
+			createInterestingProperties(c, props1, estimator);
+			c.addAllInterestingProperties(props1);
+		}
+		for(PactConnection c : this.input2){ 
+			createInterestingProperties(c, props2, estimator);
+			c.addAllInterestingProperties(props2);
+		}
 	}
 
 	/**
@@ -196,7 +201,7 @@ public class CoGroupNode extends TwoInputNode {
 
 		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		Costs c = new Costs();
-		estimator.getLocalSortCost(this, input, c);
+		estimator.getLocalSortCost(this, Collections.<PactConnection>singletonList(input), c);
 		p.getMaximalCosts().addCosts(c);
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 
@@ -216,236 +221,258 @@ public class CoGroupNode extends TwoInputNode {
 	@Override
 	public List<CoGroupNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version
-		if (cachedPlans != null) {
-			return cachedPlans;
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
 		}
 
-		List<? extends OptimizerNode> inPlans1 = input1.getSourcePact().getAlternativePlans(estimator);
-		List<? extends OptimizerNode> inPlans2 = input2.getSourcePact().getAlternativePlans(estimator);
+		// TODO: mjsax
+		// right now we do not enumerate all plans
+		// -> because of union we have to do a recursive enumeration, what is missing right now
+		List<OptimizerNode> allPreds1 = new ArrayList<OptimizerNode>(this.input1.size());
+		for(PactConnection c : this.input1) {
+			allPreds1.add(c.getSourcePact());
+		}
+		
+		// TODO: mjsax
+		// right now we do not enumerate all plans
+		// -> because of union we have to do a recursive enumeration, what is missing right now
+		List<OptimizerNode> allPreds2 = new ArrayList<OptimizerNode>(this.input2.size());
+		for(PactConnection c : this.input2) {
+			allPreds2.add(c.getSourcePact());
+		}
 
+		
+		
 		List<CoGroupNode> outputPlans = new ArrayList<CoGroupNode>();
+		for(PactConnection c : this.input1) {
+			List<? extends OptimizerNode> inPlans1 = c.getSourcePact().getAlternativePlans(estimator);
+			
+			for(PactConnection cc : this.input2) {
+				List<? extends OptimizerNode> inPlans2 = cc.getSourcePact().getAlternativePlans(estimator);
 
-		// go over each combination of alternative children from the two inputs
-		for (OptimizerNode pred1 : inPlans1) {
-			for (OptimizerNode pred2 : inPlans2) {
-				// check, whether the two children have the same
-				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(pred1, pred2)) {
-					continue;
-				}
-
-				ShipStrategy ss1 = input1.getShipStrategy();
-				ShipStrategy ss2 = input2.getShipStrategy();
-
-				GlobalProperties gp1;
-				GlobalProperties gp2;
-
-				// test which degree of freedom we have in choosing the shipping strategies
-				// some may be fixed a priori by compiler hints
-				if (ss1 == ShipStrategy.NONE) {
-					// the first connection is free to choose for the compiler
-					gp1 = pred1.getGlobalProperties();
-
-					if (ss2 == ShipStrategy.NONE) {
-						// case: both are free to choose
-						gp2 = pred2.getGlobalProperties();
-
-						// test, if one side is pre-partitioned
-						// if that is the case, partitioning the other side accordingly is
-						// the cheapest thing to do
-						if (gp1.getPartitioning().isComputablyPartitioned()) {
-							ss1 = ShipStrategy.FORWARD;
-						}
-
-						if (gp2.getPartitioning().isComputablyPartitioned()) {
-							// input is partitioned
-							// check, whether that partitioning is the same as the one of input one!
-							if ((!gp1.getPartitioning().isComputablyPartitioned())
-								|| gp1.getPartitioning() == gp2.getPartitioning()) {
-								ss2 = ShipStrategy.FORWARD;
-							} else {
-								// both sides are partitioned, but in an incompatible way
-								// 2 alternatives:
-								// 1) re-partition 2 the same way as 1
-								// 2) re-partition 1 the same way as 2
-								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED
-									&& gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
-										ShipStrategy.PARTITION_HASH, estimator);
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-										ShipStrategy.FORWARD, estimator);
-								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED
-									&& gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
-										ShipStrategy.PARTITION_RANGE, estimator);
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-										ShipStrategy.FORWARD, estimator);
-								}
-
-								// do not go through the remaining logic of the loop!
-								continue;
-							}
-						}
-
-						// create the alternative nodes. the strategies to create depend on the different
-						// combinations of pre-existing partitionings
-						if (ss1 == ShipStrategy.FORWARD) {
-							if (ss2 == ShipStrategy.FORWARD) {
-								// both are equally pre-partitioned
-								// we need not use any special shipping step
-								createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
-
-								// we create an additional plan with a range partitioning
-								// if this is not already a range partitioning
-								if (gp1.getPartitioning() != PartitionProperty.RANGE_PARTITIONED) {
-									// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-									// ShipStrategy.PARTITION_RANGE, estimator);
-								}
-							} else {
-								// input 1 is local-forward
-
-								// add two plans:
-								// 1) make input 2 the same partitioning as input 1
-								// 2) partition both inputs with a different partitioning function (hash <-> range)
-								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, pred1, pred2, ss1,
-										ShipStrategy.PARTITION_HASH, estimator);
-									// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-									// ShipStrategy.PARTITION_RANGE, estimator);
-								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, pred1, pred2, ss1,
-										ShipStrategy.PARTITION_RANGE, estimator);
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-										ShipStrategy.PARTITION_HASH, estimator);
-								} else {
-									throw new CompilerException(
-										"Invalid partitioning property for input 1 of CoGroup '"
-											+ getPactContract().getName() + "'.");
-								}
-							}
-						} else if (ss2 == ShipStrategy.FORWARD) {
-							// input 2 is local-forward
-
-							// add two plans:
-							// 1) make input 1 the same partitioning as input 2
-							// 2) partition both inputs with a different partitioning function (hash <-> range)
-							if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-								createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ss2,
-									estimator);
-								// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-								// ShipStrategy.PARTITION_RANGE, estimator);
-							} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-								createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE, ss2,
-									estimator);
-								createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-									ShipStrategy.PARTITION_HASH, estimator);
-							} else {
-								throw new CompilerException("Invalid partitioning property for input 2 of CoGroup '"
-									+ getPactContract().getName() + "'.");
-							}
-						} else {
-							// all of the shipping strategies are free to choose.
-							// none has a pre-existing partitioning. create the options:
-							// 1) re-partition both by hash
-							// 2) re-partition both by range
-							createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-								ShipStrategy.PARTITION_HASH, estimator);
-							// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-							// ShipStrategy.PARTITION_RANGE, estimator);
-						}
-					} else {
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
-
-						// first connection free to choose, but second one is fixed
-						// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
-						// 2) input 2 is hash-partition -> other side must be re-partition by hash as well
-						// 3) input 2 is range-partition -> other side must be re-partition by range as well
-						switch (ss2) {
-						case FORWARD:
-							if (gp2.getPartitioning().isPartitioned()) {
-								// adapt to the partitioning
-								if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									ss1 = ShipStrategy.PARTITION_HASH;
-								} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									ss1 = ShipStrategy.PARTITION_RANGE;
-								} else {
-									throw new CompilerException();
-								}
-							} else {
-								// cannot create a valid plan. skip this candidate
-								continue;
-							}
-							break;
-						case PARTITION_HASH:
-							ss1 = (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
-								: ShipStrategy.PARTITION_HASH;
-							break;
-						case PARTITION_RANGE:
-							ss1 = (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
-								: ShipStrategy.PARTITION_RANGE;
-							break;
-						default:
-							throw new CompilerException("Invalid fixed shipping strategy '" + ss2.name()
-								+ "' for CoGroup contract '" + getPactContract().getName() + "'.");
-						}
-
-						createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
-					}
-
-				} else if (ss2 == ShipStrategy.NONE) {
-					// second connection free to choose, but first one is fixed
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-					gp2 = pred2.getGlobalProperties();
-
-					// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
-					// 2) input 1 is hash-partition -> other side must be re-partition by hash as well
-					// 3) input 1 is range-partition -> other side must be re-partition by range as well
-					switch (ss1) {
-					case FORWARD:
-						if (gp1.getPartitioning().isPartitioned()) {
-							// adapt to the partitioning
-							if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-								ss2 = ShipStrategy.PARTITION_HASH;
-							} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-								ss2 = ShipStrategy.PARTITION_RANGE;
-							} else {
-								throw new CompilerException();
-							}
-						} else {
-							// cannot create a valid plan. skip this candidate
+				// go over each combination of alternative children from the two inputs
+				for (OptimizerNode pred1 : inPlans1) {
+					for (OptimizerNode pred2 : inPlans2) {
+						// check, whether the two children have the same
+						// sub-plan in the common part before the branches
+						if (!areBranchCompatible(pred1, pred2)) {
 							continue;
 						}
-						break;
-					case PARTITION_HASH:
-						ss2 = (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
-							: ShipStrategy.PARTITION_HASH;
-						break;
-					case PARTITION_RANGE:
-						ss2 = (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
-							: ShipStrategy.PARTITION_RANGE;
-						break;
-					default:
-						throw new CompilerException("Invalid fixed shipping strategy '" + ss1.name()
-							+ "' for match contract '" + getPactContract().getName() + "'.");
+		
+						ShipStrategy ss1 = c.getShipStrategy();
+						ShipStrategy ss2 = cc.getShipStrategy();
+		
+						GlobalProperties gp1;
+						GlobalProperties gp2;
+		
+						// test which degree of freedom we have in choosing the shipping strategies
+						// some may be fixed a priori by compiler hints
+						if (ss1 == ShipStrategy.NONE) {
+							// the first connection is free to choose for the compiler
+							gp1 = pred1.getGlobalProperties();
+		
+							if (ss2 == ShipStrategy.NONE) {
+								// case: both are free to choose
+								gp2 = pred2.getGlobalProperties();
+		
+								// test, if one side is pre-partitioned
+								// if that is the case, partitioning the other side accordingly is
+								// the cheapest thing to do
+								if (gp1.getPartitioning().isComputablyPartitioned()) {
+									ss1 = ShipStrategy.FORWARD;
+								}
+		
+								if (gp2.getPartitioning().isComputablyPartitioned()) {
+									// input is partitioned
+									// check, whether that partitioning is the same as the one of input one!
+									if ((!gp1.getPartitioning().isComputablyPartitioned())
+										|| gp1.getPartitioning() == gp2.getPartitioning()) {
+										ss2 = ShipStrategy.FORWARD;
+									} else {
+										// both sides are partitioned, but in an incompatible way
+										// 2 alternatives:
+										// 1) re-partition 2 the same way as 1
+										// 2) re-partition 1 the same way as 2
+										if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED
+											&& gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+											createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
+												ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+											createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+												ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
+										} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED
+											&& gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+											createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
+												ShipStrategy.PARTITION_RANGE, estimator, allPreds1, allPreds2);
+											createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+												ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
+										}
+		
+										// do not go through the remaining logic of the loop!
+										continue;
+									}
+								}
+		
+								// create the alternative nodes. the strategies to create depend on the different
+								// combinations of pre-existing partitionings
+								if (ss1 == ShipStrategy.FORWARD) {
+									if (ss2 == ShipStrategy.FORWARD) {
+										// both are equally pre-partitioned
+										// we need not use any special shipping step
+										createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+		
+										// we create an additional plan with a range partitioning
+										// if this is not already a range partitioning
+										if (gp1.getPartitioning() != PartitionProperty.RANGE_PARTITIONED) {
+											// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+											// ShipStrategy.PARTITION_RANGE, estimator);
+										}
+									} else {
+										// input 1 is local-forward
+		
+										// add two plans:
+										// 1) make input 2 the same partitioning as input 1
+										// 2) partition both inputs with a different partitioning function (hash <-> range)
+										if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+											createCoGroupAlternative(outputPlans, pred1, pred2, ss1,
+												ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+											// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+											// ShipStrategy.PARTITION_RANGE, estimator);
+										} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+											createCoGroupAlternative(outputPlans, pred1, pred2, ss1,
+												ShipStrategy.PARTITION_RANGE, estimator, allPreds1, allPreds2);
+											createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+												ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+										} else {
+											throw new CompilerException(
+												"Invalid partitioning property for input 1 of CoGroup '"
+													+ getPactContract().getName() + "'.");
+										}
+									}
+								} else if (ss2 == ShipStrategy.FORWARD) {
+									// input 2 is local-forward
+		
+									// add two plans:
+									// 1) make input 1 the same partitioning as input 2
+									// 2) partition both inputs with a different partitioning function (hash <-> range)
+									if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+										createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ss2,
+											estimator, allPreds1, allPreds2);
+										// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+										// ShipStrategy.PARTITION_RANGE, estimator);
+									} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+										createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE, ss2,
+											estimator, allPreds1, allPreds2);
+										createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+											ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+									} else {
+										throw new CompilerException("Invalid partitioning property for input 2 of CoGroup '"
+											+ getPactContract().getName() + "'.");
+									}
+								} else {
+									// all of the shipping strategies are free to choose.
+									// none has a pre-existing partitioning. create the options:
+									// 1) re-partition both by hash
+									// 2) re-partition both by range
+									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+										ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+									// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+									// ShipStrategy.PARTITION_RANGE, estimator);
+								}
+							} else {
+								gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+		
+								// first connection free to choose, but second one is fixed
+								// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
+								// 2) input 2 is hash-partition -> other side must be re-partition by hash as well
+								// 3) input 2 is range-partition -> other side must be re-partition by range as well
+								switch (ss2) {
+								case FORWARD:
+									if (gp2.getPartitioning().isPartitioned()) {
+										// adapt to the partitioning
+										if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+											ss1 = ShipStrategy.PARTITION_HASH;
+										} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+											ss1 = ShipStrategy.PARTITION_RANGE;
+										} else {
+											throw new CompilerException();
+										}
+									} else {
+										// cannot create a valid plan. skip this candidate
+										continue;
+									}
+									break;
+								case PARTITION_HASH:
+									ss1 = (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+										: ShipStrategy.PARTITION_HASH;
+									break;
+								case PARTITION_RANGE:
+									ss1 = (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
+										: ShipStrategy.PARTITION_RANGE;
+									break;
+								default:
+									throw new CompilerException("Invalid fixed shipping strategy '" + ss2.name()
+										+ "' for CoGroup contract '" + getPactContract().getName() + "'.");
+								}
+		
+								createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+							}
+		
+						} else if (ss2 == ShipStrategy.NONE) {
+							// second connection free to choose, but first one is fixed
+							gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+							gp2 = pred2.getGlobalProperties();
+		
+							// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
+							// 2) input 1 is hash-partition -> other side must be re-partition by hash as well
+							// 3) input 1 is range-partition -> other side must be re-partition by range as well
+							switch (ss1) {
+							case FORWARD:
+								if (gp1.getPartitioning().isPartitioned()) {
+									// adapt to the partitioning
+									if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+										ss2 = ShipStrategy.PARTITION_HASH;
+									} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+										ss2 = ShipStrategy.PARTITION_RANGE;
+									} else {
+										throw new CompilerException();
+									}
+								} else {
+									// cannot create a valid plan. skip this candidate
+									continue;
+								}
+								break;
+							case PARTITION_HASH:
+								ss2 = (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+									: ShipStrategy.PARTITION_HASH;
+								break;
+							case PARTITION_RANGE:
+								ss2 = (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
+									: ShipStrategy.PARTITION_RANGE;
+								break;
+							default:
+								throw new CompilerException("Invalid fixed shipping strategy '" + ss1.name()
+									+ "' for match contract '" + getPactContract().getName() + "'.");
+							}
+		
+							createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+						} else {
+							// both are fixed
+							// check, if they produce a valid plan. for that, we need to have an equal partitioning
+							gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+							gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+							if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
+								// partitioning there and equal
+								createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+							} else {
+								// no valid plan possible with that combination of shipping strategies and pre-existing
+								// properties
+								continue;
+							}
+						}
 					}
-
-					createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
-				} else {
-					// both are fixed
-					// check, if they produce a valid plan. for that, we need to have an equal partitioning
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-					gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
-					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
-						// partitioning there and equal
-						createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
-					} else {
-						// no valid plan possible with that combination of shipping strategies and pre-existing
-						// properties
-						continue;
-					}
+		
 				}
 			}
-
 		}
 
 		// check if the list does not contain any plan. That may happen, if the channels specify
@@ -484,7 +511,8 @@ public class CoGroupNode extends TwoInputNode {
 	 *        The cost estimator.
 	 */
 	private void createCoGroupAlternative(List<CoGroupNode> target, OptimizerNode pred1, OptimizerNode pred2,
-			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator) {
+			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2)
+	{
 		// compute the given properties of the incoming data
 		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
 
@@ -496,10 +524,11 @@ public class CoGroupNode extends TwoInputNode {
 		outGp.setPartitioning(gp1.getPartitioning());
 
 		// create a new cogroup node for this input
-		CoGroupNode n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, new LocalProperties());
-
-		n.input1.setShipStrategy(ss1);
-		n.input2.setShipStrategy(ss2);
+		CoGroupNode n = new CoGroupNode(this, allPreds1, allPreds2, this.input1, this.input2, outGp, new LocalProperties());
+		for(PactConnection c : n.input1)
+			c.setShipStrategy(ss1);
+		for(PactConnection c : n.input2)
+			c.setShipStrategy(ss2);
 
 		// output will have ascending order
 		n.getLocalProperties().setKeyOrder(Order.ASCENDING);
@@ -540,25 +569,42 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return the number of keys processed by the PACT.
 	 */
 	private long computeNumberOfProcessedKeys() {
-		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
-		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
-
-		if(pred1 != null && pred2 != null) {
-			// Match processes all keys that appear in at least one of both input sets
+		long numKey1 = 0;
+		long numKey2 = 0;
+		
+		for(PactConnection c : this.input1) {
+			long keys = c.getSourcePact().estimatedKeyCardinality;
 			
-			if(pred1.getEstimatedKeyCardinality() == -1) {
-				// key card of 1st input unknown. Use key card of 2nd input as lower bound
-				return pred2.getEstimatedKeyCardinality();
-			} else if(pred2.getEstimatedKeyCardinality() == -1) {
-				// key card of 2nd input unknown. Use key card of 1st input as lower bound
-				return pred1.getEstimatedKeyCardinality();
-			} else {
-				// key card of both inputs known. Use maximum as lower bound
-				return Math.max(pred1.getEstimatedKeyCardinality(), pred2.getEstimatedKeyCardinality());
+			if(keys == -1) {
+				numKey1 = -1;
+				break;
 			}
-		} else {
-			return -1;
+			
+			numKey1 += keys;
 		}
+
+		for(PactConnection c : this.input2) {
+			long keys = c.getSourcePact().estimatedKeyCardinality;
+			
+			if(keys == -1) {
+				numKey2 = -1;
+				break;
+			}
+			
+			numKey2 += keys;
+		}
+		
+		if(numKey1 == -1)
+			// key card of 1st input unknown. Use key card of 2nd input as lower bound
+			return numKey2;
+		
+		
+		if(numKey2 == -1)
+			// key card of 2nd input unknown. Use key card of 1st input as lower bound
+			return numKey1;
+
+		// key card of both inputs known. Use maximum as lower bound
+		return Math.max(numKey1, numKey2);
 	}
 	
 	/**
@@ -567,7 +613,6 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return the number of stub calls for one processed key.
 	 */
 	private double computeStubCallsPerProcessedKey() {
-
 		// the stub is called once for each key.
 		return 1;
 	}
@@ -578,9 +623,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return the number of stub calls.
 	 */
 	private long computeNumberOfStubCalls() {
-
 		// the stub is called once per key
-		return this.computeNumberOfProcessedKeys();
+		return computeNumberOfProcessedKeys();
 	}
 	
 	/**
@@ -589,34 +633,62 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return width of output records
 	 */
 	private double computeAverageRecordWidth() {
-		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
-		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
 		CompilerHints hints = getPactContract().getCompilerHints();
-		
+
 		if(hints.getAvgBytesPerRecord() != -1) {
 			// use hint if available
 			return hints.getAvgBytesPerRecord();
-		
-		} else if (pred1 != null && pred2 != null) {
-			// sum up known record widths of preceding nodes
-			
-			double avgWidth = 0.0;
-			
-			if(pred1.getEstimatedOutputSize() != -1 && pred1.getEstimatedNumRecords() != -1) {
-				avgWidth += (pred1.getEstimatedOutputSize() / (float)pred1.getEstimatedNumRecords()) >= 1 ? 
-						(pred1.getEstimatedOutputSize() / (float)pred1.getEstimatedNumRecords()) : 1;
-			}
-			if(pred2.getEstimatedOutputSize() != -1 && pred2.getEstimatedNumRecords() != -1) {
-				avgWidth += (pred2.getEstimatedOutputSize() / (float)pred2.getEstimatedNumRecords()) >= 1 ?
-						(pred2.getEstimatedOutputSize() / (float)pred2.getEstimatedNumRecords()) : 1;
-			}
-
-			return avgWidth;
-			
-		} else {
-			// we have no estimate for the width... 
-			return -1.0;
 		}
+	
+		long outputSize = 0;
+		long numRecords = 0;
+		for(PactConnection c : this.input1) {
+			OptimizerNode pred = c.getSourcePact();
+			
+			if(pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its output size or number of records, we a pessimistic and return "unknown" as well
+				if(pred.estimatedOutputSize == -1 || pred.estimatedNumRecords == -1) {
+					outputSize = -1;
+					break;
+				}
+				
+				outputSize += pred.estimatedOutputSize;
+				numRecords += pred.estimatedNumRecords;
+			}
+		}
+
+		double avgWidth = -1;
+
+		if(outputSize != -1) {
+			avgWidth = outputSize / (double)numRecords;
+			if(avgWidth < 1)
+				avgWidth = 1;
+		}
+		
+
+		for(PactConnection c : this.input2) {
+			OptimizerNode pred = c.getSourcePact();
+			
+			if(pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its output size or number of records, we a pessimistic and return "unknown" as well
+				if(pred.estimatedOutputSize == -1) {
+					return avgWidth;
+				}
+				
+				outputSize += pred.estimatedOutputSize;
+				numRecords += pred.estimatedNumRecords;
+			}
+		}
+		
+		if(outputSize != -1) {
+			avgWidth += outputSize / (double)numRecords;
+			if(avgWidth < 2)
+				avgWidth = 2;
+		}
+
+		return avgWidth;
 	}
 	
 	/*
@@ -625,8 +697,11 @@ public class CoGroupNode extends TwoInputNode {
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
-		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
+		// TODO: mjsax
+//		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
+//		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
+		OptimizerNode pred1 = null;
+		OptimizerNode pred2 = null;
 		CompilerHints hints = getPactContract().getCompilerHints();
 
 		// special hint handling for CoGroup:

@@ -115,19 +115,19 @@ public class PropertiesPropagationTest {
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map1 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
 		map1.setDegreeOfParallelism(degOfPar);
-		map1.setInput(source);
+		map1.addInput(source);
 		
 		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce1 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce 1");
 		reduce1.setDegreeOfParallelism(degOfPar);
-		reduce1.setInput(map1);
+		reduce1.addInput(map1);
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map2 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map2");
 		map2.setDegreeOfParallelism(degOfPar * 2);
-		map2.setInput(reduce1);
+		map2.addInput(reduce1);
 		
 		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce2 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce 2");
 		reduce2.setDegreeOfParallelism(degOfPar * 2);
-		reduce2.setInput(map2);
+		reduce2.addInput(map2);
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
@@ -144,9 +144,9 @@ public class PropertiesPropagationTest {
 		// mapper respectively reducer
 		DataSinkNode sinkNode = oPlan.getDataSinks().iterator().next();
 		ReduceNode red2Node = (ReduceNode) sinkNode.getInputConnection().getSourcePact();
-		MapNode map2Node = (MapNode) red2Node.getInputConnection().getSourcePact();
+		MapNode map2Node = (MapNode) red2Node.getInputConnections().get(0).getSourcePact();
 		
-		Assert.assertEquals("The Reduce 1 Node has an invalid shipping strategy.", ShipStrategy.PARTITION_LOCAL_HASH, map2Node.getInputConnection().getShipStrategy());
+		Assert.assertEquals("The Reduce 1 Node has an invalid shipping strategy.", ShipStrategy.PARTITION_LOCAL_HASH, map2Node.getInputConnections().get(0).getShipStrategy());
 	}
 	
 	@Test
@@ -160,19 +160,19 @@ public class PropertiesPropagationTest {
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map1 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
 		map1.setDegreeOfParallelism(degOfPar * 2);
-		map1.setInput(source);
+		map1.addInput(source);
 		
 		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce1 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce 1");
 		reduce1.setDegreeOfParallelism(degOfPar * 2);
-		reduce1.setInput(map1);
+		reduce1.addInput(map1);
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map2 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map2");
 		map2.setDegreeOfParallelism(degOfPar);
-		map2.setInput(reduce1);
+		map2.addInput(reduce1);
 		
 		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce2 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce 2");
 		reduce2.setDegreeOfParallelism(degOfPar);
-		reduce2.setInput(map2);
+		reduce2.addInput(map2);
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(degOfPar);

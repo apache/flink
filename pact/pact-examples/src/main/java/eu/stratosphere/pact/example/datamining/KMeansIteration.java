@@ -694,10 +694,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 
 		// assemble the PACT plan
 		newClusterPoints.setInput(recomputeClusterCenter);
-		recomputeClusterCenter.setInput(findNearestClusterCenters);
-		findNearestClusterCenters.setInput(computeDistance);
-		computeDistance.setFirstInput(dataPoints);
-		computeDistance.setSecondInput(clusterPoints);
+		recomputeClusterCenter.addInput(findNearestClusterCenters);
+		findNearestClusterCenters.addInput(computeDistance);
+		computeDistance.addFirstInput(dataPoints);
+		computeDistance.addSecondInput(clusterPoints);
 
 		// return the PACT plan
 		return new Plan(newClusterPoints, "KMeans Iteration");

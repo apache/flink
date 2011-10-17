@@ -116,7 +116,7 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// compose failing program
 		output.setInput(testMapper);
-		testMapper.setInput(input);
+		testMapper.addInput(input);
 
 		// generate plan
 		Plan plan = new Plan(output);
@@ -157,7 +157,7 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// compose working program
 		output.setInput(testMapper);
-		testMapper.setInput(input);
+		testMapper.addInput(input);
 
 		// generate plan
 		Plan plan = new Plan(output);

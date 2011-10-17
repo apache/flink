@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stub.DualInputStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -26,14 +29,22 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  * 
  * @author Erik Nijkamp
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * @author mjsax@informatik.hu-berlin.de
+ * 
+ * @param <IK1> type of key of first input key/value-pair
+ * @param <IV1> type of value of first input key/value-pair
+ * @param <IK2> type of key of second input key/value-pair
+ * @param <IV2> type of value of second input key/value-pair
+ * @param <OK> type of key of output key/value-pair
+ * @param <OV> type of value of output key/value-pair
  */
 public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 extends Key, IV2 extends Value, OK extends Key, OV extends Value>
 		extends AbstractPact<OK, OV, DualInputStub<IK1, IV1, IK2, IV2, OK, OV>>
 {
 	// first input contract of this contract 
-	protected Contract firstInput;
+	final protected List<Contract> firstInput = new ArrayList<Contract>();
 	// second input contract of this contract
-	protected Contract secondInput;
+	final protected List<Contract> secondInput = new ArrayList<Contract>();
 
 	/**
 	 * Creates a new contract using the given stub and the given name
@@ -106,8 +117,8 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	 * 
 	 * @return The contract's first input contract.
 	 */
-	public Contract getFirstInput() {
-		return firstInput;
+	public List<Contract> getFirstInputs() {
+		return this.firstInput;
 	}
 
 	/**
@@ -115,8 +126,8 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	 * 
 	 * @return The contract's second input contract.
 	 */
-	public Contract getSecondInput() {
-		return secondInput;
+	public List<Contract> getSecondInputs() {
+		return this.secondInput;
 	}
 
 	/**
@@ -124,8 +135,8 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	 * 
 	 * @param firstInput The contract that is connected as the first input.
 	 */
-	public void setFirstInput(Contract firstInput) {
-		this.firstInput = firstInput;
+	public void addFirstInput(Contract firstInput) {
+		this.firstInput.add(firstInput);
 	}
 
 	/**
@@ -133,8 +144,8 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	 * 
 	 * @param secondInput The contract that is connected as the second input.
 	 */
-	public void setSecondInput(Contract secondInput) {
-		this.secondInput = secondInput;
+	public void addSecondInput(Contract secondInput) {
+		this.secondInput.add(secondInput);
 	}
 
 	/**
@@ -143,10 +154,12 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	@Override
 	public void accept(Visitor<Contract> visitor) {
 		if (visitor.preVisit(this)) {
-			if (firstInput != null)
-				firstInput.accept(visitor);
-			if (secondInput != null)
-				secondInput.accept(visitor);
+			for(Contract c : this.firstInput) {
+				c.accept(visitor);
+			}
+			for(Contract c : this.secondInput) {
+				c.accept(visitor);
+			}
 			visitor.postVisit(this);
 		}
 	}

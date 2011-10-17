@@ -171,8 +171,8 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 		out.setDegreeOfParallelism(noSubTasks);
 
 		out.setInput(reducer);
-		reducer.setInput(mapper);
-		mapper.setInput(data);
+		reducer.addInput(mapper);
+		mapper.addInput(data);
 
 		return new Plan(out, "WordCount Example");
 	}

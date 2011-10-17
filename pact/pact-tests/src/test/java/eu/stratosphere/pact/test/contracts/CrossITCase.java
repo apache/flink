@@ -184,8 +184,8 @@ public class CrossITCase extends TestBase
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testCross);
-		testCross.setFirstInput(input_left);
-		testCross.setSecondInput(input_right);
+		testCross.addFirstInput(input_left);
+		testCross.addSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 

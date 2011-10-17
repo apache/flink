@@ -74,6 +74,7 @@ public class DataSourceNode extends OptimizerNode
 	 * 
 	 * @return The contract.
 	 */
+	@Override
 	public GenericDataSource<?, ?> getPactContract() {
 		return (GenericDataSource<?, ?>) super.getPactContract();
 	}
@@ -101,8 +102,8 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
 	 */
 	@Override
-	public List<PactConnection> getIncomingConnections() {
-		return Collections.<PactConnection> emptyList();
+	public List<List<PactConnection>> getIncomingConnections() {
+		return Collections.<List<PactConnection>>emptyList();
 	}
 
 	/*
@@ -119,6 +120,7 @@ public class DataSourceNode extends OptimizerNode
 	 * based on the file size and the compiler hints. The compiler hints are instantiated with
 	 * conservative default values which are used if no other values are provided.
 	 */
+	@Override
 	public void computeOutputEstimates(DataStatistics statistics)
 	{
 		CompilerHints hints = getPactContract().getCompilerHints();
@@ -248,8 +250,8 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	@Override
 	public List<DataSourceNode> getAlternativePlans(CostEstimator estimator) {
-		if (cachedPlans != null) {
-			return cachedPlans;
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
 		}
 
 		GlobalProperties gp = new GlobalProperties();

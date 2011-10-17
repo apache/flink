@@ -54,7 +54,7 @@ public class SinkJoiner extends TwoInputNode
 		setSecondInputConnection(conn2);
 	}
 	
-	private SinkJoiner(SinkJoiner template, OptimizerNode input1, OptimizerNode input2) {
+	private SinkJoiner(SinkJoiner template, List<OptimizerNode> input1, List<OptimizerNode> input2) {
 		super(template, input1, input2, template.getFirstInputConnection(), template.getSecondInputConnection(),
 			template.getGlobalProperties(), template.getLocalProperties());
 	}
@@ -99,23 +99,43 @@ public class SinkJoiner extends TwoInputNode
 	@Override
 	public List<SinkJoiner> getAlternativePlans(CostEstimator estimator)
 	{
-		List<? extends OptimizerNode> inPlans1 = input1.getSourcePact().getAlternativePlans(estimator);
-		List<? extends OptimizerNode> inPlans2 = input2.getSourcePact().getAlternativePlans(estimator);
+		// TODO: mjsax
+		// right now we do not enumerate all plans
+		// -> because of union we have to do a recursive enumeration, what is missing right now
+		List<OptimizerNode> allPreds1 = new ArrayList<OptimizerNode>(this.input1.size());
+		for(PactConnection c : this.input1) {
+			allPreds1.add(c.getSourcePact());
+		}
 
-		List<SinkJoiner> outputPlans = new ArrayList<SinkJoiner>();
+		List<OptimizerNode> allPreds2 = new ArrayList<OptimizerNode>(this.input2.size());
+		for(PactConnection c : this.input2) {
+			allPreds2.add(c.getSourcePact());
+		}
+
 		
-		for (OptimizerNode pred1 : inPlans1) {
-			for (OptimizerNode pred2 : inPlans2) {
-				// check, whether the two children have the same
-				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(pred1, pred2)) {
-					continue;
-				}
+		List<SinkJoiner> outputPlans = new ArrayList<SinkJoiner>();
+
+		for(PactConnection c : this.input1) {
+			List<? extends OptimizerNode> inPlans1 = c.getSourcePact().getAlternativePlans(estimator);
+
+			for(PactConnection cc : this.input2) {
+				List<? extends OptimizerNode> inPlans2 = cc.getSourcePact().getAlternativePlans(estimator);
+
 				
-				SinkJoiner n = new SinkJoiner(this, pred1, pred2);
-				estimator.costOperator(n);
-				
-				outputPlans.add(n);
+				for (OptimizerNode pred1 : inPlans1) {
+					for (OptimizerNode pred2 : inPlans2) {
+						// check, whether the two children have the same
+						// sub-plan in the common part before the branches
+						if (!areBranchCompatible(pred1, pred2)) {
+							continue;
+						}
+						
+						SinkJoiner n = new SinkJoiner(this, allPreds1, allPreds2);
+						estimator.costOperator(n);
+						
+						outputPlans.add(n);
+					}
+				}				
 			}
 		}
 		
@@ -142,21 +162,27 @@ public class SinkJoiner extends TwoInputNode
 	
 	public void getDataSinks(List<DataSinkNode> target)
 	{
-		OptimizerNode input1 = this.input1.getSourcePact();
-		OptimizerNode input2 = this.input2.getSourcePact();
+		for(PactConnection c : this.input1) {
+			OptimizerNode input1 = c.getSourcePact();
+
+			if (input1 instanceof DataSinkNode) {
+				target.add((DataSinkNode) input1); 
+			}
+			else {
+				((SinkJoiner) input1).getDataSinks(target);
+			}
+			
+		}
 		
-		if (input1 instanceof DataSinkNode) {
-			target.add((DataSinkNode) input1); 
-		}
-		else {
-			((SinkJoiner) input1).getDataSinks(target);
-		}
+		for(PactConnection c : this.input1) {
+			OptimizerNode input2 = c.getSourcePact();
 		
-		if (input2 instanceof DataSinkNode) {
-			target.add((DataSinkNode) input2); 
-		}
-		else {
-			((SinkJoiner) input2).getDataSinks(target);
+			if (input2 instanceof DataSinkNode) {
+				target.add((DataSinkNode) input2); 
+			}
+			else {
+				((SinkJoiner) input2).getDataSinks(target);
+			}
 		}
 	}
 

@@ -32,8 +32,8 @@ import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
@@ -106,11 +106,11 @@ public class PartitionLocalHashCompilerTest {
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map1 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
 		map1.setDegreeOfParallelism(1);
-		map1.setInput(source);
+		map1.addInput(source);
 		
 		ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger> reduce1 = new ReduceContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityReduce.class, "Reduce1");
 		reduce1.setDegreeOfParallelism(defaultParallelism);
-		reduce1.setInput(map1);
+		reduce1.addInput(map1);
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(defaultParallelism);
@@ -125,7 +125,7 @@ public class PartitionLocalHashCompilerTest {
 			public boolean preVisit(OptimizerNode visitable) {
 				if(visitable instanceof ReduceNode) {
 					//Check that correct strategy is chosen
-					ShipStrategy strategy = visitable.getIncomingConnections().get(0).getShipStrategy();
+					ShipStrategy strategy = visitable.getIncomingConnections().get(0).get(0).getShipStrategy();
 					Assert.assertEquals(ShipStrategy.PARTITION_LOCAL_HASH, strategy);
 					return false;
 				}

@@ -156,7 +156,7 @@ public class TempTaskSharingTest {
 		
 		MapContract<PactInteger, PactInteger, PactInteger, PactInteger> map1 = new MapContract<PactInteger, PactInteger, PactInteger, PactInteger>(IdentityMap.class, "Map1");
 		map1.setDegreeOfParallelism(defaultParallelism);
-		map1.setInput(source);
+		map1.addInput(source);
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(defaultParallelism);
@@ -172,7 +172,7 @@ public class TempTaskSharingTest {
 			public boolean preVisit(OptimizerNode visitable) {
 				if(visitable instanceof MapNode) {
 					//Only OptimizerNode is MapContract
-					visitable.getIncomingConnections().get(0).setTempMode(mode);
+					visitable.getIncomingConnections().get(0).get(0).setTempMode(mode);
 					return false;
 				}
 				return true;

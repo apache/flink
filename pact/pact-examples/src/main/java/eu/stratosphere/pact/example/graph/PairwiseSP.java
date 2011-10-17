@@ -629,12 +629,12 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		result.setDegreeOfParallelism(noSubTasks);
 
 		result.setInput(findShortestPaths);
-		findShortestPaths.setFirstInput(pathsInput);
-		findShortestPaths.setSecondInput(concatPaths);
-		concatPaths.setFirstInput(pathStarts);
-		pathStarts.setInput(pathsInput);
-		concatPaths.setSecondInput(pathEnds);
-		pathEnds.setInput(pathsInput);
+		findShortestPaths.addFirstInput(pathsInput);
+		findShortestPaths.addSecondInput(concatPaths);
+		concatPaths.addFirstInput(pathStarts);
+		pathStarts.addInput(pathsInput);
+		concatPaths.addSecondInput(pathEnds);
+		pathEnds.addInput(pathsInput);
 
 		return new Plan(result, "Pairwise Shortest Paths");
 

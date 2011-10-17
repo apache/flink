@@ -482,10 +482,10 @@ public class TestPlan implements Closeable, DeploymentManager {
 		// PactConnection.class.getDeclaredField("shipStrategy");
 		// declaredField.setAccessible(true);
 		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
-			for (final PactConnection pactConnection : node
-					.getIncomingConnections())
-				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
-				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
+			for(final List<PactConnection> listPactConnection : node.getIncomingConnections())
+				for (final PactConnection pactConnection : listPactConnection)
+					// declaredField.set(pactConnection, ShipStrategy.FORWARD);
+					pactConnection.setShipStrategy(ShipStrategy.FORWARD);
 			for (final PactConnection pactConnection : node
 					.getOutgoingConnections())
 				// declaredField.set(pactConnection, ShipStrategy.FORWARD);

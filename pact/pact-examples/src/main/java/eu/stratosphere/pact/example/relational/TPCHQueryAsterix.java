@@ -241,11 +241,11 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 
 		// assemble the PACT plan
 		result.setInput(aggCO);
-		aggCO.setInput(joinCO);
-		joinCO.setFirstInput(projectO);
-		projectO.setInput(orders);
-		joinCO.setSecondInput(projectC);
-		projectC.setInput(customers);
+		aggCO.addInput(joinCO);
+		joinCO.addFirstInput(projectO);
+		projectO.addInput(orders);
+		joinCO.addSecondInput(projectC);
+		projectC.addInput(customers);
 
 		// return the PACT plan
 		return new Plan(result, "TPCH Asterix");

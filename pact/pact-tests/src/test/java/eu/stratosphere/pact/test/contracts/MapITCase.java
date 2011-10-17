@@ -137,7 +137,7 @@ public class MapITCase extends TestBase
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testMapper);
-		testMapper.setInput(input);
+		testMapper.addInput(input);
 
 		Plan plan = new Plan(output);
 

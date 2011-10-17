@@ -158,7 +158,7 @@ public class ReduceITCase extends TestBase
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testReducer);
-		testReducer.setInput(input);
+		testReducer.addInput(input);
 
 		Plan plan = new Plan(output);
 

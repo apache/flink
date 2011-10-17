@@ -204,7 +204,7 @@ public class TestPlanTest extends TestPlanTestCase {
 
 		final MapContract<Key, Value, Key, Value> map =
 			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
-		map.setInput(read);
+		map.addInput(read);
 
 		FileDataSinkContract<Key, Value> output = createOutput(map, SequentialOutputFormat.class);
 
@@ -256,7 +256,7 @@ public class TestPlanTest extends TestPlanTestCase {
 
 		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
 			"Map");
-		map.setInput(read);
+		map.addInput(read);
 
 		FileDataSinkContract<PactNull, PactJsonObject> output = createOutput(map, JsonOutputFormat.class);
 
@@ -398,10 +398,10 @@ public class TestPlanTest extends TestPlanTestCase {
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		// first and second input are added in TestPlan
-		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getFirstInput()).
+		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getFirstInputs().get(0)).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getSecondInput()).
+		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getSecondInputs().get(0)).
 			add(new PactInteger(3), new PactString("test3")).
 			add(new PactInteger(4), new PactString("test4"));
 
@@ -522,7 +522,7 @@ public class TestPlanTest extends TestPlanTestCase {
 		final ReduceContract<PactString, PactInteger, PactString, PactInteger> summing = new ReduceContract<PactString, PactInteger, PactString, PactInteger>(
 			CountWords.class,
 			"Map");
-		summing.setInput(tokenize);
+		summing.addInput(tokenize);
 
 		TestPlan testPlan = new TestPlan(summing);
 		String[] lines = {

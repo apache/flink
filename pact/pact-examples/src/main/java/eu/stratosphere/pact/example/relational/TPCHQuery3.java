@@ -331,11 +331,11 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// assemble the PACT plan
 		result.setInput(aggLiO);
-		aggLiO.setInput(joinLiO);
-		joinLiO.setFirstInput(filterO);
-		filterO.setInput(orders);
-		joinLiO.setSecondInput(projectLi);
-		projectLi.setInput(lineitems);
+		aggLiO.addInput(joinLiO);
+		joinLiO.addFirstInput(filterO);
+		filterO.addInput(orders);
+		joinLiO.addSecondInput(projectLi);
+		projectLi.addInput(lineitems);
 
 		Plan plan = new Plan(result, "TPCH Q3");
 		if (awsAccessID != null) {
