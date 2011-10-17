@@ -16,6 +16,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -32,20 +33,20 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 1, 1);
 		JsonStream input = sopremoModule.getInput(0);
 
-//		TupleDuplicate tuples = new TupleDuplicate().withInputs(input);
-//		
-//		Grouping group = new Grouping().withInputs(tuples).withGroupingKey(EvaluationExpression.KEY);
-//		
-//		final PathExpression keyTransform = new PathExpression(new ArrayAccess(0), new ObjectAccess("partition"));
-//		final PathExpression valueTransform = new PathExpression(new FunctionCall("add", EvaluationExpression.VALUE, EvaluationExpression.KEY, new ConstantExpression(0)));
-//		
-//		Projection proj = new Projection().withInputs(group);
-//		proj.withKeyTransformation(keyTransform);
-//		proj.withValueTransformation(valueTransform);
-		
+		// TupleDuplicate tuples = new TupleDuplicate().withInputs(input);
+		//
+		// Grouping group = new Grouping().withInputs(tuples).withGroupingKey(EvaluationExpression.KEY);
+		//
+		// final PathExpression keyTransform = new PathExpression(new ArrayAccess(0), new ObjectAccess("partition"));
+		// final PathExpression valueTransform = new PathExpression(new FunctionCall("add", EvaluationExpression.VALUE,
+		// EvaluationExpression.KEY, new ConstantExpression(0)));
+		//
+		// Projection proj = new Projection().withKeyTransformation(keyTransform)
+		// .withValueTransformation(valueTransform).withInputs(group);
+
 		PathExpression transformation = new PathExpression(new ArrayAccess(0), new ObjectAccess("partition"));
 		final Projection valueExtraction = new Projection().withInputs(input).withKeyTransformation(transformation);
-		
+
 		final Grouping group = new Grouping().withInputs(valueExtraction).withGroupingKey(EvaluationExpression.KEY);
 
 		final ParallelClosure pairs = new ParallelClosure()
@@ -70,22 +71,24 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 			}
 		}
 	}
-	
 
-	private static class TupleDuplicate extends ElementaryOperator<TupleDuplicate>{
-		
+	private static class TupleDuplicate extends ElementaryOperator<TupleDuplicate> {
+
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 5940876439025744020L;
 
-		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode>{
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				key = ((ArrayNode) value).get(0);
+				value = ((ArrayNode) value).get(1);
+
 				out.collect(key, value);
 				out.collect(value, key);
 			}
 		}
 	}
-	
+
 }
