@@ -46,7 +46,7 @@ public class RecoveryThread extends Thread {
 
 	final ExecutionGraph job;
 
-	final List<ExecutionVertex> failedVertices;
+	List<ExecutionVertex> failedVertices;
 
 	private List<ExecutionVertex> checkpoints;
 
@@ -62,7 +62,7 @@ public class RecoveryThread extends Thread {
 	 * @throws Exception
 	 */
 	public RecoveryThread(ExecutionGraph job, JobManager jobManager) throws Exception {
-		super();
+		super("Recovery Thread");
 		this.job = job;
 		this.jobManager = jobManager;
 		this.failedVertices = new ArrayList<ExecutionVertex>();
@@ -80,18 +80,27 @@ public class RecoveryThread extends Thread {
 		if (this.failedVertices.isEmpty()) {
 			LOG.error("No failed vertices to recover");
 		}
-		List<CheckpointReplayResult> replayCheckpoints = new ArrayList();
-		Iterator<ExecutionVertex> vertexIter = this.failedVertices.iterator();
+		//FIXME (marrus) dirty fix
+		while(!this.failedVertices.isEmpty()){
+			recover(this.failedVertices.remove(0));
+			if(this.failedVertices.isEmpty()){
+				this.failedVertices = this.job.getFailedVertices();
+			}
+		}
+		LOG.info("Recovery Finished");
+	}
 
-		while (vertexIter.hasNext()) {
+	/**
+	 * 
+	 */
+	private boolean recover(ExecutionVertex  failed) {
+		List<CheckpointReplayResult> replayCheckpoints = new ArrayList<CheckpointReplayResult>();
 
-			// ArrayList<AbstractInputChannel> channels = new ArrayList<AbstractInputChannel>();
-			ExecutionVertex failed = vertexIter.next();
 
 			LOG.info("Staring Recovery for " + failed);
 			//findRestarts(failed);
 			
-			List<ExecutionVertex> restart = findRestarts(failed);
+			final List<ExecutionVertex> restart = findRestarts(failed);
 			
 			//restart all predecessors without checkpoint
 			Iterator<ExecutionVertex> restartIterator = restart.iterator();
@@ -103,7 +112,7 @@ public class RecoveryThread extends Thread {
 					} catch (IOException e) {
 						e.printStackTrace();
 						this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
-						return;
+						return false;
 					}
 				}
 
@@ -114,7 +123,7 @@ public class RecoveryThread extends Thread {
 			} catch (IOException e1) {
 				e1.printStackTrace();
 				this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
-				return;
+				return false;
 			}
 
 			//get list of instances of consistencheckpoints
@@ -132,23 +141,27 @@ public class RecoveryThread extends Thread {
 
 					replayCheckpoints.addAll(instanceIterator.next().replayCheckpoints(this.globalConsistentCheckpoint));
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
+					this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
+					return false;
 				}
 			}
 			
-			
-		}
-		for(CheckpointReplayResult replayResult : replayCheckpoints ){
-			if(replayResult.getReturnCode() == ReturnCode.ERROR){
-				LOG.info("Replay of Checkpoints return Error " + replayResult.getDescription() );
-				this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
-				return;
+			for(CheckpointReplayResult replayResult : replayCheckpoints ){
+				if(replayResult.getReturnCode() == ReturnCode.ERROR){
+					LOG.info("Replay of Checkpoints return Error " + replayResult.getDescription() );
+					this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
+					return false;
+				}
 			}
-		}
+			LOG.info("FINISHED RECOVERY for " + failed.getName());
+			this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.RERUNNING, null);
 		
-		this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.RERUNNING, null);
-		LOG.info("Recovery Finished");
+		
+		
+		
+
+		return true;
 	}
 
 	/**

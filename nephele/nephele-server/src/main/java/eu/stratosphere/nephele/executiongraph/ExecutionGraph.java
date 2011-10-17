@@ -1242,8 +1242,13 @@ public class ExecutionGraph implements ExecutionListener {
 			break;
 		case RECOVERING:
 			if (latestStateChange == ExecutionState.RERUNNING) {
-				this.recovering.clear();
-				this.jobStatus = InternalJobStatus.RUNNING;
+				if(this.recovering.isEmpty()){
+					this.jobStatus = InternalJobStatus.RUNNING;
+					break;
+				}
+			}
+			if (latestStateChange == ExecutionState.FAILED){
+				LOG.info("Another Failed Vertex while recovering");
 			}
 			break;
 		case FAILING:
@@ -1308,10 +1313,12 @@ public class ExecutionGraph implements ExecutionListener {
 				}
 			}
 		}
-		if (this.jobStatus == InternalJobStatus.RECOVERING){
+		if (newExecutionState == ExecutionState.FAILED && this.jobStatus == InternalJobStatus.RECOVERING){
             LOG.info("RECOVERING");
            //FIXME (marrus) see if we even need that
-           this.recovering.add(this.getVertexByID(vertexID));
+            if(!this.recovering.contains(vertexID)){
+            	this.recovering.add(this.getVertexByID(vertexID));
+            }
    }
 
 		if (this.jobStatus != oldStatus) {
