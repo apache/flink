@@ -48,7 +48,7 @@ public class BroadcastProducer extends AbstractGenericInputTask {
 	/**
 	 * The interval in which records with time stamps shall be sent.
 	 */
-	public static final int TIMESTAMP_INTERVAL = 10000;
+	public static final int TIMESTAMP_INTERVAL = 100000;
 
 	/**
 	 * The broadcast record writer the records will be emitted through.

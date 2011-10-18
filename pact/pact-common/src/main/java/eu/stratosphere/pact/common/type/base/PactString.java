@@ -18,6 +18,7 @@ package eu.stratosphere.pact.common.type.base;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.nio.CharBuffer;
 
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
@@ -27,7 +28,9 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * PactString encapsulates a Java String object.
  * 
  * @see eu.stratosphere.pact.common.type.Key
+ * @see eu.stratosphere.pact.common.type.NormalizableKey
  * @see java.lang.String
+ * @see java.lang.CharSequence
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
@@ -60,7 +63,6 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	public PactString()
 	{
 		this.value = EMPTY_STRING;
-		this.len = 0;
 	}
 	
 	/**
@@ -103,11 +105,22 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	// --------------------------------------------------------------------------------------------
 	
 	/**
+	 * Sets a new length for the string.
+	 * 
+	 * @param len The new length.
+	 */
+	public void setLength(int len)
+	{
+		if (len < 0 || len > this.len)
+			throw new IllegalArgumentException("Length must be between 0 and the current length.");
+		this.len = len;
+	}
+	/**
 	 * Returns this PactString's internal character data.
 	 * 
 	 * @return The character data.
 	 */
-	public char[] getChars() {
+	public char[] getCharArray() {
 		return this.value;
 	}
 	
@@ -157,9 +170,11 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	}
 	
 	/**
-	 * Sets the value of the PactString to the given string.
+	 * Sets the value of the PactString to a substring of the given string.
 	 * 
 	 * @param value The new string value.
+	 * @param offset The position to start the substring.
+	 * @param len The length of the substring.
 	 */
 	public void setValue(final PactString value, int offset, int len)
 	{
@@ -175,10 +190,27 @@ public class PactString implements Key, NormalizableKey, CharSequence
 		this.hashCode = 0;
 	}
 	
+	/**
+	 * Sets the contents of this string to the contents of the given <tt>CharBuffer</tt>.
+	 * The characters between the buffer's current position (inclusive) and the buffer's
+	 * limit (exclusive) will be stored in this string.
+	 *  
+	 * @param buffer The character buffer to read the characters from.
+	 */
+	public void setValue(CharBuffer buffer)
+	{
+		final int len = buffer.length();
+		ensureSize(len);
+		buffer.get(this.value, 0, len);
+		this.len = len;
+		this.hashCode = 0;
+	}
+	
 	
 	public void setValueUTF8(byte[] bytes, int offset, int len) {
 		throw new UnsupportedOperationException();
 	}
+
 	
 	/**
 	 * Sets the value of this <code>PactString</code>, assuming that the binary data is ASCII coded. The n-th character of the
@@ -205,6 +237,43 @@ public class PactString implements Key, NormalizableKey, CharSequence
 			chars[i] = (char) (bytes[offset] & 0xff);
 		}
 	}
+	
+	/**
+     * Returns a new <tt>PactString</tt>string that is a substring of this string. The
+     * substring begins at the given <code>start</code> index and ends at end of the string
+     *
+     * @param start The beginning index, inclusive.
+     * @return The substring.
+     * @exception  IndexOutOfBoundsException Thrown, if the start is negative.
+     */
+	public PactString substring(int start)
+	{
+		return substring(start, this.len);
+	}
+	
+	/**
+     * Returns a new <tt>PactString</tt>string that is a substring of this string. The
+     * substring begins at the given <code>start</code> index and ends at <code>end - 1</code>.
+     *
+     * @param start The beginning index, inclusive.
+     * @param end The ending index, exclusive.
+     * @return The substring.
+     * @exception  IndexOutOfBoundsException Thrown, if the start is negative, or the end is larger than the length.
+     */
+	public PactString substring(int start, int end)
+	{
+		return new PactString(this, start, end - start);
+	}
+	
+	public void substring(PactString target, int start)
+	{
+		substring(target, start, this.len);
+	}
+	
+	public void substring(PactString target, int start, int end)
+	{
+		target.setValue(this, start, end - start);
+	}	
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -374,7 +443,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	// --------------------------------------------------------------------------------------------
 	//                              Char Sequence Implementation
 	// --------------------------------------------------------------------------------------------
-	
+
 	/* (non-Javadoc)
 	 * @see java.lang.CharSequence#length()
 	 */
@@ -383,7 +452,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	{
 		return this.len;
 	}
-
+	
 	/* (non-Javadoc)
 	 * @see java.lang.CharSequence#charAt(int)
 	 */

@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.instance.cluster;
 
 import java.util.List;
 
-import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.jobgraph.JobID;
