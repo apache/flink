@@ -29,21 +29,22 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
+import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
 
 /**
@@ -82,57 +83,45 @@ public class ReduceITCase extends TestBase
 		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_4.txt", REDUCE_IN_4);
 	}
 
-	public static class ReduceTestInFormat extends TextInputFormat<PactString, PactString> {
-
-		@Override
-		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
-
-			pair.setKey(new PactString(new String((char) line[0] + "")));
-			pair.setValue(new PactString(new String((char) line[2] + "")));
-
-			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
-			return true;
-		}
-	}
-
-	public static class ReduceTestOutFormat extends TextOutputFormat<PactString, PactInteger> {
-
-		@Override
-		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
-			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
-
-			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
-		}
-	}
-
 	@Combinable
-	public static class TestReducer extends ReduceStub<PactString, PactString, PactString, PactInteger> {
+	public static class TestReducer extends ReduceStub {
+
+		private PactString reduceValue = new PactString();
+		private PactString combineValue = new PactString();
 
 		@Override
-		public void reduce(PactString key, Iterator<PactString> values, Collector<PactString, PactInteger> out) {
-
+		public void combine(Iterator<PactRecord> records, Collector out) throws Exception {
+		
 			int sum = 0;
-			while (values.hasNext()) {
-				PactString v = values.next();
-				sum += Integer.parseInt(v.toString());
+			PactRecord record = new PactRecord();
+			while (records.hasNext()) {
+				record = records.next();
+				record.getField(1, combineValue);
+				sum += Integer.parseInt(combineValue.toString());
 
-				LOG.debug("Processed: [" + key + "," + v + "]");
+				LOG.debug("Processed: [" + record.getField(0, PactString.class).toString() +
+						"," + combineValue.toString() + "]");
 			}
-			out.collect(key, new PactInteger(sum));
+			combineValue.setValue(sum + "");
+			record.setField(1, combineValue);
+			out.collect(record);
 		}
 
 		@Override
-		public void combine(PactString key, Iterator<PactString> values, Collector<PactString, PactString> out) {
+		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+		
 			int sum = 0;
+			PactRecord record = new PactRecord();
+			while (records.hasNext()) {
+				record = records.next();
+				record.getField(1, reduceValue);
+				sum += Integer.parseInt(reduceValue.toString());
 
-			while (values.hasNext()) {
-				PactString v = values.next();
-				sum += Integer.parseInt(v.toString());
-
-				LOG.debug("Combined: [" + key + "," + v + "]");
+				LOG.debug("Processed: [" + record.getField(0, PactString.class).toString() +
+						"," + reduceValue.toString() + "]");
 			}
-
-			out.collect(key, new PactString(sum + ""));
+			record.setField(1, new PactInteger(sum));
+			out.collect(record);
 		}
 	}
 
@@ -140,21 +129,20 @@ public class ReduceITCase extends TestBase
 	protected JobGraph getJobGraph() throws Exception {
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		FileDataSourceContract<PactString, PactString> input = new FileDataSourceContract<PactString, PactString>(
-				ReduceTestInFormat.class, pathPrefix + "/reduceInput");
-		input.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input = new FileDataSource(
+				ContractITCaseInputFormat.class, pathPrefix + "/reduceInput");
+		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
-		ReduceContract<PactString, PactString, PactString, PactInteger> testReducer = new ReduceContract<PactString, PactString, PactString, PactInteger>(
-				TestReducer.class);
+		ReduceContract testReducer = new ReduceContract(TestReducer.class, 0, PactString.class);
 		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 		testReducer.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("ReduceTest#LocalStrategy", ""));
 		testReducer.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
 				config.getString("ReduceTest#ShipStrategy", ""));
 
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
-				ReduceTestOutFormat.class, pathPrefix + "/result.txt");
+		FileDataSink output = new FileDataSink(
+				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testReducer);
