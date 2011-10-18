@@ -167,19 +167,23 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 		// output node predecessors
 		List<List<PactConnection>> connLists = visitable.getIncomingConnections();
-		String child1name = null, child2name = null;
+		String child1name = "", child2name = "";
 
 		if (connLists != null && connLists.size() > 0) {
 			// start predecessor list
 			this.jsonString.append(",\n\t\t\"predecessors\": [");
 			int connCnt = 0;
+			int inputCnt = 0;
 			for(List<PactConnection> oneList : connLists) {
+				
 				for (PactConnection conn : oneList) {
 	
-					this.jsonString.append(connCnt == 0 ? "\n" : ",\n");
+					this.jsonString.append(inputCnt == 0 ? "\n" : ",\n");
 					if (connCnt == 0) {
-						child1name = conn.getSourcePact().getPactContract().getName();
+						child1name += child1name.length() > 0 ? ", " : ""; 
+						child1name += conn.getSourcePact().getPactContract().getName();
 					} else if (connCnt == 1) {
+						child2name += child2name.length() > 0 ? ", " : ""; 
 						child2name = conn.getSourcePact().getPactContract().getName();
 					}
 	
@@ -238,6 +242,8 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 					}
 	
 					this.jsonString.append('}');
+					
+					inputCnt++;
 				}
 				connCnt++;
 			}
