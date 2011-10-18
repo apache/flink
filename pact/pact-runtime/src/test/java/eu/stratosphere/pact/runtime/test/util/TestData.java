@@ -97,8 +97,8 @@ public final class TestData {
 				int len = this.length();
 				
 				if (len == other.length()) {
-					final char[] tc = this.getChars();
-					final char[] oc = other.getChars();
+					final char[] tc = this.getCharArray();
+					final char[] oc = other.getCharArray();
 					int i = 0, j = 0;
 					
 					while (len-- != 0) {
