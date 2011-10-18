@@ -16,7 +16,10 @@
 package eu.stratosphere.pact.common.io;
 
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -41,13 +44,19 @@ public class RecordOutputFormat extends FileOutputFormat
 	
 	private static final Log LOG = LogFactory.getLog(RecordOutputFormat.class);
 	
-	
 	// --------------------------------------------------------------------------------------------
 	
 	private Class<? extends Value>[] classes;
 
+	private Writer wrt;
+	
+	private String fieldDelimiter;
+	
+	private String recordDelimiter;
+	
 	private boolean lenient;
 	
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * {@inheritDoc}
@@ -78,7 +87,32 @@ public class RecordOutputFormat extends FileOutputFormat
 			
 			this.classes[i] = clazz;
 		}
+		
+		this.recordDelimiter = parameters.getString(RECORD_DELIMITER_PARAMETER, "\n");
+		this.fieldDelimiter = parameters.getString(FIELD_DELIMITER_PARAMETER, ",");
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.FileOutputFormat#open(int)
+	 */
+	@Override
+	public void open(int taskNumber) throws IOException
+	{
+		super.open(taskNumber);
+		this.wrt = new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096));
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.FileOutputFormat#close()
+	 */
+	@Override
+	public void close() throws IOException
+	{
+		this.wrt.close();
+		super.close();
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.recordio.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
@@ -101,12 +135,15 @@ public class RecordOutputFormat extends FileOutputFormat
 		}
 		
 		for (int i = 0; i < numFields; i++) {
-			record.getField(i, this.classes[i]);
+			if (i != 0)
+				this.wrt.write(this.fieldDelimiter);
 			
-			// add the text and the attribute delimiter
+			Value v = record.getField(i, this.classes[i]);
+			this.wrt.write(v.toString());
 		}
 		
 		// add the record delimiter
+		this.wrt.write(this.recordDelimiter);
 	}
 
 }
