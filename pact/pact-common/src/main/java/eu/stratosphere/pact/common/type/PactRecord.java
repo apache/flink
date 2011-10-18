@@ -700,7 +700,7 @@ public final class PactRecord implements Value
 	private final void initFields(byte[] data, int begin, int len) {
 		// read number of fields, variable length encoded reverse at the back
 		int pos = begin + len - 2;
-		int numFields = data[begin + len - 1];
+		int numFields = data[begin + len - 1] & 0xFF;
 		if (numFields >= MAX_BIT) {
 			int shift = 7;
 			int curr;
