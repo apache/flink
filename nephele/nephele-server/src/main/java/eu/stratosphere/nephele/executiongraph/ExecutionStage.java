@@ -259,10 +259,12 @@ public final class ExecutionStage {
 			final ExecutionState executionState) {
 
 		final Set<AbstractInstance> collectedInstances = new HashSet<AbstractInstance>();
+		final ExecutionGroupVertexIterator groupIt = new ExecutionGroupVertexIterator(this.getExecutionGraph(), true,
+			this.stageNum);
 
-		for (int i = 0; i < getNumberOfStageMembers(); i++) {
-
-			final ExecutionGroupVertex groupVertex = getStageMember(i);
+		while (groupIt.hasNext()) {
+			final ExecutionGroupVertex groupVertex = groupIt.next();
+			System.out.println("Looking at group vertex " + groupVertex.getName());
 
 			for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
 				// Get the instance type from the execution vertex if it
