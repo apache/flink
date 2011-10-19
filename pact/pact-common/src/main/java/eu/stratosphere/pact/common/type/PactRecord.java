@@ -415,29 +415,33 @@ public final class PactRecord implements Value
 		}
 	}
 	
-//	public void removeField(int field) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void project(long mask) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void project(long[] mask) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void setNull(int field) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void setNull(long fields) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void setNull(long[] fields) {
-//		throw new UnsupportedOperationException();
-//	}
+	public void removeField(int field) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void project(long mask) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void project(long[] mask) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void setNull(int field) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void setNull(long fields) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void setNull(long[] fields) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void concatenate(PactRecord record) {
+		throw new UnsupportedOperationException();
+	}
 	
 	/**
 	 * Clears the record. After this operation, the record will have zero fields.

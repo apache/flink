@@ -1,7 +1,8 @@
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.example.io;
 
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.io.FixedLengthInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;

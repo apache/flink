@@ -350,7 +350,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	 *
 	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
 	 */
-	protected static final class FileBaseStatistics implements BaseStatistics
+	public static final class FileBaseStatistics implements BaseStatistics
 	{
 		protected long fileModTime; // timestamp of the last modification
 

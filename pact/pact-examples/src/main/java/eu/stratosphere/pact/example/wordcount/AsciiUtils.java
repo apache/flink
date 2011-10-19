@@ -36,7 +36,7 @@ public class AsciiUtils
 	 */
 	public static void toLowerCase(PactString string)
 	{
-		final char[] chars = string.getChars();
+		final char[] chars = string.getCharArray();
 		final int len = string.length();
 		
 		for (int i = 0; i < len; i++) {
@@ -55,7 +55,7 @@ public class AsciiUtils
 	 */
 	public static void replaceNonWordChars(PactString string, char replacement)
 	{
-		final char[] chars = string.getChars();
+		final char[] chars = string.getCharArray();
 		final int len = string.length();
 		
 		for (int i = 0; i < len; i++) {
@@ -109,7 +109,7 @@ public class AsciiUtils
 		@Override
 		public boolean next(PactString target)
 		{
-			final char[] data = this.toTokenize.getChars();
+			final char[] data = this.toTokenize.getCharArray();
 			final int limit = this.limit;
 			int pos = this.pos;
 			
