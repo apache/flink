@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.contract.AbstractPact;
+import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
@@ -43,6 +44,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
+import eu.stratosphere.pact.compiler.plan.CoGroupNode;
 import eu.stratosphere.pact.compiler.plan.CombinerNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
@@ -537,6 +539,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 */
 	private JobTaskVertex generateCoGroupVertex(OptimizerNode coGroupNode) throws CompilerException {
+
+		CoGroupContract coGroupContract = ((CoGroupNode) coGroupNode).getPactContract();
+		
 		// create task vertex
 		JobTaskVertex coGroupVertex = new JobTaskVertex(coGroupNode.getPactContract().getName(), this.jobGraph);
 		// set task class
@@ -546,6 +551,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		TaskConfig coGroupConfig = new TaskConfig(coGroupVertex.getConfiguration());
 		// set user code class
 		coGroupConfig.setStubClass(coGroupNode.getPactContract().getUserCodeClass());
+		
+		coGroupConfig.setLocalStrategyKeyTypes(coGroupContract.getKeyClasses());
+		coGroupConfig.setLocalStrategyKeyTypes(0, coGroupContract.getKeyColumnNumbers(0));
+		coGroupConfig.setLocalStrategyKeyTypes(1, coGroupContract.getKeyColumnNumbers(1));
 
 		// set local strategy
 		switch (coGroupNode.getLocalStrategy()) {
