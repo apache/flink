@@ -131,7 +131,7 @@ public class MatchTask extends AbstractPactTask<MatchStub>
 			break;
 		case HYBRIDHASH_SECOND:
 			this.matchIterator = new BuildSecondHashMatchIterator(this.inputs[0], this.inputs[1], 
-				keyPositions1, keyPositions2, keyClasses, memoryManager, ioManager, this, availableMemory);
+				keyPositions2, keyPositions1, keyClasses, memoryManager, ioManager, this, availableMemory);
 			break;
 		default:
 			throw new Exception("Unsupported local strategy for MatchTask: " + ls.name());

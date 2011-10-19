@@ -59,7 +59,7 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	// --------------------------------------------------------------------------------------------
 	
 	public BuildFirstHashMatchIterator(MutableObjectIterator<PactRecord> firstInput, MutableObjectIterator<PactRecord> secondInput,
-			int[] buildSideKeyFields, int[]probeSideKeyFields, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
+			int[] buildSideKeyFields, int[] probeSideKeyFields, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
 			AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{		
