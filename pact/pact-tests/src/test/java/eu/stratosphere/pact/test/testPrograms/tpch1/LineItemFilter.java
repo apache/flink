@@ -22,9 +22,9 @@ import java.util.Date;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
@@ -36,8 +36,9 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * In prepration of the following reduce step (see {@link GroupByReturnFlag}) the key has to be set to &quot;return flag&quot;
  * 
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
+ * @author Moritz Kaufmann <moritz.kaufmann@campus.tu-berlin.de>
  */
-public class LineItemFilter extends MapStub<PactInteger, Tuple, PactString, Tuple> {
+public class LineItemFilter extends MapStub {
 
 	// used later on when the interval will be randomized
 	// private static final String DATE_CONSTANT = "1998-12-01";
@@ -62,7 +63,9 @@ public class LineItemFilter extends MapStub<PactInteger, Tuple, PactString, Tupl
 	}
 
 	@Override
-	public void map(PactInteger key, Tuple value, Collector<PactString, Tuple> out) {
+	public void map(PactRecord record, Collector out) throws Exception {
+		Tuple value = record.getField(1, Tuple.class);
+		
 		if (value != null && value.getNumberOfColumns() >= 11) {
 			String shipDateString = value.getStringValueAt(10);
 			
@@ -71,7 +74,9 @@ public class LineItemFilter extends MapStub<PactInteger, Tuple, PactString, Tupl
 
 				if (shipDate.before(constantDate)) {	
 					String returnFlag = value.getStringValueAt(8);
-					out.collect(new PactString(returnFlag), value);
+					
+					record.setField(0, new PactString(returnFlag));
+					out.collect(record);
 				}
 			}
 			catch (ParseException e) {
