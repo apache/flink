@@ -123,7 +123,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 				edge = new Edge(new PactString(rdfObj), new PactString(rdfSubj));
 			}
 
-			target.setField(1, edge);
+			target.setField(0, edge);
 
 			LOG.debug("Read in: " + edge);
 			return true;
@@ -244,7 +244,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(CloseTriads.class);
 
 		@Override
-		public void match(PactRecord missingEdge, PactRecord triad, Collector out) throws Exception {
+		public void match(PactRecord triad, PactRecord missingEdge, Collector out) throws Exception {
 			
 			LOG.debug("Emit: " + missingEdge);
 			
