@@ -15,28 +15,25 @@
 
 package eu.stratosphere.pact.example.graph;
 
-import java.util.Iterator;
+import java.io.IOException;
 import java.util.StringTokenizer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactList;
-import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 
@@ -53,6 +50,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * The Pact version was described in "MapReduce and PACT - Comparing Data Parallel Programming Models" (BTW 2011). 
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
  *
  */
 public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
@@ -61,6 +59,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * Simple extension of PactPair to hold an edge defined by the connected nodes represented as PactStrings.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
 	public static class Edge extends PactPair<PactString, PactString> {
 
@@ -78,28 +77,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * Simple extension of PactList to hold multiple edges.
-	 * If the list holds one edge it is just an edge.
-	 * If it holds two edges it is a triad (an one-side open triangle).
-	 * If it holds three edges it is a closed triangle.
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 */
-	public static class EdgeList extends PactList<Edge> {
-
-		public String toString() {
-			Iterator<Edge> it = this.iterator();
-			StringBuilder sb = new StringBuilder("[ ");
-			while (it.hasNext()) {
-				sb.append("( " + it.next().toString() + " ), ");
-			}
-			sb.append(" ]");
-			return sb.toString();
-		}
-
-	}
-
-	/**
 	 * Reads RDF triples and filters on the foaf:knows RDF predicate.
 	 * The foaf:knows RDF predicate indicates that the RDF subject and object (typically of type foaf:person) know each
 	 * other.
@@ -111,15 +88,16 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * Finally, the format emits the edge as key. The value is not required, so its set to NULL.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class EdgeListInFormat extends TextInputFormat<Edge, PactNull> {
+	public static class EdgeListInFormat extends DelimitedInputFormat {
 
 		private static final Log LOG = LogFactory.getLog(EdgeListInFormat.class);
 
 		@Override
-		public boolean readLine(KeyValuePair<Edge, PactNull> pair, byte[] line) {
+		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
 
-			String lineStr = new String(line);
+			String lineStr = new String(bytes, 0, numBytes);
 			// replace reduce whitespaces and trim
 			lineStr = lineStr.replaceAll("\\s+", " ").trim();
 			// build whitespace tokenizer
@@ -145,10 +123,9 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 				edge = new Edge(new PactString(rdfObj), new PactString(rdfSubj));
 			}
 
-			pair.setKey(edge);
-			pair.setValue(new PactNull());
+			target.setField(1, edge);
 
-			LOG.debug("Read in: " + pair.getKey() + " :: " + pair.getValue());
+			LOG.debug("Read in: " + edge);
 			return true;
 		}
 	}
@@ -158,27 +135,29 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * All edges of the list are concatenated and serialized to byte string.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class EdgeListOutFormat extends TextOutputFormat<PactNull, EdgeList> {
+	public static class EdgeListOutFormat extends FileOutputFormat {
 		private static final Log LOG = LogFactory.getLog(EdgeListOutFormat.class);
 
 		@Override
-		public byte[] writeLine(KeyValuePair<PactNull, EdgeList> pair) {
+		public void writeRecord(PactRecord record) throws IOException {
 			StringBuilder line = new StringBuilder();
 
-			Iterator<Edge> valueIt = pair.getValue().iterator();
-			while (valueIt.hasNext()) {
-				PactPair<PactString, PactString> edge = valueIt.next();
-				line.append(edge.getFirst().toString() + " " + edge.getSecond().toString());
-				if (valueIt.hasNext()) {
+			for (int i = 0; i < 3; i++) {
+				Edge edge = record.getField(i, Edge.class);
+				line.append(edge.getFirst().toString());
+				line.append(" ");
+				line.append(edge.getSecond().toString());
+				//As long as there is a next record
+				if(i < 2) {
 					line.append(" ");
 				}
 			}
-			line.append('\n');
-
-			LOG.debug("Writing out: " + pair.getKey() + " :: " + pair.getValue());
-
-			return line.toString().getBytes();
+			line.append("\n");
+			
+			stream.write(line.toString().getBytes());
+			LOG.debug("Writing out: " + line);
 		}
 	}
 
@@ -188,17 +167,21 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * Due to the input format, the first node of the input edge is the lexicographically smaller of both nodes.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class AssignKeys extends MapStub<Edge, PactNull, PactString, Edge> {
+	public static class AssignKeys extends MapStub {
 
 		private static final Log LOG = LogFactory.getLog(AssignKeys.class);
 
 		@Override
-		public void map(Edge edge, PactNull empty, Collector<PactString, Edge> out) {
+		public void map(PactRecord record, Collector out) throws Exception {
+			Edge edge = record.getField(0, Edge.class);
 			LOG.debug("Emit: " + edge.getFirst() + " :: " + edge);
-			out.collect(edge.getFirst(), edge);
+			
+			record.setField(0, edge.getFirst());
+			record.setField(1, edge);
+			out.collect(record);
 		}
-
 	}
 
 	/**
@@ -206,45 +189,47 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * A triad is represented as an EdgeList with two elements.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class BuildTriads extends MatchStub<PactString, Edge, Edge, Edge, EdgeList> {
+	public static class BuildTriads extends MatchStub {
 
 		private static final Log LOG = LogFactory.getLog(BuildTriads.class);
 
 		@Override
-		public void match(PactString key, Edge value1, Edge value2, Collector<Edge, EdgeList> out) {
-
+		public void match(PactRecord value1, PactRecord value2, Collector out)
+				throws Exception {
+			Edge edge1 = value1.getField(1, Edge.class);
+			Edge edge2 = value2.getField(1, Edge.class);
+			
 			// we do not connect a node with itself
-			if(value1.compareTo(value2) <= 0) {
+			if(edge1.compareTo(edge2) <= 0) {
 				return;
 			}
 			
 			// identify nodes for missing edge
-			PactString e_i = value1.getSecond();
-			PactString e_j = value2.getSecond();
+			PactString missing1 = edge1.getSecond();
+			PactString missing2 = edge2.getSecond();
 
 			Edge missingEdge;
-			EdgeList triad = new EdgeList();
+			PactRecord outRecord;
 
 			// build missing edges. Smaller node goes first, greater second.
-			if (e_i.compareTo(e_j) <= 0) {
-				missingEdge = new Edge(e_i, e_j);
-				triad.add(value1);
-				triad.add(value2);
+			if (missing1.compareTo(missing2) <= 0) {
+				missingEdge = new Edge(missing1, missing2);
+				outRecord = value1;
+				outRecord.setField(2, edge2);
 			} else {
-				missingEdge = new Edge(e_j, e_i);
-				triad.add(value2);
-				triad.add(value1);
+				missingEdge = new Edge(missing2, missing1);
+				outRecord = value2;
+				outRecord.setField(2, edge1);
 			}
-
-			LOG.debug("Emit: " + missingEdge + " :: " + triad);
+			outRecord.setField(0, missingEdge);
+			LOG.debug("Emit: " + missingEdge);
 
 			// emit missing edge and triad
-			out.collect(missingEdge, triad);
+			out.collect(outRecord);
 			
-		}
-
-		
+		}		
 	}
 
 	/**
@@ -252,20 +237,19 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 	 * If the missing edge for a triad is found, the triad is transformed to a triangle by adding the missing edge.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class CloseTriads extends MatchStub<Edge, EdgeList, PactNull, PactNull, EdgeList> {
+	public static class CloseTriads extends MatchStub {
 
 		private static final Log LOG = LogFactory.getLog(CloseTriads.class);
 
 		@Override
-		public void match(Edge missingEdge, EdgeList triad, PactNull empty, Collector<PactNull, EdgeList> out) {
-			// close triad with missing edge
-			triad.add(missingEdge);
+		public void match(PactRecord missingEdge, PactRecord triad, Collector out) throws Exception {
 			
-			LOG.debug("Emit: " + missingEdge + " :: " + triad);
+			LOG.debug("Emit: " + missingEdge);
 			
-			// emit triangle
-			out.collect(new PactNull(), triad);
+			// emit triangle (already contains missing edge at field 0
+			out.collect(triad);
 		}
 
 	}
@@ -281,26 +265,20 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		String edgeInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
-		FileDataSourceContract<Edge, PactNull> edges = new FileDataSourceContract<Edge, PactNull>(EdgeListInFormat.class,
-			edgeInput);
-		edges.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource edges = new FileDataSource(EdgeListInFormat.class, edgeInput);
 		edges.setDegreeOfParallelism(noSubTasks);
-		edges.setOutputContract(UniqueKey.class);
+		//edges.setOutputContract(UniqueKey.class);
 
-		MapContract<Edge, PactNull, PactString, Edge> assignKeys = new MapContract<Edge, PactNull, PactString, Edge>(
-			AssignKeys.class, "Assign Keys");
+		MapContract assignKeys = new MapContract(AssignKeys.class, "Assign Keys");
 		assignKeys.setDegreeOfParallelism(noSubTasks);
 
-		MatchContract<PactString, Edge, Edge, Edge, EdgeList> buildTriads = new MatchContract<PactString, Edge, Edge, Edge, EdgeList>(
-			BuildTriads.class, "Build Triads");
+		MatchContract buildTriads = new MatchContract(BuildTriads.class, PactString.class, 0, 0, "Build Triads");
 		buildTriads.setDegreeOfParallelism(noSubTasks);
 
-		MatchContract<Edge, EdgeList, PactNull, PactNull, EdgeList> closeTriads = new MatchContract<Edge, EdgeList, PactNull, PactNull, EdgeList>(
-			CloseTriads.class, "Close Triads");
+		MatchContract closeTriads = new MatchContract(CloseTriads.class, Edge.class, 0, 0, "Close Triads");
 		closeTriads.setDegreeOfParallelism(noSubTasks);
 
-		FileDataSinkContract<PactNull, EdgeList> triangles = new FileDataSinkContract<PactNull, EdgeList>(
-			EdgeListOutFormat.class, output);
+		FileDataSink triangles = new FileDataSink(EdgeListOutFormat.class, output);
 		triangles.setDegreeOfParallelism(noSubTasks);
 
 		triangles.setInput(closeTriads);
