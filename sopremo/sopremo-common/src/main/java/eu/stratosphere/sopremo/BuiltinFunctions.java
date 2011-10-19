@@ -290,7 +290,7 @@ public class BuiltinFunctions {
 	 * @param node
 	 * 		the node to add
 	 * @param index
-	 * 		the position of the node
+	 * 		the position of the insert
 	 * 			
 	 * @return array with the added node
 	 */

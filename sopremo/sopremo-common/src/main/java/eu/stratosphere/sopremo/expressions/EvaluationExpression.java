@@ -70,7 +70,6 @@ public abstract class EvaluationExpression extends SopremoExpression<EvaluationC
 	 *        the current <code>EvaluationContext</code>
 	 * @return the node or a new node if the expression directly accesses the node
 	 */
-	@SuppressWarnings("unused")
 	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
 		throw new UnsupportedOperationException(String.format(
 			"Cannot change the value with expression %s of node %s to %s", this, node, value));
