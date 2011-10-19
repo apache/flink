@@ -28,20 +28,21 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
+import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.FailingTestBase;
 
 /**
@@ -100,18 +101,18 @@ public class TaskFailureITCase extends FailingTestBase {
 		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
 		
 		// init data source 
-		FileDataSourceContract<PactString, PactString> input = new FileDataSourceContract<PactString, PactString>(
-			MapTestInFormat.class, pathPrefix+"/mapInput");
-		input.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input = new FileDataSource(
+			ContractITCaseInputFormat.class, pathPrefix+"/mapInput");
+		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init failing map task
-		MapContract<PactString, PactString, PactString, PactInteger> testMapper = new MapContract<PactString, PactString, PactString, PactInteger>(FailingMapper.class);
+		MapContract testMapper = new MapContract(FailingMapper.class);
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init data sink
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
-			MapTestOutFormat.class, pathPrefix + "/result.txt");
+		FileDataSink output = new FileDataSink(
+			ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		// compose failing program
@@ -140,19 +141,18 @@ public class TaskFailureITCase extends FailingTestBase {
 		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
 		
 		// init data source 
-		FileDataSourceContract<PactString, PactString> input = new FileDataSourceContract<PactString, PactString>(
-			MapTestInFormat.class, pathPrefix+"/mapInput");
-		input.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input = new FileDataSource(
+			ContractITCaseInputFormat.class, pathPrefix+"/mapInput");
+		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init (working) map task
-		MapContract<PactString, PactString, PactString, PactInteger> testMapper = new MapContract<PactString, PactString, PactString, PactInteger>(
-			TestMapper.class);
+		MapContract testMapper = new MapContract(TestMapper.class);
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init data sink
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
-			MapTestOutFormat.class, pathPrefix + "/result.txt");
+		FileDataSink output = new FileDataSink(
+			ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		// compose working program
@@ -193,7 +193,7 @@ public class TaskFailureITCase extends FailingTestBase {
 	@Override
 	protected int getTimeout() {
 		// time out for this job is 30 secs
-		return 30;
+		return 30000;
 	}
 
 	/**
@@ -215,60 +215,32 @@ public class TaskFailureITCase extends FailingTestBase {
 	}
 
 	/**
-	 * Input format for test data
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 *
-	 */
-	public static class MapTestInFormat extends TextInputFormat<PactString, PactString> {
-
-		@Override
-		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
-
-			pair.setKey(new PactString(new String((char) line[0] + "")));
-			pair.setValue(new PactString(new String((char) line[2] + "")));
-
-			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
-
-			return true;
-		}
-
-	}
-
-	/**
-	 * Output format for test data
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 *
-	 */
-	public static class MapTestOutFormat extends TextOutputFormat<PactString, PactInteger> {
-
-		@Override
-		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
-			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
-
-			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
-		}
-	}
-
-	/**
 	 * Map stub implementation for working program
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
-	public static class TestMapper extends MapStub<PactString, PactString, PactString, PactInteger> {
+	public static class TestMapper extends MapStub {
+
+		private final PactString string = new PactString();
+		private final PactInteger integer = new PactInteger();
 
 		@Override
-		public void map(PactString key, PactString value, Collector<PactString, PactInteger> out) {
+		public void map(PactRecord record, Collector out) throws Exception {
+			
+			record.getField(0, string);
+			int key = Integer.parseInt(string.toString());
+			record.getField(1, string);
+			int value = Integer.parseInt(string.toString());
 			
 			LOG.debug("Processed: [" + key + "," + value + "]");
 			
-			if (Integer.parseInt(key.toString()) + Integer.parseInt(value.toString()) < 10) {
-
-				out.collect(value, new PactInteger(Integer.parseInt(key.toString()) + 10));
-				
+			if (key + value < 10) {
+				record.setField(0, string);
+				integer.setValue(key + 10);
+				record.setField(1, integer);
 			}
+			
 		}
 	}
 	
@@ -278,10 +250,10 @@ public class TaskFailureITCase extends FailingTestBase {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
-	public static class FailingMapper extends MapStub<PactString, PactString, PactString, PactInteger> {
+	public static class FailingMapper extends MapStub {
 
 		@Override
-		public void map(PactString key, PactString value, Collector<PactString, PactInteger> out) {
+		public void map(PactRecord record, Collector out) throws Exception {
 			throw new RuntimeException("This is an expected Test Exception");
 		}
 		
