@@ -29,16 +29,15 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
@@ -137,20 +136,26 @@ public class GlobalSortingITCase extends TestBase {
 	}
 	
 	private static class GlobalSort implements PlanAssembler {
-		public static class IntegerInputFormat extends TextInputFormat<PactInteger, PactNull> {
+		public static class IntegerInputFormat extends DelimitedInputFormat {
 			@Override
-			public boolean readLine(KeyValuePair<PactInteger, PactNull> pair, byte[] record) {
-				int number = Integer.parseInt(new String(record));
-				pair.setKey(new PactInteger(number));
-				pair.setValue(PactNull.getInstance());
+			public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+				int number = Integer.parseInt(new String(bytes, 0, numBytes));
+				target.setField(0, new PactInteger(number));
 				return true;
 			}
 		}
 		
-		public static class IntegerOutputFormat extends TextOutputFormat<PactInteger, PactNull> {
+		public static class IntegerOutputFormat extends DelimitedOutputFormat {
 			@Override
-			public byte[] writeLine(KeyValuePair<PactInteger, PactNull> pair) {
-				return (pair.getKey().getValue() + "\n").getBytes();
+			public int serializeRecord(PactRecord rec, byte[] target) throws Exception {
+				PactInteger number = rec.getField(0, PactInteger.class);
+				byte[] bytes = number.toString().getBytes();
+				if(bytes.length <= target.length) {
+					System.arraycopy(bytes, 0, target, 0, bytes.length);
+					return bytes.length;
+				} else {
+					return -1 * bytes.length;
+				}
 			}
 		}
 
@@ -161,12 +166,12 @@ public class GlobalSortingITCase extends TestBase {
 			String recordsPath    = (args.length > 1 ? args[1] : "");
 			String output        = (args.length > 2 ? args[2] : "");
 			
-			FileDataSourceContract<PactInteger, PactNull> source =
-				new FileDataSourceContract<PactInteger, PactNull>(IntegerInputFormat.class, recordsPath);
+			FileDataSource source =
+				new FileDataSource(IntegerInputFormat.class, recordsPath);
 			source.setDegreeOfParallelism(noSubtasks);
 			
-			FileDataSinkContract<PactInteger, PactNull> sink =
-				new FileDataSinkContract<PactInteger, PactNull>(IntegerOutputFormat.class, output);
+			FileDataSink sink =
+				new FileDataSink(IntegerOutputFormat.class, output);
 			sink.setDegreeOfParallelism(noSubtasks);
 			sink.setGlobalOrder(Order.ASCENDING);
 			sink.setInput(source);
