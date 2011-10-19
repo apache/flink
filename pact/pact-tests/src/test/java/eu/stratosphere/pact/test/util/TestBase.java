@@ -259,8 +259,8 @@ public abstract class TestBase extends TestCase {
 
 		// log expected and computed results
 		if (LOG.isDebugEnabled()) {
-			LOG.info("Expected: " + expectedResult);
-			LOG.info("Computed: " + computedResult);
+			LOG.debug("Expected: " + expectedResult);
+			LOG.debug("Computed: " + computedResult);
 		}
 
 		Assert.assertEquals("Computed and expected results have different size", expectedResult.size(), computedResult.size());
@@ -270,9 +270,9 @@ public abstract class TestBase extends TestCase {
 			String computedLine = computedResult.poll();
 			
 			if (LOG.isDebugEnabled())
-				LOG.info("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
+				LOG.debug("expLine: <" + expectedLine + ">\t\t: compLine: <" + computedLine + ">");
 			
-			Assert.assertTrue("Computed and expected lines differ", comp.compare(expectedLine, computedLine) != 0);
+			Assert.assertEquals("Computed and expected lines differ", expectedLine, computedLine);
 		}
 	}
 

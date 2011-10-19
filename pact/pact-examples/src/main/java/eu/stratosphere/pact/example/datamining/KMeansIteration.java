@@ -309,7 +309,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		}
 		
 		@Override
-		public byte[] serializeRecord(PactRecord record, byte[] target)
+		public int serializeRecord(PactRecord record, byte[] target)
 		{
 			record.getField(0, this.centerId);
 			record.getField(1, this.centerPos);
@@ -323,8 +323,9 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 			}
 			line.append('|');
 			line.append('\n');
-
-			return line.toString().getBytes();
+			target = line.toString().getBytes();
+			
+			return target.length;
 		}
 	}
 
