@@ -325,7 +325,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
 		@SuppressWarnings("unchecked")
-		ReduceContract aggLiO = new ReduceContract(AggLiO.class, new int[] {0, 1}, new Class[] {PactLong.class, PactString.class}, joinLiO, "AggLio");
+		ReduceContract aggLiO = new ReduceContract(AggLiO.class, new Class[] {PactLong.class, PactString.class}, new int[] {0, 1}, joinLiO, "AggLio");
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
 		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);

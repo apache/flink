@@ -45,11 +45,11 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * and a default name.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyColumn The position of the key in the input records.
 	 * @param keyClass The class of the key's type.
+	 * @param keyColumn The position of the key in the input records.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, int keyColumn, Class<? extends Key> keyClass) {
-		this(c, keyColumn, keyClass, DEFAULT_NAME);
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn) {
+		this(c, keyClass, keyColumn, DEFAULT_NAME);
 	}
 	
 	/**
@@ -57,11 +57,11 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * and a default name. The reducer has a composite key on which it groups.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyColumns The positions of the key fields in the input records.
 	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param keyColumns The positions of the key fields in the input records.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses) {
-		this(c, keyColumns, keyClasses, DEFAULT_NAME);
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns) {
+		this(c, keyClasses, keyColumns, DEFAULT_NAME);
 	}
 	
 	/**
@@ -69,12 +69,12 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * and the given name. 
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyColumn The position of the key in the input records.
 	 * @param keyClass The class of the key's type.
+	 * @param keyColumn The position of the key in the input records.
 	 * @param name The name of PACT.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, int keyColumn, Class<? extends Key> keyClass, String name) {
-		this(c, new int[] {keyColumn}, asArray(keyClass), name);
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass,  int keyColumn, String name) {
+		this(c, asArray(keyClass), new int[] {keyColumn}, name);
 	}
 	
 	/**
@@ -82,11 +82,11 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * and the given name. The reducer has a composite key on which it groups.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyColumns The positions of the key fields in the input records.
 	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param keyColumns The positions of the key fields in the input records.
 	 * @param name The name of PACT.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses, String name) {
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, String name) {
 		super(c, keyClasses, keyColumns, name);
 	}
 
@@ -95,12 +95,12 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * It uses the given contract as its input.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyColumn The position of the key in the input records.
 	 * @param keyClass The class of the key's type.
+	 * @param keyColumn The position of the key in the input records.
 	 * @param input The contract to use as the input.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, int keyColumn, Class<? extends Key> keyClass, Contract input) {
-		this(c, keyColumn, keyClass, input, DEFAULT_NAME);
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn, Contract input) {
+		this(c, keyClass, keyColumn, input, DEFAULT_NAME);
 	}
 	
 	/**
@@ -108,12 +108,12 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyColumns The positions of the key fields in the input records.
 	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param keyColumns The positions of the key fields in the input records.
 	 * @param input The contract to use as the input.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses, Contract input) {
-		this(c, keyColumns, keyClasses, input, DEFAULT_NAME);
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, Contract input) {
+		this(c, keyClasses, keyColumns, input, DEFAULT_NAME);
 	}
 	
 	/**
@@ -121,13 +121,13 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * It uses the given contract as its input.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyColumn The position of the key in the input records.
 	 * @param keyClass The class of the key's type.
+	 * @param keyColumn The position of the key in the input records.
 	 * @param input The contract to use as the input.
 	 * @param name The name of PACT.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, int keyColumn, Class<? extends Key> keyClass, Contract input, String name) {
-		this(c, keyColumn, keyClass, name);
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn, Contract input, String name) {
+		this(c, keyClass, keyColumn, name);
 		setInput(input);
 	}
 	
@@ -136,13 +136,13 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyColumns The positions of the key fields in the input records.
 	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param keyColumns The positions of the key fields in the input records.
 	 * @param input The contract to use as the input.
 	 * @param name The name of PACT.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, int[] keyColumns, Class<? extends Key>[] keyClasses, Contract input, String name) {
-		this(c, keyColumns, keyClasses, name);
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, Contract input, String name) {
+		this(c, keyClasses, keyColumns, name);
 		setInput(input);
 	}
 	

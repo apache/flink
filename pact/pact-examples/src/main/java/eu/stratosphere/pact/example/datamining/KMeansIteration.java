@@ -625,11 +625,11 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		computeDistance.getCompilerHints().setAvgBytesPerRecord(48);
 
 		// create ReduceContract for finding the nearest cluster centers
-		ReduceContract findNearestClusterCenters = new ReduceContract(FindNearestCenter.class, 0, PactInteger.class, computeDistance, "Find Nearest Centers");
+		ReduceContract findNearestClusterCenters = new ReduceContract(FindNearestCenter.class, PactInteger.class, 0, computeDistance, "Find Nearest Centers");
 		findNearestClusterCenters.getCompilerHints().setAvgBytesPerRecord(48);
 
 		// create ReduceContract for computing new cluster positions
-		ReduceContract recomputeClusterCenter = new ReduceContract(RecomputeClusterCenter.class, 0, PactInteger.class, findNearestClusterCenters, "Recompute Center Positions");
+		ReduceContract recomputeClusterCenter = new ReduceContract(RecomputeClusterCenter.class, PactInteger.class, 0, findNearestClusterCenters, "Recompute Center Positions");
 		recomputeClusterCenter.getCompilerHints().setAvgBytesPerRecord(36);
 
 		// create DataSinkContract for writing the new cluster positions

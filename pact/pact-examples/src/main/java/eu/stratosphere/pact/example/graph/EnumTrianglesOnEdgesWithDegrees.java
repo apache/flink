@@ -162,7 +162,7 @@ public class EnumTrianglesOnEdgesWithDegrees implements PlanAssembler, PlanAssem
 		MapContract projectOutCounts = new MapContract(ProjectOutCounts.class, edges, "Project out Counts");
 		projectOutCounts.setDegreeOfParallelism(noSubTasks);
 
-		ReduceContract buildTriads = new ReduceContract(BuildTriads.class, 0, PactInteger.class, toLowerDegreeEdge, "Build Triads");
+		ReduceContract buildTriads = new ReduceContract(BuildTriads.class, PactInteger.class, 0, toLowerDegreeEdge, "Build Triads");
 		buildTriads.setDegreeOfParallelism(noSubTasks);
 
 		@SuppressWarnings("unchecked")

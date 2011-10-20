@@ -169,7 +169,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 
 		FileDataSource source = new FileDataSource(LineInFormat.class, dataInput, "Input Lines");
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
-		ReduceContract reducer = new ReduceContract(CountWords.class, 0, PactString.class, mapper, "Count Words");
+		ReduceContract reducer = new ReduceContract(CountWords.class, PactString.class, 0, mapper, "Count Words");
 		FileDataSink out = new FileDataSink(WordCountOutFormat.class, output, reducer, "Output");
 
 		Plan plan = new Plan(out, "WordCount Example");

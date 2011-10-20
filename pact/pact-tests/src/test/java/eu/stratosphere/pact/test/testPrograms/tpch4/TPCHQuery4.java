@@ -249,7 +249,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 			join.setDegreeOfParallelism(degreeOfParallelism);
 		
 		ReduceContract aggregation = 
-				new ReduceContract(CountAgg.class, 0, PactString.class, "AggregateGroupBy");
+				new ReduceContract(CountAgg.class, PactString.class, 0, "AggregateGroupBy");
 		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		lineFilter.setInput(lineItems);

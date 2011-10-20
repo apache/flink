@@ -61,11 +61,11 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription
 		MapContract projectEdge = new MapContract(ProjectEdge.class, edges, "Project Edge");
 		projectEdge.setDegreeOfParallelism(noSubTasks);
 		
-		ReduceContract edgeCounter = new ReduceContract(CountEdges.class, 0, PactInteger.class, projectEdge, "Count Edges for Vertex");
+		ReduceContract edgeCounter = new ReduceContract(CountEdges.class, PactInteger.class, 0, projectEdge, "Count Edges for Vertex");
 		edgeCounter.setDegreeOfParallelism(noSubTasks);
 		
 		@SuppressWarnings("unchecked")
-		ReduceContract countJoiner = new ReduceContract(JoinCountsAndUniquify.class, new int[] {0, 1}, new Class[] {PactInteger.class, PactInteger.class}, edgeCounter, "Join Counts");
+		ReduceContract countJoiner = new ReduceContract(JoinCountsAndUniquify.class, new Class[] {PactInteger.class, PactInteger.class}, new int[] {0, 1}, edgeCounter, "Join Counts");
 		countJoiner.setDegreeOfParallelism(noSubTasks);
 		
 		
@@ -77,7 +77,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription
 		MapContract projectOutCounts = new MapContract(ProjectOutCounts.class, countJoiner, "Project out Counts");
 		projectOutCounts.setDegreeOfParallelism(noSubTasks);
 
-		ReduceContract buildTriads = new ReduceContract(BuildTriads.class, 0, PactInteger.class, toLowerDegreeEdge, "Build Triads");
+		ReduceContract buildTriads = new ReduceContract(BuildTriads.class, PactInteger.class, 0, toLowerDegreeEdge, "Build Triads");
 		buildTriads.setDegreeOfParallelism(noSubTasks);
 
 		@SuppressWarnings("unchecked")

@@ -250,7 +250,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
 		// create ReduceContract for aggregating the result
-		ReduceContract aggCO = new ReduceContract(AggCO.class, 0, PactString.class, "AggCo");
+		ReduceContract aggCO = new ReduceContract(AggCO.class, PactString.class, 0, "AggCo");
 		aggCO.setDegreeOfParallelism(noSubtasks);
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
 		aggCO.getCompilerHints().setAvgNumValuesPerKey(1);

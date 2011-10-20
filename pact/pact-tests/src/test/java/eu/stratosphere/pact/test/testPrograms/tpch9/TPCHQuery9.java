@@ -198,7 +198,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 
 		/* Aggregate sum(amount) by (nation,year): */
 		ReduceContract sumAmountAggregate =
-			new ReduceContract(AmountAggregate.class, 0, StringIntPair.class, "groupyBy");
+			new ReduceContract(AmountAggregate.class, StringIntPair.class, 0, "groupyBy");
 		sumAmountAggregate.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Connect input filters: */

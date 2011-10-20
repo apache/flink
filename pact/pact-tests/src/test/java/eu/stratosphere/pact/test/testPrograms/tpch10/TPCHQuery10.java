@@ -354,7 +354,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 		MatchContract joinNCOL = new MatchContract(JoinNCOL.class, PactInteger.class, 0, 0, "JoinNCOL");
 		joinNCOL.setDegreeOfParallelism(degreeOfParallelism);
 
-		ReduceContract reduce = new ReduceContract(Sum.class, 0, GroupKey.class, "Reduce");
+		ReduceContract reduce = new ReduceContract(Sum.class, GroupKey.class, 0, "Reduce");
 		reduce.setDegreeOfParallelism(degreeOfParallelism);
 
 		FileDataSink result = new FileDataSink(TupleOutputFormat.class, resultPath, "Output");
