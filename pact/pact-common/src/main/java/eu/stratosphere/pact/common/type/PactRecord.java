@@ -65,7 +65,7 @@ public final class PactRecord implements Value
 	
 	private int firstModifiedPos = Integer.MAX_VALUE;	// position of the first modification (since (de)serialization)
 	
-	private int lastUnmodifiedPos = -1;					// position of the latest unmodified field
+	private boolean modified;							// flag to mark the record as modified
 	
 	private InternalDeSerializer serializer;			// provides DataInpout and DataOutput abstraction to fields
 	
@@ -145,11 +145,8 @@ public final class PactRecord implements Value
 		}
 		else {
 			// decrease the number of fields
-			// all we have to do is mark the last unmodified
 			// we do not remove the values from the cache, as the objects (if they are there) will most likely
 			// be reused when the record is re-filled
-			if (this.lastUnmodifiedPos >= numFields)
-				this.lastUnmodifiedPos = numFields - 1;
 			markModified(numFields);
 		}
 		this.numFields = numFields;
@@ -410,9 +407,7 @@ public final class PactRecord implements Value
 		if (this.firstModifiedPos > field) {
 			this.firstModifiedPos = field;
 		}
-		if (field == this.lastUnmodifiedPos) {
-			this.lastUnmodifiedPos--;
-		}
+		this.modified = true;
 	}
 	
 	public void removeField(int field) {
@@ -448,9 +443,11 @@ public final class PactRecord implements Value
 	 */
 	public void clear()
 	{
-		this.numFields = 0;
-		this.lastUnmodifiedPos = -1;
-		this.firstModifiedPos = Integer.MAX_VALUE;
+		if (this.numFields > 0) {
+			this.numFields = 0;
+			this.firstModifiedPos = Integer.MAX_VALUE;
+			this.modified = true;
+		}
 	}
 	
 	/**
@@ -496,7 +493,7 @@ public final class PactRecord implements Value
 		target.binaryLen = this.binaryLen;
 		target.numFields = this.numFields;
 		target.firstModifiedPos = Integer.MAX_VALUE;
-		target.lastUnmodifiedPos = this.numFields - 1;
+		target.modified = false;
 	}
 	
 	/**
@@ -541,69 +538,69 @@ public final class PactRecord implements Value
 	public void updateBinaryRepresenation()
 	{
 		// check whether the binary state is in sync
-		final int firstModified = this.firstModifiedPos;
-		final int numFields = this.numFields;
-		if (firstModified >= numFields) {
+		if (!this.modified)
 			return;
-		}
 		
+		final int firstModified = this.firstModifiedPos;
+		final int numFields = this.numFields;		
 		final int[] offsets = this.offsets;
 		if (this.serializer == null) {
 			this.serializer = new InternalDeSerializer();
 		}
 		final InternalDeSerializer serializer = this.serializer;
 		
-		int offset = firstModified <= 0 ? 0 : this.offsets[firstModified - 1] + this.lengths[firstModified - 1];
-		serializer.position = offset;
-		
-		// for efficiency, we treat the typical pattern that modifications are at the end as a special case
-		if (this.lastUnmodifiedPos < firstModified) {
-			// all changed fields are after all unchanged fields 
-			// serialize the fields first at the beginning
-			serializer.memory = this.binaryData == null ? new byte[numFields * DEFAULT_FIELD_LEN] : this.binaryData;	
-			try {
-				for (int i = firstModified; i < numFields; i++) {
-					if (offsets[i] == NULL_INDICATOR_OFFSET)
-						continue;
-					offsets[i] = offset;
-					this.fields[i].write(serializer);
-					int newOffset = serializer.position;
-					this.lengths[i] = newOffset - offset;
-					offset = newOffset;
-				}
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
-			}
-		}
-		else {
-			// changed and unchanged fields are interleaved
-			// we serialize into another array
-			serializer.memory = this.serializationSwitchBuffer == null ? new byte[numFields * DEFAULT_FIELD_LEN] : this.serializationSwitchBuffer;
-			if (offset > 0 & this.binaryData != null) {
-				System.arraycopy(this.binaryData, 0, serializer.memory, 0, offset);
-			}
-			try {
-				for (int i = firstModified; i < numFields; i++) {
-					final int co = offsets[i];
-					if (co == NULL_INDICATOR_OFFSET)
-						continue;
-					
-					offsets[i] = offset;
-					if (co == MODIFIED_INDICATOR_OFFSET)
-						this.fields[i].write(serializer);
-					else
-						serializer.write(this.binaryData, co, this.lengths[i]);
-					this.lengths[i] = serializer.position - offset;
-					offset = serializer.position;
-				}
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
-			}
+		if (numFields > 0) {
+			int offset = firstModified <= 0 ? 0 : this.offsets[firstModified - 1] + this.lengths[firstModified - 1];
+			serializer.position = offset;
 			
-			this.serializationSwitchBuffer = this.binaryData;
-			this.binaryData = serializer.memory;
+			// for efficiency, we treat the typical pattern that modifications are at the end as a special case
+			if (firstModified > 0) {
+				// changed fields are after unchanged fields 
+				serializer.memory = this.binaryData == null ? new byte[numFields * DEFAULT_FIELD_LEN] : this.binaryData;	
+				try {
+					for (int i = firstModified; i < numFields; i++) {
+						if (offsets[i] == NULL_INDICATOR_OFFSET)
+							continue;
+						offsets[i] = offset;
+						this.fields[i].write(serializer);
+						int newOffset = serializer.position;
+						this.lengths[i] = newOffset - offset;
+						offset = newOffset;
+					}
+				}
+				catch (Exception e) {
+					throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
+				}
+			}
+			else {
+				// changed and unchanged fields are interleaved
+				// we serialize into another array
+				serializer.memory = this.serializationSwitchBuffer == null ? new byte[numFields * DEFAULT_FIELD_LEN] : this.serializationSwitchBuffer;
+				if (offset > 0 & this.binaryData != null) {
+					System.arraycopy(this.binaryData, 0, serializer.memory, 0, offset);
+				}
+				try {
+					for (int i = firstModified; i < numFields; i++) {
+						final int co = offsets[i];
+						if (co == NULL_INDICATOR_OFFSET)
+							continue;
+						
+						offsets[i] = offset;
+						if (co == MODIFIED_INDICATOR_OFFSET)
+							this.fields[i].write(serializer);
+						else
+							serializer.write(this.binaryData, co, this.lengths[i]);
+						this.lengths[i] = serializer.position - offset;
+						offset = serializer.position;
+					}
+				}
+				catch (Exception e) {
+					throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
+				}
+				
+				this.serializationSwitchBuffer = this.binaryData;
+				this.binaryData = serializer.memory;
+			}
 		}
 		
 		try {
@@ -659,7 +656,7 @@ public final class PactRecord implements Value
 		this.binaryData = serializer.memory;
 		this.binaryLen = serializer.position;
 		this.firstModifiedPos = Integer.MAX_VALUE;
-		this.lastUnmodifiedPos = numFields - 1;
+		this.modified = false;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -771,7 +768,7 @@ public final class PactRecord implements Value
 			this.lengths[lastNonNullField] = pos - this.offsets[lastNonNullField] + 1;
 		}
 		this.firstModifiedPos = Integer.MAX_VALUE;
-		this.lastUnmodifiedPos = numFields - 1;
+		this.modified = false;
 	}
 	
 	/**

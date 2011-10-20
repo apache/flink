@@ -93,4 +93,12 @@ public class FileDataSink extends GenericDataSink
 	{
 		return filePath;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.GenericDataSink#toString()
+	 */
+	@Override
+	public String toString() {
+		return this.filePath;
+	}
 }
