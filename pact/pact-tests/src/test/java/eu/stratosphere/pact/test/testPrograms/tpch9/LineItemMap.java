@@ -15,16 +15,14 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import org.apache.log4j.Logger;
-
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class LineItemMap extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
+public class LineItemMap extends MapStub {
 	
-	private static Logger LOGGER = Logger.getLogger(LineItemMap.class);
+	private final Tuple inputTuple = new Tuple();
 	
 	/**
 	 * Filter "lineitem".
@@ -35,21 +33,19 @@ public class LineItemMap extends MapStub<PactInteger, Tuple, PactInteger, Tuple>
 	 *
 	 */
 	@Override
-	public void map(PactInteger partKey, Tuple inputTuple,
-			Collector<PactInteger, Tuple> output) {
+	public void map(PactRecord record, Collector out) throws Exception {
+		
+		record.getField(1, inputTuple);
 		
 		/* Extract the year from the date element of the order relation: */
 		
-		try {
-			/* pice = extendedprice * (1 - discount): */
-			float price = Float.parseFloat(inputTuple.getStringValueAt(5)) * (1 - Float.parseFloat(inputTuple.getStringValueAt(6)));
-			/* Project (orderkey | partkey, suppkey, linenumber, quantity, extendedprice, discount, tax, ...) to (partkey, suppkey, quantity): */
-			inputTuple.project((0 << 0) | (1 << 1) | (1 << 2) | (0 << 3) | (1 << 4));
-			inputTuple.addAttribute("" + price);
-			output.collect(partKey, inputTuple);
-		} catch (final Exception ex) {
-			LOGGER.error(ex);
-		}
+		/* pice = extendedprice * (1 - discount): */
+		float price = Float.parseFloat(inputTuple.getStringValueAt(5)) * (1 - Float.parseFloat(inputTuple.getStringValueAt(6)));
+		/* Project (orderkey | partkey, suppkey, linenumber, quantity, extendedprice, discount, tax, ...) to (partkey, suppkey, quantity): */
+		inputTuple.project((0 << 0) | (1 << 1) | (1 << 2) | (0 << 3) | (1 << 4));
+		inputTuple.addAttribute("" + price);
+		record.setField(1, inputTuple);
+		out.collect(record);
 	}
 
 }

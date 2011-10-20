@@ -18,11 +18,15 @@ package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 
-public class AmountAggregate extends ReduceStub<StringIntPair, PactString, StringIntPair, PactString> {
+public class AmountAggregate extends ReduceStub {
+	
+	private PactRecord record = new PactRecord();
+	private PactString value = new PactString();
 	
 	/**
 	 * Aggregate "amount":
@@ -37,42 +41,32 @@ public class AmountAggregate extends ReduceStub<StringIntPair, PactString, Strin
 	 */
 	
 	@Override
-	public void reduce(StringIntPair key, Iterator<PactString> values, Collector<StringIntPair, PactString> out) {
+	public void reduce(Iterator<PactRecord> records, Collector out)
+			throws Exception {
 
 		float amount = 0;
 
-		PactString value = null;
-		while (values.hasNext()) {
-			value = values.next();
+		while (records.hasNext()) {
+			record = records.next();
+			record.getField(1, value);
 			amount += Float.parseFloat(value.toString());
 		}
 
 		if (value != null) {
-			PactString outValue = new PactString("" + amount);
-			out.collect(key, outValue);
+			value.setValue("" + amount);
+			record.setField(1, value);
+			out.collect(record);
 		}
-
 	}
-
+	
+	
 	/**
 	 * Creates partial sums of "amount" for each data batch:
 	 */
 	@Override
-	public void combine(StringIntPair key, Iterator<PactString> values, Collector<StringIntPair, PactString> out) {
-
-		float amount = 0;
-
-		PactString value = null;
-		while (values.hasNext()) {
-			value = values.next();
-			amount += Float.parseFloat(value.toString());
-		}
-
-		if (value != null) {
-			PactString outValue = new PactString("" + amount);
-			out.collect(key, outValue);
-		}
-
+	public void combine(Iterator<PactRecord> records, Collector out)
+			throws Exception {
+		reduce(records, out);
 	}
 
 }
