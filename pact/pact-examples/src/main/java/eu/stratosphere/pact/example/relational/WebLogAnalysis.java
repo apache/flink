@@ -302,17 +302,17 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		String output      = (args.length > 4 ? args[4] : "");
 
 		// Create DataSourceContract for documents relation
-		FileDataSource docs = new FileDataSource(DelimitedInputFormat.class, docsInput);
+		FileDataSource docs = new FileDataSource(LineInFormat.class, docsInput, "Docs Input");
 		docs.setDegreeOfParallelism(noSubTasks);
 		// TODO set Unique Key contract
 		// docs.setOutputContract(UniqueKey.class);
 
 		// Create DataSourceContract for ranks relation
-		FileDataSource ranks = new FileDataSource(DelimitedInputFormat.class, ranksInput);
+		FileDataSource ranks = new FileDataSource(LineInFormat.class, ranksInput, "Ranks input");
 		ranks.setDegreeOfParallelism(noSubTasks);
 
 		// Create DataSourceContract for visits relation
-		FileDataSource visits = new FileDataSource(DelimitedInputFormat.class, visitsInput);
+		FileDataSource visits = new FileDataSource(LineInFormat.class, visitsInput, "Visits input:q");
 		visits.setDegreeOfParallelism(noSubTasks);
 
 		// Create MapContract for filtering the entries from the documents
