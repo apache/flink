@@ -303,6 +303,7 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 					lenBytes++;
 				}
 				val |= curr << shift;
+				lenBytes++;
 			}
 			return val + lenBytes;
 		}
@@ -328,6 +329,7 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 					}
 				}
 				val |= curr << shift;
+				lenBytes++;
 			}
 			return val + lenBytes;
 		}

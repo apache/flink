@@ -186,7 +186,7 @@ public class SortMergeMatchIteratorITCase
 			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
 						memoryManager, ioManager, input1, input2, 
 						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_FIRST_MERGE, parentTask);
 	
 			iterator.open();
 			
@@ -235,7 +235,7 @@ public class SortMergeMatchIteratorITCase
 			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
 						memoryManager, ioManager, input1, input2, 
 						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_SECOND_MERGE, parentTask);
 	
 			iterator.open();
 			

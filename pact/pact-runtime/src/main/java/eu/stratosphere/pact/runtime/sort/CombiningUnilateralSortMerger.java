@@ -234,6 +234,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			throw new IOException("An error occurred in the combiner user code.");
 		}
 		
+		output.close(); //IS VERY IMPORTANT!!!!
 		writer.close();
 		// register merged result to be removed at shutdown
 		unregisterOpenChannelToBeRemovedAtShudown(writer);

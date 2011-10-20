@@ -891,7 +891,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 						// Found..
 						it.remove();
 						foundfloatinginstances.add(i);
-						if(foundfloatinginstances.size() >= count){
+						if (foundfloatinginstances.size() >= count) {
 							// We have enough floating instances!
 							break;
 						}
@@ -1029,5 +1029,15 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		// TODO: Implement this method
 		throw new UnsupportedOperationException("This method is not yet implemented");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void cancelPendingRequests(final JobID jobID) {
+
+		// TODO: Implement this method
+		LOG.error("This method is not yet implemented");
 	}
 }

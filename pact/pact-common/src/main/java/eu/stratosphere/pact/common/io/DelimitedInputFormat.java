@@ -46,12 +46,12 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	/**
 	 * The configuration key to set the record delimiter.
 	 */
-	public static final String RECORD_DELIMITER = "textformat.delimiter";
+	public static final String RECORD_DELIMITER = "delimited-format.delimiter";
 	
 	/**
 	 * The configuration key to set the number of samples to take for the statistics.
 	 */
-	public static final String NUM_STATISTICS_SAMPLES = "textformat.numSamples";
+	public static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
 	
 	/**
 	 * The log.

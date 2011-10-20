@@ -15,15 +15,23 @@
 
 package eu.stratosphere.pact.example.relational.util;
 
-import eu.stratosphere.pact.common.io.TextOutputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-public class StringTupleDataOutFormat extends TextOutputFormat<PactString, Tuple> {
+public class StringTupleDataOutFormat extends DelimitedOutputFormat {
 
 	@Override
-	public byte[] writeLine(KeyValuePair<PactString, Tuple> pair) {
-		return (pair.getValue().toString() + "\n").getBytes();
+	public int serializeRecord(PactRecord rec, byte[] target) throws Exception {
+		Tuple tuple = rec.getField(0, Tuple.class);
+		String tupleStr = tuple.toString();
+		byte[] tupleBytes = tupleStr.getBytes();
+		
+		if(target.length >= tupleBytes.length) {
+			System.arraycopy(tupleBytes, 0, target, 0, tupleBytes.length);
+			return tupleBytes.length;
+		} else {
+			return -1 * tupleBytes.length;
+		}
 	}
 
 }

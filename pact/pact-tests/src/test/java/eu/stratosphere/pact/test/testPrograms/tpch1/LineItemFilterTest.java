@@ -15,67 +15,70 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch1;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 
-@SuppressWarnings("unchecked")
 public class LineItemFilterTest {
 
 	private static final String RETURN_FLAG = "N";
-	@Mock
-	RecordWriter<KeyValuePair<PactInteger, Tuple>> recordWriterMock; 
 	
 	@Mock
-	RecordWriter<KeyValuePair<PactString, Tuple>> recordStringWriterMock; 
+	RecordWriter<PactRecord> recordWriterMock; 
 	
-	private List<RecordWriter<?>> writerList = new ArrayList<RecordWriter<?>>();
+	private List<RecordWriter<PactRecord>> writerList = new ArrayList<RecordWriter<PactRecord>>();
 	
 	@Before
 	public void setUp()
 	{
 		initMocks(this);
-		writerList.add(recordStringWriterMock);
+		writerList.add(recordWriterMock);
 	}
 	
 	@Test
-	public void shouldNotFilterTuple() throws IOException, InterruptedException
+	public void shouldNotFilterTuple() throws Exception, InterruptedException
 	{
 		LineItemFilter out = new LineItemFilter();
 		
 		String shipDate = "1996-03-13";
 		Tuple input = createInputTuple(shipDate);
-		
 		PactInteger inputKey = new PactInteger();
-		@SuppressWarnings("rawtypes")
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
+		PactRecord rec = new PactRecord();
+		rec.setField(0, inputKey);
+		rec.setField(1, input);
+		
+		Collector collector = new OutputCollector(writerList);
 		
 		PactString returnFlag = new PactString(RETURN_FLAG);
 		
-		out.map(inputKey, input, collector);
-		verify(recordStringWriterMock).emit(new KeyValuePair<PactString, Tuple>(returnFlag, input));
+		out.map(rec, collector);
 		
+		ArgumentCaptor<PactRecord> argument = ArgumentCaptor.forClass(PactRecord.class);
+		verify(recordWriterMock).emit(argument.capture());
+		assertEquals(returnFlag, argument.getValue().getField(0, PactString.class));
+		assertEquals(input, argument.getValue().getField(1, PactRecord.class));
 	}
 	
 	
 	@Test
-	public void shouldFilterTuple() throws IOException, InterruptedException
+	public void shouldFilterTuple() throws Exception, InterruptedException
 	{
 		LineItemFilter out = new LineItemFilter();
 		
@@ -83,29 +86,36 @@ public class LineItemFilterTest {
 		
 		Tuple input = createInputTuple(shipDate);
 		PactInteger inputKey = new PactInteger();
-		@SuppressWarnings("rawtypes")
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
+		PactRecord rec = new PactRecord();
+		rec.setField(0, inputKey);
+		rec.setField(1, input);
 		
-		out.map(inputKey, input, collector);
+		Collector collector = new OutputCollector(writerList);
+		
+		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
 	}
 	
 	@Test
-	public void shouldNotThrowExceptionWhenNullTuple()
+	public void shouldNotThrowExceptionWhenNullTuple() throws Exception
 	{
 		LineItemFilter out = new LineItemFilter();
 		
 		Tuple input = null;
 		PactInteger inputKey = new PactInteger();
-		@SuppressWarnings("rawtypes")
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
+		PactRecord rec = new PactRecord();
+		rec.setField(0, inputKey);
+		rec.setField(1, input);
 		
-		out.map(inputKey, input, collector);
+		
+		Collector collector = new OutputCollector(writerList);
+		
+		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
 	}
 	
 	@Test
-	public void shouldNoThrowExceptionOnMalformedDate() throws IOException, InterruptedException
+	public void shouldNoThrowExceptionOnMalformedDate() throws Exception, InterruptedException
 	{
 		LineItemFilter out = new LineItemFilter();
 		
@@ -113,15 +123,18 @@ public class LineItemFilterTest {
 		
 		Tuple input = createInputTuple(shipDate);
 		PactInteger inputKey = new PactInteger();
-		@SuppressWarnings("rawtypes")
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
+		PactRecord rec = new PactRecord();
+		rec.setField(0, inputKey);
+		rec.setField(1, input);
 		
-		out.map(inputKey, input, collector);
+		Collector collector = new OutputCollector(writerList);
+		
+		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
 	}
 	
 	@Test
-	public void shouldNoThrowExceptionOnTooShortTuple() throws IOException, InterruptedException
+	public void shouldNoThrowExceptionOnTooShortTuple() throws Exception, InterruptedException
 	{
 		LineItemFilter out = new LineItemFilter();
 		
@@ -139,10 +152,13 @@ public class LineItemFilterTest {
 		//the relevant column is missing now
 		
 		PactInteger inputKey = new PactInteger();
-		@SuppressWarnings("rawtypes")
-		Collector<PactString, Tuple> collector = new OutputCollector(writerList,0);
+		PactRecord rec = new PactRecord();
+		rec.setField(0, inputKey);
+		rec.setField(1, input);
 		
-		out.map(inputKey, input, collector);
+		Collector collector = new OutputCollector(writerList);
+		
+		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
 	}
 	

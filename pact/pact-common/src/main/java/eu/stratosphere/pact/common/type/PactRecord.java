@@ -415,29 +415,33 @@ public final class PactRecord implements Value
 		}
 	}
 	
-//	public void removeField(int field) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void project(long mask) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void project(long[] mask) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void setNull(int field) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void setNull(long fields) {
-//		throw new UnsupportedOperationException();
-//	}
-//	
-//	public void setNull(long[] fields) {
-//		throw new UnsupportedOperationException();
-//	}
+	public void removeField(int field) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void project(long mask) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void project(long[] mask) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void setNull(int field) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void setNull(long fields) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void setNull(long[] fields) {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void concatenate(PactRecord record) {
+		throw new UnsupportedOperationException();
+	}
 	
 	/**
 	 * Clears the record. After this operation, the record will have zero fields.
@@ -700,7 +704,7 @@ public final class PactRecord implements Value
 	private final void initFields(byte[] data, int begin, int len) {
 		// read number of fields, variable length encoded reverse at the back
 		int pos = begin + len - 2;
-		int numFields = data[begin + len - 1];
+		int numFields = data[begin + len - 1] & 0xFF;
 		if (numFields >= MAX_BIT) {
 			int shift = 7;
 			int curr;
