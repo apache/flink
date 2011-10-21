@@ -9,8 +9,8 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.ReduceStub;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class SopremoReduce<IK extends JsonNode, IV extends JsonNode, OK extends JsonNode, OV extends JsonNode>
 		extends ReduceStub<JsonNode, JsonNode, JsonNode, JsonNode> {

@@ -3,7 +3,7 @@ package eu.stratosphere.sopremo.expressions;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 public class ErroneousExpressionTest extends EvaluableExpressionTest<ErroneousExpression> {
 

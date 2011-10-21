@@ -5,16 +5,12 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.sun.el.parser.BooleanNode;
 
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
 import eu.stratosphere.sopremo.aggregation.MaterializingAggregationFunction;
@@ -22,17 +18,17 @@ import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
 import eu.stratosphere.sopremo.expressions.Scope;
-import eu.stratosphere.sopremo.function.AutoBoxingJavaFunction;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.ConcatenatingIterator;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
@@ -41,7 +37,7 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * 
  * @author Arvid Heise
  */
-public class BuiltinFunctions implements FunctionRegistryCallback {
+public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallback, ConstantRegistryCallback {
 	private static final NumericNode ZERO = new IntNode(0), ONE = new IntNode(1);
 
 	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
@@ -148,7 +144,6 @@ public class BuiltinFunctions implements FunctionRegistryCallback {
 
 		return TextNode.valueOf(string.substring(fromPos, toPos));
 	}
-
 
 	// public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
 	// Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
@@ -295,18 +290,6 @@ public class BuiltinFunctions implements FunctionRegistryCallback {
 		return union;
 	}
 
-	private static Map<String, Class<? extends JsonNode>> typeNameToType = new HashMap<String, Class<? extends JsonNode>>();
-
-	static {
-		typeNameToType.put("string", TextNode.class);
-		typeNameToType.put("text", TextNode.class);
-		typeNameToType.put("int", IntNode.class);
-	}
-
-	public static JsonNode coerce(JsonNode input, TextNode type) {
-		return TypeCoercer.INSTANCE.coerce(input, typeNameToType.get(type));
-	}
-
 	public static JsonNode average(NumericNode... inputs) {
 		double sum = 0;
 
@@ -364,12 +347,22 @@ public class BuiltinFunctions implements FunctionRegistryCallback {
 				output.add(input.get(index));
 		return output;
 	}
-	
+
 	@Override
 	public void registerFunctions(FunctionRegistry registry) {
 		List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
-		for (Method method : methods) 
-			registry.register(method);		
+		for (Method method : methods)
+			try {
+				registry.register(method);
+			} catch (Exception e) {
+				// System.out.println("Could not register " + method);
+			}
+	}
+	
+	@Override
+	public void registerConstants(EvaluationContext context) {
+		context.setBinding("pi", new ConstantExpression(Math.PI));
+		context.setBinding("e", new ConstantExpression(Math.E));
 	}
 
 	//

@@ -2,7 +2,7 @@ package eu.stratosphere.sopremo.base;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
@@ -51,7 +51,7 @@ public class ReplaceTest extends SopremoTest<Replace> {
 		lookup.setDefaultExpression(new MethodCall("format", new ConstantExpression("default %s"),
 			EvaluationExpression.VALUE));
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(lookup);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 		sopremoPlan.getInput(0).
 			addObject("field1", 1, "fieldToReplace", "key1", "field2", 2).
 			addObject("field1", 2, "fieldToReplace", "notInList", "field2", 2).
@@ -107,7 +107,7 @@ public class ReplaceTest extends SopremoTest<Replace> {
 			EvaluationExpression.VALUE));
 		lookup.setArrayElementsReplacement(true);
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(lookup);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 
 		sopremoPlan.getInput(0).
 			addObject("field1", 1, "fieldToReplace", new int[] { 1, 2, 3 }, "field2", 2).

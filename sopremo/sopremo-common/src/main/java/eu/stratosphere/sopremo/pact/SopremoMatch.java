@@ -5,7 +5,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class SopremoMatch<IK extends JsonNode, IV1 extends JsonNode, IV2 extends JsonNode, OK extends JsonNode, OV extends JsonNode>
 		extends MatchStub<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {

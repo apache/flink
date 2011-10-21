@@ -22,16 +22,16 @@ import java.util.NoSuchElementException;
 
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.LongNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 public class JsonParser {
 

@@ -27,7 +27,7 @@ public class SopremoPlan {
 		for (final Sink sink : sinks)
 			this.module.addInternalOutput(sink);
 
-		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
+		this.context.getFunctionRegistry().register(DefaultFunctions.class);
 	}
 
 	/**

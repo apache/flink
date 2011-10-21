@@ -34,7 +34,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.io.JsonGenerator;
 import eu.stratosphere.sopremo.io.JsonParser;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class SopremoUtil {
 	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);

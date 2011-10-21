@@ -7,8 +7,8 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.ArraySplit;
 import eu.stratosphere.sopremo.base.Difference;
-import eu.stratosphere.sopremo.base.Replace;
 import eu.stratosphere.sopremo.base.Projection;
+import eu.stratosphere.sopremo.base.Replace;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
@@ -44,7 +44,7 @@ public class IntraSourceRecordLinkage extends RecordLinkage<IntraSourceRecordLin
 		Operator<?> duplicatePairs;
 		if (this.getAlgorithm() instanceof IntraSourceRecordLinkageAlgorithm)
 			duplicatePairs = ((IntraSourceRecordLinkageAlgorithm) this.getAlgorithm()).getIntraSource(
-				this.getSimilarityCondition(), recordLinkageInput);
+				this.getDuplicateCondition(), recordLinkageInput);
 		else
 			duplicatePairs = this.simulateIntraSource();
 
@@ -114,7 +114,7 @@ public class IntraSourceRecordLinkage extends RecordLinkage<IntraSourceRecordLin
 				idProjection = new ArrayAccess(0);
 				resultProjection = new ArrayAccess(1);
 			}
-		Operator<?> allPairs = this.getAlgorithm().getDuplicatePairStream(this.getSimilarityCondition(),
+		Operator<?> allPairs = this.getAlgorithm().getDuplicatePairStream(this.getDuplicateCondition(),
 			Arrays.asList(recordLinkageInput, recordLinkageInput));
 		// remove symmetric and reflexive pairs
 		Selection orderedPairs = new Selection().withInputs(allPairs).

@@ -7,8 +7,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Tests {@link Naive} {@link InterSourceRecordLinkage} with one data source.

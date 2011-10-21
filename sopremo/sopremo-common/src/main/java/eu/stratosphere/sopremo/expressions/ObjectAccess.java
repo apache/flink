@@ -2,9 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
  * Returns the value of an attribute of one or more Json nodes.

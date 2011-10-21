@@ -5,8 +5,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Creates an array of the given expressions.
@@ -40,6 +40,10 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	public ArrayCreation(final List<EvaluationExpression> elements) {
 		this.elements = elements.toArray(new EvaluationExpression[elements.size()]);
+	}
+
+	public int size() {
+		return this.elements.length;
 	}
 
 	@Override

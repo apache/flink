@@ -5,7 +5,7 @@ import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND)
 public class MethodCall extends ContainerExpression {
@@ -38,7 +38,7 @@ public class MethodCall extends ContainerExpression {
 		this.paramExprs = params;
 		this.target = target;
 	}
-
+	
 	@Override
 	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())

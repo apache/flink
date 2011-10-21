@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.fusion;
 
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class DefaultValueResolution extends FusionRule {
 	/**

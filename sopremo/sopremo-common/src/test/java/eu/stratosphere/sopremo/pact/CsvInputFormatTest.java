@@ -18,7 +18,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @Ignore
 public class CsvInputFormatTest {

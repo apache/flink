@@ -7,9 +7,9 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.util.ConversionIterator;
 
 @OptimizerHints(scope = Scope.ANY)

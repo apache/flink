@@ -10,10 +10,10 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 

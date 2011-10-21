@@ -6,7 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
 public class PathExpression extends ContainerExpression {

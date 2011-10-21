@@ -6,7 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.base.Union;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
@@ -42,7 +42,7 @@ public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
 	}
 
 	@Override
-	public Operator<?> getInterSource(ComparativeExpression similarityCondition, RecordLinkageInput input1,
+	public Operator<?> getInterSource(BooleanExpression similarityCondition, RecordLinkageInput input1,
 			RecordLinkageInput input2) {
 		final List<Operator<?>> passes = new ArrayList<Operator<?>>();
 		for (int index = 0; index < this.passPartitionKeys.size(); index++)
@@ -52,7 +52,7 @@ public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
 	}
 
 	@Override
-	public Operator<?> getIntraSource(ComparativeExpression similarityCondition, RecordLinkageInput input) {
+	public Operator<?> getIntraSource(BooleanExpression similarityCondition, RecordLinkageInput input) {
 		final List<Operator<?>> passes = new ArrayList<Operator<?>>();
 
 		for (int index = 0; index < this.passPartitionKeys.size(); index++)
@@ -63,10 +63,10 @@ public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
 	}
 
 	protected abstract Operator<?> createSinglePassInterSource(EvaluationExpression[] partitionKeys,
-			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2);
+			EvaluationExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2);
 
 	protected abstract Operator<?> createSinglePassIntraSource(EvaluationExpression partitionKey,
-			ComparativeExpression similarityCondition, RecordLinkageInput input);
+			EvaluationExpression similarityCondition, RecordLinkageInput input);
 
 	@Override
 	public String toString() {

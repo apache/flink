@@ -5,9 +5,9 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JavaToJsonMapper;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JavaToJsonMapper;
+import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.reflect.DynamicMethod;
 import eu.stratosphere.util.reflect.Signature;
 

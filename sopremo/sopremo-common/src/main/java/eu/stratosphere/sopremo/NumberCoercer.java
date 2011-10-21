@@ -5,14 +5,14 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
-import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode.Type;
-import eu.stratosphere.sopremo.jsondatamodel.LongNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 public final class NumberCoercer {
 	// private static final int NUMBER_TYPES_COUNT = JsonNode.TYPES.values().length;

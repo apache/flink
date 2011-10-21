@@ -8,13 +8,15 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.cleansing.fusion.FusionRule;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @Name(verb = "scrub")
 public class Scrubbing extends ElementaryOperator<Scrubbing> {
@@ -53,6 +55,23 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 
 		this.rules = rules;
 	}
+
+	@Property
+	@Name(preposition = "with")
+	public void setRuleExpression(ObjectCreation ruleExpression) {
+		this.rules.clear();
+		// extractRules(ruleExpression, EvaluationExpression.VALUE);
+	}
+	
+	public ObjectCreation getRuleExpression() {
+		return new ObjectCreation();
+	}
+
+	// private void extractRules(ObjectCreation ruleExpression, EvaluationExpression contextValue) {
+	// for (Mapping mapping : ruleExpression.getMappings()) {
+	// this.rules.add(null)
+	// }
+	// }
 
 	public static class Implementation extends
 			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {

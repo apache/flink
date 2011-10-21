@@ -12,8 +12,8 @@ import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 public class MongeElkanSimilarityTest extends SopremoTest<MongeElkanSimilarity> {
 	@Override

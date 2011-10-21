@@ -6,8 +6,9 @@ import java.util.List;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.SopremoExpression;
+import eu.stratosphere.sopremo.type.JsonNode;
 
-public abstract class CleansingRule<ContextType extends EvaluationContext> extends SopremoExpression<ContextType, CleansingRule<ContextType>> {
+public abstract class CleansingRule<ContextType extends EvaluationContext> extends EvaluationExpression {
 
 	/**
 	 * 
@@ -24,6 +25,14 @@ public abstract class CleansingRule<ContextType extends EvaluationContext> exten
 		return this.targetPath;
 	}
 
+	@SuppressWarnings("unchecked")
+	@Override
+	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		return evaluateRule(node, (ContextType) context);
+	}
+
+	public abstract JsonNode evaluateRule(JsonNode node, ContextType context);
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;

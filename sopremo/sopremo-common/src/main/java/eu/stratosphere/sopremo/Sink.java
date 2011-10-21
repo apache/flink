@@ -3,8 +3,8 @@ package eu.stratosphere.sopremo;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class Sink extends ElementaryOperator<Sink> {
 	/**

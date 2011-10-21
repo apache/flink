@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo;
 
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Represents all evaluable entities such as {@link EvaluationExpression}s or {@link Function}s.

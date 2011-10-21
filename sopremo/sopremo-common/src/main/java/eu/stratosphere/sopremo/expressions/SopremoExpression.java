@@ -1,11 +1,12 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class SopremoExpression<ContextType extends EvaluationContext, ElementType extends SopremoExpression<ContextType, ElementType>>
 		implements SerializableSopremoType, Iterable<ElementType> {
@@ -59,6 +60,7 @@ public abstract class SopremoExpression<ContextType extends EvaluationContext, E
 	@SuppressWarnings("unchecked")
 	@Override
 	public Iterator<ElementType> iterator() {
-		return EMPTY_ITERATOR;
+//		return EMPTY_ITERATOR;
+		return Arrays.asList((ElementType) this).iterator();
 	}
 }

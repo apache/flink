@@ -4,9 +4,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, iterating = true)
 public class ElementInSetExpression extends BooleanExpression {

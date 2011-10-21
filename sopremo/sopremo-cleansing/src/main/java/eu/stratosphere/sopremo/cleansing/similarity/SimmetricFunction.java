@@ -7,10 +7,10 @@ import java.io.ObjectOutputStream;
 import uk.ac.shef.wit.simmetrics.similaritymetrics.InterfaceStringMetric;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 public class SimmetricFunction extends EvaluationExpression {
 	/**

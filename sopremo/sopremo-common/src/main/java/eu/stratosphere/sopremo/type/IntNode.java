@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.jsondatamodel;
+package eu.stratosphere.sopremo.type;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -8,38 +8,32 @@ import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 
-public class LongNode extends NumericNode {
+public class IntNode extends NumericNode {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 8594695207002513755L;
+	private static final long serialVersionUID = -4250062919293345310L;
 
-	protected transient PactLong value;
+	private transient PactInteger value;
 
-	public LongNode(final long value) {
-		this.value = new PactLong(value);
+	public IntNode() {
+		this.value = new PactInteger();
+	}
+
+	public IntNode(final int v) {
+		this.value = new PactInteger(v);
+	}
+
+	public static IntNode valueOf(final int v) {
+		return new IntNode(v);
 	}
 
 	@Override
-	public Long getJavaValue() {
-		return this.value.getValue();
-	}
-
-	@Override
-	public void read(final DataInput in) throws IOException {
-		this.value.read(in);
-	}
-
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		this.value.write(out);
-	}
-
-	public static LongNode valueOf(final long value) {
-		return new LongNode(value);
+	public StringBuilder toString(final StringBuilder sb) {
+		return sb.append(this.value);
 	}
 
 	@Override
@@ -58,20 +52,31 @@ public class LongNode extends NumericNode {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final LongNode other = (LongNode) obj;
+
+		final IntNode other = (IntNode) obj;
 		if (!this.value.equals(other.value))
 			return false;
 		return true;
 	}
 
 	@Override
+	public void read(final DataInput in) throws IOException {
+		this.value.read(in);
+	}
+
+	@Override
+	public void write(final DataOutput out) throws IOException {
+		this.value.write(out);
+	}
+
+	@Override
 	public int getIntValue() {
-		return (int) this.value.getValue();
+		return this.value.getValue();
 	}
 
 	@Override
 	public long getLongValue() {
-		return this.value.getValue();
+		return Long.valueOf(this.value.getValue());
 	}
 
 	@Override
@@ -95,37 +100,37 @@ public class LongNode extends NumericNode {
 	}
 
 	@Override
-	public Type getType() {
-		return Type.LongNode;
-	}
-
-	@Override
 	public String getValueAsText() {
 		return this.value.toString();
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return sb.append(this.value);
-	}
-
-	private void writeObject(final ObjectOutputStream out) throws IOException {
-		out.writeLong(this.value.getValue());
-	}
-
-	private void readObject(final ObjectInputStream in) throws IOException {
-		this.value = new PactLong(in.readLong());
+	public Integer getJavaValue() {
+		return this.value.getValue();
 	}
 
 	@Override
-	public LongNode clone() {
-		final LongNode clone = (LongNode) super.clone();
-		clone.value = new PactLong(this.value.getValue());
+	public Type getType() {
+		return Type.IntNode;
+	}
+
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		out.writeInt(this.value.getValue());
+	}
+
+	private void readObject(final ObjectInputStream in) throws IOException {
+		this.value = new PactInteger(in.readInt());
+	}
+
+	@Override
+	public IntNode clone() {
+		final IntNode clone = (IntNode) super.clone();
+		clone.value = new PactInteger(this.value.getValue());
 		return clone;
 	}
 
 	@Override
 	public int compareToSameType(JsonNode other) {
-		return Long.signum(this.value.getValue() - ((LongNode) other).value.getValue());
+		return this.value.getValue() - ((IntNode) other).value.getValue();
 	}
 }

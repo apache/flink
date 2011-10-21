@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public class SchemaMapping extends CompositeOperator<SchemaMapping> {
+@Name(verb = "extract")
+public class EntityExtraction extends CompositeOperator<EntityExtraction> {
 	/**
 	 * 
 	 */
@@ -29,7 +31,7 @@ public class SchemaMapping extends CompositeOperator<SchemaMapping> {
 		this.projection = projection;
 	}
 
-	public SchemaMapping withProjection(EvaluationExpression projection) {
+	public EntityExtraction withProjection(EvaluationExpression projection) {
 		this.setProjection(projection);
 		return this;
 	}

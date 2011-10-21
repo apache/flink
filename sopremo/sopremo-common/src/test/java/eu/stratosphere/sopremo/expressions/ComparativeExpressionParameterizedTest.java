@@ -15,10 +15,10 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 @RunWith(Parameterized.class)
 public class ComparativeExpressionParameterizedTest {

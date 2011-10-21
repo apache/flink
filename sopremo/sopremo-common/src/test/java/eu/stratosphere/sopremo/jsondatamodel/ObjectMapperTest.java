@@ -4,6 +4,12 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JavaToJsonMapper;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.TextNode;
+
 public class ObjectMapperTest {
 
 	@Test

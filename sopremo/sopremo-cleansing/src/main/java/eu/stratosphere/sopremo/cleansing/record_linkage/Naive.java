@@ -4,22 +4,22 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
 public class Naive extends RecordLinkageAlgorithm {
 	@Override
-	public Operator<?> getInterSource(ComparativeExpression similarityCondition, RecordLinkageInput input1,
+	public Operator<?> getInterSource(BooleanExpression similarityCondition, RecordLinkageInput input1,
 			RecordLinkageInput input2) {
 		return new InterSource(similarityCondition, input1, input2);
 	}
 
 	@Override
-	public Operator<?> getIntraSource(ComparativeExpression similarityCondition, RecordLinkageInput input) {
+	public Operator<?> getIntraSource(BooleanExpression similarityCondition, RecordLinkageInput input) {
 		return new IntraSource(similarityCondition, input);
 	}
 
@@ -31,12 +31,12 @@ public class Naive extends RecordLinkageAlgorithm {
 		private static final long serialVersionUID = 8648299921312622401L;
 
 		@SuppressWarnings("unused")
-		private final ComparativeExpression similarityCondition;
+		private final EvaluationExpression similarityCondition;
 
 		@SuppressWarnings("unused")
 		private final EvaluationExpression resultProjection1, resultProjection2;
 
-		public InterSource(final ComparativeExpression similarityCondition, RecordLinkageInput stream1,
+		public InterSource(final EvaluationExpression similarityCondition, RecordLinkageInput stream1,
 				RecordLinkageInput stream2) {
 			this.setInputs(stream1, stream2);
 			this.similarityCondition = similarityCondition;
@@ -47,7 +47,7 @@ public class Naive extends RecordLinkageAlgorithm {
 		public static class Implementation
 				extends
 				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
-			private ComparativeExpression similarityCondition;
+			private EvaluationExpression similarityCondition;
 
 			private EvaluationExpression resultProjection1, resultProjection2;
 
@@ -70,12 +70,12 @@ public class Naive extends RecordLinkageAlgorithm {
 		private static final long serialVersionUID = 8648299921312622401L;
 
 		@SuppressWarnings("unused")
-		private final ComparativeExpression similarityCondition;
+		private final EvaluationExpression similarityCondition;
 
 		@SuppressWarnings("unused")
 		private final EvaluationExpression resultProjection, idProjection;
 
-		public IntraSource(final ComparativeExpression similarityCondition, RecordLinkageInput stream) {
+		public IntraSource(final EvaluationExpression similarityCondition, RecordLinkageInput stream) {
 			this.setInputs(stream, stream);
 			this.similarityCondition = similarityCondition;
 			this.resultProjection = stream.getResultProjection();
@@ -86,7 +86,7 @@ public class Naive extends RecordLinkageAlgorithm {
 				extends
 				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode,
 				JsonNode> {
-			private ComparativeExpression similarityCondition;
+			private EvaluationExpression similarityCondition;
 
 			private EvaluationExpression resultProjection, idProjection;
 

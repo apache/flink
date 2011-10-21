@@ -20,7 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.io.JsonGenerator;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link JsonNode} .

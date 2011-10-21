@@ -18,8 +18,11 @@ public class OperatorFactory {
 
 		private Class<? extends Op> operatorClass;
 
-		public OperatorInfo(Class<? extends Op> operatorClass) {
+		private String name;
+
+		public OperatorInfo(Class<? extends Op> operatorClass, String opName) {
 			this.operatorClass = operatorClass;
+			this.name = opName;
 
 			try {
 				PropertyDescriptor[] propertyDescriptors = Introspector.getBeanInfo(operatorClass)
@@ -44,6 +47,10 @@ public class OperatorFactory {
 			} catch (IntrospectionException e) {
 				e.printStackTrace();
 			}
+		}
+
+		public String getName() {
+			return this.name;
 		}
 
 		private Map<String, PropertyDescriptor> operatorProperties = new HashMap<String, PropertyDescriptor>();
@@ -140,6 +147,11 @@ public class OperatorFactory {
 			}
 			return null;
 		}
+
+		@Override
+		public String toString() {
+			return this.name;
+		}
 	}
 
 	public OperatorFactory() {
@@ -149,6 +161,10 @@ public class OperatorFactory {
 
 	public OperatorInfo<?> getOperatorInfo(String operator) {
 		return this.operators.get(operator.toLowerCase());
+	}
+
+	public Map<String, OperatorInfo<?>> getOperatorInfos() {
+		return this.operators;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -169,7 +185,7 @@ public class OperatorFactory {
 				nameAnnotation.preposition());
 		else
 			name = operatorClass.getSimpleName().toLowerCase();
-		this.operators.put(name, new OperatorInfo(operatorClass));
+		this.operators.put(name, new OperatorInfo(operatorClass, name));
 	}
 
 	public static interface NameChooser {

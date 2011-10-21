@@ -15,20 +15,24 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.cleansing.similarity.NumericDifference;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Tests {@link InterSourceRecordLinkage}.
@@ -57,7 +61,7 @@ public class InterSourceRecordLinkageTest {
 			createPath("0", "last name"), createPath("1", "lastName"));
 		final EvaluationExpression ageDiff = new NumericDifference(createPath("0", "age"), createPath("1", "age"), 10);
 		final ArrayCreation fieldSimExpr = new ArrayCreation(firstNameLev, lastNameJaccard, ageDiff);
-		this.similarityFunction = new PathExpression(fieldSimExpr, BuiltinFunctions.AVERAGE.asExpression());
+		this.similarityFunction = new PathExpression(fieldSimExpr, DefaultFunctions.AVERAGE.asExpression());
 
 		List<JsonNode> inputs1 = new ArrayList<JsonNode>();
 		inputs1.add(createObjectNode("id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80));
@@ -256,19 +260,18 @@ public class InterSourceRecordLinkageTest {
 	private SopremoTestPlan createTestPlan(final LinkageMode mode) {
 		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(new Naive()).
-			withSimilarityExpression(this.similarityFunction).
-			withThreshold(0.7).
+			withDuplicateCondition(getDuplicateCondition()).
 			withLinkageMode(mode);
 
 		Projection sortedArrays;
 		if (!mode.getClosureMode().isProvenance())
 			sortedArrays = new Projection().
-				withValueTransformation(BuiltinFunctions.SORT.asExpression()).
+				withValueTransformation(DefaultFunctions.SORT.asExpression()).
 				withInputs(recordLinkage);
 		else {
 			EvaluationExpression[] sorts = new EvaluationExpression[this.inputs.size()];
 			for (int index = 0; index < sorts.length; index++)
-				sorts[index] = new PathExpression(new ArrayAccess(index), BuiltinFunctions.SORT.asExpression());
+				sorts[index] = new PathExpression(new ArrayAccess(index), DefaultFunctions.SORT.asExpression());
 			sortedArrays = new Projection().
 				withValueTransformation(new ArrayCreation(sorts)).
 				withInputs(recordLinkage);
@@ -287,6 +290,11 @@ public class InterSourceRecordLinkageTest {
 			for (JsonNode object : this.inputs.get(index))
 				sopremoTestPlan.getInput(index).add(object);
 		return sopremoTestPlan;
+	}
+
+	private BooleanExpression getDuplicateCondition() {
+		return new ComparativeExpression(this.similarityFunction, BinaryOperator.GREATER_EQUAL,
+			new ConstantExpression(0.7));
 	}
 
 	/**

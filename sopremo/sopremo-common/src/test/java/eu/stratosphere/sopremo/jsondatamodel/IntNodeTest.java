@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import eu.stratosphere.sopremo.type.IntNode;
 import junit.framework.Assert;
 
 public class IntNodeTest extends JsonNodeTest<IntNode> {

@@ -10,8 +10,8 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 

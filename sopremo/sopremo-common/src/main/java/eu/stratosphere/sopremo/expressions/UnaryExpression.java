@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY)
 public class UnaryExpression extends BooleanExpression {

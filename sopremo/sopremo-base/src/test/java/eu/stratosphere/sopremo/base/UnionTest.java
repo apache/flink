@@ -3,7 +3,7 @@ import static eu.stratosphere.sopremo.JsonUtil.createPath;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
@@ -47,7 +47,7 @@ public class UnionTest extends SopremoTest<Union> {
 	@Test
 	public void shouldSupportComplexObject() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 
 		final Union union = new Union();
 		union.setInputs(sopremoPlan.getInputOperators(0, 2));

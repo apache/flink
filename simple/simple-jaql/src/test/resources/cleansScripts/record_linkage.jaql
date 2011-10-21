@@ -7,8 +7,10 @@ $linkedPersons = cluster records
 		$sponsor in $sponsors, $member in $members
 	where jaccard($.lastName) >= 0.9 &&
 		[ 5 * jaroWinkler($.firstName),
-		  5 * jaroWinkler($.lastName), ...] >= 0.8
+		  5 * jaroWinkler($.lastName)] >= 0.8
 	partition on 
 		[ removeVowels($.lastName)[0:3],
 		  $.state + $.firstName[0:2] ]
-	into { sponsor, member };
+	into { $sponsor, $member  };
+
+write $linkedPersons to hdfs('Links.json');

@@ -2,16 +2,16 @@ using cleansing;
 
 $personCluster = read 'personCluster.json';
 
-abbr = fn(str, prefix) str.startsWith(prefix);
+abbr = fn(str, prefix) str + prefix;
 
 $fusedPersons = fuse $personCluster
-	into { 
+	/*into { 
 		id: generateId('person'),
 		lastName: [vote(abbr), longest],
 		firstName: [vote(abbr), first],
 		addresses: MergeAddresses,
 		originalRecords: $[*].id
-	}
+	}*/
 	using weights for { 
 		$member: 0.99,
 		$sponsor: 0.99, 

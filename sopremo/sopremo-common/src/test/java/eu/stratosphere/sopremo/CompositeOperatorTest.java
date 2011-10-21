@@ -14,9 +14,9 @@ import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.ContractNavigator;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
+import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.dag.GraphLevelPartitioner;
 import eu.stratosphere.util.dag.GraphLevelPartitioner.Level;
 

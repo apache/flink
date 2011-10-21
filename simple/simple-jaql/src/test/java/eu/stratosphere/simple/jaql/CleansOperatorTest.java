@@ -11,14 +11,17 @@ import java.util.List;
 import junit.framework.Assert;
 
 import org.antlr.runtime.RecognitionException;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.sopremo.BuiltinProvider;
 import eu.stratosphere.sopremo.SopremoPlan;
 
 @RunWith(Parameterized.class)
+@Ignore
 public class CleansOperatorTest {
 	private File scriptPath;
 

@@ -4,10 +4,10 @@ import java.util.regex.Pattern;
 
 import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
-public class PatternValidationExpression extends ValidationRule {
+public class PatternValidationRule extends ValidationRule {
 	/**
 	 * 
 	 */
@@ -15,7 +15,7 @@ public class PatternValidationExpression extends ValidationRule {
 
 	private final Pattern pattern;
 
-	public PatternValidationExpression(final Pattern pattern, final EvaluationExpression... targetPath) {
+	public PatternValidationRule(final Pattern pattern, final EvaluationExpression... targetPath) {
 		super(targetPath);
 		this.pattern = pattern;
 	}

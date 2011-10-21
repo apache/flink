@@ -13,6 +13,8 @@ import eu.stratosphere.sopremo.function.FunctionRegistry;
 public class EvaluationContext implements SerializableSopremoType {
 	private static final long serialVersionUID = 7701485388451926506L;
 
+	private final Bindings bindings = new Bindings();
+
 	private final FunctionRegistry functionRegistry;
 
 	private int inputCounter = 0;
@@ -21,6 +23,30 @@ public class EvaluationContext implements SerializableSopremoType {
 
 	public LinkedList<String> getOperatorStack() {
 		return this.operatorStack;
+	}
+
+	public Object getBinding(String name) {
+		return this.bindings.get(name);
+	}
+
+	public <T> T getBinding(String name, Class<T> expectedType) {
+		return this.bindings.get(name, expectedType);
+	}
+
+	public <T> T getNonNullBinding(String name, Class<T> expectedType) {
+		return this.bindings.getNonNull(name, expectedType);
+	}
+
+	public void addScope() {
+		this.bindings.addScope();
+	}
+
+	public void removeScope() {
+		this.bindings.removeScope();
+	}
+
+	public void setBinding(String name, Object binding) {
+		this.bindings.set(name, binding);
 	}
 
 	public String operatorTrace() {
@@ -40,7 +66,7 @@ public class EvaluationContext implements SerializableSopremoType {
 	}
 
 	public EvaluationContext() {
-		this.functionRegistry = new FunctionRegistry();
+		this.functionRegistry = new FunctionRegistry(this.bindings);
 	}
 
 	public EvaluationContext(final EvaluationContext context) {

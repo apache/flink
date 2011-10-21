@@ -3,7 +3,7 @@ package eu.stratosphere.sopremo.cleansing.scrubbing;
 import java.util.List;
 
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class BlackListRule extends ValidationRule {
 	/**

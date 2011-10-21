@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class ValueCorrection extends CleansingRule<ValidationContext> {
 	/**
@@ -9,7 +9,7 @@ public abstract class ValueCorrection extends CleansingRule<ValidationContext> {
 	private static final long serialVersionUID = 5426600708331727317L;
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final ValidationContext context) {
+	public JsonNode evaluateRule(final JsonNode node, final ValidationContext context) {
 		return this.fix(node, context);
 	}
 

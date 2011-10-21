@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.jsondatamodel;
+package eu.stratosphere.sopremo.type;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;

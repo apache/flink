@@ -42,10 +42,10 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Tests {@link SopremoTestPlan}.

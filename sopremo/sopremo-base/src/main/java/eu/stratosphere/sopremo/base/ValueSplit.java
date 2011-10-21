@@ -5,9 +5,9 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Splits a tuple explicitly into multiple outgoing tuples.<br>

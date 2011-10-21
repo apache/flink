@@ -10,10 +10,11 @@ import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.regex.Pattern;
 
 import org.antlr.runtime.BitSet;
 import org.antlr.runtime.IntStream;
@@ -26,19 +27,27 @@ import org.antlr.runtime.Token;
 import org.antlr.runtime.TokenStream;
 import org.antlr.runtime.UnwantedTokenException;
 
+import eu.stratosphere.sopremo.BuiltinProvider;
+import eu.stratosphere.sopremo.ConstantRegistryCallback;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ExpressionTagFactory;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorFactory;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.expressions.CoerceExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
 import eu.stratosphere.sopremo.function.JavaFunction;
 import eu.stratosphere.sopremo.function.SopremoFunction;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.util.InputSuggestion;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 public abstract class SimpleParser extends Parser {
 	protected OperatorFactory operatorFactory = new OperatorFactory();
+
+	private InputSuggestion<OperatorFactory.OperatorInfo<?>> operatorSuggestion;
 
 	protected ExpressionTagFactory expressionTagFactory = new ExpressionTagFactory();
 
@@ -57,7 +66,7 @@ public abstract class SimpleParser extends Parser {
 	}
 
 	public OperatorFactory getOperatorFactory() {
-		return operatorFactory;
+		return this.operatorFactory;
 	}
 
 	/**
@@ -79,6 +88,49 @@ public abstract class SimpleParser extends Parser {
 			throw new IllegalArgumentException(String.format("could not load package %s", packagePath));
 		}
 
+		this.operatorSuggestion = null;
+	}
+
+	public Object getBinding(Token name) {
+		return this.context.getBinding(name.getText());
+	}
+
+	public <T> T getBinding(Token name, Class<T> expectedType) {
+		return this.context.getNonNullBinding(name.getText(), expectedType);
+	}
+
+	public void addScope() {
+		this.context.addScope();
+	}
+
+	public void removeScope() {
+		this.context.removeScope();
+	}
+
+	public void setBinding(Token name, Object binding) {
+		this.context.setBinding(name.getText(), binding);
+	}
+
+	public InputSuggestion<OperatorFactory.OperatorInfo<?>> getOperatorSuggestion() {
+		if (this.operatorSuggestion == null)
+			this.operatorSuggestion = new InputSuggestion<OperatorFactory.OperatorInfo<?>>(
+				this.operatorFactory.getOperatorInfos()).
+				withMaxSuggestions(3).
+				withMinSimilarity(0.5);
+		return this.operatorSuggestion;
+	}
+
+	private Map<String, Class<? extends JsonNode>> typeNameToType = new HashMap<String, Class<? extends JsonNode>>();
+
+	public void addTypeAlias(String alias, Class<? extends JsonNode> type) {
+		this.typeNameToType.put(alias, type);
+	}
+
+	public EvaluationExpression coerce(String type, EvaluationExpression valueExpression) {
+		Class<? extends JsonNode> targetType = this.typeNameToType.get(type);
+		if (targetType == null)
+			throw new IllegalArgumentException("unknown type " + type);
+		return new CoerceExpression(targetType, valueExpression);
 	}
 
 	protected String getPackagePath(String packageName) {
@@ -108,10 +160,17 @@ public abstract class SimpleParser extends Parser {
 			if (Operator.class.isAssignableFrom(clazz) && (clazz.getModifiers() & Modifier.ABSTRACT) == 0) {
 				SimpleUtil.LOG.trace("adding operator " + clazz);
 				this.operatorFactory.addOperator((Class<? extends Operator<?>>) clazz);
-			}
+			} else if (BuiltinProvider.class.isAssignableFrom(clazz))
+				this.addFunctionsAndConstants(clazz);
 		} catch (ClassNotFoundException e) {
 			SimpleUtil.LOG.warn("could not load operator " + className);
 		}
+	}
+
+	private void addFunctionsAndConstants(Class<?> clazz) {
+		this.context.getFunctionRegistry().register(clazz);
+		if (ConstantRegistryCallback.class.isAssignableFrom(clazz))
+			((ConstantRegistryCallback) ReflectUtil.newInstance(clazz)).registerConstants(this.context);
 	}
 
 	@SuppressWarnings("unused")
@@ -150,6 +209,10 @@ public abstract class SimpleParser extends Parser {
 		// consume additional tokens
 		for (; tokenCount > 0; tokenCount--)
 			this.input.consume();
+
+		if (info == null)
+			throw new IllegalArgumentException(String.format("Unknown operator %s; possible alternatives %s", name,
+				this.getOperatorSuggestion().suggest(name)));
 
 		return info;
 	}

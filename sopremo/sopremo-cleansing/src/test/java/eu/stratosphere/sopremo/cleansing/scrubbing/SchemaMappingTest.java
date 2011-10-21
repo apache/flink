@@ -12,9 +12,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @RunWith(Parameterized.class)
 public class SchemaMappingTest {
@@ -49,7 +49,7 @@ public class SchemaMappingTest {
 
 	@Test
 	public void testMapping() {
-		final SchemaMapping schemaMapping = new SchemaMapping();
+		final EntityExtraction schemaMapping = new EntityExtraction();
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(schemaMapping);
 		for (ValidationRule rule : this.validationRules)
 			schemaMapping.addRule(rule);

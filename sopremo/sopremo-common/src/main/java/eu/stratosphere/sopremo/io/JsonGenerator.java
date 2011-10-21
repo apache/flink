@@ -8,7 +8,7 @@ import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class JsonGenerator {
 

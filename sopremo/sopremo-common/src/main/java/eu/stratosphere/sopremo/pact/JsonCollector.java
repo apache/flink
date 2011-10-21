@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.pact;
 
 import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class JsonCollector {
 	private final Collector<JsonNode, JsonNode> collector;

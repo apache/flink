@@ -8,14 +8,14 @@ import java.util.Map;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.NumberCoercer;
-import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
-import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode.Type;
-import eu.stratosphere.sopremo.jsondatamodel.LongNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for

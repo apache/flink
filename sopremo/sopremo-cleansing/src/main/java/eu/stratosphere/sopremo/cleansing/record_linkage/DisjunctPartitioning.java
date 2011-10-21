@@ -8,14 +8,13 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 public class DisjunctPartitioning extends MultiPassPartitioning {
 	public DisjunctPartitioning(final EvaluationExpression partitionKey) {
@@ -34,13 +33,13 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 	@Override
 	protected Operator<?> createSinglePassInterSource(EvaluationExpression[] partitionKeys,
-			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2) {
+			EvaluationExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2) {
 		return new SinglePassInterSource(partitionKeys, similarityCondition, input1, input2);
 	}
 
 	@Override
 	protected Operator<?> createSinglePassIntraSource(EvaluationExpression partitionKey,
-			ComparativeExpression similarityCondition, RecordLinkageInput input) {
+			EvaluationExpression similarityCondition, RecordLinkageInput input) {
 		return new SinglePassIntraSource(partitionKey, similarityCondition, input);
 	}
 
@@ -51,11 +50,11 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		 */
 		private static final long serialVersionUID = -2038167367269740924L;
 
-		private final ComparativeExpression similarityCondition;
+		private final EvaluationExpression similarityCondition;
 
 		private final EvaluationExpression resultProjection1, resultProjection2;
 
-		public InterSourceComparison(final ComparativeExpression similarityCondition, final JsonStream input1,
+		public InterSourceComparison(final EvaluationExpression similarityCondition, final JsonStream input1,
 				EvaluationExpression resultProjection1, final JsonStream input2, EvaluationExpression resultProjection2) {
 			this.setInputs(input1, input2);
 			this.similarityCondition = similarityCondition;
@@ -71,13 +70,13 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 			return this.resultProjection2;
 		}
 
-		public ComparativeExpression getSimilarityCondition() {
+		public EvaluationExpression getSimilarityCondition() {
 			return this.similarityCondition;
 		}
 
 		public static class Implementation extends
 				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
-			private ComparativeExpression similarityCondition;
+			private EvaluationExpression similarityCondition;
 
 			private EvaluationExpression resultProjection1, resultProjection2;
 
@@ -101,12 +100,12 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		private static final long serialVersionUID = -7987102025006298382L;
 
 		@SuppressWarnings("unused")
-		private final ComparativeExpression similarityCondition;
+		private final EvaluationExpression similarityCondition;
 
 		@SuppressWarnings("unused")
 		private final EvaluationExpression resultProjection, idProjection;
 
-		public IntraSourceComparison(final ComparativeExpression similarityCondition,
+		public IntraSourceComparison(final EvaluationExpression similarityCondition,
 				final EvaluationExpression resultProjection, final EvaluationExpression idProjection,
 				final JsonStream stream) {
 			this.setInputs(stream, stream);
@@ -117,7 +116,7 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 
 		public static class Implementation extends
 				SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
-			private ComparativeExpression similarityCondition;
+			private EvaluationExpression similarityCondition;
 
 			private EvaluationExpression resultProjection, idProjection;
 
@@ -141,14 +140,14 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		 */
 		private static final long serialVersionUID = -8651334754653877176L;
 
-		private final ComparativeExpression similarityCondition;
+		private final EvaluationExpression similarityCondition;
 
 		private final EvaluationExpression[] partitionKeys;
 
 		private final EvaluationExpression resultProjection1, resultProjection2;
 
 		public SinglePassInterSource(final EvaluationExpression[] partitionKeys,
-				final ComparativeExpression similarityCondition, final RecordLinkageInput stream1,
+				final EvaluationExpression similarityCondition, final RecordLinkageInput stream1,
 				final RecordLinkageInput stream2) {
 			this.setInputs(stream1, stream2);
 			this.similarityCondition = similarityCondition;
@@ -177,14 +176,14 @@ public class DisjunctPartitioning extends MultiPassPartitioning {
 		 */
 		private static final long serialVersionUID = -7681741106450777330L;
 
-		private final ComparativeExpression similarityCondition;
+		private final EvaluationExpression similarityCondition;
 
 		private final EvaluationExpression partitionKey;
 
 		private final EvaluationExpression resultProjection, idProjection;
 
 		public SinglePassIntraSource(final EvaluationExpression partitionKey,
-				final ComparativeExpression similarityCondition, final RecordLinkageInput stream) {
+				final EvaluationExpression similarityCondition, final RecordLinkageInput stream) {
 			this.setInputs(stream);
 			this.similarityCondition = similarityCondition;
 			this.partitionKey = partitionKey;

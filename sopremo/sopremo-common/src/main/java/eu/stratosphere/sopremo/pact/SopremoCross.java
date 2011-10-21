@@ -6,7 +6,7 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class SopremoCross<IK1 extends JsonNode, IV1 extends JsonNode, IK2 extends JsonNode, IV2 extends JsonNode, OK extends Key, OV extends JsonNode>
 		extends

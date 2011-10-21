@@ -15,17 +15,21 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics.Levenshtein;
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.cleansing.similarity.NumericDifference;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Tests {@link IntraSourceRecordLinkage}.
@@ -58,7 +62,7 @@ public class IntraSourceRecordLinkageTest {
 			createPath("0", "last name"), createPath("1", "last name"));
 		final EvaluationExpression ageDiff = new NumericDifference(createPath("0", "age"), createPath("1", "age"), 10);
 		final ArrayCreation fieldSimExpr = new ArrayCreation(firstNameLev, lastNameJaccard, ageDiff);
-		this.similarityFunction = new PathExpression(fieldSimExpr, BuiltinFunctions.AVERAGE.asExpression());
+		this.similarityFunction = new PathExpression(fieldSimExpr, DefaultFunctions.AVERAGE.asExpression());
 		this.inputs.add(createObjectNode("id", 0, "first name", "albert", "last name", "perfect duplicate", "age", 80));
 		this.inputs.add(createObjectNode("id", 1, "first name", "berta", "last name", "typo", "age", 70));
 		this.inputs
@@ -93,12 +97,11 @@ public class IntraSourceRecordLinkageTest {
 	private SopremoTestPlan createTestPlan(final LinkageMode mode) {
 		IntraSourceRecordLinkage recordLinkage = new IntraSourceRecordLinkage().
 			withAlgorithm(new Naive()).
-			withSimilarityExpression(this.similarityFunction).
-			withThreshold(0.7).
+			withDuplicateCondition(this.getDuplicateCondition()).
 			withLinkageMode(mode);
 
 		Projection sortedArrays = new Projection().
-			withValueTransformation(BuiltinFunctions.SORT.asExpression()).
+			withValueTransformation(DefaultFunctions.SORT.asExpression()).
 			withInputs(recordLinkage);
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(sortedArrays);
 		if (this.useId)
@@ -109,6 +112,11 @@ public class IntraSourceRecordLinkageTest {
 		for (JsonNode object : this.inputs)
 			sopremoTestPlan.getInput(0).add(object);
 		return sopremoTestPlan;
+	}
+
+	private BooleanExpression getDuplicateCondition() {
+		return new ComparativeExpression(this.similarityFunction, BinaryOperator.GREATER_EQUAL,
+			new ConstantExpression(0.7));
 	}
 
 	/**

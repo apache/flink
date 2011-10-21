@@ -10,10 +10,10 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * Tests {@link BuiltinFunctions}
@@ -29,7 +29,7 @@ public class BuiltinFunctionsTest {
 	public void shouldCoerceDataWhenSumming() {
 		Assert.assertEquals(
 			6.4,
-			((DoubleNode) BuiltinFunctions.sum(createArrayNode(1.1, 2, new BigDecimal("3.3")))).getDoubleValue(), 0.01);
+			((DoubleNode) DefaultFunctions.sum(createArrayNode(1.1, 2, new BigDecimal("3.3")))).getDoubleValue(), 0.01);
 	}
 
 	/**
@@ -39,7 +39,7 @@ public class BuiltinFunctionsTest {
 	public void shouldConcatenateObjects() {
 		Assert.assertEquals(
 			createValueNode("bla1blu2"),
-			BuiltinFunctions.concat(new JsonNode[] {
+			DefaultFunctions.concat(new JsonNode[] {
 				createValueNode("bla"),
 				createValueNode(1),
 				createValueNode("blu"),
@@ -53,7 +53,7 @@ public class BuiltinFunctionsTest {
 	public void shouldConcatenateStrings() {
 		Assert.assertEquals(
 			createValueNode("blabliblu"),
-			BuiltinFunctions.concat(new JsonNode[] {
+			DefaultFunctions.concat(new JsonNode[] {
 				createValueNode("bla"),
 				createValueNode("bli"),
 				createValueNode("blu") }));
@@ -66,7 +66,7 @@ public class BuiltinFunctionsTest {
 	public void shouldCountCompactArray() {
 		Assert.assertEquals(
 			createValueNode(3),
-			BuiltinFunctions.count(createCompactArray(1, 2, 3)));
+			DefaultFunctions.count(createCompactArray(1, 2, 3)));
 	}
 
 	/**
@@ -76,7 +76,7 @@ public class BuiltinFunctionsTest {
 	public void shouldCountNormalArray() {
 		Assert.assertEquals(
 			createValueNode(3),
-			BuiltinFunctions.count(createArrayNode(1, 2, 3)));
+			DefaultFunctions.count(createArrayNode(1, 2, 3)));
 	}
 
 	/**
@@ -86,7 +86,7 @@ public class BuiltinFunctionsTest {
 	public void shouldCountStreamArray() {
 		Assert.assertEquals(
 			createValueNode(3),
-			BuiltinFunctions.count(JsonUtil.createArrayNode(1, 2, 3)));
+			DefaultFunctions.count(JsonUtil.createArrayNode(1, 2, 3)));
 	}
 
 	/**
@@ -96,7 +96,7 @@ public class BuiltinFunctionsTest {
 	public void shouldCountZeroForEmptyArray() {
 		Assert.assertEquals(
 			createValueNode(0),
-			BuiltinFunctions.count(createArrayNode()));
+			DefaultFunctions.count(createArrayNode()));
 	}
 
 	// /**
@@ -112,7 +112,7 @@ public class BuiltinFunctionsTest {
 	 */
 	@Test(expected = ClassCastException.class)
 	public void shouldFailToSumIfNonNumbers() {
-		BuiltinFunctions.sum(createArrayNode("test"));
+		DefaultFunctions.sum(createArrayNode("test"));
 	}
 
 	/**
@@ -121,7 +121,7 @@ public class BuiltinFunctionsTest {
 	@Test
 	public void shouldReturnEmptyStringWhenConcatenatingEmptyArray() {
 		Assert.assertEquals(
-			createValueNode(""), BuiltinFunctions.concat(new JsonNode[0]));
+			createValueNode(""), DefaultFunctions.concat(new JsonNode[0]));
 	}
 
 	/**
@@ -132,7 +132,7 @@ public class BuiltinFunctionsTest {
 		Assert.assertEquals(
 			createArrayNode(new Number[] { 1, 2.4 }, new Number[] { 1, 3.4 }, new Number[] { 2, 2.4 },
 				new Number[] { 2, 2.4, 3 }),
-			BuiltinFunctions.sort(createArrayNode(new Number[] { 1, 3.4 }, new Number[] { 2, 2.4 },
+			DefaultFunctions.sort(createArrayNode(new Number[] { 1, 3.4 }, new Number[] { 2, 2.4 },
 				new Number[] { 1, 2.4 }, new Number[] { 2, 2.4, 3 })));
 	}
 
@@ -143,7 +143,7 @@ public class BuiltinFunctionsTest {
 	public void shouldSortDoubles() {
 		Assert.assertEquals(
 			createArrayNode(1.2, 2.0, 3.14, 4.5),
-			BuiltinFunctions.sort(createArrayNode(3.14, 4.5, 1.2, 2.0)));
+			DefaultFunctions.sort(createArrayNode(3.14, 4.5, 1.2, 2.0)));
 	}
 
 	/**
@@ -153,7 +153,7 @@ public class BuiltinFunctionsTest {
 	public void shouldSortEmptyArray() {
 		Assert.assertEquals(
 			createArrayNode(),
-			BuiltinFunctions.sort(createArrayNode()));
+			DefaultFunctions.sort(createArrayNode()));
 	}
 
 	/**
@@ -163,7 +163,7 @@ public class BuiltinFunctionsTest {
 	public void shouldSortIntegers() {
 		Assert.assertEquals(
 			createArrayNode(1, 2, 3, 4),
-			BuiltinFunctions.sort(createArrayNode(3, 4, 1, 2)));
+			DefaultFunctions.sort(createArrayNode(3, 4, 1, 2)));
 	}
 
 	/**
@@ -173,7 +173,7 @@ public class BuiltinFunctionsTest {
 	public void shouldSumDoubles() {
 		Assert.assertEquals(
 			6.6,
-			((DoubleNode) BuiltinFunctions.sum(createArrayNode(1.1, 2.2, 3.3))).getDoubleValue(), 0.01);
+			((DoubleNode) DefaultFunctions.sum(createArrayNode(1.1, 2.2, 3.3))).getDoubleValue(), 0.01);
 	}
 
 	/**
@@ -183,7 +183,7 @@ public class BuiltinFunctionsTest {
 	public void shouldSumEmptyArrayToZero() {
 		Assert.assertEquals(
 			createValueNode(0),
-			BuiltinFunctions.sum(createArrayNode()));
+			DefaultFunctions.sum(createArrayNode()));
 	}
 
 	/**
@@ -193,7 +193,7 @@ public class BuiltinFunctionsTest {
 	public void shouldSumIntegers() {
 		Assert.assertEquals(
 			createValueNode(6),
-			BuiltinFunctions.sum(createArrayNode(1, 2, 3)));
+			DefaultFunctions.sum(createArrayNode(1, 2, 3)));
 	}
 
 	/**
@@ -203,7 +203,7 @@ public class BuiltinFunctionsTest {
 	public void shouldUnionAllCompactArrays() {
 		Assert.assertEquals(
 			createArrayNode(1, 2, 3, 4, 5, 6),
-			BuiltinFunctions.unionAll(createCompactArray(1, 2, 3), createCompactArray(4, 5),
+			DefaultFunctions.unionAll(createCompactArray(1, 2, 3), createCompactArray(4, 5),
 				createCompactArray(6)));
 	}
 
@@ -214,7 +214,7 @@ public class BuiltinFunctionsTest {
 	public void shouldUnionAllMixedArrayTypes() {
 		Assert.assertEquals(
 			JsonUtil.createArrayNode(1, 2, 3, 4, 5, 6),
-			BuiltinFunctions.unionAll(createArrayNode(1, 2, 3), createCompactArray(4, 5),
+			DefaultFunctions.unionAll(createArrayNode(1, 2, 3), createCompactArray(4, 5),
 				JsonUtil.createArrayNode(6)));
 	}
 
@@ -225,7 +225,7 @@ public class BuiltinFunctionsTest {
 	public void shouldUnionAllNormalArrays() {
 		Assert.assertEquals(
 			createArrayNode(1, 2, 3, 4, 5, 6),
-			BuiltinFunctions.unionAll(createArrayNode(1, 2, 3), createArrayNode(4, 5),
+			DefaultFunctions.unionAll(createArrayNode(1, 2, 3), createArrayNode(4, 5),
 				createArrayNode(6)));
 	}
 
@@ -236,29 +236,29 @@ public class BuiltinFunctionsTest {
 	public void shouldUnionAllStreamArrays() {
 		Assert.assertEquals(
 			JsonUtil.createArrayNode(1, 2, 3, 4, 5, 6),
-			BuiltinFunctions.unionAll(JsonUtil.createArrayNode(1, 2, 3), JsonUtil.createArrayNode(4, 5),
+			DefaultFunctions.unionAll(JsonUtil.createArrayNode(1, 2, 3), JsonUtil.createArrayNode(4, 5),
 				JsonUtil.createArrayNode(6)));
 	}
 
 	@Test
 	public void shouldCalculateAvg() {
-		BuiltinFunctions.AVERAGE.initialize();
-		BuiltinFunctions.AVERAGE.aggregate(IntNode.valueOf(50), this.context);
-		BuiltinFunctions.AVERAGE.aggregate(IntNode.valueOf(25), this.context);
-		BuiltinFunctions.AVERAGE.aggregate(IntNode.valueOf(75), this.context);
+		DefaultFunctions.AVERAGE.initialize();
+		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(50), this.context);
+		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(25), this.context);
+		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(75), this.context);
 
-		Assert.assertEquals(DoubleNode.valueOf(50.0), BuiltinFunctions.AVERAGE.getFinalAggregate());
+		Assert.assertEquals(DoubleNode.valueOf(50.0), DefaultFunctions.AVERAGE.getFinalAggregate());
 	}
 
 	@Test
 	public void shouldCalculateAvgWithDifferentNodes() {
-		BuiltinFunctions.AVERAGE.initialize();
+		DefaultFunctions.AVERAGE.initialize();
 
 		for (int i = 1; i < 500; i++)
-			BuiltinFunctions.AVERAGE.aggregate(i % 2 == 0 ? IntNode.valueOf(i) : DoubleNode.valueOf(i),
+			DefaultFunctions.AVERAGE.aggregate(i % 2 == 0 ? IntNode.valueOf(i) : DoubleNode.valueOf(i),
 				this.context);
 
-		Assert.assertEquals(DoubleNode.valueOf(250), BuiltinFunctions.AVERAGE.getFinalAggregate());
+		Assert.assertEquals(DoubleNode.valueOf(250), DefaultFunctions.AVERAGE.getFinalAggregate());
 	}
 
 	// Assertion failed: Expected <NaN> but was: <NaN>
@@ -272,7 +272,7 @@ public class BuiltinFunctionsTest {
 
 	@Test
 	public void shouldReturnCorrectSubstring() {
-		final JsonNode result = BuiltinFunctions.substring(TextNode.valueOf("0123456789"), IntNode.valueOf(3),
+		final JsonNode result = DefaultFunctions.substring(TextNode.valueOf("0123456789"), IntNode.valueOf(3),
 			IntNode.valueOf(6));
 
 		Assert.assertEquals(TextNode.valueOf("345"), result);
@@ -282,6 +282,6 @@ public class BuiltinFunctionsTest {
 	public void shouldCreateRightCamelCaseRepresentation() {
 		Assert.assertEquals(
 			TextNode.valueOf("This Is Just A Test !!!"),
-			BuiltinFunctions.camelCase(TextNode.valueOf("this iS JusT a TEST !!!")));
+			DefaultFunctions.camelCase(TextNode.valueOf("this iS JusT a TEST !!!")));
 	}
 }

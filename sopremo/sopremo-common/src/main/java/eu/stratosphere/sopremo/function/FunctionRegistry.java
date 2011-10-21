@@ -3,17 +3,17 @@ package eu.stratosphere.sopremo.function;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.sopremo.Bindings;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.FunctionRegistryCallback;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.reflect.ReflectUtil;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 
 public class FunctionRegistry implements SerializableSopremoType {
 	/**
@@ -21,9 +21,10 @@ public class FunctionRegistry implements SerializableSopremoType {
 	 */
 	private static final long serialVersionUID = -8399369017331739066L;
 
-	private final Map<String, Function> registeredFunctions = new HashMap<String, Function>();
+	private Bindings bindings;
 
-	public FunctionRegistry() {
+	public FunctionRegistry(Bindings bindings) {
+		this.bindings = bindings;
 	}
 
 	public JsonNode evaluate(final String functionName, final JsonNode targetNode, final ArrayNode params,
@@ -35,11 +36,11 @@ public class FunctionRegistry implements SerializableSopremoType {
 	}
 
 	public Function getFunction(final String functionName) {
-		return this.registeredFunctions.get(functionName);
+		return this.bindings.get(functionName, Function.class);
 	}
 
 	Map<String, Function> getRegisteredFunctions() {
-		return this.registeredFunctions;
+		return this.bindings.getAll(Function.class);
 	}
 
 	private static boolean isCompatibleSignature(final Method method) {
@@ -68,7 +69,7 @@ public class FunctionRegistry implements SerializableSopremoType {
 		List<Method> functions = getCompatibleMethods(
 			ReflectUtil.getMethods(javaFunctions, null, Modifier.STATIC | Modifier.PUBLIC));
 
-		for (Method method : functions) 
+		for (Method method : functions)
 			registerInternal(method);
 
 		if (FunctionRegistryCallback.class.isAssignableFrom(javaFunctions))
@@ -80,14 +81,10 @@ public class FunctionRegistry implements SerializableSopremoType {
 	}
 
 	private void registerInternal(Method method) {
-		Function javaFunction = this.registeredFunctions.get(method.getName());
+		JavaFunction javaFunction = this.bindings.get(method.getName(), JavaFunction.class);
 		if (javaFunction == null)
-			this.registeredFunctions.put(method.getName(), javaFunction = new JavaFunction(method.getName()));
-		else if (!(javaFunction instanceof JavaFunction))
-			throw new IllegalArgumentException(String.format(
-				"a function with the name %s is already registered and not a java function: %s",
-				method.getName(), javaFunction));
-		((JavaFunction) javaFunction).addSignature(method);
+			this.bindings.set(method.getName(), javaFunction = new JavaFunction(method.getName()));
+		javaFunction.addSignature(method);
 	}
 
 	public static List<Method> getCompatibleMethods(List<Method> methods) {
@@ -99,6 +96,6 @@ public class FunctionRegistry implements SerializableSopremoType {
 	}
 
 	public void register(final Function function) {
-		this.registeredFunctions.put(function.getName(), function);
+		this.bindings.set(function.getName(), function);
 	}
 }

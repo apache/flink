@@ -3,7 +3,7 @@ import static eu.stratosphere.sopremo.JsonUtil.createPath;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
@@ -44,7 +44,7 @@ public class DifferenceTest extends SopremoTest<Difference> {
 	@Test
 	public void shouldSupportComplexObject() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 
 		final Difference difference = new Difference();
 		difference.setInputs(sopremoPlan.getInputOperators(0, 2));

@@ -5,7 +5,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class SopremoMap<IK extends JsonNode, IV extends JsonNode, OK extends JsonNode, OV extends JsonNode>
 		extends MapStub<JsonNode, JsonNode, JsonNode, JsonNode> {

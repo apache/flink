@@ -21,10 +21,10 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.ioformats.FormatUtil;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
  * Tests {@link JsonInputFormat}.

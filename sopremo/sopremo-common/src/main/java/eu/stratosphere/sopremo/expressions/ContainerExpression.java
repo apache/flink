@@ -25,7 +25,7 @@ public abstract class ContainerExpression extends EvaluationExpression {
 
 	@Override
 	public abstract Iterator<EvaluationExpression> iterator();
-
+	
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
 		for (final EvaluationExpression element : this)
 			if (element instanceof ContainerExpression)

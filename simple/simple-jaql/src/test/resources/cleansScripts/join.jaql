@@ -15,7 +15,8 @@ join
 	 $relative.id == $sponsor.id) and
 	 $fund.id in $sponsor.enacted_funds[*].id and
 	($subsidiary.id in $recipient.subsidiaries[*].id 
-	or $subsidiary.id == $recipient.id)
+	or $subsidiary.id == $recipient.id) and
+	 $subsidiary.id in $relative.worksFor
 	into {
 	$sponsor.*,
 	$relative.*

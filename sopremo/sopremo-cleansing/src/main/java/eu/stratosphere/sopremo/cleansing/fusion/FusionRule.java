@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.cleansing.fusion;
 
 import eu.stratosphere.sopremo.cleansing.scrubbing.CleansingRule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class FusionRule extends CleansingRule<FusionContext> {
 
@@ -17,7 +17,7 @@ public abstract class FusionRule extends CleansingRule<FusionContext> {
 	}
 
 	@Override
-	public final JsonNode evaluate(final JsonNode values, final FusionContext context) {
+	public final JsonNode evaluateRule(final JsonNode values, final FusionContext context) {
 		return this.fuse(ArrayNode.valueOf(((ArrayNode) values).iterator()).toArray(), context.getWeights(), context);
 	}
 

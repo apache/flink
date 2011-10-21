@@ -5,15 +5,15 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.expressions.GroupingExpression;
 import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpression> {
 	@Override
@@ -23,7 +23,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 
 	@Test
 	public void testAggregation() {
-		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
+		this.context.getFunctionRegistry().register(DefaultFunctions.class);
 		
 		ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));

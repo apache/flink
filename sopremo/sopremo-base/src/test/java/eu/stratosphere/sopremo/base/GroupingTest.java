@@ -4,7 +4,7 @@ import static eu.stratosphere.sopremo.JsonUtil.createPath;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
@@ -29,23 +29,23 @@ public class GroupingTest extends SopremoTest<Grouping> {
 	@Test
 	public void shouldGroupThreeSources() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 
 		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("dept",
-			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.FIRST), new ObjectAccess("dept")));
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.FIRST), new ObjectAccess("dept")));
 		transformation.addMapping("deptName", createPath("1", "[0]", "name"));
 		transformation.addMapping("emps",
-			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.SORT, new ObjectAccess("id"))));
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.SORT, new ObjectAccess("id"))));
 		transformation.addMapping("numEmps",
-			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.COUNT)));
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.COUNT)));
 		transformation.addMapping("expenses",
 			new PathExpression(new InputSelection(2),
 				new ArrayProjection(new ArithmeticExpression(new ObjectAccess("costPerItem"),
 					ArithmeticOperator.MULTIPLICATION, new ObjectAccess("count"))),
-				new AggregationExpression(BuiltinFunctions.SUM)));
+				new AggregationExpression(DefaultFunctions.SUM)));
 
 		final Grouping aggregation = new Grouping().withResultProjection(transformation);
 		aggregation.setInputs(sopremoPlan.getInputOperators(0, 3));
@@ -84,18 +84,18 @@ public class GroupingTest extends SopremoTest<Grouping> {
 	public void shouldGroupTwoSources() {
 
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("dept",
-			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.FIRST), new ObjectAccess("dept")));
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.FIRST), new ObjectAccess("dept")));
 		transformation.addMapping("deptName", createPath("1", "[0]", "name"));
 		transformation.addMapping("emps",
-			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.SORT,
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.SORT,
 				new ObjectAccess("id"))));
 		transformation.addMapping("numEmps",
-			new PathExpression(new InputSelection(0), batch.add(BuiltinFunctions.COUNT)));
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.COUNT)));
 
 		final Grouping aggregation = new Grouping().withResultProjection(transformation);
 		aggregation.setInputs(sopremoPlan.getInputOperators(0, 2));
@@ -126,14 +126,14 @@ public class GroupingTest extends SopremoTest<Grouping> {
 	@Test
 	public void shouldGroupWithSingleSource() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 
 		final ObjectCreation transformation = new ObjectCreation();
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 		transformation.addMapping("d",
-			new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess("dept")));
+			new PathExpression(batch.add(DefaultFunctions.FIRST), new ObjectAccess("dept")));
 		transformation.addMapping("total",
-			new PathExpression(batch.add(BuiltinFunctions.SUM, new ObjectAccess("income"))));
+			new PathExpression(batch.add(DefaultFunctions.SUM, new ObjectAccess("income"))));
 
 		final Grouping aggregation = new Grouping().withResultProjection(transformation);
 		aggregation.setInputs(sopremoPlan.getInputOperator(0));
@@ -159,9 +159,9 @@ public class GroupingTest extends SopremoTest<Grouping> {
 	@Test
 	public void shouldPerformSimpleGroupBy() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 
-		final Grouping aggregation = new Grouping().withResultProjection(BuiltinFunctions.COUNT.asExpression());
+		final Grouping aggregation = new Grouping().withResultProjection(DefaultFunctions.COUNT.asExpression());
 		aggregation.setInputs(sopremoPlan.getInputOperator(0));
 		sopremoPlan.getOutputOperator(0).setInputs(aggregation);
 		sopremoPlan.getInput(0).

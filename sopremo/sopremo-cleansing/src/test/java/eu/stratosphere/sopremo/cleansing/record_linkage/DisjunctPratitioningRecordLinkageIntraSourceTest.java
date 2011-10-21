@@ -9,8 +9,8 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan.Input;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Tests {@link DisjunctPartitioning} {@link InterSourceRecordLinkage} within one data source.
