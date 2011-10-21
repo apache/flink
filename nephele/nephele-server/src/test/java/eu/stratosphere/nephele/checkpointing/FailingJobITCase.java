@@ -26,6 +26,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -172,7 +173,7 @@ public class FailingJobITCase {
 				if (!new File(configDir).exists()) {
 					configDir = userDir + "/src/test/resources/" + CONFIGURATION_DIRECTORY;
 				}
-
+				
 				final Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
 					String.class });
 				c.setAccessible(true);
@@ -344,7 +345,49 @@ public class FailingJobITCase {
 			}
 		}
 	}
+	public final static class RefailingInnerTask extends AbstractTask {
 
+		private MutableRecordReader<FailingJobRecord> recordReader;
+
+		private RecordWriter<FailingJobRecord> recordWriter;
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void registerInputOutput() {
+
+			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
+				new BipartiteDistributionPattern());
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void invoke() throws Exception {
+
+			final FailingJobRecord record = new FailingJobRecord();
+
+			boolean failing = false;
+
+			final int failAfterRecord = getRuntimeConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
+				failing = (getIndexInSubtaskGroup() == getRuntimeConfiguration().getInteger(FAILURE_INDEX_KEY, -1));
+			
+
+			int count = 0;
+
+			while (this.recordReader.next(record)) {
+
+				this.recordWriter.emit(record);
+				if (count++ == failAfterRecord && failing) {
+					throw new RuntimeException("Runtime exception in " + getEnvironment().getTaskName() + " "
+						+ getIndexInSubtaskGroup());
+				}
+			}
+		}
+	}
 	public static final class OutputTask extends AbstractOutputTask {
 
 		private MutableRecordReader<FailingJobRecord> recordReader;
@@ -650,4 +693,161 @@ public class FailingJobITCase {
 		}
 
 	}
+	/**
+	 * This test checks Nephele's fault tolerance capabilities by simulating a successively failing one inner vertices.
+	 */
+	@Test
+	public void testSuccessivelyFailingSameInnerVertices() {
+
+		final JobGraph jobGraph = new JobGraph("Job with failing inner vertex");
+
+		final JobGenericInputVertex input = new JobGenericInputVertex("Input", jobGraph);
+		input.setInputClass(InputTask.class);
+		input.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		input.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+
+		final JobTaskVertex innerVertex1 = new JobTaskVertex("Inner vertex 1", jobGraph);
+		innerVertex1.setTaskClass(RefailingInnerTask.class);
+		innerVertex1.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		innerVertex1.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+		innerVertex1.getConfiguration().setInteger(FAILED_AFTER_RECORD_KEY, 145613);
+		innerVertex1.getConfiguration().setInteger(FAILURE_INDEX_KEY, 2);
+
+		final JobTaskVertex innerVertex2 = new JobTaskVertex("Inner vertex 2", jobGraph);
+		innerVertex2.setTaskClass(InnerTask.class);
+		innerVertex2.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		innerVertex2.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+
+		final JobTaskVertex innerVertex3 = new JobTaskVertex("Inner vertex 3", jobGraph);
+		innerVertex3.setTaskClass(InnerTask.class);
+		innerVertex3.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		innerVertex3.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+
+		final JobGenericOutputVertex output = new JobGenericOutputVertex("Output", jobGraph);
+		output.setOutputClass(OutputTask.class);
+		output.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		output.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+
+		// Configure instance sharing
+		innerVertex1.setVertexToShareInstancesWith(input);
+		innerVertex2.setVertexToShareInstancesWith(input);
+		innerVertex3.setVertexToShareInstancesWith(input);
+		output.setVertexToShareInstancesWith(input);
+
+		try {
+
+			input.connectTo(innerVertex1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			innerVertex1.connectTo(innerVertex2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			innerVertex2.connectTo(innerVertex3, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			innerVertex3.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+		} catch (JobGraphDefinitionException e) {
+			fail(StringUtils.stringifyException(e));
+		}
+
+		// Reset the FAILED_ONCE flags
+		synchronized (FAILED_ONCE) {
+			FAILED_ONCE.clear();
+		}
+
+		// Create job client and launch job
+		try {
+			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient.submitJobAndWait();
+		} catch (IOException ioe) {
+			fail(StringUtils.stringifyException(ioe));
+		} catch (JobExecutionException e) {
+			assert true;
+		}
+		fail("Job expected to be cancled");
+	}
+	
+	/**
+	 * This test checks Nephele's fault tolerance capabilities by simulating a successively failing one inner vertices.
+	 */
+	@Test
+	public void testSuccessivelyFailingSeveralInnerVertices() {
+
+		final JobGraph jobGraph = new JobGraph("Job with failing inner vertex");
+
+		final JobGenericInputVertex input = new JobGenericInputVertex("Input", jobGraph);
+		input.setInputClass(InputTask.class);
+		input.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		input.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+
+		final JobTaskVertex innerVertex1 = new JobTaskVertex("Inner vertex 1", jobGraph);
+		innerVertex1.setTaskClass(RefailingInnerTask.class);
+		innerVertex1.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		innerVertex1.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+		innerVertex1.getConfiguration().setInteger(FAILED_AFTER_RECORD_KEY, 145613);
+		innerVertex1.getConfiguration().setInteger(FAILURE_INDEX_KEY, 2);
+
+		final JobTaskVertex innerVertex2 = new JobTaskVertex("Inner vertex 2", jobGraph);
+		innerVertex2.setTaskClass(InnerTask.class);
+		innerVertex2.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		innerVertex2.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+		innerVertex2.getConfiguration().setInteger(FAILED_AFTER_RECORD_KEY, 32563);
+		innerVertex2.getConfiguration().setInteger(FAILURE_INDEX_KEY, 1);
+
+		final JobTaskVertex innerVertex3 = new JobTaskVertex("Inner vertex 3", jobGraph);
+		innerVertex3.setTaskClass(InnerTask.class);
+		innerVertex3.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		innerVertex3.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+		innerVertex2.getConfiguration().setInteger(FAILED_AFTER_RECORD_KEY, 158563);
+		innerVertex2.getConfiguration().setInteger(FAILURE_INDEX_KEY, 0);
+
+		final JobGenericOutputVertex output = new JobGenericOutputVertex("Output", jobGraph);
+		output.setOutputClass(OutputTask.class);
+		output.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
+		output.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
+
+		// Configure instance sharing
+		innerVertex1.setVertexToShareInstancesWith(input);
+		innerVertex2.setVertexToShareInstancesWith(input);
+		innerVertex3.setVertexToShareInstancesWith(input);
+		output.setVertexToShareInstancesWith(input);
+
+		try {
+
+			input.connectTo(innerVertex1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			innerVertex1.connectTo(innerVertex2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			innerVertex2.connectTo(innerVertex3, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			innerVertex3.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+		} catch (JobGraphDefinitionException e) {
+			fail(StringUtils.stringifyException(e));
+		}
+
+		// Reset the FAILED_ONCE flags
+		synchronized (FAILED_ONCE) {
+			FAILED_ONCE.clear();
+		}
+
+		// Create job client and launch job
+		try {
+			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient.submitJobAndWait();
+		} catch (IOException ioe) {
+			fail(StringUtils.stringifyException(ioe));
+		} catch (JobExecutionException e) {
+			fail(StringUtils.stringifyException(e));
+		}
+
+	}
+	@After public void cleanUp(){
+		File file = new File("/tmp/");
+		File[] files= file.listFiles();
+
+		for (int i = 0; i < files.length; i++) {
+			String name = files[i].getName();
+			if (name.startsWith("fb") || name.startsWith("checkpoint_")) {
+				files[i].delete();
+			}
+		}
+		
+		System.out.println("deleted");
+		
+	   
+	}
+	
 }

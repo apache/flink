@@ -23,7 +23,6 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -98,18 +97,19 @@ public final class CheckpointDecisionCoordinator {
 		
 		// TODO: Provide sensible implementation here
 
-		if(rus.getUserCPU() >= 90){
+		if (rus.getUserCPU() >= 90) { 
 			LOG.info("CPU-Bottleneck");
 			//CPU bottleneck 
 			checkpointDesicion = true;
-		}else{
+		} else {
 		
-			if( vertex.getNumberOfSuccessors() != 0 && vertex.getNumberOfPredecessors()*1.0/vertex.getNumberOfSuccessors() > 1.5){
-				LOG.info("vertex.getNumberOfPredecessors()/vertex.getNumberOfSuccessors() > 1.5");
+			if ( vertex.getNumberOfSuccessors() != 0 
+					&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) { 
+				LOG.info("vertex.getNumberOfPredecessors()/ vertex.getNumberOfSuccessors() > 1.5");
 				//less output-channels than input-channels 
 				//checkpoint at this position probably saves network-traffic 
 				checkpointDesicion = true;
-			}else if(true){
+			} else if (true) {
 				//always create checkpoint for testing
 				checkpointDesicion = true;
 			}

@@ -1059,7 +1059,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 		if (newJobStatus == InternalJobStatus.RECOVERING) {
 			try {
-				RecoveryThread recoverythread = new RecoveryThread(executionGraph, this);
+				RecoveryThread recoverythread = new RecoveryThread(executionGraph);
 				recoverythread.start();
 			} catch (Exception e) {
 				e.printStackTrace();

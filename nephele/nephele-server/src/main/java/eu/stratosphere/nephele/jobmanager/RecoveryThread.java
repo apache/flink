@@ -25,17 +25,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.util.SerializableArrayList;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * @author marrus
@@ -44,32 +41,23 @@ public class RecoveryThread extends Thread {
 
 	private static final Log LOG = LogFactory.getLog(RecoveryThread.class);
 
-	final ExecutionGraph job;
+	private final ExecutionGraph job;
 
 	List<ExecutionVertex> failedVertices;
-
-	private List<ExecutionVertex> checkpoints;
-
-	final private JobManagerProtocol jobManager;
 
 	private List<ExecutionVertexID> globalConsistentCheckpoint = new SerializableArrayList<ExecutionVertexID>();
 
 	/**
 	 * Initializes RecoveryThread.
 	 * 
-	 * @param job
-	 * @param jobManager
+	 * @param job The Job with 
 	 * @throws Exception
 	 */
-	public RecoveryThread(ExecutionGraph job, JobManager jobManager) throws Exception {
+	public RecoveryThread(final ExecutionGraph job) throws Exception {
 		super("Recovery Thread");
 		this.job = job;
-		this.jobManager = jobManager;
 		this.failedVertices = new ArrayList<ExecutionVertex>();
 		this.failedVertices.addAll(job.getFailedVertices());
-		this.checkpoints = job.getVerticesWithCheckpoints();
-		LOG.info("RecoveryThread");
-
 	}
 
 	/**
@@ -81,9 +69,9 @@ public class RecoveryThread extends Thread {
 			LOG.error("No failed vertices to recover");
 		}
 		//FIXME (marrus) dirty fix
-		while(!this.failedVertices.isEmpty()){
+		while (!this.failedVertices.isEmpty()) { 
 			recover(this.failedVertices.remove(0));
-			if(this.failedVertices.isEmpty()){
+			if (this.failedVertices.isEmpty()) { 
 				this.failedVertices = this.job.getFailedVertices();
 			}
 		}
@@ -93,7 +81,7 @@ public class RecoveryThread extends Thread {
 	/**
 	 * 
 	 */
-	private boolean recover(ExecutionVertex  failed) {
+	private boolean recover(final ExecutionVertex  failed) {
 		List<CheckpointReplayResult> replayCheckpoints = new ArrayList<CheckpointReplayResult>();
 
 
@@ -106,7 +94,7 @@ public class RecoveryThread extends Thread {
 			Iterator<ExecutionVertex> restartIterator = restart.iterator();
 			while (restartIterator.hasNext()) {
 				ExecutionVertex vertex = restartIterator.next();
-				if(vertex.getID() != failed.getID()){
+				if (vertex.getID() != failed.getID()) {
 					try {
 						vertex.getAllocatedResource().getInstance().restartTask(vertex.getID(),this.job.getJobConfiguration(), vertex.getEnvironment(), vertex.constructInitialActiveOutputChannelsSet() );
 					} catch (IOException e) {
@@ -128,14 +116,14 @@ public class RecoveryThread extends Thread {
 
 			//get list of instances of consistencheckpoints
 			List<AbstractInstance> instances = new SerializableArrayList<AbstractInstance>();
-			for(ExecutionVertexID id : this.globalConsistentCheckpoint){
+			for (ExecutionVertexID id : this.globalConsistentCheckpoint) {
 				AbstractInstance instance = this.job.getVertexByID(id).getAllocatedResource().getInstance();
-				if(!instances.contains(instance)){
+				if (!instances.contains(instance)) {
 					instances.add(instance);
 				}
 			}
 			Iterator<AbstractInstance> instanceIterator = instances.iterator();
-			while(instanceIterator.hasNext()){
+			while (instanceIterator.hasNext()) {
 				//replay all necessary checkpoints
 				try {
 
@@ -148,7 +136,7 @@ public class RecoveryThread extends Thread {
 			}
 			
 			for(CheckpointReplayResult replayResult : replayCheckpoints ){
-				if(replayResult.getReturnCode() == ReturnCode.ERROR){
+				if (replayResult.getReturnCode() == ReturnCode.ERROR) {
 					LOG.info("Replay of Checkpoints return Error " + replayResult.getDescription() );
 					this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
 					return false;
@@ -156,10 +144,6 @@ public class RecoveryThread extends Thread {
 			}
 			LOG.info("FINISHED RECOVERY for " + failed.getName());
 			this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.RERUNNING, null);
-		
-		
-		
-		
 
 		return true;
 	}
@@ -181,30 +165,11 @@ public class RecoveryThread extends Thread {
 			if (!restart.contains(vertex)) {
 				restart.add(vertex);
 			}
-//			for (int i = 0; i < vertex.getNumberOfSuccessors(); i++) {
-//				//all successors must be restarted 
-//				ExecutionVertex successor = vertex.getSuccessor(i);
-//				restart.add(successor);
-//				if (successor.getCheckpointState() == CheckpointState.PARTIAL) {
-//					//these tasks will be restarted, delete checkpoints
-//					this.checkpoints.remove(successor);
-//					this.globalConsistentCheckpoint.remove(successor.getID());
-//				}
-//				//all followers must be restarted 
-//				List<ExecutionVertex> follower = findFollowers(successor, restart);
-//				restart.addAll(follower);
-//				Iterator<ExecutionVertex> iter = follower.iterator();
-//				while (iter.hasNext()) {
-//					ExecutionVertex follow = iter.next();
-//					if (!visited.contains(follow)) {
-//						totest.add(follow);
-//					}
-//				}
-//			}
 			//predecessors must be either checkpoints or need to be restarted too
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
 				ExecutionVertex predecessor = vertex.getPredecessor(j);
-				if (predecessor.getCheckpointState() != CheckpointState.PARTIAL &&  predecessor.getCheckpointState() != CheckpointState.COMPLETE) {
+				if (predecessor.getCheckpointState() != CheckpointState.PARTIAL 
+						&&  predecessor.getCheckpointState() != CheckpointState.COMPLETE) {
 
 					restart.add(predecessor);
 					if (!visited.contains(predecessor)) {
@@ -215,16 +180,6 @@ public class RecoveryThread extends Thread {
 						this.globalConsistentCheckpoint.add(predecessor.getID());
 					}
 
-					
-//					List<ExecutionVertex> follower = findFollowers(predecessor, restart);
-//					restart.addAll(follower);
-//					Iterator<ExecutionVertex> iter = follower.iterator();
-//					while (iter.hasNext()) {
-//						ExecutionVertex follow = iter.next();
-//						if (!visited.contains(follow)) {
-//							totest.add(follow);
-//						}
-//					}
 
 				}
 			}
@@ -234,29 +189,29 @@ public class RecoveryThread extends Thread {
 		return restart;
 	}
 
-	private List<ExecutionVertex> findFollowers(ExecutionVertex vertex, ArrayList<ExecutionVertex> restart) {
-		ArrayList<ExecutionVertex> follower = new ArrayList<ExecutionVertex>();
+//	private List<ExecutionVertex> findFollowers(ExecutionVertex vertex, ArrayList<ExecutionVertex> restart) {
+//		ArrayList<ExecutionVertex> follower = new ArrayList<ExecutionVertex>();
+//
+//		for (int i = 0; i < vertex.getNumberOfSuccessors(); i++) {
+//			ExecutionVertex successor = vertex.getSuccessor(i);
+//			if (!restart.contains(successor)) {
+//				follower.add(successor);
+//				if (successor.getCheckpointState() == CheckpointState.PARTIAL) {
+//					this.checkpoints.remove(successor);
+//					
+//					this.globalConsistentCheckpoint.remove(successor.getID());
+//					final SerializableArrayList<ExecutionVertexID> checkpointsToRemove = new SerializableArrayList<ExecutionVertexID>();
+//					checkpointsToRemove.add(successor.getID());
+//					try {
+//						successor.getAllocatedResource().getInstance().removeCheckpoints(checkpointsToRemove);
+//					} catch (IOException e) {
+//						e.printStackTrace();
+//					}
+//				}
+//			}
+//		}
+//
+//		return follower;
+//	}
 
-		for (int i = 0; i < vertex.getNumberOfSuccessors(); i++) {
-			ExecutionVertex successor = vertex.getSuccessor(i);
-			if (!restart.contains(successor)) {
-				follower.add(successor);
-				if (successor.getCheckpointState() == CheckpointState.PARTIAL) {
-					this.checkpoints.remove(successor);
-					
-					this.globalConsistentCheckpoint.remove(successor.getID());
-					final SerializableArrayList<ExecutionVertexID> checkpointsToRemove = new SerializableArrayList<ExecutionVertexID>();
-					checkpointsToRemove.add(successor.getID());
-					try {
-						successor.getAllocatedResource().getInstance().removeCheckpoints(checkpointsToRemove);
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-			}
-		}
-
-		return follower;
-	}
-
-}
+} 

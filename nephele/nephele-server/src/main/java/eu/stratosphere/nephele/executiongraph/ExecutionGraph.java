@@ -1223,12 +1223,15 @@ public class ExecutionGraph implements ExecutionListener {
 				while (it.hasNext()) {
 
 					final ExecutionVertex vertex = it.next();
-					if (vertex.getExecutionState() == ExecutionState.FAILED && !vertex.hasRetriesLeft()) {
-						this.jobStatus = InternalJobStatus.FAILING;
-						return;
-					}else{
-						this.jobStatus = InternalJobStatus.RECOVERING;
-						return;
+					if (vertex.getExecutionState() == ExecutionState.FAILED ) {
+						if (!vertex.hasRetriesLeft()){
+							System.out.println(" Vertex failed finally" );
+							this.jobStatus = InternalJobStatus.FAILING;
+							return;
+						}else{
+							this.jobStatus = InternalJobStatus.RECOVERING;
+							return;
+						}
 					}
 				}
 			}

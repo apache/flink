@@ -124,6 +124,11 @@ public final class ExecutionVertex {
 	 * The current checkpoint state of this vertex.
 	 */
 	private CheckpointState checkpointState = CheckpointState.NONE;
+	
+	/**
+	 * Number of times this vertex may be restarted
+	 */
+	private int retries = 3; //TODO make this configurable
 
 	/**
 	 * Create a new execution vertex and instantiates its environment.
@@ -296,6 +301,9 @@ public final class ExecutionVertex {
 		// Save the new execution state
 		this.executionState = newExecutionState;
 
+		if(this.executionState == ExecutionState.FAILED){
+			this.retries--;
+		}
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 		while (it.hasNext()) {
@@ -622,8 +630,10 @@ public final class ExecutionVertex {
 	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
 	 */
 	public boolean hasRetriesLeft() {
-		// TODO: Implement me
-		return false;
+		if(this.retries < 0){
+			return false;
+		}
+		return true;
 	}
 
 	/**
