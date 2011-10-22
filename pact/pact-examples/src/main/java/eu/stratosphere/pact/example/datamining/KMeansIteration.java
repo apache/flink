@@ -322,10 +322,16 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				line.append(df.format(coord));
 			}
 			line.append('|');
-			line.append('\n');
-			target = line.toString().getBytes();
 			
-			return target.length;
+			byte[] byteString = line.toString().getBytes();
+			
+			if (byteString.length <= target.length) {
+				System.arraycopy(byteString, 0, target, 0, byteString.length);
+				return byteString.length;
+			}
+			else {
+				return -1 * byteString.length;
+			}
 		}
 	}
 
@@ -342,6 +348,9 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	public static class ComputeDistance extends	CrossStub
 	{
 		private final PactDouble distance = new PactDouble();
+		private final PactInteger clusterCenterId = new PactInteger();
+		private final CoordVector clusterPoint = new CoordVector();
+		private final CoordVector dataPoint = new CoordVector();
 		
 		/**
 		 * Computes the distance of one data point to one cluster center and
@@ -351,10 +360,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public void cross(PactRecord dataPointRecord, PactRecord clusterCenterRecord, Collector out)
 		{
-			CoordVector dataPoint = dataPointRecord.getField(1, CoordVector.class);
+			dataPointRecord.getField(1, dataPoint);
 			
-			PactInteger clusterCenterId = clusterCenterRecord.getField(0, PactInteger.class);
-			CoordVector clusterPoint = clusterCenterRecord.getField(1, CoordVector.class);
+			clusterCenterRecord.getField(0, clusterCenterId);
+			clusterCenterRecord.getField(1, clusterPoint);
 		
 			this.distance.setValue(dataPoint.computeEuclidianDistance(clusterPoint));
 			
@@ -473,6 +482,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		private final PactInteger count = new PactInteger();
 	
 		private final PactRecord result = new PactRecord(2);
+		private final PactInteger cid = new PactInteger();
 		
 		/**
 		 * Compute the new position (coordinate vector) of a cluster center.
@@ -481,7 +491,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		public void reduce(Iterator<PactRecord> dataPoints, Collector out)
 		{
 			// initialize coordinate vector sum and count
-			PactInteger cid = null;
+			
 			double[] coordinateSum = null;
 			int count = 0;	
 
@@ -491,9 +501,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				PactRecord next = dataPoints.next();
 				
 				// get the center id
-				if (cid == null) {
-					cid = next.getField(0, PactInteger.class); 
-				}
+				next.getField(0, cid); 
 				
 				// get the coordinates and the count from the record
 				double[] thisCoords = next.getField(1, CoordVector.class).getCoordinates();
@@ -532,7 +540,6 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		public void combine(Iterator<PactRecord> dataPoints, Collector out)
 		{
 			// initialize coordinate vector sum and count
-			PactInteger cid = null;
 			double[] coordinateSum = null;
 			int count = 0;	
 
@@ -542,9 +549,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				PactRecord next = dataPoints.next();
 				
 				// get the center id
-				if (cid == null) {
-					cid = next.getField(0, PactInteger.class); 
-				}
+				next.getField(0, cid); 
 				
 				// get the coordinates and the count from the record
 				double[] thisCoords = next.getField(1, CoordVector.class).getCoordinates();
@@ -612,13 +617,13 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		// create DataSourceContract for data point input
 		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Read Data Points");
 		dataPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
-		dataPoints.addOutputContract(OutputContract.Unique.class);
+		//dataPoints.addOutputContract(OutputContract.Unique.class);
 
 		// create DataSourceContract for cluster center input
 		FileDataSource clusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Read Centers");
 		clusterPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		clusterPoints.setDegreeOfParallelism(1);
-		clusterPoints.addOutputContract(OutputContract.Unique.class);
+		//clusterPoints.addOutputContract(OutputContract.Unique.class);
 
 		// create CrossContract for distance computation
 		CrossContract computeDistance = new CrossContract(ComputeDistance.class, dataPoints, clusterPoints, "Compute Distances");
