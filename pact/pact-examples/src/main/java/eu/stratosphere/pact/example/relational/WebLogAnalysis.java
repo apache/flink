@@ -103,14 +103,14 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 
 		@Override
 		public void writeRecord(PactRecord record) throws IOException {
-			int numFields = record.getNumFields();
-			
-			for (int i = 0; i < numFields; i++) {
-				buffer.append(record.getField(0, PactString.class).getValue());
-				char delim = (i == numFields - 1) ? '\n' : '|';
-				buffer.append(delim);
-			}
-			
+			buffer.setLength(0);
+			buffer.append(record.getField(1, PactInteger.class).toString());
+			buffer.append('|');
+			buffer.append(record.getField(0, PactString.class).toString());
+			buffer.append('|');
+			buffer.append(record.getField(2, PactInteger.class).toString());
+			buffer.append('|');
+			buffer.append('\n');
 			byte[] bytes = this.buffer.toString().getBytes();
 			this.stream.write(bytes);
 		}
