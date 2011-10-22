@@ -309,8 +309,8 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		final KeyGroupedIterator.ValuesIterator values1 = this.iterator1.getValues();
 		final KeyGroupedIterator.ValuesIterator values2 = this.iterator2.getValues();
 		
-		final PactRecord firstV1 = values1.next();
-		final PactRecord firstV2 = values2.next();
+		final PactRecord firstV1 = values1.next().createCopy();
+		final PactRecord firstV2 = values2.next().createCopy();	
 		
 		if (firstV1 == null || firstV2 == null) {
 			return false;
