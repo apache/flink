@@ -17,20 +17,25 @@ package eu.stratosphere.pact.example.relational.util;
 
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactString;
 
 public class StringTupleDataOutFormat extends DelimitedOutputFormat {
 
 	@Override
 	public int serializeRecord(PactRecord rec, byte[] target) throws Exception {
-		Tuple tuple = rec.getField(0, Tuple.class);
+		String string = rec.getField(0, PactString.class).toString();
+		byte[] stringBytes = string.getBytes();
+		Tuple tuple = rec.getField(1, Tuple.class);
 		String tupleStr = tuple.toString();
 		byte[] tupleBytes = tupleStr.getBytes();
-		
-		if(target.length >= tupleBytes.length) {
-			System.arraycopy(tupleBytes, 0, target, 0, tupleBytes.length);
-			return tupleBytes.length;
+		int totalLength = stringBytes.length + 1 + tupleBytes.length;
+		if(target.length >= totalLength) {
+			System.arraycopy(stringBytes, 0, target, 0, stringBytes.length);
+			target[stringBytes.length] = '|';
+			System.arraycopy(tupleBytes, 0, target, stringBytes.length + 1, tupleBytes.length);
+			return totalLength;
 		} else {
-			return -1 * tupleBytes.length;
+			return -1 * totalLength;
 		}
 	}
 

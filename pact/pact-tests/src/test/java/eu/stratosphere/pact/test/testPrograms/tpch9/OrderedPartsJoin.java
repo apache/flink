@@ -26,7 +26,6 @@ public class OrderedPartsJoin extends MatchStub {
 	private final PactInteger year = new PactInteger();
 	private final Tuple lineItem = new Tuple();
 
-	
 	/**
 	 * Join "orders" and "lineitem" by "orderkey".
 	 * 

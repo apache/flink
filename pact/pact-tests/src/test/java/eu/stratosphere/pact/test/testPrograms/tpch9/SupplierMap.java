@@ -44,6 +44,8 @@ public class SupplierMap extends MapStub {
 		
 		record.setField(0, nationKey);
 		record.setField(1, suppKey);
+		
+		out.collect(record);
 	}
 
 }

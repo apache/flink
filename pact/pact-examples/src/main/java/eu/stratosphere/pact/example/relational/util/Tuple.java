@@ -539,7 +539,9 @@ public class Tuple implements Value {
 		while (readPos < offset + len) {
 			if (bytes[readPos++] == delimiter) {
 				if (offsets.length <= col) {
-					this.offsets = new short[this.offsets.length * 2];
+					short newOffsets[] = new short[this.offsets.length * 2];
+					System.arraycopy(this.offsets, 0, newOffsets, 0, this.offsets.length);
+					this.offsets = newOffsets;
 				}
 				this.offsets[col++] = (short) (readPos - startPos);
 			}

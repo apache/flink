@@ -51,7 +51,7 @@ public class FilteredPartsJoin extends MatchStub {
 		float amount = price - supplyCost * quantity;
 		
 		/* Push (supplierKey, (amount, year)): */
-		value1.setField(0, partAndSupplierKey);
+		value1.setField(0, partAndSupplierKey.getSecond());
 		value1.setField(1, new StringIntPair(new PactString("" + amount), year));
 		out.collect(value1);
 	}

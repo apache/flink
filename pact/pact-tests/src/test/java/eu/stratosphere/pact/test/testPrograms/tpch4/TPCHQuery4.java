@@ -197,7 +197,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 			
 			if(rec != null)
 			{
-				Tuple tuple = rec.getField(1, Tuple.class);
+				Tuple tuple = new Tuple();
 				tuple.addAttribute("" + count);
 				rec.setField(1, tuple);
 			}

@@ -193,7 +193,7 @@ public class TaskFailureITCase extends FailingTestBase {
 	@Override
 	protected int getTimeout() {
 		// time out for this job is 30 secs
-		return 30000;
+		return 30;
 	}
 
 	/**

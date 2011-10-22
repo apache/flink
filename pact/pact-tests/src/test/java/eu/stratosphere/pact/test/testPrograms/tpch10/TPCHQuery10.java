@@ -157,6 +157,8 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 			key.setValue(newKey);
 			value1.setField(0, key);
 			value1.setField(1, cValue);
+			
+			out.collect(value1);
 		}
 
 	}

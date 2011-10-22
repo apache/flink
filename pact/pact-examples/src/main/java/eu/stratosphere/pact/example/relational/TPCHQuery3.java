@@ -64,6 +64,9 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 	private static Log LOGGER = LogFactory.getLog(TPCHQuery3.class);
+	
+	public static final String YEAR_FILTER = "parameter.YEAR_FILTER";
+	public static final String PRIO_FILTER = "parameter.PRIO_FILTER";
 
 	/**
 	 * Map PACT implements the selection and projection on the orders table.
@@ -74,9 +77,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	public static class FilterO extends MapStub
 	{
-		public static final String YEAR_FILTER = "parameter.YEAR_FILTER";
-		public static final String PRIO_FILTER = "parameter.PRIO_FILTER";
-		
 		private String prioFilter;		// filter literal for the order priority
 		private int yearFilter;			// filter literal for the year
 		
@@ -108,7 +108,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		public void map(final PactRecord record, final Collector out)
 		{
 			final Tuple t = record.getField(0, Tuple.class);
-			
+
 			try {
 				if (Integer.parseInt(t.getStringValueAt(4).substring(0, 4)) > this.yearFilter
 					&& t.getStringValueAt(2).equals("F") && t.getStringValueAt(5).startsWith(this.prioFilter))
@@ -193,7 +193,9 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			// we can simply union the fields since the first input has its fields on (0, 1) and the
 			// second inputs has its fields in (0, 2). The conflicting field (0) is the key which is guaranteed
 			// to be identical anyways 
-			first.unionFields(second);
+			//TODO use union fields here, as soon as it is implemented
+			//first.unionFields(second);
+			first.setField(1, second.getField(1, PactString.class));
 			out.collect(first);
 		}
 	}
@@ -305,8 +307,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create MapContract for filtering Orders tuples
 		MapContract filterO = new MapContract(FilterO.class, orders, "FilterO");
-		filterO.setParameter("YEAR_FILTER", 1993);
-		filterO.setParameter("PRIO_FILTER", "5");
+		filterO.setParameter(YEAR_FILTER, 1993);
+		filterO.setParameter(PRIO_FILTER, "5");
 		filterO.getCompilerHints().setAvgBytesPerRecord(16);
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
