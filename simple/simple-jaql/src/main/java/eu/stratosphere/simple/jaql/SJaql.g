@@ -112,7 +112,7 @@ functionDefinition
 
 javaudf
   : name=ID '=' 'javaudf' '(' path=STRING ')' 
-  { addFunction($name.getText(), path.getText().substring(1, path.getText().length() - 1)); } ->;
+  { addFunction($name.getText(), path.getText()); } ->;
 
 contextAwareExpression [EvaluationExpression contextExpression]
 scope { EvaluationExpression context }
@@ -242,7 +242,7 @@ literal
 	: val='true' -> ^(EXPRESSION["ConstantExpression"] { Boolean.TRUE })
 	| val='false' -> ^(EXPRESSION["ConstantExpression"] { Boolean.FALSE })
 	| val=DECIMAL -> ^(EXPRESSION["ConstantExpression"] { new BigDecimal($val.text) })
-	| val=STRING -> ^(EXPRESSION["ConstantExpression"] { $val.getText().substring(1, $val.getText().length() - 1) })
+	| val=STRING -> ^(EXPRESSION["ConstantExpression"] { $val.getText() })
   | val=INTEGER -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
   | val=UINT -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
   | 'null' -> { EvaluationExpression.NULL };
@@ -290,7 +290,7 @@ writeOperator
 genericOperator
 scope { 
   OperatorFactory.OperatorInfo operatorInfo;
-}	:	name=ID { $genericOperator::operatorInfo = findOperatorGreedily($name);}
+}	:	name=ID { ($genericOperator::operatorInfo = findOperatorGreedily($name)) != null }?=>
 { 
   $operator::result = $genericOperator::operatorInfo.newInstance();
 } 
@@ -368,7 +368,7 @@ fragment QUOTATION
 WS 	:	(' '|'\t'|'\n'|'\r')+ { skip(); };
     
 STRING
-	:	QUOTATION (options {greedy=false;} : .)* QUOTATION | APOSTROPHE (options {greedy=false;} : .)* APOSTROPHE
+	:	(QUOTATION (options {greedy=false;} : .)* QUOTATION | APOSTROPHE (options {greedy=false;} : .)* APOSTROPHE)
 	{ setText(getText().substring(1, getText().length()-1)); };
 
 fragment

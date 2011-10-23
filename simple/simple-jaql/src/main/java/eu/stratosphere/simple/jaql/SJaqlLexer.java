@@ -1,4 +1,4 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-10-23 23:41:49
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-10-24 00:07:41
  
 package eu.stratosphere.simple.jaql; 
 
@@ -1410,7 +1410,10 @@ public class SJaqlLexer extends Lexer {
         try {
             int _type = STRING;
             int _channel = DEFAULT_TOKEN_CHANNEL;
-            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:2: ( QUOTATION ( options {greedy=false; } : . )* QUOTATION | APOSTROPHE ( options {greedy=false; } : . )* APOSTROPHE )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:2: ( ( QUOTATION ( options {greedy=false; } : . )* QUOTATION | APOSTROPHE ( options {greedy=false; } : . )* APOSTROPHE ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:4: ( QUOTATION ( options {greedy=false; } : . )* QUOTATION | APOSTROPHE ( options {greedy=false; } : . )* APOSTROPHE )
+            {
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:4: ( QUOTATION ( options {greedy=false; } : . )* QUOTATION | APOSTROPHE ( options {greedy=false; } : . )* APOSTROPHE )
             int alt10=2;
             int LA10_0 = input.LA(1);
 
@@ -1428,10 +1431,10 @@ public class SJaqlLexer extends Lexer {
             }
             switch (alt10) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:4: QUOTATION ( options {greedy=false; } : . )* QUOTATION
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:5: QUOTATION ( options {greedy=false; } : . )* QUOTATION
                     {
                     mQUOTATION(); 
-                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:14: ( options {greedy=false; } : . )*
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:15: ( options {greedy=false; } : . )*
                     loop8:
                     do {
                         int alt8=2;
@@ -1447,7 +1450,7 @@ public class SJaqlLexer extends Lexer {
 
                         switch (alt8) {
                     	case 1 :
-                    	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:41: .
+                    	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:42: .
                     	    {
                     	    matchAny(); 
 
@@ -1464,10 +1467,10 @@ public class SJaqlLexer extends Lexer {
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:57: APOSTROPHE ( options {greedy=false; } : . )* APOSTROPHE
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:58: APOSTROPHE ( options {greedy=false; } : . )* APOSTROPHE
                     {
                     mAPOSTROPHE(); 
-                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:68: ( options {greedy=false; } : . )*
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:69: ( options {greedy=false; } : . )*
                     loop9:
                     do {
                         int alt9=2;
@@ -1483,7 +1486,7 @@ public class SJaqlLexer extends Lexer {
 
                         switch (alt9) {
                     	case 1 :
-                    	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:95: .
+                    	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:371:96: .
                     	    {
                     	    matchAny(); 
 
@@ -1496,12 +1499,16 @@ public class SJaqlLexer extends Lexer {
                     } while (true);
 
                     mAPOSTROPHE(); 
-                     setText(getText().substring(1, getText().length()-1)); 
 
                     }
                     break;
 
             }
+
+             setText(getText().substring(1, getText().length()-1)); 
+
+            }
+
             state.type = _type;
             state.channel = _channel;
         }

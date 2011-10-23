@@ -1,4 +1,4 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-10-23 23:41:48
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-10-24 00:07:40
  
 package eu.stratosphere.simple.jaql; 
 
@@ -855,7 +855,7 @@ public class SJaqlParser extends SimpleParser {
             if ( state.backtracking==0 ) stream_32.add(char_literal20);
 
             if ( state.backtracking==0 ) {
-               addFunction(name.getText(), path.getText().substring(1, path.getText().length() - 1)); 
+               addFunction(name.getText(), path.getText()); 
             }
 
 
@@ -871,7 +871,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 115:95: ->
+            // 115:53: ->
             {
                 root_0 = null;
             }
@@ -1652,7 +1652,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: set, elem, elem
+            // elements: elem, set, elem
             // token labels: 
             // rule labels: elem, retval, set
             // token list labels: 
@@ -1919,7 +1919,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: e2, e1, e1, e2, e1, e1, e2
+            // elements: e1, e1, e2, e2, e2, e1, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -2111,7 +2111,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: e2, e1, e1
+            // elements: e1, e1, e2
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -2273,7 +2273,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: e1, e1, e2
+            // elements: e2, e1, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -4273,7 +4273,7 @@ public class SJaqlParser extends SimpleParser {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
 
-                        adaptor.addChild(root_1,  val.getText().substring(1, val.getText().length() - 1) );
+                        adaptor.addChild(root_1,  val.getText() );
 
                         adaptor.addChild(root_0, root_1);
                         }
@@ -5411,7 +5411,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "genericOperator"
-    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:290:1: genericOperator : name= ID ( operatorFlag )* input ( ',' input )* ( operatorOption )* ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:290:1: genericOperator : name= ID {...}? => ( operatorFlag )* input ( ',' input )* ( operatorOption )* ->;
     public final SJaqlParser.genericOperator_return genericOperator() throws RecognitionException {
         genericOperator_stack.push(new genericOperator_scope());
         SJaqlParser.genericOperator_return retval = new SJaqlParser.genericOperator_return();
@@ -5439,14 +5439,15 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_operatorFlag=new RewriteRuleSubtreeStream(adaptor,"rule operatorFlag");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 34) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:293:3: (name= ID ( operatorFlag )* input ( ',' input )* ( operatorOption )* ->)
-            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:293:5: name= ID ( operatorFlag )* input ( ',' input )* ( operatorOption )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:293:3: (name= ID {...}? => ( operatorFlag )* input ( ',' input )* ( operatorOption )* ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:293:5: name= ID {...}? => ( operatorFlag )* input ( ',' input )* ( operatorOption )*
             {
             name=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1729); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
-            if ( state.backtracking==0 ) {
-               ((genericOperator_scope)genericOperator_stack.peek()).operatorInfo = findOperatorGreedily(name);
+            if ( !(( (((genericOperator_scope)genericOperator_stack.peek()).operatorInfo = findOperatorGreedily(name)) != null )) ) {
+                if (state.backtracking>0) {state.failed=true; return retval;}
+                throw new FailedPredicateException(input, "genericOperator", " ($genericOperator::operatorInfo = findOperatorGreedily($name)) != null ");
             }
             if ( state.backtracking==0 ) {
                
@@ -5468,7 +5469,7 @@ public class SJaqlParser extends SimpleParser {
             	case 1 :
             	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: operatorFlag
             	    {
-            	    pushFollow(FOLLOW_operatorFlag_in_genericOperator1736);
+            	    pushFollow(FOLLOW_operatorFlag_in_genericOperator1737);
             	    operatorFlag104=operatorFlag();
 
             	    state._fsp--;
@@ -5483,7 +5484,7 @@ public class SJaqlParser extends SimpleParser {
                 }
             } while (true);
 
-            pushFollow(FOLLOW_input_in_genericOperator1739);
+            pushFollow(FOLLOW_input_in_genericOperator1740);
             input105=input();
 
             state._fsp--;
@@ -5510,10 +5511,10 @@ public class SJaqlParser extends SimpleParser {
             	case 1 :
             	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:298:8: ',' input
             	    {
-            	    char_literal106=(Token)match(input,31,FOLLOW_31_in_genericOperator1742); if (state.failed) return retval; 
+            	    char_literal106=(Token)match(input,31,FOLLOW_31_in_genericOperator1743); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_31.add(char_literal106);
 
-            	    pushFollow(FOLLOW_input_in_genericOperator1744);
+            	    pushFollow(FOLLOW_input_in_genericOperator1745);
             	    input107=input();
 
             	    state._fsp--;
@@ -5549,7 +5550,7 @@ public class SJaqlParser extends SimpleParser {
             	case 1 :
             	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: operatorOption
             	    {
-            	    pushFollow(FOLLOW_operatorOption_in_genericOperator1749);
+            	    pushFollow(FOLLOW_operatorOption_in_genericOperator1750);
             	    operatorOption108=operatorOption();
 
             	    state._fsp--;
@@ -5635,7 +5636,7 @@ public class SJaqlParser extends SimpleParser {
             // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:305:2: (name= ID ({...}?moreName= ID )? expr= contextAwareExpression[null] ->)
             // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:305:4: name= ID ({...}?moreName= ID )? expr= contextAwareExpression[null]
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1769); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1770); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
             if ( state.backtracking==0 ) {
@@ -5652,7 +5653,7 @@ public class SJaqlParser extends SimpleParser {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         throw new FailedPredicateException(input, "operatorOption", "!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName)");
                     }
-                    moreName=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1778); if (state.failed) return retval; 
+                    moreName=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1779); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(moreName);
 
                     if ( state.backtracking==0 ) {
@@ -5664,7 +5665,7 @@ public class SJaqlParser extends SimpleParser {
 
             }
 
-            pushFollow(FOLLOW_contextAwareExpression_in_operatorOption1788);
+            pushFollow(FOLLOW_contextAwareExpression_in_operatorOption1789);
             expr=contextAwareExpression(null);
 
             state._fsp--;
@@ -5742,7 +5743,7 @@ public class SJaqlParser extends SimpleParser {
             // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:314:3: (name= ID ({...}?moreName= ID )? ->)
             // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:314:5: name= ID ({...}?moreName= ID )?
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1809); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1810); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
             if ( state.backtracking==0 ) {
@@ -5767,7 +5768,7 @@ public class SJaqlParser extends SimpleParser {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         throw new FailedPredicateException(input, "operatorFlag", "!$genericOperator::operatorInfo.hasFlag($operatorFlag::flagName)");
                     }
-                    moreName=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1819); if (state.failed) return retval; 
+                    moreName=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1820); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(moreName);
 
                     if ( state.backtracking==0 ) {
@@ -5867,7 +5868,7 @@ public class SJaqlParser extends SimpleParser {
                 case 1 :
                     // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: preserveFlag= 'preserve'
                     {
-                    preserveFlag=(Token)match(input,68,FOLLOW_68_in_input1841); if (state.failed) return retval; 
+                    preserveFlag=(Token)match(input,68,FOLLOW_68_in_input1842); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_68.add(preserveFlag);
 
 
@@ -5901,10 +5902,10 @@ public class SJaqlParser extends SimpleParser {
                 case 1 :
                     // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:320:33: name= VAR 'in'
                     {
-                    name=(Token)match(input,VAR,FOLLOW_VAR_in_input1849); if (state.failed) return retval; 
+                    name=(Token)match(input,VAR,FOLLOW_VAR_in_input1850); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(name);
 
-                    string_literal109=(Token)match(input,42,FOLLOW_42_in_input1851); if (state.failed) return retval; 
+                    string_literal109=(Token)match(input,42,FOLLOW_42_in_input1852); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_42.add(string_literal109);
 
 
@@ -5913,7 +5914,7 @@ public class SJaqlParser extends SimpleParser {
 
             }
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_input1857); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_input1858); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
             if ( state.backtracking==0 ) {
@@ -5932,14 +5933,14 @@ public class SJaqlParser extends SimpleParser {
                 case 1 :
                     // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::inputNames.size() - 1)]
                     {
-                    inputOption=(Token)match(input,ID,FOLLOW_ID_in_input1865); if (state.failed) return retval; 
+                    inputOption=(Token)match(input,ID,FOLLOW_ID_in_input1866); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(inputOption);
 
                     if ( !((((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasInputProperty((inputOption!=null?inputOption.getText():null)))) ) {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         throw new FailedPredicateException(input, "input", "$genericOperator::operatorInfo.hasInputProperty($inputOption.text)");
                     }
-                    pushFollow(FOLLOW_contextAwareExpression_in_input1874);
+                    pushFollow(FOLLOW_contextAwareExpression_in_input1875);
                     expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).inputNames.size() - 1));
 
                     state._fsp--;
@@ -6627,8 +6628,8 @@ public class SJaqlParser extends SimpleParser {
         // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:298:8: ( ',' input )
         // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:298:8: ',' input
         {
-        match(input,31,FOLLOW_31_in_synpred74_SJaql1742); if (state.failed) return ;
-        pushFollow(FOLLOW_input_in_synpred74_SJaql1744);
+        match(input,31,FOLLOW_31_in_synpred74_SJaql1743); if (state.failed) return ;
+        pushFollow(FOLLOW_input_in_synpred74_SJaql1745);
         input();
 
         state._fsp--;
@@ -6643,7 +6644,7 @@ public class SJaqlParser extends SimpleParser {
         // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:299:1: ( operatorOption )
         // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:299:1: operatorOption
         {
-        pushFollow(FOLLOW_operatorOption_in_synpred75_SJaql1749);
+        pushFollow(FOLLOW_operatorOption_in_synpred75_SJaql1750);
         operatorOption();
 
         state._fsp--;
@@ -6664,7 +6665,7 @@ public class SJaqlParser extends SimpleParser {
             if (state.backtracking>0) {state.failed=true; return ;}
             throw new FailedPredicateException(input, "synpred76_SJaql", "!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName)");
         }
-        moreName=(Token)match(input,ID,FOLLOW_ID_in_synpred76_SJaql1778); if (state.failed) return ;
+        moreName=(Token)match(input,ID,FOLLOW_ID_in_synpred76_SJaql1779); if (state.failed) return ;
 
         }
     }
@@ -6681,7 +6682,7 @@ public class SJaqlParser extends SimpleParser {
             if (state.backtracking>0) {state.failed=true; return ;}
             throw new FailedPredicateException(input, "synpred77_SJaql", "!$genericOperator::operatorInfo.hasFlag($operatorFlag::flagName)");
         }
-        moreName=(Token)match(input,ID,FOLLOW_ID_in_synpred77_SJaql1819); if (state.failed) return ;
+        moreName=(Token)match(input,ID,FOLLOW_ID_in_synpred77_SJaql1820); if (state.failed) return ;
 
         }
     }
@@ -6694,8 +6695,8 @@ public class SJaqlParser extends SimpleParser {
         // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:320:33: (name= VAR 'in' )
         // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:320:33: name= VAR 'in'
         {
-        name=(Token)match(input,VAR,FOLLOW_VAR_in_synpred79_SJaql1849); if (state.failed) return ;
-        match(input,42,FOLLOW_42_in_synpred79_SJaql1851); if (state.failed) return ;
+        name=(Token)match(input,VAR,FOLLOW_VAR_in_synpred79_SJaql1850); if (state.failed) return ;
+        match(input,42,FOLLOW_42_in_synpred79_SJaql1852); if (state.failed) return ;
 
         }
     }
@@ -6710,12 +6711,12 @@ public class SJaqlParser extends SimpleParser {
         // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:2: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::inputNames.size() - 1)] )
         // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::inputNames.size() - 1)]
         {
-        inputOption=(Token)match(input,ID,FOLLOW_ID_in_synpred80_SJaql1865); if (state.failed) return ;
+        inputOption=(Token)match(input,ID,FOLLOW_ID_in_synpred80_SJaql1866); if (state.failed) return ;
         if ( !((((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasInputProperty((inputOption!=null?inputOption.getText():null)))) ) {
             if (state.backtracking>0) {state.failed=true; return ;}
             throw new FailedPredicateException(input, "synpred80_SJaql", "$genericOperator::operatorInfo.hasInputProperty($inputOption.text)");
         }
-        pushFollow(FOLLOW_contextAwareExpression_in_synpred80_SJaql1874);
+        pushFollow(FOLLOW_contextAwareExpression_in_synpred80_SJaql1875);
         expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).inputNames.size() - 1));
 
         state._fsp--;
@@ -7210,7 +7211,7 @@ public class SJaqlParser extends SimpleParser {
                         s = -1;
                         if ( (((synpred9_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null))||(synpred9_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null))||synpred9_SJaql())) ) {s = 18;}
 
-                        else if ( ((synpred10_SJaql()||(synpred10_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null))||(synpred10_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null)))) ) {s = 19;}
+                        else if ( (((synpred10_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null))||synpred10_SJaql()||(synpred10_SJaql()&&(((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context != null)))) ) {s = 19;}
 
                         else if ( (true) ) {s = 20;}
 
@@ -8629,22 +8630,22 @@ public class SJaqlParser extends SimpleParser {
     public static final BitSet FOLLOW_STRING_in_writeOperator1707 = new BitSet(new long[]{0x0000000100000000L});
     public static final BitSet FOLLOW_32_in_writeOperator1709 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_ID_in_genericOperator1729 = new BitSet(new long[]{0x00000000000000C0L,0x0000000000000010L});
-    public static final BitSet FOLLOW_operatorFlag_in_genericOperator1736 = new BitSet(new long[]{0x00000000000000C0L,0x0000000000000010L});
-    public static final BitSet FOLLOW_input_in_genericOperator1739 = new BitSet(new long[]{0x0000000080000042L});
-    public static final BitSet FOLLOW_31_in_genericOperator1742 = new BitSet(new long[]{0x00000000000000C0L,0x0000000000000010L});
-    public static final BitSet FOLLOW_input_in_genericOperator1744 = new BitSet(new long[]{0x0000000080000042L});
-    public static final BitSet FOLLOW_operatorOption_in_genericOperator1749 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_operatorOption1769 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_ID_in_operatorOption1778 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_contextAwareExpression_in_operatorOption1788 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_operatorFlag1809 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_operatorFlag1819 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_68_in_input1841 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_input1849 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_input1851 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_input1857 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_input1865 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_contextAwareExpression_in_input1874 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_operatorFlag_in_genericOperator1737 = new BitSet(new long[]{0x00000000000000C0L,0x0000000000000010L});
+    public static final BitSet FOLLOW_input_in_genericOperator1740 = new BitSet(new long[]{0x0000000080000042L});
+    public static final BitSet FOLLOW_31_in_genericOperator1743 = new BitSet(new long[]{0x00000000000000C0L,0x0000000000000010L});
+    public static final BitSet FOLLOW_input_in_genericOperator1745 = new BitSet(new long[]{0x0000000080000042L});
+    public static final BitSet FOLLOW_operatorOption_in_genericOperator1750 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_operatorOption1770 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_ID_in_operatorOption1779 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_contextAwareExpression_in_operatorOption1789 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_operatorFlag1810 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_operatorFlag1820 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_68_in_input1842 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_input1850 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_input1852 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_input1858 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_input1866 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_contextAwareExpression_in_input1875 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_orExpression_in_synpred9_SJaql351 = new BitSet(new long[]{0x0000000400000000L});
     public static final BitSet FOLLOW_34_in_synpred9_SJaql354 = new BitSet(new long[]{0xF4F0000840001DC0L,0x0000000000000006L});
     public static final BitSet FOLLOW_expression_in_synpred9_SJaql358 = new BitSet(new long[]{0x0000000800000000L});
@@ -8692,14 +8693,14 @@ public class SJaqlParser extends SimpleParser {
     public static final BitSet FOLLOW_ID_in_synpred38_SJaql1038 = new BitSet(new long[]{0x8200000000000002L});
     public static final BitSet FOLLOW_arrayAccess_in_synpred38_SJaql1056 = new BitSet(new long[]{0x8200000000000002L});
     public static final BitSet FOLLOW_ID_in_synpred43_SJaql1119 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_31_in_synpred74_SJaql1742 = new BitSet(new long[]{0x00000000000000C0L,0x0000000000000010L});
-    public static final BitSet FOLLOW_input_in_synpred74_SJaql1744 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_operatorOption_in_synpred75_SJaql1749 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_synpred76_SJaql1778 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_synpred77_SJaql1819 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_synpred79_SJaql1849 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_synpred79_SJaql1851 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_synpred80_SJaql1865 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_contextAwareExpression_in_synpred80_SJaql1874 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_31_in_synpred74_SJaql1743 = new BitSet(new long[]{0x00000000000000C0L,0x0000000000000010L});
+    public static final BitSet FOLLOW_input_in_synpred74_SJaql1745 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_operatorOption_in_synpred75_SJaql1750 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_synpred76_SJaql1779 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_synpred77_SJaql1820 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_synpred79_SJaql1850 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_synpred79_SJaql1852 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_synpred80_SJaql1866 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_contextAwareExpression_in_synpred80_SJaql1875 = new BitSet(new long[]{0x0000000000000002L});
 
 }
