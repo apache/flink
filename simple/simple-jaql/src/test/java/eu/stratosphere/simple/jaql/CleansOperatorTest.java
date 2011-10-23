@@ -10,15 +10,15 @@ import java.util.List;
 
 import junit.framework.Assert;
 
-import org.antlr.runtime.RecognitionException;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.sopremo.BuiltinProvider;
+import eu.stratosphere.simple.SimpleException;
 import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.type.TextNode;
 
 @RunWith(Parameterized.class)
 @Ignore
@@ -36,12 +36,15 @@ public class CleansOperatorTest {
 		try {
 			plan = new QueryParser().tryParse(new FileInputStream(this.scriptPath));
 			System.out.println(new QueryParser().toJavaString(new FileInputStream(this.scriptPath)));
-		} catch (RecognitionException e) {
-			Assert.fail(String.format("could not parse %s @ token %s in line %s: %s", this.scriptPath.getName(),
-				e.token, e.line, e));
+		} catch (SimpleException e) {
+			Assert.fail(String.format("could not parse %s: %s", this.scriptPath.getName(), e.getMessage()));
 		}
 
 		Assert.assertNotNull("could not parse " + this.scriptPath.getName(), plan);
+	}
+	
+	public static TextNode normalizeName(TextNode name) {
+		return name;
 	}
 
 	@Parameters

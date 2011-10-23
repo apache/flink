@@ -197,8 +197,9 @@ public class SopremoTestPlan {
 	}
 
 	public void run() {
-		final SopremoPlan sopremoPlan = new SopremoPlan(this.getOutputOperators(0, this.expectedOutputs.length));
+		final SopremoPlan sopremoPlan = new SopremoPlan();
 		sopremoPlan.setContext(this.evaluationContext);
+		sopremoPlan.setSinks(this.getOutputOperators(0, this.expectedOutputs.length));
 		this.testPlan = new TestPlan(sopremoPlan.assemblePact());
 		for (final Input input : this.inputs)
 			input.prepare(this.testPlan);

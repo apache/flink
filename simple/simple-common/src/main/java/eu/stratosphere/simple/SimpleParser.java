@@ -33,10 +33,12 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ExpressionTagFactory;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorFactory;
+import eu.stratosphere.sopremo.OperatorFactory.OperatorInfo;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.function.FunctionRegistry;
 import eu.stratosphere.sopremo.function.JavaFunction;
 import eu.stratosphere.sopremo.function.SopremoFunction;
@@ -53,7 +55,7 @@ public abstract class SimpleParser extends Parser {
 
 	protected List<Sink> sinks = new ArrayList<Sink>();
 
-	private EvaluationContext context = new EvaluationContext();
+	private SopremoPlan currentPlan = new SopremoPlan();
 
 	public SimpleParser(TokenStream input, RecognizerSharedState state) {
 		super(input, state);
@@ -92,24 +94,44 @@ public abstract class SimpleParser extends Parser {
 	}
 
 	public Object getBinding(Token name) {
-		return this.context.getBinding(name.getText());
+		return this.getContext().getBinding(name.getText());
 	}
 
 	public <T> T getBinding(Token name, Class<T> expectedType) {
-		return this.context.getNonNullBinding(name.getText(), expectedType);
+		return this.getContext().getNonNullBinding(name.getText(), expectedType);
 	}
 
 	public void addScope() {
-		this.context.addScope();
+		this.getContext().addScope();
+	}
+
+	private EvaluationContext getContext() {
+		return currentPlan.getContext();
 	}
 
 	public void removeScope() {
-		this.context.removeScope();
+		this.getContext().removeScope();
 	}
 
 	public void setBinding(Token name, Object binding) {
-		this.context.setBinding(name.getText(), binding);
+		this.getContext().setBinding(name.getText(), binding);
 	}
+	
+	public MethodCall createCheckedMethodCall(Token name, EvaluationExpression target, EvaluationExpression[] params) {
+		if(getContext().getFunctionRegistry().getFunction(name.getText()) == null)
+			throw new SimpleException("Unknown function", name);
+		return new MethodCall(name.getText(), target, params);		
+	}
+	
+	public <Op extends Operator<Op>> void setPropertySafely(OperatorInfo<Op> info, Operator<Op> op, String property, Object value, Token reference) {
+		if(!info.hasProperty(property))
+			  throw new SimpleException("Unknown property", reference);
+		try {
+			 info.setProperty(property,op, value);
+		} catch(Exception e) {
+			  throw new SimpleException(String.format("Cannot set value of property %s to %s", property, value), reference);
+		}
+	} 
 
 	public InputSuggestion<OperatorFactory.OperatorInfo<?>> getOperatorSuggestion() {
 		if (this.operatorSuggestion == null)
@@ -168,9 +190,9 @@ public abstract class SimpleParser extends Parser {
 	}
 
 	private void addFunctionsAndConstants(Class<?> clazz) {
-		this.context.getFunctionRegistry().register(clazz);
+		this.getContext().getFunctionRegistry().register(clazz);
 		if (ConstantRegistryCallback.class.isAssignableFrom(clazz))
-			((ConstantRegistryCallback) ReflectUtil.newInstance(clazz)).registerConstants(this.context);
+			((ConstantRegistryCallback) ReflectUtil.newInstance(clazz)).registerConstants(this.getContext());
 	}
 
 	@SuppressWarnings("unused")
@@ -235,15 +257,18 @@ public abstract class SimpleParser extends Parser {
 
 	protected abstract void parseSinks() throws RecognitionException;
 
-	public SopremoPlan parse() throws RecognitionException {
-		this.parseSinks();
-		SopremoPlan plan = new SopremoPlan(this.sinks);
-		plan.setContext(this.context);
-		return plan;
+	public SopremoPlan parse() throws SimpleException {
+		currentPlan = new SopremoPlan();
+		try {
+			this.parseSinks();
+		} catch (RecognitionException e) {
+			throw new SimpleException("Cannot parse script", e);
+		}
+		return currentPlan;
 	}
 
 	public void addFunction(SopremoFunction function) {
-		this.context.getFunctionRegistry().register(function);
+		this.getContext().getFunctionRegistry().register(function);
 	}
 
 	public void addFunction(String name, String udfPath) {
@@ -264,7 +289,7 @@ public abstract class SimpleParser extends Parser {
 		}
 		if (function.getSignatures().isEmpty())
 			throw new IllegalArgumentException("Unknown method " + methodName);
-		this.context.getFunctionRegistry().register(function);
+		this.getContext().getFunctionRegistry().register(function);
 	}
 
 	protected Number parseInt(String text) {

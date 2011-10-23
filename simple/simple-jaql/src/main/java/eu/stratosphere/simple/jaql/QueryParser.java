@@ -18,6 +18,7 @@ import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
 
 import eu.stratosphere.simple.PlanCreator;
+import eu.stratosphere.simple.SimpleException;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorFactory.OperatorInfo;
@@ -37,7 +38,7 @@ public class QueryParser extends PlanCreator {
 		}
 	}
 
-	public SopremoPlan tryParse(InputStream stream) throws IOException, RecognitionException {
+	public SopremoPlan tryParse(InputStream stream) throws IOException, SimpleException {
 		SJaqlLexer lexer = new SJaqlLexer(new ANTLRInputStream(stream));
 		CommonTokenStream tokens = new CommonTokenStream();
 		tokens.setTokenSource(lexer);
@@ -46,7 +47,7 @@ public class QueryParser extends PlanCreator {
 		return parser.parse();
 	}
 
-	public String toJavaString(InputStream stream) throws IOException, RecognitionException {
+	public String toJavaString(InputStream stream) throws IOException, SimpleException {
 		SJaqlLexer lexer = new SJaqlLexer(new ANTLRInputStream(stream));
 		CommonTokenStream tokens = new CommonTokenStream();
 		tokens.setTokenSource(lexer);

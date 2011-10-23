@@ -147,10 +147,11 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		//
 		// Sink earmarkFundOut = new Sink(SequentialOutputFormat.class, String.format("%s/Result.json", outputDir),
 		// selection);
-		SopremoPlan sopremoPlan = new SopremoPlan(this.sinks);
+		SopremoPlan sopremoPlan = new SopremoPlan();
 		sopremoPlan.getContext().getFunctionRegistry().register(DefaultFunctions.class);
 		sopremoPlan.getContext().getFunctionRegistry()
 			.register(eu.stratosphere.usecase.cleansing.CleansFunctions.class);
+		sopremoPlan.setSinks(this.sinks);
 		Plan pactPlan = sopremoPlan.asPactPlan();
 		pactPlan.setMaxNumberMachines(this.noSubTasks);
 		return pactPlan;

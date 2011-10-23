@@ -43,6 +43,8 @@ import java.util.Arrays;
   addTypeAlias("decimal", DecimalNode.class);
   addTypeAlias("string", TextNode.class);
   addTypeAlias("double", DoubleNode.class);
+  addTypeAlias("boolean", BooleanNode.class);
+  addTypeAlias("bool", BooleanNode.class);
 }
 
 public void parseSinks() throws RecognitionException {  
@@ -77,10 +79,9 @@ private int inputIndexForBinding(Token variable) {
     try {
       index = Integer.parseInt(variable.getText().substring(1));
       if($operator::hasExplicitName.get(index))
-        throw new IllegalArgumentException("Cannot use index variable " + variable.getText() + " for input with explicit name", 
-          new RecognitionException(variable.getInputStream()));
+        throw new SimpleException("Cannot use index variable for input with explicit name", variable);
       if(0 > index || index >= $operator::inputNames.size()) 
-        throw new IllegalArgumentException("Invalid input index " + index, new RecognitionException(variable.getInputStream()));
+        throw new SimpleException("Invalid input index", variable);
     } catch(NumberFormatException e) {
     }
   }
@@ -210,7 +211,7 @@ valueExpression
 	| operatorExpression;
 	
 operatorExpression
-	:	operator;
+	:	operator -> ^(EXPRESSION["ErroneousExpression"] { "op" });
 		
 parenthesesExpression
 	:	('(' expression ')') -> expression;
@@ -220,7 +221,7 @@ methodCall [EvaluationExpression targetExpr]
 	:	name=ID '('	
 	(param=expression { params.add($param.tree); }
 	(',' param=expression { params.add($param.tree); })*)? 
-	')' -> ^(EXPRESSION["MethodCall"] { $name.text } { $targetExpr } { params.toArray(new EvaluationExpression[params.size()]) });
+	')' -> { createCheckedMethodCall($name, $targetExpr, params.toArray(new EvaluationExpression[params.size()])) };
 	
 fieldAssignment returns [ObjectCreation.Mapping mapping]
 	:	VAR '.' STAR { $objectCreation::mappings.add(new ObjectCreation.CopyFields(makePath($VAR))); } ->
@@ -241,7 +242,7 @@ literal
 	: val='true' -> ^(EXPRESSION["ConstantExpression"] { Boolean.TRUE })
 	| val='false' -> ^(EXPRESSION["ConstantExpression"] { Boolean.FALSE })
 	| val=DECIMAL -> ^(EXPRESSION["ConstantExpression"] { new BigDecimal($val.text) })
-	| val=STRING -> ^(EXPRESSION["ConstantExpression"] { $val.text })
+	| val=STRING -> ^(EXPRESSION["ConstantExpression"] { $val.getText().substring(1, $val.getText().length() - 1) })
   | val=INTEGER -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
   | val=UINT -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
   | 'null' -> { EvaluationExpression.NULL };
@@ -313,7 +314,7 @@ scope {
   : name=ID  { $operatorFlag::flagName = $name.text; }
 ({!$genericOperator::operatorInfo.hasFlag($operatorFlag::flagName)}? moreName=ID 
  { $operatorFlag::flagName = $name.text + " " + $moreName.text;})?
-{ $genericOperator::operatorInfo.setProperty($operatorFlag::flagName, $operator::result, true); } ->;
+{ setPropertySafely($genericOperator::operatorInfo, $operator::result, $operatorFlag::flagName, true, name); } ->;
 
 input	
 	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR

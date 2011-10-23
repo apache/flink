@@ -2,12 +2,15 @@ package eu.stratosphere.sopremo;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.plan.Plan;
 
 /**
- * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
+ * Encapsulate a complete query in Sopremo and translates it to a Pact
+ * {@link Plan}.
  * 
  * @author Arvid Heise
  */
@@ -16,28 +19,9 @@ public class SopremoPlan {
 
 	private EvaluationContext context = new EvaluationContext();
 
-	/**
-	 * Initializes SopremoPlan using the given list of {@link Sink}s.
-	 * 
-	 * @param sinks
-	 *        the sinks of the Sopremo plan
-	 */
-	public SopremoPlan(final Collection<Sink> sinks) {
+	public SopremoPlan() {
 		this.module = new SopremoModule("plan", 0, 0);
-		for (final Sink sink : sinks)
-			this.module.addInternalOutput(sink);
-
 		this.context.getFunctionRegistry().register(DefaultFunctions.class);
-	}
-
-	/**
-	 * Initializes SopremoPlan using the given list of {@link Sink}s.
-	 * 
-	 * @param sinks
-	 *        the sinks of the Sopremo plan
-	 */
-	public SopremoPlan(final Sink... sinks) {
-		this(Arrays.asList(sinks));
 	}
 
 	/**
@@ -50,9 +34,19 @@ public class SopremoPlan {
 		return new Plan((Collection) this.module.assemblePact(this.context));
 	}
 
+	public void setSinks(Sink... sinks) {
+		setSinks(Arrays.asList(sinks));
+	}
+
+	public void setSinks(List<Sink> sinks) {
+		for (Sink sink : sinks)
+			this.module.addInternalOutput(sink);
+	}
+
 	/**
-	 * Assembles the Pacts of the contained Sopremo operators and returns a list of all Pact sinks. These sinks may
-	 * either be directly a {@link FileDataSinkContract} or an unconnected {@link Contract}.
+	 * Assembles the Pacts of the contained Sopremo operators and returns a list
+	 * of all Pact sinks. These sinks may either be directly a
+	 * {@link FileDataSinkContract} or an unconnected {@link Contract}.
 	 * 
 	 * @return a list of Pact sinks
 	 */
@@ -61,7 +55,8 @@ public class SopremoPlan {
 	}
 
 	/**
-	 * Returns all operators that are either (internal) {@link Sink}s or included in the reference graph.
+	 * Returns all operators that are either (internal) {@link Sink}s or
+	 * included in the reference graph.
 	 * 
 	 * @return all operators in this module
 	 */
@@ -82,7 +77,7 @@ public class SopremoPlan {
 	 * Sets the evaluation context of this plan.
 	 * 
 	 * @param context
-	 *        the evaluation context
+	 *            the evaluation context
 	 */
 	public void setContext(final EvaluationContext context) {
 		if (context == null)

@@ -67,7 +67,8 @@ public class SopremoDuplicateDetection {
 
 		// output
 		File fileOut = new File("data/restaurant_out.json");
-		final SopremoPlan sopremoPlan = new SopremoPlan(new Sink("file://" + fileOut.getAbsolutePath()).withInputs(proj));
+		final SopremoPlan sopremoPlan = new SopremoPlan();
+		sopremoPlan.setSinks(new Sink("file://" + fileOut.getAbsolutePath()).withInputs(proj));
 		// SopremoUtil.trace();
 		sopremoPlan.getContext().getFunctionRegistry().register(DuplicateDetectionFunctions.class);
 		new TestPlan(sopremoPlan.assemblePact()).run();

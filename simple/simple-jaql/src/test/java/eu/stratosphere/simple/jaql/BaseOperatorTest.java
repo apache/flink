@@ -16,6 +16,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.stratosphere.simple.SimpleException;
 import eu.stratosphere.sopremo.SopremoPlan;
 
 @RunWith(Parameterized.class)
@@ -33,9 +34,8 @@ public class BaseOperatorTest {
 		try {
 			plan = new QueryParser().tryParse(new FileInputStream(this.scriptPath));
 			System.out.println(new QueryParser().toJavaString(new FileInputStream(this.scriptPath)));
-		} catch (RecognitionException e) {
-			Assert.fail(String.format("could not parse %s @ token %s in line %s: %s", this.scriptPath.getName(),
-				e.token, e.line, e));
+		} catch (SimpleException e) {
+			Assert.fail(String.format("could not parse %s: %s", this.scriptPath.getName(), e.getMessage()));
 		}
 
 		Assert.assertNotNull("could not parse " + this.scriptPath.getName(), plan);
