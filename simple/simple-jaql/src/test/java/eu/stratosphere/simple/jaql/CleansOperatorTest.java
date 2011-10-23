@@ -21,6 +21,7 @@ import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.type.TextNode;
 
 @RunWith(Parameterized.class)
+@Ignore
 public class CleansOperatorTest {
 	private File scriptPath;
 
