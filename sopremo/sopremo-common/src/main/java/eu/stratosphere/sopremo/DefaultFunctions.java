@@ -21,7 +21,7 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
 import eu.stratosphere.sopremo.expressions.Scope;
-import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IntNode;
@@ -349,7 +349,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	}
 
 	@Override
-	public void registerFunctions(FunctionRegistry registry) {
+	public void registerFunctions(MethodRegistry registry) {
 		List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
 		for (Method method : methods)
 			try {

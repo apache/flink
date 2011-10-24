@@ -11,8 +11,13 @@ import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.reflect.DynamicMethod;
 import eu.stratosphere.util.reflect.Signature;
 
-public class JavaFunction extends Function {
+public class JavaMethod extends MethodBase {
 	private final class AutoBoxingMethod extends DynamicMethod<JsonNode> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 9145091116604733007L;
+
 		private AutoBoxingMethod(String name) {
 			super(name);
 		}
@@ -21,7 +26,8 @@ public class JavaFunction extends Function {
 		protected Class<?>[] getSignatureTypes(Method member) {
 			Class<?>[] parameterTypes = super.getParameterTypes(member);
 			for (int index = 0; index < parameterTypes.length; index++)
-				parameterTypes[index] = JavaToJsonMapper.INSTANCE.classToJsonType(parameterTypes[index]);
+				if (!parameterTypes[index].isArray())
+					parameterTypes[index] = JavaToJsonMapper.INSTANCE.classToJsonType(parameterTypes[index]);
 			return parameterTypes;
 		}
 
@@ -29,7 +35,8 @@ public class JavaFunction extends Function {
 		protected JsonNode invokeDirectly(Method method, Object context, Object[] params)
 				throws IllegalAccessException, InvocationTargetException {
 			for (int index = 0; index < params.length; index++)
-				params[index] = JavaToJsonMapper.INSTANCE.valueToTree(params[index]);
+				if (!params[index].getClass().isArray())
+					params[index] = JavaToJsonMapper.INSTANCE.valueToTree(params[index]);
 			return JavaToJsonMapper.INSTANCE.valueToTree(super.invokeDirectly(method, context, params));
 		}
 	}
@@ -41,7 +48,7 @@ public class JavaFunction extends Function {
 
 	private DynamicMethod<JsonNode> method;
 
-	public JavaFunction(final String name) {
+	public JavaMethod(final String name) {
 		super(name);
 
 		this.method = new AutoBoxingMethod(name);

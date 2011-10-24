@@ -39,8 +39,8 @@ import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.MethodCall;
-import eu.stratosphere.sopremo.function.FunctionRegistry;
-import eu.stratosphere.sopremo.function.JavaFunction;
+import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.function.JavaMethod;
 import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.InputSuggestion;
@@ -277,10 +277,10 @@ public abstract class SimpleParser extends Parser {
 			throw new IllegalArgumentException("Invalid path");
 		String className = udfPath.substring(0, delim), methodName = udfPath.substring(delim + 1);
 
-		JavaFunction function = new JavaFunction(name);
+		JavaMethod function = new JavaMethod(name);
 		try {
 			Class<?> clazz = Class.forName(className);
-			List<Method> functions = FunctionRegistry.getCompatibleMethods(
+			List<Method> functions = MethodRegistry.getCompatibleMethods(
 				ReflectUtil.getMethods(clazz, methodName, Modifier.STATIC | Modifier.PUBLIC));
 			for (Method method : functions)
 				function.addSignature(method);

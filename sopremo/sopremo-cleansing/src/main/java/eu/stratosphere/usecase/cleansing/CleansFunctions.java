@@ -10,7 +10,7 @@ import eu.stratosphere.sopremo.FunctionRegistryCallback;
 import eu.stratosphere.sopremo.cleansing.scrubbing.NonNullRule;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
@@ -21,7 +21,7 @@ public class CleansFunctions implements BuiltinProvider, ConstantRegistryCallbac
 	}
 
 	@Override
-	public void registerFunctions(FunctionRegistry registry) {
+	public void registerFunctions(MethodRegistry registry) {
 		registry.register(new SopremoFunction("jaccard", new SimmetricFunction(new JaccardSimilarity(), EvaluationExpression.VALUE, EvaluationExpression.VALUE)));
 		registry.register(new SopremoFunction("jaroWinkler", new SimmetricFunction(new JaroWinkler(), EvaluationExpression.VALUE, EvaluationExpression.VALUE)));
 	}

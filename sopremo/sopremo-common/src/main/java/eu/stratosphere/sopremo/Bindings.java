@@ -6,7 +6,12 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 
-public class Bindings {
+public class Bindings implements SerializableSopremoType {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -5361273437492630123L;
+	
 	private Deque<Map<String, Object>> bindings = new LinkedList<Map<String, Object>>();
 
 	public Bindings() {

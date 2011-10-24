@@ -16,7 +16,7 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class FunctionRegistryTest {
-	private FunctionRegistry registry;
+	private MethodRegistry registry;
 
 	private EvaluationContext context;
 
@@ -43,13 +43,13 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertEquals("should have been 2 functions", 2, this.registry.getRegisteredFunctions().size());
-		for (final Function function : this.registry.getRegisteredFunctions().values())
-			Assert.assertEquals("should have been a java function", JavaFunction.class, function.getClass());
+		for (final MethodBase function : this.registry.getRegisteredFunctions().values())
+			Assert.assertEquals("should have been a java function", JavaMethod.class, function.getClass());
 
 		Assert.assertEquals("should have been 5 count signatures", 5,
-			((JavaFunction) this.registry.getFunction("count"))
+			((JavaMethod) this.registry.getFunction("count"))
 				.getSignatures().size());
-		Assert.assertEquals("should have been 1 sum signatures", 1, ((JavaFunction) this.registry.getFunction("sum"))
+		Assert.assertEquals("should have been 1 sum signatures", 1, ((JavaMethod) this.registry.getFunction("sum"))
 			.getSignatures().size());
 	}
 

@@ -10,14 +10,14 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NumericNode;
 
-public class FunctionCallTest extends EvaluableExpressionTest<MethodCall> {
+public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 
-	private FunctionRegistry registry;
+	private MethodRegistry registry;
 
 	@Override
 	protected MethodCall createDefaultInstance(final int index) {

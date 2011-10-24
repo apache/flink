@@ -5,7 +5,7 @@ import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.function.Function;
+import eu.stratosphere.sopremo.function.MethodBase;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND)
@@ -50,6 +50,15 @@ public class MethodCall extends ContainerExpression {
 	}
 
 	@Override
+	public int hashCode() {
+		int hash = 1;		
+		hash = hash * 53 + this.function.hashCode();
+		hash = hash * 53 + this.target.hashCode();
+		hash = hash * 53 + Arrays.hashCode(this.paramExprs);
+		return hash;
+	}
+
+	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		final JsonNode target = this.target.evaluate(node, context);
 
@@ -58,11 +67,6 @@ public class MethodCall extends ContainerExpression {
 			params[index] = this.paramExprs[index].evaluate(node, context);
 
 		return context.getFunctionRegistry().evaluate(function, target, JsonUtil.asArray(params), context);
-	}
-
-	@Override
-	public int hashCode() {
-		return (53 + this.function.hashCode()) * 53 + Arrays.hashCode(this.paramExprs);
 	}
 
 	@Override

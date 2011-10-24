@@ -18,7 +18,7 @@ public class BooleanNode extends JsonNode {
 	private boolean value;
 
 	public BooleanNode() {
-		this.value = false;
+		this(false);
 	}
 
 	private BooleanNode(final boolean v) {
@@ -31,7 +31,6 @@ public class BooleanNode extends JsonNode {
 	}
 
 	public static BooleanNode valueOf(final boolean b) {
-
 		return b ? TRUE : FALSE;
 	}
 
@@ -82,6 +81,10 @@ public class BooleanNode extends JsonNode {
 		this.value = in.readBoolean();
 	}
 
+	private Object readResolve() {
+		return valueOf(this.value);
+	}
+	
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeBoolean(this.value);

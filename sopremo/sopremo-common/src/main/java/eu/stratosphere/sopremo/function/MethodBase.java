@@ -10,7 +10,7 @@ import eu.stratosphere.sopremo.type.JsonNode;
  * 
  * @author Arvid Heise
  */
-public abstract class Function implements SerializableSopremoType {
+public abstract class MethodBase implements SerializableSopremoType {
 	/**
 	 * 
 	 */
@@ -24,7 +24,7 @@ public abstract class Function implements SerializableSopremoType {
 	 * @param name
 	 *        the name of this function
 	 */
-	protected Function(final String name) {
+	protected MethodBase(final String name) {
 		this.name = name;
 	}
 

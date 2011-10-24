@@ -60,6 +60,10 @@ public class NullNode extends JsonNode {
 		return Type.NullNode;
 	}
 
+	private Object readResolve() {
+		return Instance;
+	}
+
 	@Override
 	public JsonNode clone() {
 		return this;

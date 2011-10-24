@@ -15,7 +15,7 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
-public class FunctionRegistry implements SerializableSopremoType {
+public class MethodRegistry implements SerializableSopremoType {
 	/**
 	 * 
 	 */
@@ -23,24 +23,24 @@ public class FunctionRegistry implements SerializableSopremoType {
 
 	private Bindings bindings;
 
-	public FunctionRegistry(Bindings bindings) {
+	public MethodRegistry(Bindings bindings) {
 		this.bindings = bindings;
 	}
 
 	public JsonNode evaluate(final String functionName, final JsonNode targetNode, final ArrayNode params,
 			final EvaluationContext context) {
-		final Function function = this.getFunction(functionName);
+		final MethodBase function = this.getFunction(functionName);
 		if (function == null)
 			throw new EvaluationException(String.format("Unknown function %s", functionName));
 		return function.evaluate(targetNode, params, context);
 	}
 
-	public Function getFunction(final String functionName) {
-		return this.bindings.get(functionName, Function.class);
+	public MethodBase getFunction(final String functionName) {
+		return this.bindings.get(functionName, MethodBase.class);
 	}
 
-	Map<String, Function> getRegisteredFunctions() {
-		return this.bindings.getAll(Function.class);
+	Map<String, MethodBase> getRegisteredFunctions() {
+		return this.bindings.getAll(MethodBase.class);
 	}
 
 	private static boolean isCompatibleSignature(final Method method) {
@@ -81,9 +81,9 @@ public class FunctionRegistry implements SerializableSopremoType {
 	}
 
 	private void registerInternal(Method method) {
-		JavaFunction javaFunction = this.bindings.get(method.getName(), JavaFunction.class);
+		JavaMethod javaFunction = this.bindings.get(method.getName(), JavaMethod.class);
 		if (javaFunction == null)
-			this.bindings.set(method.getName(), javaFunction = new JavaFunction(method.getName()));
+			this.bindings.set(method.getName(), javaFunction = new JavaMethod(method.getName()));
 		javaFunction.addSignature(method);
 	}
 
@@ -95,7 +95,7 @@ public class FunctionRegistry implements SerializableSopremoType {
 		return functions;
 	}
 
-	public void register(final Function function) {
+	public void register(final MethodBase function) {
 		this.bindings.set(function.getName(), function);
 	}
 }

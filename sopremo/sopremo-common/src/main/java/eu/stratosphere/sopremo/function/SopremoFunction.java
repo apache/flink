@@ -5,7 +5,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
-public class SopremoFunction extends Function {
+public class SopremoFunction extends MethodBase {
 	/**
 	 * 
 	 */

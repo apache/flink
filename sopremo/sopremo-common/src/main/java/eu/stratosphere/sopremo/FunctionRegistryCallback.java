@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo;
 
-import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.function.MethodRegistry;
 
 public interface FunctionRegistryCallback {
-	void registerFunctions(FunctionRegistry registry);
+	void registerFunctions(MethodRegistry registry);
 }

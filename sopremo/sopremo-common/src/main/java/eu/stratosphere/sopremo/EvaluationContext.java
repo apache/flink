@@ -3,7 +3,7 @@ package eu.stratosphere.sopremo;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.function.MethodRegistry;
 
 /**
  * Provides additional context to the evaluation of {@link Evaluable}s, such as access to all registered functions.
@@ -15,7 +15,7 @@ public class EvaluationContext implements SerializableSopremoType {
 
 	private final Bindings bindings = new Bindings();
 
-	private final FunctionRegistry functionRegistry;
+	private final MethodRegistry functionRegistry;
 
 	private int inputCounter = 0;
 
@@ -66,7 +66,7 @@ public class EvaluationContext implements SerializableSopremoType {
 	}
 
 	public EvaluationContext() {
-		this.functionRegistry = new FunctionRegistry(this.bindings);
+		this.functionRegistry = new MethodRegistry(this.bindings);
 	}
 
 	public EvaluationContext(final EvaluationContext context) {
@@ -79,7 +79,7 @@ public class EvaluationContext implements SerializableSopremoType {
 	 * 
 	 * @return the FunctionRegistry
 	 */
-	public FunctionRegistry getFunctionRegistry() {
+	public MethodRegistry getFunctionRegistry() {
 		return this.functionRegistry;
 	}
 
