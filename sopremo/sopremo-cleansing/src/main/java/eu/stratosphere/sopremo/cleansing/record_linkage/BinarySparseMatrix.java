@@ -13,7 +13,11 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 
-public class BinarySparseMatrix implements Value {
+public class BinarySparseMatrix extends JsonNode implements Value {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -5533221391825038587L;
 	private final Map<JsonNode, Set<JsonNode>> sparseMatrix = new HashMap<JsonNode, Set<JsonNode>>();
 
 	@Override
@@ -135,5 +139,25 @@ public class BinarySparseMatrix implements Value {
 				wrapper.write(out);
 			}
 		}
+	}
+	
+	@Override
+	public int getTypePos() {
+		return TYPES.CustomNode.ordinal();
+	}
+
+	@Override
+	public TYPES getType() {
+		return TYPES.CustomNode;
+	}
+
+	@Override
+	public int compareToSameType(JsonNode other) {
+		throw new UnsupportedOperationException("BinarySparseMatrix isn't comparable.");
+	}
+
+	@Override
+	public StringBuilder toString(StringBuilder sb) {
+		return null;
 	}
 }

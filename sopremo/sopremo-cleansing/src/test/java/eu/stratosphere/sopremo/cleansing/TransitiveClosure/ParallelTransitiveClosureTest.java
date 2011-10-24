@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.cleansing.TransitiveClosure;
 
 import junit.framework.Assert;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;

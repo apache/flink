@@ -9,9 +9,7 @@ import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.base.ArraySplit;
 import eu.stratosphere.sopremo.base.Grouping;
 import eu.stratosphere.sopremo.cleansing.record_linkage.BinarySparseMatrix;
 import eu.stratosphere.sopremo.cleansing.record_linkage.ClosureMode;
@@ -44,8 +42,8 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 
 		// Generate Matrix
 		final GenerateMatrix genMatrix = new GenerateMatrix().withInputs(group);
-
-		// compute transitive Closure
+		
+		// compute transitive Closure P1
 		final Phase1 phase1 = new Phase1().withInputs(genMatrix);
 
 		// emit Results as Links
@@ -56,7 +54,7 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		return sopremoModule;
 
 	}
-
+	
 	private static class Partitioning extends ElementaryOperator<Partitioning> {
 
 		/**
@@ -142,7 +140,8 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 				for (final JsonNode row : matrix.getRows())
 					for (final JsonNode column : matrix.get(row))
 						if (JsonNodeComparator.INSTANCE.compare(row, column) < 0)
-							out.collect(/* key */NullNode.getInstance(), JsonUtil.asArray(row, column));
+							out.collect(/* key */NullNode.getInstance(),
+								SopremoUtil.wrap(JsonUtil.asArray(row, column)));
 			}
 		}
 	}

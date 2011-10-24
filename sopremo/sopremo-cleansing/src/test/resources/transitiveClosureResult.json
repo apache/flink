@@ -3,7 +3,6 @@
 	[{ "node":  1, "partition": 1 },{ "node":  3,"partition": 1 }],
 	[{ "node":  2, "partition": 1 },{ "node":  3,"partition": 1 }],
 	
-	
 	[{ "node":  4, "partition": 2 },{ "node":  5,"partition": 2 }],
 	
 	[{ "node":  6, "partition": 3 },{ "node":  7,"partition": 3 }],

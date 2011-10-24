@@ -4,7 +4,9 @@ import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.cleansing.record_linkage.BinarySparseMatrix;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class Phase1 extends ElementaryOperator<Phase1> {
 
@@ -23,8 +25,9 @@ public class Phase1 extends ElementaryOperator<Phase1> {
 		 */
 		public void map(JsonNode key, BinarySparseMatrix matrix,
 				Collector<JsonNode, BinarySparseMatrix> out) {
-			TransitiveClosure.warshall(matrix);
-
+			if (((ArrayNode) SopremoUtil.unwrap(key)).get(0).equals(((ArrayNode) SopremoUtil.unwrap(key)).get(1))) {
+				TransitiveClosure.warshall(matrix);
+			}
 			out.collect(key, matrix);
 		}
 	}
