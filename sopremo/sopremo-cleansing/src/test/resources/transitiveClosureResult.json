@@ -1,13 +1,14 @@
 [
 	[{ "node":  1, "partition": 1 },{ "node":  2,"partition": 1 }],
+	[{ "node":  1, "partition": 1 },{ "node":  3,"partition": 1 }],
 	[{ "node":  2, "partition": 1 },{ "node":  3,"partition": 1 }],
-	[{ "node":  1, "partition": 1 },{ "node":  3,"partition": 1}],
+	
 	
 	[{ "node":  4, "partition": 2 },{ "node":  5,"partition": 2 }],
 	
 	[{ "node":  6, "partition": 3 },{ "node":  7,"partition": 3 }],
 	
+	[{ "node":  9, "partition": 4 },{ "node": 10,"partition": 4 }],
 	[{ "node":  8, "partition": 4 },{ "node":  9,"partition": 4 }],
-	[{ "node":  8, "partition": 4 },{ "node": 10,"partition": 4 }],
-	[{ "node":  9, "partition": 4 },{ "node": 10,"partition": 4 }]
+	[{ "node":  8, "partition": 4 },{ "node": 10,"partition": 4 }]
 ]

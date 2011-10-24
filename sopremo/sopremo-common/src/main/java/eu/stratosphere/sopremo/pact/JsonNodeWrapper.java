@@ -50,6 +50,19 @@ public class JsonNodeWrapper extends JsonNode {
 		return this.value;
 	}
 
+	/**
+	 * Sets the value to the specified value.
+	 * 
+	 * @param value
+	 *        the value to set
+	 */
+	public void setValue(JsonNode value) {
+		if (value == null)
+			throw new NullPointerException("value must not be null");
+
+		this.value = value;
+	}
+
 	@Override
 	public int compareToSameType(JsonNode other) {
 		return this.value.compareTo(((JsonNodeWrapper) other).getValue());
