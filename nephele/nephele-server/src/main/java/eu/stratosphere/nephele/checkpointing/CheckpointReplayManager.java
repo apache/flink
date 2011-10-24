@@ -92,8 +92,21 @@ public class CheckpointReplayManager {
 	 *        the vertex whose checkpoint shall be removed
 	 */
 	public void removeCheckpoint(final ExecutionVertexID vertexID) {
+			File file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID
+				+ "_final");
+			if (file.exists()) {
+				file.delete();
+				return;
+			}
+			file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_0");
+			if (file.exists()) {
+				file.delete();
+			}
 
-		// TODO: Implement me
+			file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_part");
+			if (file.exists()) {
+				file.delete();
+			}
 	}
 
 }
