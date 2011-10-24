@@ -697,7 +697,7 @@ public class FailingJobITCase {
 	 * This test checks Nephele's fault tolerance capabilities by simulating a successively failing one inner vertices.
 	 */
 	@Test
-	public void testSuccessivelyFailingSameInnerVertices() {
+	public void testRepeatedlyFailingSameInnerVertex() {
 
 		final JobGraph jobGraph = new JobGraph("Job with failing inner vertex");
 
@@ -707,6 +707,7 @@ public class FailingJobITCase {
 		input.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
 
 		final JobTaskVertex innerVertex1 = new JobTaskVertex("Inner vertex 1", jobGraph);
+		//Using re-failing inner task
 		innerVertex1.setTaskClass(RefailingInnerTask.class);
 		innerVertex1.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex1.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
@@ -757,7 +758,9 @@ public class FailingJobITCase {
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
-			assert true;
+			//This is expected here
+			assert(e.isJobCanceledByUser() == false);
+			return;
 		}
 		fail("Job expected to be cancled");
 	}
@@ -776,7 +779,7 @@ public class FailingJobITCase {
 		input.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
 
 		final JobTaskVertex innerVertex1 = new JobTaskVertex("Inner vertex 1", jobGraph);
-		innerVertex1.setTaskClass(RefailingInnerTask.class);
+		innerVertex1.setTaskClass(InnerTask.class);
 		innerVertex1.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex1.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
 		innerVertex1.getConfiguration().setInteger(FAILED_AFTER_RECORD_KEY, 145613);
@@ -834,6 +837,7 @@ public class FailingJobITCase {
 		}
 
 	}
+	
 	@After public void cleanUp(){
 		File file = new File("/tmp/");
 		File[] files= file.listFiles();
