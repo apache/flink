@@ -169,7 +169,7 @@ public class GlobalSortingITCase extends TestBase {
 				new FileDataSinkContract<PactInteger, PactNull>(IntegerOutputFormat.class, output);
 			sink.setDegreeOfParallelism(noSubtasks);
 			sink.setGlobalOrder(Order.ASCENDING);
-			sink.setInput(source);
+			sink.addInput(source);
 			
 			return new Plan(sink);
 		}

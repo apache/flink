@@ -297,7 +297,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 			if (!dataSinkContract.getFormatClass().equals(SequentialOutputFormat.class)) {
 
 				final FileDataSinkContract<Key, Value> safeSink = createDefaultSink(dataSinkContract.getName());
-				safeSink.setInput(dataSinkContract.getInput());
+				safeSink.addInput(dataSinkContract.getInputs().get(0));
 
 				wrappedSinks.add(dataSinkContract);
 				wrappedSinks.add(safeSink);

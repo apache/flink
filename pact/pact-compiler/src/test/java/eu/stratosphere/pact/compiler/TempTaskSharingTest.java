@@ -160,7 +160,7 @@ public class TempTaskSharingTest {
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(defaultParallelism);
-		sink.setInput(map1);
+		sink.addInput(map1);
 		
 		Plan plan = new Plan(sink, "Test Temp Task");
 		

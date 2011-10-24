@@ -46,7 +46,7 @@ class InputOutputAdder implements Visitor<Contract> {
 
 	private void addDefaultInput(final Contract contract) {
 		if (contract instanceof FileDataSinkContract<?, ?>)
-			((FileDataSinkContract<?, ?>) contract).setInput(TestPlan.createDefaultSource(contract.getName() + "-input"));
+			((FileDataSinkContract<?, ?>) contract).addInput(TestPlan.createDefaultSource(contract.getName() + "-input"));
 		else if (contract instanceof SingleInputContract<?, ?, ?, ?>)
 			((SingleInputContract<?, ?, ?, ?>) contract).addInput(TestPlan.createDefaultSource(contract.getName()
 				+ "-input"));
@@ -106,7 +106,7 @@ class InputOutputAdder implements Visitor<Contract> {
 
 	private Contract replaceWithDefaultOutput(final Contract contract) {
 		final FileDataSinkContract<Key, Value> defaultSink = TestPlan.createDefaultSink(contract.getName() + "-output");
-		defaultSink.setInput(contract);
+		defaultSink.addInput(contract);
 		return defaultSink;
 	}
 

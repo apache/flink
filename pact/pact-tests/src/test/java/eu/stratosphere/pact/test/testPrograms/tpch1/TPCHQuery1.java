@@ -79,7 +79,7 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 		
 		lineItemFilter.addInput(lineItems);
 		groupByReturnFlag.addInput(lineItemFilter);
-		result.setInput(groupByReturnFlag);
+		result.addInput(groupByReturnFlag);
 		
 		return new Plan(result, "TPC-H 1");
 	}

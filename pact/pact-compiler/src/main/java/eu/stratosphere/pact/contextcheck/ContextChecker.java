@@ -114,7 +114,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 */
 	private void checkDataSink(FileDataSinkContract<?, ?> dataSinkContract) {
 
-		Contract input = dataSinkContract.getInput();
+		Contract input = dataSinkContract.getInputs().get(0);
 
 		// check if input exists
 		if (input == null) {

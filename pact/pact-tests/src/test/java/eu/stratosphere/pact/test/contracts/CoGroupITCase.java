@@ -174,7 +174,7 @@ public class CoGroupITCase extends TestBase
 				CoGroupOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testCoGrouper);
+		output.addInput(testCoGrouper);
 		testCoGrouper.addFirstInput(input_left);
 		testCoGrouper.addSecondInput(input_right);
 

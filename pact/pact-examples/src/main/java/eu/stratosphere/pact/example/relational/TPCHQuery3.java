@@ -330,7 +330,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		result.setDegreeOfParallelism(noSubtasks);
 
 		// assemble the PACT plan
-		result.setInput(aggLiO);
+		result.addInput(aggLiO);
 		aggLiO.addInput(joinLiO);
 		joinLiO.addFirstInput(filterO);
 		filterO.addInput(orders);

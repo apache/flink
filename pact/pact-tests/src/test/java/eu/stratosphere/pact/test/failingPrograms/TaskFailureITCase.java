@@ -115,7 +115,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		output.setDegreeOfParallelism(1);
 
 		// compose failing program
-		output.setInput(testMapper);
+		output.addInput(testMapper);
 		testMapper.addInput(input);
 
 		// generate plan
@@ -156,7 +156,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		output.setDegreeOfParallelism(1);
 
 		// compose working program
-		output.setInput(testMapper);
+		output.addInput(testMapper);
 		testMapper.addInput(input);
 
 		// generate plan

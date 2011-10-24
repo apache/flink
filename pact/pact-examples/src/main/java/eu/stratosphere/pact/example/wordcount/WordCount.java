@@ -170,7 +170,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription {
 				WordCountOutFormat.class, output, "Word Counts");
 		out.setDegreeOfParallelism(noSubTasks);
 
-		out.setInput(reducer);
+		out.addInput(reducer);
 		reducer.addInput(mapper);
 		mapper.addInput(data);
 

@@ -270,7 +270,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		join.addFirstInput(ordersFilter);
 		join.addSecondInput(lineFilter);
 		aggregation.addInput(join);
-		result.setInput(aggregation);
+		result.addInput(aggregation);
 		
 			
 		return new Plan(result, "TPC-H 4");

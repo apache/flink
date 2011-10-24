@@ -26,9 +26,11 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
@@ -65,10 +67,10 @@ public class CoGroupTask extends AbstractTask
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
 	
 	// reader of first input
-	private RecordReader<? extends Record> reader1;
+	private Reader<? extends Record> reader1;
 
 	// reader of second input
-	private RecordReader<? extends Record> reader2;
+	private Reader<? extends Record> reader2;
 
 	// output collector
 	private OutputCollector<? extends Key, ? extends Value> output;
@@ -105,10 +107,10 @@ public class CoGroupTask extends AbstractTask
 		initStub();
 
 		// initialized input readers
-		typedInitReaders(coGroup.getFirstInKeyType(), coGroup.getFirstInValueType(), coGroup.getSecondInValueType());
+		typedInitReaders(this.coGroup.getFirstInKeyType(), this.coGroup.getFirstInValueType(), this.coGroup.getSecondInValueType());
 
 		// initialize output collector
-		typedInitOutputCollector(coGroup.getOutKeyType(), coGroup.getOutValueType());
+		typedInitOutputCollector(this.coGroup.getOutKeyType(), this.coGroup.getOutValueType());
 
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Finished registering input and output"));
@@ -120,8 +122,8 @@ public class CoGroupTask extends AbstractTask
 	 */
 	@Override
 	public void invoke() throws Exception {
-		typedInvoke(coGroup.getFirstInKeyType(), coGroup.getFirstInValueType(), coGroup.getSecondInValueType(), coGroup
-			.getOutKeyType(), coGroup.getSecondInValueType());
+		typedInvoke(this.coGroup.getFirstInKeyType(), this.coGroup.getFirstInValueType(), this.coGroup.getSecondInValueType(), this.coGroup
+			.getOutKeyType(), this.coGroup.getSecondInValueType());
 	}
 	
 	/* (non-Javadoc)
@@ -146,17 +148,17 @@ public class CoGroupTask extends AbstractTask
 	 */
 	private void initStub() throws RuntimeException {
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		// set up memory and I/O parameters
-		this.availableMemory = config.getMemorySize();
-		this.maxFileHandles = config.getNumFilehandles();
-		this.spillThreshold = config.getSortSpillingTreshold();
+		this.availableMemory = this.config.getMemorySize();
+		this.maxFileHandles = this.config.getNumFilehandles();
+		this.spillThreshold = this.config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
 		
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 			case SORT_BOTH_MERGE:
 				strategyMinMem = MIN_REQUIRED_MEMORY*2;
 				break;
@@ -174,7 +176,7 @@ public class CoGroupTask extends AbstractTask
 		if (this.availableMemory < strategyMinMem) {
 			throw new RuntimeException(
 					"The CoGroup task was initialized with too little memory for local strategy "+
-					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+					this.config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
 				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 
@@ -183,14 +185,14 @@ public class CoGroupTask extends AbstractTask
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 
 			@SuppressWarnings("unchecked")
-			Class<? extends CoGroupStub<? extends Key, ? extends Value, ? extends Value, ? extends Key, ? extends Value>> coGroupClass = (Class<? extends CoGroupStub<? extends Key, ? extends Value, ? extends Value, ? extends Key, ? extends Value>>) config
+			Class<? extends CoGroupStub<? extends Key, ? extends Value, ? extends Value, ? extends Key, ? extends Value>> coGroupClass = (Class<? extends CoGroupStub<? extends Key, ? extends Value, ? extends Value, ? extends Key, ? extends Value>>) this.config
 				.getStubClass(CoGroupStub.class, cl);
 
 			// obtain stub implementation instance
-			coGroup = coGroupClass.newInstance();
+			this.coGroup = coGroupClass.newInstance();
 
 			// configure stub instance
-			coGroup.configure(config.getStubParameters());
+			this.coGroup.configure(this.config.getStubParameters());
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -234,25 +236,25 @@ public class CoGroupTask extends AbstractTask
 		RecordReader<KeyValuePair<K, V2>> reader2 = getReader2();
 
 		// create and return MatchTaskIterator according to provided local strategy.
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 		case SORT_BOTH_MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
 				iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this.spillThreshold,
-				config.getLocalStrategy(), this);
+				this.config.getLocalStrategy(), this);
 		case SORT_FIRST_MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
 					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this.spillThreshold,
-					config.getLocalStrategy(), this);
+					this.config.getLocalStrategy(), this);
 		case SORT_SECOND_MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
 					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this.spillThreshold,
-					config.getLocalStrategy(), this);
+					this.config.getLocalStrategy(), this);
 		case MERGE:
 			return new SortMergeCoGroupIterator<K, V1, V2>(memoryManager, ioManager, reader1, reader2, ikClass,
 					iv1Class, iv2Class, this.availableMemory, this.maxFileHandles, this.spillThreshold,
-					config.getLocalStrategy(), this);
+					this.config.getLocalStrategy(), this);
 		default:
-			throw new RuntimeException("Supported local strategy for CoGroupTask: "+config.getLocalStrategy());
+			throw new RuntimeException("Supported local strategy for CoGroupTask: "+this.config.getLocalStrategy());
 		}
 	}
 
@@ -283,7 +285,7 @@ public class CoGroupTask extends AbstractTask
 
 		// determine distribution pattern for first reader from input ship strategy
 		DistributionPattern dp1 = null;
-		switch (config.getInputShipStrategy(0)) {
+		switch (this.config.getInputShipStrategy(0)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp1 = new PointwiseDistributionPattern();
@@ -298,7 +300,7 @@ public class CoGroupTask extends AbstractTask
 
 		// determine distribution pattern for second reader from input ship strategy
 		DistributionPattern dp2 = null;
-		switch (config.getInputShipStrategy(1)) {
+		switch (this.config.getInputShipStrategy(1)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp2 = new PointwiseDistributionPattern();
@@ -312,9 +314,30 @@ public class CoGroupTask extends AbstractTask
 		}
 
 		// create reader for first input
-		reader1 = new RecordReader<KeyValuePair<K, V1>>(this, deserializer1, dp1);
+		final int groupSizeOne = this.config.getGroupSize(1);
+		if(groupSizeOne == 1) {
+			this.reader1 = new RecordReader<KeyValuePair<K, V1>>(this, deserializer1, dp1);
+		} else {
+			@SuppressWarnings("unchecked")
+			RecordReader<KeyValuePair<K, V1>>[] readers = new RecordReader[groupSizeOne];
+			for(int i = 0; i < groupSizeOne; ++i) {
+				readers[i] = new RecordReader<KeyValuePair<K, V1>>(this, deserializer1, dp1);
+			}
+			this.reader1 = new UnionRecordReader<KeyValuePair<K, V1>>(readers);
+		}
+
 		// create reader for second input
-		reader2 = new RecordReader<KeyValuePair<K, V2>>(this, deserializer2, dp2);
+		final int groupSizeTwo = this.config.getGroupSize(2);
+		if(groupSizeTwo == 1) {
+			this.reader2 = new RecordReader<KeyValuePair<K, V2>>(this, deserializer2, dp2);
+		} else {
+			@SuppressWarnings("unchecked")
+			RecordReader<KeyValuePair<K, V2>>[] readers = new RecordReader[groupSizeTwo];
+			for(int i = 0; i < groupSizeTwo; ++i) {
+				readers[i] = new RecordReader<KeyValuePair<K, V2>>(this, deserializer2, dp2);
+			}
+			this.reader2 = new UnionRecordReader<KeyValuePair<K, V2>>(readers);
+		}
 	}
 
 	/**
@@ -338,9 +361,9 @@ public class CoGroupTask extends AbstractTask
 		List<RecordWriter<KeyValuePair<OK, OV>>> writers = new ArrayList<RecordWriter<KeyValuePair<OK, OV>>>();
 
 		// create a writer for each output
-		for (int i = 0; i < config.getNumOutputs(); i++) {
+		for (int i = 0; i < this.config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
-			OutputEmitter<OK, OV> oe = new OutputEmitter<OK, OV>(config.getOutputShipStrategy(i));
+			OutputEmitter<OK, OV> oe = new OutputEmitter<OK, OV>(this.config.getOutputShipStrategy(i));
 			// create writer
 
 			@SuppressWarnings("unchecked")
@@ -355,7 +378,7 @@ public class CoGroupTask extends AbstractTask
 		// create collector and register all writers
 		// all writers forward copies, except the first one
 		// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
-		output = new OutputCollector<OK, OV>(writers, (int)(Math.pow(2, writers.size())-1));
+		this.output = new OutputCollector<OK, OV>(writers, (int)(Math.pow(2, writers.size())-1));
 	}
 
 	/**
@@ -412,7 +435,7 @@ public class CoGroupTask extends AbstractTask
 			coGroup.open();
 			
 			// for each distinct key in both inputs (not necessarily shared by both inputs)
-			while (coGroupIterator.next() && !taskCanceled) {
+			while (coGroupIterator.next() && !this.taskCanceled) {
 				// call coGroup() method of stub implementation
 				coGroup.coGroup(coGroupIterator.getKey(), coGroupIterator.getValues1(), coGroupIterator.getValues2(),
 					collector);
@@ -464,22 +487,22 @@ public class CoGroupTask extends AbstractTask
 
 	@SuppressWarnings("unchecked")
 	private final <IK extends Key, IV1 extends Value, IV2 extends Value, OK extends Key, OV extends Value> CoGroupStub<IK, IV1, IV2, OK, OV> getCoGroupStub() {
-		return (CoGroupStub<IK, IV1, IV2, OK, OV>) coGroup;
+		return (CoGroupStub<IK, IV1, IV2, OK, OV>) this.coGroup;
 	}
 
 	@SuppressWarnings("unchecked")
 	private final <K extends Key, V extends Value> RecordReader<KeyValuePair<K, V>> getReader1() {
-		return (RecordReader<KeyValuePair<K, V>>) reader1;
+		return (RecordReader<KeyValuePair<K, V>>) this.reader1;
 	}
 
 	@SuppressWarnings("unchecked")
 	private final <K extends Key, V extends Value> RecordReader<KeyValuePair<K, V>> getReader2() {
-		return (RecordReader<KeyValuePair<K, V>>) reader2;
+		return (RecordReader<KeyValuePair<K, V>>) this.reader2;
 	}
 
 	@SuppressWarnings("unchecked")
 	private final <K extends Key, V extends Value> OutputCollector<K, V> getOutputCollector() {
-		return (OutputCollector<K, V>) output;
+		return (OutputCollector<K, V>) this.output;
 	}
 	
 	// ------------------------------------------------------------------------

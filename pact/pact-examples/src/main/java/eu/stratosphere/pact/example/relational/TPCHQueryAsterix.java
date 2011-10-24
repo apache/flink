@@ -240,7 +240,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		result.setDegreeOfParallelism(noSubtasks);
 
 		// assemble the PACT plan
-		result.setInput(aggCO);
+		result.addInput(aggCO);
 		aggCO.addInput(joinCO);
 		joinCO.addFirstInput(projectO);
 		projectO.addInput(orders);

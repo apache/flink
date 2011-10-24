@@ -26,9 +26,11 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
@@ -69,8 +71,8 @@ public class HistogramTask extends AbstractTask {
 	public static final String HISTOGRAM_MEMORY = "histogram.memory.amount";
 	
 	// input reader
-	private CountingRecordReader reader;
-	//private RecordReader reader;
+	private Reader reader;
+	private CountingRecordReader[] allReaders;
 
 	// output collector
 	private OutputCollector output;
@@ -145,7 +147,7 @@ public class HistogramTask extends AbstractTask {
 			//stub.open();
 			
 			// run stub implementation
-			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
+			this.callStubWithGroups(sortedInputProvider.getIterator(), this.output);
 
 		}
 		catch (Exception ex) {
@@ -176,7 +178,7 @@ public class HistogramTask extends AbstractTask {
 			}
 			
 			// close output collector
-			output.close();
+			this.output.close();
 		}
 		
 		if (this.taskCanceled) {
@@ -214,18 +216,18 @@ public class HistogramTask extends AbstractTask {
 	private void initStub() throws RuntimeException {
 
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 		
 		// set up memory and I/O parameters
-		this.availableMemory = config.getMemorySize();
-		this.maxFileHandles = config.getNumFilehandles();
-		this.spillThreshold = config.getSortSpillingTreshold();
-		numBuckets = config.getStubParameters().getInteger(NUMBER_OF_BUCKETS, -1);
+		this.availableMemory = this.config.getMemorySize();
+		this.maxFileHandles = this.config.getNumFilehandles();
+		this.spillThreshold = this.config.getSortSpillingTreshold();
+		this.numBuckets = this.config.getStubParameters().getInteger(NUMBER_OF_BUCKETS, -1);
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
 		
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 			case SORT:
 				strategyMinMem = MIN_REQUIRED_MEMORY;
 				break;
@@ -240,22 +242,22 @@ public class HistogramTask extends AbstractTask {
 		if (this.availableMemory < strategyMinMem) {
 			throw new RuntimeException(
 					"The Reduce task was initialized with too little memory for local strategy "+
-					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+					this.config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
 				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<?> userClass = config.getStubClass(Object.class, cl);
+			Class<?> userClass = this.config.getStubClass(Object.class, cl);
 			if(Stub.class.isAssignableFrom(userClass)) {
 				Stub stub = (Stub) userClass.newInstance();
-				keyType = stub.getOutKeyType();
+				this.keyType = stub.getOutKeyType();
 			}
 			else if(InputFormat.class.isAssignableFrom(userClass)) {
 				InputFormat format = (InputFormat) userClass.newInstance();
 				KeyValuePair pair = format.createPair();
-				keyType = (Class<Key>) pair.getKey().getClass();
+				this.keyType = (Class<Key>) pair.getKey().getClass();
 			} else {
 				throw new RuntimeException("Unsupported task type " + userClass);
 			}
@@ -280,12 +282,12 @@ public class HistogramTask extends AbstractTask {
 
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(
-			keyType,
+			this.keyType,
 			PactNull.class);
 
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;
-		switch (config.getInputShipStrategy(0)) {
+		switch (this.config.getInputShipStrategy(0)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
@@ -302,9 +304,19 @@ public class HistogramTask extends AbstractTask {
 		}
 
 		// create reader
-		// map has only one input, so we create one reader (id=0).
-		reader = new CountingRecordReader(this, deserializer, dp);
 		//reader = new RecordReader(this, deserializer, dp);
+		final int numberOfInputs = this.config.getNumInputs();
+		if(numberOfInputs == 1) {
+			this.reader = new CountingRecordReader(this, deserializer, dp);
+			this.allReaders = new CountingRecordReader[] { (CountingRecordReader)this.reader };
+		} else {
+			this.allReaders = new CountingRecordReader[numberOfInputs];
+			for(int i = 0; i < numberOfInputs; ++i) {
+				this.allReaders[i] = new CountingRecordReader(this, deserializer, dp);
+			}
+			this.reader = new UnionRecordReader<KeyValuePair<Key, Value>>(this.allReaders);
+		}
+
 	}
 
 	/**
@@ -314,12 +326,12 @@ public class HistogramTask extends AbstractTask {
 	private void initOutputCollector() {
 
 		// create output collector
-		output = new OutputCollector<Key, Value>();
+		this.output = new OutputCollector<Key, Value>();
 		
 		// create a writer for each output
-		for (int i = 0; i < config.getNumOutputs(); i++) {
+		for (int i = 0; i < this.config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
-			OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(i));
+			OutputEmitter oe = new OutputEmitter(this.config.getOutputShipStrategy(i));
 			// create writer
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
@@ -329,7 +341,7 @@ public class HistogramTask extends AbstractTask {
 			// the first writer does not need to send a copy
 			// all following must send copies
 			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
-			output.addWriter(writer, true);
+			this.output.addWriter(writer, true);
 		}
 	}
 
@@ -350,7 +362,7 @@ public class HistogramTask extends AbstractTask {
 		final IOManager ioManager = getEnvironment().getIOManager();
 
 		// obtain input key type
-		final Class<Key> keyClass = (Class<Key>) keyType;
+		final Class<Key> keyClass = this.keyType;
 		// obtain input value type
 		final Class<? extends Value> valueClass = PactNull.class;
 
@@ -360,7 +372,7 @@ public class HistogramTask extends AbstractTask {
 		final SerializationFactory<Value> valSerialization = new WritableSerializationFactory<Value>((Class<Value>) valueClass);
 
 		// obtain grouped iterator defined by local strategy
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 
 		// local strategy is NONE
 		// input is already grouped, an iterator that wraps the reader is
@@ -372,13 +384,13 @@ public class HistogramTask extends AbstractTask {
 
 				@Override
 				public boolean hasNext() {
-					return reader.hasNext();
+					return HistogramTask.this.reader.hasNext();
 				}
 
 				@Override
 				public KeyValuePair<Key, Value> next() {
 					try {
-						return (KeyValuePair<Key, Value>) reader.next();
+						return (KeyValuePair<Key, Value>) HistogramTask.this.reader.next();
 					} catch (Exception e) {
 						throw new RuntimeException(e);
 					}
@@ -409,7 +421,7 @@ public class HistogramTask extends AbstractTask {
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
 					this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this, this.spillThreshold);
+					valSerialization, keyComparator, this.reader, this, this.spillThreshold);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
 			} catch (MemoryAllocationException mae) {
@@ -475,15 +487,17 @@ public class HistogramTask extends AbstractTask {
 		while (!this.taskCanceled && in.hasNext()) {
 			if(run) {
 				throw new RuntimeException("Blubb not working");
-			} else {
-				run = true;
 			}
+			// else
+			run = true;
 			
-			int recordCount = reader.getCount();
-			int bucketSize = recordCount / numBuckets;
+			int recordCount = 0;
+			for(CountingRecordReader crr : this.allReaders)
+				recordCount += crr.getCount();
+			int bucketSize = recordCount / this.numBuckets;
 			for (int i = 0; i < recordCount; i++) {
 				Key value = in.next().getKey();
-				if(i%bucketSize == 0 && i/bucketSize != 0 && i/bucketSize != numBuckets) {
+				if(i%bucketSize == 0 && i/bucketSize != 0 && i/bucketSize != this.numBuckets) {
 					out.collect(value, PactNull.getInstance());
 				}
 			}
@@ -498,14 +512,14 @@ public class HistogramTask extends AbstractTask {
 		}
 		
 		public int getCount() {
-			return count;
+			return this.count;
 		}
 
 		@Override
 		public KeyValuePair<Key, Value> next() throws IOException, InterruptedException {
 			KeyValuePair<Key, Value> pair = super.next();
 			if(pair != null) {
-				count++;
+				this.count++;
 			}
 			return pair;
 		}

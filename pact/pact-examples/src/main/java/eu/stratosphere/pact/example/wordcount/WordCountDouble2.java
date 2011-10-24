@@ -178,7 +178,7 @@ public class WordCountDouble2 implements PlanAssembler, PlanAssemblerDescription
 				WordCountOutFormat.class, output, "Output");
 		out.setDegreeOfParallelism(noSubTasks);
 
-		out.setInput(reducer);
+		out.addInput(reducer);
 		reducer.addInput(mapper1);
 		reducer.addInput(mapper2);
 		mapper1.addInput(data1);

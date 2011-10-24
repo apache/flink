@@ -25,9 +25,11 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MapStub;
@@ -58,7 +60,7 @@ public class MapTask extends AbstractTask {
 	private static final Log LOG = LogFactory.getLog(MapTask.class);
 
 	// input reader
-	private RecordReader<KeyValuePair<Key, Value>> reader;
+	private Reader<KeyValuePair<Key, Value>> reader;
 
 	// output collector
 	private OutputCollector<Key, Value> output;
@@ -110,10 +112,10 @@ public class MapTask extends AbstractTask {
 		final Iterator<KeyValuePair<Key, Value>> input = new NepheleReaderIterator<KeyValuePair<Key,Value>>(this.reader);
 
 		// open stub implementation
-		stub.open();
+		this.stub.open();
 		try {
 			// run stub implementation
-			callStub(input, output);
+			callStub(input, this.output);
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
@@ -124,9 +126,9 @@ public class MapTask extends AbstractTask {
 			}
 		}
 		// close output collector
-		output.close();
+		this.output.close();
 		// close stub implementation
-		stub.close();
+		this.stub.close();
 
 		if(!this.taskCanceled) {
 			if (LOG.isInfoEnabled())
@@ -159,16 +161,16 @@ public class MapTask extends AbstractTask {
 	private void initStub() throws RuntimeException {
 
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends MapStub> mapClass = config.getStubClass(MapStub.class, cl);
+			Class<? extends MapStub> mapClass = this.config.getStubClass(MapStub.class, cl);
 			// obtain instance of stub implementation
-			stub = mapClass.newInstance();
+			this.stub = mapClass.newInstance();
 			// configure stub implementation
-			stub.configure(config.getStubParameters());
+			this.stub.configure(this.config.getStubParameters());
 
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
@@ -190,12 +192,12 @@ public class MapTask extends AbstractTask {
 	private void initInputReader() throws RuntimeException {
 
 		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(stub
-			.getInKeyType(), stub.getInValueType());
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer<Key, Value>(this.stub
+			.getInKeyType(), this.stub.getInValueType());
 
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;
-		switch (config.getInputShipStrategy(0)) {
+		switch (this.config.getInputShipStrategy(0)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
@@ -209,9 +211,16 @@ public class MapTask extends AbstractTask {
 		}
 
 		// create reader
-		// map has only one input, so we create one reader (id=0).
-		reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
-
+		final int numberOfInputs = this.config.getNumInputs();
+		if(numberOfInputs == 1) {
+			this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+		} else {
+			RecordReader<KeyValuePair<Key, Value>>[] readers = new RecordReader[numberOfInputs];
+			for(int i = 0; i < numberOfInputs; ++i) {
+				readers[i] = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+			}
+			this.reader = new UnionRecordReader<KeyValuePair<Key, Value>>(readers);
+		}
 	}
 
 	/**
@@ -223,12 +232,12 @@ public class MapTask extends AbstractTask {
 		boolean fwdCopyFlag = false;
 		
 		// create output collector
-		output = new OutputCollector<Key, Value>();
+		this.output = new OutputCollector<Key, Value>();
 		
 		// create a writer for each output
-		for (int i = 0; i < config.getNumOutputs(); i++) {
+		for (int i = 0; i < this.config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
-			OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(i));
+			OutputEmitter oe = new OutputEmitter(this.config.getOutputShipStrategy(i));
 			// create writer
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
@@ -238,7 +247,7 @@ public class MapTask extends AbstractTask {
 			// the first writer does not need to send a copy
 			// all following must send copies
 			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
-			output.addWriter(writer, fwdCopyFlag);
+			this.output.addWriter(writer, fwdCopyFlag);
 			fwdCopyFlag = true;
 		}
 	}

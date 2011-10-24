@@ -693,7 +693,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription 
 		newClusterPoints.setDegreeOfParallelism(noSubTasks);
 
 		// assemble the PACT plan
-		newClusterPoints.setInput(recomputeClusterCenter);
+		newClusterPoints.addInput(recomputeClusterCenter);
 		recomputeClusterCenter.addInput(findNearestClusterCenters);
 		findNearestClusterCenters.addInput(computeDistance);
 		computeDistance.addFirstInput(dataPoints);

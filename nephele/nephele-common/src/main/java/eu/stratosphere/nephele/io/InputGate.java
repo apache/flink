@@ -363,10 +363,15 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 * at least one record available.
 	 */
 	public void notifyRecordIsAvailable(int channelIndex) {
+		LOG.info("channelIndex " + channelIndex);
 
+		int org = channelIndex;
+		if(channelIndex < 0)
+			channelIndex += 100;
 		synchronized (this.availableChannels) {
 
 			this.availableChannels.add(Integer.valueOf(channelIndex));
+			LOG.info("notify " + org);
 			this.availableChannels.notify();
 
 			if (this.recordAvailabilityListener != null) {

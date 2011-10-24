@@ -315,7 +315,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		joinDocsRanks.addSecondInput(filterDocs);
 		antiJoinVisits.addFirstInput(filterVisits);
 		antiJoinVisits.addSecondInput(joinDocsRanks);
-		result.setInput(antiJoinVisits);
+		result.addInput(antiJoinVisits);
 
 		// Return the PACT plan
 		return new Plan(result, "Weblog Analysis");

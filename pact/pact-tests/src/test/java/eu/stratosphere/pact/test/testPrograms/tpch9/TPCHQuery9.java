@@ -241,7 +241,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSinkContract<StringIntPair, PactString> result = new FileDataSinkContract<StringIntPair, PactString>(
 				StringIntPairStringDataOutFormat.class, this.outputPath, "Results sink");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
-		result.setInput(sumAmountAggregate);
+		result.addInput(sumAmountAggregate);
 
 		return new Plan(result, "TPC-H query 9");
 	}

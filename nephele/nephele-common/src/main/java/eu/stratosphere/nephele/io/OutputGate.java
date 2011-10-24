@@ -303,6 +303,7 @@ public class OutputGate<T extends Record> extends Gate<T> {
 		// Close all output channels
 		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
 			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
+			LOG.info("close channel");
 			outputChannel.requestClose();
 		}
 	}

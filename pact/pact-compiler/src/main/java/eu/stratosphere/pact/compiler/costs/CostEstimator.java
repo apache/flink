@@ -29,7 +29,7 @@ import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
  */
 public abstract class CostEstimator {
 
-	public abstract void getRangePartitionCost(PactConnection conn, Costs costs);
+	public abstract void getRangePartitionCost(List<PactConnection> conn, Costs costs);
 
 	public abstract void getHashPartitioningCost(PactConnection conn, Costs costs);
 
@@ -114,8 +114,7 @@ public abstract class CostEstimator {
 					getHashPartitioningCost(c, globCost);
 				break;
 			case PARTITION_RANGE:
-				for(PactConnection c : primConn)
-					getRangePartitionCost(c, globCost);
+				getRangePartitionCost(primConn, globCost);
 				break;
 			case BROADCAST:
 				for(PactConnection c : primConn)
@@ -152,8 +151,7 @@ public abstract class CostEstimator {
 					getHashPartitioningCost(c, secCost);
 				break;
 			case PARTITION_RANGE:
-				for(PactConnection c : secConn)
-					getRangePartitionCost(c, secCost);
+				getRangePartitionCost(secConn, secCost);
 				break;
 			case BROADCAST:
 				for(PactConnection c : secConn)

@@ -26,9 +26,11 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
@@ -72,7 +74,7 @@ public class ReduceTask extends AbstractTask {
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
 	
 	// input reader
-	private RecordReader<KeyValuePair<Key, Value>> reader;
+	private Reader<KeyValuePair<Key, Value>> reader;
 
 	// output collector
 	private OutputCollector output;
@@ -140,10 +142,10 @@ public class ReduceTask extends AbstractTask {
 				LOG.debug(getLogString("Iterator obtained"));
 	
 			// open stub implementation
-			stub.open();
+			this.stub.open();
 			
 			// run stub implementation
-			this.callStubWithGroups(sortedInputProvider.getIterator(), output);
+			this.callStubWithGroups(sortedInputProvider.getIterator(), this.output);
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
@@ -162,7 +164,7 @@ public class ReduceTask extends AbstractTask {
 			// when the stub is closed, anything will have been written, so any error will be logged but has no 
 			// effect on the successful completion of the task
 			try {
-				stub.close();
+				this.stub.close();
 			}
 			catch (Throwable t) {
 				if (LOG.isErrorEnabled())
@@ -170,7 +172,7 @@ public class ReduceTask extends AbstractTask {
 			}
 			
 			// close output collector
-			output.close();
+			this.output.close();
 		}
 		
 		if (this.taskCanceled) {
@@ -206,17 +208,17 @@ public class ReduceTask extends AbstractTask {
 	private void initStub() throws RuntimeException {
 
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		// set up memory and I/O parameters
-		this.availableMemory = config.getMemorySize();
-		this.maxFileHandles = config.getNumFilehandles();
-		this.spillThreshold = config.getSortSpillingTreshold();
+		this.availableMemory = this.config.getMemorySize();
+		this.maxFileHandles = this.config.getNumFilehandles();
+		this.spillThreshold = this.config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
 		
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 			case SORT:
 				strategyMinMem = MIN_REQUIRED_MEMORY;
 				break;
@@ -231,18 +233,18 @@ public class ReduceTask extends AbstractTask {
 		if (this.availableMemory < strategyMinMem) {
 			throw new RuntimeException(
 					"The Reduce task was initialized with too little memory for local strategy "+
-					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+					this.config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
 				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 
 		try {
 			// obtain stub implementation class
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends ReduceStub> stubClass = config.getStubClass(ReduceStub.class, cl);
+			Class<? extends ReduceStub> stubClass = this.config.getStubClass(ReduceStub.class, cl);
 			// obtain stub implementation instance
-			stub = stubClass.newInstance();
+			this.stub = stubClass.newInstance();
 			// configure stub instance
-			stub.configure(config.getStubParameters());
+			this.stub.configure(this.config.getStubParameters());
 		} catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		} catch (ClassNotFoundException cnfe) {
@@ -263,12 +265,12 @@ public class ReduceTask extends AbstractTask {
 	private void initInputReader() throws RuntimeException {
 
 		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(stub.getInKeyType(),
-			stub.getInValueType());
+		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(this.stub.getInKeyType(),
+			this.stub.getInValueType());
 
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;
-		switch (config.getInputShipStrategy(0)) {
+		switch (this.config.getInputShipStrategy(0)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
@@ -282,8 +284,16 @@ public class ReduceTask extends AbstractTask {
 		}
 
 		// create reader
-		// map has only one input, so we create one reader (id=0).
-		reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+		final int numberOfInputs = this.config.getNumInputs();
+		if(numberOfInputs == 1) {
+			this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+		} else {
+			RecordReader<KeyValuePair<Key, Value>>[] readers = new RecordReader[numberOfInputs];
+			for(int i = 0; i < numberOfInputs; ++i) {
+				readers[i] = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+			}
+			this.reader = new UnionRecordReader<KeyValuePair<Key, Value>>(readers);
+		}
 	}
 
 	/**
@@ -295,12 +305,12 @@ public class ReduceTask extends AbstractTask {
 		boolean fwdCopyFlag = false;
 		
 		// create output collector
-		output = new OutputCollector<Key, Value>();
+		this.output = new OutputCollector<Key, Value>();
 		
 		// create a writer for each output
-		for (int i = 0; i < config.getNumOutputs(); i++) {
+		for (int i = 0; i < this.config.getNumOutputs(); i++) {
 			// obtain OutputEmitter from output ship strategy
-			OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(i));
+			OutputEmitter oe = new OutputEmitter(this.config.getOutputShipStrategy(i));
 			// create writer
 			RecordWriter<KeyValuePair<Key, Value>> writer;
 			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
@@ -310,7 +320,7 @@ public class ReduceTask extends AbstractTask {
 			// the first writer does not need to send a copy
 			// all following must send copies
 			// TODO smarter decision is possible here, e.g. decide which channel may not need to copy, ...
-			output.addWriter(writer, fwdCopyFlag);
+			this.output.addWriter(writer, fwdCopyFlag);
 			fwdCopyFlag = true;
 			
 		}
@@ -333,9 +343,9 @@ public class ReduceTask extends AbstractTask {
 		final IOManager ioManager = getEnvironment().getIOManager();
 
 		// obtain input key type
-		final Class<Key> keyClass = stub.getInKeyType();
+		final Class<Key> keyClass = this.stub.getInKeyType();
 		// obtain input value type
-		final Class<Value> valueClass = stub.getInValueType();
+		final Class<Value> valueClass = this.stub.getInValueType();
 
 		// obtain key serializer
 		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(keyClass);
@@ -343,7 +353,7 @@ public class ReduceTask extends AbstractTask {
 		final SerializationFactory<Value> valSerialization = new WritableSerializationFactory<Value>(valueClass);
 
 		// obtain grouped iterator defined by local strategy
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 
 		// local strategy is NONE
 		// input is already grouped, an iterator that wraps the reader is
@@ -354,13 +364,13 @@ public class ReduceTask extends AbstractTask {
 
 				@Override
 				public boolean hasNext() {
-					return reader.hasNext();
+					return ReduceTask.this.reader.hasNext();
 				}
 
 				@Override
 				public KeyValuePair<Key, Value> next() {
 					try {
-						return reader.next();
+						return ReduceTask.this.reader.next();
 					} catch (Exception e) {
 						throw new RuntimeException(e);
 					}
@@ -391,7 +401,7 @@ public class ReduceTask extends AbstractTask {
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
 					this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this, this.spillThreshold);
+					valSerialization, keyComparator, this.reader, this, this.spillThreshold);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
 			} catch (MemoryAllocationException mae) {
@@ -421,9 +431,9 @@ public class ReduceTask extends AbstractTask {
 
 			try {
 				// instantiate a combining sort-merger
-				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(stub, memoryManager,
+				SortMerger<Key, Value> sortMerger = new CombiningUnilateralSortMerger<Key, Value>(this.stub, memoryManager,
 					ioManager, this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this, this.spillThreshold, false);
+					valSerialization, keyComparator, this.reader, this, this.spillThreshold, false);
 				// obtain and return a grouped iterator from the combining
 				// sort-merger
 				return sortMerger;

@@ -82,7 +82,7 @@ public class FileDataSinkContract<KT extends Key, VT extends Value> extends Gene
 	 */
 	public FileDataSinkContract(Class<? extends FileOutputFormat<KT, VT>> c, String filePath, Contract input, String name) {
 		this(c, filePath, name);
-		setInput(input);
+		addInput(input);
 	}
 
 	// --------------------------------------------------------------------------------------------

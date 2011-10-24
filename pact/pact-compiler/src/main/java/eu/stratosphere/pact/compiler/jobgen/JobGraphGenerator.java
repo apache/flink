@@ -87,6 +87,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 	private AbstractJobVertex maxDegreeVertex; // the vertex with the highest degree of parallelism
 
+	private JobTaskVertex histogramVertex; // the latest generated histogramVertex
+	private int numberOfHistogramInputs = 0;
+	
+	
 	// ------------------------------------------------------------------------
 
 	/**
@@ -119,22 +123,22 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// now that all have been created, make sure that all share their instances with the one
 		// with the highest degree of parallelism
 		if (pactPlan.getInstanceTypeName() != null) {
-			maxDegreeVertex.setInstanceType(pactPlan.getInstanceTypeName());
+			this.maxDegreeVertex.setInstanceType(pactPlan.getInstanceTypeName());
 		} else {
 			LOG.warn("No instance type assigned to Nephele JobVertex.");
 		}
 		for (AbstractJobVertex vertex : this.vertices.values()) {
-			if (vertex == maxDegreeVertex) {
+			if (vertex == this.maxDegreeVertex) {
 				continue;
 			}
-			vertex.setVertexToShareInstancesWith(maxDegreeVertex);
+			vertex.setVertexToShareInstancesWith(this.maxDegreeVertex);
 		}
 		
 		for (AbstractJobVertex vertex : this.auxVertices) {
-			if (vertex == maxDegreeVertex) {
+			if (vertex == this.maxDegreeVertex) {
 				continue;
 			}
-			vertex.setVertexToShareInstancesWith(maxDegreeVertex);
+			vertex.setVertexToShareInstancesWith(this.maxDegreeVertex);
 		}
 		
 
@@ -161,7 +165,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	@Override
 	public boolean preVisit(OptimizerNode node) {
 		// check if we have visited this node before. in non-tree graphs, this happens
-		if (vertices.containsKey(node)) {
+		if (this.vertices.containsKey(node)) {
 			return false;
 		}
 
@@ -210,8 +214,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		vertex.setNumberOfSubtasks(pd);
 
 		// check whether this is the vertex with the highest degree of parallelism
-		if (maxDegreeVertex == null || maxDegreeVertex.getNumberOfSubtasks() < pd) {
-			maxDegreeVertex = vertex;
+		if (this.maxDegreeVertex == null || this.maxDegreeVertex.getNumberOfSubtasks() < pd) {
+			this.maxDegreeVertex = vertex;
 		}
 
 		// set the number of tasks per instance
@@ -248,7 +252,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				return;
 			}
 
+			int inputIndex = 1;
 			for(List<PactConnection> cl : incomingConns) {
+				boolean firstRun = true;
 				for (PactConnection connection : cl) {
 					// get parent vertex
 					AbstractJobVertex outputVertex = this.vertices.get(connection.getSourcePact());
@@ -258,28 +264,32 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	
 					switch (connection.getShipStrategy()) {
 					case FORWARD:
-						connectWithForwardStrategy(connection, outputVertex, inputVertex);
+						connectWithForwardStrategy(connection, outputVertex, inputVertex, inputIndex);
 						break;
 					case PARTITION_LOCAL_HASH:
 					case PARTITION_HASH:
-						connectWithPartitionStrategy(connection, outputVertex, inputVertex);
+						connectWithPartitionStrategy(connection, outputVertex, inputVertex, inputIndex);
 						break;
 					case BROADCAST:
-						connectWithBroadcastStrategy(connection, outputVertex, inputVertex);
+						connectWithBroadcastStrategy(connection, outputVertex, inputVertex, inputIndex);
 						break;
 					case PARTITION_RANGE:
 						if(isDistributionGiven(connection)) {
-							connectWithGivenDistributionPartitionRangeStrategy(connection, outputVertex, inputVertex);
+							connectWithGivenDistributionPartitionRangeStrategy(connection, outputVertex, inputVertex, inputIndex);
 						} else {
-							connectWithSamplingPartitionRangeStrategy(connection, outputVertex, inputVertex);
+							connectWithSamplingPartitionRangeStrategy(connection, outputVertex, inputVertex, inputIndex, firstRun);
 						}
 						break;
 					case SFR:
-						connectWithSFRStrategy(connection, outputVertex, inputVertex);
+						connectWithSFRStrategy(connection, outputVertex, inputVertex, inputIndex);
 					default:
 						throw new Exception("Invalid ship strategy: " + connection.getShipStrategy());
 					}
+					
+					firstRun = false;
 				}
+				
+				++inputIndex;
 			}
 		} catch (Exception e) {
 			throw new CompilerException(
@@ -685,7 +695,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 */
 	private void connectWithForwardStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+			AbstractJobVertex inputVertex, int inputIndex) throws CompilerException, JobGraphDefinitionException {
 		// TODO: currently we do a 1-to-1 mapping one the same instance. Hence, we use INMEMORY channels
 		// We should add the possibility to distribute the load to multiple machines (one local, x remote)
 
@@ -714,7 +724,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, outputVertex, inputVertex, inputIndex);
 
 	}
 
@@ -726,7 +736,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException
 	 */
 	private void connectWithPartitionStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+			AbstractJobVertex inputVertex, int inputIndex) throws CompilerException, JobGraphDefinitionException {
 		// check if shipStrategy suits child
 		switch (connection.getTargetPact().getPactType()) {
 		case Map:
@@ -752,7 +762,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, outputVertex, inputVertex, inputIndex);
 	}
 
 	/**
@@ -763,7 +773,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException
 	 */
 	private void connectWithBroadcastStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+			AbstractJobVertex inputVertex, int inputIndex) throws CompilerException, JobGraphDefinitionException {
 		// check if shipStrategy suits child
 		switch (connection.getTargetPact().getPactType()) {
 		case Match:
@@ -777,7 +787,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		connectJobVertices(connection, outputVertex, inputVertex);
+		connectJobVertices(connection, outputVertex, inputVertex, inputIndex);
 	}
 
 	/**
@@ -788,7 +798,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException
 	 */
 	private void connectWithSFRStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws CompilerException, JobGraphDefinitionException {
+			AbstractJobVertex inputVertex, int inputIndex) throws CompilerException, JobGraphDefinitionException {
 		// check if shipStrategy suits child
 		switch (connection.getTargetPact().getPactType()) {
 		case Cross:
@@ -811,7 +821,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException 
 	 */
 	private void connectWithSamplingPartitionRangeStrategy(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws JobGraphDefinitionException {
+			AbstractJobVertex inputVertex, int inputIndex, boolean firstCall) throws JobGraphDefinitionException {
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
 		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
@@ -831,13 +841,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 			}
 			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD, inputIndex);
 			return;
 		}
+
 		
 		//Add sample vertex
 		JobTaskVertex sampleVertex = new JobTaskVertex("Range partition - sampling", this.jobGraph);
-		auxVertices.add(sampleVertex);
+		this.auxVertices.add(sampleVertex);
 		sampleVertex.setTaskClass(SampleTask.class);
 		TaskConfig sampleConfig = new TaskConfig(sampleVertex.getConfiguration());
 		//sampleConfig.setStubClass((Class<? extends Stub<?, ?>>) AdaptiveKeySampleStub.class);
@@ -849,29 +860,42 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		//Connect with input
 		outputVertex.connectTo(sampleVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-		sampleConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		sampleConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
 		
 		
-		//Add histogram building vertex;
-		JobTaskVertex histogramVertex = new JobTaskVertex("Range partition - histograming", this.jobGraph);
-		auxVertices.add(histogramVertex);
-		histogramVertex.setTaskClass(HistogramTask.class);
-		histogramVertex.setNumberOfSubtasks(1);
-		TaskConfig histogramConfig = new TaskConfig(histogramVertex.getConfiguration());
-		histogramConfig.setStubClass(sourceStub);
-		histogramConfig.setLocalStrategy(LocalStrategy.SORT);
-		Configuration histogramStubConfig = new Configuration();
-		histogramStubConfig.setInteger(HistogramTask.NUMBER_OF_BUCKETS, targetDOP);
-		histogramConfig.setStubParameters(histogramStubConfig);
-		assignMemory(histogramConfig, outputConfig.getStubParameters().getInteger(HistogramTask.HISTOGRAM_MEMORY,-1));
+		// firstCall indicated that this is the first call for one input which might have multiple predecessors
+		
+		// on the first call we have to instantiate the histogram which will be use by all predecessors
+		// -> on all consecutive calls we connect the new output node to the already instantiated histogramVertex
+		TaskConfig histogramConfig;
+		if(firstCall) {
+			//Add histogram building vertex;
+			this.histogramVertex = new JobTaskVertex("Range partition - histograming", this.jobGraph);
+			this.auxVertices.add(this.histogramVertex);
+			this.histogramVertex.setTaskClass(HistogramTask.class);
+			this.histogramVertex.setNumberOfSubtasks(1);
+			// reset counter because we instantiated a new histogram
+			this.numberOfHistogramInputs = 0;
+			
+			histogramConfig = new TaskConfig(this.histogramVertex.getConfiguration());
+			histogramConfig.setStubClass(sourceStub);
+			histogramConfig.setLocalStrategy(LocalStrategy.SORT);
+			Configuration histogramStubConfig = new Configuration();
+			histogramStubConfig.setInteger(HistogramTask.NUMBER_OF_BUCKETS, targetDOP);
+			histogramConfig.setStubParameters(histogramStubConfig);
+			assignMemory(histogramConfig, outputConfig.getStubParameters().getInteger(HistogramTask.HISTOGRAM_MEMORY,-1));
+		} else {
+			histogramConfig = new TaskConfig(this.histogramVertex.getConfiguration());
+		}
 		//Connect with input
-		histogramConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		histogramConfig.addInputShipStrategy(ShipStrategy.FORWARD, ++this.numberOfHistogramInputs);
 		sampleConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-		sampleVertex.connectTo(histogramVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		sampleVertex.connectTo(this.histogramVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		
 		
 		//Add range distributor vertex
 		JobTaskVertex partitionVertex = new JobTaskVertex("Range partition - partitioning", this.jobGraph);
-		auxVertices.add(partitionVertex);
+		this.auxVertices.add(partitionVertex);
 		partitionVertex.setTaskClass(PartitionTask.class);
 		partitionVertex.setNumberOfSubtasks(sourceDOP);
 		if (sourceIPM >= 1) {
@@ -883,7 +907,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
 			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
 		partitionConfig.setStubParameters(partitionStubConfig);
-		
+			
 		//Add temp vertex to avoid blocking
 		JobTaskVertex tempVertex = generateTempVertex(
 				// source pact stub contains out key and value
@@ -896,22 +920,26 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		//Connect data to tempVertex (partitioner)
 		outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-		tempConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		tempConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
 		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 		
 		//Connect tempVertex (data) to partitionVertex
 		tempVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		// tempVertex is always connected as second input to the partitioner (2-input node).
+		// the second input is the data input
+		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD, 2);
 		tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-		
+			
 		//Connect histogram with partitioner
-		histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST);
+		this.histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		// histogramVertex is always connected as first input to the partitioner (2-input node).
+		// the first input is the statistic input
+		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST, 1);
 		histogramConfig.addOutputShipStrategy(ShipStrategy.BROADCAST);
 
 		//Connect to receiving vertex
 		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE);
+		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE, inputIndex);
 		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
 	}
 	
@@ -923,7 +951,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException 
 	 */
 	private void connectWithGivenDistributionPartitionRangeStrategy(PactConnection connection,
-			AbstractJobVertex outputVertex, AbstractJobVertex inputVertex) throws JobGraphDefinitionException {
+			AbstractJobVertex outputVertex, AbstractJobVertex inputVertex, int inputIndex) throws JobGraphDefinitionException {
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
 		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
@@ -941,13 +969,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 			}
 			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD, inputIndex);
 			return;
 		}
 		
 		//Add range distributor vertex
 		JobTaskVertex partitionVertex = new JobTaskVertex("Range partition - partitioning", this.jobGraph);
-		auxVertices.add(partitionVertex);
+		this.auxVertices.add(partitionVertex);
 		partitionVertex.setTaskClass(PartitionTask.class);
 		partitionVertex.setNumberOfSubtasks(sourceDOP);
 		if (sourceIPM >= 1) {
@@ -966,12 +994,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		
 		//Connect partitioner with sending vertex
 		outputVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+		// we don't use the statistic input, because the partitioning strategy is given
+		// hence partitionVertex in now a single input node, hence we connect to input 1
+		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
 		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 		
 		//Connect to receiving vertex
 		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE);
+		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE, inputIndex);
 		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
 	}
 
@@ -983,7 +1013,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws CompilerException
 	 */
 	private void connectJobVertices(PactConnection connection, AbstractJobVertex outputVertex,
-			AbstractJobVertex inputVertex) throws JobGraphDefinitionException, CompilerException {
+			AbstractJobVertex inputVertex, int inputIndex) throws JobGraphDefinitionException, CompilerException {
 		ChannelType channelType = null;
 
 		switch (connection.getShipStrategy()) {
@@ -1020,7 +1050,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			// set strategies in task configs
 			outputConfig.addOutputShipStrategy(connection.getShipStrategy());
-			inputConfig.addInputShipStrategy(connection.getShipStrategy());
+			inputConfig.addInputShipStrategy(connection.getShipStrategy(), inputIndex);
 			break;
 		case TEMP_SENDER_SIDE:
 			// create tempTask
@@ -1044,9 +1074,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			// set strategies in task configs
 			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-			tempConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+			tempConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
 			tempConfig.addOutputShipStrategy(connection.getShipStrategy());
-			inputConfig.addInputShipStrategy(connection.getShipStrategy());
+			inputConfig.addInputShipStrategy(connection.getShipStrategy(), inputIndex);
 
 			break;
 		case TEMP_RECEIVER_SIDE:
@@ -1071,9 +1101,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			// set strategies in task configs
 			outputConfig.addOutputShipStrategy(connection.getShipStrategy());
-			tempConfig.addInputShipStrategy(connection.getShipStrategy());
+			tempConfig.addInputShipStrategy(connection.getShipStrategy(), 1);
 			tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD);
+			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD, inputIndex);
 
 			break;
 		default:

@@ -183,7 +183,7 @@ public class CrossITCase extends TestBase
 				CrossTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testCross);
+		output.addInput(testCross);
 		testCross.addFirstInput(input_left);
 		testCross.addSecondInput(input_right);
 

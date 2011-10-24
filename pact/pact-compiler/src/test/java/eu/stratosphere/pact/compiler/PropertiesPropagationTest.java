@@ -131,7 +131,7 @@ public class PropertiesPropagationTest {
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(degOfPar * 2);
-		sink.setInput(reduce2);
+		sink.addInput(reduce2);
 		
 		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
@@ -143,7 +143,7 @@ public class PropertiesPropagationTest {
 		// because map2 has twice as many instances and key/value pairs with the same key need to be processed by the same
 		// mapper respectively reducer
 		DataSinkNode sinkNode = oPlan.getDataSinks().iterator().next();
-		ReduceNode red2Node = (ReduceNode) sinkNode.getInputConnection().getSourcePact();
+		ReduceNode red2Node = (ReduceNode) sinkNode.getInputConnections().get(0).getSourcePact();
 		MapNode map2Node = (MapNode) red2Node.getInputConnections().get(0).getSourcePact();
 		
 		Assert.assertEquals("The Reduce 1 Node has an invalid shipping strategy.", ShipStrategy.PARTITION_LOCAL_HASH, map2Node.getInputConnections().get(0).getShipStrategy());
@@ -176,7 +176,7 @@ public class PropertiesPropagationTest {
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(degOfPar);
-		sink.setInput(reduce2);
+		sink.addInput(reduce2);
 		
 		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
 		
@@ -188,7 +188,7 @@ public class PropertiesPropagationTest {
 		// because map2 has twice as many instances and key/value pairs with the same key need to be processed by the same
 		// mapper respectively reducer
 		DataSinkNode sinkNode = oPlan.getDataSinks().iterator().next();
-		ReduceNode red2Node = (ReduceNode) sinkNode.getInputConnection().getSourcePact();
+		ReduceNode red2Node = (ReduceNode) sinkNode.getInputConnections().get(0).getSourcePact();
 		
 		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.SORT, red2Node.getLocalStrategy());
 	}

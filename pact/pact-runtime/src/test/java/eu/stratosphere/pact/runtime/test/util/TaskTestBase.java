@@ -41,8 +41,8 @@ import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(LibraryCacheManager.class)
@@ -70,7 +70,7 @@ public abstract class TaskTestBase {
 
 	public void addInput(Iterator<KeyValuePair<PactInteger, PactInteger>> input) {
 		this.mockEnv.addInput(input);
-		new TaskConfig(mockEnv.getRuntimeConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD);
+		new TaskConfig(mockEnv.getRuntimeConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD, 1);
 	}
 
 	public void addOutput(List<KeyValuePair<PactInteger, PactInteger>> output) {

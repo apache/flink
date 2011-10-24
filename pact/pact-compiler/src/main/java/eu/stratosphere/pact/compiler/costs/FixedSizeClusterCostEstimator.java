@@ -50,12 +50,29 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	 * 	eu.stratosphere.pact.compiler.Costs)
 	 */
 	@Override
-	public void getRangePartitionCost(PactConnection conn, Costs costs) {
+	public void getRangePartitionCost(List<PactConnection> conn, Costs costs) {
+		// we assume that all unioned inputs have the same <DistibutionClass>
+		// hence we just pick the fist one blindely
+		// TODO: mjsax: verify if this is valid
 		Class<? extends DataDistribution> distribution =
-			conn.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass();
+			conn.get(0).getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass();
+		
 		if(distribution == null) {
-			//Assume sampling of 10% of the data
-			final long estOutShipSize = (long) (conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize() * 1.1);
+			long estOutShipSize = 0;
+			
+			for(PactConnection c : conn) {
+				final long estimatedOutputSize = c.getSourcePact().getEstimatedOutputSize();
+				
+				// if one input (all of them are unioned) does not know
+				// its output size, we a pessimistic and return "unknown" as well
+				if(estimatedOutputSize == -1) {
+					estOutShipSize = -1;
+					break;
+				}
+					
+				//Assume sampling of 10% of the data
+				estOutShipSize += (long)(c.getReplicationFactor() * estimatedOutputSize * 1.1);
+			}
 
 			if (estOutShipSize == -1) {
 				costs.setNetworkCost(-1);
@@ -68,7 +85,20 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 			costs.setSecondaryStorageCost(estOutShipSize == -1 ? -1 : 2 * estOutShipSize);
 		} else {
 			//If data distribution is given, no extra sampling has to be done => same cost as HashPartitioning
-			final long estOutShipSize = conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize();
+			long estOutShipSize = 0;
+			
+			for(PactConnection c : conn) {
+				final long estimatedOutputSize = c.getSourcePact().getEstimatedOutputSize();
+				
+				// if one input (all of them are unioned) does not know
+				// its output size, we a pessimistic and return "unknown" as well
+				if(estimatedOutputSize == -1) {
+					estOutShipSize = -1;
+					break;
+				}
+					
+				estOutShipSize += c.getReplicationFactor() * estimatedOutputSize;
+			}
 
 			if (estOutShipSize == -1) {
 				costs.setNetworkCost(-1);

@@ -24,9 +24,11 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -66,10 +68,10 @@ public class MatchTask extends AbstractTask
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
 
 	// reader of first input
-	private RecordReader<KeyValuePair<Key, Value>> reader1;
+	private Reader<KeyValuePair<Key, Value>> reader1;
 
 	// reader of second input
-	private RecordReader<KeyValuePair<Key, Value>> reader2;
+	private Reader<KeyValuePair<Key, Value>> reader2;
 
 	// output collector
 	private OutputCollector output;
@@ -145,7 +147,7 @@ public class MatchTask extends AbstractTask
 			this.matchStub.open();
 			
 			// for each distinct key that is contained in both inputs
-			while (this.taskRunning && matchIterator.callWithNextKey(matchStub, collector));
+			while (this.taskRunning && this.matchIterator.callWithNextKey(matchStub, collector));
 		}
 		catch (Exception ex) {
 			// drop, if the task was canceled
@@ -217,14 +219,14 @@ public class MatchTask extends AbstractTask
 		this.config = new TaskConfig(getRuntimeConfiguration());
 
 		// set up memory and I/O parameters
-		this.availableMemory = config.getMemorySize();
-		this.maxFileHandles = config.getNumFilehandles();
-		this.spillThreshold = config.getSortSpillingTreshold();
+		this.availableMemory = this.config.getMemorySize();
+		this.maxFileHandles = this.config.getNumFilehandles();
+		this.spillThreshold = this.config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
 		long strategyMinMem = 0;
 		
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 			case SORT_BOTH_MERGE:
 				strategyMinMem = MIN_REQUIRED_MEMORY * 2;
 				break;
@@ -241,18 +243,18 @@ public class MatchTask extends AbstractTask
 		if (this.availableMemory < strategyMinMem) {
 			throw new RuntimeException(
 					"The Match task was initialized with too little memory for local strategy "+
-					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+					this.config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
 				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 
 		// obtain stub implementation class
 		try {
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends MatchStub> matchClass = config.getStubClass(MatchStub.class, cl);
+			Class<? extends MatchStub> matchClass = this.config.getStubClass(MatchStub.class, cl);
 			// obtain stub implementation instance
 			this.matchStub = matchClass.newInstance();
 			// configure stub instance
-			this.matchStub.configure(config.getStubParameters());
+			this.matchStub.configure(this.config.getStubParameters());
 		}
 		catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
@@ -284,7 +286,7 @@ public class MatchTask extends AbstractTask
 
 		// determine distribution pattern for first reader from input ship strategy
 		DistributionPattern dp1 = null;
-		switch (config.getInputShipStrategy(0)) {
+		switch (this.config.getInputShipStrategy(0)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp1 = new PointwiseDistributionPattern();
@@ -303,7 +305,7 @@ public class MatchTask extends AbstractTask
 
 		// determine distribution pattern for second reader from input ship strategy
 		DistributionPattern dp2 = null;
-		switch (config.getInputShipStrategy(1)) {
+		switch (this.config.getInputShipStrategy(1)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp2 = new PointwiseDistributionPattern();
@@ -321,9 +323,28 @@ public class MatchTask extends AbstractTask
 		}
 
 		// create reader for first input
-		this.reader1 = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer1, dp1);
+		final int groupSizeOne = this.config.getGroupSize(1);
+		if(groupSizeOne == 1) {
+			this.reader1 = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer1, dp1);
+		} else {
+			RecordReader<KeyValuePair<Key, Value>>[] readers = new RecordReader[groupSizeOne];
+			for(int i = 0; i < groupSizeOne; ++i) {
+				readers[i] = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer1, dp1);
+			}
+			this.reader1 = new UnionRecordReader<KeyValuePair<Key, Value>>(readers);
+		}
+
 		// create reader for second input
-		this.reader2 = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer2, dp2);
+		final int groupSizeTwo = this.config.getGroupSize(2);
+		if(groupSizeTwo == 1) {
+			this.reader2 = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer2, dp2);
+		} else {
+			RecordReader<KeyValuePair<Key, Value>>[] readers = new RecordReader[groupSizeTwo];
+			for(int i = 0; i < groupSizeTwo; ++i) {
+				readers[i] = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer2, dp2);
+			}
+			this.reader2 = new UnionRecordReader<KeyValuePair<Key, Value>>(readers);
+		}
 	}
 
 	/**
@@ -363,7 +384,7 @@ public class MatchTask extends AbstractTask
 	 * @return MatchTaskIterator The iterator implementation for the given local strategy.
 	 * @throws RuntimeException Thrown if the local strategy is not supported.
 	 */
-	private MatchTaskIterator getIterator(RecordReader reader1, RecordReader reader2)
+	private MatchTaskIterator getIterator(Reader reader1, Reader reader2)
 	throws MemoryAllocationException
 	{
 		// obtain task manager's memory manager
@@ -372,30 +393,30 @@ public class MatchTask extends AbstractTask
 		final IOManager ioManager = getEnvironment().getIOManager();
 
 		// create and return MatchTaskIterator according to provided local strategy.
-		switch (config.getLocalStrategy())
+		switch (this.config.getLocalStrategy())
 		{
 		case SORT_BOTH_MERGE:
 		case SORT_FIRST_MERGE:
 		case SORT_SECOND_MERGE:
 		case MERGE:
 			return new SortMergeMatchIterator(memoryManager, ioManager, reader1, reader2,
-				matchStub.getFirstInKeyType(), matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				this.matchStub.getFirstInKeyType(), this.matchStub.getFirstInValueType(), this.matchStub.getSecondInValueType(),
 				this.availableMemory, this.maxFileHandles, this.spillThreshold,
-				config.getLocalStrategy(), this);
+				this.config.getLocalStrategy(), this);
 		case HYBRIDHASH_FIRST:
 			return new BuildFirstHashMatchIterator(
 				new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader1), 
 				new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader2),
-				matchStub.getFirstInKeyType(), matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				this.matchStub.getFirstInKeyType(), this.matchStub.getFirstInValueType(), this.matchStub.getSecondInValueType(),
 				memoryManager, ioManager, this, this.availableMemory);
 		case HYBRIDHASH_SECOND:
 			return new BuildSecondHashMatchIterator(
 				new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader1), 
 				new NepheleReaderIterator<KeyValuePair<Key, Value>>(this.reader2),
-				matchStub.getFirstInKeyType(), matchStub.getFirstInValueType(), matchStub.getSecondInValueType(),
+				this.matchStub.getFirstInKeyType(), this.matchStub.getFirstInValueType(), this.matchStub.getSecondInValueType(),
 				memoryManager, ioManager, this, this.availableMemory);
 		default:
-			throw new RuntimeException("Unsupported local strategy for MatchTask: "+config.getLocalStrategy());
+			throw new RuntimeException("Unsupported local strategy for MatchTask: "+this.config.getLocalStrategy());
 		}
 	}
 	

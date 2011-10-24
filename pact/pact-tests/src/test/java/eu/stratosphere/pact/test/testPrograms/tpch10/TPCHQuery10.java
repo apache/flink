@@ -307,7 +307,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 				TupleOutputFormat.class, resultPath, "Output");
 		result.setDegreeOfParallelism(degreeOfParallelism);
 
-		result.setInput(reduce);
+		result.addInput(reduce);
 		reduce.addInput(joinNCOL);
 		joinNCOL.addFirstInput(joinCOL);
 		joinNCOL.addSecondInput(projectN);

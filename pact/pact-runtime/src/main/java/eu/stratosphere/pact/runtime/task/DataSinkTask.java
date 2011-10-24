@@ -30,8 +30,10 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
@@ -70,7 +72,7 @@ public class DataSinkTask extends AbstractOutputTask
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
 
 	// input reader
-	private RecordReader<KeyValuePair<Key, Value>> reader;
+	private Reader<KeyValuePair<Key, Value>> reader;
 
 	// OutputFormat instance
 	private OutputFormat format;
@@ -258,11 +260,11 @@ public class DataSinkTask extends AbstractOutputTask
 	{
 		// create RecordDeserializer
 		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(
-			this.format.getKeyType(), format.getValueType());
+			this.format.getKeyType(), this.format.getValueType());
 
 		// determine distribution pattern for reader from input ship strategy
 		DistributionPattern dp = null;
-		switch (config.getInputShipStrategy(0)) {
+		switch (this.config.getInputShipStrategy(0)) {
 		case FORWARD:
 			// forward requires Pointwise DP
 			dp = new PointwiseDistributionPattern();
@@ -276,12 +278,21 @@ public class DataSinkTask extends AbstractOutputTask
 
 		// create reader
 		// map has only one input, so we create one reader (id=0).
-		this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+		final int numberOfInputs = this.config.getNumInputs();
+		if(numberOfInputs == 1) {
+			this.reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+		} else {
+			RecordReader<KeyValuePair<Key, Value>>[] readers = new RecordReader[numberOfInputs];
+			for(int i = 0; i < numberOfInputs; ++i) {
+				readers[i] = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
+			}
+			this.reader = new UnionRecordReader<KeyValuePair<Key, Value>>(readers);
+		}
 
 		// set up memory and I/O parameters in case of sorting
-		this.availableMemory = config.getMemorySize();
-		this.maxFileHandles = config.getNumFilehandles();
-		this.spillThreshold = config.getSortSpillingTreshold();
+		this.availableMemory = this.config.getMemorySize();
+		this.maxFileHandles = this.config.getNumFilehandles();
+		this.spillThreshold = this.config.getSortSpillingTreshold();
 	}
 	
 	/**
@@ -301,9 +312,9 @@ public class DataSinkTask extends AbstractOutputTask
 		final IOManager ioManager = getEnvironment().getIOManager();
 
 		// obtain input key type
-		final Class<Key> keyClass = format.getKeyType();
+		final Class<Key> keyClass = this.format.getKeyType();
 		// obtain input value type
-		final Class<Value> valueClass = format.getValueType();
+		final Class<Value> valueClass = this.format.getValueType();
 
 		// obtain key serializer
 		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(keyClass);
@@ -311,7 +322,7 @@ public class DataSinkTask extends AbstractOutputTask
 		final SerializationFactory<Value> valSerialization = new WritableSerializationFactory<Value>(valueClass);
 
 		// obtain grouped iterator defined by local strategy
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 
 		// local strategy is NONE
 		// input is already grouped, an iterator that wraps the reader is
@@ -322,13 +333,13 @@ public class DataSinkTask extends AbstractOutputTask
 
 				@Override
 				public boolean hasNext() {
-					return reader.hasNext();
+					return DataSinkTask.this.reader.hasNext();
 				}
 
 				@Override
 				public KeyValuePair<Key, Value> next() {
 					try {
-						return reader.next();
+						return DataSinkTask.this.reader.next();
 					} catch (Exception e) {
 						throw new RuntimeException(e);
 					}
@@ -373,7 +384,7 @@ public class DataSinkTask extends AbstractOutputTask
 				// instantiate a sort-merger
 				SortMerger<Key, Value> sortMerger = new UnilateralSortMerger<Key, Value>(memoryManager, ioManager,
 					this.availableMemory, this.maxFileHandles, keySerialization,
-					valSerialization, keyComparator, reader, this, this.spillThreshold);
+					valSerialization, keyComparator, this.reader, this, this.spillThreshold);
 				// obtain and return a grouped iterator from the sort-merger
 				return sortMerger;
 			} catch (MemoryAllocationException mae) {

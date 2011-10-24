@@ -204,7 +204,7 @@ public class WordCountDoubleMatch implements PlanAssembler, PlanAssemblerDescrip
 				WordCountOutFormat.class, output, "Output");
 		out.setDegreeOfParallelism(noSubTasks);
 
-		out.setInput(reducer);
+		out.addInput(reducer);
 		reducer.addInput(matcher);
 		matcher.addFirstInput(mapper1);
 		matcher.addSecondInput(mapper2);

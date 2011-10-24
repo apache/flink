@@ -154,61 +154,9 @@ public class MapNode extends SingleInputNode {
 
 		// the map itself also adds no cost for local strategies!
 
-		// TODO: mjsax
-		
 		// set shipping strategies for all incoming connections
 		List<MapNode> outputPlans = new ArrayList<MapNode>();
 		getAlternativePlansRecursively(new ArrayList<OptimizerNode>(0), estimator, outputPlans);
-		// right now we do not enumerate all plans
-		// -> because of union we have to do a recursive enumeration, what is missing right now
-//		List<OptimizerNode> allPreds = new ArrayList<OptimizerNode>(this.input.size());
-//		for(PactConnection c : this.input) {
-//			allPreds.add(c.getSourcePact());
-//		}
-//
-//		final int inputSize = this.input.size();
-//		List<List<OptimizerNode>> allPlanCombinations = new ArrayList<List<OptimizerNode>>(inputSize);
-//		
-//		for(int i = 0; i < inputSize; ++i) {
-//			List<? extends OptimizerNode> inPlans = this.input.get(i).getSourcePact().getAlternativePlans(estimator);
-//
-//			final int numberOfAlternatives = inPlans.size();
-//			List<OptimizerNode> alternativeList = new ArrayList<OptimizerNode>(numberOfAlternatives);
-//			for(int j = 0; j < numberOfAlternatives; ++j) {
-//				alternativeList.add(inPlans.get(j));
-//			}
-//			
-//			allPlanCombinations.add(alternativeList);
-//		}
-//		
-//		List<MapNode> outputPlans = new ArrayList<MapNode>();
-//		for(PactConnection c : this.input) {
-//			List<? extends OptimizerNode> inPlans = c.getSourcePact().getAlternativePlans(estimator);
-//	
-//			for (OptimizerNode pred : inPlans) {
-//	
-//				ShipStrategy ss = c.getShipStrategy() == ShipStrategy.NONE ? ShipStrategy.FORWARD : c.getShipStrategy();
-//				GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
-//				LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
-//	
-//				// we take each input and add a mapper to it
-//				// the properties of the inputs are copied
-//				MapNode nMap = new MapNode(this, allPreds, this.input, gp, lp);
-//				for(PactConnection cc : nMap.getInputConnections()) {
-//					cc.setShipStrategy(ss);
-//				}
-//	
-//				// now, the properties (copied from the inputs) are filtered by the
-//				// output contracts
-//				nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
-//				nMap.getLocalProperties().filterByOutputContract(getOutputContract());
-//	
-//				// copy the cumulative costs and set the costs of the map itself to zero
-//				estimator.costOperator(nMap);
-//	
-//				outputPlans.add(nMap);
-//			}
-//		}
 		
 		// prune the plans
 		prunePlanAlternatives(outputPlans);

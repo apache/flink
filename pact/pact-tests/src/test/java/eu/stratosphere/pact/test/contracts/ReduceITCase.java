@@ -157,7 +157,7 @@ public class ReduceITCase extends TestBase
 				ReduceTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testReducer);
+		output.addInput(testReducer);
 		testReducer.addInput(input);
 
 		Plan plan = new Plan(output);

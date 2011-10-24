@@ -183,7 +183,7 @@ public class MatchITCase extends TestBase
 				MatchTestOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testMatcher);
+		output.addInput(testMatcher);
 		testMatcher.addFirstInput(input_left);
 		testMatcher.addSecondInput(input_right);
 

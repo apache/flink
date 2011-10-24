@@ -15,18 +15,20 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.io.OutputFormat;
 
 /**
  * Contract for nodes which act as data sinks, storing the data they receive somewhere instead of sending it to another
  * contract. The way the data is stored is handled by the {@link OutputFormat}.
  * 
- * @see OutputFormat;
- * 
- * @param T The type of output format invoked by instances of this data source.
+ * @param <KT> type of key of output key/value-pair
+ * @param <VT> type of value of output key/value-pair
  */
 public class GenericDataSink<KT extends Key, VT extends Value> extends Contract 
 {
@@ -36,7 +38,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	
 	protected final Class<? extends OutputFormat<KT, VT>> clazz;
 
-	private Contract input;
+	private List<Contract> input = new ArrayList<Contract>();
 
 	private Order globalOrder = Order.NONE;
 
@@ -87,7 +89,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 */
 	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c, Contract input, String name) {
 		this(c, name);
-		setInput(input);
+		addInput(input);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -97,8 +99,8 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * 
 	 * @return the contract's input contract.
 	 */
-	public Contract getInput() {
-		return input;
+	public List<Contract> getInputs() {
+		return this.input;
 	}
 
 	/**
@@ -106,8 +108,8 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * 
 	 * @param input the contract's input contract
 	 */
-	public void setInput(Contract input) {
-		this.input = input;
+	public void addInput(Contract input) {
+		this.input.add(input);
 	}
 
 	/**
@@ -117,7 +119,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 *         if the sink writes it data with a globally ascending (resp. descending) order.
 	 */
 	public Order getGlobalOrder() {
-		return globalOrder;
+		return this.globalOrder;
 	}
 	
 	/**
@@ -140,7 +142,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 *         if the sink writes it data with a local ascending (resp. descending) order.
 	 */
 	public Order getLocalOrder() {
-		return localOrder;
+		return this.localOrder;
 	}
 	
 	/**
@@ -161,7 +163,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 */
 	public Class<? extends OutputFormat<KT, VT>> getFormatClass()
 	{
-		return clazz;
+		return this.clazz;
 	}
 	
 	/**
@@ -196,8 +198,8 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	{
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
-			if (input != null) {
-				input.accept(visitor);
+			for(Contract c : this.input) {
+				c.accept(visitor);
 			}
 			visitor.postVisit(this);
 		}

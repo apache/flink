@@ -138,7 +138,7 @@ public class HardPlansCompilationTest {
 		
 		FileDataSinkContract<PactInteger, PactInteger> sink = new FileDataSinkContract<PactInteger, PactInteger>(DummyOutputFormat.class, OUT_FILE_1, "Sink");
 		sink.setDegreeOfParallelism(defaultParallelism);
-		sink.setInput(reduce3);
+		sink.addInput(reduce3);
 		
 		Plan plan = new Plan(sink, "Test Temp Task");
 		

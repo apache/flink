@@ -303,7 +303,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			EdgeListOutFormat.class, output, "Triangles");
 		triangles.setDegreeOfParallelism(noSubTasks);
 
-		triangles.setInput(closeTriads);
+		triangles.addInput(closeTriads);
 		closeTriads.addSecondInput(edges);
 		closeTriads.addFirstInput(buildTriads);
 		buildTriads.addFirstInput(assignKeys);

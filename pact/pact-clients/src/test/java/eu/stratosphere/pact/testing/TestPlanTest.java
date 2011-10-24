@@ -448,7 +448,7 @@ public class TestPlanTest extends TestPlanTestCase {
 		try {
 			final FileDataSinkContract<K, V> out = new FileDataSinkContract<K, V>(outputFormatClass, File.createTempFile(
 				"output", null).toURI().toString(), "Output");
-			out.setInput(input);
+			out.addInput(input);
 			return out;
 		} catch (IOException e) {
 			fail("cannot create temporary output file" + e);
