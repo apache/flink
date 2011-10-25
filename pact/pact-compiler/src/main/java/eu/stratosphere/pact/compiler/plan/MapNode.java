@@ -35,7 +35,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class MapNode extends SingleInputNode {
+public class MapNode extends SingleInputNode<MapNode> {
 	private List<MapNode> cachedPlans; // a cache for the computed alternative plans
 
 	/**
@@ -156,7 +156,17 @@ public class MapNode extends SingleInputNode {
 
 
 		List<MapNode> outputPlans = new ArrayList<MapNode>();
-		getAlternativePlansRecursively(new ArrayList<OptimizerNode>(0), estimator, outputPlans);
+
+		// step down to all producer nodes and calculate alternative plans
+		final int inputSize = this.input.size();
+		@SuppressWarnings("unchecked")
+		List<? extends OptimizerNode>[] inPlans = new List[inputSize];
+		for(int i = 0; i < inputSize; ++i) {
+			inPlans[i] = this.input.get(i).getSourcePact().getAlternativePlans(estimator);
+		}
+
+		// build all possible alternative plans for this node
+		getAlternativePlansRecursively(inPlans, new ArrayList<OptimizerNode>(0), estimator, outputPlans);
 		
 		// prune the plans
 		prunePlanAlternatives(outputPlans);
@@ -169,48 +179,57 @@ public class MapNode extends SingleInputNode {
 		return outputPlans;
 	}
 	
-	private void getAlternativePlansRecursively(List<OptimizerNode> allPreds, CostEstimator estimator, List<MapNode> outputPlans) {
-		// what is our recursive depth
-		final int allPredsSize = allPreds.size();
-		// pick the connection this recursive step has to process
-		PactConnection connToProcess = this.input.get(allPredsSize);
-		// get all alternatives for current recursion level
-		List<? extends OptimizerNode> inPlans = connToProcess.getSourcePact().getAlternativePlans(estimator);
-		
-		// now enumerate all alternative of this recursion level
-		for (OptimizerNode pred : inPlans) {
-			// add an alternative plan node
-			allPreds.add(pred);
+	@Override
+	protected void createAlternativeNode(ArrayList<OptimizerNode> predList, CostEstimator estimator,
+			List<MapNode> outputPlans) {
+		// we have to check if all input ShipStrategies are the same or at least compatible
+		ShipStrategy ss = ShipStrategy.NONE;
+	
+		for(PactConnection c : this.input) {
+			ShipStrategy newSS = c.getShipStrategy();
 			
-			ShipStrategy ss = connToProcess.getShipStrategy() == ShipStrategy.NONE ? ShipStrategy.FORWARD : connToProcess.getShipStrategy();
-			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
-			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
-			
-			// check if the hit the last recursion level
-			if(allPredsSize + 1 == this.input.size()) {
-				// last recursion level: create a new alternative now
-				
-				MapNode nMap = new MapNode(this, allPreds, this.input, gp, lp);
-				for(PactConnection cc : nMap.getInputConnections()) {
-					cc.setShipStrategy(ss);
-				}
+			if(newSS == ShipStrategy.BROADCAST || newSS == ShipStrategy.SFR)
+				// invalid strategy: we do not produce an alternative node
+				return;
 	
-				// now, the properties (copied from the inputs) are filtered by the
-				// output contracts
-				nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
-				nMap.getLocalProperties().filterByOutputContract(getOutputContract());
-	
-				// copy the cumulative costs and set the costs of the map itself to zero
-				estimator.costOperator(nMap);
-	
-				outputPlans.add(nMap);
-			} else {
-				getAlternativePlansRecursively(allPreds, estimator, outputPlans);
+			// as long as no ShipStrategy is set we can pick the strategy from the current connection
+			if(ss == ShipStrategy.NONE) {
+				ss = newSS;
+				continue;
 			}
 			
-			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
-			allPreds.remove(allPredsSize);
+			// as long as the ShipStrategy is the same everything is fine
+			if(ss == newSS)
+				continue;
+			
+			// incompatible strategies: we do not produce an alternative node
+			return;
 		}
+	
+		// if no hit for a strategy was provided, we use the default
+		if(ss == ShipStrategy.NONE)
+			ss = ShipStrategy.FORWARD;
+		
+		// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+		// we need to figure out, what the right gp and lp is, for the union case
+		GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+		LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
+		
+		
+		MapNode nMap = new MapNode(this, predList, this.input, gp, lp);
+		for(PactConnection cc : nMap.getInputConnections()) {
+			cc.setShipStrategy(ss);
+		}
+	
+		// now, the properties (copied from the inputs) are filtered by the
+		// output contracts
+		nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
+		nMap.getLocalProperties().filterByOutputContract(getOutputContract());
+	
+		// copy the cumulative costs and set the costs of the map itself to zero
+		estimator.costOperator(nMap);
+	
+		outputPlans.add(nMap);
 	}
 	
 	/**

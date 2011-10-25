@@ -41,6 +41,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -845,7 +846,8 @@ public class PactCompiler {
 			n.SetId(this.id++);
 
 			// first connect to the predecessors
-			n.setInputs(this.con2node);
+			if(!(c instanceof GenericDataSource<?, ?>))
+				n.setInputs(this.con2node);
 
 			// now compute the output estimates
 			if (this.computeEstimates) {

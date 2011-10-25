@@ -324,79 +324,6 @@ public class DataSinkNode extends OptimizerNode {
 		List<DataSinkNode> plans = new ArrayList<DataSinkNode>();
 		getAlternativePlansRecursively(new ArrayList<OptimizerNode>(0), estimator, plans);
 
-//		for (OptimizerNode pred : inPlans) {
-//			Order go = getPactContract().getGlobalOrder();
-//			Order lo = getPactContract().getLocalOrder();
-//
-//			GlobalProperties gp = pred.getGlobalProperties().createCopy();
-//			LocalProperties lp = pred.getLocalProperties().createCopy();
-//
-//			ShipStrategy ss = null;
-//			LocalStrategy ls = null;
-//
-//			if (go != Order.NONE && go != gp.getKeyOrder()) {
-//				// requires global sort
-//
-//				if (this.input.getShipStrategy() == ShipStrategy.NONE
-//					|| this.input.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-//					// strategy not fixed a priori, or strategy fixed, but valid
-//					ss = ShipStrategy.PARTITION_RANGE;
-//				} else {
-//					// strategy is set a priory --> via compiler hint
-//					// this input plan cannot produce a valid plan
-//					continue;
-//				}
-//
-//				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
-//					// strategy not fixed a priori, or strategy fixed, but valid
-//					ls = LocalStrategy.SORT;
-//				} else {
-//					// strategy is set a priory --> via compiler hint
-//					// this input plan cannot produce a valid plan
-//					continue;
-//				}
-//
-//				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED);
-//				gp.setKeyOrder(go);
-//				lp.setKeyOrder(go);
-//			} else if (lo != Order.NONE && lo != lp.getKeyOrder()) {
-//
-//				// requires local sort
-//				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
-//					// strategy not fixed a priori, or strategy fixed, but valid
-//					ls = LocalStrategy.SORT;
-//				} else {
-//					// strategy is set a priory --> via compiler hint
-//					// this input plan cannot produce a valid plan
-//					continue;
-//				}
-//
-//				ls = LocalStrategy.SORT;
-//				lp.setKeyOrder(lo);
-//			}
-//
-//			// create the new node and connection
-//			DataSinkNode ns = new DataSinkNode(this, pred, this.input, gp, lp);
-//
-//			// check, if a shipping strategy applies
-//			if (ss == null) {
-//				ss = ShipStrategy.FORWARD;
-//			}
-//			ns.input.setShipStrategy(ss);
-//
-//			// check, if a local strategy is necessary
-//			if (ls == null) {
-//				ls = LocalStrategy.NONE;
-//			}
-//			ns.setLocalStrategy(ls);
-//
-//			// set the costs
-//			estimator.costOperator(ns);
-//
-//			// add the plan
-//			plans.add(ns);
-//		}
-
 		// prune the plans
 		prunePlanAlternatives(plans);
 
@@ -426,6 +353,8 @@ public class DataSinkNode extends OptimizerNode {
 			Order go = getPactContract().getGlobalOrder();
 			Order lo = getPactContract().getLocalOrder();
 
+			// TODO mjsax: right now we choose the global and local properties of the last predecessor in the union case
+			// we need to figure out, what the right gp and lp is, for the union case
 			GlobalProperties gp = pred.getGlobalProperties().createCopy();
 			LocalProperties lp = pred.getLocalProperties().createCopy();
 

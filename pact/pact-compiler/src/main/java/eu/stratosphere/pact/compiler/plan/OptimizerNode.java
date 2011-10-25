@@ -943,11 +943,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		// 1) if both are null or empty, the result is null
 		// 2) if one side is null (or empty), the result is the other side.
 		// 3) both are set, then we need to merge.
-		if (child1open.isEmpty()) {
+		if(child1open == null || child1open.isEmpty()) {
 			return child2open;
 		}
 		
-		if (child2open.isEmpty()) {
+		if(child2open == null || child2open.isEmpty()) {
 			return child1open;
 		}
 		
@@ -961,7 +961,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		// as both lists (child1open and child2open) are sorted in ascending ID order
 		// we can do a merge-join-like loop which preserved the order in the result list
 		// and eliminates duplicates
-		while (index1 >= 0 || index2 >= 0) {
+		while(index1 >= 0 || index2 >= 0) {
 			int id1 = -1;
 			int id2 = index2 >= 0 ? child2open.get(index2).getBranchingNode().getId() : -1;
 

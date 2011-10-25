@@ -243,6 +243,10 @@ public class MatchNode extends TwoInputNode {
 			return this.cachedPlans;
 		}
 
+//		List<MatchNode> outputPlans = new ArrayList<MatchNode>();
+//		getAlternativePlansRecursively(new ArrayList<OptimizerNode>(0), new ArrayList<OptimizerNode>(0), estimator, outputPlans);
+
+		
 		// TODO: mjsax
 		// right now we do not enumerate all plans
 		// -> because of union we have to do a recursive enumeration, what is missing right now
@@ -580,6 +584,56 @@ public class MatchNode extends TwoInputNode {
 		return outputPlans;
 	}
 
+	private void getAlternativePlansRecursively(List<OptimizerNode> allLeftPreds, List<OptimizerNode> allRightPreds,
+			CostEstimator estimator, List<MatchNode> outputPlans)
+	{
+		// what is our recursive depth
+		int allPredsSize = allLeftPreds.size();
+		
+		PactConnection connToProcess;
+		List<? extends OptimizerNode> inPlans;
+		List<OptimizerNode> allPreds;
+		
+		// build up left alternatives first
+		if(allPredsSize < this.input1.size()) {
+			// pick the connection this recursive step has to process
+			connToProcess = this.input1.get(allPredsSize);
+			// get all alternatives for current recursion level
+			inPlans = connToProcess.getSourcePact().getAlternativePlans(estimator);
+			
+			allPreds = allLeftPreds;
+		} else {
+			// left input is complete: proceed with right input
+
+			allPredsSize = allRightPreds.size();
+			
+			// pick the connection this recursive step has to process
+			connToProcess = this.input2.get(allPredsSize);
+			// get all alternatives for current recursion level
+			inPlans = connToProcess.getSourcePact().getAlternativePlans(estimator);
+
+			allPreds = allRightPreds;
+		}
+			
+		
+		
+		// now enumerate all alternative of this recursion level
+		for (OptimizerNode pred : inPlans) {
+			// add an alternative plan node
+			allLeftPreds.add(pred);
+			
+			
+			
+			
+			
+			
+			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
+			allPreds.remove(allPredsSize);
+		}
+			
+
+	}
+	
 	/**
 	 * Private utility method that generates the alternative Match nodes, given fixed shipping strategies
 	 * for the inputs.
