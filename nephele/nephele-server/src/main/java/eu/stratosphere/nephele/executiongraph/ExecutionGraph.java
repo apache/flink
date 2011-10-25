@@ -1468,4 +1468,14 @@ public class ExecutionGraph implements ExecutionListener {
 			it.next().reconstructExecutionPipelines();
 		}
 	}
+
+	/**
+	 * Returns an iterator over all execution stages contained in this graph.
+	 * 
+	 * @return an iterator over all execution stages contained in this graph
+	 */
+	public Iterator<ExecutionStage> iterator() {
+
+		return this.stages.iterator();
+	}
 }
