@@ -28,8 +28,8 @@ import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionPipeline;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
@@ -78,36 +78,27 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 
 		synchronized (eg) {
 
-			if (newExecutionState == ExecutionState.FINISHED) {
+			// Check if we can deploy a new pipeline.
+			if (newExecutionState == ExecutionState.FINISHING) {
 
+				final ExecutionPipeline pipeline = this.executionVertex.getExecutionPipeline();
+				if (!pipeline.isFinishing()) {
+					// Some tasks of the pipeline are still running
+					return;
+				}
+
+				// Find another vertex in the group which is still in SCHEDULED state and get its pipeline.
 				final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
 				for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
 					final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
 					if (groupMember.getExecutionState() == ExecutionState.SCHEDULED) {
-						groupMember.setAllocatedResource(this.executionVertex.getAllocatedResource());
-						groupMember.updateExecutionState(ExecutionState.READY);
+
+						final ExecutionPipeline pipelineToBeDeployed = groupMember.getExecutionPipeline();
+						pipelineToBeDeployed.setAllocatedResource(this.executionVertex.getAllocatedResource());
+						pipelineToBeDeployed.updateExecutionState(ExecutionState.ASSIGNED);
 
 						this.scheduler.deployAssignedVertices(eg);
 						return;
-					}
-				}
-
-				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg,
-					eg.getIndexOfCurrentExecutionStage(),
-					true, true);
-				while (it.hasNext()) {
-
-					final ExecutionVertex nextVertex = it.next();
-					if (nextVertex.getExecutionState() == ExecutionState.SCHEDULED) {
-						if (nextVertex.getAllocatedResource().getInstanceType()
-							.equals(this.executionVertex.getAllocatedResource().getInstanceType())) {
-							nextVertex.setAllocatedResource(this.executionVertex.getAllocatedResource());
-							nextVertex.updateExecutionState(ExecutionState.READY);
-
-							this.scheduler.deployAssignedVertices(eg);
-
-							return;
-						}
 					}
 				}
 			}

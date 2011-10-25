@@ -19,6 +19,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.util.UnmodifiableIterator;
 
 /**
@@ -70,5 +72,56 @@ public final class ExecutionPipeline {
 	public Iterator<ExecutionVertex> iterator() {
 
 		return new UnmodifiableIterator<ExecutionVertex>(this.vertices.iterator());
+	}
+
+	/**
+	 * Checks if the pipeline is currently finishing its execution, i.e. all vertices contained in the pipeline have
+	 * switched to the <code>FINISHING</code> or <code>FINISHED</code> state.
+	 * 
+	 * @return <code>true</code> if the pipeline is currently finishing, <code>false</code> otherwise
+	 */
+	public boolean isFinishing() {
+
+		final Iterator<ExecutionVertex> it = this.vertices.iterator();
+		while (it.hasNext()) {
+
+			final ExecutionState state = it.next().getExecutionState();
+			if (state != ExecutionState.FINISHING && state != ExecutionState.FINISHED) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Sets the given allocated resource for all vertices included in this pipeline.
+	 * 
+	 * @param resource
+	 *        the allocated resource to set for all vertices included in this pipeline
+	 */
+	public void setAllocatedResource(final AllocatedResource resource) {
+
+		final Iterator<ExecutionVertex> it = this.vertices.iterator();
+		while (it.hasNext()) {
+			final ExecutionVertex vertex = it.next();
+			vertex.setAllocatedResource(resource);
+		}
+	}
+
+	/**
+	 * Updates the execution state for all vertices included in this pipeline.
+	 * 
+	 * @param executionState
+	 *        the execution state to set for all vertices included in this pipeline
+	 */
+	public void updateExecutionState(final ExecutionState executionState) {
+
+		final Iterator<ExecutionVertex> it = this.vertices.iterator();
+		while (it.hasNext()) {
+			final ExecutionVertex vertex = it.next();
+			vertex.updateExecutionState(executionState);
+		}
+
 	}
 }
