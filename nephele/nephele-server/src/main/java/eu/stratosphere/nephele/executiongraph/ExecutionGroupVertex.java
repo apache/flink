@@ -18,6 +18,9 @@ package eu.stratosphere.nephele.executiongraph;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -34,7 +37,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * vertices
  * that originate from the same job vertex.
  * <p>
- * This class is not thread-safe.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -51,19 +54,24 @@ public class ExecutionGroupVertex {
 	private final JobVertexID jobVertexID;
 
 	/**
+	 * Stores whether the initial group member has already been added to this group vertex.
+	 */
+	private final AtomicBoolean initialGroupMemberAdded = new AtomicBoolean(false);
+
+	/**
 	 * The list of execution vertices which are managed by this group vertex.
 	 */
-	private final ArrayList<ExecutionVertex> groupMembers = new ArrayList<ExecutionVertex>();
+	private final CopyOnWriteArrayList<ExecutionVertex> groupMembers = new CopyOnWriteArrayList<ExecutionVertex>();
 
 	/**
 	 * Maximum number of execution vertices this group vertex can manage.
 	 */
-	private int maxMemberSize = 1;
+	private volatile int maxMemberSize = 1;
 
 	/**
 	 * Minimum number of execution vertices this group vertex can manage.
 	 */
-	private int minMemberSize = 1;
+	private volatile int minMemberSize = 1;
 
 	/**
 	 * The user defined number of execution vertices, -1 if the user has not specified it.
@@ -73,7 +81,7 @@ public class ExecutionGroupVertex {
 	/**
 	 * The instance type to be used for execution vertices this group vertex manages.
 	 */
-	private InstanceType instanceType = null;
+	private volatile InstanceType instanceType = null;
 
 	/**
 	 * Stores whether the instance type is user defined.
@@ -83,7 +91,7 @@ public class ExecutionGroupVertex {
 	/**
 	 * Stores the number of subtasks per instance.
 	 */
-	private int numberOfSubtasksPerInstance = -1;
+	private volatile int numberOfSubtasksPerInstance = -1;
 
 	/**
 	 * Stores whether the number of subtasks per instance is user defined.
@@ -93,12 +101,13 @@ public class ExecutionGroupVertex {
 	/**
 	 * The execution group vertex to share instances with.
 	 */
-	private ExecutionGroupVertex vertexToShareInstancesWith = null;
+	private final AtomicReference<ExecutionGroupVertex> vertexToShareInstancesWith = new AtomicReference<ExecutionGroupVertex>(
+		null);
 
 	/**
 	 * Set of execution vertices sharing instances with this vertex.
 	 */
-	private final List<ExecutionGroupVertex> verticesSharingInstances = new ArrayList<ExecutionGroupVertex>();
+	private final CopyOnWriteArrayList<ExecutionGroupVertex> verticesSharingInstances = new CopyOnWriteArrayList<ExecutionGroupVertex>();
 
 	/**
 	 * Stores whether the group vertex to share instances with is user defined.
@@ -113,12 +122,12 @@ public class ExecutionGroupVertex {
 	/**
 	 * List of outgoing edges.
 	 */
-	private final ArrayList<ExecutionGroupEdge> forwardLinks = new ArrayList<ExecutionGroupEdge>();
+	private final CopyOnWriteArrayList<ExecutionGroupEdge> forwardLinks = new CopyOnWriteArrayList<ExecutionGroupEdge>();
 
 	/**
 	 * List of incoming edges.
 	 */
-	private final ArrayList<ExecutionGroupEdge> backwardLinks = new ArrayList<ExecutionGroupEdge>();
+	private final CopyOnWriteArrayList<ExecutionGroupEdge> backwardLinks = new CopyOnWriteArrayList<ExecutionGroupEdge>();
 
 	/**
 	 * The execution graph this group vertex belongs to.
@@ -128,12 +137,12 @@ public class ExecutionGroupVertex {
 	/**
 	 * List of input splits assigned to this group vertex.
 	 */
-	private InputSplit[] inputSplits = null;
+	private volatile InputSplit[] inputSplits = null;
 
 	/**
 	 * The execution stage this vertex belongs to.
 	 */
-	private ExecutionStage executionStage = null;
+	private volatile ExecutionStage executionStage = null;
 
 	/**
 	 * The configuration object of the original job vertex.
@@ -204,7 +213,8 @@ public class ExecutionGroupVertex {
 	 * @param executionStage
 	 *        The new execution stage.
 	 */
-	public void setExecutionStage(ExecutionStage executionStage) {
+	public void setExecutionStage(final ExecutionStage executionStage) {
+
 		this.executionStage = executionStage;
 	}
 
@@ -230,8 +240,8 @@ public class ExecutionGroupVertex {
 			throw new IllegalArgumentException("Argument ev must not be null");
 		}
 
-		if (groupMembers.size() == 0) {
-			groupMembers.add(ev);
+		if (this.initialGroupMemberAdded.compareAndSet(false, true)) {
+			this.groupMembers.add(ev);
 		}
 	}
 
@@ -249,11 +259,11 @@ public class ExecutionGroupVertex {
 			throw new IllegalArgumentException("Argument pos must be greater or equal to 0");
 		}
 
-		if (pos < this.groupMembers.size()) {
+		try {
 			return this.groupMembers.get(pos);
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return null;
 		}
-
-		return null;
 	}
 
 	/**
@@ -330,12 +340,14 @@ public class ExecutionGroupVertex {
 			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel)
 			throws GraphConversionException {
 
-		if (indexOfOutputGate < this.forwardLinks.size()) {
+		try {
 			final ExecutionGroupEdge previousEdge = this.forwardLinks.get(indexOfOutputGate);
 			if (previousEdge != null) {
 				throw new GraphConversionException("Output gate " + indexOfOutputGate + " of" + getName()
 						+ " already has an outgoing edge");
 			}
+		} catch (ArrayIndexOutOfBoundsException e) {
+			// Ignore exception
 		}
 
 		final ExecutionGroupEdge edge = new ExecutionGroupEdge(this.executionGraph, this, indexOfOutputGate,
@@ -357,8 +369,10 @@ public class ExecutionGroupVertex {
 	 */
 	boolean isWiredTo(final ExecutionGroupVertex groupVertex) {
 
-		for (int i = 0; i < this.forwardLinks.size(); i++) {
-			if (this.forwardLinks.get(i).getTargetVertex() == groupVertex) {
+		final Iterator<ExecutionGroupEdge> it = this.forwardLinks.iterator();
+		while (it.hasNext()) {
+			final ExecutionGroupEdge edge = it.next();
+			if (edge.getTargetVertex() == groupVertex) {
 				return true;
 			}
 		}
@@ -483,10 +497,13 @@ public class ExecutionGroupVertex {
 		wire();
 
 		// Update the index and size information attached to the vertices
-		for (int i = 0; i < this.groupMembers.size(); i++) {
-			final ExecutionVertex vertex = this.groupMembers.get(i);
-			vertex.getEnvironment().setIndexInSubtaskGroup(i);
-			vertex.getEnvironment().setCurrentNumberOfSubtasks(this.groupMembers.size());
+		int index = 0;
+		final int groupSize = this.groupMembers.size();
+		final Iterator<ExecutionVertex> it = this.groupMembers.iterator();
+		while (it.hasNext()) {
+			final ExecutionVertex vertex = it.next();
+			vertex.getEnvironment().setIndexInSubtaskGroup(index++);
+			vertex.getEnvironment().setCurrentNumberOfSubtasks(groupSize);
 		}
 
 		// Repair instance assignment
@@ -562,11 +579,11 @@ public class ExecutionGroupVertex {
 			throw new IllegalArgumentException("Argument index must be greater than or equal to 0");
 		}
 
-		if (index < this.forwardLinks.size()) {
+		try {
 			return this.forwardLinks.get(index);
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return null;
 		}
-
-		return null;
 	}
 
 	public ExecutionGroupEdge getBackwardEdge(int index) {
@@ -575,11 +592,11 @@ public class ExecutionGroupVertex {
 			throw new IllegalArgumentException("Argument index must be greater than or equal to 0");
 		}
 
-		if (index < this.backwardLinks.size()) {
+		try {
 			return this.backwardLinks.get(index);
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return null;
 		}
-
-		return null;
 	}
 
 	public List<ExecutionGroupEdge> getForwardEdges(final ExecutionGroupVertex groupVertex) {
@@ -699,12 +716,12 @@ public class ExecutionGroupVertex {
 			throw new IllegalArgumentException("shareInstancesWith: argument is null!");
 		}
 
-		if (this.vertexToShareInstancesWith != null) {
-			this.vertexToShareInstancesWith.removeFromVerticesSharingInstances(this);
+		final ExecutionGroupVertex oldVertex = this.vertexToShareInstancesWith.getAndSet(groupVertex);
+		if (oldVertex != null) {
+			oldVertex.removeFromVerticesSharingInstances(this);
 		}
 
-		this.vertexToShareInstancesWith = groupVertex;
-		this.vertexToShareInstancesWith.addToVerticesSharingInstances(this);
+		groupVertex.addToVerticesSharingInstances(this);
 
 		reassignInstances();
 		// This operation cannot affect the stages
@@ -803,7 +820,7 @@ public class ExecutionGroupVertex {
 		List<AllocatedResource> availableResources;
 
 		if (this.vertexToShareInstancesWith != null) {
-			availableResources = this.vertexToShareInstancesWith.collectAvailableResources();
+			availableResources = this.vertexToShareInstancesWith.get().collectAvailableResources();
 		} else {
 			availableResources = new ArrayList<AllocatedResource>();
 
@@ -871,7 +888,7 @@ public class ExecutionGroupVertex {
 	}
 
 	public ExecutionGroupVertex getVertexToShareInstancesWith() {
-		return this.vertexToShareInstancesWith;
+		return this.vertexToShareInstancesWith.get();
 	}
 
 	/**
