@@ -64,4 +64,18 @@ public final class AtomicEnum<T extends Enum<T>> {
 
 		return this.ref.getAndSet(newValue);
 	}
+
+	/**
+	 * Atomically set the value to the given updated value if the current value == the expected value.
+	 * 
+	 * @param expect
+	 *        the expected value
+	 * @param update
+	 *        the new value
+	 * @return <code>true</code> if successful, <code>false</code> otherwise
+	 */
+	public boolean compareAndSet(final T expect, final T update) {
+
+		return this.ref.compareAndSet(expect, update);
+	}
 }

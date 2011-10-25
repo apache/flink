@@ -310,6 +310,29 @@ public final class ExecutionVertex {
 		}
 	}
 
+	public boolean compareAndUpdateExecutionState(final ExecutionState expected, final ExecutionState update) {
+
+		if (update == null) {
+			throw new IllegalArgumentException("Argument update must not be null");
+		}
+
+		// Check the transition
+		ExecutionStateTransition.checkTransition(getName(), this.executionState.get(), update);
+
+		if (!this.executionState.compareAndSet(expected, update)) {
+			return false;
+		}
+
+		// Notify the listener objects
+		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		while (it.hasNext()) {
+			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, update,
+				null);
+		}
+
+		return true;
+	}
+
 	public void updateCheckpointState(final CheckpointState newCheckpointState) {
 
 		if (newCheckpointState == null) {
