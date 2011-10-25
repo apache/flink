@@ -19,6 +19,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import eu.stratosphere.nephele.util.UnmodifiableIterator;
+
 /**
  * An execution pipeline is a scheduling abstraction which defines a set of {@link ExecutionVertex} objects which must
  * be deployed together. An {@link ExecutionVertex} always belongs to exactly one execution pipeline.
@@ -59,5 +61,14 @@ public final class ExecutionPipeline {
 			throw new IllegalStateException("Vertex " + vertex + " was not part of the pipeline " + this);
 		}
 	}
-	
+
+	/**
+	 * Returns an {@link Iterator} to the vertices which are part of this pipeline.
+	 * 
+	 * @return an iterator to the vertices of this pipeline
+	 */
+	public Iterator<ExecutionVertex> iterator() {
+
+		return new UnmodifiableIterator<ExecutionVertex>(this.vertices.iterator());
+	}
 }

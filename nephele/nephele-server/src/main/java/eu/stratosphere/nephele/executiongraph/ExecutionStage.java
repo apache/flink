@@ -24,11 +24,18 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.types.Record;
 
 /**
  * An execution stage contains all execution group vertices (and as a result all execution vertices) which
@@ -315,5 +322,103 @@ public final class ExecutionStage {
 	public ExecutionGraph getExecutionGraph() {
 
 		return this.executionGraph;
+	}
+
+	/**
+	 * Reconstructs the execution pipelines for this execution stage.
+	 */
+	void reconstructExecutionPipelines() {
+
+		for (final ExecutionGroupVertex groupVertex : this.stageMembers) {
+
+			// We only look at input vertices first
+			if (!groupVertex.isInputVertex()) {
+				continue;
+			}
+
+			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
+
+				final ExecutionVertex vertex = groupVertex.getGroupMember(i);
+				reconstructExecutionPipeline(vertex, true);
+			}
+		}
+
+		for (final ExecutionGroupVertex groupVertex : this.stageMembers) {
+
+			// We only look at input vertices first
+			if (!groupVertex.isOutputVertex()) {
+				continue;
+			}
+
+			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
+
+				final ExecutionVertex vertex = groupVertex.getGroupMember(i);
+				reconstructExecutionPipeline(vertex, false);
+			}
+		}
+	}
+
+	/**
+	 * Reconstructs the execution pipeline starting at the given vertex by conducting a depth-first search.
+	 * 
+	 * @param vertex
+	 *        the vertex to start the depth-first search from
+	 * @param forward
+	 *        <code>true</code> to traverse the graph according to the original direction of the edges or
+	 *        <code>false</code> for the opposite direction.
+	 */
+	private void reconstructExecutionPipeline(final ExecutionVertex vertex, final boolean forward) {
+
+		ExecutionPipeline pipeline = vertex.getExecutionPipeline();
+		if (pipeline == null) {
+			pipeline = new ExecutionPipeline();
+			vertex.setExecutionPipeline(pipeline);
+		}
+
+		final Environment env = vertex.getEnvironment();
+
+		if (forward) {
+
+			final int numberOfOutputGates = env.getNumberOfOutputGates();
+			for (int i = 0; i < numberOfOutputGates; ++i) {
+
+				final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+				final ChannelType channelType = outputGate.getChannelType();
+				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+				for (int j = 0; j < numberOfOutputChannels; ++j) {
+
+					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+					final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(outputChannel
+						.getConnectedChannelID());
+
+					if (channelType == ChannelType.INMEMORY) {
+						connectedVertex.setExecutionPipeline(pipeline);
+					}
+
+					reconstructExecutionPipeline(connectedVertex, true);
+				}
+			}
+		} else {
+
+			final int numberOfInputGates = env.getNumberOfInputGates();
+			for (int i = 0; i < numberOfInputGates; ++i) {
+
+				final InputGate<? extends Record> inputGate = env.getInputGate(i);
+				final ChannelType channelType = inputGate.getChannelType();
+				final int numberOfInputChannels = inputGate.getNumberOfInputChannels();
+				for (int j = 0; j < numberOfInputChannels; ++j) {
+
+					final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
+					final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(inputChannel
+						.getConnectedChannelID());
+
+					if (channelType == ChannelType.INMEMORY) {
+						connectedVertex.setExecutionPipeline(pipeline);
+					}
+
+					reconstructExecutionPipeline(connectedVertex, false);
+				}
+			}
+		}
 	}
 }

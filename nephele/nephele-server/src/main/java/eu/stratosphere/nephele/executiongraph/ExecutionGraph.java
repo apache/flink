@@ -130,7 +130,7 @@ public class ExecutionGraph implements ExecutionListener {
 	private List<ExecutionStageListener> executionStageListeners = new ArrayList<ExecutionStageListener>();
 
 	private List<ExecutionVertex> recovering = new ArrayList<ExecutionVertex>();
-	
+
 	/**
 	 * Private constructor used for duplicating execution vertices.
 	 * 
@@ -279,6 +279,9 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Now that an initial graph is built, apply the user settings
 		applyUserDefinedSettings(temporaryGroupVertexMap);
+
+		// Finally, construct the execution pipelines
+		reconstructExecutionPipelines();
 	}
 
 	/**
@@ -1449,9 +1452,19 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Nothing to do here
 	}
-	
+
 	public List<ExecutionVertex> getFailedVertices() {
 
 		return this.recovering;
+	}
+
+	/**
+	 * Reconstructs the execution pipelines for the entire execution graph.
+	 */
+	private void reconstructExecutionPipelines() {
+
+		for (final ExecutionStage stage : this.stages) {
+			stage.reconstructExecutionPipelines();
+		}
 	}
 }
