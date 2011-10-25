@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 /**
  * An execution group edge represents an edge between two execution group vertices.
  * <p>
- * This class is not thread-safe.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -45,12 +45,12 @@ public class ExecutionGroupEdge {
 	/**
 	 * The channel type to be used between the execution vertices of the two connected group vertices.
 	 */
-	private ChannelType channelType;
+	private volatile ChannelType channelType;
 
 	/**
 	 * The compression level to be used between the execution vertices of the two connected group vertices.
 	 */
-	private CompressionLevel compressionLevel;
+	private volatile CompressionLevel compressionLevel;
 
 	/**
 	 * The group vertex connected to this edge.
