@@ -902,4 +902,14 @@ public class ExecutionGroupVertex {
 
 		return this.jobVertexID;
 	}
+
+	/**
+	 * Returns an iterator over all members of this execution group vertex.
+	 * 
+	 * @return an iterator over all members of this execution group vertex
+	 */
+	public Iterator<ExecutionVertex> iterator() {
+
+		return this.groupMembers.iterator();
+	}
 }

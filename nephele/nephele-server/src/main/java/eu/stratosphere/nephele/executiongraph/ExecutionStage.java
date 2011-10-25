@@ -15,11 +15,11 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -42,7 +42,7 @@ import eu.stratosphere.nephele.types.Record;
  * must run at the same time. The execution of a job progresses in terms of stages, i.e. the next stage of a
  * job can only start to execute if the execution of its preceding stage is complete.
  * <p>
- * This class is not thread-safe.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -61,12 +61,12 @@ public final class ExecutionStage {
 	/**
 	 * List of group vertices which are assigned to this stage.
 	 */
-	private final ArrayList<ExecutionGroupVertex> stageMembers = new ArrayList<ExecutionGroupVertex>();
+	private final CopyOnWriteArrayList<ExecutionGroupVertex> stageMembers = new CopyOnWriteArrayList<ExecutionGroupVertex>();
 
 	/**
 	 * Number of the stage.
 	 */
-	private int stageNum = -1;
+	private volatile int stageNum = -1;
 
 	/**
 	 * Constructs a new execution stage and assigns the given stage number to it.
@@ -76,7 +76,7 @@ public final class ExecutionStage {
 	 * @param stageNum
 	 *        the number of this execution stage
 	 */
-	public ExecutionStage(ExecutionGraph executionGraph, int stageNum) {
+	public ExecutionStage(final ExecutionGraph executionGraph, final int stageNum) {
 		this.executionGraph = executionGraph;
 		this.stageNum = stageNum;
 	}
@@ -87,7 +87,7 @@ public final class ExecutionStage {
 	 * @param stageNum
 	 *        the new number of this execution stage
 	 */
-	public void setStageNumber(int stageNum) {
+	public void setStageNumber(final int stageNum) {
 		this.stageNum = stageNum;
 	}
 
@@ -107,13 +107,11 @@ public final class ExecutionStage {
 	 * @param groupVertex
 	 *        the new execution group vertex to include
 	 */
-	public void addStageMember(ExecutionGroupVertex groupVertex) {
+	public void addStageMember(final ExecutionGroupVertex groupVertex) {
 
-		if (!this.stageMembers.contains(groupVertex)) {
-			this.stageMembers.add(groupVertex);
+		if (this.stageMembers.addIfAbsent(groupVertex)) {
+			groupVertex.setExecutionStage(this);
 		}
-
-		groupVertex.setExecutionStage(this);
 	}
 
 	/**
@@ -145,13 +143,13 @@ public final class ExecutionStage {
 	 * @return the stage member internally stored at the specified index or <code>null</code> if no group vertex exists
 	 *         with such an index
 	 */
-	public ExecutionGroupVertex getStageMember(int index) {
+	public ExecutionGroupVertex getStageMember(final int index) {
 
-		if (index < this.stageMembers.size()) {
+		try {
 			return this.stageMembers.get(index);
+		} catch (ArrayIndexOutOfBoundsException e) {
+			return null;
 		}
-
-		return null;
 	}
 
 	/**
@@ -273,9 +271,11 @@ public final class ExecutionStage {
 			final ExecutionGroupVertex groupVertex = groupIt.next();
 			System.out.println("Looking at group vertex " + groupVertex.getName());
 
-			for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
+			final Iterator<ExecutionVertex> vertexIt = groupVertex.iterator();
+			while (vertexIt.hasNext()) {
+
 				// Get the instance type from the execution vertex if it
-				final ExecutionVertex vertex = groupVertex.getGroupMember(j);
+				final ExecutionVertex vertex = vertexIt.next();
 				if (vertex.getExecutionState() == executionState) {
 					final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
@@ -329,30 +329,38 @@ public final class ExecutionStage {
 	 */
 	void reconstructExecutionPipelines() {
 
-		for (final ExecutionGroupVertex groupVertex : this.stageMembers) {
+		Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
+		while (it.hasNext()) {
+
+			final ExecutionGroupVertex groupVertex = it.next();
 
 			// We only look at input vertices first
 			if (!groupVertex.isInputVertex()) {
 				continue;
 			}
 
-			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
+			final Iterator<ExecutionVertex> vertexIt = groupVertex.iterator();
+			while (vertexIt.hasNext()) {
 
-				final ExecutionVertex vertex = groupVertex.getGroupMember(i);
+				final ExecutionVertex vertex = vertexIt.next();
 				reconstructExecutionPipeline(vertex, true);
 			}
 		}
 
-		for (final ExecutionGroupVertex groupVertex : this.stageMembers) {
+		it = this.stageMembers.iterator();
+		while (it.hasNext()) {
+
+			final ExecutionGroupVertex groupVertex = it.next();
 
 			// We only look at input vertices first
 			if (!groupVertex.isOutputVertex()) {
 				continue;
 			}
 
-			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
+			final Iterator<ExecutionVertex> vertexIt = groupVertex.iterator();
+			while (vertexIt.hasNext()) {
 
-				final ExecutionVertex vertex = groupVertex.getGroupMember(i);
+				final ExecutionVertex vertex = vertexIt.next();
 				reconstructExecutionPipeline(vertex, false);
 			}
 		}
