@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.executiongraph;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -128,7 +129,7 @@ public final class ExecutionVertex {
 	/**
 	 * The execution pipeline this vertex is part of.
 	 */
-	private volatile ExecutionPipeline executionPipeline = null;
+	private final AtomicReference<ExecutionPipeline> executionPipeline = new AtomicReference<ExecutionPipeline>(null);
 
 	/**
 	 * Create a new execution vertex and instantiates its environment.
@@ -641,9 +642,7 @@ public final class ExecutionVertex {
 	 */
 	public void registerVertexAssignmentListener(final VertexAssignmentListener vertexAssignmentListener) {
 
-		if (!this.vertexAssignmentListeners.contains(vertexAssignmentListener)) {
-			this.vertexAssignmentListeners.add(vertexAssignmentListener);
-		}
+		this.vertexAssignmentListeners.addIfAbsent(vertexAssignmentListener);
 	}
 
 	/**
@@ -667,9 +666,7 @@ public final class ExecutionVertex {
 	 */
 	public void registerCheckpointStateListener(final CheckpointStateListener checkpointStateListener) {
 
-		if (!this.checkpointStateListeners.contains(checkpointStateListener)) {
-			this.checkpointStateListeners.add(checkpointStateListener);
-		}
+		this.checkpointStateListeners.addIfAbsent(checkpointStateListener);
 	}
 
 	/**
@@ -693,9 +690,7 @@ public final class ExecutionVertex {
 	 */
 	public void registerExecutionListener(final ExecutionListener executionListener) {
 
-		if (!this.executionListeners.contains(executionListener)) {
-			this.executionListeners.add(executionListener);
-		}
+		this.executionListeners.addIfAbsent(executionListener);
 	}
 
 	/**
@@ -728,12 +723,12 @@ public final class ExecutionVertex {
 	 */
 	void setExecutionPipeline(final ExecutionPipeline executionPipeline) {
 
-		if (this.executionPipeline != null) {
-			this.executionPipeline.removeFromPipeline(this);
+		final ExecutionPipeline oldPipeline = this.executionPipeline.getAndSet(executionPipeline);
+		if (oldPipeline != null) {
+			oldPipeline.removeFromPipeline(this);
 		}
 
-		this.executionPipeline = executionPipeline;
-		this.executionPipeline.addToPipeline(this);
+		executionPipeline.addToPipeline(this);
 	}
 
 	/**
@@ -743,6 +738,6 @@ public final class ExecutionVertex {
 	 */
 	public ExecutionPipeline getExecutionPipeline() {
 
-		return this.executionPipeline;
+		return this.executionPipeline.get();
 	}
 }
