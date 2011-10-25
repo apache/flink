@@ -110,7 +110,7 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * The job configuration that was originally attached to the JobGraph.
 	 */
-	private volatile Configuration jobConfiguration;
+	private final Configuration jobConfiguration;
 
 	/**
 	 * The current status of the job which is represented by this execution graph.
@@ -141,8 +141,10 @@ public class ExecutionGraph implements ExecutionListener {
 	 *        the ID of the duplicated execution graph
 	 * @param jobName
 	 *        the name of the original job graph
+	 * @param jobConfiguration
+	 *        the configuration originally attached to the job graph
 	 */
-	private ExecutionGraph(final JobID jobID, final String jobName) {
+	private ExecutionGraph(final JobID jobID, final String jobName, final Configuration jobConfiguration) {
 
 		if (jobID == null) {
 			throw new IllegalArgumentException("Argument jobID must not be null");
@@ -150,6 +152,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 		this.jobID = jobID;
 		this.jobName = jobName;
+		this.jobConfiguration = jobConfiguration;
 	}
 
 	/**
@@ -163,7 +166,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
 	public ExecutionGraph(final JobGraph job, final InstanceManager instanceManager) throws GraphConversionException {
-		this(job.getJobID(), job.getName());
+		this(job.getJobID(), job.getName(), job.getJobConfiguration());
 
 		// Start constructing the new execution graph from given job graph
 		try {
@@ -259,9 +262,6 @@ public class ExecutionGraph implements ExecutionListener {
 		// Clean up temporary data structures
 		final HashMap<AbstractJobVertex, ExecutionVertex> temporaryVertexMap = new HashMap<AbstractJobVertex, ExecutionVertex>();
 		final HashMap<AbstractJobVertex, ExecutionGroupVertex> temporaryGroupVertexMap = new HashMap<AbstractJobVertex, ExecutionGroupVertex>();
-
-		// First, store job configuration
-		this.jobConfiguration = jobGraph.getJobConfiguration();
 
 		// Initially, create only one execution stage that contains all group vertices
 		final ExecutionStage initialExecutionStage = new ExecutionStage(this, 0);
