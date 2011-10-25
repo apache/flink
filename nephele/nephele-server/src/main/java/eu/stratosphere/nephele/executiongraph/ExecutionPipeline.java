@@ -15,9 +15,8 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -27,7 +26,7 @@ import eu.stratosphere.nephele.util.UnmodifiableIterator;
  * An execution pipeline is a scheduling abstraction which defines a set of {@link ExecutionVertex} objects which must
  * be deployed together. An {@link ExecutionVertex} always belongs to exactly one execution pipeline.
  * <p>
- * This class is not thread-safe.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -36,7 +35,7 @@ public final class ExecutionPipeline {
 	/**
 	 * The set of vertices belonging to this execution pipeline.
 	 */
-	private final Set<ExecutionVertex> vertices = new HashSet<ExecutionVertex>();
+	private final CopyOnWriteArrayList<ExecutionVertex> vertices = new CopyOnWriteArrayList<ExecutionVertex>();
 
 	/**
 	 * Adds the given {@link ExecutionVertex} to this pipeline.
@@ -46,7 +45,7 @@ public final class ExecutionPipeline {
 	 */
 	void addToPipeline(final ExecutionVertex vertex) {
 
-		if (!this.vertices.add(vertex)) {
+		if (!this.vertices.addIfAbsent(vertex)) {
 			throw new IllegalStateException("Vertex " + vertex + " has already been added to pipeline " + this);
 		}
 	}
