@@ -126,6 +126,11 @@ public final class ExecutionVertex {
 	private CheckpointState checkpointState = CheckpointState.NONE;
 
 	/**
+	 * The execution pipeline this vertex is part of.
+	 */
+	private ExecutionPipeline executionPipeline = null;
+
+	/**
 	 * Create a new execution vertex and instantiates its environment.
 	 * 
 	 * @param jobID
@@ -712,5 +717,31 @@ public final class ExecutionVertex {
 	public CheckpointState getCheckpointState() {
 
 		return this.checkpointState;
+	}
+
+	/**
+	 * Sets the {@link ExecutionPipeline} this vertex shall be part of.
+	 * 
+	 * @param executionPipeline
+	 *        the execution pipeline this vertex shall be part of
+	 */
+	void setExecutionPipeline(final ExecutionPipeline executionPipeline) {
+
+		if (this.executionPipeline != null) {
+			this.executionPipeline.removeFromPipeline(this);
+		}
+
+		this.executionPipeline = executionPipeline;
+		this.executionPipeline.addToPipeline(this);
+	}
+
+	/**
+	 * Returns the {@link ExecutionPipeline} this vertex is part of.
+	 * 
+	 * @return the execution pipeline this vertex is part of
+	 */
+	public ExecutionPipeline getExecutionPipeline() {
+
+		return this.executionPipeline;
 	}
 }
