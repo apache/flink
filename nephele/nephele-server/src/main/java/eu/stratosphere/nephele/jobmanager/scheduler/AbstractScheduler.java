@@ -257,32 +257,29 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
 		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
 
-		synchronized (executionGraph) {
+		for (int i = 0; i < executionStage.getNumberOfStageMembers(); ++i) {
 
-			for (int i = 0; i < executionStage.getNumberOfStageMembers(); ++i) {
-
-				final ExecutionGroupVertex startVertex = executionStage.getStageMember(i);
-				if (!startVertex.isInputVertex()) {
-					continue;
-				}
-
-				for (int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
-					final ExecutionVertex vertex = startVertex.getGroupMember(j);
-					findVerticesToBeDeployed(vertex, verticesToBeDeployed);
-				}
+			final ExecutionGroupVertex startVertex = executionStage.getStageMember(i);
+			if (!startVertex.isInputVertex()) {
+				continue;
 			}
 
-			if (!verticesToBeDeployed.isEmpty()) {
+			for (int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
+				final ExecutionVertex vertex = startVertex.getGroupMember(j);
+				findVerticesToBeDeployed(vertex, verticesToBeDeployed);
+			}
+		}
 
-				final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
-					.entrySet()
-					.iterator();
+		if (!verticesToBeDeployed.isEmpty()) {
 
-				while (it2.hasNext()) {
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
+				.entrySet()
+				.iterator();
 
-					final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
-					this.deploymentManager.deploy(executionGraph.getJobID(), entry.getKey(), entry.getValue());
-				}
+			while (it2.hasNext()) {
+
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+				this.deploymentManager.deploy(executionGraph.getJobID(), entry.getKey(), entry.getValue());
 			}
 		}
 	}
