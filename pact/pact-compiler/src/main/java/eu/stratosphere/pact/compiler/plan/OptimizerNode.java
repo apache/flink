@@ -127,6 +127,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	protected Map<OptimizerNode, OptimizerNode> branchPlan; // the actual plan alternative chosen at a branch point
 
+	protected OptimizerNode lastJoinedBranchNode; // the node with latest branch (node with multiple outputs)
+	                                          // that both children share and that is at least partially joined
+
 	protected LocalStrategy localStrategy; // The local strategy (sorting / hashing, ...)
 
 	protected Costs nodeCosts; // the costs incurred by this node
@@ -212,7 +215,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(6);
 			this.branchPlan.put(toClone, this);
 		}
-	}
+
+		// remember the highest node in our sub-plan that branched.
+		this.lastJoinedBranchNode = toClone.lastJoinedBranchNode;
+}
 
 	// ------------------------------------------------------------------------
 	//      Abstract methods that implement node specific behavior
@@ -905,6 +911,104 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 				"Error in compiler: Cannot get branch info for parent in a node woth no parents.");
 		}
 	}
+	
+	/**
+	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
+	 * alternative plans are comparable, if
+	 * a) There is no branch in the sub-plan of this node
+	 * b) Both candidates have the same candidate as the child at the last open branch. 
+	 * 
+	 * @param child1Candidate
+	 * @param child2Candidate
+	 * @return
+	 */
+	protected boolean areBranchCompatible(OptimizerNode child1Candidate, OptimizerNode child2Candidate)
+	{
+		// if there is no open branch, the children are always compatible.
+		// in most plans, that will be the dominant case
+		if (this.lastJoinedBranchNode == null) {
+			return true;
+		}
+		// else
+		return child1Candidate.branchPlan.get(this.lastJoinedBranchNode) == 
+				child2Candidate.branchPlan.get(this.lastJoinedBranchNode);
+	}
+
+	/*
+	 * node IDs are assigned in graph-traversal order (pre-order)
+	 * hence, each list is sorted by ID in ascending order and all consecutive lists start with IDs in ascending order
+	 */
+	protected List<UnclosedBranchDescriptor> mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open) {
+		// check how many open branches we have. the cases:
+		// 1) if both are null or empty, the result is null
+		// 2) if one side is null (or empty), the result is the other side.
+		// 3) both are set, then we need to merge.
+		if (child1open.isEmpty()) {
+			return child2open;
+		}
+		
+		if (child2open.isEmpty()) {
+			return child1open;
+		}
+		
+		// both have a history. merge...
+		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>(4);
+
+
+		int index1 = child1open.size() - 1;
+		int index2 = child2open.size() - 1;
+
+		// as both lists (child1open and child2open) are sorted in ascending ID order
+		// we can do a merge-join-like loop which preserved the order in the result list
+		// and eliminates duplicates
+		while (index1 >= 0 || index2 >= 0) {
+			int id1 = -1;
+			int id2 = index2 >= 0 ? child2open.get(index2).getBranchingNode().getId() : -1;
+
+			while (index1 >= 0 && (id1 = child1open.get(index1).getBranchingNode().getId()) > id2) {
+				result.add(child1open.get(index1));
+				index1--;
+			}
+			while (index2 >= 0 && (id2 = child2open.get(index2).getBranchingNode().getId()) > id1) {
+				result.add(child2open.get(index2));
+				index2--;
+			}
+
+			// match: they share a common branching child
+			if (id1 == id2) {
+				// if this is the latest common child, remember it
+				OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
+
+				if (this.lastJoinedBranchNode == null) {
+					this.lastJoinedBranchNode = currBanchingNode;
+				}
+
+				// see, if this node closes the branch
+				long joinedInputs = child1open.get(index1).getJoinedPathsVector()
+					| child2open.get(index2).getJoinedPathsVector();
+
+				// this is 2^size - 1, which is all bits set at positions 0..size-1
+				long allInputs = (0x1L << currBanchingNode.getOutgoingConnections().size()) - 1;
+
+				if (joinedInputs == allInputs) {
+					// closed - we can remove it from the stack
+				} else {
+					// not quite closed
+					result.add(new UnclosedBranchDescriptor(currBanchingNode, joinedInputs));
+				}
+
+				index1--;
+				index2--;
+			}
+
+		}
+
+		// merged. now we need to reverse the list, because we added the elements in reverse order
+		Collections.reverse(result);
+		
+		return result;
+	}
+
 
 	protected static final class UnclosedBranchDescriptor
 	{

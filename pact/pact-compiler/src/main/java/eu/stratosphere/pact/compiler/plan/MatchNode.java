@@ -371,7 +371,7 @@ public class MatchNode extends TwoInputNode {
 								}
 
 								// create the alternative nodes. the strategies to create depend on the different
-								// combinations of pre-existing partitionings
+								// combinations of pre-existing partitions
 								if (ss1 == ShipStrategy.FORWARD) {
 									if (ss2 == ShipStrategy.FORWARD) {
 										// both are equally pre-partitioned

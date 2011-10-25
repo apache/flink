@@ -47,9 +47,6 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	private List<List<PactConnection>> inputs; // the cached list of inputs
 
-	private OptimizerNode lastJoinedBranchNode; // the node with latest branch (node with multiple outputs)
-	                                          // that both children share and that is at least partially joined
-
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
@@ -102,9 +99,6 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 		this.inputs.add(this.input2);
 
-		// remember the highest node in our sub-plan that branched.
-		this.lastJoinedBranchNode = template.lastJoinedBranchNode;
-		
 		// merge the branchPlan maps according the the template's uncloseBranchesStack
 		if (template.openBranches != null)
 		{
@@ -307,85 +301,17 @@ public abstract class TwoInputNode extends OptimizerNode
 			return;
 		}
 
-		List<UnclosedBranchDescriptor> l;
 
-		List<UnclosedBranchDescriptor> child1open = new ArrayList<UnclosedBranchDescriptor>();
+		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
 		for(PactConnection c : this.input1) {
-			l = c.getSourcePact().getBranchesForParent(this);
-			if(l != null)
-				child1open.addAll(l);
+			result1 = mergeLists(result1, c.getSourcePact().getBranchesForParent(this));
 		}
-		List<UnclosedBranchDescriptor> child2open = new ArrayList<UnclosedBranchDescriptor>();
+		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>();
 		for(PactConnection c : this.input2) {
-			l = c.getSourcePact().getBranchesForParent(this);
-			if(l != null)
-				child2open.addAll(l);
+			result2 = mergeLists(result2, c.getSourcePact().getBranchesForParent(this));
 		}
 
-		// check how many open branches we have. the cases:
-		// 1) if both are null or empty, the result is null
-		// 2) if one side is null (or empty), the result is the other side.
-		// 3) both are set, then we need to merge.
-		if (child1open.isEmpty()) {
-			this.openBranches = child2open;
-		} else if (child2open.isEmpty()) {
-			this.openBranches = child1open;
-		} else {
-			// both have a history. merge...
-			this.openBranches = new ArrayList<OptimizerNode.UnclosedBranchDescriptor>(4);
-
-			int index1 = child1open.size() - 1;
-			int index2 = child2open.size() - 1;
-
-			while (index1 >= 0 || index2 >= 0) {
-				int id1 = -1;
-				int id2 = index2 >= 0 ? child2open.get(index2).getBranchingNode().getId() : -1;
-
-				while (index1 >= 0 && (id1 = child1open.get(index1).getBranchingNode().getId()) > id2) {
-					this.openBranches.add(child1open.get(index1));
-					index1--;
-				}
-				while (index2 >= 0 && (id2 = child2open.get(index2).getBranchingNode().getId()) > id1) {
-					this.openBranches.add(child2open.get(index2));
-					index2--;
-				}
-
-				// match: they share a common branching child
-				if (id1 == id2) {
-					// if this is the latest common child, remember it
-					OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
-
-					if (this.lastJoinedBranchNode == null) {
-						this.lastJoinedBranchNode = currBanchingNode;
-					}
-
-					// see, if this node closes the branch
-					long joinedInputs = child1open.get(index1).getJoinedPathsVector()
-						| child2open.get(index2).getJoinedPathsVector();
-
-					// this is 2^size - 1, which is all bits set at positions 0..size-1
-					long allInputs = (0x1L << currBanchingNode.getOutgoingConnections().size()) - 1;
-
-					if (joinedInputs == allInputs) {
-						// closed - we can remove it from the stack
-					} else {
-						// not quite closed
-						this.openBranches.add(new UnclosedBranchDescriptor(currBanchingNode, joinedInputs));
-					}
-
-					index1--;
-					index2--;
-				}
-
-			}
-
-			if (this.openBranches.isEmpty()) {
-				this.openBranches = null;
-			} else {
-				// merged. now we need to reverse the list, because we added the elements in reverse order
-				Collections.reverse(this.openBranches);
-			}
-		}
+		this.openBranches = mergeLists(result1, result2);
 	}
 
 	// ------------------------------------------------------------------------
@@ -418,32 +344,6 @@ public abstract class TwoInputNode extends OptimizerNode
 
 			visitor.postVisit(this);
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//                       Handling of branches
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
-	 * alternative plans are comparable, if
-	 * a) There is no branch in the sub-plan of this node
-	 * b) Both candidates have the same candidate as the child at the last open branch. 
-	 * 
-	 * @param child1Candidate
-	 * @param child2Candidate
-	 * @return
-	 */
-	protected boolean areBranchCompatible(OptimizerNode child1Candidate, OptimizerNode child2Candidate)
-	{
-		// if there is no open branch, the children are always compatible.
-		// in most plans, that will be the dominant case
-		if (this.lastJoinedBranchNode == null) {
-			return true;
-		}
-		// else
-		return child1Candidate.branchPlan.get(this.lastJoinedBranchNode) == 
-				child2Candidate.branchPlan.get(this.lastJoinedBranchNode);
 	}
 
 	/**

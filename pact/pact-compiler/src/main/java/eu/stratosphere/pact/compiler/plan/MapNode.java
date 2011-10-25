@@ -154,7 +154,7 @@ public class MapNode extends SingleInputNode {
 
 		// the map itself also adds no cost for local strategies!
 
-		// set shipping strategies for all incoming connections
+
 		List<MapNode> outputPlans = new ArrayList<MapNode>();
 		getAlternativePlansRecursively(new ArrayList<OptimizerNode>(0), estimator, outputPlans);
 		
@@ -170,7 +170,7 @@ public class MapNode extends SingleInputNode {
 	}
 	
 	private void getAlternativePlansRecursively(List<OptimizerNode> allPreds, CostEstimator estimator, List<MapNode> outputPlans) {
-		// what is out recursive depth
+		// what is our recursive depth
 		final int allPredsSize = allPreds.size();
 		// pick the connection this recursive step has to process
 		PactConnection connToProcess = this.input.get(allPredsSize);

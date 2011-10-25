@@ -291,19 +291,16 @@ public class DataSinkNode extends OptimizerNode {
 	 */
 	@Override
 	public void computeUnclosedBranchStack() {
-		if (this.openBranches == null) {
-			// we don't join branches, so we merely have to check, whether out immediate child is a
-			// branch (has multiple outputs). If yes, we add that one as a branch, otherwise out
-			// branch stack is the same as the child's
-			this.openBranches = new ArrayList<UnclosedBranchDescriptor>();
-			for(PactConnection c : this.input) {
-				List<UnclosedBranchDescriptor> parentBranchList = c.getSourcePact().getBranchesForParent(this);
-				if(parentBranchList != null)
-					this.openBranches.addAll(parentBranchList);
-			}
-			if(this.openBranches.size() == 0)
-				this.openBranches = null;
+		if (this.openBranches != null) {
+			return;
 		}
+
+		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
+		for(PactConnection c : this.input) {
+			result = mergeLists(result, c.getSourcePact().getBranchesForParent(this));
+		}
+
+		this.openBranches = result;
 	}
 	
 	/* (non-Javadoc)

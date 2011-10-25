@@ -262,6 +262,10 @@ public class CrossNode extends TwoInputNode {
 			return this.cachedPlans;
 		}
 
+//		List<CrossNode> outputPlans = new ArrayList<CrossNode>();
+//		getAlternativePlansRecursively(new ArrayList<OptimizerNode>(0), new ArrayList<OptimizerNode>(0), estimator, outputPlans);
+
+		
 		// TODO: mjsax
 		// right now we do not enumerate all plans
 		// -> because of union we have to do a recursive enumeration, what is missing right now
@@ -332,6 +336,64 @@ public class CrossNode extends TwoInputNode {
 		return outputPlans;
 	}
 
+	// build left alternative recursively
+	private void getAlternativePlansRecursively(List<OptimizerNode> allLeftPreds, List<OptimizerNode> allRightPreds, CostEstimator estimator, List<CrossNode> outputPlans) {
+		// what is our left recursive depth
+		final int allLeftPredsSize = allLeftPreds.size();
+		// pick the connection this recursive step has to process
+		PactConnection leftConnToProcess = this.input1.get(allLeftPredsSize);
+		// get all alternatives for current recursion level
+		List<? extends OptimizerNode> inPlansLeft = leftConnToProcess.getSourcePact().getAlternativePlans(estimator);
+		
+		// now enumerate all alternative of this recursion level
+		for (OptimizerNode pred : inPlansLeft) {
+			// add an alternative plan node
+			allLeftPreds.add(pred);
+
+			// check if the hit the last recursion level
+			if(allLeftPredsSize + 1 == this.input1.size()) {
+				// last left recursion level: left start with right side
+				getAlternativePlansRecursively2(allLeftPreds, allRightPreds, estimator, outputPlans);
+			} else {
+				getAlternativePlansRecursively(allLeftPreds, allRightPreds, estimator, outputPlans);
+			}
+			
+			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
+			allLeftPreds.remove(allLeftPredsSize);
+		}
+
+	}
+
+	// build left alternative recursively
+	private void getAlternativePlansRecursively2(List<OptimizerNode> allLeftPreds, List<OptimizerNode> allRightPreds, CostEstimator estimator, List<CrossNode> outputPlans) {
+		// what is our right recursive depth
+		final int allRightPredsSize = allRightPreds.size();
+		// pick the connection this recursive step has to process
+		PactConnection rightConnToProcess = this.input2.get(allRightPredsSize);
+		// get all alternatives for current recursion level
+		List<? extends OptimizerNode> inPlansRight = rightConnToProcess.getSourcePact().getAlternativePlans(estimator);
+		
+		// now enumerate all alternative of this recursion level
+		for (OptimizerNode pred : inPlansRight) {
+			// add an alternative plan node
+			allRightPreds.add(pred);
+			
+			// check if the hit the last recursion level
+			if(allRightPredsSize + 1 == this.input2.size()) {
+				// last right recursion level: now we can build an alternative Cross node
+				
+				// TODO
+			} else {
+				getAlternativePlansRecursively2(allLeftPreds, allRightPreds, estimator, outputPlans);
+			}
+			
+			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
+			allRightPreds.remove(allRightPredsSize);
+		}
+	}
+
+	
+	
 	/**
 	 * Private utility method that generates the alternative Cross nodes, given fixed shipping strategies
 	 * for the inputs.
