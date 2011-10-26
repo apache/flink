@@ -91,35 +91,39 @@ public final class CheckpointDecisionCoordinator {
 	 *        the current resource utilization of the vertex
 	 */
 	void checkpointDecisionRequired(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
-		boolean checkpointDesicion = false;
+		boolean checkpointDecision = false;
 		LOG.info("Checkpoint decision for vertex " + vertex + " required");
 		// This implementation always creates the checkpoint
 		
 		// TODO: Provide sensible implementation here
+		if(rus.getForced() == null){
+			if (rus.getUserCPU() >= 90) { 
+				LOG.info("CPU-Bottleneck");
+				//CPU bottleneck 
+				checkpointDecision = true;
+			} else {
 
-		if (rus.getUserCPU() >= 90) { 
-			LOG.info("CPU-Bottleneck");
-			//CPU bottleneck 
-			checkpointDesicion = true;
-		} else {
-		
-			if ( vertex.getNumberOfSuccessors() != 0 
-					&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) { 
-				LOG.info("vertex.getNumberOfPredecessors()/ vertex.getNumberOfSuccessors() > 1.5");
-				//less output-channels than input-channels 
-				//checkpoint at this position probably saves network-traffic 
-				checkpointDesicion = true;
-			} else if (true) {
-				//always create checkpoint for testing
-				checkpointDesicion = true;
+				if ( vertex.getNumberOfSuccessors() != 0 
+						&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) { 
+					LOG.info("vertex.getNumberOfPredecessors()/ vertex.getNumberOfSuccessors() > 1.5");
+					//less output-channels than input-channels 
+					//checkpoint at this position probably saves network-traffic 
+					checkpointDecision = true;
+				} else if (true) {
+					//always create checkpoint for testing
+					checkpointDecision = true;
+				}
 			}
+		}else{
+			//checkpoint decision was forced by the user
+			checkpointDecision = rus.getForced();
 		}
 		final ExecutionGraph graph = vertex.getExecutionGraph();
 		final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
 		final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
 
 		synchronized (graph) {
-			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), checkpointDesicion));
+			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), checkpointDecision));
 			checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
 		}
 		

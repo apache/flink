@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 
@@ -46,6 +47,12 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 	 * userCPu Time in percent
 	 */
 	private long userCPU;
+	
+	/**
+	 * The forced decision if annotated
+	 */
+	private Boolean forced;
+
 
 	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU) {
 
@@ -60,6 +67,23 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.timestamp = timestamp;
 		this.channelUtilization = channelUtilization;
 		this.userCPU = userCPU;
+		
+	}
+	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, Boolean forced) {
+
+		if (timestamp <= 0L) {
+			throw new IllegalArgumentException("Argument timestamp must be larger than zero");
+		}
+
+		if (channelUtilization == null) {
+			throw new IllegalArgumentException("Argument channelUtilization is null");
+		}
+
+		this.timestamp = timestamp;
+		this.channelUtilization = channelUtilization;
+		this.userCPU = userCPU;
+		this.forced = forced;
+		
 	}
 
 	public ResourceUtilizationSnapshot() {
@@ -84,6 +108,15 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 			entry.getKey().write(out);
 			out.writeLong(entry.getValue().longValue());
 		}
+		// Write the userCPU
+		out.writeLong(this.userCPU);
+		// Write forced decision 
+		if(this.forced == null){
+			out.writeByte(0);
+		}else{
+			out.writeByte(1);
+			out.writeBoolean(this.forced);
+		}
 	}
 
 	/**
@@ -103,6 +136,11 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 			channelID.read(in);
 			final Long l = Long.valueOf(in.readLong());
 			this.channelUtilization.put(channelID, l);
+		}
+		this.userCPU = in.readLong();
+		
+		if(in.readByte() == 1){
+			this.forced = in.readBoolean();
 		}
 	}
 
@@ -144,4 +182,12 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 	public long getUserCPU() {
 		return this.userCPU;
 	}
+	/**
+	 * Returns whether a decision was forced by the user
+	 * @return 
+	 */
+	public Boolean getForced() {
+		return forced;
+	}
+	
 }

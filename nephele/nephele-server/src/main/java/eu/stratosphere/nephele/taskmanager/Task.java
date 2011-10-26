@@ -27,6 +27,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
+import eu.stratosphere.nephele.annotations.Statefull;
+import eu.stratosphere.nephele.annotations.Stateless;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
@@ -263,8 +266,19 @@ public class Task implements ExecutionObserver {
 					Long.valueOf(outputChannel.getAmountOfDataTransmitted()));
 			}
 		}
+		Boolean force = null;
 		
-		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization, userCPU);
+		if(this.environment.getInvokable().getClass().isAnnotationPresent(Statefull.class) && !this.environment.getInvokable().getClass().isAnnotationPresent(Stateless.class) ){
+			//Don't checkpoint statefull tasks
+			force = false;
+		}else{
+			//look for a forced decision from the user
+			ForceCheckpoint forced = this.environment.getInvokable().getClass().getAnnotation(ForceCheckpoint.class);
+			if(forced != null){
+				force = forced.checkpoint();
+			}
+		}
+		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization, userCPU, force);
 
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
