@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.util.StringUtils;
@@ -31,7 +30,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionStageListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
-import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
@@ -185,15 +183,6 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		}
 
 		return null;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
-		// TODO Auto-generated method stub
-
 	}
 
 	/**
