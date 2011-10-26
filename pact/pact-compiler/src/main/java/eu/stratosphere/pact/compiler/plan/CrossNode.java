@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -249,150 +248,36 @@ public class CrossNode extends TwoInputNode {
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact
-	 * .compiler.costs.CostEstimator)
-	 */
 	@Override
-	public List<CrossNode> getAlternativePlans(CostEstimator estimator) {
-		// check if we have a cached version
-		if (this.cachedPlans != null) {
-			return this.cachedPlans;
-		}
+	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
+			List<List<OptimizerNode>> alternativeSubPlanCominations2, CostEstimator estimator, List<OptimizerNode> outputPlans)
+	{
 
-//		List<CrossNode> outputPlans = new ArrayList<CrossNode>();
-//		getAlternativePlansRecursively(new ArrayList<OptimizerNode>(0), new ArrayList<OptimizerNode>(0), estimator, outputPlans);
+		for(List<OptimizerNode> predList1 : alternativeSubPlanCominations1) {
+			for(List<OptimizerNode> predList2 : alternativeSubPlanCominations2) {
 
-		
-		// TODO: mjsax
-		// right now we do not enumerate all plans
-		// -> because of union we have to do a recursive enumeration, what is missing right now
-		List<OptimizerNode> allPreds1 = new ArrayList<OptimizerNode>(this.input1.size());
-		for(PactConnection c : this.input1) {
-			allPreds1.add(c.getSourcePact());
-		}
-		
-		// TODO: mjsax
-		// right now we do not enumerate all plans
-		// -> because of union we have to do a recursive enumeration, what is missing right now
-		List<OptimizerNode> allPreds2 = new ArrayList<OptimizerNode>(this.input2.size());
-		for(PactConnection c : this.input2) {
-			allPreds2.add(c.getSourcePact());
-		}
+				// check, whether the two children have the same
+				// sub-plan in the common part before the branches
+				if (!areBranchCompatible(pred1, pred2)) {
+					continue;
+				}
 
-		
+				ShipStrategy ss1 = c.getShipStrategy();
+				ShipStrategy ss2 = cc.getShipStrategy();
 
-		List<CrossNode> outputPlans = new ArrayList<CrossNode>();
-		for(PactConnection c : this.input1) {
-			List<? extends OptimizerNode> inPlans1 = c.getSourcePact().getAlternativePlans(estimator);
-			
-			for(PactConnection cc : this.input2) {
-				List<? extends OptimizerNode> inPlans2 = cc.getSourcePact().getAlternativePlans(estimator);
-
-				// go over each combination of alternative children from the two inputs
-				for (OptimizerNode pred1 : inPlans1) {
-					for (OptimizerNode pred2 : inPlans2) {
-						// check, whether the two children have the same
-						// sub-plan in the common part before the branches
-						if (!areBranchCompatible(pred1, pred2)) {
-							continue;
-						}
-		
-						ShipStrategy ss1 = c.getShipStrategy();
-						ShipStrategy ss2 = cc.getShipStrategy();
-		
-						if (ss1 != ShipStrategy.NONE) {
-							// if one is fixed, the other is also
-							createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
-						} else {
-							// create all alternatives
-							createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.BROADCAST, ShipStrategy.FORWARD,
-								estimator, allPreds1, allPreds2);
-							createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD, ShipStrategy.BROADCAST,
-								estimator, allPreds1, allPreds2);
-						}
-					}
+				if (ss1 != ShipStrategy.NONE) {
+					// if one is fixed, the other is also
+					createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+				} else {
+					// create all alternatives
+					createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.BROADCAST, ShipStrategy.FORWARD,
+						estimator, allPreds1, allPreds2);
+					createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD, ShipStrategy.BROADCAST,
+						estimator, allPreds1, allPreds2);
 				}
 			}
 		}
-
-		// check if the list does not contain any plan. That may happen, if the channels specify
-		// incompatible shipping strategies.
-		if (outputPlans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the cross contract '"
-				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
-		}
-
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (isBranching()) {
-			this.cachedPlans = outputPlans;
-		}
-
-		return outputPlans;
 	}
-
-	// build left alternative recursively
-	private void getAlternativePlansRecursively(List<OptimizerNode> allLeftPreds, List<OptimizerNode> allRightPreds, CostEstimator estimator, List<CrossNode> outputPlans) {
-		// what is our left recursive depth
-		final int allLeftPredsSize = allLeftPreds.size();
-		// pick the connection this recursive step has to process
-		PactConnection leftConnToProcess = this.input1.get(allLeftPredsSize);
-		// get all alternatives for current recursion level
-		List<? extends OptimizerNode> inPlansLeft = leftConnToProcess.getSourcePact().getAlternativePlans(estimator);
-		
-		// now enumerate all alternative of this recursion level
-		for (OptimizerNode pred : inPlansLeft) {
-			// add an alternative plan node
-			allLeftPreds.add(pred);
-
-			// check if the hit the last recursion level
-			if(allLeftPredsSize + 1 == this.input1.size()) {
-				// last left recursion level: left start with right side
-				getAlternativePlansRecursively2(allLeftPreds, allRightPreds, estimator, outputPlans);
-			} else {
-				getAlternativePlansRecursively(allLeftPreds, allRightPreds, estimator, outputPlans);
-			}
-			
-			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
-			allLeftPreds.remove(allLeftPredsSize);
-		}
-
-	}
-
-	// build left alternative recursively
-	private void getAlternativePlansRecursively2(List<OptimizerNode> allLeftPreds, List<OptimizerNode> allRightPreds, CostEstimator estimator, List<CrossNode> outputPlans) {
-		// what is our right recursive depth
-		final int allRightPredsSize = allRightPreds.size();
-		// pick the connection this recursive step has to process
-		PactConnection rightConnToProcess = this.input2.get(allRightPredsSize);
-		// get all alternatives for current recursion level
-		List<? extends OptimizerNode> inPlansRight = rightConnToProcess.getSourcePact().getAlternativePlans(estimator);
-		
-		// now enumerate all alternative of this recursion level
-		for (OptimizerNode pred : inPlansRight) {
-			// add an alternative plan node
-			allRightPreds.add(pred);
-			
-			// check if the hit the last recursion level
-			if(allRightPredsSize + 1 == this.input2.size()) {
-				// last right recursion level: now we can build an alternative Cross node
-				
-				// TODO
-			} else {
-				getAlternativePlansRecursively2(allLeftPreds, allRightPreds, estimator, outputPlans);
-			}
-			
-			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
-			allRightPreds.remove(allRightPredsSize);
-		}
-	}
-
-	
 	
 	/**
 	 * Private utility method that generates the alternative Cross nodes, given fixed shipping strategies

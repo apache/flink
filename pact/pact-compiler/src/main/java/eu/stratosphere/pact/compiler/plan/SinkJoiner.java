@@ -15,14 +15,12 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.stub.DualInputStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -93,63 +91,25 @@ public class SinkJoiner extends TwoInputNode
 		return this.openBranches;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
 	@Override
-	public List<SinkJoiner> getAlternativePlans(CostEstimator estimator)
+	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
+			List<List<OptimizerNode>> alternativeSubPlanCominations2, CostEstimator estimator, List<OptimizerNode> outputPlans)
 	{
-		// TODO: mjsax
-		// right now we do not enumerate all plans
-		// -> because of union we have to do a recursive enumeration, what is missing right now
-		List<OptimizerNode> allPreds1 = new ArrayList<OptimizerNode>(this.input1.size());
-		for(PactConnection c : this.input1) {
-			allPreds1.add(c.getSourcePact());
-		}
 
-		List<OptimizerNode> allPreds2 = new ArrayList<OptimizerNode>(this.input2.size());
-		for(PactConnection c : this.input2) {
-			allPreds2.add(c.getSourcePact());
-		}
-
-		
-		List<SinkJoiner> outputPlans = new ArrayList<SinkJoiner>();
-
-		for(PactConnection c : this.input1) {
-			List<? extends OptimizerNode> inPlans1 = c.getSourcePact().getAlternativePlans(estimator);
-
-			for(PactConnection cc : this.input2) {
-				List<? extends OptimizerNode> inPlans2 = cc.getSourcePact().getAlternativePlans(estimator);
-
+		for(List<OptimizerNode> predList1 : alternativeSubPlanCominations1) {
+			for(List<OptimizerNode> predList2 : alternativeSubPlanCominations2) {
+				// check, whether the two children have the same
+				// sub-plan in the common part before the branches
+				if (!areBranchCompatible(predList1, predList2)) {
+					continue;
+				}
 				
-				for (OptimizerNode pred1 : inPlans1) {
-					for (OptimizerNode pred2 : inPlans2) {
-						// check, whether the two children have the same
-						// sub-plan in the common part before the branches
-						if (!areBranchCompatible(pred1, pred2)) {
-							continue;
-						}
-						
-						SinkJoiner n = new SinkJoiner(this, allPreds1, allPreds2);
-						estimator.costOperator(n);
-						
-						outputPlans.add(n);
-					}
-				}				
+				SinkJoiner n = new SinkJoiner(this, predList1, predList2);
+				estimator.costOperator(n);
+				
+				outputPlans.add(n);
 			}
 		}
-		
-		// check if the list does not contain any plan. That may happen, if the channels specify
-		// incompatible shipping strategies.
-		if (outputPlans.isEmpty()) {
-			throw new CompilerException("Compiler Bug: Compiling plan with multiple sinks failed, " +
-					"because no compatible sink candidates could be created.");
-		}
-
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		return outputPlans;
 	}
 
 	/* (non-Javadoc)
@@ -174,7 +134,7 @@ public class SinkJoiner extends TwoInputNode
 			
 		}
 		
-		for(PactConnection c : this.input1) {
+		for(PactConnection c : this.input2) {
 			OptimizerNode input2 = c.getSourcePact();
 		
 			if (input2 instanceof DataSinkNode) {
@@ -204,4 +164,5 @@ public class SinkJoiner extends TwoInputNode
 			
 		}
 	}
+
 }

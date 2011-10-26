@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,9 +34,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class MapNode extends SingleInputNode<MapNode> {
-	private List<MapNode> cachedPlans; // a cache for the computed alternative plans
-
+public class MapNode extends SingleInputNode {
 	/**
 	 * Creates a new MapNode for the given contract.
 	 * 
@@ -136,102 +133,61 @@ public class MapNode extends SingleInputNode<MapNode> {
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
-	 */
 	@Override
-	public List<MapNode> getAlternativePlans(CostEstimator estimator) {
-		// check if we have a cached version
-		if (this.cachedPlans != null) {
-			return this.cachedPlans;
-		}
-
-		// when generating the different alternative plans for a map,
-		// we need to take all alternative plans for input and
-		// filter their properties by the output contract.
-		// the remaining list is pruned.
-
-		// the map itself also adds no cost for local strategies!
-
-
-		List<MapNode> outputPlans = new ArrayList<MapNode>();
-
-		// step down to all producer nodes and calculate alternative plans
-		final int inputSize = this.input.size();
-		@SuppressWarnings("unchecked")
-		List<? extends OptimizerNode>[] inPlans = new List[inputSize];
-		for(int i = 0; i < inputSize; ++i) {
-			inPlans[i] = this.input.get(i).getSourcePact().getAlternativePlans(estimator);
-		}
-
-		// build all possible alternative plans for this node
-		getAlternativePlansRecursively(inPlans, new ArrayList<OptimizerNode>(0), estimator, outputPlans);
+	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations, CostEstimator estimator, List<OptimizerNode> outputPlans) {
 		
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (this.getOutgoingConnections() != null && this.getOutgoingConnections().size() > 1) {
-			this.cachedPlans = outputPlans;
-		}
-
-		return outputPlans;
-	}
-	
-	@Override
-	protected void createAlternativeNode(ArrayList<OptimizerNode> predList, CostEstimator estimator,
-			List<MapNode> outputPlans) {
-		// we have to check if all input ShipStrategies are the same or at least compatible
-		ShipStrategy ss = ShipStrategy.NONE;
-	
-		for(PactConnection c : this.input) {
-			ShipStrategy newSS = c.getShipStrategy();
-			
-			if(newSS == ShipStrategy.BROADCAST || newSS == ShipStrategy.SFR)
-				// invalid strategy: we do not produce an alternative node
-				return;
-	
-			// as long as no ShipStrategy is set we can pick the strategy from the current connection
-			if(ss == ShipStrategy.NONE) {
-				ss = newSS;
+		for(List<OptimizerNode> predList : alternativeSubPlanCominations) {
+			// we have to check if all input ShipStrategies are the same or at least compatible
+			ShipStrategy ss = ShipStrategy.NONE;
+		
+			for(PactConnection c : this.input) {
+				ShipStrategy newSS = c.getShipStrategy();
+				
+				if(newSS == ShipStrategy.BROADCAST || newSS == ShipStrategy.SFR)
+					// invalid strategy: we do not produce an alternative node
+					continue;
+		
+				// as long as no ShipStrategy is set we can pick the strategy from the current connection
+				if(ss == ShipStrategy.NONE) {
+					ss = newSS;
+					continue;
+				}
+				
+				// as long as the ShipStrategy is the same everything is fine
+				if(ss == newSS)
+					continue;
+				
+				// incompatible strategies: we do not produce an alternative node
 				continue;
 			}
+		
+			// if no hit for a strategy was provided, we use the default
+			if(ss == ShipStrategy.NONE)
+				ss = ShipStrategy.FORWARD;
 			
-			// as long as the ShipStrategy is the same everything is fine
-			if(ss == newSS)
-				continue;
+			// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+			// we need to figure out, what the right gp and lp is, for the union case
+			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
 			
-			// incompatible strategies: we do not produce an alternative node
-			return;
-		}
-	
-		// if no hit for a strategy was provided, we use the default
-		if(ss == ShipStrategy.NONE)
-			ss = ShipStrategy.FORWARD;
+			
+			MapNode nMap = new MapNode(this, predList, this.input, gp, lp);
+			for(PactConnection cc : nMap.getInputConnections()) {
+				cc.setShipStrategy(ss);
+			}
 		
-		// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-		// we need to figure out, what the right gp and lp is, for the union case
-		GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-		LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
+			// now, the properties (copied from the inputs) are filtered by the
+			// output contracts
+			nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
+			nMap.getLocalProperties().filterByOutputContract(getOutputContract());
 		
+			// copy the cumulative costs and set the costs of the map itself to zero
+			estimator.costOperator(nMap);
 		
-		MapNode nMap = new MapNode(this, predList, this.input, gp, lp);
-		for(PactConnection cc : nMap.getInputConnections()) {
-			cc.setShipStrategy(ss);
-		}
-	
-		// now, the properties (copied from the inputs) are filtered by the
-		// output contracts
-		nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
-		nMap.getLocalProperties().filterByOutputContract(getOutputContract());
-	
-		// copy the cumulative costs and set the costs of the map itself to zero
-		estimator.costOperator(nMap);
-	
-		outputPlans.add(nMap);
+			outputPlans.add(nMap);			
+		}		
 	}
-	
+
 	/**
 	 * Computes the number of keys that are processed by the PACT.
 	 * 

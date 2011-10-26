@@ -268,6 +268,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * Tells the node to compute the interesting properties for its inputs. The interesting properties
 	 * for the node itself must have been computed before.
 	 * The node must then see how many of interesting properties it preserves and add its own.
+	 * 
+	 * @param estimator		The {@code CostEstimator} instance to use for plan cost estimation. 
 	 */
 	public abstract void computeInterestingPropertiesForInputs(CostEstimator estimator);
 
@@ -569,6 +571,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return getOutgoingConnections() != null && getOutgoingConnections().size() > 1;
 	}
 
+	/**
+	 * Sets the basic cost for this {@code OptimizerNode}
+	 * 
+	 * @param nodeCosts		The already knows costs for this node
+	 * 						(this cost a produces by a concrete {@code OptimizerNode} subclass.
+	 */
 	public void setCosts(Costs nodeCosts) {
 		// set the node costs
 		this.nodeCosts = nodeCosts;
@@ -590,6 +598,45 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	//                              Miscellaneous
 	// ------------------------------------------------------------------------
 
+	/**
+	 * This method step over all inputs recursively and combines all alternatives per input with all
+	 * other alternative of all other inputs.
+	 * 
+	 * @param inPlans		all alternative plans for all incoming connections (which are unioned)
+	 * @param predList		list of currently chosen alternative plans (has one entry for each incoming connection)
+	 * 						[this list is build up recursively within the method]
+	 * @param estimator		the cost estimator
+	 * @param alternativeSubPlans	all generated alternative for this node
+	 */
+	@SuppressWarnings("unchecked")
+	final protected void getAlternativeSubPlanCombinationsRecursively(List<? extends OptimizerNode>[] inPlans,
+			ArrayList<OptimizerNode> predList, List<List<OptimizerNode>> alternativeSubPlans)
+	{
+		final int inputNumberToProcess = predList.size();
+		final int numberOfAlternatives = inPlans[inputNumberToProcess].size();
+
+		for(int i = 0; i < numberOfAlternatives; ++i) {
+			predList.add(inPlans[inputNumberToProcess].get(i));
+		
+			// check if the hit the last recursion level
+			if(inputNumberToProcess + 1 == inPlans.length) {
+				// last recursion level: create a new alternative now
+
+				alternativeSubPlans.add(predList);
+				// we clone the current list in order to preserve this alternative plan combination
+				// otherwise we would override it later in...
+				predList = (ArrayList<OptimizerNode>)predList.clone();
+				
+			} else {
+				// step to next input and start to step though all plan alternatives
+				getAlternativeSubPlanCombinationsRecursively(inPlans, predList, alternativeSubPlans);
+			}
+			
+			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
+			predList.remove(inputNumberToProcess);
+		}
+	}
+	
 	/**
 	 * Checks, if all outgoing connections have their interesting properties set from their target nodes.
 	 * 
@@ -680,7 +727,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 		return oc == null ? OutputContract.None : oc;
 	}
-
+	
 	/**
 	 * Takes the given list of plans that are candidates for this node in the final plan and retains for each distinct
 	 * set of interesting properties only the cheapest plan.

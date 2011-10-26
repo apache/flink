@@ -38,7 +38,9 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public abstract class SingleInputNode<T extends OptimizerNode> extends OptimizerNode {
+public abstract class SingleInputNode extends OptimizerNode {
+	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
+
 
 	final protected List<PactConnection> input = new ArrayList<PactConnection>(); // The list of input edges
 
@@ -68,7 +70,7 @@ public abstract class SingleInputNode<T extends OptimizerNode> extends Optimizer
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected SingleInputNode(OptimizerNode template, List<OptimizerNode> pred, List<PactConnection> conn,
+	protected SingleInputNode(SingleInputNode template, List<OptimizerNode> pred, List<PactConnection> conn,
 			GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, globalProps, localProps);
 
@@ -108,49 +110,6 @@ public abstract class SingleInputNode<T extends OptimizerNode> extends Optimizer
 		this.input.add(conn);
 	}
 
-	/**
-	 * This method step over all inputs recursively and combines all alternatives per input with all
-	 * other alternative of all other inputs.
-	 * 
-	 * @param inPlans		all alternative plans for all incoming connections (which are unioned)
-	 * @param predList		list of currently chosen alternative plans (has one entry for each incoming connection)
-	 * 						[this list is build up recursively within the method]
-	 * @param estimator		the cost estimator
-	 * @param outputPlans	all generated alternative for this node
-	 */
-	final protected void getAlternativePlansRecursively(List<? extends OptimizerNode>[] inPlans, ArrayList<OptimizerNode> predList,
-			CostEstimator estimator, List<T> outputPlans)
-	{
-		final int inputNumberToProcess = predList.size();
-		final int numberOfAlternatives = inPlans[inputNumberToProcess].size();
-
-		for(int i = 0; i < numberOfAlternatives; ++i) {
-			predList.add(inPlans[inputNumberToProcess].get(i));
-		
-			// check if the hit the last recursion level
-			if(inputNumberToProcess + 1 == inPlans.length) {
-				// last recursion level: create a new alternative now
-
-				createAlternativeNode(predList, estimator, outputPlans);
-			} else {
-				// step to next input and start to step though all plan alternatives
-				getAlternativePlansRecursively(inPlans, predList, estimator, outputPlans);
-			}
-			
-			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
-			predList.remove(inputNumberToProcess);
-		}
-	}
-	
-	/**
-	 * Creates an alternative node using {@code predList} as predecessors, and adds it to {@code outputPlans}.
-	 * 
-	 * @param predList		the predecessors to use for this alternative
-	 * @param estimator		the cost estimator
-	 * @param outputPlans	the list of all generated plan alternatives
-	 */
-	abstract protected void createAlternativeNode(ArrayList<OptimizerNode> predList, CostEstimator estimator, List<T> outputPlans);
-	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
@@ -193,6 +152,55 @@ public abstract class SingleInputNode<T extends OptimizerNode> extends Optimizer
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
+	 */
+	@Override
+	final public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
+		// check if we have a cached version
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
+		}
+
+		// step down to all producer nodes and calculate alternative plans
+		final int inputSize = this.input.size();
+		@SuppressWarnings("unchecked")
+		List<? extends OptimizerNode>[] inPlans = new List[inputSize];
+		for(int i = 0; i < inputSize; ++i) {
+			inPlans[i] = this.input.get(i).getSourcePact().getAlternativePlans(estimator);
+		}
+
+		// build all possible alternative plans for this node
+		List<List<OptimizerNode>> alternativeSubPlanCominations = new ArrayList<List<OptimizerNode>>();
+		getAlternativeSubPlanCombinationsRecursively(inPlans, new ArrayList<OptimizerNode>(0), alternativeSubPlanCominations);
+		
+		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
+
+		computeValidPlanAlternatives(alternativeSubPlanCominations, estimator,  outputPlans);
+		
+		// prune the plans
+		prunePlanAlternatives(outputPlans);
+
+		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
+		if (this.getOutgoingConnections() != null && this.getOutgoingConnections().size() > 1) {
+			this.cachedPlans = outputPlans;
+		}
+
+		return outputPlans;
+	}
+	
+	/**
+	 * Takes a list with all sub-plan-combinations (each is a list by itself) and produces alternative
+	 * plans for the current node using the single sub-plans-combinations.
+	 *  
+	 * @param alternativeSubPlanCominations	 	List with all sub-plan-combinations
+	 * @param estimator							Cost estimator to be used
+	 * @param outputPlans						The generated output plans (is expected to be a list where new plans can be added)
+	 */
+	protected abstract void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations,
+			CostEstimator estimator, List<OptimizerNode> outputPlans);
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()

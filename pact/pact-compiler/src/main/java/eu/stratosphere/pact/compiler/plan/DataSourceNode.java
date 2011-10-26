@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  */
 public class DataSourceNode extends OptimizerNode
 {
-	private List<DataSourceNode> cachedPlans; // the cache in case there are multiple outputs;
+	private List<OptimizerNode> cachedPlans; // the cache in case there are multiple outputs;
 
 	/**
 	 * Creates a new DataSourceNode for the given contract.
@@ -249,7 +250,7 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeAlternativePlans()
 	 */
 	@Override
-	public List<DataSourceNode> getAlternativePlans(CostEstimator estimator) {
+	public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
 		if (this.cachedPlans != null) {
 			return this.cachedPlans;
 		}
@@ -272,7 +273,8 @@ public class DataSourceNode extends OptimizerNode
 		candidate.setCosts(new Costs(0, this.estimatedOutputSize));
 
 		// since there is only a single plan for the data-source, return a list with that element only
-		List<DataSourceNode> plans = Collections.singletonList(candidate);
+		List<OptimizerNode> plans = new ArrayList<OptimizerNode>(1);
+		plans.add(candidate);
 
 		if (isBranching()) {
 			this.cachedPlans = plans;
@@ -292,4 +294,5 @@ public class DataSourceNode extends OptimizerNode
 			visitor.postVisit(this);
 		}
 	}
+
 }

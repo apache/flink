@@ -318,45 +318,30 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
 	 */
 	@Override
-	public List<DataSinkNode> getAlternativePlans(CostEstimator estimator) {
-
+	public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
 		// the alternative plans are the ones that we have incoming, plus the attached output node
-		List<DataSinkNode> plans = new ArrayList<DataSinkNode>();
-		getAlternativePlansRecursively(new ArrayList<OptimizerNode>(0), estimator, plans);
+		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
 
-		// prune the plans
-		prunePlanAlternatives(plans);
-
-		// check if the list does not contain any plan. That may happen, if the channels specify
-		// incompatible shipping strategies.
-		if (plans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the DataSource contract '"
-				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
+		// step down to all producer nodes and calculate alternative plans
+		final int inputSize = this.input.size();
+		@SuppressWarnings("unchecked")
+		List<? extends OptimizerNode>[] inPlans = new List[inputSize];
+		for(int i = 0; i < inputSize; ++i) {
+			inPlans[i] = this.input.get(i).getSourcePact().getAlternativePlans(estimator);
 		}
 
-		return plans;
-	}
-
-	private void getAlternativePlansRecursively(List<OptimizerNode> allPreds, CostEstimator estimator, List<DataSinkNode> outputPlans) {
-		// what is out recursive depth
-		final int allPredsSize = allPreds.size();
-		// pick the connection this recursive step has to process
-		PactConnection connToProcess = this.input.get(allPredsSize);
-		// get all alternatives for current recursion level
-		List<? extends OptimizerNode> inPlans = connToProcess.getSourcePact().getAlternativePlans(estimator);
+		// build all possible alternative plans for this node
+		List<List<OptimizerNode>> alternativeSubPlanCominations = new ArrayList<List<OptimizerNode>>();
+		getAlternativeSubPlanCombinationsRecursively(inPlans, new ArrayList<OptimizerNode>(0), alternativeSubPlanCominations);
 		
-		// now enumerate all alternative of this recursion level
-		for (OptimizerNode pred : inPlans) {
-			// add an alternative plan node
-			allPreds.add(pred);
-			
+		for(List<OptimizerNode> predList : alternativeSubPlanCominations) {
 			Order go = getPactContract().getGlobalOrder();
 			Order lo = getPactContract().getLocalOrder();
 
 			// TODO mjsax: right now we choose the global and local properties of the last predecessor in the union case
 			// we need to figure out, what the right gp and lp is, for the union case
-			GlobalProperties gp = pred.getGlobalProperties().createCopy();
-			LocalProperties lp = pred.getLocalProperties().createCopy();
+			GlobalProperties gp = predList.get(0).getGlobalProperties().createCopy();
+			LocalProperties lp = predList.get(0).getLocalProperties().createCopy();
 
 			ShipStrategy ss = null;
 			LocalStrategy ls = null;
@@ -364,14 +349,16 @@ public class DataSinkNode extends OptimizerNode {
 			if (go != Order.NONE && go != gp.getKeyOrder()) {
 				// requires global sort
 
-				if (connToProcess.getShipStrategy() == ShipStrategy.NONE
-					|| connToProcess.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-					// strategy not fixed a priori, or strategy fixed, but valid
-					ss = ShipStrategy.PARTITION_RANGE;
-				} else {
-					// strategy is set a priory --> via compiler hint
-					// this input plan cannot produce a valid plan
-					continue;
+				for(PactConnection c : this.input) {
+					ShipStrategy s = c.getShipStrategy();
+					if (s == ShipStrategy.NONE || s == ShipStrategy.PARTITION_RANGE) {
+						// strategy not fixed a priori, or strategy fixed, but valid
+						ss = ShipStrategy.PARTITION_RANGE;
+					} else {
+						// strategy is set a priory --> via compiler hint
+						// this input plan cannot produce a valid plan
+						continue;
+					}
 				}
 
 				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
@@ -401,39 +388,41 @@ public class DataSinkNode extends OptimizerNode {
 				ls = LocalStrategy.SORT;
 				lp.setKeyOrder(lo);
 			}
-			
-			// check if the hit the last recursion level
-			if(allPredsSize + 1 == this.input.size()) {
-				// last recursion level: create a new alternative now
-				
-				DataSinkNode ns = new DataSinkNode(this, allPreds, this.input, gp, lp);
-				// check, if a shipping strategy applies
-				if (ss == null) {
-					ss = ShipStrategy.FORWARD;
-				}
-				for(PactConnection cc : ns.getInputConnections()) {
-					cc.setShipStrategy(ss);
-				}
 
-				// check, if a local strategy is necessary
-				if (ls == null) {
-					ls = LocalStrategy.NONE;
-				}
-				ns.setLocalStrategy(ls);
-
-				// set the costs
-				estimator.costOperator(ns);
-
-				// add the plan
-				outputPlans.add(ns);
-
-			} else {
-				getAlternativePlansRecursively(allPreds, estimator, outputPlans);
+			// check, if a shipping strategy applies
+			if (ss == null) {
+				ss = ShipStrategy.FORWARD;
 			}
 			
-			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
-			allPreds.remove(allPredsSize);
+			DataSinkNode ns = new DataSinkNode(this, predList, this.input, gp, lp);
+			for(PactConnection cc : ns.getInputConnections()) {
+				cc.setShipStrategy(ss);
+			}
+
+			// check, if a local strategy is necessary
+			if (ls == null) {
+				ls = LocalStrategy.NONE;
+			}
+			ns.setLocalStrategy(ls);
+
+			// set the costs
+			estimator.costOperator(ns);
+
+			// add the plan
+			outputPlans.add(ns);
 		}
+		
+		// prune the plans
+		prunePlanAlternatives(outputPlans);
+
+		// check if the list does not contain any plan. That may happen, if the channels specify
+		// incompatible shipping strategies.
+		if (outputPlans.isEmpty()) {
+			throw new CompilerException("Could not create a valid plan for the DataSource contract '"
+				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
+		}
+
+		return outputPlans;
 	}
 	/*
 	 * (non-Javadoc)
@@ -455,4 +444,5 @@ public class DataSinkNode extends OptimizerNode {
 			visitor.postVisit(this);
 		}
 	}
+
 }

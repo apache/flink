@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -31,6 +30,7 @@ import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
+import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -41,6 +41,8 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  */
 public abstract class TwoInputNode extends OptimizerNode
 {
+	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
+
 	final protected List<PactConnection> input1 = new ArrayList<PactConnection>(); // The first input edge
 
 	final protected List<PactConnection> input2 = new ArrayList<PactConnection>(); // The second input edge
@@ -291,6 +293,71 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
+	 */
+	@Override
+	final public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
+		// check if we have a cached version
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
+		}
+
+		// step down to all producer nodes for first input and calculate alternative plans
+		final int inputSize1 = this.input1.size();
+		@SuppressWarnings("unchecked")
+		List<? extends OptimizerNode>[] inPlans1 = new List[inputSize1];
+		for(int i = 0; i < inputSize1; ++i) {
+			inPlans1[i] = this.input1.get(i).getSourcePact().getAlternativePlans(estimator);
+		}
+
+		// build all possible alternative plans for first input of this node
+		List<List<OptimizerNode>> alternativeSubPlanCominations1 = new ArrayList<List<OptimizerNode>>();
+		getAlternativeSubPlanCombinationsRecursively(inPlans1, new ArrayList<OptimizerNode>(0), alternativeSubPlanCominations1);
+		
+		
+		// step down to all producer nodes for first input and calculate alternative plans
+		final int inputSize2 = this.input2.size();
+		@SuppressWarnings("unchecked")
+		List<? extends OptimizerNode>[] inPlans2 = new List[inputSize2];
+		for(int i = 0; i < inputSize2; ++i) {
+			inPlans2[i] = this.input2.get(i).getSourcePact().getAlternativePlans(estimator);
+		}
+
+		// build all possible alternative plans for first input of this node
+		List<List<OptimizerNode>> alternativeSubPlanCominations2 = new ArrayList<List<OptimizerNode>>();
+		getAlternativeSubPlanCombinationsRecursively(inPlans2, new ArrayList<OptimizerNode>(0), alternativeSubPlanCominations2);
+
+		
+		
+		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
+
+		computeValidPlanAlternatives(alternativeSubPlanCominations1, alternativeSubPlanCominations2, estimator,  outputPlans);
+		
+		// prune the plans
+		prunePlanAlternatives(outputPlans);
+
+		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
+		if (this.getOutgoingConnections() != null && this.getOutgoingConnections().size() > 1) {
+			this.cachedPlans = outputPlans;
+		}
+
+		return outputPlans;
+	}
+	
+	/**
+	 * Takes a list with all sub-plan-combinations (each is a list by itself) and produces alternative
+	 * plans for the current node using the single sub-plans-combinations.
+	 *  
+	 * @param alternativeSubPlanCominations1	 	List with all sub-plan-combinations for first input
+	 * @param alternativeSubPlanCominations2	 	List with all sub-plan-combinations for secodn input
+	 * @param estimator								Cost estimator to be used
+	 * @param outputPlans							The generated output plans (is expected to be a list where new plans can be added)
+	 */
+	protected abstract void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
+			List<List<OptimizerNode>> alternativeSubPlanCominations2, CostEstimator estimator, List<OptimizerNode> outputPlans);
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()

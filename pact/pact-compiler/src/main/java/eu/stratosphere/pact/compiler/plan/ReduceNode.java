@@ -42,9 +42,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class ReduceNode extends SingleInputNode<ReduceNode> {
-
-	private List<ReduceNode> cachedPlans; // a cache for the computed alternative plans
+public class ReduceNode extends SingleInputNode {
+	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
 
 	private float combinerReducingFactor = 1.0f; // the factor by which the combiner reduces the data
 
@@ -235,270 +234,121 @@ public class ReduceNode extends SingleInputNode<ReduceNode> {
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact
-	 * .compiler.costs.CostEstimator)
-	 */
 	@Override
-	public List<ReduceNode> getAlternativePlans(CostEstimator estimator) {
-		// check if we have a cached version
-		if (this.cachedPlans != null) {
-			return this.cachedPlans;
-		}
-
-		List<ReduceNode> outputPlans = new ArrayList<ReduceNode>();
-
-		// step down to all producer nodes and calculate alternative plans
-		final int inputSize = this.input.size();
-		@SuppressWarnings("unchecked")
-		List<? extends OptimizerNode>[] inPlans = new List[inputSize];
-		for(int i = 0; i < inputSize; ++i) {
-			inPlans[i] = this.input.get(i).getSourcePact().getAlternativePlans(estimator);
-		}
-
-		// build all possible alternative plans for this node
-		getAlternativePlansRecursively(inPlans, new ArrayList<OptimizerNode>(0), estimator, outputPlans);
-
-		// check if the list does not contain any plan. That may happen, if the channels specify
-		// incompatible shipping strategies.
-		if (outputPlans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the reduce contract '"
-				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
-		}
-
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (this.getOutgoingConnections() != null && this.getOutgoingConnections().size() > 1) {
-			this.cachedPlans = outputPlans;
-		}
-
-		return outputPlans;
-	}
-
-	@Override
-	protected void createAlternativeNode(ArrayList<OptimizerNode> predList,
-			CostEstimator estimator, List<ReduceNode> outputPlans)
+	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations,
+			CostEstimator estimator, List<OptimizerNode> outputPlans)
 	{
-		// TODO mjsax: we have to check if all shipStrategies are the same or at least compatible
-		ShipStrategy ss = ShipStrategy.NONE;
-		
-		for(PactConnection c : this.input) {
-			ShipStrategy newSS = c.getShipStrategy();
+
+		for(List<OptimizerNode> predList : alternativeSubPlanCominations) {
+			// we have to check if all shipStrategies are the same or at least compatible
+			ShipStrategy ss = ShipStrategy.NONE;
 			
-			if(newSS == ShipStrategy.BROADCAST || newSS == ShipStrategy.SFR)
-				// invalid strategy: we do not produce an alternative node
-				return;
-	
-			// as long as no ShipStrategy is set we can pick the strategy from the current connection
-			if(ss == ShipStrategy.NONE) {
-				ss = newSS;
+			for(PactConnection c : this.input) {
+				ShipStrategy newSS = c.getShipStrategy();
+				
+				if(newSS == ShipStrategy.BROADCAST || newSS == ShipStrategy.SFR)
+					// invalid strategy: we do not produce an alternative node
+					continue;
+		
+				// as long as no ShipStrategy is set we can pick the strategy from the current connection
+				if(ss == ShipStrategy.NONE) {
+					ss = newSS;
+					continue;
+				}
+				
+				// as long as the ShipStrategy is the same everything is fine
+				if(ss == newSS)
+					continue;
+				
+				// incompatible strategies: we do not produce an alternative node
 				continue;
 			}
 			
-			// as long as the ShipStrategy is the same everything is fine
-			if(ss == newSS)
-				continue;
-			
-			// incompatible strategies: we do not produce an alternative node
-			return;
-		}
-		
 
-		// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-		// we need to figure out, what the right gp and lp is, for the union case
-		GlobalProperties gp;
-		LocalProperties lp;
+			// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+			// we need to figure out, what the right gp and lp is, for the union case
+			GlobalProperties gp;
+			LocalProperties lp;
 
-		if (ss == ShipStrategy.NONE) {
-			gp = predList.get(0).getGlobalProperties();
-			lp = predList.get(0).getLocalProperties();
+			if (ss == ShipStrategy.NONE) {
+				gp = predList.get(0).getGlobalProperties();
+				lp = predList.get(0).getLocalProperties();
 
-			if (gp.getPartitioning().isPartitioned() || gp.isKeyUnique()) {
-				ss = ShipStrategy.FORWARD;
+				if (gp.getPartitioning().isPartitioned() || gp.isKeyUnique()) {
+					ss = ShipStrategy.FORWARD;
+				} else {
+					ss = ShipStrategy.PARTITION_HASH;
+				}
+
+				gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
 			} else {
-				ss = ShipStrategy.PARTITION_HASH;
-			}
+				// fixed strategy
+				gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
 
-			gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-			lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
-		} else {
-			// fixed strategy
-			gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-			lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
-
-			if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
-				// the shipping strategy is fixed to a value that does not leave us with
-				// the necessary properties. this candidate cannot produce a valid child
-				return;
-			}
-		}
-
-		LocalStrategy ls = getLocalStrategy();
-
-		// see, whether we need a local strategy
-		if (!(lp.areKeysGrouped() || lp.getKeyOrder().isOrdered() || lp.isKeyUnique())) {
-			// we need one
-			if (ls != LocalStrategy.NONE) {
-				if (ls != LocalStrategy.COMBININGSORT && ls != LocalStrategy.SORT) {
-					// no valid plan possible
-					return;
+				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
+					// the shipping strategy is fixed to a value that does not leave us with
+					// the necessary properties. this candidate cannot produce a valid child
+					continue;
 				}
 			}
-			// local strategy free to choose
-			else {
-				ls = isCombineable() ? LocalStrategy.COMBININGSORT : LocalStrategy.SORT;
+
+			LocalStrategy ls = getLocalStrategy();
+
+			// see, whether we need a local strategy
+			if (!(lp.areKeysGrouped() || lp.getKeyOrder().isOrdered() || lp.isKeyUnique())) {
+				// we need one
+				if (ls != LocalStrategy.NONE) {
+					if (ls != LocalStrategy.COMBININGSORT && ls != LocalStrategy.SORT) {
+						// no valid plan possible
+						continue;
+					}
+				}
+				// local strategy free to choose
+				else {
+					ls = isCombineable() ? LocalStrategy.COMBININGSORT : LocalStrategy.SORT;
+				}
 			}
-		}
 
-		// adapt the local properties
-		if (ls == LocalStrategy.COMBININGSORT || ls == LocalStrategy.SORT) {
-			lp.setKeyOrder(Order.ASCENDING);
-			lp.setKeysGrouped(true);
-		}
-
-		// ----------------------------------------------------------------
-		// see, if we have a combiner before shipping
-		if (isCombineable() && ss != ShipStrategy.FORWARD) {
-			// this node contains the estimates for the costs of the combiner,
-			// as well as the updated size and cardinality estimates
-			int index = 0;
-			for(OptimizerNode pred : predList) {
-				OptimizerNode combiner = new CombinerNode(getPactContract(), pred, this.combinerReducingFactor);
-				combiner.setDegreeOfParallelism(pred.getDegreeOfParallelism());
-
-				estimator.costOperator(combiner);
-				predList.set(index, combiner); // replace reduce node with combiner node at appropriate index
-				++index;
+			// adapt the local properties
+			if (ls == LocalStrategy.COMBININGSORT || ls == LocalStrategy.SORT) {
+				lp.setKeyOrder(Order.ASCENDING);
+				lp.setKeysGrouped(true);
 			}
+
+			// ----------------------------------------------------------------
+			// see, if we have a combiner before shipping
+			if (isCombineable() && ss != ShipStrategy.FORWARD) {
+				// this node contains the estimates for the costs of the combiner,
+				// as well as the updated size and cardinality estimates
+				int index = 0;
+				for(OptimizerNode pred : predList) {
+					OptimizerNode combiner = new CombinerNode(getPactContract(), pred, this.combinerReducingFactor);
+					combiner.setDegreeOfParallelism(pred.getDegreeOfParallelism());
+
+					estimator.costOperator(combiner);
+					predList.set(index, combiner); // replace reduce node with combiner node at appropriate index
+					++index;
+				}
+			}
+			
+			ReduceNode n = new ReduceNode(this, predList, this.input, gp, lp);
+			for(PactConnection cc : n.getInputConnections()) {
+				cc.setShipStrategy(ss);
+			}
+			n.setLocalStrategy(ls);
+
+			// compute, which of the properties survive, depending on the output contract
+			n.getGlobalProperties().filterByOutputContract(getOutputContract());
+			n.getLocalProperties().filterByOutputContract(getOutputContract());
+
+			estimator.costOperator(n);
+
+			outputPlans.add(n);		
 		}
-		
-		ReduceNode n = new ReduceNode(this, predList, this.input, gp, lp);
-		for(PactConnection cc : n.getInputConnections()) {
-			cc.setShipStrategy(ss);
-		}
-		n.setLocalStrategy(ls);
-
-		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByOutputContract(getOutputContract());
-		n.getLocalProperties().filterByOutputContract(getOutputContract());
-
-		estimator.costOperator(n);
-
-		outputPlans.add(n);
 	}
-
-
-//
-//	private void getAlternativePlansRecursively(List<OptimizerNode> allPreds, CostEstimator estimator, List<ReduceNode> outputPlans) {
-//		// what is out recursive depth
-//		final int allPredsSize = allPreds.size();
-//		// pick the connection this recursive step has to process
-//		PactConnection connToProcess = this.input.get(allPredsSize);
-//		// get all alternatives for current recursion level
-//		List<? extends OptimizerNode> inPlans = connToProcess.getSourcePact().getAlternativePlans(estimator);
-//		
-//		// now enumerate all alternative of this recursion level
-//		for (OptimizerNode pred : inPlans) {
-//			// add an alternative plan node
-//			allPreds.add(pred);
-//			
-//			// TODO mjsax: we have to check if all shipStrategies are the same or at least compatible
-//			ShipStrategy ss = connToProcess.getShipStrategy();
-//			LocalStrategy ls = getLocalStrategy();
-//
-//			// TODO mjsax: right now we choose the global and local properties of the last predecessor in the union case
-//			// we need to figure out, what the right gp and lp is, for the union case
-//			GlobalProperties gp;
-//			LocalProperties lp;
-//
-//			if (ss == ShipStrategy.NONE) {
-//				gp = pred.getGlobalProperties();
-//				lp = pred.getLocalProperties();
-//
-//				if (gp.getPartitioning().isPartitioned() || gp.isKeyUnique()) {
-//					ss = ShipStrategy.FORWARD;
-//				} else {
-//					ss = ShipStrategy.PARTITION_HASH;
-//					// ss2 = ShipStrategy.PARTITION_RANGE;
-//				}
-//
-//				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
-//				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
-//			} else {
-//				// fixed strategy
-//				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
-//				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
-//
-//				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
-//					// the shipping strategy is fixed to a value that does not leave us with
-//					// the necessary properties. this candidate cannot produce a valid child
-//					continue;
-//				}
-//			}
-//
-//			// see, whether we need a local strategy
-//			if (!(lp.areKeysGrouped() || lp.getKeyOrder().isOrdered() || lp.isKeyUnique())) {
-//				// we need one
-//				if (ls != LocalStrategy.NONE) {
-//					if (ls != LocalStrategy.COMBININGSORT && ls != LocalStrategy.SORT) {
-//						// no valid plan possible
-//						continue;
-//					}
-//				}
-//				// local strategy free to choose
-//				else {
-//					ls = isCombineable() ? LocalStrategy.COMBININGSORT : LocalStrategy.SORT;
-//				}
-//			}
-//
-//			// adapt the local properties
-//			if (ls == LocalStrategy.COMBININGSORT || ls == LocalStrategy.SORT) {
-//				lp.setKeyOrder(Order.ASCENDING);
-//				lp.setKeysGrouped(true);
-//			}
-//
-//			// ----------------------------------------------------------------
-//			// see, if we have a combiner before shipping
-//			if (isCombineable() && ss != ShipStrategy.FORWARD) {
-//				// this node contains the estimates for the costs of the combiner,
-//				// as well as the updated size and cardinality estimates
-//				OptimizerNode combiner = new CombinerNode(getPactContract(), pred, this.combinerReducingFactor);
-//				combiner.setDegreeOfParallelism(pred.getDegreeOfParallelism());
-//
-//				estimator.costOperator(combiner);
-//				pred = combiner;
-//			}
-//			
-//			// check if the hit the last recursion level
-//			if(allPredsSize + 1 == this.input.size()) {
-//				// last recursion level: create a new alternative now
-//				
-//				ReduceNode n = new ReduceNode(this, allPreds, this.input, gp, lp);
-//				for(PactConnection cc : n.getInputConnections()) {
-//					cc.setShipStrategy(ss);
-//				}
-//				n.setLocalStrategy(ls);
-//	
-//				// compute, which of the properties survive, depending on the output contract
-//				n.getGlobalProperties().filterByOutputContract(getOutputContract());
-//				n.getLocalProperties().filterByOutputContract(getOutputContract());
-//	
-//				estimator.costOperator(n);
-//	
-//				outputPlans.add(n);
-//			} else {
-//				getAlternativePlansRecursively(allPreds, estimator, outputPlans);
-//			}
-//			
-//			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
-//			allPreds.remove(allPredsSize);
-//		}
-//	}
-//	
+	
 	/**
 	 * Computes the number of keys that are processed by the PACT.
 	 * 
