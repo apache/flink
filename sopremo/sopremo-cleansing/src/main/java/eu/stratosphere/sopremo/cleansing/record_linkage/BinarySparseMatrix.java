@@ -3,8 +3,10 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -139,6 +141,19 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 				wrapper.write(out);
 			}
 		}
+	}
+	
+	public BinarySparseMatrix merge(BinarySparseMatrix matrix){
+		for(JsonNode row : matrix.getRows()){
+			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
+			for(JsonNode column : columnsToExplore){
+				if (!this.isSet(row, column)) {
+					this.set(row, column);
+				}
+			}
+		}
+		
+		return this;
 	}
 	
 	@Override

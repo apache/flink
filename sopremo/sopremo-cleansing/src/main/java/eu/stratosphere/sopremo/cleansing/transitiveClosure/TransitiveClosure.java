@@ -9,6 +9,8 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Grouping;
+import eu.stratosphere.sopremo.base.Union;
+import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.cleansing.record_linkage.BinarySparseMatrix;
 import eu.stratosphere.sopremo.cleansing.record_linkage.ClosureMode;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -47,7 +49,7 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		final Phase2 phase2 = new Phase2().withInputs(phase1, genMatrix);
 		
 		// emit Results as Links
-		final EmitMatrix result = new EmitMatrix().withInputs(phase1);
+		final EmitMatrix result = new EmitMatrix().withInputs(new UnionAll().withInputs(phase1, phase2));
 
 		sopremoModule.getOutput(0).setInput(0, result);
 

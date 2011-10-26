@@ -30,20 +30,13 @@ public class JsonNodeWrapper extends JsonNode {
 
 	@Override
 	public void read(DataInput in) throws IOException {
-		try {
-			int readInt = in.readInt();
-			this.value = TYPES.values()[readInt].getClazz().newInstance();
-			this.value.read(in);
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		}
+		this.value = SopremoUtil.deserializeNode(in);
+		value.read(in);
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeInt(this.value.getTypePos());
+		SopremoUtil.serializeNode(out, this.value);
 		this.value.write(out);
 	}
 

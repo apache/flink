@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
+import eu.stratosphere.sopremo.pact.SopremoUtil;
+
 public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 
 	/**
@@ -120,16 +122,9 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		final int len = in.readInt();
 
 		for (int i = 0; i < len; i++) {
-			JsonNode node;
-			try {
-				node = TYPES.values()[in.readInt()].getClazz().newInstance();
-				node.read(in);
-				this.add(node.canonicalize());
-			} catch (final InstantiationException e) {
-				e.printStackTrace();
-			} catch (final IllegalAccessException e) {
-				e.printStackTrace();
-			}
+			JsonNode node = SopremoUtil.deserializeNode(in);
+			node.read(in);
+			this.add(node.canonicalize());
 		}
 	}
 
@@ -138,7 +133,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		out.writeInt(this.children.size());
 
 		for (final JsonNode child : this.children) {
-			out.writeInt(child.getTypePos());
+			SopremoUtil.serializeNode(out, child);
 			child.write(out);
 		}
 	}

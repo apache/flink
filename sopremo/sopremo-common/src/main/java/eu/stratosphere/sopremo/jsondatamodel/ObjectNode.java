@@ -11,6 +11,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
+import eu.stratosphere.sopremo.pact.SopremoUtil;
+
 public class ObjectNode extends JsonNode {
 
 	/**
@@ -153,18 +155,11 @@ public class ObjectNode extends JsonNode {
 		final int len = in.readInt();
 
 		for (int i = 0; i < len; i++) {
-			JsonNode node;
+			JsonNode node = SopremoUtil.deserializeNode(in);
 			final String key = in.readUTF();
 
-			try {
-				node = TYPES.values()[in.readInt()].getClazz().newInstance();
-				node.read(in);
-				this.put(key, node.canonicalize());
-			} catch (final InstantiationException e) {
-				e.printStackTrace();
-			} catch (final IllegalAccessException e) {
-				e.printStackTrace();
-			}
+			node.read(in);
+			this.put(key, node.canonicalize());
 		}
 	}
 
@@ -173,8 +168,9 @@ public class ObjectNode extends JsonNode {
 		out.writeInt(this.children.size());
 
 		for (final Entry<String, JsonNode> entry : this.children.entrySet()) {
+			SopremoUtil.serializeNode(out, entry.getValue());
 			out.writeUTF(entry.getKey());
-			out.writeInt(entry.getValue().getTypePos());
+			
 			entry.getValue().write(out);
 		}
 
