@@ -31,7 +31,8 @@ public class JsonNodeWrapper extends JsonNode {
 	@Override
 	public void read(DataInput in) throws IOException {
 		try {
-			this.value = TYPES.values()[in.readInt()].getClazz().newInstance();
+			int readInt = in.readInt();
+			this.value = TYPES.values()[readInt].getClazz().newInstance();
 			this.value.read(in);
 		} catch (InstantiationException e) {
 			e.printStackTrace();

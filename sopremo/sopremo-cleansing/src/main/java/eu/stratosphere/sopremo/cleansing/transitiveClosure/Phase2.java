@@ -1,44 +1,101 @@
 package eu.stratosphere.sopremo.cleansing.transitiveClosure;
 
-import java.util.Iterator;
-
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.cleansing.record_linkage.BinarySparseMatrix;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.pact.JsonCollector;
+import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.pact.SopremoMatch;
 
-public class Phase2 extends ElementaryOperator<Phase2> {
+public class Phase2 extends CompositeOperator<Phase2> {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -3402040826166875828L;
+	private static final long serialVersionUID = -7553776835899633516L;
 
-	public static class Implementation extends ReduceStub<JsonNode, BinarySparseMatrix, JsonNode, BinarySparseMatrix> {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
+	 */
+	@Override
+	public SopremoModule asElementaryOperators() {
+		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
+		JsonStream phase1 = sopremoModule.getInput(0);
+		JsonStream matrix = sopremoModule.getInput(1);
 
-		@Override
-		public void reduce(JsonNode key, Iterator<BinarySparseMatrix> values,
-				Collector<JsonNode, BinarySparseMatrix> out) {
-			BinarySparseMatrix matrix = this.mergeMatrix(values);
+		final TransformDiagonal transDia = new TransformDiagonal().withInputs(phase1);
+		final TransformCurrentBlock transBlock = new TransformCurrentBlock().withInputs(matrix);
 
-			TransitiveClosure.warshall(matrix);
-			
-			out.collect(key, matrix);
-		}
+		return sopremoModule;
+	}
 
-		private BinarySparseMatrix mergeMatrix(Iterator<BinarySparseMatrix> it) {
-			BinarySparseMatrix matrix = it.next();
+	private static class TransformDiagonal extends ElementaryOperator<TransformDiagonal> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -482320275922871444L;
 
-			while (it.hasNext()) {
-				BinarySparseMatrix nextMatrix = it.next();
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 
-				for (JsonNode row : nextMatrix.getRows()) {
-					matrix.setAll(row, nextMatrix.get(row));
-				}
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				out.collect(((ArrayNode) key).get(0), value);
 			}
 
-			return matrix;
+		}
+	}
+
+	private static class TransformCurrentBlock extends ElementaryOperator<TransformCurrentBlock> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3480847243868518647L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				ArrayNode castedKey = (ArrayNode) key;
+
+				if (castedKey.get(0) != castedKey.get(1)) {
+					out.collect(castedKey.get(0), new ArrayNode(key, value));
+					out.collect(castedKey.get(1), new ArrayNode(key, value));
+				}
+			}
+		}
+	}
+
+	private static class ComputeBlockTuples extends ElementaryOperator<ComputeBlockTuples> {
+		public static class Implementation extends SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode>{
+
+			/* (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMatch#match(eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
+				JsonNode oldKey = ((ArrayNode) value2).get(0);				
+				TransitiveClosure.warshall((BinarySparseMatrix) value1, (BinarySparseMatrix) ((ArrayNode) value2).get(1));
+				
+				out.collect(oldKey, value2);
+			}
+			
 		}
 	}
 }
