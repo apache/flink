@@ -708,7 +708,7 @@ public class ExecutionGroupVertex {
 
 	void shareInstancesWith(final ExecutionGroupVertex groupVertex) throws GraphConversionException {
 
-		if (userDefinedVertexToShareInstancesWith && this.vertexToShareInstancesWith != null) {
+		if (userDefinedVertexToShareInstancesWith && this.vertexToShareInstancesWith.get() != null) {
 			throw new GraphConversionException("Cannot overwrite user defined vertex to share instances with");
 		}
 
@@ -819,7 +819,7 @@ public class ExecutionGroupVertex {
 
 		List<AllocatedResource> availableResources;
 
-		if (this.vertexToShareInstancesWith != null) {
+		if (this.vertexToShareInstancesWith.get() != null) {
 			availableResources = this.vertexToShareInstancesWith.get().collectAvailableResources();
 		} else {
 			availableResources = new ArrayList<AllocatedResource>();
