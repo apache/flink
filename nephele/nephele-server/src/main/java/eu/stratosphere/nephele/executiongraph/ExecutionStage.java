@@ -268,9 +268,8 @@ public final class ExecutionStage {
 			this.stageNum);
 
 		while (groupIt.hasNext()) {
-			final ExecutionGroupVertex groupVertex = groupIt.next();
-			System.out.println("Looking at group vertex " + groupVertex.getName());
 
+			final ExecutionGroupVertex groupVertex = groupIt.next();
 			final Iterator<ExecutionVertex> vertexIt = groupVertex.iterator();
 			while (vertexIt.hasNext()) {
 
