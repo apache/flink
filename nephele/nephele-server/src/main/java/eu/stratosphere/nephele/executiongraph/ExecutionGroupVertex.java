@@ -744,12 +744,6 @@ public class ExecutionGroupVertex {
 		}
 
 		this.verticesSharingInstances.addIfAbsent(groupVertex);
-
-		System.out.print(getName() + ": ");
-		for (final ExecutionGroupVertex v : this.verticesSharingInstances) {
-			System.out.print(v.getName() + " ");
-		}
-		System.out.println("");
 	}
 
 	private void removeFromVerticesSharingInstances(final ExecutionGroupVertex groupVertex) {
