@@ -82,24 +82,29 @@ public abstract class TwoInputNode extends OptimizerNode
 	 *        The local properties of this copy.
 	 */
 	protected TwoInputNode(TwoInputNode template, List<OptimizerNode> pred1, List<OptimizerNode> pred2, List<PactConnection> conn1,
-			List<PactConnection> conn2, GlobalProperties globalProps, LocalProperties localProps) {
+			List<PactConnection> conn2, GlobalProperties globalProps, LocalProperties localProps)
+	{
 		super(template, globalProps, localProps);
 
 		this.inputs = new ArrayList<List<PactConnection>>(2);
-		
 		int i = 0;
-		for(PactConnection c : conn1) {
-			PactConnection cc = new PactConnection(c, pred1.get(i++), this); 
-			this.input1.add(cc);
-		}
-		this.inputs.add(this.input1);
 		
-		i = 0;
-		for(PactConnection c : conn2) {
-			PactConnection cc = new PactConnection(c, pred2.get(i++), this); 
-			this.input2.add(cc);
+		if(pred1 != null) {
+			for(PactConnection c : conn1) {
+				PactConnection cc = new PactConnection(c, pred1.get(i++), this); 
+				this.input1.add(cc);
+			}
+			this.inputs.add(this.input1);
 		}
-		this.inputs.add(this.input2);
+		
+		if(pred2 != null) {
+			i = 0;
+			for(PactConnection c : conn2) {
+				PactConnection cc = new PactConnection(c, pred2.get(i++), this); 
+				this.input2.add(cc);
+			}
+			this.inputs.add(this.input2);
+		}
 
 		// merge the branchPlan maps according the the template's uncloseBranchesStack
 		if (template.openBranches != null)
@@ -108,30 +113,36 @@ public abstract class TwoInputNode extends OptimizerNode
 				this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(8);
 			}
 
-			Iterator<OptimizerNode> it1 = pred1.iterator();
-			Iterator<OptimizerNode> it2 = pred2.iterator();
-			
 			for (UnclosedBranchDescriptor uc : template.openBranches) {
 				OptimizerNode brancher = uc.branchingNode;
-	
-				// we take the candidate from pred1. if both have it, we could take it from either,
-				// as they have to be the same
 				OptimizerNode selectedCandidate = null;
-				if (it1.hasNext()) {
-					OptimizerNode n = it1.next();
-					
-					if(n.branchPlan != null) {
-						// predecessor 1 has branching children, see if it got the branch we are looking for
-						selectedCandidate = n.branchPlan.get(brancher);
+
+				if(pred1 != null) {
+					Iterator<OptimizerNode> it1 = pred1.iterator();
+					// we take the candidate from pred1. if both have it, we could take it from either,
+					// as they have to be the same
+					while(it1.hasNext()) {
+						OptimizerNode n = it1.next();
+						
+						if(n.branchPlan != null) {
+							// predecessor 1 has branching children, see if it got the branch we are looking for
+							selectedCandidate = n.branchPlan.get(brancher);
+							this.branchPlan.put(brancher, selectedCandidate);
+						}
 					}
 				}
-	
-				if (selectedCandidate == null && it2.hasNext()) {
-					OptimizerNode n = it2.next();
-					
-					if(n.branchPlan != null) {
-						// predecessor 2 has branching children, see if it got the branch we are looking for
-						selectedCandidate = n.branchPlan.get(brancher);
+				
+				if(selectedCandidate == null && pred2 != null) {
+					Iterator<OptimizerNode> it2 = pred2.iterator();
+		
+					while(it2.hasNext()) {
+						OptimizerNode n = it2.next();
+						
+						if(n.branchPlan != null) {
+							// predecessor 2 has branching children, see if it got the branch we are looking for
+							selectedCandidate = n.branchPlan.get(brancher);
+							this.branchPlan.put(brancher, selectedCandidate);
+						}
 					}
 				}
 
@@ -140,7 +151,6 @@ public abstract class TwoInputNode extends OptimizerNode
 						"Candidates for a node with open branches are missing information about the selected candidate ");
 				}
 
-				this.branchPlan.put(brancher, selectedCandidate);
 			}
 		}
 	}

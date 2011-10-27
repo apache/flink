@@ -622,10 +622,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			if(inputNumberToProcess + 1 == inPlans.length) {
 				// last recursion level: create a new alternative now
 
-				alternativeSubPlans.add(predList);
 				// we clone the current list in order to preserve this alternative plan combination
 				// otherwise we would override it later in...
-				predList = (ArrayList<OptimizerNode>)predList.clone();
+				alternativeSubPlans.add((ArrayList<OptimizerNode>)predList.clone());
 				
 			} else {
 				// step to next input and start to step though all plan alternatives
