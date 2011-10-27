@@ -258,22 +258,26 @@ public class CrossNode extends TwoInputNode {
 
 				// check, whether the two children have the same
 				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(pred1, pred2)) {
+				if (!areBranchCompatible(predList1, predList2)) {
 					continue;
 				}
 
-				ShipStrategy ss1 = c.getShipStrategy();
-				ShipStrategy ss2 = cc.getShipStrategy();
+				ShipStrategy ss1 = checkShipStrategyCompatibility(this.input1);
+				if(ss1 == null)
+					continue;
+				
+				ShipStrategy ss2 = checkShipStrategyCompatibility(this.input2);
+				if(ss2 == null)
+					continue;
 
 				if (ss1 != ShipStrategy.NONE) {
+					assert(ss2 != ShipStrategy.NONE);
 					// if one is fixed, the other is also
-					createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+					createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 				} else {
 					// create all alternatives
-					createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.BROADCAST, ShipStrategy.FORWARD,
-						estimator, allPreds1, allPreds2);
-					createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD, ShipStrategy.BROADCAST,
-						estimator, allPreds1, allPreds2);
+					createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.BROADCAST, ShipStrategy.FORWARD, estimator);
+					createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD, ShipStrategy.BROADCAST, estimator);
 				}
 			}
 		}
@@ -285,19 +289,20 @@ public class CrossNode extends TwoInputNode {
 	 * 
 	 * @param target
 	 *        The list to put the alternatives in.
-	 * @param pred1
-	 *        The predecessor node for the first input.
-	 * @param pred2
-	 *        The predecessor node for the second input.
+	 * @param allPreds1
+	 *        The predecessor nodes for the first input.
+	 * @param allPreds2
+	 *        The predecessor nodes for the second input.
 	 * @param ss1
-	 *        The shipping strategy for the first input.
+	 *        The shipping strategy for the first inputs.
 	 * @param ss2
-	 *        The shipping strategy for the second input.
+	 *        The shipping strategy for the second inputs.
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createLocalAlternatives(List<CrossNode> target, OptimizerNode pred1, OptimizerNode pred2,
-			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2) {
+	private void createLocalAlternatives(List<OptimizerNode> target, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2,
+			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
+	{
 		// compute the given properties of the incoming data
 		LocalProperties lpDefaults = new LocalProperties();
 
@@ -309,12 +314,16 @@ public class CrossNode extends TwoInputNode {
 		boolean isFirst = false;
 
 		if (oc.appliesToFirstInput()) {
-			gp = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-			lp = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
+			// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+			// we need to figure out, what the right gp and lp is, for the union case
+			gp = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+			lp = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
 			isFirst = true;
 		} else if (oc.appliesToSecondInput()) {
-			gp = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
-			lp = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
+			// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+			// we need to figure out, what the right gp and lp is, for the union case
+			gp = PactConnection.getGlobalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+			lp = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
 		} else {
 			gp = new GlobalProperties();
 			lp = new LocalProperties();
@@ -349,29 +358,29 @@ public class CrossNode extends TwoInputNode {
 				return;
 			}
 
-			createCrossAlternative(target, pred1, pred2, ss1, ss2, ls, gp, lp, estimator, allPreds1, allPreds2);
+			createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, ls, gp, lp, estimator);
 		}
 		else {
 			// we generate the streamed nested-loops only, when we have size estimates. otherwise, we generate
 			// only the block nested-loops variants, as they are more robust.
-			if (pred1.getEstimatedOutputSize() > 0 && pred2.getEstimatedOutputSize() > 0) {
+			if (haveValidOutputEstimates(allPreds1) && haveValidOutputEstimates(allPreds2)) {
 				if (isFirst) {
-					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
-						gp, lp, estimator, allPreds1, allPreds2);
-					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
-						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator, allPreds1, allPreds2);
+					createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
+						gp, lp, estimator);
+					createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
+						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
 				} else {
-					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
-						gp, lp, estimator, allPreds1, allPreds2);
-					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
-						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator, allPreds1, allPreds2);
+					createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
+						gp, lp, estimator);
+					createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
+						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
 				}
 			}
 
-			createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST,
-				gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator, allPreds1, allPreds2);
-			createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND,
-				gpNoOrder, lpDefaults, estimator, allPreds1, allPreds2);
+			createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST,
+				gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
+			createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND,
+				gpNoOrder, lpDefaults, estimator);
 		}
 	}
 
@@ -381,10 +390,10 @@ public class CrossNode extends TwoInputNode {
 	 * 
 	 * @param target
 	 *        The list to put the alternatives in.
-	 * @param pred1
-	 *        The predecessor node for the first input.
-	 * @param pred2
-	 *        The predecessor node for the second input.
+	 * @param allPreds1
+	 *        The predecessor nodes for the first input.
+	 * @param allPreds2
+	 *        The predecessor node2 for the second input.
 	 * @param ss1
 	 *        The shipping strategy for the first input.
 	 * @param ss2
@@ -398,9 +407,9 @@ public class CrossNode extends TwoInputNode {
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createCrossAlternative(List<CrossNode> target, OptimizerNode pred1, OptimizerNode pred2,
+	private void createCrossAlternative(List<OptimizerNode> target, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2,
 			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, GlobalProperties outGp, LocalProperties outLp,
-			CostEstimator estimator, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2) {
+			CostEstimator estimator) {
 		// create a new reduce node for this input
 		CrossNode n = new CrossNode(this, allPreds1, allPreds2, this.input1, this.input2, outGp, outLp);
 		for(PactConnection c : n.input1)

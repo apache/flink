@@ -238,48 +238,52 @@ public class MatchNode extends TwoInputNode {
 				
 				// check, whether the two children have the same
 				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(pred1, pred2)) {
+				if (!areBranchCompatible(predList1, predList2)) {
 					continue;
 				}
 				
+				ShipStrategy ss1 = checkShipStrategyCompatibility(this.input1);
+				if(ss1 == null)
+					continue;
+				ShipStrategy ss2 = checkShipStrategyCompatibility(this.input2);
+				if(ss2 == null)
+					continue;
+
 				// check for self match
-				if (pred1.equals(pred2)) {
+				if (areBranchesEqual(predList1, predList2)) {
 					// we have a self match
 					
-					ShipStrategy ss1 = c.getShipStrategy();
-					ShipStrategy ss2 = cc.getShipStrategy();
 					
 					if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && ss1.equals(ss2)) {
 						// ShipStrategy is forced on both inputs
-						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss1, estimator, allPreds1, allPreds2);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss1, estimator);
 					} else if (ss1 != ShipStrategy.NONE && ss2 == ShipStrategy.NONE) {
 						// ShipStrategy is forced on first input
-						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss1, estimator, allPreds1, allPreds2);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss1, estimator);
 					} else if (ss1 == ShipStrategy.NONE && ss2 != ShipStrategy.NONE) {
 						// ShipStrategy is forced on second input
-						createLocalAlternatives(outputPlans, pred1, pred2, ss2, ss2, estimator, allPreds1, allPreds2);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss2, ss2, estimator);
 					} else if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && !ss1.equals(ss2)) {
 						// incompatible ShipStrategies enforced
 						continue;
 					}
 					
-					GlobalProperties gp = pred1.getGlobalProperties();
+					// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+					// we need to figure out, what the right gp and lp is, for the union case
+					GlobalProperties gp = predList1.get(0).getGlobalProperties();
 					
 					if(gp.getPartitioning().equals(PartitionProperty.NONE)) {
 						// we need to partition
 						// TODO: include range partitioning
-						createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator);
 					} else {
 						// input is already partitioned
-						createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD, ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
+						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD, ShipStrategy.FORWARD, estimator);
 					}
 					
 					// check next alternative
 					continue;
 				}
-
-				ShipStrategy ss1 = c.getShipStrategy();
-				ShipStrategy ss2 = cc.getShipStrategy();
 
 				GlobalProperties gp1;
 				GlobalProperties gp2;
@@ -288,11 +292,17 @@ public class MatchNode extends TwoInputNode {
 				// some may be fixed a priori by compiler hints
 				if (ss1 == ShipStrategy.NONE) {
 					// the first connection is free to choose for the compiler
-					gp1 = pred1.getGlobalProperties();
+
+					// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+					// we need to figure out, what the right gp and lp is, for the union case
+					gp1 = predList1.get(0).getGlobalProperties();
 
 					if (ss2 == ShipStrategy.NONE) {
 						// case: both are free to choose
-						gp2 = pred2.getGlobalProperties();
+					
+						// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+						// we need to figure out, what the right gp and lp is, for the union case
+						gp2 = predList2.get(0).getGlobalProperties();
 
 						// test, if one side is pre-partitioned
 						// if that is the case, partitioning the other side accordingly is
@@ -315,19 +325,19 @@ public class MatchNode extends TwoInputNode {
 								// 2) re-partition 1 the same way as 2
 
 								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
-										ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
+										ShipStrategy.PARTITION_HASH, estimator);
 								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
-										ShipStrategy.PARTITION_RANGE, estimator, allPreds1, allPreds2);
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
+										ShipStrategy.PARTITION_RANGE, estimator);
 								}
 
 								if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-										ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
+										ShipStrategy.FORWARD, estimator);
 								} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-										ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
+										ShipStrategy.FORWARD, estimator);
 								}
 
 								// do not go through the remaining logic of the loop!
@@ -341,13 +351,13 @@ public class MatchNode extends TwoInputNode {
 							if (ss2 == ShipStrategy.FORWARD) {
 								// both are equally pre-partitioned
 								// we need not use any special shipping step
-								createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+								createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 
 								// we create an additional plan with a range partitioning
 								// if this is not already a range partitioning
 								if (gp1.getPartitioning() != PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-										ShipStrategy.PARTITION_RANGE, estimator, allPreds1, allPreds2);
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
+										ShipStrategy.PARTITION_RANGE, estimator);
 								}
 							} else {
 								// input 1 is local-forward
@@ -356,15 +366,15 @@ public class MatchNode extends TwoInputNode {
 								// 1) make input 2 the same partitioning as input 1
 								// 2) partition both inputs with a different partitioning function (hash <-> range)
 								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ss1,
-										ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
-									// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+									createLocalAlternatives(outputPlans, predList1, predList2, ss1,
+										ShipStrategy.PARTITION_HASH, estimator);
+									// createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 									// ShipStrategy.PARTITION_RANGE, estimator);
 								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ss1,
-										ShipStrategy.PARTITION_RANGE, estimator, allPreds1, allPreds2);
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-										ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+									createLocalAlternatives(outputPlans, predList1, predList2, ss1,
+										ShipStrategy.PARTITION_RANGE, estimator);
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
+										ShipStrategy.PARTITION_HASH, estimator);
 								} else {
 									throw new CompilerException("Invalid partitioning property for input 1 of match '"
 										+ getPactContract().getName() + "'.");
@@ -377,15 +387,15 @@ public class MatchNode extends TwoInputNode {
 							// 1) make input 1 the same partitioning as input 2
 							// 2) partition both inputs with a different partitioning function (hash <-> range)
 							if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ss2,
-									estimator, allPreds1, allPreds2);
-								// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ss2,
+									estimator);
+								// createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 								// ShipStrategy.PARTITION_RANGE, estimator);
 							} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE, ss2,
-									estimator, allPreds1, allPreds2);
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-									ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE, ss2,
+									estimator);
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
+									ShipStrategy.PARTITION_HASH, estimator);
 							} else {
 								throw new CompilerException("Invalid partitioning property for input 2 of match '"
 									+ getPactContract().getName() + "'.");
@@ -397,21 +407,23 @@ public class MatchNode extends TwoInputNode {
 							// 2) re-partition both by range
 							// 3) broadcast the first input (forward the second)
 							// 4) broadcast the second input (forward the first)
-							createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-								ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
+							createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
+								ShipStrategy.PARTITION_HASH, estimator);
 							// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
 							// ShipStrategy.PARTITION_RANGE, estimator);
 
 							// add the broadcasting strategies only, if the sizes of can be estimated
-							if (pred1.getEstimatedOutputSize() != -1 && pred2.getEstimatedOutputSize() != -1) {
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.BROADCAST,
-									ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
-									ShipStrategy.BROADCAST, estimator, allPreds1, allPreds2);
+							if (haveValidOutputEstimates(predList1) && haveValidOutputEstimates(predList2)) {
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.BROADCAST,
+									ShipStrategy.FORWARD, estimator);
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
+									ShipStrategy.BROADCAST, estimator);
 							}
 						}
 					} else {
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+						// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+						// we need to figure out, what the right gp and lp is, for the union case
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is broadcast -> other side must be forward
@@ -451,13 +463,16 @@ public class MatchNode extends TwoInputNode {
 								+ "' for match contract '" + getPactContract().getName() + "'.");
 						}
 
-						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 					}
 
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-					gp2 = pred2.getGlobalProperties();
+
+					// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+					// we need to figure out, what the right gp and lp is, for the union case
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
+					gp2 = predList2.get(0).getGlobalProperties();
 
 					// 1) input 1 is broadcast -> other side must be forward
 					// 2) input 1 is forward -> other side must be broadcast, if forwarded side is not partitioned
@@ -465,287 +480,7 @@ public class MatchNode extends TwoInputNode {
 					// 4) input 1 is range-partition -> other side must be re-partition by range as well
 					switch (ss1) {
 					case BROADCAST:
-						ss2 = ShipStrategy.FORWARD;eck, whether the two children have the same
-						// sub-plan in the common part before the branches
-						if (!areBranchCompatible(pred1, pred2)) {
-							continue;
-						}
-						
-						// check for self match
-						if (pred1.equals(pred2)) {
-							// we have a self match
-							
-							ShipStrategy ss1 = c.getShipStrategy();
-							ShipStrategy ss2 = cc.getShipStrategy();
-							
-							if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && ss1.equals(ss2)) {
-								// ShipStrategy is forced on both inputs
-								createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss1, estimator, allPreds1, allPreds2);
-							} else if (ss1 != ShipStrategy.NONE && ss2 == ShipStrategy.NONE) {
-								// ShipStrategy is forced on first input
-								createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss1, estimator, allPreds1, allPreds2);
-							} else if (ss1 == ShipStrategy.NONE && ss2 != ShipStrategy.NONE) {
-								// ShipStrategy is forced on second input
-								createLocalAlternatives(outputPlans, pred1, pred2, ss2, ss2, estimator, allPreds1, allPreds2);
-							} else if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && !ss1.equals(ss2)) {
-								// incompatible ShipStrategies enforced
-								continue;
-							}
-							
-							GlobalProperties gp = pred1.getGlobalProperties();
-							
-							if(gp.getPartitioning().equals(PartitionProperty.NONE)) {
-								// we need to partition
-								// TODO: include range partitioning
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
-							} else {
-								// input is already partitioned
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD, ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
-							}
-							
-							// check next alternative
-							continue;
-						}
-
-						ShipStrategy ss1 = c.getShipStrategy();
-						ShipStrategy ss2 = cc.getShipStrategy();
-
-						GlobalProperties gp1;
-						GlobalProperties gp2;
-
-						// test which degree of freedom we have in choosing the shipping strategies
-						// some may be fixed a priori by compiler hints
-						if (ss1 == ShipStrategy.NONE) {
-							// the first connection is free to choose for the compiler
-							gp1 = pred1.getGlobalProperties();
-
-							if (ss2 == ShipStrategy.NONE) {
-								// case: both are free to choose
-								gp2 = pred2.getGlobalProperties();
-
-								// test, if one side is pre-partitioned
-								// if that is the case, partitioning the other side accordingly is
-								// the cheapest thing to do
-								if (gp1.getPartitioning().isComputablyPartitioned()) {
-									ss1 = ShipStrategy.FORWARD;
-								}
-
-								if (gp2.getPartitioning().isComputablyPartitioned()) {
-									// input is partitioned
-
-									// check, whether that partitioning is the same as the one of input one!
-									if ((!gp1.getPartitioning().isPartitioned())
-										|| gp1.getPartitioning().isCompatibleWith(gp2.getPartitioning())) {
-										ss2 = ShipStrategy.FORWARD;
-									} else {
-										// both sides are partitioned, but in an incompatible way
-										// 3 alternatives:
-										// 1) re-partition 2 the same way as 1
-										// 2) re-partition 1 the same way as 2
-
-										if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-											createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
-												ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
-										} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-											createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
-												ShipStrategy.PARTITION_RANGE, estimator, allPreds1, allPreds2);
-										}
-
-										if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-											createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-												ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
-										} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-											createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-												ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
-										}
-
-										// do not go through the remaining logic of the loop!
-										continue;
-									}
-								}
-
-								// create the alternative nodes. the strategies to create depend on the different
-								// combinations of pre-existing partitions
-								if (ss1 == ShipStrategy.FORWARD) {
-									if (ss2 == ShipStrategy.FORWARD) {
-										// both are equally pre-partitioned
-										// we need not use any special shipping step
-										createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
-
-										// we create an additional plan with a range partitioning
-										// if this is not already a range partitioning
-										if (gp1.getPartitioning() != PartitionProperty.RANGE_PARTITIONED) {
-											createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-												ShipStrategy.PARTITION_RANGE, estimator, allPreds1, allPreds2);
-										}
-									} else {
-										// input 1 is local-forward
-
-										// add two plans:
-										// 1) make input 2 the same partitioning as input 1
-										// 2) partition both inputs with a different partitioning function (hash <-> range)
-										if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-											createLocalAlternatives(outputPlans, pred1, pred2, ss1,
-												ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
-											// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-											// ShipStrategy.PARTITION_RANGE, estimator);
-										} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-											createLocalAlternatives(outputPlans, pred1, pred2, ss1,
-												ShipStrategy.PARTITION_RANGE, estimator, allPreds1, allPreds2);
-											createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-												ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
-										} else {
-											throw new CompilerException("Invalid partitioning property for input 1 of match '"
-												+ getPactContract().getName() + "'.");
-										}
-									}
-								} else if (ss2 == ShipStrategy.FORWARD) {
-									// input 2 is local-forward
-
-									// add two plans:
-									// 1) make input 1 the same partitioning as input 2
-									// 2) partition both inputs with a different partitioning function (hash <-> range)
-									if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-										createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ss2,
-											estimator, allPreds1, allPreds2);
-										// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-										// ShipStrategy.PARTITION_RANGE, estimator);
-									} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-										createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE, ss2,
-											estimator, allPreds1, allPreds2);
-										createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-											ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
-									} else {
-										throw new CompilerException("Invalid partitioning property for input 2 of match '"
-											+ getPactContract().getName() + "'.");
-									}
-								} else {
-									// all of the shipping strategies are free to choose.
-									// none has a pre-existing partitioning. create all options:
-									// 1) re-partition both by hash
-									// 2) re-partition both by range
-									// 3) broadcast the first input (forward the second)
-									// 4) broadcast the second input (forward the first)
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
-										ShipStrategy.PARTITION_HASH, estimator, allPreds1, allPreds2);
-									// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
-									// ShipStrategy.PARTITION_RANGE, estimator);
-
-									// add the broadcasting strategies only, if the sizes of can be estimated
-									if (pred1.getEstimatedOutputSize() != -1 && pred2.getEstimatedOutputSize() != -1) {
-										createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.BROADCAST,
-											ShipStrategy.FORWARD, estimator, allPreds1, allPreds2);
-										createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
-											ShipStrategy.BROADCAST, estimator, allPreds1, allPreds2);
-									}
-								}
-							} else {
-								gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
-
-								// first connection free to choose, but second one is fixed
-								// 1) input 2 is broadcast -> other side must be forward
-								// 2) input 2 is forward -> other side must be broadcast, or repartitioned, if the forwarded
-								// side is partitioned
-								// 3) input 2 is hash-partition -> other side must be re-partition by hash as well
-								// 4) input 2 is range-partition -> other side must be re-partition by range as well
-								switch (ss2) {
-								case BROADCAST:
-									ss1 = ShipStrategy.FORWARD;
-									break;
-								case FORWARD:
-									if (gp2.getPartitioning().isPartitioned()) {
-										// adapt to the partitioning
-										if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-											ss1 = ShipStrategy.PARTITION_HASH;
-										} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-											ss1 = ShipStrategy.PARTITION_RANGE;
-										} else {
-											throw new CompilerException();
-										}
-									} else {
-										// must broadcast
-										ss1 = ShipStrategy.BROADCAST;
-									}
-									break;
-								case PARTITION_HASH:
-									ss1 = (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
-										: ShipStrategy.PARTITION_HASH;
-									break;
-								case PARTITION_RANGE:
-									ss1 = (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
-										: ShipStrategy.PARTITION_RANGE;
-									break;
-								default:
-									throw new CompilerException("Invalid fixed shipping strategy '" + ss2.name()
-										+ "' for match contract '" + getPactContract().getName() + "'.");
-								}
-
-								createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
-							}
-
-						} else if (ss2 == ShipStrategy.NONE) {
-							// second connection free to choose, but first one is fixed
-							gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-							gp2 = pred2.getGlobalProperties();
-
-							// 1) input 1 is broadcast -> other side must be forward
-							// 2) input 1 is forward -> other side must be broadcast, if forwarded side is not partitioned
-							// 3) input 1 is hash-partition -> other side must be re-partition by hash as well
-							// 4) input 1 is range-partition -> other side must be re-partition by range as well
-							switch (ss1) {
-							case BROADCAST:
-								ss2 = ShipStrategy.FORWARD;
-								break;
-							case FORWARD:
-								if (gp1.getPartitioning().isPartitioned()) {
-									// adapt to the partitioning
-									if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-										ss2 = ShipStrategy.PARTITION_HASH;
-									} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-										ss2 = ShipStrategy.PARTITION_RANGE;
-									} else {
-										throw new CompilerException();
-									}
-								} else {
-									// must broadcast
-									ss2 = ShipStrategy.BROADCAST;
-								}
-								break;
-							case PARTITION_HASH:
-								ss2 = (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
-									: ShipStrategy.PARTITION_HASH;
-								break;
-							case PARTITION_RANGE:
-								ss2 = (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
-									: ShipStrategy.PARTITION_RANGE;
-								break;
-							default:
-								throw new CompilerException("Invalid fixed shipping strategy '" + ss1.name()
-									+ "' for match contract '" + getPactContract().getName() + "'.");
-							}
-
-							createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
-						} else {
-							// both are fixed
-							// check, if they produce a valid plan
-							if ((ss1 == ShipStrategy.BROADCAST && ss2 != ShipStrategy.BROADCAST)
-								|| (ss1 != ShipStrategy.BROADCAST && ss2 == ShipStrategy.BROADCAST)) {
-								// the broadcast / not-broadcast combinations are legal
-								createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
-							} else {
-								// they need to have an equal partitioning
-								gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-								gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
-								if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
-									// partitioning there and equal
-									createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
-								} else {
-									// no valid plan possible with that combination of shipping strategies and pre-existing
-									// properties
-									continue;
-								}
-							}
-						}
+						ss2 = ShipStrategy.FORWARD;
 						break;
 					case FORWARD:
 						if (gp1.getPartitioning().isPartitioned()) {
@@ -775,21 +510,24 @@ public class MatchNode extends TwoInputNode {
 							+ "' for match contract '" + getPactContract().getName() + "'.");
 					}
 
-					createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+					createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 				} else {
 					// both are fixed
 					// check, if they produce a valid plan
 					if ((ss1 == ShipStrategy.BROADCAST && ss2 != ShipStrategy.BROADCAST)
 						|| (ss1 != ShipStrategy.BROADCAST && ss2 == ShipStrategy.BROADCAST)) {
 						// the broadcast / not-broadcast combinations are legal
-						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 					} else {
 						// they need to have an equal partitioning
-						gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+
+						// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+						// we need to figure out, what the right gp and lp is, for the union case
+						gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);
 						if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
 							// partitioning there and equal
-							createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator, allPreds1, allPreds2);
+							createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 						} else {
 							// no valid plan possible with that combination of shipping strategies and pre-existing
 							// properties
@@ -807,10 +545,10 @@ public class MatchNode extends TwoInputNode {
 	 * 
 	 * @param target
 	 *        The list to put the alternatives in.
-	 * @param pred1
-	 *        The predecessor node for the first input.
-	 * @param pred2
-	 *        The predecessor node for the second input.
+	 * @param allPreds1
+	 *        The predecessor nodes for the first input.
+	 * @param allPreds2
+	 *        The predecessor nodes for the second input.
 	 * @param ss1
 	 *        The shipping strategy for the first input.
 	 * @param ss2
@@ -818,15 +556,18 @@ public class MatchNode extends TwoInputNode {
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createLocalAlternatives(List<MatchNode> target, OptimizerNode pred1, OptimizerNode pred2,
-			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2)
+	private void createLocalAlternatives(List<OptimizerNode> target, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2,
+			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
 	{
-		// compute the given properties of the incoming data
-		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+		// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
+		// we need to figure out, what the right gp and lp is, for the union case
 
-		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
-		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
+		// compute the given properties of the incoming data
+		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+
+		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
 
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();
@@ -866,11 +607,11 @@ public class MatchNode extends TwoInputNode {
 			}
 
 		} else {
-			if (!pred1.equals(pred2)) {
+			if (!areBranchesEqual(allPreds1, allPreds2)) {
 				// this is not a self match
 			
 				// create the hash strategies only, if we have estimates for the input sized
-				if (pred1.estimatedOutputSize > 0 && pred2.estimatedOutputSize > 0)
+				if (haveValidOutputEstimates(allPreds1) && haveValidOutputEstimates(allPreds2))
 				{
 					// create the hybrid-hash strategy where the first input is the building side
 					createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, outGp.createCopy(),
@@ -928,6 +669,56 @@ public class MatchNode extends TwoInputNode {
 	}
 
 	/**
+	 * If we have multiple connection for both inputs, the branches are equal if all predecessors
+	 * per input are the same as for the other input. Ie., if the two sets (the order does not matter)
+	 * of both predecessors are equal.
+	 * 
+	 * Eg.:
+	 * allPreds1 = { A, B, C } == allPreds2 = { B, A, C }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B, C, D }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B, E }
+	 * 
+	 * @param allPreds1		All predecessors of the first input.
+	 * @param allPreds2		All predecessors of the second input.
+	 * 
+	 * @return	{@code true} if branches are equal, {@code false} otherwise.
+	 */
+	private boolean areBranchesEqual(List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2) {
+		final int size1 = allPreds1.size();
+		final int size2 = allPreds2.size();
+		
+		List<OptimizerNode> copy1 = new ArrayList<OptimizerNode>(size1);
+		List<OptimizerNode> copy2 = new ArrayList<OptimizerNode>(size2);
+		
+		for(int i = 0; i < size1; ++i)
+			copy1.add(allPreds1.get(i));
+		for(int i = 0; i < size2; ++i)
+			copy2.add(allPreds2.get(i));
+
+		outter:
+		for(int i = 0; i < copy1.size(); ++i) {
+			OptimizerNode nodeToTest = copy1.get(i);
+			
+			for(int j = i + i; j < copy2.size(); ++j) {
+				if(nodeToTest.equals(copy2.get(j))) {
+					copy1.remove(i);
+					--i;
+					copy2.remove(j);
+		
+					continue outter;
+				}
+			}
+			
+			return false;
+		}
+		
+		assert (copy1.size() == 0 && copy2.size() == 0);
+		
+		return true;
+	}
+	
+	/**
 	 * Private utility method that generates a candidate Match node, given fixed shipping strategies and a fixed
 	 * local strategy.
 	 * 
@@ -950,7 +741,7 @@ public class MatchNode extends TwoInputNode {
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createMatchAlternative(List<MatchNode> target, List<OptimizerNode> pred1, List<OptimizerNode> pred2,
+	private void createMatchAlternative(List<OptimizerNode> target, List<OptimizerNode> pred1, List<OptimizerNode> pred2,
 			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, GlobalProperties outGp, LocalProperties outLp,
 			CostEstimator estimator)
 	{

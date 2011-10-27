@@ -37,6 +37,7 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class SelfMatchTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(SelfMatchTaskTest.class);
@@ -50,8 +51,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int valCnt = 35;
 				
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
@@ -70,10 +71,10 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt*(valCnt*valCnt);
 				
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
 		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
 			
 			Integer key = pair.getKey().getValue();
 			if(!keyValCntMap.containsKey(key)) {
@@ -88,7 +89,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 				" Expected was: "+(valCnt*valCnt), keyValCntMap.get(key).intValue() == (valCnt*valCnt));
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -100,8 +101,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int valCnt = 5;
 				
 		super.initEnvironment(3 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true), 1);
+		super.addOutput(this.outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SELF_NESTEDLOOP);
@@ -120,10 +121,10 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt*(valCnt*valCnt);
 				
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
 		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
 			
 			Integer key = pair.getKey().getValue();
 			if(!keyValCntMap.containsKey(key)) {
@@ -137,7 +138,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 				" Expected was "+(valCnt*valCnt), keyValCntMap.get(key) == (valCnt*valCnt));
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -148,8 +149,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
@@ -168,7 +169,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -176,7 +177,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	public void testCancelSelfMatchTaskWhileSorting() {
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final SelfMatchTask testTask = new SelfMatchTask();
@@ -187,6 +188,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockMatchStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -216,7 +218,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final SelfMatchTask testTask = new SelfMatchTask();
@@ -227,6 +229,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -258,13 +261,13 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		public void match(PactInteger key, PactInteger value1, PactInteger value2,
 				Collector<PactInteger, PactInteger> out) {
 			
-			Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value1)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value2)));
+			Assert.assertTrue("Key was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(key)));
+			Assert.assertTrue("Value was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(value1)));
+			Assert.assertTrue("Value was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(value2)));
 			
-			hashSet.add(System.identityHashCode(key));
-			hashSet.add(System.identityHashCode(value1));
-			hashSet.add(System.identityHashCode(value2));
+			this.hashSet.add(System.identityHashCode(key));
+			this.hashSet.add(System.identityHashCode(value1));
+			this.hashSet.add(System.identityHashCode(value2));
 			
 			out.collect(key, value1);
 			
@@ -280,7 +283,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		public void match(PactInteger key, PactInteger value1, PactInteger value2,
 				Collector<PactInteger, PactInteger> out) {
 			
-			if(++cnt>=10) {
+			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			

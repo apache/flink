@@ -68,9 +68,9 @@ public abstract class TaskTestBase {
 
 	}
 
-	public void addInput(Iterator<KeyValuePair<PactInteger, PactInteger>> input) {
+	public void addInput(Iterator<KeyValuePair<PactInteger, PactInteger>> input, int groupId) {
 		this.mockEnv.addInput(input);
-		new TaskConfig(mockEnv.getRuntimeConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD, 1);
+		new TaskConfig(mockEnv.getRuntimeConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD, groupId);
 	}
 
 	public void addOutput(List<KeyValuePair<PactInteger, PactInteger>> output) {

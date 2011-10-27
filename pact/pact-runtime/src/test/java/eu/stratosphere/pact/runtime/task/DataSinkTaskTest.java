@@ -41,6 +41,7 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class DataSinkTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(DataSinkTaskTest.class);
@@ -49,7 +50,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 	
 	@After
 	public void cleanUp() {
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		if(tempTestFile.exists()) {
 			tempTestFile.delete();
 		}
@@ -62,13 +63,13 @@ public class DataSinkTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
 		
 		DataSinkTask testTask = new DataSinkTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
 		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+this.tempTestPath);
 		
 		try {
 			testTask.invoke();
@@ -77,7 +78,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 		
@@ -122,7 +123,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
 		
 		DataSinkTask testTask = new DataSinkTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
@@ -130,7 +131,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setNumFilehandles(4);
 		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.ASCENDING.name());
 		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+this.tempTestPath);
 		
 		try {
 			testTask.invoke();
@@ -139,7 +140,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 		
@@ -176,7 +177,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
 		
 		DataSinkTask testTask = new DataSinkTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
@@ -184,7 +185,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setNumFilehandles(4);
 		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.DESCENDING.name());
 		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+this.tempTestPath);
 		
 		try {
 			testTask.invoke();
@@ -194,7 +195,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 		
@@ -231,7 +232,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
 
 		DataSinkTask testTask = new DataSinkTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
@@ -239,7 +240,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
-		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+this.tempTestPath);
 		
 		boolean stubFailed = false;
 		
@@ -252,7 +253,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
 		// assert that temp file was created
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 		
 	}
@@ -261,7 +262,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 	public void testCancelDataSinkTask() {
 		
 		super.initEnvironment(1);
-		super.addInput(new InfiniteInputIterator());
+		super.addInput(new InfiniteInputIterator(), 1);
 		
 		final DataSinkTask testTask = new DataSinkTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
@@ -269,9 +270,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+tempTestPath);
+		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+this.tempTestPath);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -294,7 +296,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		}
 		
 		// assert that temp file was created
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 				
 	}
@@ -314,7 +316,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		
 		@Override
 		public byte[] writeLine(KeyValuePair<PactInteger, PactInteger> pair) {
-			if(++cnt>=10) {
+			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			return (pair.getKey().toString()+"_"+pair.getValue().toString()+"\n").getBytes();

@@ -175,6 +175,17 @@ public abstract class SingleInputNode extends OptimizerNode {
 		List<List<OptimizerNode>> alternativeSubPlanCominations = new ArrayList<List<OptimizerNode>>();
 		getAlternativeSubPlanCombinationsRecursively(inPlans, new ArrayList<OptimizerNode>(0), alternativeSubPlanCominations);
 		
+		for(int i = 0; i < alternativeSubPlanCominations.size(); ++i) {
+			// check, whether the two children have the same
+			// sub-plan in the common part before the branches
+			if (!areBranchCompatible(alternativeSubPlanCominations.get(i), null)) {
+				alternativeSubPlanCominations.remove(i);
+				// as we removed plan #i we have to test at index #i again which
+				// has an new plan now
+				--i;
+			}
+		}
+
 		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
 
 		computeValidPlanAlternatives(alternativeSubPlanCominations, estimator,  outputPlans);

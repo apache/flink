@@ -34,6 +34,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class ReduceTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
@@ -47,8 +48,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
@@ -64,13 +65,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
 			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == valCnt-pair.getKey().getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -81,8 +82,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
@@ -98,13 +99,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
 			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == valCnt-pair.getKey().getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -115,8 +116,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -137,13 +138,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			expSum+=i;
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
 			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum-pair.getKey().getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -155,8 +156,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -177,13 +178,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			expSum+=i;
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
+		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
 			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum-pair.getKey().getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	

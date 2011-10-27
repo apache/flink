@@ -35,6 +35,7 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class CrossTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(CrossTaskTest.class);
@@ -51,9 +52,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
@@ -70,9 +71,9 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -86,9 +87,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
@@ -105,9 +106,9 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -121,9 +122,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
@@ -141,7 +142,7 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -155,9 +156,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
@@ -174,9 +175,9 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -190,9 +191,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
@@ -209,9 +210,9 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -225,9 +226,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 0;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
@@ -244,9 +245,9 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -262,9 +263,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
@@ -282,7 +283,7 @@ public class CrossTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 
@@ -293,9 +294,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
+		super.addOutput(this.outList);
 		
 		final CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
@@ -304,6 +305,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockCrossStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -334,9 +336,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
+		super.addOutput(this.outList);
 		
 		final CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
@@ -345,6 +347,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockCrossStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -375,9 +378,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
+		super.addOutput(this.outList);
 		
 		final CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
@@ -386,6 +389,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockCrossStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -416,9 +420,9 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
+		super.addOutput(this.outList);
 		
 		final CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
@@ -427,6 +431,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockCrossStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -458,15 +463,15 @@ public class CrossTaskTest extends TaskTestBase {
 		public void cross(PactInteger key1, PactInteger value1, PactInteger key2, PactInteger value2,
 				Collector<PactInteger, PactInteger> out) {
 			
-			Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key1)));
-			Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key2)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value1)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value2)));
+			Assert.assertTrue("Key was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(key1)));
+			Assert.assertTrue("Key was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(key2)));
+			Assert.assertTrue("Value was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(value1)));
+			Assert.assertTrue("Value was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(value2)));
 			
-			hashSet.add(System.identityHashCode(key1));
-			hashSet.add(System.identityHashCode(key2));
-			hashSet.add(System.identityHashCode(value1));
-			hashSet.add(System.identityHashCode(value2));
+			this.hashSet.add(System.identityHashCode(key1));
+			this.hashSet.add(System.identityHashCode(key2));
+			this.hashSet.add(System.identityHashCode(value1));
+			this.hashSet.add(System.identityHashCode(value2));
 			
 			out.collect(key1, value1);
 		}
@@ -480,7 +485,7 @@ public class CrossTaskTest extends TaskTestBase {
 		public void cross(PactInteger key1, PactInteger value1, PactInteger key2, PactInteger value2,
 				Collector<PactInteger, PactInteger> out) {
 			
-			if(++cnt>=10) {
+			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 						

@@ -358,6 +358,60 @@ public abstract class TwoInputNode extends OptimizerNode
 	protected abstract void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
 			List<List<OptimizerNode>> alternativeSubPlanCominations2, CostEstimator estimator, List<OptimizerNode> outputPlans);
 	
+	/**
+	 * Checks if all {@code PactConnections} have compatible ShipStrategies to each other.
+	 * 
+	 * @param input		The list of PactConnections to test.
+	 * 
+	 * @return		The ShipStrategy to be used for all inputs<br />
+	 * 				{@code null} if the given ShipStrategies are incompatible
+	 */
+	protected ShipStrategy checkShipStrategyCompatibility(List<PactConnection> input) {
+		ShipStrategy ss = ShipStrategy.NONE;
+		final int size = input.size();
+		
+		// look if an input strategy is set
+		int i;
+		for(i = 0; i < size; ++i) {
+			ss = input.get(i).getShipStrategy();
+			
+			if(ss != ShipStrategy.NONE) { // we found one...
+				++i;
+				break;
+			}
+			
+		}
+		
+		if(ss != ShipStrategy.NONE) {
+			// ss1 is set; lets check if all remaining inputs are compatible
+			for( /* i is already at the right value */ ; i < size; ++i) {
+				ShipStrategy s = input.get(i).getShipStrategy();
+				
+				if(s != ShipStrategy.NONE && s != ss) // if ship strategies is set and not equal we hit an incompatibility
+					return null;
+			}
+		}
+
+		return ss;
+	}
+	/**
+	 * Checks if all predecessor nodes have a valid outputSize estimation value set.
+	 * 
+	 * @param allPreds		the first list of all predecessor to check
+	 * 
+	 * @return	{@code true} if all values are valid, {@code false} otherwise
+	 */
+	protected boolean haveValidOutputEstimates(List<OptimizerNode> allPreds) {
+	
+		for(OptimizerNode n : allPreds) {
+			if(n.getEstimatedOutputSize() == -1) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUnclosedBranchStack()

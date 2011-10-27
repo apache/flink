@@ -35,6 +35,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class TempTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(TempTaskExternalITCase.class);
@@ -47,11 +48,11 @@ public class TempTaskExternalITCase extends TaskTestBase {
 		int keyCnt = 16384;
 		int valCnt = 32;
 		
-		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+		this.outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
 		super.initEnvironment(1024*1024*1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		TempTask testTask = new TempTask();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
@@ -65,7 +66,7 @@ public class TempTaskExternalITCase extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue(outList.size() == keyCnt*valCnt);
+		Assert.assertTrue(this.outList.size() == keyCnt*valCnt);
 		
 	}
 	

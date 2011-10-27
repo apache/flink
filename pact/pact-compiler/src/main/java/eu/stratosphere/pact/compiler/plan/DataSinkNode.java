@@ -335,6 +335,13 @@ public class DataSinkNode extends OptimizerNode {
 		getAlternativeSubPlanCombinationsRecursively(inPlans, new ArrayList<OptimizerNode>(0), alternativeSubPlanCominations);
 		
 		for(List<OptimizerNode> predList : alternativeSubPlanCominations) {
+			
+			// check, whether the children have the same
+			// sub-plan in the common part before the branches
+			if (!areBranchCompatible(predList, null)) {
+				continue;
+			}
+
 			Order go = getPactContract().getGlobalOrder();
 			Order lo = getPactContract().getLocalOrder();
 

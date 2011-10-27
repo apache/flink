@@ -33,6 +33,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class MatchTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(MatchTaskExternalITCase.class);
@@ -49,9 +50,9 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 4*2;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
@@ -69,9 +70,9 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 
 	}
 	
@@ -151,13 +152,13 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		public void match(PactInteger key, PactInteger value1, PactInteger value2,
 				Collector<PactInteger, PactInteger> out) {
 			
-			Assert.assertTrue("Key was given multiple times into user code",!hashSet.contains(System.identityHashCode(key)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value1)));
-			Assert.assertTrue("Value was given multiple times into user code",!hashSet.contains(System.identityHashCode(value2)));
+			Assert.assertTrue("Key was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(key)));
+			Assert.assertTrue("Value was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(value1)));
+			Assert.assertTrue("Value was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(value2)));
 			
-			hashSet.add(System.identityHashCode(key));
-			hashSet.add(System.identityHashCode(value1));
-			hashSet.add(System.identityHashCode(value2));
+			this.hashSet.add(System.identityHashCode(key));
+			this.hashSet.add(System.identityHashCode(value1));
+			this.hashSet.add(System.identityHashCode(value2));
 			
 			out.collect(key, value1);
 			

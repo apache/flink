@@ -35,6 +35,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class CombineTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(CombineTaskExternalITCase.class);
@@ -48,8 +49,8 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -73,7 +74,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
 		HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
-		for (KeyValuePair<PactInteger,PactInteger> pair : outList) {
+		for (KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
 			PactInteger prevVal = aggMap.get(pair.getKey());
 			if (prevVal != null) {
 				aggMap.put(pair.getKey(), new PactInteger(prevVal.getValue() + pair.getValue().getValue()));
@@ -83,13 +84,13 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 			}
 		}
 		
-		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
 		for (PactInteger integer : aggMap.values()) {
 			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -100,8 +101,8 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -125,7 +126,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
 		HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
-		for (KeyValuePair<PactInteger,PactInteger> pair : outList) {
+		for (KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
 			PactInteger prevVal = aggMap.get(pair.getKey());
 			if (prevVal != null) {
 				aggMap.put(pair.getKey(), new PactInteger(prevVal.getValue() + pair.getValue().getValue()));
@@ -141,7 +142,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	

@@ -969,16 +969,51 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @param child2Candidate
 	 * @return
 	 */
-	protected boolean areBranchCompatible(OptimizerNode child1Candidate, OptimizerNode child2Candidate)
+	protected boolean areBranchCompatible(List<OptimizerNode> child1Candidate, List<OptimizerNode> child2Candidate)
 	{
 		// if there is no open branch, the children are always compatible.
 		// in most plans, that will be the dominant case
 		if (this.lastJoinedBranchNode == null) {
 			return true;
 		}
-		// else
-		return child1Candidate.branchPlan.get(this.lastJoinedBranchNode) == 
-				child2Candidate.branchPlan.get(this.lastJoinedBranchNode);
+
+		
+		// the order of the branches in <joinedLists> does not matter 
+		List<OptimizerNode> joinedLists;
+		
+		final int size1 = child1Candidate.size();
+		int size = size1;
+		
+		if(child2Candidate != null) {
+			final int size2 = child2Candidate.size();
+			size += size2;
+			
+			joinedLists = new ArrayList<OptimizerNode>(size);
+			
+			for(int i = 0; i < size2; ++i) {
+				joinedLists.add(child2Candidate.get(i));
+			}			
+		} else {
+			joinedLists = new ArrayList<OptimizerNode>(size);			
+		}
+
+		for(int i = 0; i < size1; ++i) {
+			joinedLists.add(child1Candidate.get(i));
+		}
+
+		// we check if each branch is compatible with all others
+		for(int i = 0; i < size; ++i) {
+			
+			final OptimizerNode nodeToCompare = joinedLists.get(i).branchPlan.get(this.lastJoinedBranchNode);
+			
+			for(int j = i+1; j < size; ++j) {
+				if(!(nodeToCompare == joinedLists.get(j).branchPlan.get(this.lastJoinedBranchNode))) {
+					return false;
+				}
+			}
+		}
+		
+		return true;
 	}
 
 	/*
