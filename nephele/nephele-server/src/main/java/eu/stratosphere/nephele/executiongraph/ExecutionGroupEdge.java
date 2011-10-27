@@ -135,31 +135,6 @@ public class ExecutionGroupEdge {
 		this.executionGraph.unwire(this.sourceVertex, this.indexOfOutputGate, this.targetVertex, this.indexOfInputGate);
 		this.executionGraph.wire(this.sourceVertex, this.indexOfOutputGate, this.targetVertex, this.indexOfInputGate,
 			newChannelType, this.compressionLevel);
-
-		// TODO: This code breaks graphs which have multiple edges with different channel between a pair of vertices
-		// It should probably be removed
-		// Make sure update is applied to all edges connecting the two vertices
-		/*
-		 * final List<ExecutionGroupEdge> edges = this.getSourceVertex().getForwardEdges(this.getTargetVertex());
-		 * final Iterator<ExecutionGroupEdge> it = edges.iterator();
-		 * while (it.hasNext()) {
-		 * final ExecutionGroupEdge edge = it.next();
-		 * // Update channel type
-		 * CompressionLevel cl = null;
-		 * synchronized(edge) {
-		 * System.out.println("Chaning channel2 type from " + edge.channelType + " to " + newChannelType);
-		 * edge.channelType = newChannelType;
-		 * cl = edge.compressionLevel;
-		 * }
-		 * this.executionGraph.unwire(edge.sourceVertex, edge.indexOfOutputGate, edge.targetVertex,
-		 * edge.indexOfInputGate);
-		 * }
-		 */
-
-		// Changing the channels may require to reassign the stages
-		this.executionGraph.repairStages();
-		// It may also be necessary to repair the instance assignment
-		this.executionGraph.repairInstanceAssignment();
 	}
 
 	/**

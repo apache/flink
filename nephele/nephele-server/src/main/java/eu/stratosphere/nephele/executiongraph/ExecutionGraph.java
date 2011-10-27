@@ -18,8 +18,10 @@ package eu.stratosphere.nephele.executiongraph;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -214,9 +216,9 @@ public class ExecutionGraph implements ExecutionListener {
 			final ExecutionGroupVertex groupVertex = it2.next();
 			if (groupVertex.isNumberOfMembersUserDefined()) {
 				groupVertex.changeNumberOfGroupMembers(groupVertex.getUserDefinedNumberOfMembers());
+				groupVertex.repairSubtasksPerInstance();
 			}
 		}
-		repairInstanceAssignment();
 
 		// Finally, apply the channel settings channel settings
 		it2 = new ExecutionGroupVertexIterator(this, true, -1);
@@ -235,15 +237,14 @@ public class ExecutionGraph implements ExecutionListener {
 			}
 		}
 
-		// TODO: Check if calling this is really necessary, if not set visibility of reassignInstances back to protected
-		it2 = new ExecutionGroupVertexIterator(this, true, -1);
-		while (it2.hasNext()) {
-			final ExecutionGroupVertex groupVertex = it2.next();
-			if (groupVertex.getVertexToShareInstancesWith() == null) {
-				groupVertex.reassignInstances();
-				this.repairInstanceAssignment();
-			}
-		}
+		// Repair the instance assignment after having changed the channel types
+		repairInstanceAssignment();
+
+		// Repair the instance sharing among different group vertices
+		repairInstanceSharing();
+
+		// Finally, repair the stages
+		repairStages();
 	}
 
 	/**
@@ -1044,6 +1045,20 @@ public class ExecutionGraph implements ExecutionListener {
 
 			executionStage.addStageMember(groupVertex);
 			groupVertex.setExecutionStage(executionStage);
+		}
+	}
+
+	public void repairInstanceSharing() {
+
+		final Set<AllocatedResource> availableResources = new LinkedHashSet<AllocatedResource>();
+
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
+		while (it.hasNext()) {
+			final ExecutionGroupVertex groupVertex = it.next();
+			if (groupVertex.getVertexToShareInstancesWith() == null) {
+				availableResources.clear();
+				groupVertex.repairInstanceSharing(availableResources);
+			}
 		}
 	}
 

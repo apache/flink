@@ -16,8 +16,11 @@
 package eu.stratosphere.nephele.executiongraph;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -485,7 +488,8 @@ public class ExecutionGroupVertex {
 
 				try {
 					final ExecutionVertex vertex = this.groupMembers.get(0).splitVertex();
-					// vertex.setInstance(new DummyInstance(vertex.getInstance().getType()));
+					vertex.setAllocatedResource(new AllocatedResource(DummyInstance
+						.createDummyInstance(this.instanceType), this.instanceType, null));
 					this.groupMembers.add(vertex);
 				} catch (Exception e) {
 					throw new GraphConversionException(StringUtils.stringifyException(e));
@@ -505,13 +509,6 @@ public class ExecutionGroupVertex {
 			vertex.getEnvironment().setIndexInSubtaskGroup(index++);
 			vertex.getEnvironment().setCurrentNumberOfSubtasks(groupSize);
 		}
-
-		// Repair instance assignment
-		reassignInstances();
-		// This operation cannot affect the stages
-		// FH: Repairing Instance Assingments when not all group vertices have the right number of sub-tasks does not
-		// work
-		// this.executionGraph.repairInstanceAssignment();
 	}
 
 	private void unwire() throws GraphConversionException {
@@ -672,10 +669,6 @@ public class ExecutionGroupVertex {
 			final ExecutionVertex vertex = this.groupMembers.get(i);
 			vertex.setAllocatedResource(null);
 		}
-
-		reassignInstances();
-		// This operation cannot affect the stages
-		this.executionGraph.repairInstanceAssignment();
 	}
 
 	InstanceType getInstanceType() {
@@ -695,11 +688,6 @@ public class ExecutionGroupVertex {
 		}
 
 		this.numberOfSubtasksPerInstance = numberOfSubtasksPerInstance;
-
-		// The assignment of instances may have changed, so we need to reassign them
-		reassignInstances();
-		// This operation cannot affect the stages
-		this.executionGraph.repairInstanceAssignment();
 	}
 
 	int getNumberOfSubtasksPerInstance() {
@@ -708,7 +696,7 @@ public class ExecutionGroupVertex {
 
 	void shareInstancesWith(final ExecutionGroupVertex groupVertex) throws GraphConversionException {
 
-		if (userDefinedVertexToShareInstancesWith && this.vertexToShareInstancesWith.get() != null) {
+		if (this.userDefinedVertexToShareInstancesWith && this.vertexToShareInstancesWith.get() != null) {
 			throw new GraphConversionException("Cannot overwrite user defined vertex to share instances with");
 		}
 
@@ -722,10 +710,6 @@ public class ExecutionGroupVertex {
 		}
 
 		groupVertex.addToVerticesSharingInstances(this);
-
-		reassignInstances();
-		// This operation cannot affect the stages
-		this.executionGraph.repairInstanceAssignment();
 	}
 
 	boolean isVertexToShareInstanceWithUserDefined() {
@@ -759,9 +743,13 @@ public class ExecutionGroupVertex {
 			throw new IllegalArgumentException("Argument groupVertex must not be null");
 		}
 
-		if (!this.verticesSharingInstances.contains(groupVertex)) {
-			this.verticesSharingInstances.add(groupVertex);
+		this.verticesSharingInstances.addIfAbsent(groupVertex);
+
+		System.out.print(getName() + ": ");
+		for (final ExecutionGroupVertex v : this.verticesSharingInstances) {
+			System.out.print(v.getName() + " ");
 		}
+		System.out.println("");
 	}
 
 	private void removeFromVerticesSharingInstances(final ExecutionGroupVertex groupVertex) {
@@ -774,73 +762,75 @@ public class ExecutionGroupVertex {
 
 	}
 
-	void reassignInstances() {
-
-		int numberOfRequiredInstances = (this.groupMembers.size() / this.numberOfSubtasksPerInstance)
-				+ (((this.groupMembers.size() % this.numberOfSubtasksPerInstance) != 0) ? 1 : 0);
-
-		final List<AllocatedResource> availableInstances = collectAvailableResources();
-
-		// Check if the number of available instances is sufficiently large, if not generate new instances
-		while (availableInstances.size() < numberOfRequiredInstances) {
-			final AllocatedResource newAllocatedResource = new AllocatedResource(DummyInstance
-				.createDummyInstance(this.instanceType), this.instanceType, null);
-			availableInstances.add(newAllocatedResource);
-		}
-
-		// Now assign the group members to the available instances
+	public void repairSubtasksPerInstance() {
 
 		final Iterator<ExecutionVertex> it = this.groupMembers.iterator();
-		int instanceIndex = 0, i = 0;
-		// TODO: Changing the size of index steps may not be beneficial in all situations
-		int sizeOfIndexStep = availableInstances.size() / numberOfRequiredInstances;
-
+		int count = 0;
 		while (it.hasNext()) {
-			final ExecutionVertex vertex = it.next();
-			// System.out.println("Assigning " + getName() + " " + i + " to instance " +
-			// availableInstances.get(instanceIndex));
-			vertex.setAllocatedResource(availableInstances.get(instanceIndex));
 
-			if ((++i % this.numberOfSubtasksPerInstance) == 0) {
-				instanceIndex += sizeOfIndexStep;
-			}
-		}
-
-		// Since the number of instances may have changed, other vertices sharing instances with us could be
-		// affected by that change
-		final Iterator<ExecutionGroupVertex> it2 = this.verticesSharingInstances.iterator();
-		while (it2.hasNext()) {
-			final ExecutionGroupVertex groupVertex = it2.next();
-			groupVertex.reassignInstances();
+			final ExecutionVertex v = it.next();
+			v.setAllocatedResource(this.groupMembers.get(
+				(count++ / this.numberOfSubtasksPerInstance) * this.numberOfSubtasksPerInstance)
+				.getAllocatedResource());
 		}
 	}
 
-	private List<AllocatedResource> collectAvailableResources() {
+	void repairInstanceSharing(final Set<AllocatedResource> availableResources) {
 
-		List<AllocatedResource> availableResources;
+		// Number of required resources by this group vertex
+		final int numberOfRequiredInstances = (this.groupMembers.size() / this.numberOfSubtasksPerInstance)
+			+ (((this.groupMembers.size() % this.numberOfSubtasksPerInstance) != 0) ? 1 : 0);
 
-		if (this.vertexToShareInstancesWith.get() != null) {
-			availableResources = this.vertexToShareInstancesWith.get().collectAvailableResources();
-		} else {
-			availableResources = new ArrayList<AllocatedResource>();
+		// Number of resources to be replaced
+		final int resourcesToBeReplaced = Math.min(availableResources.size(), numberOfRequiredInstances);
 
-			synchronized (this.groupMembers) {
+		// Build the replacement map if necessary
+		final Map<AllocatedResource, AllocatedResource> replacementMap = new HashMap<AllocatedResource, AllocatedResource>();
 
-				final Iterator<ExecutionVertex> it = this.groupMembers.iterator();
-				while (it.hasNext()) {
+		if (resourcesToBeReplaced > 0) {
 
-					final ExecutionVertex vertex = it.next();
-					final AllocatedResource allocatedResource = vertex.getAllocatedResource();
-					if (allocatedResource != null) {
-						if (!availableResources.contains(allocatedResource)) {
-							availableResources.add(allocatedResource);
-						}
-					}
+			final Iterator<ExecutionVertex> vertexIt = this.groupMembers.iterator();
+			final Iterator<AllocatedResource> resourceIt = availableResources.iterator();
+
+			while (replacementMap.size() < resourcesToBeReplaced) {
+
+				if (!vertexIt.hasNext()) {
+					break;
+				}
+
+				if (!resourceIt.hasNext()) {
+					break;
+				}
+
+				final ExecutionVertex vertex = vertexIt.next();
+				final AllocatedResource originalResource = vertex.getAllocatedResource();
+
+				if (!replacementMap.containsKey(originalResource)) {
+
+					final AllocatedResource replacementResource = resourceIt.next();
+					replacementMap.put(originalResource, replacementResource);
 				}
 			}
 		}
 
-		return availableResources;
+		// Now replace the instances
+		final Iterator<ExecutionVertex> vertexIt = this.groupMembers.iterator();
+		while (vertexIt.hasNext()) {
+
+			final ExecutionVertex vertex = vertexIt.next();
+			final AllocatedResource originalResource = vertex.getAllocatedResource();
+			final AllocatedResource replacementResource = replacementMap.get(originalResource);
+			if (replacementResource != null) {
+				vertex.setAllocatedResource(replacementResource);
+			} else {
+				availableResources.add(originalResource);
+			}
+		}
+
+		final Iterator<ExecutionGroupVertex> groupVertexIt = this.verticesSharingInstances.iterator();
+		while (groupVertexIt.hasNext()) {
+			groupVertexIt.next().repairInstanceSharing(availableResources);
+		}
 	}
 
 	/**

@@ -242,7 +242,7 @@ public final class ExecutionVertex {
 			this.executionGraph, this.groupVertex, duplicatedEnvironment);
 
 		// TODO set new profiling record with new vertex id
-		duplicatedVertex.allocatedResource = this.allocatedResource;
+		duplicatedVertex.setAllocatedResource(this.allocatedResource);
 
 		return duplicatedVertex;
 	}
