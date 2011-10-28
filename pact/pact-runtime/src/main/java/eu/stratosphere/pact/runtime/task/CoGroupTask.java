@@ -232,8 +232,8 @@ public class CoGroupTask extends AbstractTask
 		// obtain task manager's io manager
 		final IOManager ioManager = getEnvironment().getIOManager();
 
-		RecordReader<KeyValuePair<K, V1>> reader1 = getReader1();
-		RecordReader<KeyValuePair<K, V2>> reader2 = getReader2();
+		Reader<KeyValuePair<K, V1>> reader1 = getReader1();
+		Reader<KeyValuePair<K, V2>> reader2 = getReader2();
 
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (this.config.getLocalStrategy()) {
@@ -491,13 +491,13 @@ public class CoGroupTask extends AbstractTask
 	}
 
 	@SuppressWarnings("unchecked")
-	private final <K extends Key, V extends Value> RecordReader<KeyValuePair<K, V>> getReader1() {
-		return (RecordReader<KeyValuePair<K, V>>) this.reader1;
+	private final <K extends Key, V extends Value> Reader<KeyValuePair<K, V>> getReader1() {
+		return (Reader<KeyValuePair<K, V>>) this.reader1;
 	}
 
 	@SuppressWarnings("unchecked")
-	private final <K extends Key, V extends Value> RecordReader<KeyValuePair<K, V>> getReader2() {
-		return (RecordReader<KeyValuePair<K, V>>) this.reader2;
+	private final <K extends Key, V extends Value> Reader<KeyValuePair<K, V>> getReader2() {
+		return (Reader<KeyValuePair<K, V>>) this.reader2;
 	}
 
 	@SuppressWarnings("unchecked")
