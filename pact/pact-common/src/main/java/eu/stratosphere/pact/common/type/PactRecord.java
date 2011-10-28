@@ -738,12 +738,12 @@ public final class PactRecord implements Value
 					// not null, so read the offset value, if we are not the first non-null fields
 					if (lastNonNullField >= 0) {
 						// offset value is variable length encoded
-						int start = data[pos--];
+						int start = data[pos--] & 0xff;
 						if (start >= MAX_BIT) {
 							int shift = 7;
 							int curr;
 							start = start & 0x7f;
-							while ((curr = data[pos--]) >= MAX_BIT) {
+							while ((curr = data[pos--] & 0xff) >= MAX_BIT) {
 								start |= (curr & 0x7f) << shift;
 								shift += 7;
 							}
