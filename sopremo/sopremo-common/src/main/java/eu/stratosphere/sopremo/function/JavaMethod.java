@@ -9,10 +9,11 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JavaToJsonMapper;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.reflect.DynamicMethod;
+import eu.stratosphere.util.reflect.ExtensionMethod;
 import eu.stratosphere.util.reflect.Signature;
 
-public class JavaMethod extends MethodBase {
-	private final class AutoBoxingMethod extends DynamicMethod<JsonNode> {
+public class JavaMethod extends JsonMethod {
+	private final class AutoBoxingMethod extends ExtensionMethod<JsonNode> {
 		/**
 		 * 
 		 */
@@ -62,8 +63,12 @@ public class JavaMethod extends MethodBase {
 		return this.method.getSignatures();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
+	 */
 	@Override
-	public JsonNode evaluate(final JsonNode targetNode, final ArrayNode paramNode, final EvaluationContext context) {
-		return this.method.invoke(targetNode, (Object[]) paramNode.toArray());
+	public JsonNode call(ArrayNode params, EvaluationContext context) {
+		return this.method.invoke(null, (Object[]) params.toArray());
 	}
 }

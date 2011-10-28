@@ -17,7 +17,7 @@ import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 @RunWith(Parameterized.class)
-public class SchemaMappingTest {
+public class ScrubbingTest {
 	@Parameters
 	public static Collection<Object[]> getParameters() {
 		return Arrays.asList(
@@ -42,17 +42,17 @@ public class SchemaMappingTest {
 
 	private JsonNode expectedObject;
 
-	public SchemaMappingTest(List<ValidationRule> validationRules, JsonNode expectedObject) {
+	public ScrubbingTest(List<ValidationRule> validationRules, JsonNode expectedObject) {
 		this.validationRules = validationRules;
 		this.expectedObject = expectedObject;
 	}
 
 	@Test
 	public void testMapping() {
-		final EntityExtraction schemaMapping = new EntityExtraction();
-		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(schemaMapping);
+		final Scrubbing scrubbing = new Scrubbing();
+		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(scrubbing);
 		for (ValidationRule rule : this.validationRules)
-			schemaMapping.addRule(rule);
+			scrubbing.addRule(rule);
 		Object[] fields = { "stringInsteadOfInteger", "12", "outsideMonthRange", 14, "shouldBeNonNull", null };
 
 		sopremoTestPlan.getInput(0).addObject(fields);

@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
+
 import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
 import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
 import junit.framework.Assert;
@@ -24,7 +25,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 	@Test
 	public void testAggregation() {
 		this.context.getFunctionRegistry().register(DefaultFunctions.class);
-		
+
 		ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));
 		input.add(createObjectNode("key", 2, "value", 24));
@@ -32,7 +33,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 		input.add(createObjectNode("key", 2, "value", 25));
 		input.add(createObjectNode("key", 1, "value", 12));
 
-		GroupingExpression aggExpression = new GroupingExpression(new ObjectAccess("key"), new MethodCall("sum", EvaluationExpression.NULL,
+		GroupingExpression aggExpression = new GroupingExpression(new ObjectAccess("key"), new MethodCall("sum",
 			new ArrayProjection(new ObjectAccess("value"))));
 
 		JsonNode result = aggExpression.evaluate(input, this.context);

@@ -486,8 +486,8 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// //
 		if (this.scrubbed[CONGRESS] == null)
 			this.scrubCongress(true);
-		EntityExtraction congressMapping = new EntityExtraction().
-			withProjection(projection).
+		Projection congressMapping = new Projection().
+			withValueTransformation(projection).
 			withInputs(this.scrubbed[CONGRESS]);
 
 		// new Lookup(congressMapping, congressMapping);

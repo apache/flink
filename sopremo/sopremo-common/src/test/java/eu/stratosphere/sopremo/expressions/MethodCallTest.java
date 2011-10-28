@@ -21,7 +21,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 
 	@Override
 	protected MethodCall createDefaultInstance(final int index) {
-		return new MethodCall(String.valueOf(index), MethodCall.NO_TARGET);
+		return new MethodCall(String.valueOf(index));
 	}
 
 	@Before
@@ -33,7 +33,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 
 	@Test
 	public void shouldCallFunction() {
-		final JsonNode result = new MethodCall("sum", MethodCall.NO_TARGET, new ArrayAccess(0), new ArrayAccess(1)).evaluate(
+		final JsonNode result = new MethodCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
 			createArrayNode(1, 2), this.context);
 		Assert.assertEquals(new DoubleNode(3), result);
 	}
@@ -41,7 +41,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 	@Test
 	public void shouldGetIteratorOverAllParams() {
 
-		final MethodCall func = new MethodCall("sum", MethodCall.NO_TARGET);
+		final MethodCall func = new MethodCall("sum");
 		Iterator<EvaluationExpression> iterator = func.iterator();
 
 		Assert.assertFalse(iterator.hasNext());

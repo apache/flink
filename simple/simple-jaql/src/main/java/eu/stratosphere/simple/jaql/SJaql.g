@@ -32,6 +32,7 @@ import eu.stratosphere.sopremo.function.*;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.*;
 import java.math.*;
+import java.util.IdentityHashMap;
 import java.util.Arrays;
 }
 
@@ -45,6 +46,8 @@ import java.util.Arrays;
   addTypeAlias("double", DoubleNode.class);
   addTypeAlias("boolean", BooleanNode.class);
   addTypeAlias("bool", BooleanNode.class);
+  
+  addParserFlag(ParserFlag.FUNCTION_OBJECTS);
 }
 
 public void parseSinks() throws RecognitionException {  
@@ -52,40 +55,18 @@ public void parseSinks() throws RecognitionException {
 }
 
 private EvaluationExpression makePath(Token inputVar, String... path) {
+  Object input = getRawBinding(inputVar, Object.class);
+  if(input == null) {
+    if(inputVar.getText().equals("$"))
+      input = $operator::numInputs == 1 ? new InputSelection(0) : EvaluationExpression.VALUE;
+  } else if(input instanceof Operator<?>)
+    input = new JsonStreamExpression((Operator<?>) input);
+  
   List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
-
-  int inputIndex = inputIndexForBinding(inputVar);
-  if(inputIndex == -1) {
-    if(!inputVar.getText().equals("$"))
-      accesses.add(new JsonStreamExpression(getBinding(inputVar, Operator.class)));
-  } else {
-    InputSelection inputSelection = new InputSelection(inputIndex);
-    for (ExpressionTag tag : $operator::inputTags.get(inputIndex))
-      inputSelection.addTag(tag);
-    accesses.add(inputSelection);
-  }
-
+  accesses.add((EvaluationExpression) input);
   for (String fragment : path)
     accesses.add(new ObjectAccess(fragment));
-
   return PathExpression.valueOf(accesses);
-}
-
-private int inputIndexForBinding(Token variable) {
-  int index = $operator::inputNames.indexOf(variable.getText());
-  if(index == -1) {
-    if(variable.getText().equals("$") && $operator::inputNames.size() == 1 && !$operator::hasExplicitName.get(0))
-      return 0;
-    try {
-      index = Integer.parseInt(variable.getText().substring(1));
-      if($operator::hasExplicitName.get(index))
-        throw new SimpleException("Cannot use index variable for input with explicit name", variable);
-      if(0 > index || index >= $operator::inputNames.size()) 
-        throw new SimpleException("Invalid input index", variable);
-    } catch(NumberFormatException e) {
-    }
-  }
-  return index;
 }
 }
 
@@ -120,7 +101,8 @@ scope { EvaluationExpression context }
   : expression;
 
 expression
-  : ternaryExpression;
+  : ternaryExpression
+  | operatorExpression;
 
 ternaryExpression
 	:	ifClause=orExpression ('?' ifExpr=expression? ':' elseExpr=expression)
@@ -180,12 +162,12 @@ castExpression
 	-> $expr;
 	
 generalPathExpression
-	: (({$contextAwareExpression::context != null}? contextAwarePathExpression) | pathExpression);
+	: pathExpression;//(({$contextAwareExpression::context != null}?=> contextAwarePathExpression) | pathExpression);
 	
-contextAwarePathExpression
+contextAwarePathExpression[EvaluationExpression context]
 scope {  List<EvaluationExpression> fragments; }
 @init { $contextAwarePathExpression::fragments = new ArrayList<EvaluationExpression>(); }
-  : start=ID { $contextAwarePathExpression::fragments.add($contextAwareExpression::context); $contextAwarePathExpression::fragments.add(new ObjectAccess($start.text));}
+  : start=ID { $contextAwarePathExpression::fragments.add($context); $contextAwarePathExpression::fragments.add(new ObjectAccess($start.text));}
     ( ('.' (field=ID { $contextAwarePathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
         | arrayAccess { $contextAwarePathExpression::fragments.add($arrayAccess.tree); } )* ->  ^(EXPRESSION["PathExpression"] { $contextAwarePathExpression::fragments } );
   
@@ -201,17 +183,17 @@ scope {  List<EvaluationExpression> fragments; }
   | valueExpression;
 
 valueExpression
-	:	methodCall[MethodCall.NO_TARGET]
+	:	methodCall[null]
 	| parenthesesExpression 
 	| literal 
+  | streamIndexAccess
 	| VAR -> { makePath($VAR) }
-	| ID -> { getBinding($ID, EvaluationExpression.class) }
+  | ID { hasBinding($ID, EvaluationExpression.class) }?=> -> { getBinding($ID, EvaluationExpression.class) }
 	| arrayCreation 
-	| objectCreation 
-	| operatorExpression;
+	| objectCreation ;
 	
 operatorExpression
-	:	operator -> ^(EXPRESSION["ErroneousExpression"] { "op" });
+	:	op=operator -> ^(EXPRESSION["NestedOperatorExpression"] { $op.op });
 		
 parenthesesExpression
 	:	('(' expression ')') -> expression;
@@ -224,10 +206,19 @@ methodCall [EvaluationExpression targetExpr]
 	')' -> { createCheckedMethodCall($name, $targetExpr, params.toArray(new EvaluationExpression[params.size()])) };
 	
 fieldAssignment returns [ObjectCreation.Mapping mapping]
-	:	VAR '.' STAR { $objectCreation::mappings.add(new ObjectCreation.CopyFields(makePath($VAR))); } ->
-  | VAR '.' ID { $objectCreation::mappings.add(new ObjectCreation.Mapping($ID.text, makePath($VAR, $ID.text))); } ->
-  | VAR { $objectCreation::mappings.add(new ObjectCreation.Mapping($VAR.text.substring(1), makePath($VAR))); } ->
-	|	ID ':' expression { $objectCreation::mappings.add(new ObjectCreation.Mapping($ID.text, $expression.tree)); } ->;
+	:	ID ':' expression 
+    { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($ID.text, $expression.tree)); } ->
+  | VAR 
+    ( 
+      '.' (ID { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($ID.text, makePath($VAR, $ID.text))); } ->
+        | STAR { $objectCreation::mappings.add(new ObjectCreation.CopyFields(makePath($VAR))); } ->
+        | p=contextAwarePathExpression[makePath($VAR)] ':' e=expression
+          { $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>($p.tree, $e.tree)); } ->
+    )      
+    | ':' e2=expression { $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>(makePath($VAR), $e2.tree)); } ->
+    | '=' source=operator { setBinding($VAR, $source.op, 1); }
+    | /* empty */ { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($VAR.text.substring(1), makePath($VAR))); } ->    
+    );
 
 objectCreation
 scope {  List<ObjectCreation.Mapping> mappings; }
@@ -254,23 +245,28 @@ arrayAccess
   -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($pos.text) })
   | '[' (start=INTEGER | start=UINT) ':' (end=INTEGER | end=UINT) ']' 
   -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($start.text) } { Integer.valueOf($end.text) });
+  
+streamIndexAccess
+  : VAR '[' pathExpression ']' 
+  -> { new StreamIndexExpression(getBinding($VAR, JsonStream.class), $pathExpression.tree) };
 	
 arrayCreation
 	:	 '[' elems+=expression (',' elems+=expression)* ','? ']' -> ^(EXPRESSION["ArrayCreation"] { $elems.toArray(new EvaluationExpression[$elems.size()]) });
 
-operator returns [Operator op=null]
+operator returns [Operator<?> op=null]
 scope { 
-  List<String> inputNames; 
-  java.util.BitSet hasExplicitName;
-  List<List<ExpressionTag>> inputTags; 
-  Operator result;
+  Operator<?> result;
+  int numInputs;
+  Map<Operator<?>, List<ExpressionTag>> inputTags;
 }
-@init { 
-  $operator::inputNames = new ArrayList<String>();
-  $operator::inputTags = new ArrayList<List<ExpressionTag>>();
-  $operator::hasExplicitName = new java.util.BitSet();
+@init {
+  if(state.backtracking == 0) 
+	  getContext().getBindings().addScope();
+	$operator::inputTags = new IdentityHashMap<Operator<?>, List<ExpressionTag>>();
 }
-	:	opRule=(readOperator | writeOperator | genericOperator) 
+@after {
+  getContext().getBindings().removeScope();
+}:	opRule=(readOperator | writeOperator | genericOperator) 
 { 
   $op = $operator::result;
 }; 
@@ -293,9 +289,11 @@ scope {
 }	:	name=ID { ($genericOperator::operatorInfo = findOperatorGreedily($name)) != null }?=>
 { 
   $operator::result = $genericOperator::operatorInfo.newInstance();
+  if(state.backtracking == 0) 
+    getContext().getBindings().set("$", $operator::result);
 } 
 operatorFlag*
-input (',' input)*	
+(arrayInput | input (',' input)*)	
 operatorOption* ->; 
 	
 operatorOption
@@ -319,17 +317,25 @@ scope {
 input	
 	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
 { 
-  int inputIndex = $operator::inputNames.size();
+  int inputIndex = $operator::numInputs++;
+  Operator<?> input = getBinding(from, Operator.class);
   $operator::result.setInput(inputIndex, getBinding(from, Operator.class));
-  $operator::inputNames.add(name != null ? name.getText() : from.getText());
-  $operator::hasExplicitName.set(inputIndex, name != null); 
-  $operator::inputTags.add(preserveFlag == null ? new ArrayList<ExpressionTag>() : Arrays.asList(ExpressionTag.RETAIN));
+  setBinding(name != null ? name : from, input);
+  if(preserveFlag != null)
+    $operator::inputTags.put(input, Arrays.asList(ExpressionTag.RETAIN));
 } 
 (inputOption=ID {$genericOperator::operatorInfo.hasInputProperty($inputOption.text)}? 
-  expr=contextAwareExpression[new InputSelection($operator::inputNames.size() - 1)] { $genericOperator::operatorInfo.setInputProperty($inputOption.text, $operator::result, $operator::inputNames.size()-1, $expr.tree); })?
+  expr=contextAwareExpression[new InputSelection($operator::numInputs - 1)] { $genericOperator::operatorInfo.setInputProperty($inputOption.text, $operator::result, $operator::numInputs-1, $expr.tree); })?
 -> ;
 
-
+arrayInput
+  : '[' names+=VAR (',' names+=VAR)? ']' 'in' from=VAR
+{ 
+  $operator::result.setInput(0, getBinding(from, Operator.class));
+  for(int index = 0; index < $names.size(); index++) {
+	  setBinding((Token) $names.get(index), new InputSelection(index)); 
+  }
+} -> ;
 //-> {$from.text != null}? ^(BIND $name $from?)
 //	-> ^($name);	
 	

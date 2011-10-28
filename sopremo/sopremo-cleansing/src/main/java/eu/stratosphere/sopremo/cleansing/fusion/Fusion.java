@@ -20,7 +20,9 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -107,6 +109,44 @@ public class Fusion extends ElementaryOperator<Fusion> {
 
 	public void setWeight(final double weight, final int inputIndex, final String... path) {
 		this.getWeightMap(inputIndex).put(Arrays.asList(path), weight);
+	}
+
+	@Property
+	@Name(preposition = "into")
+	public void setRuleExpression(ObjectCreation ruleExpression) {
+		System.out.println(ruleExpression);
+		this.rules.clear();
+		// extractRules(ruleExpression, EvaluationExpression.VALUE);
+	}
+
+	public ObjectCreation getRuleExpression() {
+		return new ObjectCreation();
+	}
+
+	@Property
+	@Name(preposition = "with weights")
+	public void setWeightExpression(ObjectCreation ruleExpression) {
+		System.out.println(ruleExpression);
+		this.rules.clear();
+		// extractRules(ruleExpression, EvaluationExpression.VALUE);
+	}
+
+	public ObjectCreation getWeightExpression() {
+		return new ObjectCreation();
+	}
+
+	@Property
+	@Name(verb = "update")
+	public void setUpdateExpression(ObjectCreation ruleExpression) {
+		System.out.println(ruleExpression);
+		this.rules.clear();
+		// extractRules(ruleExpression, EvaluationExpression.VALUE);
+	}
+
+	@Property
+	@Name(verb = "update")
+	public ObjectCreation getUpdateExpression() {
+		return new ObjectCreation();
 	}
 
 	public static class Implementation extends
@@ -211,14 +251,14 @@ public class Fusion extends ElementaryOperator<Fusion> {
 					final Iterator<JsonNode> iterator = ((ArrayNode) values).iterator();
 					final IntList sourceIndexes = new IntArrayList();
 					for (int sourceIndex = 0; iterator.hasNext(); sourceIndex++)
-						for (final JsonNode value : (ArrayNode)iterator.next()) {
+						for (final JsonNode value : (ArrayNode) iterator.next()) {
 							this.contextNodes.add(value);
 							sourceIndexes.add(sourceIndex);
 						}
 
 					this.context.setSourceIndexes(sourceIndexes.toIntArray());
 				} else {
-					for (final JsonNode value : (ArrayNode)values)
+					for (final JsonNode value : (ArrayNode) values)
 						this.contextNodes.add(value);
 
 					final int[] sourceIndexes = new int[this.contextNodes.size()];

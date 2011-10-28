@@ -27,20 +27,19 @@ public class MethodRegistry implements SerializableSopremoType {
 		this.bindings = bindings;
 	}
 
-	public JsonNode evaluate(final String functionName, final JsonNode targetNode, final ArrayNode params,
-			final EvaluationContext context) {
-		final MethodBase function = this.getFunction(functionName);
+	public JsonNode evaluate(final String functionName, final ArrayNode params, final EvaluationContext context) {
+		final JsonMethod function = this.getFunction(functionName);
 		if (function == null)
 			throw new EvaluationException(String.format("Unknown function %s", functionName));
-		return function.evaluate(targetNode, params, context);
+		return function.call(params, context);
 	}
 
-	public MethodBase getFunction(final String functionName) {
-		return this.bindings.get(functionName, MethodBase.class);
+	public JsonMethod getFunction(final String functionName) {
+		return this.bindings.get(functionName, JsonMethod.class);
 	}
 
-	Map<String, MethodBase> getRegisteredFunctions() {
-		return this.bindings.getAll(MethodBase.class);
+	Map<String, JsonMethod> getRegisteredFunctions() {
+		return this.bindings.getAll(JsonMethod.class);
 	}
 
 	private static boolean isCompatibleSignature(final Method method) {
@@ -95,7 +94,7 @@ public class MethodRegistry implements SerializableSopremoType {
 		return functions;
 	}
 
-	public void register(final MethodBase function) {
+	public void register(final Callable<?, ?> function) {
 		this.bindings.set(function.getName(), function);
 	}
 }

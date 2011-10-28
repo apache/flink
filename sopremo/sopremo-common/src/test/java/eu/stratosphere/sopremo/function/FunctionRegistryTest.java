@@ -43,7 +43,7 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertEquals("should have been 2 functions", 2, this.registry.getRegisteredFunctions().size());
-		for (final MethodBase function : this.registry.getRegisteredFunctions().values())
+		for (final JsonMethod function : this.registry.getRegisteredFunctions().values())
 			Assert.assertEquals("should have been a java function", JavaMethod.class, function.getClass());
 
 		Assert.assertEquals("should have been 5 count signatures", 5,
@@ -57,7 +57,7 @@ public class FunctionRegistryTest {
 	public void shouldFailIfNoApproporiateMatchingJavaFunction() {
 		this.registry.register(JavaFunctions.class);
 
-		this.registry.evaluate("sum", null, JsonUtil.asArray(new IntNode(1),
+		this.registry.evaluate("sum", JsonUtil.asArray(new IntNode(1),
 			new IntNode(2), new TextNode("3")), this.context);
 	}
 
@@ -66,7 +66,7 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(ARRAY_NODE,
-			this.registry.evaluate("count", null, JsonUtil.asArray(new ArrayNode()), this.context));
+			this.registry.evaluate("count", JsonUtil.asArray(new ArrayNode()), this.context));
 	}
 
 	@Test
@@ -74,10 +74,10 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(SUM_NODE,
-			this.registry.evaluate("sum", null, JsonUtil.asArray(new IntNode(1),
+			this.registry.evaluate("sum", JsonUtil.asArray(new IntNode(1),
 				new IntNode(2), new IntNode(3)), this.context));
 		Assert.assertSame(SUM_NODE,
-			this.registry.evaluate("sum", null, JsonUtil.asArray(new IntNode(1)), this.context));
+			this.registry.evaluate("sum", JsonUtil.asArray(new IntNode(1)), this.context));
 	}
 
 	@Test
@@ -85,7 +85,7 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(TWO_INT_NODE,
-			this.registry.evaluate("count", null, JsonUtil.asArray(new IntNode(1),
+			this.registry.evaluate("count", JsonUtil.asArray(new IntNode(1),
 				new IntNode(2)), this.context));
 	}
 
@@ -94,7 +94,7 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(GENERIC_NODE,
-			this.registry.evaluate("count", null, JsonUtil.asArray(new ObjectNode()), this.context));
+			this.registry.evaluate("count", JsonUtil.asArray(new ObjectNode()), this.context));
 	}
 
 	@Test
@@ -102,7 +102,7 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(GENERIC_VARARG_NODE,
-			this.registry.evaluate("count", null, JsonUtil.asArray(new ObjectNode(),
+			this.registry.evaluate("count", JsonUtil.asArray(new ObjectNode(),
 				new ObjectNode(), new ObjectNode()), this.context));
 	}
 
@@ -111,10 +111,10 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(ONE_INT_VARARG_NODE,
-			this.registry.evaluate("count", null, JsonUtil.asArray(new IntNode(1),
+			this.registry.evaluate("count", JsonUtil.asArray(new IntNode(1),
 				new IntNode(2), new IntNode(3)), this.context));
 		Assert.assertSame(ONE_INT_VARARG_NODE,
-			this.registry.evaluate("count", null, JsonUtil.asArray(new IntNode(1)), this.context));
+			this.registry.evaluate("count", JsonUtil.asArray(new IntNode(1)), this.context));
 	}
 
 	@SuppressWarnings("unused")

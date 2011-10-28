@@ -6,13 +6,39 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 
+import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.MethodCall;
+import eu.stratosphere.sopremo.function.JsonMethod;
+
 public class Bindings implements SerializableSopremoType {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -5361273437492630123L;
-	
-	private Deque<Map<String, Object>> bindings = new LinkedList<Map<String, Object>>();
+
+	private LinkedList<Map<String, Object>> bindings = new LinkedList<Map<String, Object>>();
+
+	public static enum BindingConstraint {
+		NON_NULL {
+			@Override
+			public Object process(Object input, Class<?> expectedType) {
+				if (input == null)
+					throw new IllegalArgumentException("Unknown variable");
+				return input;
+			}
+		},
+		AUTO_FUNCTION_POINTER {
+			@Override
+			public Object process(Object input, Class<?> expectedType) {
+				if (!expectedType.isInstance(input) && input instanceof JsonMethod)
+					return new MethodPointerExpression(((JsonMethod) input).getName());
+				return input;
+			}
+		};
+
+		public abstract Object process(Object input, Class<?> expectedType);
+	}
 
 	public Bindings() {
 		addScope();
@@ -33,21 +59,18 @@ public class Bindings implements SerializableSopremoType {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> T get(String name, Class<T> expectedType) {
+	public <T> T get(String name, Class<T> expectedType, BindingConstraint... constraints) {
 		Object value = get(name);
+		
+		for (BindingConstraint contraint : constraints) 
+			value = contraint.process(value, expectedType);
+		
 		if (value == null)
 			return null;
 		if (!expectedType.isInstance(value))
-			throw new IllegalArgumentException(String.format("Variable %s has unexpected type %s", name,
-				value.getClass()));
+			throw new IllegalArgumentException(String.format("Variable %s has unexpected type %s; should have been %s", name,
+				value.getClass().getSimpleName(), expectedType.getSimpleName()));
 		return (T) value;
-	}
-
-	public <T> T getNonNull(String name, Class<T> expectedType) {
-		T value = get(name, expectedType);
-		if (value == null)
-			throw new IllegalArgumentException("Unknown variable " + name);
-		return value;
 	}
 
 	public Map<String, Object> getAll() {
@@ -70,7 +93,11 @@ public class Bindings implements SerializableSopremoType {
 	}
 
 	public void set(String name, Object binding) {
-		this.bindings.getLast().put(name, binding);
+		set(name, binding, 0);
+	}
+
+	public void set(String name, Object binding, int scopeLevel) {
+		this.bindings.get(this.bindings.size() - 1 - scopeLevel).put(name, binding);
 	}
 
 	@Override

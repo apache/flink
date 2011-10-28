@@ -2,6 +2,7 @@ package eu.stratosphere.simple;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.io.File;
 import java.io.IOException;
@@ -9,6 +10,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import org.antlr.runtime.BitSet;
+import org.antlr.runtime.FailedPredicateException;
 import org.antlr.runtime.IntStream;
 import org.antlr.runtime.MismatchedTokenException;
 import org.antlr.runtime.MissingTokenException;
@@ -33,14 +36,18 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ExpressionTagFactory;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorFactory;
+import eu.stratosphere.sopremo.Bindings.BindingConstraint;
 import eu.stratosphere.sopremo.OperatorFactory.OperatorInfo;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.MethodCall;
-import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.function.Callable;
+import eu.stratosphere.sopremo.function.Inlineable;
 import eu.stratosphere.sopremo.function.JavaMethod;
+import eu.stratosphere.sopremo.function.MacroBase;
+import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.InputSuggestion;
@@ -56,6 +63,24 @@ public abstract class SimpleParser extends Parser {
 	protected List<Sink> sinks = new ArrayList<Sink>();
 
 	private SopremoPlan currentPlan = new SopremoPlan();
+
+	protected static enum ParserFlag {
+		FUNCTION_OBJECTS;
+	}
+
+	private EnumSet<ParserFlag> flags = EnumSet.noneOf(ParserFlag.class);
+
+	protected void addParserFlag(ParserFlag e) {
+		this.flags.add(e);
+	}
+
+	protected void removeParserFlag(ParserFlag o) {
+		this.flags.remove(o);
+	}
+
+	protected boolean hasParserFlag(ParserFlag o) {
+		return this.flags.contains(o);
+	}
 
 	public SimpleParser(TokenStream input, RecognizerSharedState state) {
 		super(input, state);
@@ -93,20 +118,39 @@ public abstract class SimpleParser extends Parser {
 		this.operatorSuggestion = null;
 	}
 
-	public Object getBinding(Token name) {
-		return this.getContext().getBinding(name.getText());
-	}
+	private BindingConstraint[] bindingContraints;
 
 	public <T> T getBinding(Token name, Class<T> expectedType) {
-		return this.getContext().getNonNullBinding(name.getText(), expectedType);
+		try {
+			return this.getContext().getBindings().get(name.getText(), expectedType, this.bindingContraints);
+		} catch (Exception e) {
+			throw new SimpleException(e.getMessage(), name);
+		}
+	}
+
+	public boolean hasBinding(Token name, Class<?> expectedType) {
+		try {
+			Object result = this.getContext().getBindings().get(name.getText(), expectedType, this.bindingContraints);
+			return result != null;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	public <T> T getRawBinding(Token name, Class<T> expectedType) {
+		try {
+			return this.getContext().getBindings().get(name.getText(), expectedType);
+		} catch (Exception e) {
+			throw new SimpleException(e.getMessage(), name);
+		}
 	}
 
 	public void addScope() {
 		this.getContext().addScope();
 	}
 
-	private EvaluationContext getContext() {
-		return currentPlan.getContext();
+	protected EvaluationContext getContext() {
+		return this.currentPlan.getContext();
 	}
 
 	public void removeScope() {
@@ -114,24 +158,59 @@ public abstract class SimpleParser extends Parser {
 	}
 
 	public void setBinding(Token name, Object binding) {
-		this.getContext().setBinding(name.getText(), binding);
+		this.getContext().getBindings().set(name.getText(), binding);
 	}
-	
-	public MethodCall createCheckedMethodCall(Token name, EvaluationExpression target, EvaluationExpression[] params) {
-		if(getContext().getFunctionRegistry().getFunction(name.getText()) == null)
+
+	public void setBinding(Token name, Object binding, int scopeLevel) {
+		this.getContext().getBindings().set(name.getText(), binding, scopeLevel);
+	}
+
+	public EvaluationExpression createCheckedMethodCall(Token name, EvaluationExpression[] params) {
+		return this.createCheckedMethodCall(name, null, params);
+	}
+
+	public EvaluationExpression createCheckedMethodCall(Token name, EvaluationExpression target,
+			EvaluationExpression[] params) {
+		Callable<?, ?> callable = this.getContext().getBindings().get(name.getText(), Callable.class);
+		if (callable == null)
 			throw new SimpleException("Unknown function", name);
-		return new MethodCall(name.getText(), target, params);		
-	}
-	
-	public <Op extends Operator<Op>> void setPropertySafely(OperatorInfo<Op> info, Operator<Op> op, String property, Object value, Token reference) {
-		if(!info.hasProperty(property))
-			  throw new SimpleException("Unknown property", reference);
-		try {
-			 info.setProperty(property,op, value);
-		} catch(Exception e) {
-			  throw new SimpleException(String.format("Cannot set value of property %s to %s", property, value), reference);
+		if (callable instanceof MacroBase)
+			return ((MacroBase) callable).call(params, this.getContext());
+		if (callable instanceof Inlineable)
+			return ((Inlineable) callable).getDefinition();
+		if (target != null) {
+			ObjectArrayList<EvaluationExpression> paramList = ObjectArrayList.wrap(params);
+			paramList.add(0, target);
+			params = paramList.elements();
 		}
-	} 
+		return new MethodCall(name.getText(), params);
+	}
+
+	// private Map<String, AtomicInteger> macroExpansionCounter = new HashMap<String, AtomicInteger>();
+	//
+	// /**
+	// * @param macro
+	// * @param params
+	// * @return
+	// */
+	// private EvaluationExpression expandMacro(MacroBase macro, EvaluationExpression[] params) {
+	// // AtomicInteger counter = macroExpansionCounter.get(macro.getName());
+	// // if(counter == null)
+	// // macroExpansionCounter.put(macro.getName(), counter = new AtomicInteger());
+	// return macro.call(params, getContext());
+	// }
+
+	public <Op extends Operator<Op>> void setPropertySafely(OperatorInfo<Op> info, Operator<Op> op, String property,
+			Object value, Token reference) {
+		if (!info.hasProperty(property))
+			throw new SimpleException("Unknown property", reference);
+		try {
+			info.setProperty(property, op, value);
+		} catch (Exception e) {
+			throw new SimpleException(String.format("Cannot set value of property %s to %s", property, value),
+				reference);
+		}
+	}
 
 	public InputSuggestion<OperatorFactory.OperatorInfo<?>> getOperatorSuggestion() {
 		if (this.operatorSuggestion == null)
@@ -211,7 +290,7 @@ public abstract class SimpleParser extends Parser {
 		throw e;
 	}
 
-	public OperatorFactory.OperatorInfo<?> findOperatorGreedily(Token firstWord) {
+	public OperatorFactory.OperatorInfo<?> findOperatorGreedily(Token firstWord) throws FailedPredicateException {
 		StringBuilder name = new StringBuilder(firstWord.getText());
 		IntList wordBoundaries = new IntArrayList();
 		wordBoundaries.add(name.length());
@@ -233,8 +312,9 @@ public abstract class SimpleParser extends Parser {
 			this.input.consume();
 
 		if (info == null)
-			throw new IllegalArgumentException(String.format("Unknown operator %s; possible alternatives %s", name,
-				this.getOperatorSuggestion().suggest(name)));
+			throw new FailedPredicateException();
+			/*throw new SimpleException(String.format("Unknown operator %s; possible alternatives %s", name,
+				this.getOperatorSuggestion().suggest(name)), firstWord);*/
 
 		return info;
 	}
@@ -258,13 +338,25 @@ public abstract class SimpleParser extends Parser {
 	protected abstract void parseSinks() throws RecognitionException;
 
 	public SopremoPlan parse() throws SimpleException {
-		currentPlan = new SopremoPlan();
+		this.currentPlan = new SopremoPlan();
 		try {
+			this.setupParser();
 			this.parseSinks();
 		} catch (RecognitionException e) {
 			throw new SimpleException("Cannot parse script", e);
 		}
-		return currentPlan;
+		return this.currentPlan;
+	}
+
+	/**
+	 * 
+	 */
+	protected void setupParser() {
+		if (this.hasParserFlag(ParserFlag.FUNCTION_OBJECTS))
+			this.bindingContraints = new BindingConstraint[] { BindingConstraint.AUTO_FUNCTION_POINTER,
+				BindingConstraint.NON_NULL };
+		else
+			this.bindingContraints = new BindingConstraint[] { BindingConstraint.NON_NULL };
 	}
 
 	public void addFunction(SopremoFunction function) {

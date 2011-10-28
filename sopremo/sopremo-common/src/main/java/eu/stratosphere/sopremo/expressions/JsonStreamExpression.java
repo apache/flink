@@ -2,7 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.JsonStream;
 
-public class JsonStreamExpression extends ErroneousExpression {
+public class JsonStreamExpression extends UnevaluableExpression {
 	/**
 	 * 
 	 */

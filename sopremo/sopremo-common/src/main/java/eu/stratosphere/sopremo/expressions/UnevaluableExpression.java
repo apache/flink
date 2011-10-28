@@ -5,7 +5,7 @@ import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY)
-public class ErroneousExpression extends EvaluationExpression {
+public class UnevaluableExpression extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -13,7 +13,7 @@ public class ErroneousExpression extends EvaluationExpression {
 
 	private final String message;
 
-	public ErroneousExpression(final String message) {
+	public UnevaluableExpression(final String message) {
 		this.message = message;
 	}
 
@@ -21,7 +21,7 @@ public class ErroneousExpression extends EvaluationExpression {
 	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
-		return this.message.equals(((ErroneousExpression) obj).message);
+		return this.message.equals(((UnevaluableExpression) obj).message);
 	}
 
 	@Override

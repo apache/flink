@@ -26,9 +26,9 @@ public class TextNode extends JsonNode {
 	public TextNode(final String v) {
 		this.value = new PactString(v);
 	}
-	
+
 	@Override
-	public Object getJavaValue() {
+	public String getJavaValue() {
 		return this.value.getValue();
 	}
 
@@ -41,7 +41,7 @@ public class TextNode extends JsonNode {
 	}
 
 	public String getTextValue() {
-		return this.value.toString();
+		return getJavaValue();
 	}
 
 	@Override

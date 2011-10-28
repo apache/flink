@@ -10,7 +10,6 @@ import java.util.List;
 
 import junit.framework.Assert;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -18,10 +17,10 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.simple.SimpleException;
 import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 @RunWith(Parameterized.class)
-@Ignore
 public class CleansOperatorTest {
 	private File scriptPath;
 
@@ -45,6 +44,10 @@ public class CleansOperatorTest {
 	
 	public static TextNode normalizeName(TextNode name) {
 		return name;
+	}
+	
+	public static ArrayNode mergeAddresses(ArrayNode addresses) {
+		return addresses;
 	}
 
 	@Parameters

@@ -25,16 +25,8 @@ public class EvaluationContext implements SerializableSopremoType {
 		return this.operatorStack;
 	}
 
-	public Object getBinding(String name) {
-		return this.bindings.get(name);
-	}
-
-	public <T> T getBinding(String name, Class<T> expectedType) {
-		return this.bindings.get(name, expectedType);
-	}
-
-	public <T> T getNonNullBinding(String name, Class<T> expectedType) {
-		return this.bindings.getNonNull(name, expectedType);
+	public Bindings getBindings() {
+		return bindings;
 	}
 
 	public void addScope() {
@@ -43,10 +35,6 @@ public class EvaluationContext implements SerializableSopremoType {
 
 	public void removeScope() {
 		this.bindings.removeScope();
-	}
-
-	public void setBinding(String name, Object binding) {
-		this.bindings.set(name, binding);
 	}
 
 	public String operatorTrace() {

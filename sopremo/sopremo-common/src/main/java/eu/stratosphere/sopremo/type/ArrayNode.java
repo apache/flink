@@ -196,4 +196,8 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return 0;
 	}
 
+	public JsonNode subList(int fromIndex, int toIndex) {
+		return new ArrayNode(this.children.subList(fromIndex, toIndex));
+	}
+
 }

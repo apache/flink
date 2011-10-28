@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
@@ -38,26 +39,26 @@ public class ObjectCreation extends ContainerExpression {
 		}
 	};
 
-	private final List<Mapping> mappings;
+	private final List<Mapping<?>> mappings;
 
 	public ObjectCreation() {
-		this(new ArrayList<Mapping>());
+		this(new ArrayList<Mapping<?>>());
 	}
 
-	public ObjectCreation(final List<Mapping> mappings) {
+	public ObjectCreation(final List<Mapping<?>> mappings) {
 		this.mappings = mappings;
 	}
 
-	public ObjectCreation(final Mapping... mappings) {
-		this.mappings = new ArrayList<Mapping>(Arrays.asList(mappings));
+	public ObjectCreation(final FieldAssignment... mappings) {
+		this.mappings = new ArrayList<Mapping<?>>(Arrays.asList(mappings));
 	}
 
-	public void addMapping(final Mapping mapping) {
+	public void addMapping(final Mapping<?> mapping) {
 		this.mappings.add(mapping);
 	}
 
 	public void addMapping(final String target, final EvaluationExpression expression) {
-		this.mappings.add(new Mapping(target, expression));
+		this.mappings.add(new FieldAssignment(target, expression));
 	}
 
 	@Override
@@ -75,16 +76,16 @@ public class ObjectCreation extends ContainerExpression {
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		final ObjectNode transformedNode = new ObjectNode();
-		for (final Mapping mapping : this.mappings)
+		for (final Mapping<?> mapping : this.mappings)
 			mapping.evaluate(transformedNode, node, context);
 		return transformedNode;
 	}
 
-	public Mapping getMapping(final int index) {
+	public Mapping<?> getMapping(final int index) {
 		return this.mappings.get(index);
 	}
 
-	public List<Mapping> getMappings() {
+	public List<Mapping<?>> getMappings() {
 		return this.mappings;
 	}
 
@@ -102,9 +103,9 @@ public class ObjectCreation extends ContainerExpression {
 
 	@Override
 	public Iterator<EvaluationExpression> iterator() {
-		return new ConversionIterator<Mapping, EvaluationExpression>(this.mappings.iterator()) {
+		return new ConversionIterator<Mapping<?>, EvaluationExpression>(this.mappings.iterator()) {
 			@Override
-			protected EvaluationExpression convert(final Mapping inputObject) {
+			protected EvaluationExpression convert(final Mapping<?> inputObject) {
 				return inputObject.getExpression();
 			}
 		};
@@ -112,7 +113,7 @@ public class ObjectCreation extends ContainerExpression {
 
 	@Override
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-		for (final Mapping mapping : this.mappings)
+		for (final Mapping<?> mapping : this.mappings)
 			if (mapping.getExpression() instanceof ContainerExpression)
 				((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
 	}
@@ -120,9 +121,9 @@ public class ObjectCreation extends ContainerExpression {
 	@Override
 	protected void toString(final StringBuilder builder) {
 		builder.append("{");
-		final Iterator<Mapping> mappingIterator = this.mappings.iterator();
+		final Iterator<Mapping<?>> mappingIterator = this.mappings.iterator();
 		while (mappingIterator.hasNext()) {
-			final Mapping entry = mappingIterator.next();
+			final Mapping<?> entry = mappingIterator.next();
 			entry.toString(builder);
 			if (mappingIterator.hasNext())
 				builder.append(", ");
@@ -130,7 +131,7 @@ public class ObjectCreation extends ContainerExpression {
 		builder.append("}");
 	}
 
-	public static class CopyFields extends Mapping {
+	public static class CopyFields extends FieldAssignment {
 		/**
 		 * 
 		 */
@@ -153,17 +154,66 @@ public class ObjectCreation extends ContainerExpression {
 		}
 	}
 
-	public static class Mapping implements SerializableSopremoType {
+	public static class FieldAssignment extends Mapping<String> {
+		/**
+		 * Initializes FieldAssignment.
+		 * 
+		 * @param target
+		 * @param expression
+		 */
+		public FieldAssignment(String target, EvaluationExpression expression) {
+			super(target, expression);
+		}
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4873817871983692783L;
+
+		@Override
+		protected void evaluate(final ObjectNode transformedNode, final JsonNode node, final EvaluationContext context) {
+			final JsonNode value = this.expression.evaluate(node, context);
+			// if (!value.isNull())
+			transformedNode.put(this.target, value);
+		}
+	}
+	
+	public static class TagMapping<Target> extends Mapping<Target> {
+		/**
+		 * Initializes TagMapping.
+		 *
+		 * @param target
+		 * @param expression
+		 */
+		public TagMapping(Target target, EvaluationExpression expression) {
+			super(target, expression);
+		}
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3919529819666259624L;
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping#evaluate(eu.stratosphere.sopremo.type.ObjectNode, eu.stratosphere.sopremo.type.JsonNode, eu.stratosphere.sopremo.EvaluationContext)
+		 */
+		@Override
+		protected void evaluate(ObjectNode transformedNode, JsonNode node, EvaluationContext context) {
+			throw new EvaluationException("Only tag mapping");
+		}
+	}
+
+	public abstract static class Mapping<Target> implements SerializableSopremoType {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 6372376844557378592L;
 
-		private final String target;
+		protected final Target target;
 
-		private final EvaluationExpression expression;
+		protected final EvaluationExpression expression;
 
-		public Mapping(final String target, final EvaluationExpression expression) {
+		public Mapping(final Target target, final EvaluationExpression expression) {
 			this.target = target;
 			this.expression = expression;
 		}
@@ -176,21 +226,18 @@ public class ObjectCreation extends ContainerExpression {
 				return false;
 			if (this.getClass() != obj.getClass())
 				return false;
-			final Mapping other = (Mapping) obj;
+			final Mapping<?> other = (Mapping<?>) obj;
 			return this.target.equals(other.target) && this.expression.equals(other.expression);
 		}
 
-		protected void evaluate(final ObjectNode transformedNode, final JsonNode node, final EvaluationContext context) {
-			final JsonNode value = this.expression.evaluate(node, context);
-			// if (!value.isNull())
-			transformedNode.put(this.target, value);
-		}
+		protected abstract void evaluate(final ObjectNode transformedNode, final JsonNode node,
+				final EvaluationContext context);
 
 		public EvaluationExpression getExpression() {
 			return this.expression;
 		}
 
-		public String getTarget() {
+		public Target getTarget() {
 			return this.target;
 		}
 

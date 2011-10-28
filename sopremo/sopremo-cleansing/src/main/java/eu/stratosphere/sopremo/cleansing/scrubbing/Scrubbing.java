@@ -13,6 +13,7 @@ import eu.stratosphere.sopremo.cleansing.fusion.FusionRule;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -60,18 +61,19 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 	@Name(preposition = "with")
 	public void setRuleExpression(ObjectCreation ruleExpression) {
 		this.rules.clear();
-		// extractRules(ruleExpression, EvaluationExpression.VALUE);
+		extractRules(ruleExpression, EvaluationExpression.VALUE);
 	}
-	
+
 	public ObjectCreation getRuleExpression() {
 		return new ObjectCreation();
 	}
 
-	// private void extractRules(ObjectCreation ruleExpression, EvaluationExpression contextValue) {
-	// for (Mapping mapping : ruleExpression.getMappings()) {
-	// this.rules.add(null)
-	// }
-	// }
+	private void extractRules(ObjectCreation ruleExpression, EvaluationExpression contextValue) {
+		for (Mapping<?> mapping : ruleExpression.getMappings()) {
+			for(EvaluationExpression expression : mapping.getExpression())
+				this.rules.add(null);
+		}
+	}
 
 	public static class Implementation extends
 			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {

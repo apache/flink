@@ -85,6 +85,8 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		this.cachedSignatures.putAll(this.originalSignatures);
 	}
 
+	protected abstract boolean needsInstance(MemberType member);
+
 	protected Class<?>[] getSignatureTypes(MemberType member) {
 		return getParameterTypes(member);
 	}
@@ -94,7 +96,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 	protected abstract Class<?>[] getParameterTypes(final MemberType member);
 
 	private Signature findBestSignature(final Signature signature) {
-		MemberType member = this.cachedSignatures.get(signature);
+		MemberType member = getMember(signature);
 		if (member != null)
 			return signature;
 
@@ -158,13 +160,16 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		return this.findBestSignature(new Signature(paramTypes)) != null;
 	}
 
-	public ReturnType invokeSignature(final Signature signature, final Object context, final Object... paramNodes) {
+	public ReturnType invokeSignature(final Signature signature, final Object context, final Object... params) {
 		try {
-			return this.invokeDirectly(this.cachedSignatures.get(signature), context,
-				signature.adjustParameters(paramNodes));
+			return this.invokeDirectly(getMember(signature), context, signature.adjustParameters(params));
 		} catch (final Exception e) {
-			throw new EvaluationException("Cannot invoke " + this.getName() + " with " + Arrays.toString(paramNodes), e);
+			throw new EvaluationException("Cannot invoke " + this.getName() + " with " + Arrays.toString(params), e);
 		}
+	}
+
+	protected MemberType getMember(final Signature signature) {
+		return this.cachedSignatures.get(signature);
 	}
 
 	protected abstract ReturnType invokeDirectly(final MemberType member, final Object context, Object[] params)

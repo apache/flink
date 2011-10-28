@@ -353,6 +353,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
 		for (Method method : methods)
 			try {
+				if(method.getDeclaringClass() == String.class)
 				registry.register(method);
 			} catch (Exception e) {
 				// System.out.println("Could not register " + method);
@@ -361,8 +362,8 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	
 	@Override
 	public void registerConstants(EvaluationContext context) {
-		context.setBinding("pi", new ConstantExpression(Math.PI));
-		context.setBinding("e", new ConstantExpression(Math.E));
+		context.getBindings().set("pi", new ConstantExpression(Math.PI));
+		context.getBindings().set("e", new ConstantExpression(Math.E));
 	}
 
 	//

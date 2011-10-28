@@ -5,55 +5,43 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
-@Name(verb = "extract")
+@Name(verb = "extract from")
 public class EntityExtraction extends CompositeOperator<EntityExtraction> {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 5817110603520085487L;
 
-	private EvaluationExpression projection = EvaluationExpression.VALUE;
+	private ObjectCreation projections = new ObjectCreation();
 
-	private List<ValidationRule> rules = new ArrayList<ValidationRule>();
-
-	public EvaluationExpression getProjection() {
-		return this.projection;
+	public ObjectCreation getProjections() {
+		return this.projections;
 	}
 
-	public void setProjection(EvaluationExpression projection) {
-		if (projection == null)
+	@Property
+	@Name(preposition = "into")
+	public void setProjections(ObjectCreation projections) {
+		if (projections == null)
 			throw new NullPointerException("projection must not be null");
 
-		this.projection = projection;
+		this.projections = projections;
 	}
 
-	public EntityExtraction withProjection(EvaluationExpression projection) {
-		this.setProjection(projection);
+	public EntityExtraction withProjections(ObjectCreation projection) {
+		this.setProjections(projection);
 		return this;
-	}
-
-	public void addRule(final ValidationRule e) {
-		this.rules.add(e);
 	}
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		final Scrubbing validation = new Scrubbing();
-		validation.setInputs(new Projection().withValueTransformation(this.projection));
-		validation.setRules(this.rules);
-		return SopremoModule.valueOf(this.getName(), validation);
+		return SopremoModule.valueOf(this.getName());
 	}
 
-	public List<ValidationRule> getRules() {
-		return this.rules;
-	}
-
-	public boolean removeRule(final Object o) {
-		return this.rules.remove(o);
-	}
 
 }

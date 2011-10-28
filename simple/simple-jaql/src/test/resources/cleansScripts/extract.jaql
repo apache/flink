@@ -1,7 +1,9 @@
 using cleansing;
 
+$scrubbed_earmarks = read 'scrubbedEarmarks.json';
+
 extract from $scrubbed_earmarks into {
-	$funds = group by $.earmarkId {
+	$funds = group $ by $.earmarkId into {
 		id: generateId('earmark'),
 		amount: sum($[*].amount),
 		currency: 'USD',
@@ -9,11 +11,11 @@ extract from $scrubbed_earmarks into {
 			year: $[0].enactedYear
 		},
 		subject: $[0].shortDescription
-	}
-	$recipients = group by $.recipient {
-		id: generateId('earmark_person'),
-		names: [$.recipient],
-		receivedFunds: transform $ into { 
+	},
+	$recipients = group $ by $.recipient into {
+		/*id: generateId('earmark_person'),
+		names: [$.recipient],*/
+		receivedFunds: project $ into { 
 			id: $funds[$.earmarkId].id,
 			amount: $.amount
 		},

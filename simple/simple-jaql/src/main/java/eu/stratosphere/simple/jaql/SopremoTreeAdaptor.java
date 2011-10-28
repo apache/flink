@@ -7,7 +7,7 @@ import org.antlr.runtime.tree.BaseTreeAdaptor;
 import org.antlr.runtime.tree.TreeAdaptor;
 
 import eu.stratosphere.sopremo.ExpressionFactory;
-import eu.stratosphere.sopremo.expressions.ErroneousExpression;
+import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
@@ -137,7 +137,7 @@ public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
 	public void setTokenBoundaries(Object t, Token startToken, Token stopToken) {
 	}
 
-	public class PlaceholderExpression extends ErroneousExpression {
+	public class PlaceholderExpression extends UnevaluableExpression {
 		/**
 		 * 
 		 */

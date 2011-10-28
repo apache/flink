@@ -57,7 +57,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	public String getEnumerationFieldName() {
 		if (this.enumerationExpression instanceof ObjectCreation
 			&& ((ObjectCreation) this.enumerationExpression).getMappingSize() == 2)
-			return ((ObjectCreation) this.enumerationExpression).getMapping(1).getTarget();
+			return (String) ((ObjectCreation) this.enumerationExpression).getMapping(1).getTarget();
 		return null;
 	}
 
