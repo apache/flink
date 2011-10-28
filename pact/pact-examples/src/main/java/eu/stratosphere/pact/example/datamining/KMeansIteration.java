@@ -491,7 +491,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		public void reduce(Iterator<PactRecord> dataPoints, Collector out)
 		{
 			// initialize coordinate vector sum and count
-			
+			this.coordinates.setCoordinates(null);
 			double[] coordinateSum = null;
 			int count = 0;	
 
@@ -540,6 +540,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		public void combine(Iterator<PactRecord> dataPoints, Collector out)
 		{
 			// initialize coordinate vector sum and count
+			this.coordinates.setCoordinates(null);
 			double[] coordinateSum = null;
 			int count = 0;	
 
