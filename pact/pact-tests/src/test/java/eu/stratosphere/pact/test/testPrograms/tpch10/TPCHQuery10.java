@@ -168,6 +168,15 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 		public GroupKey() {
 			super();
 		}
+		
+		public boolean equals(Object other) {
+			return compareTo((Key) other) == 0;
+		}
+		
+		public int hashCode() {
+			//TODO replace with some light weight hash code
+			return toString().hashCode();
+		}
 
 		@Override
 		public int compareTo(Key o) {
