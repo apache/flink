@@ -36,12 +36,11 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.util.NewTupleInFormat;
+import eu.stratosphere.pact.example.relational.util.TupleInFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
@@ -83,6 +82,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// reusable variables for the fields touched in the mapper
 		private final PactLong orderKey = new PactLong();
 		private final PactString shipPriority = new PactString();
+		private final PactRecord result = new PactRecord();
 		
 		/**
 		 * Reads the filter literals from the configuration.
@@ -108,7 +108,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		public void map(final PactRecord record, final Collector out)
 		{
 			final Tuple t = record.getField(0, Tuple.class);
-
 			try {
 				if (Integer.parseInt(t.getStringValueAt(4).substring(0, 4)) > this.yearFilter
 					&& t.getStringValueAt(2).equals("F") && t.getStringValueAt(5).startsWith(this.prioFilter))
@@ -118,9 +117,9 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 					this.shipPriority.setValue(t.getStringValueAt(7));
 
 					// compose output
-					record.setField(0, this.orderKey);
-					record.setField(1, this.shipPriority);
-					out.collect(record);
+					result.setField(0, this.orderKey);
+					result.setField(1, this.shipPriority);
+					out.collect(result);
 
 					// Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY
 				}
@@ -144,6 +143,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		
 		private final PactLong orderKey = new PactLong();
 		private final PactDouble extendedPrice = new PactDouble();
+		private final PactRecord result = new PactRecord();
+		
 		/**
 		 * Does the projection on the LineItem table 
 		 *
@@ -158,10 +159,10 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 				this.orderKey.setValue(t.getLongValueAt(0));
 				this.extendedPrice.setValue(Double.parseDouble(t.getStringValueAt(5)));
 				
-				record.setField(0, this.orderKey);
-				record.setField(2, this.extendedPrice);
+				result.setField(0, this.orderKey);
+				result.setField(1, this.extendedPrice);
 				
-				out.collect(record);
+				out.collect(result);
 			}
 			catch (NumberFormatException nfe) {
 				LOGGER.error(nfe);
@@ -178,7 +179,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	@OutputContract.AllConstant
 	public static class JoinLiO extends MatchStub
 	{
-
 		/**
 		 * Implements the join between LineItem and Order table on the 
 		 * order key.
@@ -193,9 +193,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			// we can simply union the fields since the first input has its fields on (0, 1) and the
 			// second inputs has its fields in (0, 2). The conflicting field (0) is the key which is guaranteed
 			// to be identical anyways 
-			//TODO use union fields here, as soon as it is implemented
-			//first.unionFields(second);
-			first.setField(1, second.getField(1, PactString.class));
+			// <-- to do when union fields is implemented
+			first.setField(2, second.getField(1, PactDouble.class));
 			out.collect(first);
 		}
 	}
@@ -246,67 +245,36 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		{
 			reduce(values, out);
 		}
-		
-		// ====================================================================
-		//    Alternative Signature Variants
-		// ====================================================================
-		
-		public void reduce(Key[] keys, Iterator<PactRecord> values, Collector out)
-		{
-			PactRecord rec = null;
-			double partExtendedPriceSum = 0;
-
-			while (values.hasNext()) {
-				rec = values.next();
-				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
-			}
-
-			this.extendedPrice.setValue(partExtendedPriceSum);
-			rec.setField(0, keys[0]);
-			rec.setField(1, keys[1]);
-			rec.setField(2, this.extendedPrice);
-			out.collect(rec);
-		}
-		
-		public void reduce(PactRecord keys, Iterator<PactRecord> values, Collector out)
-		{
-			double partExtendedPriceSum = 0;
-
-			while (values.hasNext()) {
-				final PactRecord rec = values.next();
-				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
-			}
-
-			this.extendedPrice.setValue(partExtendedPriceSum);
-			keys.setField(2, this.extendedPrice);
-			out.collect(keys);
-		}
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) {
-
+	public Plan getPlan(final String... args) 
+	{
 		// parse program parameters
 		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String ordersPath    = (args.length > 1 ? args[1] : "");
 		String lineitemsPath = (args.length > 2 ? args[2] : "");
 		String output        = (args.length > 3 ? args[3] : "");
+		int waves = (args.length > 4 ? Integer.parseInt(args[4]) : 1);
 
 		// create DataSourceContract for Orders input
-		FileDataSource orders = new FileDataSource(NewTupleInFormat.class, ordersPath, "Orders");
-		orders.setParameter(NewTupleInFormat.RECORD_DELIMITER, "\n");
+		FileDataSource orders = new FileDataSource(TupleInFormat.class, ordersPath, "Orders");
+		orders.setDegreeOfParallelism(noSubtasks);
+		orders.setParameter(TupleInFormat.RECORD_DELIMITER, "\n");
 		orders.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSourceContract for LineItems input
-		FileDataSource lineitems = new FileDataSource(NewTupleInFormat.class, lineitemsPath, "LineItems");
-		lineitems.setParameter(NewTupleInFormat.RECORD_DELIMITER, "\n");
+		FileDataSource lineitems = new FileDataSource(TupleInFormat.class, lineitemsPath, "LineItems");
+		lineitems.setDegreeOfParallelism(noSubtasks);
+		lineitems.setParameter(TupleInFormat.RECORD_DELIMITER, "\n");
 		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		// create MapContract for filtering Orders tuples
 		MapContract filterO = new MapContract(FilterO.class, orders, "FilterO");
+		filterO.setDegreeOfParallelism(noSubtasks);
 		filterO.setParameter(YEAR_FILTER, 1993);
 		filterO.setParameter(PRIO_FILTER, "5");
 		filterO.getCompilerHints().setAvgBytesPerRecord(16);
@@ -315,25 +283,31 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create MapContract for projecting LineItems tuples
 		MapContract projectLi = new MapContract(ProjectLi.class, lineitems, "ProjectLi");
+		projectLi.setDegreeOfParallelism(noSubtasks);
 		projectLi.getCompilerHints().setAvgBytesPerRecord(20);
 		projectLi.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		projectLi.getCompilerHints().setAvgNumValuesPerKey(4);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinLiO = new MatchContract(JoinLiO.class, PactLong.class, 0, 0, filterO, projectLi, "JoinLiO");
+		joinLiO.setDegreeOfParallelism(noSubtasks * waves);
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
 		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
+		joinLiO.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_BROADCAST");
+		joinLiO.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_FIRST");
 
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
 		@SuppressWarnings("unchecked")
 		ReduceContract aggLiO = new ReduceContract(AggLiO.class, new Class[] {PactLong.class, PactString.class}, new int[] {0, 1}, joinLiO, "AggLio");
+		aggLiO.setDegreeOfParallelism(noSubtasks);
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
 		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
+		result.setDegreeOfParallelism(noSubtasks);
 		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
 		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
