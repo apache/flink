@@ -235,7 +235,7 @@ public final class PactRecord implements Value
 		}
 		
 		// deserialize
-		deserialize(field, offset, limit);
+		deserialize(field, offset, limit, fieldNum);
 		return field;
 	}
 	
@@ -271,7 +271,7 @@ public final class PactRecord implements Value
 		}
 		
 		final int limit = offset + this.lengths[fieldNum];
-		deserialize(target, offset, limit);
+		deserialize(target, offset, limit, fieldNum);
 		return target;
 	}
 	
@@ -303,7 +303,7 @@ public final class PactRecord implements Value
 		}
 		
 		final int limit = offset + this.lengths[fieldNum];
-		deserialize(target, offset, limit);
+		deserialize(target, offset, limit, fieldNum);
 		return true;
 	}
 	
@@ -331,7 +331,7 @@ public final class PactRecord implements Value
 	 * @param offset The offset in the binary string.
 	 * @param limit The limit in the binary string.
 	 */
-	private final <T extends Value> void deserialize(T target, int offset, int limit)
+	private final <T extends Value> void deserialize(T target, int offset, int limit, int fieldNumber)
 	{
 		if (this.serializer == null) {
 			this.serializer = new InternalDeSerializer();
@@ -344,7 +344,7 @@ public final class PactRecord implements Value
 			target.read(serializer);
 		}
 		catch (Exception e) {
-			throw new DeserializationException(e);
+			throw new DeserializationException("Error reading field " + fieldNumber + " as " + target.getClass().getName(), e);
 		}
 	}
 	
