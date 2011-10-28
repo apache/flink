@@ -165,12 +165,12 @@ public class UnilateralSortMerger implements SortMerger
 	 * The iterator to be returned by the sort-merger. This variable is zero, while receiving and merging is still in
 	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
 	 */
-	protected MutableObjectIterator<PactRecord> iterator;
+	protected volatile MutableObjectIterator<PactRecord> iterator;
 	
 	/**
 	 * The exception that is set, if the iterator cannot be created.
 	 */
-	protected IOException iteratorException;
+	protected volatile IOException iteratorException;
 
 	/**
 	 * The maximum number of file handles

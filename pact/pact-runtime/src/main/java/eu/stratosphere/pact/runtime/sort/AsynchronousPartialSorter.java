@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.sort;
 
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.concurrent.TimeUnit;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
@@ -177,6 +178,10 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 				throw new IllegalStateException();
 			}
 			else {
+				if (AsynchronousPartialSorter.this.iteratorException != null) {
+					throw AsynchronousPartialSorter.this.iteratorException;
+				}
+				
 				while (true) {
 					if (this.currentElement == SENTINEL) {
 						return false;
@@ -189,7 +194,14 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 					
 					// get a new element
 					try {
-						this.currentElement = queues.spill.take();
+						this.currentElement = null;
+						while (!this.closed && this.currentElement == null) {
+							this.currentElement = queues.spill.poll(1000, TimeUnit.MILLISECONDS);
+						}
+						if (AsynchronousPartialSorter.this.iteratorException != null) {
+							throw AsynchronousPartialSorter.this.iteratorException;
+						}
+						
 						if (this.currentElement == SENTINEL) {
 							return false;
 						}
