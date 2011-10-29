@@ -72,13 +72,10 @@ public final class CheckpointDecisionCoordinator {
 	 */
 	public void registerJob(final ExecutionGraph executionGraph) {
 
-		synchronized (executionGraph) {
-
-			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
-			while (it.hasNext()) {
-				final ExecutionVertex vertex = it.next();
-				vertex.registerExecutionListener(new CheckpointExecutionListener(this, vertex));
-			}
+		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
+		while (it.hasNext()) {
+			final ExecutionVertex vertex = it.next();
+			vertex.registerExecutionListener(new CheckpointExecutionListener(this, vertex));
 		}
 	}
 
@@ -93,7 +90,7 @@ public final class CheckpointDecisionCoordinator {
 	void checkpointDecisionRequired(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
 
 		LOG.info("Checkpoint decision for vertex " + vertex + " required");
-		
+
 		// TODO: Provide sensible implementation here
 
 		// This implementation always creates the checkpoint
@@ -102,10 +99,10 @@ public final class CheckpointDecisionCoordinator {
 		final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
 
 		synchronized (graph) {
-			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), false)); // @CHECKPOINT DECISION
+			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), false)); // Disabled checkpoints
 			checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
 		}
-		
+
 		// Propagate checkpoint decisions
 		this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
 	}

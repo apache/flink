@@ -383,9 +383,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private boolean processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
 			final TransferEnvelopeReceiverList receiverList) {
 
-		System.out.println("Received envelope without buffer with event list size "
-			+ transferEnvelope.getEventList().size());
-
 		// No need to copy anything
 		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
 
@@ -456,22 +453,29 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			} else {
 				this.receiverCache.put(sourceChannelID, receiverList);
 
-				System.out.println("Receiver list for source channel ID " + sourceChannelID + " at task manager "
-						+ this.localConnectionInfo);
-				if (receiverList.hasLocalReceivers()) {
-					System.out.println("\tLocal receivers:");
-					final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
-					while (it.hasNext()) {
-						System.out.println("\t\t" + it.next());
-					}
-				}
+				if (LOG.isDebugEnabled()) {
 
-				if (receiverList.hasRemoteReceivers()) {
-					System.out.println("Remote receivers:");
-					final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
-					while (it.hasNext()) {
-						System.out.println("\t\t" + it.next());
+					final StringBuilder sb = new StringBuilder();
+					sb.append("Receiver list for source channel ID " + sourceChannelID + " at task manager "
+						+ this.localConnectionInfo + "\n");
+
+					if (receiverList.hasLocalReceivers()) {
+						sb.append("\tLocal receivers:\n");
+						final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
+						while (it.hasNext()) {
+							sb.append("\t\t" + it.next() + "\n");
+						}
 					}
+
+					if (receiverList.hasRemoteReceivers()) {
+						sb.append("Remote receivers:\n");
+						final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
+						while (it.hasNext()) {
+							sb.append("\t\t" + it.next() + "\n");
+						}
+					}
+
+					LOG.debug(sb.toString());
 				}
 			}
 		}
@@ -496,8 +500,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
 
-		System.out.println("Received envelope from input channel");
-
 		processEnvelope(transferEnvelope, false);
 	}
 
@@ -507,8 +509,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer)
 			throws IOException {
-
-		// System.out.println("Processing envelope "+ transferEnvelope.getSequenceNumber() + " from network");
 
 		try {
 			processEnvelope(transferEnvelope, freeSourceBuffer);
@@ -634,7 +634,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				LOG.error("Cannot report checkpoint decision for vertex " + cd.getVertexID());
 				continue;
 			}
-			
+
 			taskContext.setCheckpointDecisionAsynchronously(cd.getCheckpointDecision());
 			taskContext.reportAsynchronousEvent();
 		}
