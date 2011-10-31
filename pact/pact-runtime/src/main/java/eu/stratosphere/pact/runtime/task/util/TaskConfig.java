@@ -15,8 +15,15 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -101,6 +108,14 @@ public class TaskConfig
 	private static final String NUM_FILEHANDLES = "pact.filehandles.num";
 	
 	private static final String SORT_SPILLING_THRESHOLD = "pact.sort.spillthreshold";
+	
+	private static final String CHAINING_NUM_STUBS = "pact.chaining.num";
+	
+	private static final String CHAINING_TASKCONFIG_PREFIX = "pact.chaining.taskconfig.";
+	
+	private static final String CHAINING_TASK_PREFIX = "pact.chaining.task.";
+	
+	private static final String CHAINING_TASKNAME_PREFIX = "pact.chaining.taskname.";
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -136,30 +151,22 @@ public class TaskConfig
 
 	public void setStubParameters(Configuration parameters)
 	{
-		for (String key : parameters.keySet()) {
-			this.config.setString(STUB_PARAM_PREFIX + key, parameters.getString(key, null));
-		}
+		this.config.addAll(parameters, STUB_PARAM_PREFIX);
 	}
 
 	public Configuration getStubParameters()
 	{
-		Configuration parameters = new Configuration();
-		for (String key : config.keySet()) {
-			if (key.startsWith(STUB_PARAM_PREFIX)) {
-				parameters.setString(key.substring(STUB_PARAM_PREFIX.length()), config.getString(key, null));
-			}
-		}
-		return parameters;
+		return new DelegatingConfiguration(this.config, STUB_PARAM_PREFIX);
 	}
 	
 	public void setStubParameter(String key, String value)
 	{
-		config.setString(STUB_PARAM_PREFIX + key, value);
+		this.config.setString(STUB_PARAM_PREFIX + key, value);
 	}
 
 	public String getStubParameter(String key, String defaultValue)
 	{
-		return config.getString(STUB_PARAM_PREFIX + key, defaultValue);
+		return this.config.getString(STUB_PARAM_PREFIX + key, defaultValue);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -427,5 +434,193 @@ public class TaskConfig
 	 */
 	public float getSortSpillingTreshold() {
 		return config.getFloat(SORT_SPILLING_THRESHOLD, 0.7f);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                    Parameters for Stub Chaining
+	// --------------------------------------------------------------------------------------------
+	
+	public int getNumberOfChainedStubs() {
+		return this.config.getInteger(CHAINING_NUM_STUBS, 0);
+	}
+	
+	public void addChainedTask(Class<? extends ChainedTask> chainedTaskClass, TaskConfig conf, String taskName)
+	{
+		int numChainedYet = this.config.getInteger(CHAINING_NUM_STUBS, 0);
+		
+		this.config.setString(CHAINING_TASK_PREFIX + numChainedYet, chainedTaskClass.getName());
+		this.config.addAll(conf.config, CHAINING_TASKCONFIG_PREFIX + numChainedYet + '.');
+		this.config.setString(CHAINING_TASKNAME_PREFIX + numChainedYet, taskName);
+		
+		this.config.setInteger(CHAINING_NUM_STUBS, ++numChainedYet);
+	}
+	
+	public TaskConfig getChainedStubConfig(int chainPos)
+	{
+		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + '.'));
+	}
+
+	public Class<? extends ChainedTask> getChainedTask(int chainPos)
+	throws ClassNotFoundException, ClassCastException
+	{
+		String className = this.config.getString(CHAINING_TASK_PREFIX + chainPos, null);
+		if (className == null)
+			throw new IllegalStateException("Chained Task Class missing");
+		
+		return Class.forName(className).asSubclass(ChainedTask.class);
+	}
+	
+	public String getChainedTaskName(int chainPos)
+	{
+		return this.config.getString(CHAINING_TASKNAME_PREFIX + chainPos, null);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                              Utility class for nested Configurations
+	// --------------------------------------------------------------------------------------------
+	
+	public static final class DelegatingConfiguration extends Configuration
+	{
+		private final Configuration backingConfig;		// the configuration actually storing the data
+		
+		private String prefix;							// the prefix key by which keys for this config are marked
+		
+		// --------------------------------------------------------------------------------------------
+		
+		/**
+		 * Default constructor for serialization. Creates an empty delegating configuration.
+		 */
+		public DelegatingConfiguration()
+		{
+			this.backingConfig = new Configuration();
+		}
+		
+		/**
+		 * Creates a new delegating configuration which stores its key/value pairs in the given
+		 * configuration using the specifies key prefix.
+		 * 
+		 * @param backingConfig The configuration holding the actual config data.
+		 * @param prefix The prefix prepended to all config keys.
+		 */
+		public DelegatingConfiguration(Configuration backingConfig, String prefix)
+		{
+			this.backingConfig = backingConfig;
+			this.prefix = prefix;
+		}
+
+		// --------------------------------------------------------------------------------------------
+		
+		@Override
+		public String getString(String key, String defaultValue) {
+			return this.backingConfig.getString(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<T> ancestor) {
+			return this.backingConfig.getClass(this.prefix + key, defaultValue, ancestor);
+		}
+
+		@Override
+		public Class<?> getClass(String key, Class<?> defaultValue) {
+			return this.backingConfig.getClass(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		public void setClass(String key, Class<?> klazz) {
+			this.backingConfig.setClass(this.prefix + key, klazz);
+		}
+
+		@Override
+		public void setString(String key, String value) {
+			this.backingConfig.setString(this.prefix + key, value);
+		}
+
+		@Override
+		public int getInteger(String key, int defaultValue) {
+			return this.backingConfig.getInteger(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		public void setInteger(String key, int value) {
+			this.backingConfig.setInteger(this.prefix + key, value);
+		}
+
+		@Override
+		public long getLong(String key, long defaultValue) {
+			return this.backingConfig.getLong(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		public void setLong(String key, long value) {
+			this.backingConfig.setLong(this.prefix + key, value);
+		}
+
+		@Override
+		public boolean getBoolean(String key, boolean defaultValue) {
+			return this.backingConfig.getBoolean(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		public void setBoolean(String key, boolean value) {
+			this.backingConfig.setBoolean(this.prefix + key, value);
+		}
+
+		@Override
+		public float getFloat(String key, float defaultValue) {
+			return this.backingConfig.getFloat(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		public void setFloat(String key, float value) {
+			this.backingConfig.setFloat(this.prefix + key, value);
+		}
+
+		@Override
+		public Set<String> keySet()
+		{
+			final HashSet<String> set = new HashSet<String>();
+			final int prefixLen = this.prefix == null ? 0 : this.prefix.length();
+			
+			for (String key : this.backingConfig.keySet()) {
+				if (key.startsWith(this.prefix)) {
+					set.add(key.substring(prefixLen));
+				}
+			}
+			return set;
+		}
+		
+		// --------------------------------------------------------------------------------------------
+
+		@Override
+		public void read(DataInput in) throws IOException
+		{
+			this.prefix = in.readUTF();
+			this.backingConfig.read(in);
+		}
+
+		@Override
+		public void write(DataOutput out) throws IOException
+		{
+			out.writeUTF(this.prefix);
+			this.backingConfig.write(out);
+		}
+		
+		// --------------------------------------------------------------------------------------------
+
+		@Override
+		public int hashCode()
+		{
+			return this.prefix.hashCode() ^ this.backingConfig.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object obj)
+		{
+			if (obj instanceof DelegatingConfiguration) {
+				DelegatingConfiguration other = (DelegatingConfiguration) obj;
+				return this.prefix.equals(other.prefix) && this.backingConfig.equals(other.backingConfig);
+			}
+			else return false;
+		}
 	}
 }
