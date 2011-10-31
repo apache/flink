@@ -488,13 +488,13 @@ public abstract class TwoInputNode extends OptimizerNode
 	public void setCosts(Costs nodeCosts) {
 		super.setCosts(nodeCosts);
 		
+		// check, if this node has no branch beneath it, no double-counted cost then
+		if (this.lastJoinedBranchNode == null) {
+			return;
+		}
+		
+		
 		// TODO: mjsax
-//		// check, if this node has no branch beneath it, no double-counted cost then
-//		if (this.lastJoinedBranchNode == null) {
-//			return;
-//		}
-//		
-//		
 //		// get the children and check their existence
 //		OptimizerNode child1 = (this.input1 == null ? null : this.input1.getSourcePact());
 //		OptimizerNode child2 = (this.input2 == null ? null : this.input2.getSourcePact());

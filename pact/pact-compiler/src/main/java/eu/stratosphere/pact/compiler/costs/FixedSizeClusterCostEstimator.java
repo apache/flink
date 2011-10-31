@@ -52,7 +52,7 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	@Override
 	public void getRangePartitionCost(List<PactConnection> conn, Costs costs) {
 		// we assume that all unioned inputs have the same <DistibutionClass>
-		// hence we just pick the fist one blindely
+		// hence we just pick the fist one blindly
 		// TODO: mjsax: verify if this is valid
 		Class<? extends DataDistribution> distribution =
 			conn.get(0).getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass();

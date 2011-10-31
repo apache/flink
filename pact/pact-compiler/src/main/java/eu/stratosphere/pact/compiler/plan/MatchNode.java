@@ -949,15 +949,29 @@ public class MatchNode extends TwoInputNode {
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-		// TODO: mjsax
-//		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
-//		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
-		OptimizerNode pred1 = null;
-		OptimizerNode pred2 = null;
+		boolean allPredsAvailable = false;
+		
+		if(this.input1 != null && this.input2 != null) {
+			for(PactConnection c : this.input1) {
+				if(c.getSourcePact() == null) {
+					allPredsAvailable = false;
+					break;
+				}
+			}
+			
+			if(allPredsAvailable) {
+				for(PactConnection c : this.input2) {
+					if(c.getSourcePact() == null) {
+						allPredsAvailable = false;
+						break;
+					}
+				}				
+			}
+		}
+
 		CompilerHints hints = getPactContract().getCompilerHints();
 
-		// check if preceding node is available
-		if (pred1 == null || pred2 == null) {
+		if (!allPredsAvailable) {
 			// Preceding node is not available, we take hints as given
 			this.estimatedKeyCardinality = hints.getKeyCardinality();
 			

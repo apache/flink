@@ -476,9 +476,17 @@ public class ReduceNode extends SingleInputNode {
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-		// TODO: mjsax
-		//OptimizerNode pred = input == null ? null : input.getSourcePact();
-		OptimizerNode pred = null;
+		boolean allPredsAvailable = false;
+		
+		if(this.input != null) {
+			for(PactConnection c : this.input) {
+				if(c.getSourcePact() == null) {
+					allPredsAvailable = false;
+					break;
+				}
+			}
+		}
+
 		CompilerHints hints = getPactContract().getCompilerHints();
 		
 		// special hint handling for Reduce:
@@ -494,7 +502,7 @@ public class ReduceNode extends SingleInputNode {
 		}
 
 		// check if preceding node is available
-		if (pred == null) {
+		if (!allPredsAvailable) {
 			// Preceding node is not available, we take hints as given
 			this.estimatedKeyCardinality = hints.getKeyCardinality();
 			
@@ -518,7 +526,23 @@ public class ReduceNode extends SingleInputNode {
 			// default key cardinality is -1
 			this.estimatedKeyCardinality = -1;
 			// default output size is equal to output size of previous node
-			this.estimatedOutputSize = pred.estimatedOutputSize;
+			long outputSize = 0;
+			for(PactConnection c : this.input) {
+				OptimizerNode pred = c.getSourcePact();
+				
+				if(pred != null) {
+					// if one input (all of them are unioned) does not know
+					// its output size, we a pessimistic and return "unknown" as well
+					if(pred.estimatedOutputSize == -1) {
+						outputSize = -1;
+						break;
+					}
+					
+					outputSize += pred.estimatedOutputSize;
+				}
+			}
+			
+			this.estimatedOutputSize = outputSize;
 			
 			
 			// ############# output cardinality estimation ##############
