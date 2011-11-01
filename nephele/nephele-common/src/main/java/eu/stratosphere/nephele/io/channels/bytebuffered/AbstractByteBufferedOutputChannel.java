@@ -92,7 +92,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 */
 	private long amountOfDataTransmitted = 0L;
 
-	private static final Log LOG = LogFactory.getLog(AbstractByteBufferedInputChannel.class);
+	private static final Log LOG = LogFactory.getLog(AbstractByteBufferedOutputChannel.class);
 
 	/**
 	 * Creates a new byte buffered output channel.
@@ -148,6 +148,10 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (!this.closeRequested) {
 			this.closeRequested = true;
+			if (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
+				//make sure we serialized all data before we send the close event
+				flush();
+			}
 
 			if (!isBroadcastChannel() || getChannelIndex() == 0) {
 				transferEvent(new ByteBufferedChannelCloseEvent());
