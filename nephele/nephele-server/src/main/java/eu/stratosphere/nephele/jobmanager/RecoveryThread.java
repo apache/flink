@@ -44,7 +44,8 @@ public class RecoveryThread extends Thread {
 	private final ExecutionGraph job;
 
 	List<ExecutionVertex> failedVertices;
-
+	
+	List<ExecutionVertex> recovered = new ArrayList<ExecutionVertex>();
 	private List<ExecutionVertexID> globalConsistentCheckpoint = new SerializableArrayList<ExecutionVertexID>();
 
 	/**
@@ -70,7 +71,11 @@ public class RecoveryThread extends Thread {
 		}
 		//FIXME (marrus) dirty fix
 		while (!this.failedVertices.isEmpty()) { 
-			recover(this.failedVertices.remove(0));
+			ExecutionVertex torecover = this.failedVertices.remove(0);
+			if(!this.recovered.contains(torecover)){
+				recover(torecover);
+				this.recovered.add(torecover);
+			}
 			if (this.failedVertices.isEmpty()) { 
 				this.failedVertices = this.job.getFailedVertices();
 			}
@@ -143,7 +148,7 @@ public class RecoveryThread extends Thread {
 				}
 			}
 			LOG.info("FINISHED RECOVERY for " + failed.getName());
-			this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.RERUNNING, null);
+			this.job.executionStateChanged(this.job.getJobID(), failed.getID(), ExecutionState.RERUNNING, null);
 
 		return true;
 	}
