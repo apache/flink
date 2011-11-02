@@ -366,6 +366,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				final int ql = this.networkConnectionManager.getQueueLength(remoteReceiver);
 				sb.append(' ');
+				sb.append(remoteReceiver.getHostName());
+				sb.append(' ');
 				sb.append(ql);
 			}
 
