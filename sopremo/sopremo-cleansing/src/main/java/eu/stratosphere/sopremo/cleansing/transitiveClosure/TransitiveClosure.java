@@ -70,51 +70,45 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-				ArrayNode valueArray = new ArrayNode(((ArrayNode) value).get(0), ((ArrayNode) value).get(1));
-				ArrayNode keyArray = new ArrayNode(((ObjectNode) valueArray.get(0)).get("partition"),
-					((ObjectNode) valueArray.get(1)).get("partition"));
-				out.collect(keyArray, valueArray);
+				JsonNode value1 = ((ArrayNode) value).get(0);
+				JsonNode value2 = ((ArrayNode) value).get(1);
+				JsonNode partition1 = ((ObjectNode) value1).get("partition");
+				JsonNode partition2 = ((ObjectNode) value2).get("partition");
+				out.collect(new ArrayNode(partition1, partition2), new ArrayNode(value1, value2));
+				if (!partition1.equals(partition2))
+					out.collect(new ArrayNode(partition2, partition1), new ArrayNode(value2, value1));
 			}
 		}
 	}
 
 	public static void warshall(final BinarySparseMatrix matrix) {
 		// Warshall
-		final Deque<JsonNode> rowsToExplore = new LinkedList<JsonNode>(matrix.getRows());
-		while (!rowsToExplore.isEmpty()) {
-			final JsonNode row = rowsToExplore.pop();
+		for (JsonNode row : matrix.getRows()) {
 			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
 			while (!columnsToExplore.isEmpty()) {
 				final JsonNode column = columnsToExplore.pop();
 				Set<JsonNode> transitiveColumn = matrix.get(column);
-				if (transitiveColumn.isEmpty()) {
-					for (final JsonNode transitiveNode : columnsToExplore) {
-						matrix.set(transitiveNode, column);
-						if (!rowsToExplore.contains(column))
-							rowsToExplore.add(column);
+				for (final JsonNode transitiveNode : transitiveColumn)
+					if (!row.equals(transitiveNode) && !matrix.isSet(row, transitiveNode)) {
+						matrix.set(row, transitiveNode);
+						columnsToExplore.push(transitiveNode);
 					}
-				}
-				else {
-					for (final JsonNode transitiveNode : transitiveColumn)
-						if (!row.equals(transitiveNode) && !matrix.isSet(row, transitiveNode)) {
-							matrix.set(row, transitiveNode);
-							columnsToExplore.push(transitiveNode);
-						}
-				}
 			}
 		}
 		// matrix.makeSymmetric();
 	}
 
 	public static void warshall(final BinarySparseMatrix primary, BinarySparseMatrix current) {
-		for (final JsonNode row : primary.getRows()) {
-			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(current.get(row));
+		final Deque<JsonNode> rowsToExplore = new LinkedList<JsonNode>(current.getRows());
+		while (!rowsToExplore.isEmpty()) {
+			JsonNode row = rowsToExplore.pop();
+			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(primary.get(row));
 			while (!columnsToExplore.isEmpty()) {
 				final JsonNode column = columnsToExplore.pop();
-				for (final JsonNode transitiveNode : primary.get(column))
-					if (!row.equals(transitiveNode) && !current.isSet(row, transitiveNode)) {
-						current.set(row, transitiveNode);
-						columnsToExplore.push(transitiveNode);
+				for (final JsonNode transitiveNode : current.get(row))
+					if (!row.equals(transitiveNode) && !current.isSet(column, transitiveNode)) {
+						current.set(column, transitiveNode);
+						// columnsToExplore.push(transitiveNode);
 					}
 			}
 		}
@@ -146,7 +140,10 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 								break;
 							}
 					}
+
 					matrix.set(value1, value2);
+					if (((ArrayNode) key).get(0).equals(((ArrayNode) key).get(1)))
+						matrix.set(value2, value1);
 				}
 				out.collect(key, matrix);
 			}

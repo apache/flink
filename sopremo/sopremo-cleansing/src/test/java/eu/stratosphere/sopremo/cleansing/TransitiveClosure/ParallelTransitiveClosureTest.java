@@ -46,6 +46,7 @@ public class ParallelTransitiveClosureTest {
 		String output = SopremoTest.getResourcePath("phase2Result.json");
 		sopremoTestPlan.getExpectedOutput(0).load(output);
 
+		sopremoTestPlan.trace();
 		sopremoTestPlan.run();
 	}
 

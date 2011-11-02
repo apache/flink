@@ -34,10 +34,10 @@ public class Phase2 extends CompositeOperator<Phase2> {
 		final GenerateRows rows = new GenerateRows().withInputs(matrix);
 		final ComputeBlockTuples computeRows = new ComputeBlockTuples().withInputs(transDia, rows);
 
-		final GenerateColumns columns = new GenerateColumns().withInputs(computeRows);
-		final ComputeBlockTuples computeTuples = new ComputeBlockTuples().withInputs(transDia, columns);
+//		final GenerateColumns columns = new GenerateColumns().withInputs(computeRows);
+//		final ComputeBlockTuples computeTuples = new ComputeBlockTuples().withInputs(transDia, columns);
 
-		sopremoModule.getOutput(0).setInput(0, computeTuples);
+		sopremoModule.getOutput(0).setInput(0, computeRows);
 
 		return sopremoModule;
 	}

@@ -21,6 +21,7 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	 * 
 	 */
 	private static final long serialVersionUID = -5533221391825038587L;
+
 	private final Map<JsonNode, Set<JsonNode>> sparseMatrix = new TreeMap<JsonNode, Set<JsonNode>>();
 
 	@Override
@@ -60,17 +61,8 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	}
 
 	public boolean isSet(final JsonNode n1, final JsonNode n2) {
-		final Set<JsonNode> set;
-		if(n1.compareTo(n2) < 0){
-			set = this.sparseMatrix.get(n1);
-			return set != null && set.contains(n2);
-		}
-			
-		
-		else {
-			set = this.sparseMatrix.get(n2);
-			return set != null && set.contains(n1);
-		}		
+		Set<JsonNode> set = this.sparseMatrix.get(n1);
+		return set != null && set.contains(n2);
 	}
 
 	public void makeSymmetric() {
@@ -81,16 +73,6 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	}
 
 	public void set(final JsonNode n1, final JsonNode n2) {
-		if(n1.compareTo(n2) < 0)
-			_set(n1, n2);
-		else _set(n2, n1);
-	}
-
-	/**
-	 * @param n1
-	 * @param n2
-	 */
-	private void _set(final JsonNode n1, final JsonNode n2) {
 		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		if (set == null)
 			this.sparseMatrix.put(n1, set = newSet());
@@ -109,11 +91,10 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	}
 
 	@Override
-	public String toString() {
-		final StringBuilder builder = new StringBuilder("[\n");
+	public StringBuilder toString(StringBuilder sb) {
 		for (final JsonNode row : this.getRows())
-			builder.append("[").append(row).append(": ").append(this.get(row)).append("]\n");
-		return builder.append("]").toString();
+			sb.append("[").append(row).append(": ").append(this.get(row)).append("]\n");
+		return sb.append("]");
 	}
 
 	public void clear() {
@@ -167,20 +148,20 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 			}
 		}
 	}
-	
-	public BinarySparseMatrix merge(BinarySparseMatrix matrix){
-		for(JsonNode row : matrix.getRows()){
+
+	public BinarySparseMatrix merge(BinarySparseMatrix matrix) {
+		for (JsonNode row : matrix.getRows()) {
 			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
-			for(JsonNode column : columnsToExplore){
+			for (JsonNode column : columnsToExplore) {
 				if (!this.isSet(row, column)) {
 					this.set(row, column);
 				}
 			}
 		}
-		
+
 		return this;
 	}
-	
+
 	@Override
 	public int getTypePos() {
 		return TYPES.CustomNode.ordinal();
@@ -194,10 +175,5 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	@Override
 	public int compareToSameType(JsonNode other) {
 		throw new UnsupportedOperationException("BinarySparseMatrix isn't comparable.");
-	}
-
-	@Override
-	public StringBuilder toString(StringBuilder sb) {
-		return null;
 	}
 }
