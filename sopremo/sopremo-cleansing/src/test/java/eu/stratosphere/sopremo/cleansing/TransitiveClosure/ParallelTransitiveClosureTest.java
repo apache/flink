@@ -20,12 +20,30 @@ public class ParallelTransitiveClosureTest {
 		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
 
-		String input = SopremoTest.getResourcePath("transitiveClosure.json");
+		String input = SopremoTest.getResourcePath("phase1.json");
 
 		sopremoTestPlan
 			.getInput(0).load(input);
 
-		String output = SopremoTest.getResourcePath("transitiveClosureResult.json");
+		String output = SopremoTest.getResourcePath("phase1Result.json");
+		sopremoTestPlan.getExpectedOutput(0).load(output);
+
+		sopremoTestPlan.run();
+	}
+	
+	@Test
+	public void shouldFindTransitiveClosureWithinRowsAndColumns() {
+		final TransitiveClosure transitiveClosure = new TransitiveClosure();
+		// transitiveClosure.setClosureMode(ClosureMode.LINKS);
+		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
+		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
+
+		String input = SopremoTest.getResourcePath("phase2.json");
+
+		sopremoTestPlan
+			.getInput(0).load(input);
+
+		String output = SopremoTest.getResourcePath("phase2Result.json");
 		sopremoTestPlan.getExpectedOutput(0).load(output);
 
 		sopremoTestPlan.run();

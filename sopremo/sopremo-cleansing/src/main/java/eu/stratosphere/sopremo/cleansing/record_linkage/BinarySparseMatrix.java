@@ -3,13 +3,14 @@ package eu.stratosphere.sopremo.cleansing.record_linkage;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
@@ -20,7 +21,7 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	 * 
 	 */
 	private static final long serialVersionUID = -5533221391825038587L;
-	private final Map<JsonNode, Set<JsonNode>> sparseMatrix = new HashMap<JsonNode, Set<JsonNode>>();
+	private final Map<JsonNode, Set<JsonNode>> sparseMatrix = new TreeMap<JsonNode, Set<JsonNode>>();
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -42,7 +43,8 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	}
 
 	public Set<JsonNode> get(final JsonNode n) {
-		return this.sparseMatrix.get(n);
+		Set<JsonNode> set = this.sparseMatrix.get(n);
+		return set == null ? Collections.EMPTY_SET : set;
 	}
 
 	public Set<JsonNode> getRows() {
@@ -58,28 +60,51 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	}
 
 	public boolean isSet(final JsonNode n1, final JsonNode n2) {
-		final Set<JsonNode> set = this.sparseMatrix.get(n1);
-		return set != null && set.contains(n2);
+		final Set<JsonNode> set;
+		if(n1.compareTo(n2) < 0){
+			set = this.sparseMatrix.get(n1);
+			return set != null && set.contains(n2);
+		}
+			
+		
+		else {
+			set = this.sparseMatrix.get(n2);
+			return set != null && set.contains(n1);
+		}		
 	}
 
 	public void makeSymmetric() {
-		final Set<JsonNode> rows = new HashSet<JsonNode>(this.getRows());
+		final Set<JsonNode> rows = new TreeSet<JsonNode>(this.getRows());
 		for (final JsonNode row : rows)
 			for (final JsonNode column : this.get(row))
 				this.set(column, row);
 	}
 
 	public void set(final JsonNode n1, final JsonNode n2) {
+		if(n1.compareTo(n2) < 0)
+			_set(n1, n2);
+		else _set(n2, n1);
+	}
+
+	/**
+	 * @param n1
+	 * @param n2
+	 */
+	private void _set(final JsonNode n1, final JsonNode n2) {
 		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		if (set == null)
-			this.sparseMatrix.put(n1, set = new HashSet<JsonNode>());
+			this.sparseMatrix.put(n1, set = newSet());
 		set.add(n2);
+	}
+
+	private Set<JsonNode> newSet() {
+		return new TreeSet<JsonNode>();
 	}
 
 	public void setAll(final JsonNode n1, final Set<JsonNode> n2) {
 		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		if (set == null)
-			this.sparseMatrix.put(n1, set = new HashSet<JsonNode>());
+			this.sparseMatrix.put(n1, set = newSet());
 		set.addAll(n2);
 	}
 

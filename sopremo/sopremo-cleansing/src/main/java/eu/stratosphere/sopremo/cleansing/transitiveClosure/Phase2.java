@@ -137,7 +137,7 @@ public class Phase2 extends CompositeOperator<Phase2> {
 				TransitiveClosure.warshall((BinarySparseMatrix) value1,
 					(BinarySparseMatrix) ((ArrayNode) value2).get(1));
 
-				out.collect(oldKey, value2);
+				out.collect(oldKey, ((ArrayNode) value2).get(1));
 			}
 
 		}

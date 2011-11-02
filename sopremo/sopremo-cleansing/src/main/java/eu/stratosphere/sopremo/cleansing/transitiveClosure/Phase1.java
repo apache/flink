@@ -25,7 +25,7 @@ public class Phase1 extends ElementaryOperator<Phase1> {
 		public void map(JsonNode key, JsonNode matrix,
 				JsonCollector out) {
 			if (((ArrayNode) key).get(0).equals(((ArrayNode) key).get(1))) {
-				TransitiveClosure.warshall((BinarySparseMatrix) matrix, (BinarySparseMatrix) matrix);
+				TransitiveClosure.warshall((BinarySparseMatrix) matrix/*, (BinarySparseMatrix) matrix*/);
 				out.collect(key, matrix);
 			}
 

@@ -1,7 +1,9 @@
 package eu.stratosphere.sopremo.cleansing.transitiveClosure;
 
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Set;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
@@ -32,7 +34,7 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 	@Override
 	public SopremoModule asElementaryOperators() {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 1, 1);
-		JsonStream input =  sopremoModule.getInput(0);
+		JsonStream input = sopremoModule.getInput(0);
 
 		// Partitioning
 		Partitioning partitioning = new Partitioning().withInputs(input);
@@ -41,13 +43,13 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 
 		// Generate Matrix
 		final GenerateMatrix genMatrix = new GenerateMatrix().withInputs(group);
-		
+
 		// compute transitive Closure P1
 		final Phase1 phase1 = new Phase1().withInputs(genMatrix);
-		
+
 		// compute transitive Closure P2
 		final Phase2 phase2 = new Phase2().withInputs(phase1, genMatrix);
-		
+
 		// emit Results as Links
 		final EmitMatrix result = new EmitMatrix().withInputs(new UnionAll().withInputs(phase1, phase2));
 
@@ -56,7 +58,7 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		return sopremoModule;
 
 	}
-	
+
 	private static class Partitioning extends ElementaryOperator<Partitioning> {
 
 		/**
@@ -78,20 +80,33 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 
 	public static void warshall(final BinarySparseMatrix matrix) {
 		// Warshall
-		for (final JsonNode row : matrix.getRows()) {
+		final Deque<JsonNode> rowsToExplore = new LinkedList<JsonNode>(matrix.getRows());
+		while (!rowsToExplore.isEmpty()) {
+			final JsonNode row = rowsToExplore.pop();
 			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
 			while (!columnsToExplore.isEmpty()) {
 				final JsonNode column = columnsToExplore.pop();
-				for (final JsonNode transitiveNode : matrix.get(column))
-					if (!row.equals(transitiveNode) && !matrix.isSet(row, transitiveNode)) {
-						matrix.set(row, transitiveNode);
-						columnsToExplore.push(transitiveNode);
+				Set<JsonNode> transitiveColumn = matrix.get(column);
+				if (transitiveColumn.isEmpty()) {
+					for (final JsonNode transitiveNode : columnsToExplore) {
+						matrix.set(transitiveNode, column);
+						if (!rowsToExplore.contains(column))
+							rowsToExplore.add(column);
 					}
+				}
+				else {
+					for (final JsonNode transitiveNode : transitiveColumn)
+						if (!row.equals(transitiveNode) && !matrix.isSet(row, transitiveNode)) {
+							matrix.set(row, transitiveNode);
+							columnsToExplore.push(transitiveNode);
+						}
+				}
 			}
 		}
+		// matrix.makeSymmetric();
 	}
-	
-	public static void warshall(final BinarySparseMatrix primary, BinarySparseMatrix current){
+
+	public static void warshall(final BinarySparseMatrix primary, BinarySparseMatrix current) {
 		for (final JsonNode row : primary.getRows()) {
 			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(current.get(row));
 			while (!columnsToExplore.isEmpty()) {
@@ -132,15 +147,12 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 							}
 					}
 					matrix.set(value1, value2);
-					matrix.set(value2, value1);
 				}
 				out.collect(key, matrix);
 			}
 
 		}
 	}
-	
-	
 
 	private static class EmitMatrix extends ElementaryOperator<EmitMatrix> {
 
