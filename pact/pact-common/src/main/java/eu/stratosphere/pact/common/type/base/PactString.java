@@ -25,7 +25,12 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
  * String base type for PACT programs that implements the Key interface.
- * PactString encapsulates a Java String object.
+ * PactString encapsulates the basic functionality of a {@link String}, in a serializable and mutable way.
+ * <p>
+ * The mutability allows to reuse the object inside the user code, also across invocations. Reusing a PactString object
+ * helps to increase the performance, as string objects are rather heavy-weight objects and incur a lot of garbage
+ * collection overhead, if created and destroyed in masses.
+ * 
  * 
  * @see eu.stratosphere.pact.common.type.Key
  * @see eu.stratosphere.pact.common.type.NormalizableKey
@@ -239,42 +244,165 @@ public class PactString implements Key, NormalizableKey, CharSequence
 		}
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//                                    String Methods
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-     * Returns a new <tt>PactString</tt>string that is a substring of this string. The
-     * substring begins at the given <code>start</code> index and ends at end of the string
-     *
-     * @param start The beginning index, inclusive.
-     * @return The substring.
-     * @exception  IndexOutOfBoundsException Thrown, if the start is negative.
-     */
+	 * Returns a new <tt>PactString</tt>string that is a substring of this string. The
+	 * substring begins at the given <code>start</code> index and ends at end of the string
+	 *
+	 * @param start The beginning index, inclusive.
+	 * @return The substring.
+	 * @exception  IndexOutOfBoundsException Thrown, if the start is negative.
+	 */
 	public PactString substring(int start)
 	{
 		return substring(start, this.len);
 	}
 	
 	/**
-     * Returns a new <tt>PactString</tt>string that is a substring of this string. The
-     * substring begins at the given <code>start</code> index and ends at <code>end - 1</code>.
-     *
-     * @param start The beginning index, inclusive.
-     * @param end The ending index, exclusive.
-     * @return The substring.
-     * @exception  IndexOutOfBoundsException Thrown, if the start is negative, or the end is larger than the length.
-     */
+	 * Returns a new <tt>PactString</tt>string that is a substring of this string. The
+	 * substring begins at the given <code>start</code> index and ends at <code>end - 1</code>.
+	 * 
+	 * @param start The beginning index, inclusive.
+	 * @param end The ending index, exclusive.
+	 * @return The substring.
+	 * @exception IndexOutOfBoundsException
+	 *            Thrown, if the start is negative, or the end is larger than the length.
+	 */
 	public PactString substring(int start, int end)
 	{
 		return new PactString(this, start, end - start);
 	}
 	
+	/**
+	 * Copies a substring of this string into the given target PactString. The
+	 * substring begins at the given <code>start</code> index and ends at end of the string
+	 *
+	 * @param target The PactString object to copy the substring to.
+	 * @param start The beginning index, inclusive.
+	 * @return The substring.
+	 * @exception  IndexOutOfBoundsException Thrown, if the start is negative.
+	 */
 	public void substring(PactString target, int start)
 	{
 		substring(target, start, this.len);
 	}
 	
+	/**
+	 * Copies a substring of this string into the given target PactString. The
+	 * substring begins at the given <code>start</code> index and ends at <code>end - 1</code>.
+	 * 
+	 * @param target The PactString object to copy the substring to.
+	 * @param start The beginning index, inclusive.
+	 * @param end The ending index, exclusive.
+	 * @return The substring.
+	 * @exception IndexOutOfBoundsException
+	 *            Thrown, if the start is negative, or the end is larger than the length.
+	 */
 	public void substring(PactString target, int start, int end)
 	{
 		target.setValue(this, start, end - start);
-	}	
+	}
+	
+	/**
+	 * Finds any occurrence of the <code>str</code> character sequence in this PactString.
+	 * 
+	 * @return The position of the first occurrence of the search string in the pact string, or <code>-1</code>, if
+	 *         the character sequence was not found.
+	 */
+	public int find(final CharSequence str)
+	{
+		return find(str, 0);
+	}
+
+	/**
+	 * Finds any occurrence of the <code>str</code> character sequence in this PactString.
+	 * The search starts at position <code>start</code>.
+	 * 
+	 * @return The position of the first occurrence of the search string in the pact string, or <code>-1</code>, if
+	 *         the character sequence was not found.
+	 */
+	public int find(final CharSequence str, final int start)
+	{
+		final int pLen = this.len;
+		final int sLen = str.length();
+		
+		if (sLen == 0)
+			throw new IllegalArgumentException("Cannot find empty string.");
+		
+		int pPos = start;
+		
+		final char first = str.charAt(0);
+		
+		while (pPos < pLen) {
+			if (first == this.value[pPos++]) {
+				// matching first character
+				final int fallBackPosition = pPos;
+				int sPos = 1;
+				boolean found = true;
+				
+				while (sPos < sLen) {
+					if (pPos >= pLen) {
+						// no more characters in pact string
+						pPos = fallBackPosition;
+						found = false;
+						break;
+					}
+					
+					if (str.charAt(sPos++) != this.value[pPos++]) {
+						pPos = fallBackPosition;
+						found = false;
+						break;
+					}
+				}
+				if (found) {
+					return fallBackPosition - 1;
+				}
+			}
+		}
+		return -1;
+	}
+	
+	/**
+	 * Checks whether the substring, starting at the specified index, starts with the given prefix string.
+	 * 
+	 * @param prefix The prefix character sequence.
+	 * @param startIndex The position to start checking for the prefix.
+	 * 
+	 * @return True, if this PactString substring, starting at position <code>startIndex</code> has </code>prefix</code>
+	 *         as its prefix.
+	 */
+	public boolean startsWith(CharSequence prefix, int startIndex)
+	{
+		final char[] thisChars = this.value;
+		final int pLen = this.len;
+		final int sLen = prefix.length();
+	
+		if ((startIndex < 0) || (startIndex > pLen - sLen)) {
+			return false;
+		}
+		
+		int sPos = 0;
+		while (sPos < sLen) {
+			if (thisChars[startIndex++] != prefix.charAt(sPos++)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Checks whether this PactString starts with the given prefix string.
+	 * 
+	 * @param prefix The prefix character sequence.
+	 * 
+	 * @return True, if this PactString has </code>prefix</code> as its prefix.
+	 */
+	public boolean startsWith(CharSequence prefix) {
+		return startsWith(prefix, 0);
+	}
 	
 	
 	// --------------------------------------------------------------------------------------------
