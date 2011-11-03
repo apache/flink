@@ -710,7 +710,7 @@ public class PactCompiler {
 	 */
 	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan)
 	{
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, -1, false);
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
 		pactPlan.accept(graphCreator);
 		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
 				pactPlan.getJobName());
