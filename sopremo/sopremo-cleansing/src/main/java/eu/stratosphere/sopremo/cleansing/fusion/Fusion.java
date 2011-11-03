@@ -21,6 +21,7 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
+import eu.stratosphere.sopremo.cleansing.scrubbing.RuleManager;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -46,17 +47,14 @@ public class Fusion extends ElementaryOperator<Fusion> {
 	 */
 	private static final long serialVersionUID = 8429199636646276642L;
 
-	private final Map<List<EvaluationExpression>, FusionRule> rules = new HashMap<List<EvaluationExpression>, FusionRule>();
-
 	private final List<Object2DoubleMap<List<String>>> weights = new ArrayList<Object2DoubleMap<List<String>>>();
 
+	private RuleManager rules = new RuleManager();
+	
 	private boolean multipleRecordsPerSource = false;
 
 	private FusionRule defaultValueRule = MergeRule.INSTANCE;
 
-	public void addRule(final FusionRule e) {
-		this.rules.put(e.getTargetPath(), e);
-	}
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
@@ -69,9 +67,6 @@ public class Fusion extends ElementaryOperator<Fusion> {
 		return this.defaultValueRule;
 	}
 
-	public Collection<FusionRule> getRules() {
-		return this.rules.values();
-	}
 
 	private Object2DoubleMap<List<String>> getWeightMap(final int inputIndex) {
 		Object2DoubleMap<List<String>> weightMap = this.weights.get(inputIndex);
@@ -92,8 +87,20 @@ public class Fusion extends ElementaryOperator<Fusion> {
 		return this.multipleRecordsPerSource;
 	}
 
-	public boolean removeRule(final FusionRule o) {
-		return this.rules.remove(o.getTargetPath()) != null;
+	public void addRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+		rules.addRule(rule, target);
+	}
+
+	public void addRule(EvaluationExpression rule, EvaluationExpression... target) {
+		rules.addRule(rule, target);
+	}
+
+	public void removeRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+		rules.removeRule(rule, target);
+	}
+
+	public void removeRule(EvaluationExpression rule, EvaluationExpression... target) {
+		rules.removeRule(rule, target);
 	}
 
 	public void setDefaultValueRule(final FusionRule defaultValueRule) {
@@ -115,7 +122,7 @@ public class Fusion extends ElementaryOperator<Fusion> {
 	@Name(preposition = "into")
 	public void setRuleExpression(ObjectCreation ruleExpression) {
 		System.out.println(ruleExpression);
-		this.rules.clear();
+//		this.rules.parse(ruleExpression, );
 		// extractRules(ruleExpression, EvaluationExpression.VALUE);
 	}
 
@@ -127,7 +134,7 @@ public class Fusion extends ElementaryOperator<Fusion> {
 	@Name(preposition = "with weights")
 	public void setWeightExpression(ObjectCreation ruleExpression) {
 		System.out.println(ruleExpression);
-		this.rules.clear();
+//		this.rules.clear();
 		// extractRules(ruleExpression, EvaluationExpression.VALUE);
 	}
 
@@ -139,7 +146,7 @@ public class Fusion extends ElementaryOperator<Fusion> {
 	@Name(verb = "update")
 	public void setUpdateExpression(ObjectCreation ruleExpression) {
 		System.out.println(ruleExpression);
-		this.rules.clear();
+//		this.rules.clear();
 		// extractRules(ruleExpression, EvaluationExpression.VALUE);
 	}
 

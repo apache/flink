@@ -5,15 +5,13 @@ $nick_names = read hdfs('UsNickNames.json');
 
 NormalizeName = javaudf("eu.stratosphere.simple.jaql.CleansOperatorTest.normalizeName");
 
-$scrubbed_earmarks = scrub $dirty_earmarks with {
+$scrubbed_earmarks = scrub $dirty_earmark in $dirty_earmarks with {
 	
 	// normalization with built-in expressions
 	amount: [$ as decimal, $ * 1000],
 	// normalization with user-defined functions
-	sponsorLastName: [required if $.type == 's', NormalizeName($)],
-	sponsorFirstName: [required,
-		NormalizeName($), 
-		replace $ in $nick_names default $],
+	sponsorLastName: [required if $dirty_earmark.type == 's', NormalizeName],
+	sponsorFirstName: [required, NormalizeName, replace $ with $nick_names default $],
 		
 };
 

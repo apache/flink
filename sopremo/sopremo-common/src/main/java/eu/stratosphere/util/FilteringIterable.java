@@ -12,39 +12,28 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.util;
 
-import eu.stratosphere.sopremo.AbstractSopremoType;
-import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import java.util.Iterator;
 
 /**
  * @author Arvid Heise
  */
-public abstract class Callable<Result, InputType> extends AbstractSopremoType implements SerializableSopremoType {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 7623937906556576557L;
+public class FilteringIterable<T> extends AbstractIterable<T> {
 
-	private final String name;
+	private final Predicate<T> selector;
 
-	public Callable(String name) {
-		this.name = name;
+	public FilteringIterable(Iterable<T> originalIterable, Predicate<T> selector) {
+		super(originalIterable);
+		this.selector = selector;
 	}
-
-	public String getName() {
-		return this.name;
-	}
-
-	public abstract Result call(InputType params, EvaluationContext context);
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 * @see eu.stratosphere.util.AbstractIterable#wrap(java.util.Iterator)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
-		builder.append(this.name).append("()");
+	protected Iterator<T> wrap(Iterator<T> iterator) {
+		return new FilteringIterator<T>(iterator, this.selector);
 	}
 }

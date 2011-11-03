@@ -14,39 +14,147 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
 import eu.stratosphere.sopremo.function.MacroBase;
-import eu.stratosphere.util.dag.Navigator;
-import eu.stratosphere.util.dag.OneTimeTraverser;
+import eu.stratosphere.sopremo.function.ReplacingMacro;
+import eu.stratosphere.util.reflect.DynamicProperty;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * @author Arvid Heise
  */
 public class ExpressionRewriter {
-	private Map<EvaluationExpression, MacroBase> rewriteRules = new HashMap<EvaluationExpression, MacroBase>();
+	public static final EvaluationExpression ANY = new UnevaluableExpression("<any>") {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 6219948257307870742L;
 
-	private Navigator<EvaluationExpression> ExpressionNavigator = new Navigator<EvaluationExpression>() {
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof EvaluationExpression;
+		};
+	};
+
+	public static final class ExpressionType extends UnevaluableExpression {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 3000177685098016306L;
+
+		private Class<? extends EvaluationExpression> type;
+
+		public ExpressionType(Class<? extends EvaluationExpression> type) {
+			super("type " + type.getSimpleName());
+			this.type = type;
+		}
+
 		/*
 		 * (non-Javadoc)
-		 * @see eu.stratosphere.util.dag.Navigator#getConnectedNodes(java.lang.Object)
+		 * @see eu.stratosphere.sopremo.expressions.UnevaluableExpression#equals(java.lang.Object)
 		 */
-		@SuppressWarnings("unchecked")
 		@Override
-		public Iterable<? extends EvaluationExpression> getConnectedNodes(EvaluationExpression node) {
-			if (node instanceof ContainerExpression)
-				return node;
-			return Collections.EMPTY_LIST;
+		public boolean equals(Object obj) {
+			return this.type.isInstance(obj);
 		}
-	};
-	
+	}
 
-	public EvaluationExpression rewrite(EvaluationExpression expression) {
-		OneTimeTraverser.INSTANCE.traverse(expression, ExpressionNavigator, null);
-		return expression;
+	private List<AbstractMap.SimpleEntry<EvaluationExpression, MacroBase>> rewriteRules = new ArrayList<AbstractMap.SimpleEntry<EvaluationExpression, MacroBase>>();
+
+	public void addRewriteRule(EvaluationExpression expression, MacroBase resolveExpression) {
+		this.rewriteRules.add(new AbstractMap.SimpleEntry<EvaluationExpression, MacroBase>(expression,
+			resolveExpression));
+	}
+
+	public void addRewriteRule(EvaluationExpression expression, EvaluationExpression resolveExpression) {
+		addRewriteRule(expression, new ReplacingMacro("", resolveExpression));
+	}
+
+	/**
+	 * @param rule
+	 * @param expression
+	 * @return
+	 */
+	private boolean matches(EvaluationExpression rule, EvaluationExpression expression) {
+		return rule.equals(expression);
+	}
+
+	/**
+	 * @param expression
+	 * @return
+	 */
+	private MacroBase matchRules(EvaluationExpression expression) {
+		for (AbstractMap.SimpleEntry<EvaluationExpression, MacroBase> rule : this.rewriteRules)
+			if (this.matches(rule.getKey(), expression))
+				return rule.getValue();
+		return null;
+	}
+
+	public EvaluationExpression rewrite(EvaluationExpression expression, Operator<?> operator, PathExpression context) {
+		return new Rewriter(operator, context).rewrite(expression);
+	}
+
+	/**
+	 * @author Arvid Heise
+	 */
+	private final class Rewriter {
+		private Map<EvaluationExpression, EvaluationExpression> rewritten = new IdentityHashMap<EvaluationExpression, EvaluationExpression>();
+
+		private RewriteContext context = new RewriteContext();
+
+		public Rewriter(Operator<?> operator, PathExpression rewritePath) {
+			context.pushOperator(operator);
+			context.setRewritePath(rewritePath);
+		}
+
+		private EvaluationExpression process(EvaluationExpression expression) {
+			if (this.rewritten.containsKey(expression))
+				return this.rewritten.get(expression);
+
+			MacroBase macro = ExpressionRewriter.this.matchRules(expression);
+			if (macro != null) {
+				EvaluationExpression rewrittenExpression = macro.call(new EvaluationExpression[] { expression },
+					this.context);
+				this.rewritten.put(expression, rewrittenExpression);
+				return rewrittenExpression;
+			}
+
+			return expression;
+		}
+
+		/**
+		 * @param expression
+		 * @return
+		 */
+		public EvaluationExpression rewrite(EvaluationExpression expression) {
+			expression = process(expression);
+			if (expression instanceof ContainerExpression) {
+				List<EvaluationExpression> children = new ArrayList<EvaluationExpression>(
+					((ContainerExpression) expression).getChildren());
+				for (int index = 0; index < children.size(); index++)
+					children.set(index, this.rewrite(children.get(index)));
+				((ContainerExpression) expression).setChildren(children);
+			}
+			
+			for(DynamicProperty<EvaluationExpression> property : ReflectUtil.getDynamicClass(expression.getClass()).getProperties(EvaluationExpression.class)) {
+				EvaluationExpression propertyValue = property.get(expression);
+				EvaluationExpression newValue = rewrite(propertyValue);
+				if(propertyValue != newValue)
+					property.set(expression, newValue);
+			}
+			return expression;
+		}
 	}
 }

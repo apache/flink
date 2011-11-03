@@ -55,7 +55,7 @@ public class UnaryExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		if (this.negate)
 			builder.append("!");
 		builder.append(this.expr);

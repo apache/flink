@@ -34,8 +34,8 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * @author Arvid Heise
  */
 @InputCardinality(min = 1, max = 1)
-public abstract class Operator<Self extends Operator<Self>> implements SerializableSopremoType, JsonStream, Cloneable,
-		BeanInfo {
+public abstract class Operator<Self extends Operator<Self>> extends AbstractSopremoType implements
+		SerializableSopremoType, JsonStream, Cloneable, BeanInfo {
 	/**
 	 * 
 	 */
@@ -456,9 +456,13 @@ public abstract class Operator<Self extends Operator<Self>> implements Serializa
 		return module;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 */
 	@Override
-	public String toString() {
-		return this.getName();
+	public void toString(StringBuilder builder) {
+		builder.append(this.getName());
 	}
 
 	public void validate() throws IllegalStateException {

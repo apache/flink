@@ -51,7 +51,7 @@ public class ConstantExpression extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		if (this.constant instanceof CharSequence)
 			builder.append("\'").append(this.constant).append("\'");
 		else

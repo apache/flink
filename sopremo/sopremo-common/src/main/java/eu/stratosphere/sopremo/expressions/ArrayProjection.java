@@ -65,7 +65,7 @@ public class ArrayProjection extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append("[*]");
 		builder.append(this.expression);
 	}

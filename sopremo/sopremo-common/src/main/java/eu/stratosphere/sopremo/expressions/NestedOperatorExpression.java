@@ -12,7 +12,7 @@ public class NestedOperatorExpression extends UnevaluableExpression {
 	private Operator<?> operator;
 
 	public NestedOperatorExpression(Operator<?> operator) {
-		super("Nested operator that should be rewritten");
+		super("Nested operator: " + operator);
 		this.operator = operator;
 	}
 

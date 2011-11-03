@@ -89,7 +89,7 @@ public class GroupingExpression extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	public void toString(StringBuilder builder) {
 		builder.append("g(").append(this.groupingExpression).append(") -> ").append(this.resultExpression);
 	}
 

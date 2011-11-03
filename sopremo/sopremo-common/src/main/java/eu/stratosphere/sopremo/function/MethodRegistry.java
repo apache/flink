@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.Bindings;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
@@ -15,7 +16,7 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
-public class MethodRegistry implements SerializableSopremoType {
+public class MethodRegistry extends AbstractSopremoType implements SerializableSopremoType {
 	/**
 	 * 
 	 */
@@ -96,5 +97,14 @@ public class MethodRegistry implements SerializableSopremoType {
 
 	public void register(final Callable<?, ?> function) {
 		this.bindings.set(function.getName(), function);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		this.bindings.toString(builder);
 	}
 }

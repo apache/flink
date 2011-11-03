@@ -58,7 +58,7 @@ public class InputSelection extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		super.toString(builder);
 		builder.append("in").append(this.index);
 	}

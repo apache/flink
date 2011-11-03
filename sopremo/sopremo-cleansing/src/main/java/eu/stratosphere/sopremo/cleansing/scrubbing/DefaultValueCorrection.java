@@ -12,7 +12,7 @@ public class DefaultValueCorrection extends ValueCorrection {
 	/**
 	 * The default, stateless instance.
 	 */
-	public final static DefaultValueCorrection NULL = new DefaultValueCorrection(NullNode.getInstance());
+	public final static DefaultValueCorrection SET_NULL = new DefaultValueCorrection(NullNode.getInstance());
 
 	private  JsonNode defaultValue;
 

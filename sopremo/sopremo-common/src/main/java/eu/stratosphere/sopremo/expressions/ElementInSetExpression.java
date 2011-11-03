@@ -63,7 +63,7 @@ public class ElementInSetExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.elementExpr).append(this.quantor == Quantor.EXISTS_NOT_IN ? " \u2209 " : " \u2208 ")
 			.append(this.setExpr);
 	}

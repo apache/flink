@@ -17,4 +17,12 @@ public abstract class MacroBase extends Callable<EvaluationExpression, Evaluatio
 	public MacroBase(String name) {
 		super(name);
 	}
+	
+	/**
+	 * Initializes MacroBase.
+	 *
+	 */
+	public MacroBase() {
+		this("");
+	}
 }

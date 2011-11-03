@@ -12,39 +12,32 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 
 /**
  * @author Arvid Heise
  */
-public abstract class Callable<Result, InputType> extends AbstractSopremoType implements SerializableSopremoType {
+public class RewriteContext extends EvaluationContext {
+
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 7623937906556576557L;
+	private static final long serialVersionUID = 3751142957269653244L;
 
-	private final String name;
+	private PathExpression rewritePath;
 
-	public Callable(String name) {
-		this.name = name;
+	public PathExpression getRewritePath() {
+		return this.rewritePath;
 	}
 
-	public String getName() {
-		return this.name;
+	public void setRewritePath(PathExpression rewritePath) {
+		if (rewritePath == null)
+			throw new NullPointerException("rewriteContext must not be null");
+
+		this.rewritePath = rewritePath;
 	}
 
-	public abstract Result call(InputType params, EvaluationContext context);
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
-	 */
-	@Override
-	public void toString(StringBuilder builder) {
-		builder.append(this.name).append("()");
-	}
 }

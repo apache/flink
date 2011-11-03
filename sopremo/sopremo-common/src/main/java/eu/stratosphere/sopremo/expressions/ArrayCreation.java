@@ -20,7 +20,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = 1681947333740209285L;
 
-	private final EvaluationExpression[] elements;
+	private EvaluationExpression[] elements;
 
 	/**
 	 * Initializes ArrayCreation to create an array of the given expressions.
@@ -71,8 +71,26 @@ public class ArrayCreation extends ContainerExpression {
 		return Arrays.asList(this.elements).iterator();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
+	 */
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public List<EvaluationExpression> getChildren() {
+		return Arrays.asList(this.elements);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
+	 */
+	@Override
+	public void setChildren(List<EvaluationExpression> children) {
+		this.elements = children.toArray(this.elements);
+	}
+
+	@Override
+	public void toString(final StringBuilder builder) {
 		builder.append(Arrays.toString(this.elements));
 	}
 }

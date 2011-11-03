@@ -12,16 +12,27 @@ public class CoerceExpression extends EvaluationExpression {
 	private static final long serialVersionUID = 1954495592440005318L;
 
 	private final Class<? extends JsonNode> targetType;
-	
-	private final EvaluationExpression valueExpression;
+
+	private EvaluationExpression valueExpression;
 
 	public CoerceExpression(final Class<? extends JsonNode> targetType, final EvaluationExpression value) {
 		this.targetType = targetType;
 		this.valueExpression = value;
 	}
-	
+
 	public CoerceExpression(final Class<? extends JsonNode> targetType) {
 		this(targetType, EvaluationExpression.VALUE);
+	}
+
+	public EvaluationExpression getValueExpression() {
+		return this.valueExpression;
+	}
+
+	public void setValueExpression(EvaluationExpression valueExpression) {
+		if (valueExpression == null)
+			throw new NullPointerException("valueExpression must not be null");
+
+		this.valueExpression = valueExpression;
 	}
 
 	@Override
@@ -30,7 +41,7 @@ public class CoerceExpression extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append('(').append(this.targetType).append(')');
 	}
 

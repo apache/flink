@@ -946,13 +946,12 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		if (this.joinedCongress == null)
 			this.joinCongress(true);
 		Scrubbing scrubbedCongress = new Scrubbing().withInputs(this.joinedCongress);
-		scrubbedCongress.addRule(new NonNullRule(new ObjectAccess("memberName")));
-		scrubbedCongress.addRule(new NonNullRule(TextNode.valueOf("none"), new ObjectAccess("biography")));
-		scrubbedCongress.addRule(new PatternValidationRule(Pattern.compile("[0-9]+\\(.*"), new ObjectAccess(
-			"congresses"), new ArrayAccess(-1), new ObjectAccess("number")));
-		scrubbedCongress
-			.addRule(new BlackListRule(Arrays.asList(TextNode.valueOf("NA")), TextNode.valueOf(""), new ObjectAccess(
-				"congress"), new ArrayProjection(new ObjectAccess("position"))));
+		scrubbedCongress.addRule(new NonNullRule(), new ObjectAccess("memberName"));
+		scrubbedCongress.addRule(new NonNullRule(TextNode.valueOf("none")), new ObjectAccess("biography"));
+		scrubbedCongress.addRule(new PatternValidationRule(Pattern.compile("[0-9]+\\(.*")), new ObjectAccess(
+			"congresses"), new ArrayAccess(-1), new ObjectAccess("number"));
+		scrubbedCongress.addRule(new BlackListRule(Arrays.asList(TextNode.valueOf("NA")), TextNode.valueOf("")),
+			new ObjectAccess("congress"), new ArrayProjection(new ObjectAccess("position")));
 		this.scrubbed[CONGRESS] = scrubbedCongress;
 
 		this.sinks.add(new Sink(this.getInternalOutputFormat(),

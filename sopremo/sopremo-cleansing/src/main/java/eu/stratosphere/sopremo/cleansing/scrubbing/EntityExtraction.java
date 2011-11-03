@@ -1,14 +1,9 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.base.Projection;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 @Name(verb = "extract from")

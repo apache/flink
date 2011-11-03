@@ -12,39 +12,24 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.function;
-
-import eu.stratosphere.sopremo.AbstractSopremoType;
-import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+package eu.stratosphere.sopremo;
 
 /**
  * @author Arvid Heise
  */
-public abstract class Callable<Result, InputType> extends AbstractSopremoType implements SerializableSopremoType {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 7623937906556576557L;
-
-	private final String name;
-
-	public Callable(String name) {
-		this.name = name;
-	}
-
-	public String getName() {
-		return this.name;
-	}
-
-	public abstract Result call(InputType params, EvaluationContext context);
-
+public abstract class AbstractSopremoType implements SopremoType {
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 * @see java.lang.Object#toString()
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
-		builder.append(this.name).append("()");
+	public String toString() {
+		return toString(this);
+	}
+
+	public static String toString(SopremoType type) {
+		StringBuilder builder = new StringBuilder();
+		type.toString(builder);
+		return builder.toString();
 	}
 }

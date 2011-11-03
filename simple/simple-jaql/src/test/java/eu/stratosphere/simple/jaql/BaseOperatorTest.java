@@ -34,7 +34,7 @@ public class BaseOperatorTest {
 		try {
 			plan = new QueryParser().tryParse(new FileInputStream(this.scriptPath));
 			System.out.println(new QueryParser().toJavaString(new FileInputStream(this.scriptPath)));
-		} catch (SimpleException e) {
+		} catch (Exception e) {
 			Assert.fail(String.format("could not parse %s: %s", this.scriptPath.getName(), e.getMessage()));
 		}
 

@@ -53,7 +53,7 @@ public class Replace extends CompositeOperator<Replace> {
 		}
 
 		@Override
-		protected void toString(StringBuilder builder) {
+		public void toString(StringBuilder builder) {
 			builder.append("<filter>");
 		};
 	};
@@ -172,11 +172,20 @@ public class Replace extends CompositeOperator<Replace> {
 		return result;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.Operator#toString(java.lang.StringBuilder)
+	 */
 	@Override
-	public String toString() {
+	public void toString(StringBuilder builder) {
+		builder.append(getName());
 		if (isArrayElementsReplacement())
-			return String.format("%s all %s default %s", getName(), getReplaceExpression(), getDefaultExpression());
-		return String.format("%s %s default %s", getName(), getReplaceExpression(), getDefaultExpression());
+			builder.append(" all ");
+		getReplaceExpression().toString(builder);
+		builder.append(" with ");
+		getDictionary().toString(builder);
+		builder.append(" default ");
+		getDefaultExpression().toString(builder);
 	}
 
 	public boolean isArrayElementsReplacement() {

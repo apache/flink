@@ -32,7 +32,40 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	private final ArithmeticExpression.ArithmeticOperator operator;
 
-	private final EvaluationExpression op1, op2;
+	private EvaluationExpression firstOperand, secondOperand;
+
+	public EvaluationExpression getFirstOperand() {
+		return this.firstOperand;
+	}
+
+	public void setFirstOperand(EvaluationExpression firstOperand) {
+		if (firstOperand == null)
+			throw new NullPointerException("firstOperand must not be null");
+
+		this.firstOperand = firstOperand;
+	}
+
+	/**
+	 * Sets the second operand to the specified value.
+	 * 
+	 * @param secondOperand
+	 *        the operand to set
+	 */
+	public void setSecondOperand(EvaluationExpression secondOperand) {
+		if (secondOperand == null)
+			throw new NullPointerException("second operand must not be null");
+
+		this.secondOperand = secondOperand;
+	}
+
+	/**
+	 * Returns the second operand.
+	 * 
+	 * @return the second operand
+	 */
+	public EvaluationExpression getSecondOperand() {
+		return this.secondOperand;
+	}
 
 	/**
 	 * Initializes Arithmetic with two {@link EvaluationExpression}s and an {@link ArithmeticOperator} in infix
@@ -43,42 +76,42 @@ public class ArithmeticExpression extends EvaluationExpression {
 	 * @param operator
 	 *        the operator
 	 * @param op2
-	 *        the second operand
+	 *        the 
 	 */
 	public ArithmeticExpression(final EvaluationExpression op1, final ArithmeticOperator operator,
 			final EvaluationExpression op2) {
 		this.operator = operator;
-		this.op1 = op1;
-		this.op2 = op2;
+		this.firstOperand = op1;
+		this.secondOperand = op2;
 	}
 
 	@Override
 	public boolean equals(final Object obj) {
 		if (obj == null || this.getClass() != obj.getClass())
 			return false;
-		return this.op1.equals(((ArithmeticExpression) obj).op1)
+		return this.firstOperand.equals(((ArithmeticExpression) obj).firstOperand)
 			&& this.operator.equals(((ArithmeticExpression) obj).operator)
-			&& this.op2.equals(((ArithmeticExpression) obj).op2);
+			&& this.secondOperand.equals(((ArithmeticExpression) obj).secondOperand);
 	}
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		return this.operator.evaluate((NumericNode) this.op1.evaluate(node, context),
-			(NumericNode) this.op2.evaluate(node, context));
+		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, context),
+			(NumericNode) this.secondOperand.evaluate(node, context));
 	}
 
 	@Override
 	public int hashCode() {
-		return ((59 + this.op1.hashCode()) * 59 + this.operator.hashCode()) * 59 + this.op2.hashCode();
+		return ((59 + this.firstOperand.hashCode()) * 59 + this.operator.hashCode()) * 59 + this.secondOperand.hashCode();
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
-		builder.append(this.op1);
+	public void toString(final StringBuilder builder) {
+		builder.append(this.firstOperand);
 		builder.append(' ');
 		builder.append(this.operator);
 		builder.append(' ');
-		builder.append(this.op2);
+		builder.append(this.secondOperand);
 	}
 
 	/**

@@ -14,37 +14,31 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.function;
 
-import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 /**
  * @author Arvid Heise
  */
-public abstract class Callable<Result, InputType> extends AbstractSopremoType implements SerializableSopremoType {
+public class ReplacingMacro extends MacroBase {
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 7623937906556576557L;
+	private static final long serialVersionUID = 3949887310463840434L;
 
-	private final String name;
+	private EvaluationExpression replacement;
 
-	public Callable(String name) {
-		this.name = name;
+	public ReplacingMacro(String name, EvaluationExpression replacement) {
+		super(name);
+		this.replacement = replacement;
 	}
-
-	public String getName() {
-		return this.name;
-	}
-
-	public abstract Result call(InputType params, EvaluationContext context);
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 * @see eu.stratosphere.sopremo.function.Callable#call(java.lang.Object, eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
-		builder.append(this.name).append("()");
+	public EvaluationExpression call(EvaluationExpression[] params, EvaluationContext context) {
+		return this.replacement;
 	}
 }

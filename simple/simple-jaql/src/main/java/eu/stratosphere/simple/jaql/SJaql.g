@@ -56,10 +56,11 @@ public void parseSinks() throws RecognitionException {
 
 private EvaluationExpression makePath(Token inputVar, String... path) {
   Object input = getRawBinding(inputVar, Object.class);
-  if(input == null) {
-    if(inputVar.getText().equals("$"))
-      input = $operator::numInputs == 1 ? new InputSelection(0) : EvaluationExpression.VALUE;
-  } else if(input instanceof Operator<?>)
+//  if(input == null) {
+//    if(inputVar.getText().equals("$"))
+//      input = $operator::numInputs == 1 ? new InputSelection(0) : EvaluationExpression.VALUE;
+//  } else 
+  if(input instanceof Operator<?>)
     input = new JsonStreamExpression((Operator<?>) input);
   
   List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
@@ -287,13 +288,11 @@ genericOperator
 scope { 
   OperatorFactory.OperatorInfo operatorInfo;
 }	:	name=ID { ($genericOperator::operatorInfo = findOperatorGreedily($name)) != null }?=>
-{ 
-  $operator::result = $genericOperator::operatorInfo.newInstance();
-  if(state.backtracking == 0) 
-    getContext().getBindings().set("$", $operator::result);
-} 
+{ $operator::result = $genericOperator::operatorInfo.newInstance(); } 
 operatorFlag*
 (arrayInput | input (',' input)*)	
+{ if(state.backtracking == 0) 
+    getContext().getBindings().set("$", $operator::result); }
 operatorOption* ->; 
 	
 operatorOption

@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -17,7 +18,7 @@ public class MethodCall extends ContainerExpression {
 
 	private final String function;
 
-	private final EvaluationExpression[] paramExprs;
+	private EvaluationExpression[] paramExprs;
 
 	public MethodCall(final String function, final EvaluationExpression... params) {
 		this.function = function;
@@ -54,8 +55,26 @@ public class MethodCall extends ContainerExpression {
 		return Arrays.asList(this.paramExprs).iterator();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
+	 */
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public List<EvaluationExpression> getChildren() {
+		return Arrays.asList(this.paramExprs);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
+	 */
+	@Override
+	public void setChildren(List<EvaluationExpression> children) {
+		this.paramExprs = children.toArray(this.paramExprs);
+	}
+
+	@Override
+	public void toString(final StringBuilder builder) {
 		builder.append(this.function);
 		builder.append('(');
 		for (int index = 0; index < this.paramExprs.length; index++) {

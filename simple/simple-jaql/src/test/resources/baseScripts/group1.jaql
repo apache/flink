@@ -1,5 +1,5 @@
 $employees = read 'employees.json';
 
-$result = group $employees by count($);
+$result = group $employees into count($);
 
 write $result to 'output.json'; 

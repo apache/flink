@@ -2,21 +2,24 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
-public class PathExpression extends ContainerExpression {
+public class PathExpression extends ContainerExpression implements Cloneable {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -4663949354781572815L;
 
-	private final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
+	private final LinkedList<EvaluationExpression> fragments = new LinkedList<EvaluationExpression>();
 
 	public PathExpression(final EvaluationExpression... fragments) {
 		this(Arrays.asList(fragments));
@@ -84,6 +87,23 @@ public class PathExpression extends ContainerExpression {
 	public Iterator<EvaluationExpression> iterator() {
 		return this.fragments.iterator();
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
+	 */
+	@Override
+	public List<EvaluationExpression> getChildren() {
+		return Collections.unmodifiableList(this.fragments);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
+	 */
+	@Override
+	public void setChildren(List<EvaluationExpression> children) {
+		this.fragments.clear();
+		this.fragments.addAll(children);
+	}
 
 	@Override
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
@@ -106,7 +126,7 @@ public class PathExpression extends ContainerExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		for (final EvaluationExpression fragment : this.fragments)
 			fragment.toString(builder);
 	}
@@ -172,4 +192,11 @@ public class PathExpression extends ContainerExpression {
 	// }
 	//
 	// }
+
+	/**
+	 * 
+	 */
+	public void removeLast() {
+		fragments.removeLast();
+	}
 }

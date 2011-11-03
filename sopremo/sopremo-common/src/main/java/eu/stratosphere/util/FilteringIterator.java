@@ -12,39 +12,35 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.util;
 
-import eu.stratosphere.sopremo.AbstractSopremoType;
-import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import java.util.Iterator;
 
 /**
  * @author Arvid Heise
  */
-public abstract class Callable<Result, InputType> extends AbstractSopremoType implements SerializableSopremoType {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 7623937906556576557L;
+public class FilteringIterator<T> extends AbstractIterator<T> {
 
-	private final String name;
+	private final Iterator<T> iterator;
+	
+	private final Predicate<T> selector;
 
-	public Callable(String name) {
-		this.name = name;
+	public FilteringIterator(Iterator<T> iterator, Predicate<T> selector) {
+		this.iterator = iterator;
+		this.selector = selector;
 	}
-
-	public String getName() {
-		return this.name;
-	}
-
-	public abstract Result call(InputType params, EvaluationContext context);
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 * @see eu.stratosphere.util.AbstractIterator#loadNext()
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
-		builder.append(this.name).append("()");
+	protected T loadNext() {
+		while (this.iterator.hasNext()) {
+			T next = this.iterator.next();
+			if (this.selector.isTrue(next))
+				return next;
+		}
+		return this.noMoreElements();
 	}
 }

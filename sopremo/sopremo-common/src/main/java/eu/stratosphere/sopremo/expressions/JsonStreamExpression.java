@@ -18,4 +18,14 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	public JsonStream getStream() {
 		return this.stream;
 	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.UnevaluableExpression#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append(this.stream.getSource().getOperator().getName()).
+			append("@").append(this.stream.getSource().getIndex());
+	}
 }

@@ -165,7 +165,7 @@ public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
 		}
 
 		@Override
-		protected void toString(StringBuilder builder) {
+		public void toString(StringBuilder builder) {
 			if (this.expressionClass != null)
 				builder.append(this.expressionClass.getSimpleName());
 			else

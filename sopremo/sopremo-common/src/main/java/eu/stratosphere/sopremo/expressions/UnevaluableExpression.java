@@ -35,8 +35,8 @@ public class UnevaluableExpression extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
-		builder.append("Error (").append(this.message).append(")");
+	public void toString(final StringBuilder builder) {
+		builder.append(this.message);
 	}
 
 }

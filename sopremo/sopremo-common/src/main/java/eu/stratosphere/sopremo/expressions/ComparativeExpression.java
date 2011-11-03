@@ -70,7 +70,7 @@ public class ComparativeExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.expr1).append(this.binaryOperator).append(this.expr2);
 	}
 

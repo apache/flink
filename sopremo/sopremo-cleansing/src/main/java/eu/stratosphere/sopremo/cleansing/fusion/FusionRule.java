@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.fusion;
 
 import eu.stratosphere.sopremo.cleansing.scrubbing.CleansingRule;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
@@ -11,10 +10,6 @@ public abstract class FusionRule extends CleansingRule<FusionContext> {
 	 * 
 	 */
 	private static final long serialVersionUID = -5841402171573265477L;
-
-	public FusionRule(final EvaluationExpression... targetPath) {
-		super(targetPath);
-	}
 
 	@Override
 	public final JsonNode evaluateRule(final JsonNode values, final FusionContext context) {

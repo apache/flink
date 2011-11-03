@@ -77,7 +77,7 @@ public class ObjectAccess extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append('.').append(this.field);
 	}
 }

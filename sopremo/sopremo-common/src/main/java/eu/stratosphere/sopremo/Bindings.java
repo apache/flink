@@ -1,17 +1,14 @@
 package eu.stratosphere.sopremo;
 
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.function.JsonMethod;
 
-public class Bindings implements SerializableSopremoType {
+public class Bindings extends AbstractSopremoType implements SerializableSopremoType {
 	/**
 	 * 
 	 */
@@ -61,14 +58,15 @@ public class Bindings implements SerializableSopremoType {
 	@SuppressWarnings("unchecked")
 	public <T> T get(String name, Class<T> expectedType, BindingConstraint... constraints) {
 		Object value = get(name);
-		
-		for (BindingConstraint contraint : constraints) 
+
+		for (BindingConstraint contraint : constraints)
 			value = contraint.process(value, expectedType);
-		
+
 		if (value == null)
 			return null;
 		if (!expectedType.isInstance(value))
-			throw new IllegalArgumentException(String.format("Variable %s has unexpected type %s; should have been %s", name,
+			throw new IllegalArgumentException(String.format("Variable %s has unexpected type %s; should have been %s",
+				name,
 				value.getClass().getSimpleName(), expectedType.getSimpleName()));
 		return (T) value;
 	}
@@ -100,8 +98,12 @@ public class Bindings implements SerializableSopremoType {
 		this.bindings.get(this.bindings.size() - 1 - scopeLevel).put(name, binding);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 */
 	@Override
-	public String toString() {
-		return this.getAll().toString();
+	public void toString(StringBuilder builder) {
+		builder.append(this.getAll().toString());
 	}
 }

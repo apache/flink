@@ -143,7 +143,7 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append('[');
 		if (this.isSelectingAll())
 			builder.append('*');

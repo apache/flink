@@ -12,7 +12,7 @@ public class TernaryExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -5854293822552106472L;
 
-	private final EvaluationExpression ifClause, ifExpression, thenExpression;
+	private EvaluationExpression ifClause, ifExpression, thenExpression;
 
 	public TernaryExpression(final EvaluationExpression ifClause, final EvaluationExpression ifExpression,
 			final EvaluationExpression thenExpression) {
@@ -25,6 +25,39 @@ public class TernaryExpression extends EvaluationExpression {
 		this(ifClause, ifExpression, NULL);
 	}
 
+	public EvaluationExpression getIfClause() {
+		return this.ifClause;
+	}
+
+	public void setIfClause(EvaluationExpression ifClause) {
+		if (ifClause == null)
+			throw new NullPointerException("ifClause must not be null");
+
+		this.ifClause = ifClause;
+	}
+
+	public EvaluationExpression getIfExpression() {
+		return this.ifExpression;
+	}
+
+	public void setIfExpression(EvaluationExpression ifExpression) {
+		if (ifExpression == null)
+			throw new NullPointerException("ifExpression must not be null");
+
+		this.ifExpression = ifExpression;
+	}
+
+	public EvaluationExpression getThenExpression() {
+		return this.thenExpression;
+	}
+
+	public void setThenExpression(EvaluationExpression thenExpression) {
+		if (thenExpression == null)
+			throw new NullPointerException("thenExpression must not be null");
+
+		this.thenExpression = thenExpression;
+	}
+
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, context), BooleanNode.class) == BooleanNode.TRUE)
@@ -33,7 +66,7 @@ public class TernaryExpression extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		this.ifClause.toString(builder);
 		builder.append(" ? ");
 		this.ifExpression.toString(builder);

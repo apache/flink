@@ -1,23 +1,25 @@
 package eu.stratosphere.sopremo.expressions;
 
-import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 
-public class MethodPointerExpression extends EvaluationExpression {
+public class MethodPointerExpression extends UnevaluableExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3894350171936013804L;
+
 	private String functionName;
-	
+
 	public MethodPointerExpression(String functionName) {
+		super("&" + functionName);
 		this.functionName = functionName;
 	}
 
-	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return context.getFunctionRegistry().evaluate(this.functionName, (ArrayNode) node, context);
-	}
-	
-	@Override
-	protected void toString(StringBuilder builder) {
-		builder.append("&").append(this.functionName);
+	/**
+	 * Returns the functionName.
+	 * 
+	 * @return the functionName
+	 */
+	public String getFunctionName() {
+		return this.functionName;
 	}
 }

@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class ValidationRule extends CleansingRule<ValidationContext> {
@@ -13,14 +12,12 @@ public abstract class ValidationRule extends CleansingRule<ValidationContext> {
 
 	private ValueCorrection valueCorrection = DEFAULT_CORRECTION;
 
-	public ValidationRule(final EvaluationExpression... targetPath) {
-		super(targetPath);
-	}
-
 	@Override
 	public final JsonNode evaluateRule(final JsonNode value, final ValidationContext context) {
-		if (!this.validate(value, context))
+		if (!this.validate(value, context)) {
+			context.setViolatedRule(this);
 			return this.fix(value, context);
+		}
 		return value;
 	}
 

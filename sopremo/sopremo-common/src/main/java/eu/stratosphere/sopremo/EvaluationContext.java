@@ -10,7 +10,7 @@ import eu.stratosphere.sopremo.function.MethodRegistry;
  * 
  * @author Arvid Heise
  */
-public class EvaluationContext implements SerializableSopremoType {
+public class EvaluationContext extends AbstractSopremoType implements SerializableSopremoType {
 	private static final long serialVersionUID = 7701485388451926506L;
 
 	private final Bindings bindings = new Bindings();
@@ -19,14 +19,14 @@ public class EvaluationContext implements SerializableSopremoType {
 
 	private int inputCounter = 0;
 
-	private final LinkedList<String> operatorStack = new LinkedList<String>();
+	private final LinkedList<Operator<?>> operatorStack = new LinkedList<Operator<?>>();
 
-	public LinkedList<String> getOperatorStack() {
+	public LinkedList<Operator<?>> getOperatorStack() {
 		return this.operatorStack;
 	}
 
 	public Bindings getBindings() {
-		return bindings;
+		return this.bindings;
 	}
 
 	public void addScope() {
@@ -38,18 +38,22 @@ public class EvaluationContext implements SerializableSopremoType {
 	}
 
 	public String operatorTrace() {
-		final Iterator<String> descendingIterator = this.operatorStack.descendingIterator();
-		final StringBuilder builder = new StringBuilder(descendingIterator.next());
+		final Iterator<Operator<?>> descendingIterator = this.operatorStack.descendingIterator();
+		final StringBuilder builder = new StringBuilder(descendingIterator.next().getName());
 		while (descendingIterator.hasNext())
-			builder.append("->").append(descendingIterator.next());
+			builder.append("->").append(descendingIterator.next().getName());
 		return builder.toString();
 	}
 
-	public void pushOperator(final String e) {
+	public Operator<?> getCurrentOperator() {
+		return this.operatorStack.peek();
+	}
+	
+	public void pushOperator(final Operator<?> e) {
 		this.operatorStack.push(e);
 	}
 
-	public String popOperator() {
+	public Operator<?> popOperator() {
 		return this.operatorStack.pop();
 	}
 
@@ -89,4 +93,14 @@ public class EvaluationContext implements SerializableSopremoType {
 		this.taskId = taskId;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("Context @ ").append(this.operatorStack).append("\n").
+			append("Bindings: ");
+		this.bindings.toString(builder);
+	}
 }

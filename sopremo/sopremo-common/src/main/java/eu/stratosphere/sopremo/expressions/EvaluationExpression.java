@@ -42,7 +42,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		}
 
 		@Override
-		protected void toString(final StringBuilder builder) {
+		public void toString(final StringBuilder builder) {
 			builder.append("<value>");
 		}
 
@@ -127,7 +127,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		}
 
 		@Override
-		protected void toString(final StringBuilder builder) {
+		public void toString(final StringBuilder builder) {
 			builder.append("<key>");
 		};
 	};
@@ -148,7 +148,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		}
 
 		@Override
-		protected void toString(final StringBuilder builder) {
+		public void toString(final StringBuilder builder) {
 			builder.append("-><key>");
 		};
 	};
@@ -197,7 +197,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * @param builder
 	 *        the builder to append to
 	 */
-	protected void toString(StringBuilder builder) {
+	public void toString(StringBuilder builder) {
 		if (!this.tags.isEmpty())
 			builder.append(this.tags).append(" ");
 	}

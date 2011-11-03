@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 public class RangeRule extends ValidationRule {
@@ -30,8 +29,7 @@ public class RangeRule extends ValidationRule {
 
 	private JsonNode min, max;
 
-	public RangeRule(final JsonNode min, final JsonNode max, final EvaluationExpression... targetPath) {
-		super(targetPath);
+	public RangeRule(final JsonNode min, final JsonNode max) {
 		this.min = min;
 		this.max = max;
 		this.setValueCorrection(CHOOSE_NEAREST_BOUND);

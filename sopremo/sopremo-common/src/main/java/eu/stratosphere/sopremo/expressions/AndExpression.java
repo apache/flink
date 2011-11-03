@@ -55,7 +55,7 @@ public class AndExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.expressions[0]);
 		for (int index = 1; index < this.expressions.length; index++)
 			builder.append(" AND ").append(this.expressions[index]);

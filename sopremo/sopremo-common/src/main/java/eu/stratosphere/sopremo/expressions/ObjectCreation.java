@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
@@ -101,6 +102,31 @@ public class ObjectCreation extends ContainerExpression {
 		return result;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
+	 */
+	@Override
+	public List<EvaluationExpression> getChildren() {
+		ArrayList<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
+		for (Mapping<?> mapping : this.mappings)
+			list.add(mapping.getExpression());
+		return list;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
+	 */
+	@Override
+	public void setChildren(List<EvaluationExpression> children) {
+		if (this.mappings.size() != children.size())
+			throw new IllegalArgumentException();
+
+		for (int index = 0; index < children.size(); index++)
+			this.mappings.get(index).setExpression(children.get(index));
+	}
+
 	@Override
 	public Iterator<EvaluationExpression> iterator() {
 		return new ConversionIterator<Mapping<?>, EvaluationExpression>(this.mappings.iterator()) {
@@ -119,7 +145,7 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append("{");
 		final Iterator<Mapping<?>> mappingIterator = this.mappings.iterator();
 		while (mappingIterator.hasNext()) {
@@ -148,7 +174,7 @@ public class ObjectCreation extends ContainerExpression {
 		}
 
 		@Override
-		protected void toString(final StringBuilder builder) {
+		public void toString(final StringBuilder builder) {
 			this.getExpression().toString(builder);
 			builder.append(".*");
 		}
@@ -177,11 +203,11 @@ public class ObjectCreation extends ContainerExpression {
 			transformedNode.put(this.target, value);
 		}
 	}
-	
+
 	public static class TagMapping<Target> extends Mapping<Target> {
 		/**
 		 * Initializes TagMapping.
-		 *
+		 * 
 		 * @param target
 		 * @param expression
 		 */
@@ -194,8 +220,11 @@ public class ObjectCreation extends ContainerExpression {
 		 */
 		private static final long serialVersionUID = -3919529819666259624L;
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping#evaluate(eu.stratosphere.sopremo.type.ObjectNode, eu.stratosphere.sopremo.type.JsonNode, eu.stratosphere.sopremo.EvaluationContext)
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping#evaluate(eu.stratosphere.sopremo.type.ObjectNode,
+		 * eu.stratosphere.sopremo.type.JsonNode, eu.stratosphere.sopremo.EvaluationContext)
 		 */
 		@Override
 		protected void evaluate(ObjectNode transformedNode, JsonNode node, EvaluationContext context) {
@@ -203,7 +232,7 @@ public class ObjectCreation extends ContainerExpression {
 		}
 	}
 
-	public abstract static class Mapping<Target> implements SerializableSopremoType {
+	public abstract static class Mapping<Target> extends AbstractSopremoType implements SerializableSopremoType {
 		/**
 		 * 
 		 */
@@ -211,10 +240,23 @@ public class ObjectCreation extends ContainerExpression {
 
 		protected final Target target;
 
-		protected final EvaluationExpression expression;
+		protected EvaluationExpression expression;
 
 		public Mapping(final Target target, final EvaluationExpression expression) {
 			this.target = target;
+			this.expression = expression;
+		}
+
+		/**
+		 * Sets the expression to the specified value.
+		 * 
+		 * @param expression
+		 *        the expression to set
+		 */
+		public void setExpression(EvaluationExpression expression) {
+			if (expression == null)
+				throw new NullPointerException("expression must not be null");
+
 			this.expression = expression;
 		}
 
@@ -251,13 +293,7 @@ public class ObjectCreation extends ContainerExpression {
 		}
 
 		@Override
-		public String toString() {
-			final StringBuilder builder = new StringBuilder();
-			this.toString(builder);
-			return builder.toString();
-		}
-
-		protected void toString(final StringBuilder builder) {
+		public void toString(final StringBuilder builder) {
 			builder.append(this.target).append("=");
 			this.expression.toString(builder);
 		}

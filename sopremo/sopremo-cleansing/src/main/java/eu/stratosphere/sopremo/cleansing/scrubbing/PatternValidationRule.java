@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.cleansing.scrubbing;
 import java.util.regex.Pattern;
 
 import eu.stratosphere.sopremo.TypeCoercer;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -15,8 +14,7 @@ public class PatternValidationRule extends ValidationRule {
 
 	private final Pattern pattern;
 
-	public PatternValidationRule(final Pattern pattern, final EvaluationExpression... targetPath) {
-		super(targetPath);
+	public PatternValidationRule(final Pattern pattern) {
 		this.pattern = pattern;
 	}
 

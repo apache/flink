@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import java.util.Iterator;
+import java.util.List;
 
 public abstract class ContainerExpression extends EvaluationExpression {
 	/**
@@ -25,7 +26,11 @@ public abstract class ContainerExpression extends EvaluationExpression {
 
 	@Override
 	public abstract Iterator<EvaluationExpression> iterator();
+
+	public abstract List<EvaluationExpression> getChildren();
 	
+	public abstract void setChildren(List<EvaluationExpression> children);
+
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
 		for (final EvaluationExpression element : this)
 			if (element instanceof ContainerExpression)

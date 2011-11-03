@@ -70,7 +70,7 @@ public class MongeElkanSimilarity extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	public void toString(StringBuilder builder) {
 		builder.append("monge elkan of").append(this.baseMeasure);
 	}
 }
