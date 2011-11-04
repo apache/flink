@@ -52,9 +52,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
 
 	/**
-	 * The key for the config parameter defining the directory for temporary files.
+	 * The key for the config parameter defining the directories for temporary files.
 	 */
-	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dir";
+	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
 
 	/**
 	 * The key for the config parameter defining the amount of memory available for the task manager's

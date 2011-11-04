@@ -15,48 +15,68 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.pact.common.stub.CrossStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.stubs.CrossStub;
+
 
 /**
  * CrossContract represents a Cross InputContract of the PACT Programming Model.
- * InputContracts are second-order functions. 
- * They have one or multiple input sets of key/value-pairs and a first-order user function (stub implementation).
+ *  InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
+ *  user function (stub implementation).
  * <p> 
- * Cross works on two inputs and calls the first-order function of a {@see eu.stratosphere.pact.common.stub.CrossStub} 
- * for each combination of key/value-pairs of both inputs (each element of the Cartesian Product) independently.
+ * Cross works on two inputs and calls the first-order function of a {@link CrossStub} 
+ * for each combination of record from both inputs (each element of the Cartesian Product) independently.
  * 
- * @see eu.stratosphere.pact.common.stub.CrossStub
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * @see CrossStub
  */
-public class CrossContract<IK1 extends Key, IV1 extends Value, IK2 extends Key, IV2 extends Value, OK extends Key, OV extends Value>
-		extends DualInputContract<IK1, IV1, IK2, IV2, OK, OV> {
-	
-	private static String defaultName = "Cross #";
-
-	private static int nextID = 1;
+public class CrossContract extends DualInputContract<CrossStub>
+{	
+	private static String DEFAULT_NAME = "<Unnamed Crosser>";
 
 	/**
-	 * Creates a CrossContract with the provided {@see eu.stratosphere.pact.common.stub.CrossStub} implementation 
-	 * and the given name. 
-	 * 
-	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
-	 * @param n The name of PACT.
-	 */
-	public CrossContract(Class<? extends CrossStub<IK1, IV1, IK2, IV2, OK, OV>> c, String n) {
-		super(c, n);
-	}
-
-	/**
-	 * Creates a CrossContract with the provided {@see eu.stratosphere.pact.common.stub.CrossStub} implementation 
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation
 	 * and a default name.
 	 * 
 	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
 	 */
-	public CrossContract(Class<? extends CrossStub<IK1, IV1, IK2, IV2, OK, OV>> c) {
-		super(c, defaultName + (nextID++));
+	public CrossContract(Class<? extends CrossStub> c) {
+		this(c, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation 
+	 * and the given name. 
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param name The name of PACT.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, String name) {
+		super(c, name);
+	}
+
+	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation the default name.
+	 * It uses the given contract as its input.
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, Contract input1, Contract input2) {
+		this(c, input1, input2, DEFAULT_NAME);
+	}
+	
+	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation and the given name.
+	 * It uses the given contract as its input.
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, Contract input1, Contract input2, String name) {
+		this(c, name);
+		setFirstInput(input1);
+		setSecondInput(input2);
 	}
 }

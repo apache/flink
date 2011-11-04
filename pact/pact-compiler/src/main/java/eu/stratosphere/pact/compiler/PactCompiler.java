@@ -39,10 +39,8 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
-import eu.stratosphere.pact.common.contract.GenericDataSinkContract;
-import eu.stratosphere.pact.common.contract.GenericDataSourceContract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -565,7 +563,7 @@ public class PactCompiler {
 		}
 		
 		String instanceName = type.getInstanceType().getIdentifier();
-		long memoryPerInstance = type.getHardwareDescription().getSizeOfFreeMemory();
+		long memoryPerInstance = (long) (type.getHardwareDescription().getSizeOfFreeMemory() * 0.95f);
 		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
 		int numInstances = type.getMaximumNumberOfAvailableInstances();
 		
@@ -597,12 +595,13 @@ public class PactCompiler {
 		}
 
 		// set the default degree of parallelism
-		int defaultParallelism = this.defaultDegreeOfParallelism;
+		int defaultParallelism = pactPlan.getDefaultParallelism() > 0 ?
+			pactPlan.getDefaultParallelism() : this.defaultDegreeOfParallelism;
 		if (defaultParallelism < 1) {
-			defaultParallelism = maxMachinesJob * defaultIntraNodeParallelism;
-		} else if (defaultParallelism > maxMachinesJob * defaultIntraNodeParallelism) {
+			defaultParallelism = maxMachinesJob * this.defaultIntraNodeParallelism;
+		} else if (defaultParallelism > maxMachinesJob * this.defaultIntraNodeParallelism) {
 			int oldParallelism = defaultParallelism;
-			defaultParallelism = maxMachinesJob * defaultIntraNodeParallelism;
+			defaultParallelism = maxMachinesJob * this.defaultIntraNodeParallelism;
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Decreasing default degree of parallelism from " + oldParallelism +
@@ -780,24 +779,24 @@ public class PactCompiler {
 			OptimizerNode n = null;
 
 			// create a node for the pact (or sink or source) if we have not been here before
-			if (c instanceof GenericDataSinkContract<?, ?>) {
-				DataSinkNode dsn = new DataSinkNode((GenericDataSinkContract<?, ?>) c);
+			if (c instanceof GenericDataSink) {
+				DataSinkNode dsn = new DataSinkNode((GenericDataSink) c);
 				sinks.add(dsn);
 				n = dsn;
-			} else if (c instanceof GenericDataSourceContract<?, ?>) {
-				DataSourceNode dsn = new DataSourceNode((GenericDataSourceContract<?, ?>) c);
+			} else if (c instanceof GenericDataSource) {
+				DataSourceNode dsn = new DataSourceNode((GenericDataSource<?>) c);
 				sources.add(dsn);
 				n = dsn;
-			} else if (c instanceof MapContract<?, ?, ?, ?>) {
-				n = new MapNode((MapContract<?, ?, ?, ?>) c);
-			} else if (c instanceof ReduceContract<?, ?, ?, ?>) {
-				n = new ReduceNode((ReduceContract<?, ?, ?, ?>) c);
-			} else if (c instanceof MatchContract<?, ?, ?, ?, ?>) {
-				n = new MatchNode((MatchContract<?, ?, ?, ?, ?>) c);
-			} else if (c instanceof CoGroupContract<?, ?, ?, ?, ?>) {
-				n = new CoGroupNode((CoGroupContract<?, ?, ?, ?, ?>) c);
-			} else if (c instanceof CrossContract<?, ?, ?, ?, ?, ?>) {
-				n = new CrossNode((CrossContract<?, ?, ?, ?, ?, ?>) c);
+			} else if (c instanceof MapContract) {
+				n = new MapNode((MapContract) c);
+			} else if (c instanceof ReduceContract) {
+				n = new ReduceNode((ReduceContract) c);
+			} else if (c instanceof MatchContract) {
+				n = new MatchNode((MatchContract) c);
+			} else if (c instanceof CoGroupContract) {
+				n = new CoGroupNode((CoGroupContract) c);
+			} else if (c instanceof CrossContract) {
+				n = new CrossNode((CrossContract) c);
 			} else {
 				throw new IllegalArgumentException("Unknown contract type.");
 			}
@@ -819,7 +818,6 @@ public class PactCompiler {
 			if (maxMachines > 0) {
 				int p = n.getDegreeOfParallelism();
 				tasksPerInstance = (p / maxMachines) + (p % maxMachines == 0 ? 0 : 1);
-
 				tasksPerInstance = Math.max(tasksPerInstance, this.defaultIntraNodeParallelism);
 			}
 
@@ -1486,14 +1484,7 @@ public class PactCompiler {
 				// instead of temping connection duplicate DataSourceNode
 				
 				// duplicate DataSourceNode
-				DataSourceNode duplicateDataSource;
-				if(sourcePact.getPactContract() instanceof FileDataSinkContract<?, ?>) {
-					duplicateDataSource = new DataSourceNode((FileDataSourceContract<?, ?>)sourcePact.getPactContract());
-				} else {
-					duplicateDataSource = new DataSourceNode((GenericDataSourceContract<?, ?>)sourcePact.getPactContract());
-				}
-				duplicateDataSource.setDegreeOfParallelism(sourcePact.getDegreeOfParallelism());
-				duplicateDataSource.setInstancesPerMachine(sourcePact.getInstancesPerMachine());
+				DataSourceNode duplicateDataSource = new DataSourceNode((GenericDataSource<?>)sourcePact.getPactContract());
 				// create new connection
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				

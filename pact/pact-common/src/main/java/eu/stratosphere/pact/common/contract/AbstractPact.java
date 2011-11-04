@@ -15,30 +15,26 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.lang.annotation.Annotation;
-
-import eu.stratosphere.pact.common.stub.Stub;
+import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
 
 /**
- * Abstract superclass for all contracts that represent actual Pacts and no data sources or sinks.
+ * Abstract superclass for all contracts that represent actual Pacts.
  *
  * @author Stephan Ewen
  */
-public abstract class AbstractPact<OK extends Key, OV extends Value, T extends Stub<OK, OV>> extends Contract
-implements OutputContractConfigurable
+public abstract class AbstractPact<T extends Stub> extends Contract
 {
 	/**
 	 * The class containing the user function for this Pact.
 	 */
-	protected Class<? extends T> stubClass;
-	
+	protected final Class<? extends T> stubClass;
+
 	/**
-	 * This contract's output contract.
+	 * The classes that represent the key data types.
 	 */
-	protected Class<? extends Annotation> outputContract;
+	private final Class<? extends Key>[] keyClasses;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -48,14 +44,30 @@ implements OutputContractConfigurable
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 * @param stubClass The class containing the user function.
 	 */
+	@SuppressWarnings("unchecked")
 	protected AbstractPact(Class<? extends T> stubClass, String name)
 	{
 		super(name);
 		this.stubClass = stubClass;
+		this.keyClasses = (Class<? extends Key>[]) new Class[0];
+	}
+	
+	/**
+	 * Creates a new abstract Pact with the given name wrapping the given user function.
+	 * 
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param stubClass The class containing the user function.
+	 * @param keyClasses The classes describing the keys.
+	 */
+	protected AbstractPact(Class<? extends T> stubClass, Class<? extends Key>[] keyClasses, String name)
+	{
+		super(name);
+		this.stubClass = stubClass;
+		this.keyClasses = keyClasses;
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets the stub that is wrapped by this contract. The stub is the actual implementation of the
 	 * user code.
@@ -69,24 +81,46 @@ implements OutputContractConfigurable
 	{
 		return this.stubClass;
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * {@inheritDoc}
+	 * Gets the types of the key fields on which this reduce contract groups.
+	 * 
+	 * @return The types of the key fields.
 	 */
-	@Override
-	public void setOutputContract(Class<? extends Annotation> oc) {
-		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
-			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
-		}
-
-		this.outputContract = oc;
+	public Class<? extends Key>[] getKeyClasses()
+	{
+		return this.keyClasses;
 	}
-
+	
 	/**
-	 * {@inheritDoc}
+	 * Gets the number of inputs for this Pact.
+	 * 
+	 * @return The number of inputs for this Pact.
 	 */
-	@Override
-	public Class<? extends Annotation> getOutputContract() {
-		return this.outputContract;
+	public abstract int getNumberOfInputs();
+	
+	/**
+	 * Gets the column numbers of the key fields in the input records for the given input.
+	 *  
+	 * @return The column numbers of the key fields.
+	 */
+	public abstract int[] getKeyColumnNumbers(int inputNum);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Generic utility function that wraps a single class object into an array of that class type.
+	 * 
+	 * @param <U> The type of the classes.
+	 * @param clazz The class object to be wrapped.
+	 * @return An array wrapping the class object.
+	 */
+	protected static final <U> Class<U>[] asArray(Class<U> clazz)
+	{
+		@SuppressWarnings("unchecked")
+		Class<U>[] array = (Class<U>[]) new Class[] { clazz };
+		return array;
 	}
 }

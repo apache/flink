@@ -21,7 +21,7 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
+import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 
 /**
@@ -200,10 +200,10 @@ public abstract class CostEstimator {
 			getMainMemHashCosts(n, secConn, primConn, locCost);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-			getBlockNestedLoopsCosts(n, primConn, secConn, BlockResettableIterator.MIN_BUFFER_SIZE, locCost);
+			getBlockNestedLoopsCosts(n, primConn, secConn, BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, locCost);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-			getBlockNestedLoopsCosts(n, secConn, primConn, BlockResettableIterator.MIN_BUFFER_SIZE, locCost);
+			getBlockNestedLoopsCosts(n, secConn, primConn, BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, locCost);
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_FIRST:
 			getStreamedNestedLoopsCosts(n, primConn, secConn,

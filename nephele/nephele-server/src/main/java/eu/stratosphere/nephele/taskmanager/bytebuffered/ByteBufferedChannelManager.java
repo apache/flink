@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
@@ -22,11 +25,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
@@ -88,6 +93,15 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	private final Map<ChannelID, TransferEnvelopeReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, TransferEnvelopeReceiverList>();
 
+	// Begin temporary logging code
+	private final AtomicInteger envelopeCounter = new AtomicInteger(0);
+
+	private static final int LOG_INTERVAL = 100;
+
+	private final BufferedWriter bufferedWriter;
+
+	// End temporary logging code
+
 	public ByteBufferedChannelManager(final ChannelLookupProtocol channelLookupService,
 			final InstanceConnectionInfo localInstanceConnectionInfo)
 												throws IOException {
@@ -113,6 +127,23 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		LOG.info("Initialized byte buffered channel manager with sender-side spilling "
 			+ (this.allowSenderSideSpilling ? "enabled" : "disabled"));
+
+		// Begin temporary logging code
+		String logDir = System.getProperty("log.file");
+		if (logDir != null) {
+			final int pos = logDir.lastIndexOf(File.separatorChar);
+			if (pos < 0) {
+				throw new RuntimeException("Cannot parse log dir " + logDir);
+			}
+
+			logDir = logDir.substring(0, pos);
+		} else {
+			logDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, "/tmp/");
+		}
+
+		this.bufferedWriter = new BufferedWriter(new FileWriter(logDir + File.separator + "multicast_"
+			+ localInstanceConnectionInfo.getHostName()));
+		// End temporary logging code
 	}
 
 	/**
@@ -313,6 +344,56 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			final TransferEnvelopeReceiverList receiverList, final boolean freeSourceBuffer)
 			throws IOException, InterruptedException {
 
+		// Start temporary logging code
+		final int val = this.envelopeCounter.incrementAndGet();
+		if ((val % LOG_INTERVAL) == 0) {
+
+			final long timestamp = System.currentTimeMillis();
+			final int availableBuffers = this.transitBufferPool.getNumberOfAvailableBuffers();
+			final int designatedBuffers = this.transitBufferPool.getDesignatedNumberOfBuffers();
+
+			final StringBuilder sb = new StringBuilder();
+			sb.append(timestamp);
+			sb.append(' ');
+			sb.append(val);
+			sb.append(' ');
+			sb.append(availableBuffers);
+			sb.append(' ');
+			sb.append(designatedBuffers);
+
+			final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
+			for (final InetSocketAddress remoteReceiver : remoteReceivers) {
+
+				final int ql = this.networkConnectionManager.getQueueLength(remoteReceiver);
+				sb.append(' ');
+				sb.append(remoteReceiver.getHostName());
+				sb.append(' ');
+				sb.append(ql);
+			}
+
+			final List<ChannelID> localReceivers = receiverList.getLocalReceivers();
+			for (final ChannelID localReceiver : localReceivers) {
+
+				final ChannelContext cc = this.registeredChannels.get(localReceiver);
+				if (cc == null) {
+					LOG.error("Cannot find channel context for " + localReceiver);
+					continue;
+				}
+
+				final InputChannelContext icc = (InputChannelContext) cc;
+				final int ql = icc.getNumberOfQueuedEnvelopes();
+				sb.append(' ');
+				sb.append(ql);
+			}
+
+			sb.append('\n');
+
+			this.bufferedWriter.write(sb.toString());
+			this.bufferedWriter.flush();
+
+		}
+		// End temporary logging code
+
 		// Handle the most common (unicast) case first
 		if (!freeSourceBuffer) {
 
@@ -382,9 +463,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private boolean processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
 			final TransferEnvelopeReceiverList receiverList) {
-
-		System.out.println("Received envelope without buffer with event list size "
-			+ transferEnvelope.getEventList().size());
 
 		// No need to copy anything
 		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
@@ -456,22 +534,29 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			} else {
 				this.receiverCache.put(sourceChannelID, receiverList);
 
-				System.out.println("Receiver list for source channel ID " + sourceChannelID + " at task manager "
-						+ this.localConnectionInfo);
-				if (receiverList.hasLocalReceivers()) {
-					System.out.println("\tLocal receivers:");
-					final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
-					while (it.hasNext()) {
-						System.out.println("\t\t" + it.next());
-					}
-				}
+				if (LOG.isDebugEnabled()) {
 
-				if (receiverList.hasRemoteReceivers()) {
-					System.out.println("Remote receivers:");
-					final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
-					while (it.hasNext()) {
-						System.out.println("\t\t" + it.next());
+					final StringBuilder sb = new StringBuilder();
+					sb.append("Receiver list for source channel ID " + sourceChannelID + " at task manager "
+						+ this.localConnectionInfo + "\n");
+
+					if (receiverList.hasLocalReceivers()) {
+						sb.append("\tLocal receivers:\n");
+						final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
+						while (it.hasNext()) {
+							sb.append("\t\t" + it.next() + "\n");
+						}
 					}
+
+					if (receiverList.hasRemoteReceivers()) {
+						sb.append("Remote receivers:\n");
+						final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
+						while (it.hasNext()) {
+							sb.append("\t\t" + it.next() + "\n");
+						}
+					}
+
+					LOG.debug(sb.toString());
 				}
 			}
 		}
@@ -496,8 +581,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
 
-		System.out.println("Received envelope from input channel");
-
 		processEnvelope(transferEnvelope, false);
 	}
 
@@ -507,8 +590,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer)
 			throws IOException {
-
-		// System.out.println("Processing envelope "+ transferEnvelope.getSequenceNumber() + " from network");
 
 		try {
 			processEnvelope(transferEnvelope, freeSourceBuffer);
@@ -634,7 +715,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				LOG.error("Cannot report checkpoint decision for vertex " + cd.getVertexID());
 				continue;
 			}
-			
+
 			taskContext.setCheckpointDecisionAsynchronously(cd.getCheckpointDecision());
 			taskContext.reportAsynchronousEvent();
 		}

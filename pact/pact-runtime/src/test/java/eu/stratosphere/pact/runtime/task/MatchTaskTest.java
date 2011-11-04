@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -25,9 +24,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
@@ -36,11 +35,12 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("unchecked")
 public class MatchTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(MatchTaskTest.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+	List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testSortBoth1MatchTask() {
@@ -61,6 +61,9 @@ public class MatchTaskTest extends TaskTestBase {
 		
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -97,6 +100,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -133,6 +140,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -169,6 +180,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -205,6 +220,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -241,6 +260,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -278,6 +301,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -315,6 +342,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -351,6 +382,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
 		
@@ -383,6 +418,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -424,6 +463,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -465,6 +508,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
@@ -512,6 +559,10 @@ public class MatchTaskTest extends TaskTestBase {
 		
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -548,6 +599,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -584,6 +639,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -620,6 +679,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -656,6 +719,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -692,6 +759,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
 		
@@ -726,6 +797,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
 		
@@ -757,6 +832,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -798,6 +877,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -839,6 +922,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
@@ -881,6 +968,10 @@ public class MatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
@@ -910,54 +1001,39 @@ public class MatchTaskTest extends TaskTestBase {
 	
 	// =================================================================================================
 	
-	public static class MockMatchStub extends MatchStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockMatchStub extends MatchStub {
 
-		HashSet<Integer> hashSet = new HashSet<Integer>(1000);
-		
 		@Override
-		public void match(PactInteger key, PactInteger value1, PactInteger value2,
-				Collector<PactInteger, PactInteger> out) {
+		public void match(PactRecord record1, PactRecord record2, Collector out)
+				throws Exception {
 			
-			Assert.assertFalse("Key was given multiple times into user code",hashSet.contains(System.identityHashCode(key)));
-			Assert.assertFalse("Value was given multiple times into user code",hashSet.contains(System.identityHashCode(value1)));
-			Assert.assertFalse("Value was given multiple times into user code",hashSet.contains(System.identityHashCode(value2)));
-			
-			hashSet.add(System.identityHashCode(key));
-			hashSet.add(System.identityHashCode(value1));
-			hashSet.add(System.identityHashCode(value2));
-			
-			out.collect(key, value1);
-			
+			out.collect(record1);
 		}
 		
 	}
 	
-	public static class MockFailingMatchStub extends MatchStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockFailingMatchStub extends MatchStub {
 
 		int cnt = 0;
 		
 		@Override
-		public void match(PactInteger key, PactInteger value1, PactInteger value2,
-				Collector<PactInteger, PactInteger> out) {
+		public void match(PactRecord record1, PactRecord record2, Collector out) {
 			
 			if(++cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			
-			out.collect(key, value1);
+			out.collect(record1);
 			
 		}
 		
 	}
 	
 	
-	public static class MockDelayingMatchStub extends MatchStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockDelayingMatchStub extends MatchStub {
 
-		HashSet<Integer> hashSet = new HashSet<Integer>(1000);
-		
 		@Override
-		public void match(PactInteger key, PactInteger value1, PactInteger value2,
-				Collector<PactInteger, PactInteger> out) {
+		public void match(PactRecord record1, PactRecord record2, Collector out) {
 			
 			try {
 				Thread.sleep(100);

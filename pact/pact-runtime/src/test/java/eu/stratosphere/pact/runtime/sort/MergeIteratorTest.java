@@ -17,21 +17,20 @@ package eu.stratosphere.pact.runtime.sort;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.TestData;
+import eu.stratosphere.pact.runtime.test.util.TestData.Key;
+import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 
-/**
- * @author Erik Nijkamp
- */
+
 public class MergeIteratorTest {
 
 	@BeforeClass
@@ -42,51 +41,169 @@ public class MergeIteratorTest {
 	public static void afterClass() {
 	}
 
-	private Iterator<KeyValuePair<TestData.Key, TestData.Value>> newIterator(final int[] keys, final String[] values) {
-		return new Iterator<KeyValuePair<TestData.Key, TestData.Value>>() {
-			int current = 0;
+	private MutableObjectIterator<PactRecord> newIterator(final int[] keys, final String[] values)
+	{
+		return new MutableObjectIterator<PactRecord>()
+		{
+			private Key key = new Key();
+			private Value value = new Value();
+			
+			private int current = 0;
 
 			@Override
-			public boolean hasNext() {
-				return current < keys.length;
-			}
-
-			@Override
-			public KeyValuePair<TestData.Key, TestData.Value> next() {
-				KeyValuePair<TestData.Key, TestData.Value> pair = new KeyValuePair<TestData.Key, TestData.Value>(
-					new TestData.Key(keys[current]), new TestData.Value(values[current]));
-				current++;
-				return pair;
-			}
-
-			@Override
-			public void remove() {
-
+			public boolean next(PactRecord target)
+			{
+				if (current < keys.length) {
+					key.setKey(keys[current]);
+					value.setValue(values[current]);
+					current++;
+					target.setField(0, key);
+					target.setField(1, value);
+					return true;
+				}
+				else {
+					return false;
+				}
 			}
 		};
 	}
 
 	@Test
-	public void testMerge() {
+	public void testMergeOfTwoStreams() throws Exception
+	{
 		// iterarors
-		List<Iterator<KeyValuePair<TestData.Key, TestData.Value>>> iterators = new ArrayList<Iterator<KeyValuePair<TestData.Key, TestData.Value>>>();
+		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 		iterators.add(newIterator(new int[] { 1, 2, 4, 5, 10 }, new String[] { "1", "2", "4", "5", "10" }));
 		iterators.add(newIterator(new int[] { 3, 6, 7, 10, 12 }, new String[] { "3", "6", "7", "10", "12" }));
+		
+		int[] expected = new int[] {1, 2, 3, 4, 5, 6, 7, 10, 10, 12};
 
 		// comparator
 		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
 
 		// merge iterator
-		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = new MergeIterator<TestData.Key, TestData.Value>(
-			iterators, comparator);
+		@SuppressWarnings("unchecked")
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
+			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
 
-		// check order
-		KeyValuePair<TestData.Key, TestData.Value> pair1 = iterator.next();
-		while (iterator.hasNext()) {
-			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
-			Logger.getRootLogger().debug("1 -> " + pair1.getKey() + " | 2 -> " + pair2.getKey());
-			Assert.assertTrue(comparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
-			pair1 = pair2;
+		// check orderexpected
+		PactRecord rec1 = new PactRecord();
+		PactRecord rec2 = new PactRecord();
+		final Key k1 = new Key();
+		final Key k2 = new Key();
+		
+		int pos = 1;
+		
+		Assert.assertTrue(iterator.next(rec1));
+		Assert.assertEquals(expected[0], rec1.getField(0, TestData.Key.class).getKey());
+		
+		while (iterator.next(rec2)) {
+			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
+			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
+			
+			Assert.assertTrue(comparator.compare(k1, k2) <= 0);
+			Assert.assertEquals(expected[pos++], k2.getKey()); 
+			
+			PactRecord tmp = rec1;
+			rec1 = rec2;
+			rec2 = tmp;
 		}
+	}
+	
+	@Test
+	public void testMergeOfTenStreams() throws Exception
+	{
+		// iterarors
+		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
+		iterators.add(newIterator(new int[] { 1, 2, 17, 23, 23 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 2, 6, 7, 8, 9 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 4, 10, 11, 11, 12 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 3, 6, 7, 10, 12 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 7, 10, 15, 19, 44 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 6, 6, 11, 17, 18 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 1, 2, 4, 5, 10 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 5, 10, 19, 23, 29 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 9, 9, 9, 9, 9 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 8, 8, 14, 14, 15 }, new String[] { "A", "B", "C", "D", "E" }));
+
+		// comparator
+		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
+
+		// merge iterator
+		@SuppressWarnings("unchecked")
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
+			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
+
+		int elementsFound = 1;
+		// check orderexpected
+		PactRecord rec1 = new PactRecord();
+		PactRecord rec2 = new PactRecord();
+		final Key k1 = new Key();
+		final Key k2 = new Key();
+		
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
+			elementsFound++;
+			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
+			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
+			Assert.assertTrue(comparator.compare(k1, k2) <= 0);
+			
+			PactRecord tmp = rec1;
+			rec1 = rec2;
+			rec2 = tmp;
+		}
+		
+		Assert.assertEquals("Too few elements returned from stream.", 50, elementsFound);
+	}
+	
+	@Test
+	public void testInvalidMerge() throws Exception
+	{
+		// iterarors
+		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
+		iterators.add(newIterator(new int[] { 1, 2, 17, 23, 23 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 2, 6, 7, 8, 9 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 4, 10, 11, 11, 12 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 3, 6, 10, 7, 12 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 7, 10, 15, 19, 44 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 6, 6, 11, 17, 18 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 1, 2, 4, 5, 10 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 5, 10, 19, 23, 29 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 9, 9, 9, 9, 9 }, new String[] { "A", "B", "C", "D", "E" }));
+		iterators.add(newIterator(new int[] { 8, 8, 14, 14, 15 }, new String[] { "A", "B", "C", "D", "E" }));
+
+		// comparator
+		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
+
+		// merge iterator
+		@SuppressWarnings("unchecked")
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
+			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
+
+		boolean violationFound = false;
+		
+		// check orderexpected
+		PactRecord rec1 = new PactRecord();
+		PactRecord rec2 = new PactRecord();
+		
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2))
+		{
+			final Key k1 = new Key();
+			final Key k2 = new Key();
+			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
+			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
+			
+			if (comparator.compare(k1, k2) > 0) {
+				violationFound = true;
+				break;
+			}
+			
+			PactRecord tmp = rec1;
+			rec1 = rec2;
+			rec2 = tmp;
+		}
+		
+		Assert.assertTrue("Merge must have returned a wrong result", violationFound);
 	}
 }

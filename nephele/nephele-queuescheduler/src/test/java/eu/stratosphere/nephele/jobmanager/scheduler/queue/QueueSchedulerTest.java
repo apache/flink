@@ -16,229 +16,247 @@
 package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
+import java.io.IOException;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Matchers;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.api.support.membermodification.MemberMatcher;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.core.classloader.annotations.SuppressStaticInitializationFor;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
-import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.instance.AllocatedResource;
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.instance.InstanceException;
+import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.instance.InstanceManager;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
-import eu.stratosphere.nephele.instance.local.LocalInstance;
-import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.DeploymentManager;
+import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
+import eu.stratosphere.nephele.jobgraph.JobInputVertex;
+import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
+import eu.stratosphere.nephele.template.AbstractGenericInputTask;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * @author marrus
  *         This class checks the functionality of the {@link QueueScheduler} class
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(QueueScheduler.class)
-@SuppressStaticInitializationFor("eu.stratosphere.nephele.jobmanager.scheduler.queue.QueueScheduler")
 public class QueueSchedulerTest {
 
-	@Mock
-	private ExecutionGraph executionGraph;
-
-	@Mock
-	private ExecutionStage stage1;
-	
-	@Mock
-	private ExecutionVertex vertex1;
-
-	@Mock
-	private ExecutionGraphIterator graphIterator;
-
-	@Mock
-	private ExecutionGraphIterator graphIterator2;
-
-	@Mock
-	private InstanceManager instanceManager;
-
-	@Mock
-	private Log loggerMock;
-
 	/**
-	 * Setting up the mocks and necessary internal states
-	 */
-	@Before
-	public void before() {
-		MockitoAnnotations.initMocks(this);
-		Whitebox.setInternalState(QueueScheduler.class, this.loggerMock);
-	}
-
-	/**
-	 * Checks the behavior of the scheduleJob() method
-	 */
-	@Test
-	public void testSchedulJob() {
-
-		final InstanceType type = new InstanceType();
-		InstanceTypeDescription desc = InstanceTypeDescriptionFactory.construct(type, new HardwareDescription(), 4);
-		final HashMap<InstanceType, Integer> requiredInstanceTypes = new HashMap<InstanceType, Integer>();
-		requiredInstanceTypes.put(type, 3);
-		final HashMap<InstanceType, InstanceTypeDescription> availableInstances = new HashMap<InstanceType, InstanceTypeDescription>();
-		availableInstances.put(type, desc);
-
-		final DeploymentManager deploymentManager = new TestDeploymentManager();
-
-		try {
-			whenNew(HashMap.class).withNoArguments().thenReturn(requiredInstanceTypes);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-
-		when(this.executionGraph.getNumberOfStages()).thenReturn(1);
-		when(this.executionGraph.getStage(0)).thenReturn(this.stage1);
-		when(this.executionGraph.getCurrentExecutionStage()).thenReturn(this.stage1);
-		when(this.instanceManager.getMapOfAvailableInstanceTypes()).thenReturn(availableInstances);
-		when(this.stage1.getExecutionGraph()).thenReturn(this.executionGraph);
-
-		// correct walk through method
-		final QueueScheduler toTest = new QueueScheduler(deploymentManager, this.instanceManager);
-		try {
-			toTest.schedulJob(this.executionGraph);
-			final Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
-			assertEquals("Job should be in list", true, jobQueue.contains(this.executionGraph));
-			jobQueue.remove(this.executionGraph);
-
-		} catch (SchedulingException e) {
-			fail();
-			e.printStackTrace();
-		}
-
-		// not enough available Instances
-		desc = InstanceTypeDescriptionFactory.construct(type, new HardwareDescription(), 2);
-		availableInstances.put(type, desc);
-		try {
-			toTest.schedulJob(this.executionGraph);
-			fail();
-
-		} catch (SchedulingException e) {
-			final Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
-			assertEquals("Job should not be in list", false, jobQueue.contains(this.executionGraph));
-
-		}
-		// Instance unknown
-		availableInstances.clear();
-		try {
-			toTest.schedulJob(this.executionGraph);
-			fail();
-
-		} catch (SchedulingException e) {
-			Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
-			assertEquals("Job should not be in list", false, jobQueue.contains(this.executionGraph));
-
-		}
-	}
-
-	/**
-	 * Checks the behavior of the resourceAllocated() method
+	 * Test input task.
 	 * 
-	 * @throws Exception
+	 * @author warneke
 	 */
-	@Test
-	public void testResourceAllocated() throws Exception {
+	public static final class InputTask extends AbstractGenericInputTask {
 
-		final DeploymentManager deploymentManager = new TestDeploymentManager();
-
-		final QueueScheduler toTest = spy(new QueueScheduler(deploymentManager, this.instanceManager));
-		final JobID jobid = new JobID();
-		final AllocatedResource resource = mock(AllocatedResource.class);
-		final List<AllocatedResource> resources = new ArrayList<AllocatedResource>();
-		resources.add(resource);
-		final InstanceType instanceType = new InstanceType();
-		InstanceConnectionInfo instanceConnectionInfo = mock(InstanceConnectionInfo.class);
-		when(instanceConnectionInfo.toString()).thenReturn("");
-		LocalInstance instance = spy(new LocalInstance(instanceType, instanceConnectionInfo, null, null, null));
-
-		// given resource is null
-		toTest.resourcesAllocated(null, null);
-		verify(this.loggerMock).error(Matchers.anyString());
-
-		// jobs have have been canceled
-		final Method methodToMock = MemberMatcher.method(QueueScheduler.class, JobID.class);
-		PowerMockito.when(toTest, methodToMock).withArguments(Matchers.any(JobID.class)).thenReturn(null);
-		when(resource.getInstance()).thenReturn(instance);
-
-		toTest.resourcesAllocated(jobid, resources);
-		try {
-			verify(this.instanceManager).releaseAllocatedResource(Matchers.any(JobID.class),
-				Matchers.any(Configuration.class), Matchers.any(AllocatedResource.class));
-		} catch (InstanceException e1) {
-			e1.printStackTrace();
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void registerInputOutput() {
+			new RecordWriter<StringRecord>(this, StringRecord.class);
 		}
 
-		// vertex resource is null
-		PowerMockito.when(toTest, methodToMock).withArguments(Matchers.any(JobID.class))
-			.thenReturn(this.executionGraph);
-		when(this.graphIterator.next()).thenReturn(this.vertex1);
-		when(this.graphIterator.hasNext()).thenReturn(true, true, true, true, false);
-		when(this.graphIterator2.next()).thenReturn(this.vertex1);
-		when(this.graphIterator2.hasNext()).thenReturn(true, true, true, true, false);
-		when(this.vertex1.getExecutionState()).thenReturn(ExecutionState.SCHEDULED);
-		try {
-			whenNew(ExecutionGraphIterator.class).withArguments(Matchers.any(ExecutionGraph.class),
-				Matchers.anyBoolean()).thenReturn(this.graphIterator);
-			whenNew(ExecutionGraphIterator.class).withArguments(Matchers.any(ExecutionGraph.class), Matchers.anyInt(),
-				Matchers.anyBoolean(), Matchers.anyBoolean()).thenReturn(this.graphIterator2);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void invoke() throws Exception {
+			// Nothing to do here
 		}
-		when(this.executionGraph.getJobID()).thenReturn(jobid);
-		Deque<ExecutionGraph> jobQueue = Whitebox.getInternalState(toTest, "jobQueue");
-		jobQueue.add(this.executionGraph);
-		Whitebox.setInternalState(toTest, "jobQueue", jobQueue);
-		when(this.vertex1.getAllocatedResource()).thenReturn(null);
-		when(resource.getInstance()).thenReturn(instance);
-
-		toTest.resourcesAllocated(jobid, resources);
-		verify(this.loggerMock).warn(Matchers.anyString());
-
-		// correct walk through method
-		when(this.graphIterator2.hasNext()).thenReturn(true, true, true, true, false);
-		when(this.graphIterator.hasNext()).thenReturn(true, true, true, true, false);
-		when(this.vertex1.getAllocatedResource()).thenReturn(resource);
-		when(resource.getInstanceType()).thenReturn(instanceType);
-
-		toTest.resourcesAllocated(jobid, resources);
-		verify(this.vertex1, times(4)).updateExecutionState(ExecutionState.READY);
 
 	}
 
+	/**
+	 * Test output task.
+	 * 
+	 * @author warneke
+	 */
+	public static final class OutputTask extends AbstractOutputTask {
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void registerInputOutput() {
+			new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void invoke() throws Exception {
+			// Nothing to do here
+		}
+
+	}
+
+	/**
+	 * Constructs a sample execution graph consisting of two vertices connected by a channel of the given type.
+	 * 
+	 * @param channelType
+	 *        the channel type to connect the vertices with
+	 * @param instanceManager
+	 *        the instance manager that shall be used during the creation of the execution graph
+	 * @return a sample execution graph
+	 */
+	private ExecutionGraph createExecutionGraph(final ChannelType channelType, final InstanceManager instanceManager) {
+
+		final JobGraph jobGraph = new JobGraph("Job Graph");
+
+		final JobInputVertex inputVertex = new JobInputVertex("Input 1", jobGraph);
+		inputVertex.setInputClass(InputTask.class);
+		inputVertex.setNumberOfSubtasks(1);
+
+		final JobOutputVertex outputVertex = new JobOutputVertex("Output 1", jobGraph);
+		outputVertex.setOutputClass(OutputTask.class);
+		outputVertex.setNumberOfSubtasks(1);
+
+		try {
+			inputVertex.connectTo(outputVertex, channelType, CompressionLevel.NO_COMPRESSION);
+		} catch (JobGraphDefinitionException e) {
+			fail(StringUtils.stringifyException(e));
+		}
+
+		try {
+			LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
+			return new ExecutionGraph(jobGraph, instanceManager);
+
+		} catch (GraphConversionException e) {
+			fail(StringUtils.stringifyException(e));
+		} catch (IOException e) {
+			fail(StringUtils.stringifyException(e));
+		}
+
+		return null;
+	}
+
+	/**
+	 * Checks the behavior of the scheduleJob() method with a job consisting of two tasks connected via an in-memory
+	 * channel.
+	 */
+	@Test
+	public void testSchedulJobWithInMemoryChannel() {
+
+		final TestInstanceManager tim = new TestInstanceManager();
+		final TestDeploymentManager tdm = new TestDeploymentManager();
+		final QueueScheduler scheduler = new QueueScheduler(tdm, tim);
+
+		final ExecutionGraph executionGraph = createExecutionGraph(ChannelType.INMEMORY, tim);
+
+		try {
+			try {
+				scheduler.schedulJob(executionGraph);
+			} catch (SchedulingException e) {
+				fail(StringUtils.stringifyException(e));
+			}
+
+			// Wait for the deployment to complete
+			tdm.waitForDeployment();
+
+			assertEquals(executionGraph.getJobID(), tdm.getIDOfLastDeployedJob());
+			final List<ExecutionVertex> listOfDeployedVertices = tdm.getListOfLastDeployedVertices();
+			assertNotNull(listOfDeployedVertices);
+			// Vertices connected via in-memory channels must be deployed in a single cycle.
+			assertEquals(2, listOfDeployedVertices.size());
+
+			// Check if the release of the allocated resources works properly by simulating the vertices' life cycle
+			assertEquals(0, tim.getNumberOfReleaseMethodCalls());
+
+			// Simulate vertex life cycle
+			for (final ExecutionVertex vertex : listOfDeployedVertices) {
+				vertex.updateExecutionState(ExecutionState.STARTING);
+				vertex.updateExecutionState(ExecutionState.RUNNING);
+				vertex.updateExecutionState(ExecutionState.FINISHING);
+				vertex.updateExecutionState(ExecutionState.FINISHED);
+			}
+
+			assertEquals(1, tim.getNumberOfReleaseMethodCalls());
+		} finally {
+			try {
+				LibraryCacheManager.unregister(executionGraph.getJobID());
+			} catch (IOException ioe) {
+				// Ignore exception here
+			}
+		}
+	}
+
+	/**
+	 * Checks the behavior of the scheduleJob() method with a job consisting of two tasks connected via a file
+	 * channel.
+	 */
+	@Test
+	public void testSchedulJobWithFileChannel() {
+
+		final TestInstanceManager tim = new TestInstanceManager();
+		final TestDeploymentManager tdm = new TestDeploymentManager();
+		final QueueScheduler scheduler = new QueueScheduler(tdm, tim);
+
+		final ExecutionGraph executionGraph = createExecutionGraph(ChannelType.FILE, tim);
+
+		try {
+			try {
+				scheduler.schedulJob(executionGraph);
+			} catch (SchedulingException e) {
+				fail(StringUtils.stringifyException(e));
+			}
+
+			// Wait for the deployment to complete
+			tdm.waitForDeployment();
+
+			assertEquals(executionGraph.getJobID(), tdm.getIDOfLastDeployedJob());
+			List<ExecutionVertex> listOfDeployedVertices = tdm.getListOfLastDeployedVertices();
+			assertNotNull(listOfDeployedVertices);
+
+			// Vertices connected via file channels must be deployed one after the other
+			assertEquals(1, listOfDeployedVertices.size());
+
+			// Check if the release of the allocated resources works properly by simulating the vertices' life cycle
+			assertEquals(0, tim.getNumberOfReleaseMethodCalls());
+			tdm.clear();
+
+			ExecutionVertex vertex = listOfDeployedVertices.get(0);
+
+			vertex.updateExecutionState(ExecutionState.STARTING);
+			vertex.updateExecutionState(ExecutionState.RUNNING);
+			vertex.updateExecutionState(ExecutionState.FINISHING);
+			vertex.updateExecutionState(ExecutionState.FINISHED);
+
+			// Make sure the allocated resource is not returned in the meantime
+			assertEquals(0, tim.getNumberOfReleaseMethodCalls());
+
+			// Wait for the deployment to complete
+			tdm.waitForDeployment();
+
+			assertEquals(executionGraph.getJobID(), tdm.getIDOfLastDeployedJob());
+			listOfDeployedVertices = tdm.getListOfLastDeployedVertices();
+			assertNotNull(listOfDeployedVertices);
+			assertEquals(1, listOfDeployedVertices.size());
+
+			vertex = listOfDeployedVertices.get(0);
+			vertex.updateExecutionState(ExecutionState.STARTING);
+			vertex.updateExecutionState(ExecutionState.RUNNING);
+			vertex.updateExecutionState(ExecutionState.FINISHING);
+			vertex.updateExecutionState(ExecutionState.FINISHED);
+
+			assertEquals(1, tim.getNumberOfReleaseMethodCalls());
+
+		} finally {
+			try {
+				LibraryCacheManager.unregister(executionGraph.getJobID());
+			} catch (IOException ioe) {
+				// Ignore exception here
+			}
+		}
+	}
 }

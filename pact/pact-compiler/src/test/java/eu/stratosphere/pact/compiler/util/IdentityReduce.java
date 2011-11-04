@@ -17,18 +17,20 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 
-@SameKey
-public final class IdentityReduce extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+public final class IdentityReduce extends ReduceStub 
+{
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.ReduceStub#reduce(java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
+	 */
 	@Override
-	public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
-		while (values.hasNext()) {
-			out.collect(key, values.next());
+	public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+		while (records.hasNext()) {
+			out.collect(records.next());
 		}
 	}
 }

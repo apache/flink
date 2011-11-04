@@ -21,12 +21,10 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.GenericDataSinkContract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -40,7 +38,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class DataSinkNode extends OptimizerNode {
+public class DataSinkNode extends OptimizerNode
+{
 	protected PactConnection input; // The input edge
 
 	/**
@@ -49,7 +48,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The data sink contract object.
 	 */
-	public DataSinkNode(GenericDataSinkContract<?, ?> pactContract) {
+	public DataSinkNode(GenericDataSink pactContract) {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
@@ -85,15 +84,6 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	/**
-	 * Gets the fully qualified path to the output file.
-	 * 
-	 * @return The path to the output file.
-	 */
-	public String getFilePath() {
-		return getPactContract().getFilePath();
-	}
-
-	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
 	 * @return The input connection.
@@ -117,8 +107,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * 
 	 * @return The contract.
 	 */
-	public FileDataSinkContract<?, ?> getPactContract() {
-		return (FileDataSinkContract<?, ?>) super.getPactContract();
+	public GenericDataSink getPactContract() {
+		return (GenericDataSink) super.getPactContract();
 	}
 
 	/*
@@ -158,7 +148,7 @@ public class DataSinkNode extends OptimizerNode {
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		Contract child = ((FileDataSinkContract<?, ?>) getPactContract()).getInput();
+		Contract child = ((GenericDataSink) getPactContract()).getInput();
 
 		OptimizerNode pred = contractToNode.get(child);
 
@@ -178,18 +168,18 @@ public class DataSinkNode extends OptimizerNode {
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-		// we copy the output estimates from the input
-		OptimizerNode pred = input == null ? null : input.getSourcePact();
-
-		if (pred != null) {
-			this.estimatedKeyCardinality = pred.estimatedKeyCardinality;
-			this.estimatedNumRecords = pred.estimatedNumRecords;
-			this.estimatedOutputSize = pred.estimatedOutputSize;
-		} else {
-			this.estimatedKeyCardinality = -1;
-			this.estimatedNumRecords = -1;
-			this.estimatedOutputSize = -1;
-		}
+//		// we copy the output estimates from the input
+//		OptimizerNode pred = input == null ? null : input.getSourcePact();
+//
+//		if (pred != null) {
+//			this.estimatedKeyCardinality = pred.estimatedKeyCardinality;
+//			this.estimatedNumRecords = pred.estimatedNumRecords;
+//			this.estimatedOutputSize = pred.estimatedOutputSize;
+//		} else {
+//			this.estimatedKeyCardinality = -1;
+//			this.estimatedNumRecords = -1;
+//			this.estimatedOutputSize = -1;
+//		}
 	}
 
 	/*
@@ -203,31 +193,31 @@ public class DataSinkNode extends OptimizerNode {
 		// 2) an interest in range-partitioned data
 		// 3) an interest in locally sorted data
 
-		Order o = getPactContract().getGlobalOrder();
-		if (o != Order.NONE) {
-			InterestingProperties i1 = new InterestingProperties();
-			i1.getGlobalProperties().setKeyOrder(o);
-
-			// costs are a range partitioning and a local sort
-			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
-			Costs c = new Costs();
-			estimator.getLocalSortCost(this, this.input, c);
-			i1.getMaximalCosts().addCosts(c);
-
-			InterestingProperties i2 = new InterestingProperties();
-			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED);
-			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
-
-			input.addInterestingProperties(i1);
-			input.addInterestingProperties(i2);
-		} else if (getPactContract().getLocalOrder() != Order.NONE) {
-			InterestingProperties i = new InterestingProperties();
-			i.getLocalProperties().setKeyOrder(getPactContract().getLocalOrder());
-			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
-			input.addInterestingProperties(i);
-		} else {
-			input.setNoInterestingProperties();
-		}
+//		Order o = getPactContract().getGlobalOrder();
+//		if (o != Order.NONE) {
+//			InterestingProperties i1 = new InterestingProperties();
+//			i1.getGlobalProperties().setKeyOrder(o);
+//
+//			// costs are a range partitioning and a local sort
+//			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
+//			Costs c = new Costs();
+//			estimator.getLocalSortCost(this, this.input, c);
+//			i1.getMaximalCosts().addCosts(c);
+//
+//			InterestingProperties i2 = new InterestingProperties();
+//			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED);
+//			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
+//
+//			input.addInterestingProperties(i1);
+//			input.addInterestingProperties(i2);
+//		} else if (getPactContract().getLocalOrder() != Order.NONE) {
+//			InterestingProperties i = new InterestingProperties();
+//			i.getLocalProperties().setKeyOrder(getPactContract().getLocalOrder());
+//			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
+//			input.addInterestingProperties(i);
+//		} else {
+			this.input.setNoInterestingProperties();
+//		}
 	}
 
 	/*

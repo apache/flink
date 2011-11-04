@@ -121,6 +121,8 @@ public class PrimitiveDataTypeTest {
 	@Test
 	public void testPactString() {
 		PactString string0 = new PactString("This is a test");
+		PactString stringThis = new PactString("This");
+		PactString stringIsA = new PactString("is a");
 		// test value retrieval
 		Assert.assertEquals("This is a test", string0.toString());
 		// test value comparison
@@ -128,25 +130,53 @@ public class PrimitiveDataTypeTest {
 		PactString string2 = new PactString("This is a tesa");
 		PactString string3 = new PactString("This is a tesz");
 		PactString string4 = new PactString("Ünlaut ßtring µ avec é y ¢");
+		CharSequence chars5 = string1.subSequence(0, 4);
+		PactString string5 = (PactString) chars5;
+		PactString string6 = (PactString) string0.subSequence(0, string0.length());
+		PactString string7 = (PactString) string0.subSequence(5, 9);
+		PactString string8 = (PactString) string0.subSequence(0, 0);
 		Assert.assertTrue(string0.compareTo(string0) == 0);
 		Assert.assertTrue(string0.compareTo(string1) == 0);
 		Assert.assertTrue(string0.compareTo(string2) > 0);
 		Assert.assertTrue(string0.compareTo(string3) < 0);
-
+		Assert.assertTrue(stringThis.equals(chars5));
+		Assert.assertTrue(stringThis.compareTo(string5) == 0);
+		Assert.assertTrue(string0.compareTo(string6) == 0);
+		Assert.assertTrue(stringIsA.compareTo(string7) == 0);
+		string7.setValue("This is a test");
+		Assert.assertTrue(stringIsA.compareTo(string7) > 0);
+		Assert.assertTrue(string0.compareTo(string7) == 0);
+		string7.setValue("is a");
+		Assert.assertTrue(stringIsA.compareTo(string7) == 0);
+		Assert.assertTrue(string0.compareTo(string7) < 0);
+		Assert.assertEquals(stringIsA.hashCode(), string7.hashCode());
+		Assert.assertEquals(string7.length(), 4);
+		Assert.assertEquals("is a", string7.getValue());
+		Assert.assertEquals(string8.length(), 0);
+		Assert.assertEquals("", string8.getValue());
+		Assert.assertEquals('s', string7.charAt(1));
+		try {
+			string7.charAt(5);
+			Assert.fail("Exception should have been thrown when accessing characters out of bounds.");
+		} catch (IndexOutOfBoundsException iOOBE) {}
+		
 		// test stream out/input
 		try {
 			string0.write(mOut);
 			string4.write(mOut);
 			string2.write(mOut);
 			string3.write(mOut);
+			string7.write(mOut);
 			PactString string1n = new PactString();
 			PactString string2n = new PactString();
 			PactString string3n = new PactString();
 			PactString string4n = new PactString();
+			PactString string7n = new PactString();
 			string1n.read(mIn);
 			string4n.read(mIn);
 			string2n.read(mIn);
 			string3n.read(mIn);
+			string7n.read(mIn);
 			Assert.assertEquals(string0.compareTo(string1n), 0);
 			Assert.assertEquals(string0.toString(), string1n.toString());
 			Assert.assertEquals(string4.compareTo(string4n), 0);
@@ -155,6 +185,13 @@ public class PrimitiveDataTypeTest {
 			Assert.assertEquals(string2.toString(), string2n.toString());
 			Assert.assertEquals(string3.compareTo(string3n), 0);
 			Assert.assertEquals(string3.toString(), string3n.toString());
+			Assert.assertEquals(string7.compareTo(string7n), 0);
+			Assert.assertEquals(string7.toString(), string7n.toString());
+			try {
+				string7n.charAt(5);
+				Assert.fail("Exception should have been thrown when accessing characters out of bounds.");
+			} catch (IndexOutOfBoundsException iOOBE) {}
+			
 		} catch (Exception e) {
 			Assert.assertTrue(false);
 		}

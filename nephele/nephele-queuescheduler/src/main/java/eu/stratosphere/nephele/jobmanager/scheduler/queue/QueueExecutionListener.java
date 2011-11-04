@@ -29,6 +29,14 @@ import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
  */
 public final class QueueExecutionListener extends AbstractExecutionListener {
 
+	/**
+	 * Constructs a new queue execution listener.
+	 * 
+	 * @param scheduler
+	 *        the scheduler this listener is connected with
+	 * @param executionVertex
+	 *        the execution vertex this listener is created for
+	 */
 	public QueueExecutionListener(final QueueScheduler scheduler, final ExecutionVertex executionVertex) {
 		super(scheduler, executionVertex);
 	}

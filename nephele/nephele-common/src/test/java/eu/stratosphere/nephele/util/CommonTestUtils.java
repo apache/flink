@@ -78,7 +78,7 @@ public class CommonTestUtils {
 	public static String getTempDir() {
 
 		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":")[0];
 	}
 	
 	/**

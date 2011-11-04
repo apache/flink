@@ -24,10 +24,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
@@ -38,7 +37,7 @@ public class MapTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList;
+	List<PactRecord> outList;
 		
 	@Test
 	public void testMapTask() {
@@ -46,7 +45,7 @@ public class MapTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+		outList = new ArrayList<PactRecord>();
 		
 		super.initEnvironment(1);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
@@ -73,7 +72,7 @@ public class MapTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+		outList = new ArrayList<PactRecord>();
 		
 		super.initEnvironment(1);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
@@ -130,25 +129,25 @@ public class MapTaskTest extends TaskTestBase {
 				
 	}
 	
-	public static class MockMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockMapStub extends MapStub {
 
 		@Override
-		public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
-			out.collect(key, value);
+		public void map(PactRecord record, Collector out) throws Exception {
+			out.collect(record);
 		}
 		
 	}
 	
-	public static class MockFailingMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockFailingMapStub extends MapStub {
 
 		int cnt = 0;
 		
 		@Override
-		public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
+		public void map(PactRecord record, Collector out) throws Exception {
 			if(++cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
-			out.collect(key, value);
+			out.collect(record);
 		}
 		
 	}

@@ -21,6 +21,12 @@ DEFAULT_NEPHELE_JM_HEAP=256
 # The default Java heap size for the Nephele Task Manager in MB
 DEFAULT_NEPHELE_TM_HEAP=512
 
+# Optional Nephele parameters
+#NEPHELE_OPTS=""
+
+# Optional Nephele SSH parameters
+#NEPHELE_SSH_OPTS=""
+
 # Resolve links
 this="$0"
 while [ -h "$this" ]; do
@@ -65,10 +71,6 @@ NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR/conf
 NEPHELE_BIN_DIR=$NEPHELE_ROOT_DIR/bin
 NEPHELE_LIB_DIR=$NEPHELE_ROOT_DIR/lib
 NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR/log
-
-# calling options 
-NEPHELE_OPTS=""
-#NEPHELE_OPTS=
 
 # arguments for the JVM. Used for job manager and task manager JVMs
 # DO NOT USE FOR MEMORY SETTINGS! Use DEFAULT_NEPHELE_JM_HEAP and

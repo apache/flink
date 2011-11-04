@@ -25,20 +25,19 @@ import java.util.Iterator;
 import org.apache.log4j.Logger;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
@@ -49,7 +48,7 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * Implementation of the TPC-H Query 4 as a PACT program.
  * 
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
- *
+ * @author Moritz Kaufmann <moritz.kaufmann@campus.tu-berlin.de>
  */
 public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 
@@ -63,11 +62,10 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 	
 	/**
 	 * Small {@link MapStub} to filer out the irrelevant orders.
-	 * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
 	 *
 	 */
-	@SameKey
-	public static class OFilter extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
+	//@SameKey
+	public static class OFilter extends MapStub {
 
 		private final String dateParamString = "1995-01-01";
 		private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -77,9 +75,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		private Date plusThreeMonths;
 		
 		@Override
-		public void configure(Configuration parameters) {
-			super.configure(parameters);
-				
+		public void open(Configuration parameters) {				
 			try {
 				this.paramDate = sdf.parse(this.dateParamString);
 				this.plusThreeMonths = getPlusThreeMonths(paramDate);
@@ -93,12 +89,12 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		 * @see eu.stratosphere.pact.common.stub.MapStub#map(eu.stratosphere.pact.common.type.Key, eu.stratosphere.pact.common.type.Value, eu.stratosphere.pact.common.stub.Collector)
 		 */
 		@Override
-		public void map(PactInteger key, Tuple value,
-				Collector<PactInteger, Tuple> out) {
-			
-			String orderStringDate = value.getStringValueAt(4);
-			
+		public void map(PactRecord record, Collector out) throws Exception {
+			Tuple tuple = record.getField(1, Tuple.class);
 			Date orderDate;
+			
+			String orderStringDate = tuple.getStringValueAt(4);
+			
 			try {
 				orderDate = sdf.parse(orderStringDate);
 			} catch (ParseException e) {
@@ -107,7 +103,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 			
 			if(paramDate.before(orderDate) && plusThreeMonths.after(orderDate))
 			{
-				out.collect(key, value);
+				out.collect(record);
 			}
 
 		}
@@ -124,28 +120,23 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 			Date plusThreeMonths = gregCal.getTime();
 			return plusThreeMonths;
 		}
-
 	}
 	
 	/**
 	 * Simple filter for the line item selection. It filters all teh tuples that do
 	 * not satisfy the &quot;l_commitdate &lt; l_receiptdate&quot; condition.
 	 * 
-	 * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
-	 * 
 	 */
-	@SameKey
-	public static class LiFilter extends
-			MapStub<PactInteger, Tuple, PactInteger, Tuple> {
+	//@SameKey
+	public static class LiFilter extends MapStub {
 
 		private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		
 		@Override
-		public void map(PactInteger key, Tuple value,
-				Collector<PactInteger, Tuple> out) {
-
-			String commitString = value.getStringValueAt(11);
-			String receiptString = value.getStringValueAt(12);
+		public void map(PactRecord record, Collector out) throws Exception {
+			Tuple tuple = record.getField(1, Tuple.class);
+			String commitString = tuple.getStringValueAt(11);
+			String receiptString = tuple.getStringValueAt(12);
 
 			Date commitDate;
 			Date receiptDate;
@@ -158,64 +149,61 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 			}
 
 			if (commitDate.before(receiptDate)) {
-				out.collect(key, value);
+				out.collect(record);
 			}
 
 		}
-
 	}
 	
 	/**
 	 * Implements the equijoin on the orderkey and performs the projection on 
 	 * the order priority as well.
-	 * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
 	 *
 	 */
-	public static class JoinLiO extends MatchStub<PactInteger, Tuple, Tuple, PactString, Tuple> {
-
+	public static class JoinLiO extends MatchStub {
+		
 		@Override
-		public void match(PactInteger key, Tuple orderValue, Tuple lineValue,
-				Collector<PactString, Tuple> outputTuple) {
+		public void match(PactRecord order, PactRecord line, Collector out)
+				throws Exception {
+			Tuple orderTuple = order.getField(1, Tuple.class);
 			
-			orderValue.project(32);
-			String newOrderKey = orderValue.getStringValueAt(0);
-			outputTuple.collect(new PactString(newOrderKey), orderValue);
-
+			orderTuple.project(32);
+			String newOrderKey = orderTuple.getStringValueAt(0);
+			
+			order.setField(0, new PactString(newOrderKey));
+			out.collect(order);
 		}
-
 	}
 	
 	/**
 	 * Implements the count(*) part. 
-	 * 
-	 * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
 	 *
 	 */
-	@SameKey
-	public static class CountAgg extends ReduceStub<PactString, Tuple, PactString, Tuple> {
-
+	//@SameKey
+	public static class CountAgg extends ReduceStub {
 		
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.pact.common.stub.ReduceStub#reduce(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector)
 		 */
 		@Override
-		public void reduce(PactString key, Iterator<Tuple> values, Collector<PactString, Tuple> out) {
-			
+		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {	
 			long count = 0;
-			Tuple t = null;
-			while(values.hasNext()) {
-			 	t = values.next();
+			PactRecord rec = null;
+			
+			while(records.hasNext()) {
+			 	rec = records.next();
 			 	count++;
 			}
 			
-			if(t != null)
+			if(rec != null)
 			{
-				t.addAttribute("" + count);
+				Tuple tuple = new Tuple();
+				tuple.addAttribute("" + count);
+				rec.setField(1, tuple);
 			}
 			
-			out.collect(key, t);
+			out.collect(rec);
 		}
-
 	}
 	
 	/**
@@ -235,34 +223,33 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 			setArgs(args);
 		}
 		
-		FileDataSourceContract<PactInteger, Tuple> orders = 
-			new FileDataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.ordersInputPath, "Orders");
+		FileDataSource orders = 
+			new FileDataSource(IntTupleDataInFormat.class, this.ordersInputPath, "Orders");
 		orders.setDegreeOfParallelism(this.degreeOfParallelism);
-		orders.setOutputContract(UniqueKey.class);
+		//orders.setOutputContract(UniqueKey.class);
 		
-		FileDataSourceContract<PactInteger, Tuple> lineItems =
-			new FileDataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
+		FileDataSource lineItems =
+			new FileDataSource(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
 		lineItems.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		MatchContract<PactInteger, Tuple, Tuple, PactString, Tuple> join = 
-			new MatchContract<PactInteger, Tuple, Tuple, PactString, Tuple>(
-				JoinLiO.class, "OrdersLineitemsJoin");
-		join.setDegreeOfParallelism(degreeOfParallelism);
-		
-		FileDataSinkContract<PactString, Tuple> result = new FileDataSinkContract<PactString, Tuple>(
-				StringTupleDataOutFormat.class, this.outputPath, "Output");
+		FileDataSink result = 
+				new FileDataSink(StringTupleDataOutFormat.class, this.outputPath, "Output");
 		result.setDegreeOfParallelism(degreeOfParallelism);
 		
-		MapContract<PactInteger, Tuple, PactInteger, Tuple> lineFilter = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
-				LiFilter.class, "LineItemFilter");
+		MapContract lineFilter = 
+				new MapContract(LiFilter.class, "LineItemFilter");
 		lineFilter.setDegreeOfParallelism(degreeOfParallelism);
 		
-		MapContract<PactInteger, Tuple, PactInteger, Tuple> ordersFilter = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
-				OFilter.class, "OrdersFilter");
+		MapContract ordersFilter = 
+				new MapContract(OFilter.class, "OrdersFilter");
 		ordersFilter.setDegreeOfParallelism(degreeOfParallelism);
 		
-		ReduceContract<PactString, Tuple, PactString, Tuple> aggregation = new ReduceContract<PactString, Tuple, PactString, Tuple>(
-				CountAgg.class, "AggregateGroupBy");
+		MatchContract join = 
+				new MatchContract(JoinLiO.class, PactInteger.class, 0, 0, "OrdersLineitemsJoin");
+			join.setDegreeOfParallelism(degreeOfParallelism);
+		
+		ReduceContract aggregation = 
+				new ReduceContract(CountAgg.class, PactString.class, 0, "AggregateGroupBy");
 		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		lineFilter.setInput(lineItems);

@@ -16,15 +16,15 @@
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 
-import org.apache.log4j.Logger;
-
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 
-public class PartListJoin extends MatchStub<PactInteger, StringIntPair, PactString, StringIntPair, PactString> {
-	
-	private static Logger LOGGER = Logger.getLogger(PartListJoin.class);
+public class PartListJoin extends MatchStub{
+
+	private final StringIntPair amountYearPair = new StringIntPair();
+	private final PactString nationName = new PactString();
 	
 	/**
 	 * Join "filteredParts" and "suppliers" by "suppkey".
@@ -35,18 +35,17 @@ public class PartListJoin extends MatchStub<PactInteger, StringIntPair, PactStri
 	 *
 	 */
 	@Override
-	public void match(PactInteger suppKey, StringIntPair amountYearPair, PactString nationName,
-			Collector<StringIntPair, PactString> output) {
+	public void match(PactRecord value1, PactRecord value2, Collector out)
+			throws Exception {
+		value1.getField(1, amountYearPair);
+		value2.getField(1, nationName);
 		
-		try {
-			PactInteger year = amountYearPair.getSecond();
-			PactString amount = amountYearPair.getFirst();
-			StringIntPair key = new StringIntPair(nationName, year);
-			output.collect(key, amount);
-		} catch (final Exception ex) {
-			LOGGER.error(ex);
-		}
-
+		PactInteger year = amountYearPair.getSecond();
+		PactString amount = amountYearPair.getFirst();
+		StringIntPair key = new StringIntPair(nationName, year);
+		value1.setField(0, key);
+		value1.setField(1, amount);
+		out.collect(value1);
 	}
 
 }

@@ -15,37 +15,19 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.io.IOException;
 import java.util.Comparator;
-import java.util.Iterator;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
-import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
-import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
-import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorter;
-import eu.stratosphere.pact.runtime.sort.SortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.KeyGroupedIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.util.KeyComparator;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
 /**
  * Combine task which is executed by a Nephele task manager.
@@ -58,311 +40,132 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * 
  * @see eu.stratosphere.pact.common.stub.ReduceStub
  * @author Fabian Hueske
+ * @author Matthias Ringwald
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
-public class CombineTask extends AbstractTask {
-
-	// obtain CombineTask logger
-	private static final Log LOG = LogFactory.getLog(CombineTask.class);
+public class CombineTask extends AbstractPactTask<ReduceStub> {
 
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
 	
-	// input reader
-	private RecordReader<KeyValuePair<Key, Value>> reader;
-
-	// output collector
-	private ReduceStub stub;
-
-	// reduce stub implementation instance
-	private TaskConfig config;
-
-	// task config including stub parameters
-	private OutputCollector output;
+	private CloseableInputProvider<PactRecord> input;
 	
-	// the memory dedicated to the sorter
-	private long availableMemory;
-
-	// cancel flag
-	private volatile boolean taskCanceled = false;
+	private int[] keyPositions;
 	
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputOutput()
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Start registering input and output"));
+	private Class<? extends Key>[] keyClasses;
 
-		// open stub implementation
-		initStub();
+	// ------------------------------------------------------------------------
 
-		// Initialize input reader
-		initInputReader();
-
-		// Initializes output writers and collector
-		initOutputCollector();
-
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Finished registering input and output"));
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void invoke() throws Exception 
-	{
-		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code"));
-
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Start obtaining iterator"));
-		
-		// obtain combining iterator
-		CloseableInputProvider<KeyValuePair<Key, Value>> sortedInputProvider = null;
-		try {
-			sortedInputProvider = obtainInput();
-			Iterator<KeyValuePair<Key, Value>> iterator = sortedInputProvider.getIterator();
-			KeyGroupedIterator<Key, Value> kgIterator = new KeyGroupedIterator<Key, Value>(iterator);
-
-			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Iterator obtained"));
-			
-			ReduceStub stub = this.stub;
-			OutputCollector output = this.output;
-
-			// iterate over combined pairs
-			while (!this.taskCanceled && kgIterator.nextKey()) {
-				stub.combine(kgIterator.getKey(), kgIterator.getValues(), output);
-			}
-		
-		}
-		catch (Exception ex) {
-			// drop, if the task was canceled
-			if (!this.taskCanceled) {
-				if (LOG.isErrorEnabled())
-					LOG.error(getLogString("Unexpected ERROR in PACT code"));
-				throw ex;
-			}
-		}
-		finally {
-			if (sortedInputProvider != null) {
-				sortedInputProvider.close();
-			}
-		}
-		
-		if (!this.taskCanceled) {
-			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code"));
-		}
-		else {
-			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("PACT code cancelled"));
-		}
-	}
-	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
 	 */
 	@Override
-	public void cancel() throws Exception
-	{
-		this.taskCanceled = true;
-		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+	public int getNumberOfInputs() {
+		return 1;
 	}
 
-	/**
-	 * Initializes the stub implementation and configuration.
-	 * 
-	 * @throws RuntimeException
-	 *         Throws if instance of stub implementation can not be obtained.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
-	private void initStub() throws RuntimeException {
+	@Override
+	public Class<ReduceStub> getStubType() {
+		return ReduceStub.class;
+	}
 
-		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getRuntimeConfiguration());
-
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
+	 */
+	@Override
+	public void prepare() throws Exception
+	{
 		// set up memory and I/O parameters
-		this.availableMemory = config.getMemorySize();
+		final long availableMemory = this.config.getMemorySize();
 		
 		// test minimum memory requirements
+		LocalStrategy ls = config.getLocalStrategy();
+		
 		long strategyMinMem = 0;
 		
-		switch (config.getLocalStrategy()) {
+		switch (ls) {
 			case COMBININGSORT:
 				strategyMinMem = MIN_REQUIRED_MEMORY;
 				break;
 		}
-		
-		if (this.availableMemory < strategyMinMem) {
+	
+		if (availableMemory < strategyMinMem) {
 			throw new RuntimeException(
 					"The Combine task was initialized with too little memory for local strategy "+
-					config.getLocalStrategy()+" : " + this.availableMemory + " bytes." +
+					config.getLocalStrategy()+" : " + availableMemory + " bytes." +
 				    "Required is at least " + strategyMinMem + " bytes.");
 		}
-
-		try {
-			// obtain stub implementation class
-			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends ReduceStub> stubClass = config.getStubClass(ReduceStub.class, cl);
-			// obtain stub implementation instance
-			stub = stubClass.newInstance();
-			// configure stub instance
-			stub.configure(config.getStubParameters());
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-		}
-		catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException("Stub implementation class was not found.", cnfe);
-		}
-		catch (InstantiationException ie) {
-			throw new RuntimeException("Stub implementation could not be instanciated.", ie);
-		}
-		catch (IllegalAccessException iae) {
-			throw new RuntimeException("Stub implementations nullary constructor is not accessible.", iae);
-		}
-	}
-
-	/**
-	 * Initializes the input reader of the CombineTask.
-	 * 
-	 * @throws RuntimeException
-	 *         Thrown if no input ship strategy was provided.
-	 */
-	private void initInputReader() {
-		// create RecordDeserializer
-		RecordDeserializer<KeyValuePair<Key, Value>> deserializer = new KeyValuePairDeserializer(stub.getInKeyType(),
-			stub.getInValueType());
-
-		// determine distribution pattern for reader from input ship strategy
-		DistributionPattern dp = null;
-		switch (config.getInputShipStrategy(0)) {
-		case FORWARD:
-			// forward requires Pointwise DP
-			dp = new PointwiseDistributionPattern();
-			break;
-		default:
-			throw new RuntimeException("No input ship strategy provided for ReduceTask.");
-		}
-
-		// create reader
-		// map has only one input, so we create one reader (id=0).
-		reader = new RecordReader<KeyValuePair<Key, Value>>(this, deserializer, dp);
-	}
-
-	/**
-	 * Creates an OutputCollector which forwards its input to the combiner's single output writer.
-	 */
-	private void initOutputCollector() throws RuntimeException {
-		// a combiner has only one output with id=0
-		if (config.getNumOutputs() != 1) {
-			throw new RuntimeException("CombineTask has more than one output");
-		}
-
-		// create output collector
-		output = new OutputCollector<Key, Value>();
 		
-		// obtain OutputEmitter from output ship strategy
-		OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(0));
-		// create writer
-		RecordWriter<KeyValuePair<Key, Value>> writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
-			(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-		
-		// add writer to output collector
-		output.addWriter(writer, false);
-	}
-
-	/**
-	 * Returns an iterator over all k-v pairs of the CombineTasks input.
-	 * The pairs which are returned by the iterator were grouped by their keys and combined using the combine method of
-	 * the ReduceStub.
-	 * 
-	 * @return A iterator that combined all input key-value pairs.
-	 * @throws RuntimeException
-	 *         Throws RuntimeException if it is not possible to obtain a combined iterator.
-	 */
-	private CloseableInputProvider<KeyValuePair<Key, Value>> obtainInput() {
-
-		// obtain the MemoryManager of the TaskManager
+		// obtain the TaskManager's MemoryManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
-		// obtain the IOManager of the TaskManager
+		// obtain the TaskManager's IOManager
 		final IOManager ioManager = getEnvironment().getIOManager();
 
-		// obtain input key type
-		final Class<Key> keyClass = stub.getInKeyType();
-		// obtain input value type
-		final Class<Value> valueClass = stub.getInValueType();
-
-		// obtain key serializer
-		final SerializationFactory<Key> keySerialization = new WritableSerializationFactory<Key>(keyClass);
-		// obtain value serializer
-		final SerializationFactory<Value> valSerialization = new WritableSerializationFactory<Value>(valueClass);
-
-		// obtain grouped iterator defined by local strategy
-		switch (config.getLocalStrategy()) {
-
-		// local strategy is COMBININGSORT
-		// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
-		// the combine() method of the ReduceStub.
-		// An iterator on the sorted, grouped, and combined pairs is created and returned
-		case COMBININGSORT:
-
-			// create a comparator
-			final Comparator<Key> keyComparator = new Comparator<Key>() {
-				@Override
-				public int compare(Key k1, Key k2) {
-					return k1.compareTo(k2);
-				}
-			};
-
-			try {
-				// instantiate a combining sort-merger
-				SortMerger<Key, Value> sortMerger = new AsynchronousPartialSorter(memoryManager,
-					ioManager, this.availableMemory, keySerialization,
-					valSerialization, keyComparator, reader, this);
-				// obtain and return a grouped iterator from the combining sort-merger
-				return sortMerger;
-			}
-			catch (MemoryAllocationException mae) {
-				throw new RuntimeException(
-					"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
-			}
-			catch (IOException ioe) {
-				throw new RuntimeException("IOException caught when obtaining SortMerger for ReduceTask", ioe);
-			}
-
-		default:
-			throw new RuntimeException("Invalid local strategy provided for CombineTask.");
+		// get the key positions and types
+		this.keyPositions = this.config.getLocalStrategyKeyPositions(0);
+		this.keyClasses = this.config.getLocalStrategyKeyClasses(this.userCodeClassLoader);
+		if (this.keyPositions == null || this.keyClasses == null) {
+			throw new Exception("The key positions and types are not specified for the CombineTask.");
+		}
+		
+		// create the comparators
+		@SuppressWarnings("unchecked")
+		final Comparator<Key>[] comparators = new Comparator[keyPositions.length];
+		final KeyComparator kk = new KeyComparator();
+		for (int i = 0; i < comparators.length; i++) {
+			comparators[i] = kk;
 		}
 
+		switch (ls) {
+
+			// local strategy is COMBININGSORT
+			// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
+			// the combine() method of the ReduceStub.
+			// An iterator on the sorted, grouped, and combined pairs is created and returned
+			case COMBININGSORT:
+				input = new AsynchronousPartialSorter(memoryManager,
+						ioManager, availableMemory, comparators, keyPositions, keyClasses, inputs[0], this);
+				break;
+					// obtain and return a grouped iterator from the combining sort-merger
+			default:
+				throw new RuntimeException("Invalid local strategy provided for CombineTask.");
+		}
 	}
 
-	// ------------------------------------------------------------------------
-	//                               Utilities
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @return The string ready for logging.
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
 	 */
-	private String getLogString(String message)
+	@Override
+	public void run() throws Exception
 	{
-		StringBuilder bld = new StringBuilder(128);	
-		bld.append(message);
-		bld.append(':').append(' ');
-		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('(');
-		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
-		bld.append('/');
-		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
-		bld.append(')');
-		return bld.toString();
+		if (LOG.isDebugEnabled())
+			LOG.debug(getLogString("Preprocessing done, iterator obtained."));
+
+		final KeyGroupedIterator iter = new KeyGroupedIterator(this.input.getIterator(), this.keyPositions, this.keyClasses);
+		
+		// cache references on the stack
+		final ReduceStub stub = this.stub;
+		final OutputCollector output = this.output;
+		
+		// run stub implementation
+		while (this.running && iter.nextKey())
+		{
+			stub.combine(iter.getValues(), output);
+		}
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
+	 */
+	@Override
+	public void cleanup() throws Exception {
+		if (this.input != null) {
+			this.input.close();
+			this.input = null;
+		}
+	}
+	
 }

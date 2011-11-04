@@ -23,38 +23,39 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.pact.common.io.input.InputFormat;
+import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
- * DataSourceTask which is executed by a Nephele task manager.
- * The task reads data and uses an InputFormat to create records from the input.
+ * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
+ * {@link InputFormat} to create records from the input.
  * 
- * @see eu.stratosphere.pact.common.io.input.InputFormat
+ * @see eu.stratosphere.pact.common.io.InputFormat
  * 
- * @author Moritz Kaufmann
- * @author Fabian Hueske
  * @author Stephan Ewen
+ * @author Fabian Hueske
+ * @author Moritz Kaufmann
  */
 
-@SuppressWarnings({ "unchecked", "rawtypes" })
 public class DataSourceTask extends AbstractInputTask<InputSplit>
 {
 	// Obtain DataSourceTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
 
 	// Output collector
-	private OutputCollector<Key, Value> output;
+	private OutputCollector output;
 
 	// InputFormat instance
-	private InputFormat<InputSplit, Key, Value> format;
+	private InputFormat<InputSplit> format;
 
 	// Task configuration
 	private TaskConfig config;
@@ -75,7 +76,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		initInputFormat();
 
 		// Initialize OutputCollector
-		initOutputCollector();
+		initOutputs();
 
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Finished registering input and output"));
@@ -87,8 +88,6 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	@Override
 	public void invoke() throws Exception
 	{	
-		KeyValuePair<Key, Value> pair = null;
-
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code"));
 
@@ -104,12 +103,11 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 			if (LOG.isDebugEnabled())
 				LOG.debug(getLogString("Opening input split " + split.toString()));
 
-			
 			if (this.taskCanceled) {
 				return;
 			}
 			
-			final InputFormat format = this.format;
+			final InputFormat<InputSplit> format = this.format;
 			
 			try {
 				// open input format
@@ -118,12 +116,14 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
 	
+				final PactRecord record = new PactRecord();
+				
 				// as long as there is data to read
-				while (!this.taskCanceled && !format.reachedEnd()) {
-					pair = format.createPair();
+				while (!this.taskCanceled && !format.reachedEnd())
+				{
 					// build next pair and ship pair if it is valid
-					if (format.nextRecord(pair)) {
-						this.output.collect(pair.getKey(), pair.getValue());
+					if (format.nextRecord(record)) {
+						this.output.collect(record);
 					}
 				}
 
@@ -188,10 +188,10 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		// obtain stub implementation class
 		try {
 			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends InputFormat> formatClass = this.config.getStubClass(InputFormat.class, cl);
-			// obtain instance of stub implementation
-			this.format = formatClass.newInstance();
-			// configure stub implementation
+			@SuppressWarnings("unchecked")
+			Class<? extends InputFormat<InputSplit>> formatClass = (Class<? extends InputFormat<InputSplit>>) this.config.getStubClass(InputFormat.class, cl);
+			
+			this.format = InstantiationUtil.instantiate(formatClass, InputFormat.class);
 		}
 		catch (IOException ioe) {
 			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
@@ -199,13 +199,8 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("InputFormat implementation class was not found.", cnfe);
 		}
-		catch (InstantiationException ie) {
-			throw new RuntimeException("InputFormat implementation could not be instanciated. " +
-					"Likely reasons are either a missing nullary constructor, or that the class is abstract.", ie);
-		}
-		catch (IllegalAccessException iae) {
-			throw new RuntimeException("InputFormat implementation class or its nullary constructor are " +
-					"not accessible (private or protected).", iae);
+		catch (ClassCastException ccex) {
+			throw new RuntimeException("Format format class is not a proper subclass of " + InputFormat.class.getName(), ccex); 
 		}
 		
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
@@ -218,31 +213,49 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	}
 
 	/**
-	 * Creates a writer for each output. Creates an OutputCollector which
-	 * forwards its input to all writers.
+	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
+	 * The output collector applies the configured shipping strategy.
 	 */
-	private void initOutputCollector()
+	protected void initOutputs()
 	{
-		boolean fwdCopyFlag = false;
-
+		final int numOutputs = config.getNumOutputs();
+		
 		// create output collector
-		this.output = new OutputCollector<Key, Value>();
-
+		this.output = new OutputCollector();
+		
+		final JobID jobId = getEnvironment().getJobID();
+		final ClassLoader cl;
+		try {
+			cl = LibraryCacheManager.getClassLoader(jobId);
+		}
+		catch (IOException ioe) {
+			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
+		}
+		
 		// create a writer for each output
-		for (int i = 0; i < config.getNumOutputs(); i++) {
-			// obtain OutputEmitter from output ship strategy
-			OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(i));
+		for (int i = 0; i < numOutputs; i++)
+		{
+			// create the OutputEmitter from output ship strategy
+			final ShipStrategy strategy = config.getOutputShipStrategy(i);
+			final int[] keyPositions = this.config.getOutputShipKeyPositions(i);
+			final Class<? extends Key>[] keyClasses;
+			try {
+				keyClasses= this.config.getOutputShipKeyTypes(i, cl);
+			}
+			catch (ClassNotFoundException cnfex) {
+				throw new RuntimeException("The classes for the keys after which output " + i + 
+					" ships the records could not be loaded.");
+			}
+			
+			OutputEmitter oe = (keyPositions == null || keyClasses == null) ?
+					new OutputEmitter(strategy) :
+					new OutputEmitter(strategy, jobId, keyPositions, keyClasses);
+					
 			// create writer
-			RecordWriter<KeyValuePair<Key, Value>> writer;
-			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
-				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
+			RecordWriter<PactRecord> writer= new RecordWriter<PactRecord>(this, PactRecord.class, oe);
 
 			// add writer to output collector
-			// the first writer does not need to send a copy
-			// all following must send copies
-			// TODO smarter decision are possible here, e.g. decide which channel may not need to copy, ...
-			output.addWriter(writer, fwdCopyFlag);
-			fwdCopyFlag = true;
+			output.addWriter(writer);
 		}
 	}
 	

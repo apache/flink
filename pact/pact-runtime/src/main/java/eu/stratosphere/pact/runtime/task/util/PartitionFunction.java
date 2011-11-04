@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 public interface PartitionFunction {
-	public int[] selectChannels(Key data, int numChannels);
+	public int[] selectChannels(PactRecord data, int numChannels);
 }

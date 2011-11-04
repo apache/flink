@@ -36,7 +36,7 @@ public enum ExecutionState {
 	 * The task has been assigned a resource to run, but is not yet read to by deployed.
 	 */
 	ASSIGNED,
-	
+
 	/**
 	 * The task has been announced ready to run by the scheduler, but is not yet running.
 	 */
@@ -46,7 +46,7 @@ public enum ExecutionState {
 	 * The task is currently deployed to the assigned to task manager.
 	 */
 	STARTING,
-	
+
 	/**
 	 * The task is currently running.
 	 */
@@ -75,5 +75,22 @@ public enum ExecutionState {
 	/**
 	 * The task has been aborted due to a failure during execution.
 	 */
-	FAILED
+	FAILED,
+
+	/**
+	 * The task has been failed and will be restarted.
+	 */
+
+	RECOVERING,
+
+	/**
+	 * The task is restarting during recovery.
+	 */
+
+	RESTARTING,
+
+	/**
+	 * Recovery is finished the job is running normal again.
+	 */
+	RERUNNING;
 }

@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.types.Record;
  * This interface extends {@link eu.stratosphere.nephele.types.Record} and requires to implement
  * the serialization of its value.
  * 
- * @see eu.stratosphere.nephele.types.Record
  * @see eu.stratosphere.nephele.io.IOReadableWritable
  */
 public interface Value extends Record {

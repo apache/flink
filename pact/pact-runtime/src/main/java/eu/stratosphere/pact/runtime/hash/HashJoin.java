@@ -18,9 +18,7 @@ package eu.stratosphere.pact.runtime.hash;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.logging.Log;
@@ -36,10 +34,12 @@ import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.NullKeyFieldException;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.HashJoin.Partition.PartitionIterator;
+import eu.stratosphere.pact.runtime.util.MathUtils;
 
 
 /**
@@ -84,7 +84,7 @@ import eu.stratosphere.pact.runtime.hash.HashJoin.Partition.PartitionIterator;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class HashJoin<K extends Key, BV extends Value, PV extends Value>
+public class HashJoin
 {
 	private static final Log LOG = LogFactory.getLog(HashJoin.class);
 	
@@ -211,18 +211,32 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 	/**
 	 * An iterator over the input that will be used to build the hash-table.
 	 */
-	private final Iterator<KeyValuePair<K, BV>> buildSideInput;
+	private final MutableObjectIterator<PactRecord> buildSideInput;
 	
 	/**
 	 * An iterator over the input that will be used to probe the hash-table.
 	 */
-	private final Iterator<KeyValuePair<K, PV>> probeSideInput;
+	private final MutableObjectIterator<PactRecord> probeSideInput;
 	
-	private final Class<K> keyClass;
+	/**
+	 * The class of the field that is hash key.
+	 */
+	private final Class<? extends Key>[] keyClasses;
 	
-	private final Class<BV> buildSideValueClass;
+	/**
+	 * The key positions in the records from the build side.
+	 */
+	private final int[] buildSideKeyFields;
+
+	/**
+	 * The key positions in the records from the probe side.
+	 */
+	private final int[] probeSideKeyFields;
 	
-	private final Class<PV> probeSideValueClass;
+	/**
+	 * Instances of the key fields to deserialize into.
+	 */
+	private Key[] keyHolders;
 	
 	/**
 	 * The free memory segments currently available to the hash join.
@@ -290,10 +304,19 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 	 */
 	private final ArrayList<Partition> partitionsPending;
 	
-	private HashBucketIterator<K, BV> bucketIterator;
+	/**
+	 * Iterator over the elements in the hash table.
+	 */
+	private HashBucketIterator bucketIterator;
 	
-	private ProbeSideIterator<K, PV> probeIterator;
+	/**
+	 * Iterator over the elements from the probe side.
+	 */
+	private ProbeIterator probeIterator;
 	
+	/**
+	 * The reader for the spilled-file of the probe partition that is currently read.
+	 */
 	private BlockChannelReader currentSpilledProbeSide;
 	
 	/**
@@ -338,39 +361,48 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 	//                         Construction and Teardown
 	// ------------------------------------------------------------------------
 	
-	public HashJoin(Iterator<KeyValuePair<K, BV>> buildSideInput, Iterator<KeyValuePair<K, PV>> probeSideInput,
-			Class<K> keyClass, Class<BV> buildSideValueClass,
-			Class<PV> probeSideValueClass,
-			List<MemorySegment> memorySegments,
-			IOManager ioManager)
+	public HashJoin(MutableObjectIterator<PactRecord> buildSideInput, MutableObjectIterator<PactRecord> probeSideInput,
+			int[] buildSideKeyPositions, int[] probeSideKeyPositions,
+			Class<? extends Key>[] keyClasses, List<MemorySegment> memorySegments, IOManager ioManager)
 	{
-		this(buildSideInput, probeSideInput, keyClass, buildSideValueClass, probeSideValueClass,
+		this(buildSideInput, probeSideInput, buildSideKeyPositions, probeSideKeyPositions, keyClasses,
 			memorySegments, ioManager, DEFAULT_RECORD_LEN);
 	}
 	
 	
-	public HashJoin(Iterator<KeyValuePair<K, BV>> buildSideInput, Iterator<KeyValuePair<K, PV>> probeSideInput,
-			Class<K> keyClass, Class<BV> buildSideValueClass, Class<PV> probeSideValueClass,
-			List<MemorySegment> memorySegments,	IOManager ioManager,
-			int avgRecordLen)
+	public HashJoin(MutableObjectIterator<PactRecord> buildSideInput, MutableObjectIterator<PactRecord> probeSideInput,
+			int[] buildSideKeyPositions, int[] probeSideKeyPositions,
+			Class<? extends Key>[] keyClasses, List<MemorySegment> memorySegments,	IOManager ioManager, int avgRecordLen)
 	{
 		// some sanity checks first
 		if (buildSideInput == null || probeSideInput == null || memorySegments == null) {
 			throw new NullPointerException();
 		}
 		if (memorySegments.size() < MIN_NUM_MEMORY_SEGMENTS) {
-			throw new IllegalArgumentException("Too few memory segments provided. Hash Join needs at leas " + 
+			throw new IllegalArgumentException("Too few memory segments provided. Hash Join needs at least " + 
 				MIN_NUM_MEMORY_SEGMENTS + " memory segments.");
+		}
+		if (buildSideKeyPositions.length != probeSideKeyPositions.length || buildSideKeyPositions.length != keyClasses.length) {
+			throw new IllegalArgumentException("Insonsistent definition of key fields: " +
+					"The index arrays for both inputs and the type arrays must be of equal length."); 
 		}
 		
 		// assign the members
 		this.buildSideInput = buildSideInput;
 		this.probeSideInput = probeSideInput;
-		this.keyClass = keyClass;
-		this.buildSideValueClass = buildSideValueClass;
-		this.probeSideValueClass = probeSideValueClass;
 		this.availableMemory = memorySegments;
 		this.ioManager = ioManager;
+		this.buildSideKeyFields = buildSideKeyPositions;
+		this.probeSideKeyFields = probeSideKeyPositions;
+		this.keyClasses = keyClasses;
+		
+		this.keyHolders = new Key[keyClasses.length];
+		for (int i = 0; i < keyClasses.length; i++) {
+			if (keyClasses[i] == null) {
+				throw new NullPointerException("Key type " + i + " is null.");
+			}
+			this.keyHolders[i] = InstantiationUtil.instantiate(keyClasses[i], Key.class);
+		}
 		
 		this.avgRecordLen = avgRecordLen < 1 ? DEFAULT_RECORD_LEN : avgRecordLen;
 		
@@ -386,7 +418,7 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			throw new IllegalArgumentException("Hash Table requires buffers of at least " + HASH_BUCKET_SIZE + " bytes.");
 		}
 		this.bucketsPerSegmentMask = bucketsPerSegment - 1;
-		this.bucketsPerSegmentBits = log2floor(bucketsPerSegment);
+		this.bucketsPerSegmentBits = MathUtils.log2floor(bucketsPerSegment);
 		
 		// take away the write behind buffers
 		this.writeBehindBuffers = new LinkedBlockingQueue<MemorySegment>();
@@ -418,24 +450,34 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		buildInitialTable(this.buildSideInput);
 		
 		// the first prober is the probe-side input
-		this.probeIterator = new ProbeSideIterator<K, PV>(this.probeSideInput);
+		this.probeIterator = new ProbeIterator(this.probeSideInput);
 		
 		// the bucket iterator can remain constant over the time
-		this.bucketIterator = new HashBucketIterator<K, BV>();
+		// it needs extra fields to deserialize the keys into
+		Key[] keyHolders = new Key[this.keyClasses.length];
+		for (int i = 0; i < keyHolders.length; i++) {
+			keyHolders[i] = InstantiationUtil.instantiate(this.keyClasses[i], Key.class);
+		}
+		this.bucketIterator = new HashBucketIterator(this.buildSideKeyFields, keyHolders);
 	}
 	
 	/**
 	 * @return
 	 * @throws IOException
 	 */
-	public boolean nextKey() throws IOException
+	public boolean nextRecord() throws IOException
 	{
-		final ProbeSideIterator<K, PV> probeIter = this.probeIterator;
+		final ProbeIterator probeIter = this.probeIterator;
+		final Key[] keyHolders = this.keyHolders;
 		
-		while (probeIter.nextKey()) {
-			final K currKey = probeIter.getCurrentKey();
+		PactRecord next;
+		while ((next = probeIter.next()) != null)
+		{
+			if (!next.getFieldsInto(this.probeSideKeyFields, keyHolders)) {
+				throw new NullKeyFieldException(); 
+			}
 			
-			final int hash = hash(currKey.hashCode(), this.currentRecursionDepth);
+			final int hash = hash(keyHolders, this.currentRecursionDepth);
 			final int posHashCode = hash % this.numBuckets;
 			
 			// get the bucket for the given hash code
@@ -449,14 +491,11 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			
 			// for an in-memory partition, process set the return iterators, else spill the probe records
 			if (p.isInMemory()) {
-				this.bucketIterator.set(bucket, p.overflowSegments, p.inMemoryBuffers, currKey, hash, bucketInSegmentOffset);
+				this.bucketIterator.set(bucket, p.overflowSegments, p.inMemoryBuffers, keyHolders, hash, bucketInSegmentOffset);
 				return true;
 			}
 			else {
-				while (probeIter.hasNext()) {
-					final KeyValuePair<K, PV> nextPair = probeIter.next();
-					p.insertIntoProbeBuffer(nextPair);
-				}
+				p.insertIntoProbeBuffer(next);
 			}
 		}
 		
@@ -474,36 +513,6 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		// release the table memory
 		releaseTable();
 		
-//		// check that the memory segment book-keeping did not go wrong
-//		if (DEBUG_CHECKS) {
-//			HashSet<MemorySegment> segSet = new HashSet<MemorySegment>();
-//			for (int i = 0; i < this.availableMemory.size(); i++) {
-//				MemorySegment seg = this.availableMemory.get(i);
-//				if (seg == null) {
-//					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
-//				}
-//				if (segSet.contains(seg)) {
-//					throw new RuntimeException("Bookkeeping error: Available Memory Segment booked twice.");
-//				}
-//				segSet.add(seg);
-//			}
-//			HashSet<MemorySegment> wbSet = new HashSet<MemorySegment>();
-//			Iterator<MemorySegment> wbIter = this.writeBehindBuffers.iterator();
-//			while (wbIter.hasNext()) {
-//				MemorySegment seg = wbIter.next();
-//				if (seg == null) {
-//					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
-//				}
-//				if (segSet.contains(seg)) {
-//					throw new RuntimeException("Bookkeeping error: Write-behind buffer also occurred as available memory.");
-//				}
-//				if (wbSet.contains(seg)) {
-//					throw new RuntimeException("Bookkeeping error: Write-behind buffer booked twice");
-//				}
-//				wbSet.add(seg);
-//			}			
-//		}
-		
 		// check if there are pending partitions
 		if (!this.partitionsPending.isEmpty())
 		{
@@ -520,9 +529,7 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			memory.add(getNextBuffer());
 			memory.add(getNextBuffer());
 			
-			Iterator<KeyValuePair<K, PV>> probeReader = new BlockReaderUtilIterator<K, PV>(
-					this.currentSpilledProbeSide, returnQueue, memory, this.availableMemory,
-					p.probeBlockCounter, this.keyClass, this.probeSideValueClass);
+			BlockReaderIterator probeReader = new BlockReaderIterator(this.currentSpilledProbeSide, returnQueue, memory, this.availableMemory, p.probeBlockCounter);
 			this.probeIterator.set(probeReader);
 			
 			// unregister the pending partition
@@ -530,7 +537,7 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			this.currentRecursionDepth = p.recursionLevel + 1;
 			
 			// recursively get the next
-			return nextKey();
+			return nextRecord();
 		}
 		else {
 			// no more data
@@ -541,15 +548,15 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 	/**
 	 * @return
 	 */
-	public ProbeSideIterator<K, PV> getProbeSideIterator()
+	public PactRecord getCurrentProbeRecord()
 	{
-		return this.probeIterator;
+		return this.probeIterator.getCurrent();
 	}
 	
 	/**
 	 * @return
 	 */
-	public HashBucketIterator<K, BV> getBuildSideIterator()
+	public HashBucketIterator getBuildSideIterator()
 	{
 		return this.bucketIterator;
 	}
@@ -621,7 +628,7 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 	 * @param input
 	 * @throws IOException
 	 */
-	protected void buildInitialTable(final Iterator<KeyValuePair<K, BV>> input)
+	protected void buildInitialTable(final MutableObjectIterator<PactRecord> input)
 	throws IOException
 	{
 		// create the partitions
@@ -636,12 +643,24 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			partitionFanOut, this.avgRecordLen);
 		initTable(numBuckets, (byte) partitionFanOut);
 		
+		final int[] positions = this.buildSideKeyFields;
+		final Key[] keys = this.keyHolders;
+		
 		// go over the complete input and insert every element into the hash table
-		while (input.hasNext())
+		PactRecord record = new PactRecord();
+		while (input.next(record))
 		{
-			final KeyValuePair<K, BV> pair = input.next();
-			final int hashCode = hash(pair.getKey().hashCode(), 0);
-			insertIntoTable(pair, hashCode);
+			int hashCode = 0;
+			for (int i = 0; i < positions.length; i++) {
+				Key k = keys[i];
+				if ((k = record.getField(positions[i], k)) != null) {
+					hashCode ^= hash(k.hashCode(), 0);
+				}
+				else {
+					throw new NullKeyFieldException();
+				}
+			}
+			insertIntoTable(record, hashCode);
 		}
 
 		// finalize the partitions
@@ -664,21 +683,7 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 				+ "partitions enough to be memory resident. Probably cause: Too many duplicate keys.");
 		}
 		
-		final K tempKey;
-		final BV tempValue;
-		try {
-			tempKey = this.keyClass.newInstance();
-			tempValue = this.buildSideValueClass.newInstance();
-		}
-		catch (IllegalAccessException ex) {
-			throw new RuntimeException("Cannot create instance of data type. Class or nullary constructor not public.");
-		}
-		catch (InstantiationException iex) {
-			throw new RuntimeException("Cannot create instance of data type. No public nullary constructor.");
-		}
-		catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
+		final Key[] keyHolders = this.keyHolders;
 		
 		// we distinguish two cases here:
 		// 1) The partition fits entirely into main memory. That is the case if we have enough buffers for
@@ -717,13 +722,12 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			initTable((int) numBuckets, (byte) 1);
 			
 			// now, index the partition through a hash table
-			PartitionIterator<K, BV> pIter = newPart.getPartitionIterator(tempKey, tempValue);
+			PartitionIterator pIter = newPart.getPartitionIterator(this.buildSideKeyFields, keyHolders);
 			
 			while (pIter.next()) {
-				final int hashCode = hash(pIter.getHashCode(), nextRecursionLevel);
-				final long pointer = pIter.getPointer();
-				
+				final int hashCode = hash(keyHolders, nextRecursionLevel);
 				final int posHashCode = hashCode % this.numBuckets;
+				final long pointer = pIter.getPointer();
 				
 				// get the bucket for the given hash code
 				final int bucketArrayPos = posHashCode >> this.bucketsPerSegmentBits;
@@ -756,17 +760,14 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			segments.add(getNextBuffer());
 			segments.add(getNextBuffer());
 			
-			final BlockReaderIterator<K, BV> reader = new BlockReaderIterator<K, BV>(this.ioManager,
+			final BlockReaderIterator reader = new BlockReaderIterator(this.ioManager,
 					p.buildSideChannel.getChannelID(), segments, this.availableMemory, p.buildSideBlockCounter);
 			
-			
-			
-			final KeyValuePair<K, BV> pair = new KeyValuePair<K, BV>(tempKey, tempValue);
-			
-			while (reader.next(pair))
-			{
-				final int hashCode = hash(pair.getKey().hashCode(), nextRecursionLevel);
-				insertIntoTable(pair, hashCode);
+			PactRecord rec = new PactRecord();
+			while (reader.next(rec))
+			{	
+				final int hashCode = hashBuildeSideRecord(rec, nextRecursionLevel);
+				insertIntoTable(rec, hashCode);
 			}
 
 			// finalize the partitions
@@ -782,7 +783,7 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 	 * @param hashCode
 	 * @throws IOException
 	 */
-	protected final void insertIntoTable(final KeyValuePair<K, BV> pair, final int hashCode)
+	protected final void insertIntoTable(final PactRecord record, final int hashCode)
 	throws IOException
 	{
 		final int posHashCode = hashCode % this.numBuckets;
@@ -803,24 +804,29 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		
 		// --------- Step 1: Get the partition for this pair and put the pair into the buffer ---------
 		
-		long pointer = p.insertIntoBuildBuffer(pair);
+		long pointer = p.insertIntoBuildBuffer(record);
 		if (pointer == -1) {
 			// element was not written because the buffer was full. get the next buffer.
 			// if no buffer is available, we need to spill a partition
 			MemorySegment nextSeg = getNextBuffer();
 			if (nextSeg == null) {
-				spillPartition();
-				nextSeg = getNextBuffer();
-				if (nextSeg == null) {
-					throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling partition.");
+				int spilledPartitionNum = spillPartition();
+				// if we spilled this partition, we don't need to give it a new buffer
+				if (spilledPartitionNum != partitionNumber) {
+					nextSeg = getNextBuffer();
+					if (nextSeg == null) {
+						throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling partition.");
+					}
+					p.addBuildSideBuffer(nextSeg);
 				}
 			}
-			
-			// add the buffer to the partition.
-			p.addBuildSideBuffer(nextSeg);
+			else {
+				// add the buffer to the partition.
+				p.addBuildSideBuffer(nextSeg);
+			}
 			
 			// retry to write into the buffer
-			pointer = p.insertIntoBuildBuffer(pair);
+			pointer = p.insertIntoBuildBuffer(record);
 			if (pointer == -1) {
 				// retry failed, throw an exception
 				throw new IOException("Record could not be added to fresh buffer. Probably cause: Record length exceeds buffer size limit.");
@@ -1118,6 +1124,30 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		return largestPartNum;
 	}
 	
+	private final int hashBuildeSideRecord(PactRecord record, int recursionLevel)
+	{
+		int hashCode = 0;
+		for (int i = 0; i < this.buildSideKeyFields.length; i++) {
+			Key k = this.keyHolders[i];
+			if ((k = record.getField(this.buildSideKeyFields[i], k)) != null) {
+				hashCode ^= hash(k.hashCode(), recursionLevel);
+			}
+			else {
+				throw new NullKeyFieldException();
+			}
+		}
+		return hashCode;
+	}
+	
+	private final int hash(Key[] fields, int recursionLevel)
+	{
+		int code = 0;
+		for (int i = 0; i < fields.length; i++) {
+			code ^= hash(fields[i].hashCode(), recursionLevel);
+		}
+		return code;
+	}
+	
 	/**
 	 * This method makes sure that at least a certain number of memory segments is in the list of free segments.
 	 * Free memory can be in the list of free segments, or in the return-queue where segments used to write behind are
@@ -1282,28 +1312,6 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		code = (code + 0xfd7046c5) + (code << 3);
 		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
 		return code >= 0 ? code : -(code + 1);
-	}
-	
-	/**
-	 * Computes the logarithm of the given value to the base of 2, rounded down. It corresponds to the
-	 * position of the highest non-zero bit. The position is counted, starting with 0 from the least
-	 * significant bit to the most significant bit. For example, <code>log2floor(16) = 4</code>, and
-	 * <code>log2floor(10) = 3</code>.
-	 * 
-	 * @param value The value to compute the logarithm for.
-	 * @return The logarithm (rounded down) to the base of 2.
-	 * @throws ArithmeticException Thrown, if the given value is zero.
-	 */
-	public static final int log2floor(int value) throws ArithmeticException
-	{
-		if (value == 0)
-			throw new ArithmeticException("Logarithm of zero is undefined.");
-		
-		int log = 0;
-		while ((value = value >>> 1) != 0)
-			log++;
-		
-		return log;
 	}
 
 	
@@ -1728,17 +1736,19 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			}
 		}
 		
-		public <K extends Key, V extends Value> PartitionIterator<K, V> getPartitionIterator(K key, V value)
+		public PartitionIterator getPartitionIterator(int[] keyPositions, Key[] keyHolders)
 		{
-			return new PartitionIterator<K, V>(key, value);
+			return new PartitionIterator(keyPositions, keyHolders);
 		}
 		
 		
-		protected final class PartitionIterator<K extends Key, V extends Value>
+		protected final class PartitionIterator
 		{
-			private final K key;
+			private final PactRecord record;
 			
-			private final V value;
+			private final int[] keyPositions;
+			
+			private final Key[] keyHolders;
 			
 			private DataInputView currentSeg;
 			
@@ -1746,15 +1756,14 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			
 			private int currentEnd;
 			
-			private int currentHashCode;
-			
 			private long currentPointer;
 			
 			
-			private PartitionIterator(K key, V value)
-			{
-				this.key = key;
-				this.value = value;
+			private PartitionIterator(int[] keyPositions, Key[] keyHolders)
+			{	
+				this.record = new PactRecord();
+				this.keyPositions = keyPositions;
+				this.keyHolders = keyHolders;
 				
 				final MemorySegment seg = Partition.this.inMemoryBuffers.get(0); 
 				this.currentSeg = seg.inputView;
@@ -1773,17 +1782,13 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 					
 					// read key and also the value
 					try {
-						this.key.read(this.currentSeg);
-						this.value.read(this.currentSeg);
+						this.record.read(this.currentSeg);
+						this.record.getFieldsInto(this.keyPositions, this.keyHolders);
 					}
 					catch (IOException e) {
-						throw new RuntimeException("Error while deserializing key/value pair from spilled buffer. " +
+						throw new RuntimeException("Error while deserializing record from spilled buffer. " +
 							"Probably cause: Bad Serialization code.", e);
 					}
-					
-					
-					this.currentHashCode = key.hashCode();
-					
 					return true;
 				}
 				else {
@@ -1801,11 +1806,6 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 				}
 			}
 			
-			protected final int getHashCode()
-			{
-				return this.currentHashCode;
-			}
-			
 			protected final long getPointer()
 			{
 				return this.currentPointer;
@@ -1821,15 +1821,19 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 	/**
 	 *
 	 */
-	protected static final class HashBucketIterator<K extends Key, V extends Value> implements MutableObjectIterator<KeyValuePair<K, V>>
+	protected static final class HashBucketIterator
 	{
+		private final Key[] deserializationObjects;
+		
+		private final int[] keyPositions;
+		
+		private Key[] searchKeys;
+		
 		private MemorySegment bucket;
 		
 		private MemorySegment[] overflowSegments;
 		
 		private List<MemorySegment> partitionBuffers;
-		
-		private K searchKey;
 		
 		private int bucketInSegmentOffset;
 		
@@ -1845,14 +1849,22 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		
 		private MemorySegment originalBucket;
 		
+		
+		private HashBucketIterator(int[] keyPositions, Key[] deserializationHolders)
+		{
+			this.keyPositions = keyPositions;
+			this.deserializationObjects = deserializationHolders;
+		}
+		
+		
 		private void set(MemorySegment bucket, MemorySegment[] overflowSegments, List<MemorySegment> partitionBuffers,
-				K searchKey, int searchHashCode, int bucketInSegmentOffset)
+				Key[] searchKeys, int searchHashCode, int bucketInSegmentOffset)
 		{
 			this.bucket = bucket;
 			this.originalBucket = bucket;
 			this.overflowSegments = overflowSegments;
 			this.partitionBuffers = partitionBuffers;
-			this.searchKey = searchKey;
+			this.searchKeys = searchKeys;
 			this.searchHashCode = searchHashCode;
 			this.bucketInSegmentOffset = bucketInSegmentOffset;
 			this.originalBucketInSegmentOffset = bucketInSegmentOffset;
@@ -1863,7 +1875,7 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		}
 		
 
-		public boolean next(KeyValuePair<K, V> target)
+		public boolean next(PactRecord target)
 		{
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
 			while (true)
@@ -1882,19 +1894,16 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 						final DataInputView buffer = this.partitionBuffers.get((int) (pointer >>> 32)).inputView;
 						buffer.setPosition((int) (pointer & 0xffffffff));
-						final K key = target.getKey();
 							
 						try {
-							key.read(buffer);
-							if (key.equals(this.searchKey)) {
-								// match!
-								target.getValue().read(buffer);
+							target.read(buffer);
+							if (target.equalsFields(this.keyPositions, this.searchKeys, this.deserializationObjects)) {
 								return true;
 							}
 						}
 						catch (IOException ioex) {
-							throw new RuntimeException("Error deserializing key or value from the hashtable. " +
-									"Possible reason: Erroneous serialization logic for data type.");
+							throw new RuntimeException("Error deserializing key or value from the hashtable: " +
+									ioex.getMessage(), ioex);
 						}
 					}
 					else {
@@ -1932,138 +1941,47 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 
 	// ======================================================================================================
 	
-	
-	/**
-	 *
-	 */
-	protected static final class ProbeSideIterator<K extends Key, V extends Value> implements Iterator<KeyValuePair<K, V>>
+	public static final class ProbeIterator
 	{
-		private Iterator<KeyValuePair<K, V>> source;
+		private MutableObjectIterator<PactRecord> source;
 		
-		private K currentKey;
+		private PactRecord instance = new PactRecord();
 		
-		private KeyValuePair<K, V> nextPair;
+		private PactRecord current;
 		
-		private boolean nextIsNewKey;
+		public ProbeIterator(MutableObjectIterator<PactRecord> source)
+		{
+			set(source);
+		}
 		
-		// --------------------------------------------------------------------
-		
-		protected ProbeSideIterator(Iterator<KeyValuePair<K, V>> source)
+		public void set(MutableObjectIterator<PactRecord> source) 
 		{
 			this.source = source;
+			if (this.current == null) {
+				this.current = this.instance;
+			}
 		}
 		
-		protected void set(Iterator<KeyValuePair<K, V>> source) {
-			this.source = source;
-			this.currentKey = null;
-			this.nextPair = null;
-			this.nextIsNewKey = false;
-		}
-		
-		// --------------------------------------------------------------------
-
-		protected boolean nextKey()
+		public PactRecord next() throws IOException
 		{
-			if (this.nextIsNewKey) {
-				this.currentKey = this.nextPair.getKey();
-				this.nextIsNewKey = false;
-				return true;
-			}
-			
-			while (this.source.hasNext()) {
-				final KeyValuePair<K, V> nextPair = this.source.next();
-				final K key = nextPair.getKey();
-				if (this.currentKey == null || !key.equals(this.currentKey)) {
-					// reached next key
-					this.currentKey = key;
-					this.nextPair = nextPair;
-					return true;
-				}
-			}
-			
-			this.currentKey = null;
-			this.nextPair = null;
-			return false;
-		}
-		
-		protected K getCurrentKey()
-		{
-			return this.currentKey;
-		}
-		
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#hasNext()
-		 */
-		@Override
-		public boolean hasNext()
-		{
-			if (this.nextIsNewKey) {
-				return false;
-			}
-			else if (this.nextPair != null) {
-				return true;
-			}
-			else if (this.source.hasNext()) {
-				final KeyValuePair<K, V> nextPair = this.source.next();
-				final K key = nextPair.getKey();
-				this.nextPair = nextPair;
-				
-				if (key.equals(this.currentKey)) {
-					return true;
-				}
-				else {
-					// reached next key
-					this.nextIsNewKey = true;
-					return false;
-				}
+			if (this.source.next(this.instance)) {
+				this.current = this.instance;
+				return this.current;
 			}
 			else {
-				return false;
-			}
-		}
-
-		public V nextValue()
-		{
-			if (!this.nextIsNewKey && (this.nextPair != null || hasNext())) {
-				final V next = this.nextPair.getValue();
-				this.nextPair = null;
-				return next;
-			}
-			else {
-				throw new NoSuchElementException();
-			}
-		}
-
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#remove()
-		 */
-		@Override
-		public void remove()
-		{
-			throw new UnsupportedOperationException();
-		}
-		
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#next()
-		 */
-		@Override
-		public KeyValuePair<K, V> next()
-		{
-			if (!this.nextIsNewKey && (this.nextPair != null || hasNext())) {
-				final KeyValuePair<K, V> next = this.nextPair;
-				this.nextPair = null;
-				return next;
-			}
-			else {
-				throw new NoSuchElementException();
+				return null;
 			}
 		}
 		
-	} // end ProbeSideIterator
+		public PactRecord getCurrent()
+		{
+			return this.current;
+		}
+	}
 
 	// ======================================================================================================
 	
-	protected static class BlockReaderIterator<K extends Key, V extends Value> implements MutableObjectIterator<KeyValuePair<K, V>>
+	protected static class BlockReaderIterator implements MutableObjectIterator<PactRecord>
 	{		
 		private MemorySegment currentSegment;
 		
@@ -2133,16 +2051,11 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		 * @see java.util.Iterator#next()
 		 */
 		@Override
-		public boolean next(KeyValuePair<K, V> target)
+		public boolean next(PactRecord target) throws IOException
 		{
 			if (this.currentSegment != null) {
 				// get the next element from the buffer
-				try {
-					target.read(this.currentSegment.inputView);
-				}
-				catch (IOException ioex) {
-					throw new RuntimeException("Deserialization error while reading record from spilled partition.", ioex);
-				}
+				target.read(this.currentSegment.inputView);
 				
 				int pos = this.currentSegment.inputView.getPosition();
 				if (pos < this.currentEndPos) {
@@ -2152,13 +2065,8 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 					// segment done
 					// send another request, if more blocks remain
 					if (this.numRequestsRemaining > 0) {
-						try {
-							this.reader.readBlock(this.currentSegment);
-							this.numRequestsRemaining--;
-						}
-						catch (IOException ioex) {
-							throw new RuntimeException("Error reading a block from the spilled partition.", ioex);
-						}
+						this.reader.readBlock(this.currentSegment);
+						this.numRequestsRemaining--;
 					}
 					else {
 						this.freeMemTarget.add(this.currentSegment);
@@ -2194,92 +2102,4 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		}
 		
 	} // end BlockReaderIterator
-	
-	private static final class BlockReaderUtilIterator<K extends Key, V extends Value> extends BlockReaderIterator<K, V>
-		implements Iterator<KeyValuePair<K, V>>
-	{
-		private final Class<K> keyClass;
-		
-		private final Class<V> valueClass;
-		
-		private KeyValuePair<K, V> next;
-
-		/**
-		 * @param reader
-		 * @param returnQueue
-		 * @param segments
-		 * @param freeMemTarget
-		 * @param numBlocks
-		 * @throws IOException
-		 */
-		public BlockReaderUtilIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
-				List<MemorySegment> segments, List<MemorySegment> freeMemTarget, int numBlocks,
-				Class<K> keyClass, Class<V> valueClass)
-		throws IOException
-		{
-			super(reader, returnQueue, segments, freeMemTarget, numBlocks);
-			
-			this.keyClass = keyClass;
-			this.valueClass = valueClass;
-		}
-
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#hasNext()
-		 */
-		@Override
-		public boolean hasNext()
-		{
-			try {
-				if (this.next == null) {
-					KeyValuePair<K, V> pair = new KeyValuePair<K, V>(
-							this.keyClass.newInstance(),
-							this.valueClass.newInstance());
-					if (next(pair)) {
-						this.next = pair;
-						return true;
-					}
-					else {
-						return false;
-					}
-				}
-				else {
-					return true;
-				}
-			}
-			catch (IllegalAccessException ex) {
-				throw new RuntimeException("Cannot create instance of data type. Class or nullary constructor not public.");
-			}
-			catch (InstantiationException iex) {
-				throw new RuntimeException("Cannot create instance of data type. No public nullary constructor.");
-			}
-			catch (Exception ex) {
-				throw new RuntimeException(ex);
-			}
-		}
-
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#next()
-		 */
-		@Override
-		public KeyValuePair<K, V> next()
-		{
-			if (this.next != null || hasNext()) {
-				KeyValuePair<K, V> temp = this.next;
-				this.next = null;
-				return temp;
-			}
-			else {
-				throw new NoSuchElementException();
-			}
-		}
-
-		/* (non-Javadoc)
-		 * @see java.util.Iterator#remove()
-		 */
-		@Override
-		public void remove()
-		{
-			throw new UnsupportedOperationException();	
-		}
-	}
 }

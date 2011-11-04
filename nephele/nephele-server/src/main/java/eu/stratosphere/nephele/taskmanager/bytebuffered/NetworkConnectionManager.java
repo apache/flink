@@ -224,4 +224,20 @@ public final class NetworkConnectionManager {
 			}
 		}
 	}
+
+	// Begin temporary logging code
+	public int getQueueLength(final InetSocketAddress remoteReceiver) {
+
+		OutgoingConnection outgoingConnection = null;
+		synchronized (this.outgoingConnections) {
+			outgoingConnection = this.outgoingConnections.get(remoteReceiver);
+		}
+
+		if (outgoingConnection == null) {
+			return -1;
+		}
+
+		return outgoingConnection.getNumberOfQueuedWriteBuffers();
+	}
+	// End temporary logging code
 }
