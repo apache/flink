@@ -478,9 +478,9 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 		
 		private final long timeout;
 
-		private FSDataInputStream fdis = null;
+		private volatile FSDataInputStream fdis = null;
 
-		private Throwable error = null;
+		private volatile Throwable error = null;
 
 		public InputSplitOpenThread(FileInputSplit split, long timeout)
 		{
@@ -527,7 +527,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 			}
 			
 			// try to forcefully shut this thread down
-			throw new IOException("OPening request timed out.");
+			throw new IOException("Opening request timed out.");
 		}
 
 		public FSDataInputStream getFSDataInputStream() {
