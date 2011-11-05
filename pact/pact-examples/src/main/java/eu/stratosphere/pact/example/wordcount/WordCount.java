@@ -135,9 +135,8 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				element.getField(1, this.theInteger);
-				// we could have equivalently used PactInteger i = record.getField(1, PactInteger.class);
-				sum += this.theInteger.getValue();
+				PactInteger i = element.getField(1, PactInteger.class);
+				sum += i.getValue();
 			}
 
 			this.theInteger.setValue(sum);
