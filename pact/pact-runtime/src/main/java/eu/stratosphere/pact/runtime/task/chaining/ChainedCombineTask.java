@@ -138,6 +138,7 @@ public class ChainedCombineTask implements ChainedTask
 			case COMBININGSORT:
 				this.sorter = new AsynchronousPartialSorterCollector(memoryManager,
 						ioManager, availableMemory, comparators, keyPositions, keyClasses, this.parent);
+				this.inputCollector = this.sorter.getInputCollector();
 				break;
 			default:
 				throw new RuntimeException("Invalid local strategy provided for CombineTask.");
@@ -252,6 +253,7 @@ public class ChainedCombineTask implements ChainedTask
 			this.keyClasses = keyClasses;
 			this.stub = stub;
 			this.output = output;
+			this.running = true;
 		}
 
 		public void run()
