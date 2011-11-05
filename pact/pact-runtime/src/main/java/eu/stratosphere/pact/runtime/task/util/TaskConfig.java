@@ -49,7 +49,7 @@ public class TaskConfig
 		MERGE,
 		// input is sorted, within a key values are crossed in a nested loop fashion
 		SORT_SELF_NESTEDLOOP,
-		// already grouped input, within a key values are crossed in a nested loop fasion
+		// already grouped input, within a key values are crossed in a nested loop fashion
 		SELF_NESTEDLOOP,
 		// the input is sorted
 		SORT,
@@ -89,7 +89,7 @@ public class TaskConfig
 	
 	private static final String INPUT_SHIP_KEY_CLASS_PREFIX = "pact.input.keyclass.";
 
-	private static final String OUTPUT_SHIP_STRATEGY = "pact.output.shipstrategy";
+	private static final String OUTPUT_SHIP_STRATEGY_PREFIX = "pact.output.shipstrategy.";
 	
 	private static final String OUTPUT_SHIP_NUM_KEYS_PREFIX = "pact.output.numkeys.";
 	
@@ -281,7 +281,7 @@ public class TaskConfig
 	public void addOutputShipStrategy(ShipStrategy strategy)
 	{
 		int outputCnt = config.getInteger(NUM_OUTPUTS, 0);		
-		this.config.setString(OUTPUT_SHIP_STRATEGY + outputCnt, strategy.name());
+		this.config.setString(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.name());
 		outputCnt++;
 		this.config.setInteger(NUM_OUTPUTS, outputCnt);
 	}
@@ -290,7 +290,7 @@ public class TaskConfig
 	{
 		int outputCnt = config.getInteger(NUM_OUTPUTS, 0);
 		
-		this.config.setString(OUTPUT_SHIP_STRATEGY + outputCnt, strategy.name());		
+		this.config.setString(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.name());		
 		this.config.setInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputCnt, keyPositions.length);
 		for (int i = 0; i < keyPositions.length; i++) {
 			this.config.setInteger(OUTPUT_SHIP_KEY_POS_PREFIX + outputCnt + '.' + i, keyPositions[i]);
@@ -310,7 +310,7 @@ public class TaskConfig
 		if (!(outputId < outputCnt)) {
 			return null;
 		}
-		return ShipStrategy.valueOf(this.config.getString(OUTPUT_SHIP_STRATEGY + outputId, ""));
+		return ShipStrategy.valueOf(this.config.getString(OUTPUT_SHIP_STRATEGY_PREFIX + outputId, ""));
 	}
 	
 	public int[] getOutputShipKeyPositions(int outputId)
