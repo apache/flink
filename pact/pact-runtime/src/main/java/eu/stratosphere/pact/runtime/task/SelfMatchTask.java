@@ -29,7 +29,6 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
@@ -231,7 +230,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	 *        The collector to write the results to.
 	 * @throws Exception 
 	 */
-	private final void crossValues(final Iterator<PactRecord> values, final OutputCollector out) throws Exception
+	private final void crossValues(final Iterator<PactRecord> values, final Collector out) throws Exception
 	{
 		// allocate buffer
 		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];

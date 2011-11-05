@@ -15,6 +15,8 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -26,10 +28,10 @@ import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -60,9 +62,11 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	
 	protected MutableObjectIterator<PactRecord>[] inputs;
 	
-	protected OutputCollector output;
+	protected Collector output;
 	
 	protected ClassLoader userCodeClassLoader;
+	
+	protected ArrayList<ChainedTask> chainedTasks;
 	
 	protected volatile boolean running;
 	
@@ -96,7 +100,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * the input is depleted.
 	 * 
 	 * @throws Exception Any exception thrown by this method signals task failure. Because exceptions in the user
-	 *                   code typically signal situations where this instance in unable to procede, exceptions
+	 *                   code typically signal situations where this instance in unable to proceed, exceptions
 	 *                   from the user code should be forwarded.
 	 */
 	public abstract void run() throws Exception; 
@@ -108,9 +112,10 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 */
 	public abstract void cleanup() throws Exception;
 	
-	// ------------------------------------------------------------------------
-	//                       Nephele Task Interface
-	// ------------------------------------------------------------------------
+	
+	// --------------------------------------------------------------------------------------------
+	//                                  Nephele Task Interface
+	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#registerInputOutput()
@@ -153,6 +158,9 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 					"' , caused an error: " + t.getMessage(), t);
 			}
 			
+			// start all chained tasks
+			AbstractPactTask.openChainedTasks(this.chainedTasks, this);
+			
 			// open stub implementation
 			try {
 				this.stub.open(this.config.getStubParameters());
@@ -170,6 +178,11 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 				this.stub.close();
 				stubOpen = false;
 			}
+			
+			this.output.close();
+			
+			// close all chained tasks letting them report failure
+			AbstractPactTask.closeChainedTasks(this.chainedTasks, this);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -180,20 +193,14 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 				catch (Throwable t) {}
 			}
 			
-			// drop exception, if task was canceled, because we already have a root exception.
+			AbstractPactTask.cancelChainedTasks(this.chainedTasks);
+			
+			// drop exception, if the task was canceled
 			if (this.running) {
-				if (LOG.isErrorEnabled())
-					LOG.error(getLogString("Unexpected ERROR in PACT code."), ex);
-				throw ex;
+				AbstractPactTask.logAndThrowException(ex, this);
 			}
 		}
 		finally {
-			// close the output collector and make sure we run the cleanup method
-			try {
-				this.output.close();
-			}
-			catch (Throwable t) {}
-			
 			cleanup();
 		}
 
@@ -218,9 +225,9 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 	
-	// ------------------------------------------------------------------------
-	//                       Task Setup and Teardown
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
+	//                                 Task Setup and Teardown
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Initializes the Stub class implementation and configuration.
@@ -242,7 +249,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			this.stub = InstantiationUtil.instantiate(stubClass, stubSuperClass);
 		}
 		catch (IOException ioe) {
-			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
+			throw new RuntimeException("The ClassLoader for the user code could not be instantiated from the library cache.", ioe);
 		}
 		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("The stub implementation class was not found.", cnfe);
@@ -296,12 +303,13 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 */
 	protected void initOutputs()
 	{
-		this.output = getOutputCollector(this, this.config, this.userCodeClassLoader, this.config.getNumOutputs());
+		this.chainedTasks = new ArrayList<ChainedTask>();
+		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks);
 	}
 	
-	// ------------------------------------------------------------------------
-	//                               Utilities
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
+	//                                         Utilities
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Utility function that composes a string for logging purposes. The string includes the given message and
@@ -316,13 +324,16 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	}
 	
 	
-	// ------------------------------------------------------------------------
-	//                            Static Utilities
+	// ============================================================================================
+	//                                     Static Utilities
 	//
-	//    Utilities are consolidated here to ensure a uniform way of running,
-	//       logging, exception handling, and error messages.
-	// ------------------------------------------------------------------------
-	
+	//            Utilities are consolidated here to ensure a uniform way of running,
+	//                   logging, exception handling, and error messages.
+	// ============================================================================================
+
+	// --------------------------------------------------------------------------------------------
+	//                                       Logging
+	// --------------------------------------------------------------------------------------------
 	/**
 	 * Utility function that composes a string for logging purposes. The string includes the given message,
 	 * the given name of the task and the index in its subtask group as well as the number of instances
@@ -348,14 +359,15 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 		return bld.toString();
 	}
 	
-	public static Exception getExceptionFromChained(Exception ex)
-	{
-		while (ex instanceof ExceptionInChainedStubException) {
-			ex = ((ExceptionInChainedStubException) ex).getWrappedException();
-		}
-		return ex;
-	}
-	
+	/**
+	 * Prints an error message and throws the given exception. If the exception is of the type
+	 * {@link ExceptionInChainedStubException} then the chain of contained exceptions is followed
+	 * until an exception of a different type is found.
+	 * 
+	 * @param ex The exception to be thrown.
+	 * @param parent The parent task, whose information is included in the log message.
+	 * @throws Exception Always thrown.
+	 */
 	public static void logAndThrowException(Exception ex, AbstractInvokable parent) throws Exception
 	{
 		String taskName;
@@ -374,7 +386,214 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 		
 		throw ex;
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	//                             Result Shipping and Chained Tasks
+	// --------------------------------------------------------------------------------------------
+		
+	/**
+	 * Creates the {@link OutputCollector} for the given task, as described by the given configuration. The
+	 * output collector contains the writers that forward the data to the different tasks that the given task
+	 * is connected to. Each writer applies a the partitioning as described in the configuration.
+	 * 
+	 * @param task The task that the output collector is created for.
+	 * @param config The configuration describing the output shipping strategies.
+	 * @param cl The classloader used to load user defined types.
+	 * @param numOutputs The number of outputs described in the configuration.
+	 * 
+	 * @return The OutputCollector that data produced in this task is submitted to.
+	 */
+	public static OutputCollector getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, int numOutputs)
+	{ 
+		OutputCollector output = new OutputCollector();
+		
+		// create a writer for each output
+		for (int i = 0; i < numOutputs; i++)
+		{
+			// create the OutputEmitter from output ship strategy
+			final ShipStrategy strategy = config.getOutputShipStrategy(i);
+			final int[] keyPositions = config.getOutputShipKeyPositions(i);
+			final Class<? extends Key>[] keyClasses;
+			try {
+				keyClasses = config.getOutputShipKeyTypes(i, cl);
+			}
+			catch (ClassNotFoundException cnfex) {
+				throw new RuntimeException("The classes for the keys determining the partitioning for output " + i + 
+					"  could not be loaded.");
+			}
+			
+			final OutputEmitter oe =  (keyPositions == null || keyClasses == null) ?
+					new OutputEmitter(strategy) :
+					new OutputEmitter(strategy, task.getEnvironment().getJobID(), keyPositions, keyClasses);
+			
+			if (task instanceof AbstractTask) {
+				output.addWriter(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
+			} else if (task instanceof AbstractInputTask<?>) {
+				output.addWriter(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
+			}
+		}
+		return output;
+	}
+	
+	/**
+	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
+	 * The output collector applies the configured shipping strategy.
+	 */
+	public static Collector initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedTask> chainedTasksTarget)
+	{
+		final int numOutputs = config.getNumOutputs();
+		
+		// check whether we got any chained tasks
+		final int numChained = config.getNumberOfChainedStubs();
+		if (numChained > 0)
+		{
+			// got chained stubs. that means that this one may only have a single forward connection
+			if (numOutputs != 1 || config.getOutputShipStrategy(0) != ShipStrategy.FORWARD) {
+				throw new RuntimeException("Plan Generation Bug: Found a chained stub that is not connected via an only forward connection.");
+			}
+			
+			// instantiate each task
+			Collector previous = null;
+			for (int i = numChained - 1; i >= 0; --i)
+			{
+				// get the task first
+				final ChainedTask ct;
+				try {
+					Class<? extends ChainedTask> ctc = config.getChainedTask(i);
+					ct = ctc.newInstance();
+				}
+				catch (Exception ex) {
+					throw new RuntimeException("Could not instantiate chained task driver.", ex);
+				}
+				
+				// get the configuration for the task
+				final TaskConfig chainedStubConf = config.getChainedStubConfig(i);
+				final String taskName = config.getChainedTaskName(i);
+				
+				if (i == numChained -1) {
+					// last in chain, instantiate the output collector for this task
+					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, chainedStubConf.getNumOutputs());
+				}
+				
+				ct.setup(chainedStubConf, taskName, nepheleTask, cl, previous);
+				chainedTasksTarget.add(0, ct);
+				
+				previous = ct;
+			}
+			// the collector of the first in the chain is the collector for the nephele task
+			return previous;
+		}
+		else {
+			// instantiate the output collector the default way from this configuration
+			return getOutputCollector(nepheleTask , config, cl, numOutputs);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                  User Code LifeCycle
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Opens the given stub using its {@link Stub#open(Configuration)} method. If the open call produces
+	 * an exception, a new exception with a standard error message is created, using the encountered exception
+	 * as its cause.
+	 * 
+	 * @param stub The user code instance to be opened.
+	 * @param parameters The parameters supplied to the user code.
+	 * 
+	 * @throws Exception Thrown, if the user code's open method produces an exception.
+	 */
+	public static void openUserCode(Stub stub, Configuration parameters) throws Exception
+	{
+		try {
+			stub.open(parameters);
+		}
+		catch (Throwable t) {
+			throw new Exception("The user defined 'open(Configuration)' method caused an exception: " + t.getMessage(), t);
+		}
+	}
+	
+	/**
+	 * Closes the given stub using its {@link Stub#close()} method. If the close call produces
+	 * an exception, a new exception with a standard error message is created, using the encountered exception
+	 * as its cause.
+	 * 
+	 * @param stub The user code instance to be closed.
+	 * 
+	 * @throws Exception Thrown, if the user code's close method produces an exception.
+	 */
+	public static void closeUserCode(Stub stub) throws Exception
+	{
+		try {
+			stub.close();
+		}
+		catch (Throwable t) {
+			throw new Exception("The user defined 'close()' method caused an exception: " + t.getMessage(), t);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                               Chained Task LifeCycle
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Opens all chained tasks, in the order as they are stored in the array. The opening process
+	 * creates a standardized log info message.
+	 * 
+	 * @param tasks The tasks to be opened.
+	 * @param parent The parent task, used to obtain parameters to include in the log message.
+	 * @throws Exception Thrown, if the opening encounters an exception.
+	 */
+	public static void openChainedTasks(List<ChainedTask> tasks, AbstractInvokable parent) throws Exception
+	{
+		// start all chained tasks
+		for (int i = 0; i < tasks.size(); i++) {
+			final ChainedTask task = tasks.get(i);
+			if (LOG.isInfoEnabled())
+				LOG.info(constructLogString("Start PACT code", task.getTaskName(), parent));
+			task.openTask();
+		}
+	}
+	
+	/**
+	 * Closes all chained tasks, in the order as they are stored in the array. The closing process
+	 * creates a standardized log info message.
+	 * 
+	 * @param tasks The tasks to be closed.
+	 * @param parent The parent task, used to obtain parameters to include in the log message.
+	 * @throws Exception Thrown, if the closing encounters an exception.
+	 */
+	public static void closeChainedTasks(List<ChainedTask> tasks, AbstractInvokable parent) throws Exception
+	{
+		for (int i = 0; i < tasks.size(); i++) {
+			final ChainedTask task = tasks.get(i);
+			task.closeTask();
+			
+			if (LOG.isInfoEnabled())
+				LOG.info(constructLogString("Finished PACT code", task.getTaskName(), parent));
+			
+		}
+	}
+	
+	/**
+	 * Cancels all tasks via their {@link ChainedTask#cancelTask()} method. Any occurring exception
+	 * and error is suppressed, such that the canceling method of every task is invoked in all cases.
+	 * 
+	 * @param tasks The tasks to be canceled.
+	 */
+	public static void cancelChainedTasks(List<ChainedTask> tasks)
+	{
+		for (int i = 0; i < tasks.size(); i++) {
+			try {
+				tasks.get(i).cancelTask();
+			} catch (Throwable t) {}
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                     Miscellaneous Utilities
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Instantiates a user code class from is definition in the task configuration.
 	 * The class is instantiated without arguments using the null-ary constructor. Instantiation
@@ -400,138 +619,6 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 		}
 		catch (ClassCastException ccex) {
 			throw new RuntimeException("User Code class is not a proper subclass of " + superClass.getName(), ccex); 
-		}
-	}
-
-	/**
-	 * Creates the {@link OutputCollector} for the given task, as described by the given configuration. The
-	 * output collector contains the writers that forward the data to the different tasks that the given task
-	 * is connected to. Each writer applies a the partitioning as described in the configuration.
-	 * 
-	 * @param task The task that the output collector is created for.
-	 * @param config The configuration describing the output shipping strategies.
-	 * @param cl The classloader used to load user defined types.
-	 * @param numOutputs The number of outputs described in the configuration.
-	 * 
-	 * @return The OutputCollector that data produced in this task is submitted to.
-	 */
-	public static OutputCollector getOutputCollector(AbstractInputTask<?> task, TaskConfig config, ClassLoader cl, int numOutputs)
-	{
-		OutputCollector output = new OutputCollector();
-		
-		// create a writer for each output
-		for (int i = 0; i < numOutputs; i++)
-		{
-			final OutputEmitter oe = getOutputEmitter(config, cl, task.getEnvironment().getJobID(), i);
-			final RecordWriter<PactRecord> writer = new RecordWriter<PactRecord>(task, PactRecord.class, oe);
-			output.addWriter(writer);
-		}
-		return output;
-	}
-		
-	/**
-	 * Creates the {@link OutputCollector} for the given task, as described by the given configuration. The
-	 * output collector contains the writers that forward the data to the different tasks that the given task
-	 * is connected to. Each writer applies a the partitioning as described in the configuration.
-	 * 
-	 * @param task The task that the output collector is created for.
-	 * @param config The configuration describing the output shipping strategies.
-	 * @param cl The classloader used to load user defined types.
-	 * @param numOutputs The number of outputs described in the configuration.
-	 * 
-	 * @return The OutputCollector that data produced in this task is submitted to.
-	 */
-	public static OutputCollector getOutputCollector(AbstractTask task, TaskConfig config, ClassLoader cl, int numOutputs)
-	{ 
-		OutputCollector output = new OutputCollector();
-		
-		// create a writer for each output
-		for (int i = 0; i < numOutputs; i++)
-		{
-			final OutputEmitter oe = getOutputEmitter(config, cl, task.getEnvironment().getJobID(), i);
-			final RecordWriter<PactRecord> writer = new RecordWriter<PactRecord>(task, PactRecord.class, oe);
-			output.addWriter(writer);
-		}
-		return output;
-	}
-	
-	/**
-	 * Creates an {@link OutputEmitter} for the i-th output of the task described by the given config.
-	 * 
-	 * @param config The task configuration for the task.
-	 * @param cl The classloader used to load user defined types.
-	 * @param jobID The id of the job this task belongs to.
-	 * @param inputNum The number of the output.
-	 * 
-	 * @return An OutputEmitter selecting the channels for the specified output.
-	 */
-	private static final OutputEmitter getOutputEmitter(TaskConfig config, ClassLoader cl, JobID jobID, int inputNum)
-	{
-		// create the OutputEmitter from output ship strategy
-		final ShipStrategy strategy = config.getOutputShipStrategy(inputNum);
-		final int[] keyPositions = config.getOutputShipKeyPositions(inputNum);
-		final Class<? extends Key>[] keyClasses;
-		try {
-			keyClasses = config.getOutputShipKeyTypes(inputNum, cl);
-		}
-		catch (ClassNotFoundException cnfex) {
-			throw new RuntimeException("The classes for the keys determining the partitioning for output " + inputNum + 
-				"  could not be loaded.");
-		}
-		
-		return (keyPositions == null || keyClasses == null) ?
-				new OutputEmitter(strategy) :
-				new OutputEmitter(strategy, jobID, keyPositions, keyClasses);
-	}
-	
-	
-	public static void openUserCode(Stub stub, Configuration parameters) throws Exception
-	{
-		try {
-			stub.open(parameters);
-		}
-		catch (Throwable t) {
-			throw new Exception("The user defined 'open(Configuration)' method caused an exception: " + t.getMessage(), t);
-		}
-	}
-	
-	public static void closeUserCode(Stub stub) throws Exception
-	{
-		try {
-			stub.close();
-		}
-		catch (Throwable t) {
-			throw new Exception("The user defined 'close()' method caused an exception: " + t.getMessage(), t);
-		}
-	}
-	
-	public static void openChainedTasks(ChainedTask[] tasks, AbstractInvokable parent) throws Exception
-	{
-		// start all chained tasks
-		for (int i = 0; i < tasks.length; i++) {
-			if (LOG.isInfoEnabled())
-				LOG.info(constructLogString("Start PACT code", tasks[i].getTaskName(), parent));
-			tasks[i].openTask();
-		}
-	}
-	
-	public static void closeChainedTasks(ChainedTask[] tasks, AbstractInvokable parent) throws Exception
-	{
-		for (int i = 0; i < tasks.length; i++) {
-			tasks[i].closeTask();
-			
-			if (LOG.isInfoEnabled())
-				LOG.info(constructLogString("Finished PACT code", tasks[i].getTaskName(), parent));
-			
-		}
-	}
-	
-	public static void cancelChainedTasks(ChainedTask[] tasks)
-	{
-		for (int i = 0; i < tasks.length; i++) {
-			try {
-				tasks[i].cancelTask();
-			} catch (Throwable t) {}
 		}
 	}
 }

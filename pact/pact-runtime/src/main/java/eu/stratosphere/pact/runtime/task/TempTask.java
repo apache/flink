@@ -17,10 +17,10 @@ package eu.stratosphere.pact.runtime.task;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 
 /**
  * Temp task which is executed by a Nephele task manager. The task has a single
@@ -28,7 +28,7 @@ import eu.stratosphere.pact.runtime.task.util.OutputCollector;
  * <p>
  * The TempTask collects all pairs from its input and dumps them on disk. After all pairs have been read and dumped,
  * they are read from disk and forwarded. The TempTask is automatically inserted by the PACT Compiler to avoid deadlocks
- * in Nepheles dataflow.
+ * in Nephele's dataflow.
  * 
  * @author Fabian Hueske
  * @author Matthias Ringwald
@@ -99,7 +99,7 @@ public class TempTask extends AbstractPactTask<Stub>
 
 		// cache references on the stack
 		final SpillingResettableMutableObjectIterator iter = this.tempIterator;
-		final OutputCollector output = this.output;
+		final Collector output = this.output;
 		
 		PactRecord record = new PactRecord();
 		// run stub implementation

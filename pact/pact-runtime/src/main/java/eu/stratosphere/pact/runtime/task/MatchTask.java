@@ -17,13 +17,13 @@ package eu.stratosphere.pact.runtime.task;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -152,7 +152,7 @@ public class MatchTask extends AbstractPactTask<MatchStub>
 	public void run() throws Exception
 	{
 		final MatchStub matchStub = this.stub;
-		final OutputCollector collector = this.output;
+		final Collector collector = this.output;
 		final MatchTaskIterator matchIterator = this.matchIterator;
 		
 		while (this.running && matchIterator.callWithNextKey(matchStub, collector));

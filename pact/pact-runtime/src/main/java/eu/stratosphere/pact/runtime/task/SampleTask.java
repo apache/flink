@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 
 /**
  * Map task which is executed by a Nephele task manager. The task has a single
@@ -70,7 +70,7 @@ public class SampleTask extends AbstractPactTask<Stub> {
 	{
 		// cache references on the stack
 		final MutableObjectIterator<PactRecord> input = this.inputs[0];
-		final OutputCollector output = this.output;
+		final Collector output = this.output;
 		
 		final PactRecord record = new PactRecord();
 		

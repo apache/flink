@@ -40,6 +40,7 @@ import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -67,6 +68,7 @@ import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.SampleTask;
 import eu.stratosphere.pact.runtime.task.SelfMatchTask;
 import eu.stratosphere.pact.runtime.task.TempTask;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -294,18 +296,20 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 					if (container == null) {
 						// predecessor is itself chained
 						container = this.chainedTasks.get(sourceNode).getContainingVertex();
+						if (container == null)
+							throw new IllegalStateException("Chained task predecessor has not been assigned its containing vertex.");
+					} else {
+						// predecessor is a proper task job vertex and this is the first chained task. add a forward connection entry.
+						new TaskConfig(container.getConfiguration()).addOutputShipStrategy(ShipStrategy.FORWARD);
 					}
-					if (container == null)
-						throw new IllegalStateException("Chained task predecessor has not been assigned its containing vertex.");
 					chainedTask.setContainingVertex(container);
-					new TaskConfig(container.getConfiguration()).addOutputShipStrategy(ShipStrategy.FORWARD);
 				}
 				
 				this.chainedTasksInSequence.add(chainedTask);
 				return;
 			}
 			
-			if (incomingConns == null) {
+			if (incomingConns == null || incomingConns.isEmpty()) {
 				// data source
 				return;
 			}
@@ -424,11 +428,22 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 */
 	private JobTaskVertex generateCombineVertex(CombinerNode combineNode) throws CompilerException
 	{
-		JobTaskVertex combineVertex = new JobTaskVertex("Combiner for " + combineNode.getPactContract().getName(),
-			this.jobGraph);
-		combineVertex.setTaskClass(CombineTask.class);
-
-		TaskConfig combineConfig = new TaskConfig(combineVertex.getConfiguration());
+		final ReduceContract rc = combineNode.getPactContract();
+		final JobTaskVertex combineVertex;
+		final TaskConfig combineConfig;
+		
+		// check if the combiner is chained
+		if (isChainable(combineNode)) {
+			combineVertex = null;
+			combineConfig = new TaskConfig(new Configuration());
+			this.chainedTasks.put(combineNode, new TaskInChain(ChainedCombineTask.class,
+											combineConfig, "Combiner for " + rc.getName()));
+		} else {
+			combineVertex = new JobTaskVertex("Combiner for " + combineNode.getPactContract().getName(), this.jobGraph);
+			combineVertex.setTaskClass(CombineTask.class);
+			combineConfig = new TaskConfig(combineVertex.getConfiguration());
+		}
+		
 		combineConfig.setStubClass(combineNode.getPactContract().getUserCodeClass());
 
 		// we have currently only one strategy for combiners
@@ -894,7 +909,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
 		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
 		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
-		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+//		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
 		Class<?> sourceStub = connection.getSourcePact().getPactContract().getUserCodeClass();
 		
 		//TODO: Check for which pact types it makes sense
@@ -1007,7 +1022,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
 		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
 		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
-		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
+//		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
 		Class<?> sourceStub = connection.getSourcePact().getPactContract().getUserCodeClass();
 		
 		//When parallelism is one there is nothing to partition
@@ -1106,10 +1121,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		switch (connection.getTempMode()) {
 		case NONE:
-			// connect child with inmemory channel
 			outputVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION);
-			// set ship strategy in vertex and child
-
 			// set strategies in task configs
 			if ( (keyPositions == null | keyTypes == null) || (keyPositions.length == 0 | keyTypes.length == 0)) {
 				outputConfig.addOutputShipStrategy(connection.getShipStrategy());
@@ -1196,12 +1208,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// node needs to have one input and be the only successor of its predecessor
 		if (node.getIncomingConnections().size() == 1) {
 			final PactConnection conn = node.getIncomingConnections().get(0);
-			if (conn.getShipStrategy() == ShipStrategy.FORWARD) {
-				final OptimizerNode predecessor = conn.getSourcePact();
-				if (predecessor.getOutgoingConnections().size() == 1) {
-					return node.getDegreeOfParallelism() == predecessor.getDegreeOfParallelism() && 
-							node.getInstancesPerMachine() == predecessor.getInstancesPerMachine();
-				}
+			final OptimizerNode predecessor = conn.getSourcePact();
+			if (conn.getShipStrategy() == ShipStrategy.FORWARD && predecessor.getOutgoingConnections().size() == 1) {
+				return node.getDegreeOfParallelism() == predecessor.getDegreeOfParallelism() && 
+						node.getInstancesPerMachine() == predecessor.getInstancesPerMachine();
 			}
 		}
 		

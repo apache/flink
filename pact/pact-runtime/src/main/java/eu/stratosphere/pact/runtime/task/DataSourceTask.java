@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
@@ -31,7 +32,6 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
  * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
@@ -58,7 +58,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	// Task configuration
 	private TaskConfig config;
 	
-	private ChainedTask[] chainedTasks;
+	private ArrayList<ChainedTask> chainedTasks;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -187,7 +187,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 			// drop exception, if the task was canceled
 			if (!this.taskCanceled) {
 				AbstractPactTask.logAndThrowException(ex, this);
-			}	
+			}
 		}
 
 		if (!this.taskCanceled) {
@@ -241,58 +241,10 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
-	protected void initOutputs(ClassLoader cl)
+	private void initOutputs(ClassLoader cl)
 	{
-		final int numOutputs = this.config.getNumOutputs();
-		
-		// check whether we got any chained tasks
-		final int numChained = this.config.getNumberOfChainedStubs();
-		if (numChained > 0)
-		{
-			// got chained stubs. that means that this one may only have a single forward connection
-			if (numOutputs != 1 || config.getOutputShipStrategy(0) != ShipStrategy.FORWARD) {
-				throw new RuntimeException("Found a chained stub that is not connected to an only forward connection.");
-			}
-			
-			this.chainedTasks = new ChainedTask[numChained];
-			
-			// instantiate each task
-			Collector previous = null;
-			for (int i = numChained - 1; i >= 0; --i)
-			{
-				// get the task first
-				final ChainedTask ct;
-				try {
-					Class<? extends ChainedTask> ctc = this.config.getChainedTask(i);
-					ct = ctc.newInstance();
-				}
-				catch (Exception ex) {
-					throw new RuntimeException("Could not instantiate chained task.", ex);
-				}
-				
-				// get the configuration for the task
-				final TaskConfig chainedStubConf = this.config.getChainedStubConfig(i);
-				final String taskName = this.config.getChainedTaskName(i);
-				
-				if (i == numChained -1) {
-					// last in chain, instantiate the output collector for this task
-					previous = AbstractPactTask.getOutputCollector(this, chainedStubConf, cl, chainedStubConf.getNumOutputs());
-				}
-				
-				ct.setup(chainedStubConf, taskName, this, cl, previous);
-				this.chainedTasks[i] = ct;
-				
-				previous = ct;
-			}
-			// the collector of the first in the chain is the collector for the data source
-			this.output = previous;
-		}
-		else {
-			this.chainedTasks = new ChainedTask[0];
-			
-			// instantiate the output collector the default way from this configuration
-			this.output = AbstractPactTask.getOutputCollector(this, this.config, cl, numOutputs);
-		}
+		this.chainedTasks = new ArrayList<ChainedTask>();
+		this.output = AbstractPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
 	}
 	
 	// ------------------------------------------------------------------------

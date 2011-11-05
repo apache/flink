@@ -18,10 +18,10 @@ package eu.stratosphere.pact.runtime.task;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.runtime.sort.SortMergeCoGroupIterator;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -146,7 +146,7 @@ public class CoGroupTask extends AbstractPactTask<CoGroupStub>
 	public void run() throws Exception
 	{
 		final CoGroupStub coGroupStub = this.stub;
-		final OutputCollector collector = this.output;
+		final Collector collector = this.output;
 		final CoGroupTaskIterator coGroupIterator = this.coGroupIterator;
 		
 		while (this.running && coGroupIterator.next()) {

@@ -19,13 +19,13 @@ import java.util.Comparator;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
@@ -72,7 +72,7 @@ public class ReduceTask extends AbstractPactTask<ReduceStub>
 		
 		// cache references on the stack
 		final ReduceStub stub = this.stub;
-		final OutputCollector output = this.output;
+		final Collector output = this.output;
 		
 		// run stub implementation
 		while (this.running && iter.nextKey())
