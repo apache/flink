@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -86,8 +85,9 @@ public class AsynchronousPartialSorterCollector extends AsynchronousPartialSorte
 	// Factory Methods
 	// ------------------------------------------------------------------------
 
+	@Override
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler, 
-			MutableObjectIterator<PactRecord> reader, CircularQueues queues, AbstractTask parentTask, long startSpillingBytes)
+			MutableObjectIterator<PactRecord> reader, CircularQueues queues, AbstractInvokable parentTask, long startSpillingBytes)
 	{
 		this.collector = new InputDataCollector(queues, startSpillingBytes);
 		
