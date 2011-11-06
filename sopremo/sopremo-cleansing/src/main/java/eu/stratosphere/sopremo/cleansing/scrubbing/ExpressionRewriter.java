@@ -139,7 +139,8 @@ public class ExpressionRewriter {
 		 * @return
 		 */
 		public EvaluationExpression rewrite(EvaluationExpression expression) {
-			expression = process(expression);
+			EvaluationExpression rewritten = process(expression);
+			if(rewritten == expression) {
 			if (expression instanceof ContainerExpression) {
 				List<EvaluationExpression> children = new ArrayList<EvaluationExpression>(
 					((ContainerExpression) expression).getChildren());
@@ -154,7 +155,8 @@ public class ExpressionRewriter {
 				if(propertyValue != newValue)
 					property.set(expression, newValue);
 			}
-			return expression;
+			}
+			return rewritten;
 		}
 	}
 }

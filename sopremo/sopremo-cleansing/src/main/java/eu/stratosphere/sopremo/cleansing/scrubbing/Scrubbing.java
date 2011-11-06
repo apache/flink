@@ -11,6 +11,7 @@ import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
+import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.MethodCall;
@@ -47,7 +48,7 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 				 */
 				@Override
 				public EvaluationExpression call(MethodPointerExpression inputExpr, EvaluationContext context) {
-					return new MethodCall(inputExpr.getFunctionName(), EvaluationExpression.VALUE);
+					return new MethodCall(inputExpr.getFunctionName(), ((RewriteContext) context).getRewritePath());
 				}
 			});
 		RuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(JsonStreamExpression.class),
@@ -61,9 +62,29 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 				 */
 				@Override
 				public EvaluationExpression call(JsonStreamExpression inputExpr, EvaluationContext context) {
-					if (inputExpr.getStream() == context.getCurrentOperator())
-						return ((RewriteContext) context).getRewritePath();
-					return inputExpr;
+					if (inputExpr.getStream() == context.getCurrentOperator()) {
+						PathExpression path = ((RewriteContext) context).getRewritePath();
+						path.add(0, new ArrayAccess(1));
+						return   path;
+					}
+					return new ArrayAccess(1);
+				}
+			});
+		RuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(CleansingRule.class),
+			new SimpleMacro<CleansingRule<?>>() {
+				private static final long serialVersionUID = 111389216483477521L;
+
+				/*
+				 * (non-Javadoc)
+				 * @see eu.stratosphere.sopremo.function.SimpleMacro#call(eu.stratosphere.sopremo.expressions.
+				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
+				 */
+				@Override
+				public EvaluationExpression call(CleansingRule<?> rule, EvaluationContext context) {
+//					PathExpression path = ((RewriteContext) context).getRewritePath();
+//					path.add(rule);
+//					return  path;
+					return new ArrayAccess(0);
 				}
 			});
 	}
@@ -101,7 +122,7 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 	}
 
 	public ObjectCreation getRuleExpression() {
-		return new ObjectCreation();
+		return (ObjectCreation) this.ruleManager.getLastParsedExpression();
 	}
 
 	public static class Implementation extends
@@ -122,8 +143,8 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 			try {
 				this.context.setContextNode(value);
 
-				for (final Entry<List<EvaluationExpression>, EvaluationExpression> rulePath : this.ruleManager.getRules()) {
-					final List<EvaluationExpression> targetPath = rulePath.getKey();
+				for (final Entry<PathExpression, EvaluationExpression> rulePath : this.ruleManager.getRules()) {
+					final List<EvaluationExpression> targetPath = rulePath.getKey().getFragments();
 					final EvaluationExpression rule = rulePath.getValue();
 
 					if (targetPath.isEmpty())

@@ -70,6 +70,7 @@ public class TransitiveClosureTest extends SopremoTest<TransitiveClosure> {
 			addArray(createObjectNode("id", 14, "name", "e"), createObjectNode("id", 25, "name", "d")).
 			addArray(createObjectNode("id", 16, "name", "a"), createObjectNode("id", 25, "name", "d")).
 			addArray(createObjectNode("id", 14, "name", "e"), createObjectNode("id", 16, "name", "a"));
+		sopremoTestPlan.trace();
 		sopremoTestPlan.run();
 	}
 }

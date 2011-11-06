@@ -21,6 +21,6 @@ public abstract class CleansingRule<ContextType extends EvaluationContext> exten
 
 	@Override
 	public void toString(StringBuilder builder) {
-		builder.append("Cleans rule");
+		builder.append(getClass().getSimpleName());
 	}
 }

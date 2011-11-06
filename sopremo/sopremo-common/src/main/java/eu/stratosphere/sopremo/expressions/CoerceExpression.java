@@ -43,6 +43,8 @@ public class CoerceExpression extends EvaluationExpression {
 	@Override
 	public void toString(final StringBuilder builder) {
 		builder.append('(').append(this.targetType).append(')');
+		if(valueExpression != EvaluationExpression.VALUE)
+			builder.append(' ').append(valueExpression);
 	}
 
 	@Override

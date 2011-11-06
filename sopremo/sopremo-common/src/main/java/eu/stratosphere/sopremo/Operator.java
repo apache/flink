@@ -560,7 +560,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * 
 	 * @author Arvid Heise
 	 */
-	public class Output implements JsonStream, Cloneable {
+	public class Output extends AbstractSopremoType implements JsonStream, Cloneable, SerializableSopremoType {
 		private final int index;
 
 		private Output(final int index) {
@@ -611,10 +611,9 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 			result = prime * result + this.getOperator().hashCode();
 			return result;
 		}
-
 		@Override
-		public String toString() {
-			return String.format("%s@%d", this.getOperator(), this.index);
+		public void toString(StringBuilder builder) {
+			builder.append(this.getOperator()).append('@').append(this.index);
 		}
 	}
 

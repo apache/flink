@@ -8,22 +8,32 @@ import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
+import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.cleansing.scrubbing.CleansingRule;
+import eu.stratosphere.sopremo.cleansing.scrubbing.DefaultRuleFactory;
+import eu.stratosphere.sopremo.cleansing.scrubbing.ExpressionRewriter;
+import eu.stratosphere.sopremo.cleansing.scrubbing.RewriteContext;
+import eu.stratosphere.sopremo.cleansing.scrubbing.RuleFactory;
 import eu.stratosphere.sopremo.cleansing.scrubbing.RuleManager;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
+import eu.stratosphere.sopremo.expressions.MethodCall;
+import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.function.SimpleMacro;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -41,39 +51,82 @@ import eu.stratosphere.sopremo.type.ObjectNode;
  * @author Arvid Heise
  */
 @Name(verb = "fuse")
-public class Fusion extends ElementaryOperator<Fusion> {
+public class Fusion extends CompositeOperator<Fusion> {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 8429199636646276642L;
 
-	private final List<Object2DoubleMap<List<String>>> weights = new ArrayList<Object2DoubleMap<List<String>>>();
+	private static final DefaultRuleFactory FusionRuleFactory = new DefaultRuleFactory();
+	
+	{
+		FusionRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(MethodPointerExpression.class),
+			new SimpleMacro<MethodPointerExpression>() {
+				private static final long serialVersionUID = -8260133422163585840L;
 
-	private RuleManager rules = new RuleManager();
+				/*
+				 * (non-Javadoc)
+				 * @see eu.stratosphere.sopremo.function.SimpleMacro#call(eu.stratosphere.sopremo.expressions.
+				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
+				 */
+				@Override
+				public EvaluationExpression call(MethodPointerExpression inputExpr, EvaluationContext context) {
+					return new MethodCall(inputExpr.getFunctionName(), ((RewriteContext) context).getRewritePath());
+				}
+			});
+		FusionRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(JsonStreamExpression.class),
+			new SimpleMacro<JsonStreamExpression>() {
+				private static final long serialVersionUID = 111389216483477521L;
+
+				/*
+				 * (non-Javadoc)
+				 * @see eu.stratosphere.sopremo.function.SimpleMacro#call(eu.stratosphere.sopremo.expressions.
+				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
+				 */
+				@Override
+				public EvaluationExpression call(JsonStreamExpression inputExpr, EvaluationContext context) {
+					if (inputExpr.getStream() == context.getCurrentOperator())
+						return ((RewriteContext) context).getRewritePath();
+					return EvaluationExpression.VALUE;
+				}
+			});
+		FusionRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(CleansingRule.class),
+			new SimpleMacro<CleansingRule<?>>() {
+				private static final long serialVersionUID = 111389216483477521L;
+
+				/*
+				 * (non-Javadoc)
+				 * @see eu.stratosphere.sopremo.function.SimpleMacro#call(eu.stratosphere.sopremo.expressions.
+				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
+				 */
+				@Override
+				public EvaluationExpression call(CleansingRule<?> rule, EvaluationContext context) {
+					PathExpression path = ((RewriteContext) context).getRewritePath();
+					path.add(rule);
+					return  path;
+				}
+			});
+	}
+
+	private final List<Object2DoubleMap<PathExpression>> weights = new ArrayList<Object2DoubleMap<PathExpression>>();
+
+	private RuleManager fusionRules = new RuleManager(), updateRules = new RuleManager();
 	
 	private boolean multipleRecordsPerSource = false;
 
 	private FusionRule defaultValueRule = MergeRule.INSTANCE;
-
-
-	@Override
-	public PactModule asPactModule(final EvaluationContext context) {
-		if (this.rules.isEmpty())
-			return new PactModule(this.getName(), 1, 1);
-		return super.asPactModule(context);
-	}
 
 	public FusionRule getDefaultValueRule() {
 		return this.defaultValueRule;
 	}
 
 
-	private Object2DoubleMap<List<String>> getWeightMap(final int inputIndex) {
-		Object2DoubleMap<List<String>> weightMap = this.weights.get(inputIndex);
+	private Object2DoubleMap<PathExpression> getWeightMap(final int inputIndex) {
+		Object2DoubleMap<PathExpression> weightMap = this.weights.get(inputIndex);
 		if (weightMap == null) {
 			while (this.weights.size() <= inputIndex)
 				this.weights.add(null);
-			this.weights.set(inputIndex, weightMap = new Object2DoubleOpenHashMap<List<String>>());
+			this.weights.set(inputIndex, weightMap = new Object2DoubleOpenHashMap<PathExpression>());
 			weightMap.defaultReturnValue(1);
 		}
 		return weightMap;
@@ -87,20 +140,20 @@ public class Fusion extends ElementaryOperator<Fusion> {
 		return this.multipleRecordsPerSource;
 	}
 
-	public void addRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		rules.addRule(rule, target);
+	public void addFusionRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+		fusionRules.addRule(rule, target);
 	}
 
-	public void addRule(EvaluationExpression rule, EvaluationExpression... target) {
-		rules.addRule(rule, target);
+	public void addFusionRule(EvaluationExpression rule, EvaluationExpression... target) {
+		fusionRules.addRule(rule, target);
 	}
 
-	public void removeRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		rules.removeRule(rule, target);
+	public void removeFusionRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+		fusionRules.removeRule(rule, target);
 	}
 
-	public void removeRule(EvaluationExpression rule, EvaluationExpression... target) {
-		rules.removeRule(rule, target);
+	public void removeFusionRule(EvaluationExpression rule, EvaluationExpression... target) {
+		fusionRules.removeRule(rule, target);
 	}
 
 	public void setDefaultValueRule(final FusionRule defaultValueRule) {
@@ -114,20 +167,21 @@ public class Fusion extends ElementaryOperator<Fusion> {
 		this.multipleRecordsPerSource = multipleRecordsPerSource;
 	}
 
-	public void setWeight(final double weight, final int inputIndex, final String... path) {
-		this.getWeightMap(inputIndex).put(Arrays.asList(path), weight);
+	public void setWeight(final double weight, final int inputIndex, final PathExpression path) {
+		this.getWeightMap(inputIndex).put(path, weight);
 	}
 
 	@Property
 	@Name(preposition = "into")
-	public void setRuleExpression(ObjectCreation ruleExpression) {
+	public void setFusionExpression(ObjectCreation ruleExpression) {
+		fusionRules.parse(ruleExpression, this, FusionRuleFactory);
 		System.out.println(ruleExpression);
 //		this.rules.parse(ruleExpression, );
 		// extractRules(ruleExpression, EvaluationExpression.VALUE);
 	}
 
-	public ObjectCreation getRuleExpression() {
-		return new ObjectCreation();
+	public ObjectCreation getFusionExpression() {
+		return (ObjectCreation) fusionRules.getLastParsedExpression();
 	}
 
 	@Property
@@ -155,12 +209,36 @@ public class Fusion extends ElementaryOperator<Fusion> {
 	public ObjectCreation getUpdateExpression() {
 		return new ObjectCreation();
 	}
+	
+	@Override
+	public SopremoModule asElementaryOperators() {
+		return SopremoModule.valueOf("fusion", new ValueFusion().withFusionRules(fusionRules));
+	}
+	
+	public static class ValueFusion extends ElementaryOperator<ValueFusion> {
+		private RuleManager fusionRules = new RuleManager();
+		
+public void setFusionRules(RuleManager fusionRules) {
+	if (fusionRules == null)
+		throw new NullPointerException("fusionRules must not be null");
+
+	this.fusionRules = fusionRules;
+}
+
+public RuleManager getFusionRules() {
+	return fusionRules;
+}
+
+public ValueFusion withFusionRules(RuleManager fusionRules) {
+	setFusionRules(fusionRules);
+	return this;
+}
 
 	public static class Implementation extends
 			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
-		private Map<List<String>, FusionRule> rules;
+		private RuleManager fusionRules = new RuleManager();
 
-		private List<Object2DoubleMap<List<String>>> weights;
+		private List<Object2DoubleMap<PathExpression>> weights;
 
 		private FusionContext context;
 
@@ -177,7 +255,7 @@ public class Fusion extends ElementaryOperator<Fusion> {
 			this.context = new FusionContext(this.getContext());
 			for (int index = 0; index < this.weights.size(); index++)
 				if (this.weights.get(index) == null || this.weights.get(index).isEmpty()) {
-					final Object2DoubleMap<List<String>> quickMap = Object2DoubleMaps.singleton(null, null);
+					final Object2DoubleMap<PathExpression> quickMap = Object2DoubleMaps.singleton(null, null);
 					quickMap.defaultReturnValue(1);
 					this.weights.set(index, quickMap);
 				}
@@ -193,11 +271,15 @@ public class Fusion extends ElementaryOperator<Fusion> {
 			return firstNonNull;
 		}
 
-		private JsonNode fuse(final JsonNode[] values, final double[] weights, final List<String> currentPath) {
-			final FusionRule fusionRule = this.rules.get(currentPath);
-
-			if (fusionRule != null)
-				return fusionRule.fuse(values, weights, this.context);
+		private JsonNode fuse(final JsonNode[] values, final double[] weights, final PathExpression currentPath) {
+			UnresolvedNodes unresolved = new UnresolvedNodes(values);
+			for(EvaluationExpression fusionRule : this.fusionRules.get(currentPath)) {
+				this.context.setWeights(weights);
+				JsonNode resolvedNode = fusionRule.evaluate(unresolved, this.context);
+				if(resolvedNode instanceof UnresolvedNodes)
+					unresolved = (UnresolvedNodes) resolvedNode;
+				else return resolvedNode;
+			}
 
 			final JsonNode firstNonNull = this.findFirstNode(values);
 			if (firstNonNull == NullNode.getInstance())
@@ -220,15 +302,12 @@ public class Fusion extends ElementaryOperator<Fusion> {
 			return fusedArray;
 		}
 
-		private JsonNode fuseObjects(final JsonNode[] values, final double[] weights, final List<String> currentPath,
+		private JsonNode fuseObjects(final JsonNode[] values, final double[] weights, final PathExpression currentPath,
 				final Iterator<String> fieldNames) {
 			final JsonNode[] children = new JsonNode[values.length];
-			final List<String> childPath = new ArrayList<String>(currentPath);
 			final double[] childWeights = new double[weights.length];
 
 			final ObjectNode fusedObject = new ObjectNode();
-			final int lastPath = childPath.size();
-			childPath.add(null);
 			while (fieldNames.hasNext()) {
 				final String fieldName = fieldNames.next();
 
@@ -236,17 +315,18 @@ public class Fusion extends ElementaryOperator<Fusion> {
 					children[index] = values[index] == NullNode.getInstance() ? values[index]
 						: ((ObjectNode) values[index])
 							.get(fieldName);
-					childWeights[index] = weights[index] * this.getWeight(index, childPath);
+					childWeights[index] = weights[index] * this.getWeight(index, currentPath);
 				}
 
-				childPath.set(lastPath, fieldName);
-				fusedObject.put(fieldName, this.fuse(children, childWeights, childPath));
+				currentPath.add(new ObjectAccess(fieldName));
+				fusedObject.put(fieldName, this.fuse(children, childWeights, currentPath));
+				currentPath.removeLast();
 			}
 
 			return fusedObject;
 		}
 
-		private Double getWeight(final int index, final List<?> path) {
+		private Double getWeight(final int index, final PathExpression path) {
 			return this.weights.get(this.context.getSourceIndexes()[index]).get(path);
 		}
 
@@ -278,12 +358,13 @@ public class Fusion extends ElementaryOperator<Fusion> {
 				this.context.setContextNodes(this.contextNodes.toArray(new JsonNode[this.contextNodes.size()]));
 				final double[] initialWeights = new double[this.contextNodes.size()];
 				for (int index = 0; index < initialWeights.length; index++)
-					initialWeights[index] = this.getWeight(index, Collections.EMPTY_LIST);
-				out.collect(key, this.fuse(this.context.getContextNodes(), initialWeights, new ArrayList<String>()));
+					initialWeights[index] = this.getWeight(index, new PathExpression());
+				out.collect(key, this.fuse(this.context.getContextNodes(), initialWeights, new PathExpression()));
 			} catch (final UnresolvableEvaluationException e) {
 				// do not emit invalid record
 			}
 		}
+	}
 	}
 
 }

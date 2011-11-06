@@ -18,6 +18,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ import java.util.Map;
 import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.cleansing.fusion.FusionRule;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
@@ -32,6 +34,9 @@ import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.FieldAssignment;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
+import eu.stratosphere.util.AbstractIterable;
+import eu.stratosphere.util.AbstractIterator;
+import eu.stratosphere.util.FilteringIterable;
 
 /**
  * @author Arvid Heise
@@ -42,15 +47,19 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 	 */
 	private static final long serialVersionUID = -6117578045521341880L;
 
-	private List<Map.Entry<List<EvaluationExpression>, EvaluationExpression>> rules = new ArrayList<Map.Entry<List<EvaluationExpression>, EvaluationExpression>>();
+	private List<Map.Entry<PathExpression, EvaluationExpression>> rules = new ArrayList<Map.Entry<PathExpression, EvaluationExpression>>();
+
+	private EvaluationExpression parsedExpression;
 
 	public void addRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		this.rules.add(new AbstractMap.SimpleEntry<List<EvaluationExpression>, EvaluationExpression>(target, rule));
+		addRule(rule, new PathExpression(target));
+	}
+	public void addRule(EvaluationExpression rule, PathExpression target) {
+		this.rules.add(new AbstractMap.SimpleEntry<PathExpression, EvaluationExpression>(target, rule));
 	}
 
 	public void addRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.rules.add(new AbstractMap.SimpleEntry<List<EvaluationExpression>, EvaluationExpression>(
-			Arrays.asList(target), rule));
+		addRule(rule, new PathExpression(target));
 	}
 
 	/**
@@ -58,7 +67,7 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 	 * 
 	 * @return the rules
 	 */
-	public List<Map.Entry<List<EvaluationExpression>, EvaluationExpression>> getRules() {
+	public List<Map.Entry<PathExpression, EvaluationExpression>> getRules() {
 		return this.rules;
 	}
 
@@ -66,17 +75,25 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 		return this.rules.isEmpty();
 	}
 
+	public void removeRule(EvaluationExpression rule, PathExpression target) {
+		this.rules.remove(new AbstractMap.SimpleEntry<PathExpression, EvaluationExpression>(target, rule));
+	}
+	
 	public void removeRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		this.rules.remove(new AbstractMap.SimpleEntry<List<EvaluationExpression>, EvaluationExpression>(target, rule));
+		removeRule(rule, new PathExpression(target));
 	}
 
 	public void removeRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.rules.remove(new AbstractMap.SimpleEntry<List<EvaluationExpression>, EvaluationExpression>(
-			Arrays.asList(target), rule));
+		removeRule(rule, new PathExpression(target));
 	}
 
 	public void parse(EvaluationExpression expression, Operator<?> operator, RuleFactory ruleFactory) {
 		this.parse(expression, operator, ruleFactory, new PathExpression());
+		this.parsedExpression = expression;
+	}
+	
+	public EvaluationExpression getLastParsedExpression() {
+		return parsedExpression;
 	}
 
 	private void parse(EvaluationExpression expression, Operator<?> operator, RuleFactory ruleFactory,
@@ -110,5 +127,24 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 	@Override
 	public void toString(StringBuilder builder) {
 		builder.append(getRules());
+	}
+
+	public Iterable<EvaluationExpression> get(final PathExpression currentPath) {
+		return new AbstractIterable<Map.Entry<PathExpression, EvaluationExpression>, EvaluationExpression>(rules) {
+			@Override
+			protected Iterator<EvaluationExpression> wrap(final Iterator<Map.Entry<PathExpression, EvaluationExpression>> iterator) {
+				return new AbstractIterator<EvaluationExpression>() {
+					@Override
+					protected EvaluationExpression loadNext() {
+						while(iterator.hasNext()) {
+							Map.Entry<PathExpression, EvaluationExpression> next = iterator.next();
+							if(next.getKey().equals(currentPath))
+								return next.getValue();
+						}
+						return noMoreElements();
+					}
+				};
+			}
+		};
 	}
 }

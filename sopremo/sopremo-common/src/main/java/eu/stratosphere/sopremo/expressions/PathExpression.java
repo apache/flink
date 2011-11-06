@@ -19,7 +19,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	 */
 	private static final long serialVersionUID = -4663949354781572815L;
 
-	private final LinkedList<EvaluationExpression> fragments = new LinkedList<EvaluationExpression>();
+	private LinkedList<EvaluationExpression> fragments = new LinkedList<EvaluationExpression>();
 
 	public PathExpression(final EvaluationExpression... fragments) {
 		this(Arrays.asList(fragments));
@@ -37,6 +37,11 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		this.fragments.add(fragment);
 	}
 
+	@Override
+	public PathExpression clone() {
+		return new PathExpression(fragments);
+	}
+	
 	@Override
 	public boolean equals(final Object obj) {
 		if (this == obj)
@@ -198,5 +203,9 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	 */
 	public void removeLast() {
 		fragments.removeLast();
+	}
+
+	public void add(int index, EvaluationExpression fragment) {
+		fragments.add(index, fragment);
 	}
 }

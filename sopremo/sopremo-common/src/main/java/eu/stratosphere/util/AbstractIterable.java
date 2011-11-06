@@ -19,10 +19,10 @@ import java.util.Iterator;
 /**
  * @author Arvid Heise
  */
-public abstract class AbstractIterable<T> implements Iterable<T> {
-	private final Iterable<T> originalIterable;
+public abstract class AbstractIterable<I, O> implements Iterable<O> {
+	private final Iterable<I> originalIterable;
 
-	public AbstractIterable(Iterable<T> originalIterable) {
+	public AbstractIterable(Iterable<I> originalIterable) {
 		this.originalIterable = originalIterable;
 	}
 
@@ -31,7 +31,7 @@ public abstract class AbstractIterable<T> implements Iterable<T> {
 	 * @see java.lang.Iterable#iterator()
 	 */
 	@Override
-	public Iterator<T> iterator() {
+	public Iterator<O> iterator() {
 		return this.wrap(this.originalIterable.iterator());
 	}
 
@@ -39,6 +39,6 @@ public abstract class AbstractIterable<T> implements Iterable<T> {
 	 * @param iterator
 	 * @return
 	 */
-	protected abstract Iterator<T> wrap(Iterator<T> iterator);
+	protected abstract Iterator<O> wrap(Iterator<I> iterator);
 
 }

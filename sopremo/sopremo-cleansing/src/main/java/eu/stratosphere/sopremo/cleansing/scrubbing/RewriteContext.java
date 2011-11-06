@@ -30,7 +30,7 @@ public class RewriteContext extends EvaluationContext {
 	private PathExpression rewritePath;
 
 	public PathExpression getRewritePath() {
-		return this.rewritePath;
+		return this.rewritePath.clone();
 	}
 
 	public void setRewritePath(PathExpression rewritePath) {
