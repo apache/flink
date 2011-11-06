@@ -562,8 +562,10 @@ public class PactCompiler {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
 		}
 		
-		String instanceName = type.getInstanceType().getIdentifier();
-		long memoryPerInstance = (long) (type.getHardwareDescription().getSizeOfFreeMemory() * 0.95f);
+		final String instanceName = type.getInstanceType().getIdentifier();
+		
+		// we subtract some percentage of the memory to accommodate for rounding errors and fragmentation
+		final long memoryPerInstance = (long) (type.getHardwareDescription().getSizeOfFreeMemory() * 0.96f);
 		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
 		int numInstances = type.getMaximumNumberOfAvailableInstances();
 		
@@ -611,6 +613,11 @@ public class PactCompiler {
 						" to " + defaultParallelism + " to fit a maximum number of " + maxMachinesJob +
 						" instances with a intra-parallelism of " + maxIntraNodeParallelism);
 				}
+			}
+		} else if (defaultParallelism < 1) {
+			defaultParallelism = maxMachinesJob;
+			if (LOG.isInfoEnabled()) {
+				LOG.info("No default parallelism specified. Using default parallelism of " + defaultParallelism + " (One task per instance)");
 			}
 		}
 
@@ -836,26 +843,26 @@ public class PactCompiler {
 		 */
 		@Override
 		public void postVisit(Contract c) {
-			OptimizerNode n = con2node.get(c);
+			OptimizerNode n = this.con2node.get(c);
 
 			// check if we have been here before
 			if (n.getId() > 0) {
 				return;
 			}
 
-			n.SetId(id++);
+			n.SetId(this.id++);
 
 			// first connect to the predecessors
-			n.setInputs(con2node);
+			n.setInputs(this.con2node);
 
 			// now compute the output estimates
-			if (computeEstimates) {
+			if (this.computeEstimates) {
 				n.computeOutputEstimates(this.statistics);
 			}
 		}
 
 		public int getId() {
-			return id;
+			return this.id;
 		}
 
 	};
@@ -970,7 +977,8 @@ public class PactCompiler {
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.
 	 * Besides collecting all nodes, this traversal assigns the memory to the nodes.
 	 */
-	private static final class PlanFinalizer implements Visitor<OptimizerNode> {
+	private static final class PlanFinalizer implements Visitor<OptimizerNode>
+	{
 		private final Set<OptimizerNode> allNodes; // a set of all nodes in the optimizer plan
 
 		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
@@ -990,9 +998,10 @@ public class PactCompiler {
 			this.sinks = new ArrayList<DataSinkNode>();
 		}
 
-		private OptimizedPlan createFinalPlan(List<DataSinkNode> sinks, String jobName, int memoryPerInstance) {
-			
-			LOG.debug("Available memory per instance: "+memoryPerInstance);
+		private OptimizedPlan createFinalPlan(List<DataSinkNode> sinks, String jobName, int memoryPerInstance)
+		{
+			if (LOG.isDebugEnabled())
+				LOG.debug("Available memory per instance: " + memoryPerInstance);
 			
 			this.memoryPerInstance = memoryPerInstance;
 			this.memoryConsumers = 0;
@@ -1684,6 +1693,5 @@ public class PactCompiler {
 				jobManagerConnection = null;
 			}
 		}
-		
 	}
 }
