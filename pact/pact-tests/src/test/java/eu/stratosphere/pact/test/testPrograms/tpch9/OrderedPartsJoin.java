@@ -21,11 +21,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class OrderedPartsJoin extends MatchStub {
-
-	private final PactInteger year = new PactInteger();
-	private final Tuple lineItem = new Tuple();
-
+public class OrderedPartsJoin extends MatchStub
+{
 	/**
 	 * Join "orders" and "lineitem" by "orderkey".
 	 * 
@@ -38,8 +35,8 @@ public class OrderedPartsJoin extends MatchStub {
 	public void match(PactRecord value1, PactRecord value2, Collector out)
 			throws Exception {
 
-		value1.getField(1, year);
-		value2.getField(1, lineItem);
+		PactInteger year = value1.getField(1, PactInteger.class);
+		Tuple lineItem = value2.getField(1, Tuple.class);
 		
 		/* (partkey, suppkey) from lineItem: */
 		IntPair newKey = new IntPair(new PactInteger(Integer.parseInt(lineItem.getStringValueAt(0))), new PactInteger(Integer.parseInt(lineItem.getStringValueAt(1))));

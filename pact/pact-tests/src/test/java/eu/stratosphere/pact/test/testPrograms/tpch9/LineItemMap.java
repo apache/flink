@@ -20,10 +20,8 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class LineItemMap extends MapStub {
-	
-	private final Tuple inputTuple = new Tuple();
-	
+public class LineItemMap extends MapStub
+{
 	/**
 	 * Filter "lineitem".
 	 * 
@@ -33,9 +31,9 @@ public class LineItemMap extends MapStub {
 	 *
 	 */
 	@Override
-	public void map(PactRecord record, Collector out) throws Exception {
-		
-		record.getField(1, inputTuple);
+	public void map(PactRecord record, Collector out) throws Exception
+	{
+		Tuple inputTuple = record.getField(1, Tuple.class);
 		
 		/* Extract the year from the date element of the order relation: */
 		

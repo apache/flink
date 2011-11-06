@@ -35,7 +35,7 @@ public class OrderMap extends MapStub {
 	 */
 	@Override
 	public void map(PactRecord record, Collector out) throws Exception {
-		record.getField(1, inputTuple);
+		Tuple inputTuple = record.getField(1, this.inputTuple);
 		
 		int year = Integer.parseInt(inputTuple.getStringValueAt(4).substring(0, 4));
 		record.setField(1, new PactInteger(year));
