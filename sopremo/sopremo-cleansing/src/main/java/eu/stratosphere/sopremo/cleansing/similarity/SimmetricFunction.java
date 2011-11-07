@@ -37,7 +37,7 @@ public class SimmetricFunction extends EvaluationExpression {
 	}
 
 	protected String getValueAsText(final JsonNode node) {
-		return node.isTextual() ? ((TextNode)node).getTextValue() : node.toString();
+		return node.isTextual() ? ((TextNode) node).getTextValue() : node.toString();
 	}
 
 	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {

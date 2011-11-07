@@ -62,7 +62,7 @@ public class CleansFunctions implements BuiltinProvider, ConstantRegistryCallbac
 		}
 		return result;
 	}
-	
+
 	public static JsonNode first(ArrayNode values) {
 		return values.subList(0, 1);
 	}

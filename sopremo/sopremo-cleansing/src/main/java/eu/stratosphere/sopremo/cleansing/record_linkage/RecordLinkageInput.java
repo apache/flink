@@ -10,6 +10,11 @@ public class RecordLinkageInput extends AbstractSopremoType implements JsonStrea
 	/**
 	 * 
 	 */
+	private static final long serialVersionUID = 5483136396336038650L;
+
+	/**
+	 * 
+	 */
 	private final Operator<?> recordLinkage;
 
 	private final int index;
@@ -71,13 +76,12 @@ public class RecordLinkageInput extends AbstractSopremoType implements JsonStrea
 
 		this.resultProjection = resultProjection;
 	}
-	
+
 	@Override
 	public void toString(StringBuilder builder) {
 		builder.append(String.format("RecordLinkageInput [index=%s, idProjection=%s, resultProjection=%s]", this.index,
 			this.idProjection, this.resultProjection));
 	}
-
 
 	@Override
 	public int hashCode() {

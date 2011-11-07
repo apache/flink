@@ -16,12 +16,10 @@ package eu.stratosphere.sopremo.cleansing.scrubbing;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -79,7 +77,7 @@ public class ExpressionRewriter {
 	}
 
 	public void addRewriteRule(EvaluationExpression expression, EvaluationExpression resolveExpression) {
-		addRewriteRule(expression, new ReplacingMacro("", resolveExpression));
+		this.addRewriteRule(expression, new ReplacingMacro("", resolveExpression));
 	}
 
 	/**
@@ -115,8 +113,8 @@ public class ExpressionRewriter {
 		private RewriteContext context = new RewriteContext();
 
 		public Rewriter(Operator<?> operator, PathExpression rewritePath) {
-			context.pushOperator(operator);
-			context.setRewritePath(rewritePath);
+			this.context.pushOperator(operator);
+			this.context.setRewritePath(rewritePath);
 		}
 
 		private EvaluationExpression process(EvaluationExpression expression) {
@@ -139,22 +137,23 @@ public class ExpressionRewriter {
 		 * @return
 		 */
 		public EvaluationExpression rewrite(EvaluationExpression expression) {
-			EvaluationExpression rewritten = process(expression);
-			if(rewritten == expression) {
-			if (expression instanceof ContainerExpression) {
-				List<EvaluationExpression> children = new ArrayList<EvaluationExpression>(
-					((ContainerExpression) expression).getChildren());
-				for (int index = 0; index < children.size(); index++)
-					children.set(index, this.rewrite(children.get(index)));
-				((ContainerExpression) expression).setChildren(children);
-			}
-			
-			for(DynamicProperty<EvaluationExpression> property : ReflectUtil.getDynamicClass(expression.getClass()).getProperties(EvaluationExpression.class)) {
-				EvaluationExpression propertyValue = property.get(expression);
-				EvaluationExpression newValue = rewrite(propertyValue);
-				if(propertyValue != newValue)
-					property.set(expression, newValue);
-			}
+			EvaluationExpression rewritten = this.process(expression);
+			if (rewritten == expression) {
+				if (expression instanceof ContainerExpression) {
+					List<EvaluationExpression> children = new ArrayList<EvaluationExpression>(
+						((ContainerExpression) expression).getChildren());
+					for (int index = 0; index < children.size(); index++)
+						children.set(index, this.rewrite(children.get(index)));
+					((ContainerExpression) expression).setChildren(children);
+				}
+
+				for (DynamicProperty<EvaluationExpression> property : ReflectUtil.getDynamicClass(expression.getClass()).getProperties(
+					EvaluationExpression.class)) {
+					EvaluationExpression propertyValue = property.get(expression);
+					EvaluationExpression newValue = this.rewrite(propertyValue);
+					if (propertyValue != newValue)
+						property.set(expression, newValue);
+				}
 			}
 			return rewritten;
 		}

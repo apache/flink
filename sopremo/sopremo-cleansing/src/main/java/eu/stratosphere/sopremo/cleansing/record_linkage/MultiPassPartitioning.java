@@ -10,6 +10,10 @@ import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public abstract class MultiPassPartitioning extends RecordLinkageAlgorithm {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8424182093854210939L;
 	private final List<EvaluationExpression[]> passPartitionKeys = new ArrayList<EvaluationExpression[]>();
 
 	public MultiPassPartitioning(final EvaluationExpression partitionKey) {

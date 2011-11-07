@@ -11,7 +11,13 @@ import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
+
 public class Naive extends RecordLinkageAlgorithm {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -1380405166945359808L;
+
 	@Override
 	public Operator<?> getInterSource(BooleanExpression similarityCondition, RecordLinkageInput input1,
 			RecordLinkageInput input2) {

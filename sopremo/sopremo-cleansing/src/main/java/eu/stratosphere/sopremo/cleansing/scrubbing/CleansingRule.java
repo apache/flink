@@ -14,13 +14,13 @@ public abstract class CleansingRule<ContextType extends EvaluationContext> exten
 	@SuppressWarnings("unchecked")
 	@Override
 	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
-		return evaluateRule(node, (ContextType) context);
+		return this.evaluateRule(node, (ContextType) context);
 	}
 
 	public abstract JsonNode evaluateRule(JsonNode node, ContextType context);
 
 	@Override
 	public void toString(StringBuilder builder) {
-		builder.append(getClass().getSimpleName());
+		builder.append(this.getClass().getSimpleName());
 	}
 }

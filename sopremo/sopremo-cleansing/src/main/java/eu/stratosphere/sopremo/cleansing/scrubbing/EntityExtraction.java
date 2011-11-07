@@ -38,5 +38,4 @@ public class EntityExtraction extends CompositeOperator<EntityExtraction> {
 		return SopremoModule.valueOf(this.getName());
 	}
 
-
 }

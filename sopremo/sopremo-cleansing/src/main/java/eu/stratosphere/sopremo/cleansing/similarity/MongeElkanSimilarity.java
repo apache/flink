@@ -35,15 +35,14 @@ public class MongeElkanSimilarity extends EvaluationExpression {
 		double sum = 0;
 		for (JsonNode leftValue : (ArrayNode) leftValues) {
 			double max = 0;
-			for (JsonNode rightValue : (ArrayNode) rightValues) {
+			for (JsonNode rightValue : (ArrayNode) rightValues)
 				max = Math.max(max,
-					((DoubleNode) baseMeasure.evaluate(JsonUtil.asArray(leftValue, rightValue), context))
+					((DoubleNode) this.baseMeasure.evaluate(JsonUtil.asArray(leftValue, rightValue), context))
 						.getDoubleValue());
-			}
 			sum += max;
 		}
 
-		return DoubleNode.valueOf(sum / ((ArrayNode)leftValues).size());
+		return DoubleNode.valueOf(sum / ((ArrayNode) leftValues).size());
 	}
 
 	@Override

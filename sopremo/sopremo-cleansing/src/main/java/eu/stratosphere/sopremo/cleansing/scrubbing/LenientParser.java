@@ -13,6 +13,7 @@ import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NumericNode;
 import eu.stratosphere.sopremo.type.TextNode;
+
 public class LenientParser {
 	/**
 	 * Fail if no exact parse is possible.

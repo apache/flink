@@ -28,5 +28,4 @@ public class BlackListRule extends ValidationRule {
 		return !this.blacklistedValues.contains(value);
 	}
 
-	
 }

@@ -14,13 +14,11 @@ public class DefaultValueCorrection extends ValueCorrection {
 	 */
 	public final static DefaultValueCorrection SET_NULL = new DefaultValueCorrection(NullNode.getInstance());
 
-	private  JsonNode defaultValue;
+	private JsonNode defaultValue;
 
 	public DefaultValueCorrection(final JsonNode defaultValue) {
 		this.defaultValue = defaultValue;
 	}
-
-	
 
 	@Override
 	public JsonNode fix(final JsonNode value, final ValidationContext context) {

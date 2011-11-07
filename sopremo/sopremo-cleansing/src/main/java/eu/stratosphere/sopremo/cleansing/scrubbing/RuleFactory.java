@@ -14,8 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import java.util.Deque;
-
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;

@@ -8,7 +8,8 @@ import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 
 // TODO: refactor
-public abstract class RecordLinkageAlgorithm extends AbstractSopremoType implements IntraSourceRecordLinkageAlgorithm, SerializableSopremoType {
+public abstract class RecordLinkageAlgorithm extends AbstractSopremoType implements IntraSourceRecordLinkageAlgorithm,
+		SerializableSopremoType {
 	/**
 	 * 
 	 */
@@ -20,9 +21,9 @@ public abstract class RecordLinkageAlgorithm extends AbstractSopremoType impleme
 	public Operator<?> getDuplicatePairStream(BooleanExpression duplicateCondition, List<RecordLinkageInput> inputs) {
 		return this.getInterSource(duplicateCondition, inputs.get(0), inputs.get(1));
 	}
-	
+
 	@Override
 	public void toString(StringBuilder builder) {
-		builder.append(getClass().getSimpleName());
+		builder.append(this.getClass().getSimpleName());
 	}
 }

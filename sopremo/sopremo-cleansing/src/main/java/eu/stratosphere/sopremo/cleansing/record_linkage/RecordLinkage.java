@@ -80,7 +80,7 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 
 	public Self withDuplicateCondition(BooleanExpression duplicateCondition) {
 		this.setDuplicateCondition(duplicateCondition);
-		return self();
+		return this.self();
 	}
 
 	public void setLinkageMode(LinkageMode linkageMode) {
@@ -92,12 +92,12 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 
 	public Self withAlgorithm(RecordLinkageAlgorithm algorithm) {
 		this.setAlgorithm(algorithm);
-		return self();
+		return this.self();
 	}
 
 	public Self withLinkageMode(LinkageMode linkageMode) {
 		this.setLinkageMode(linkageMode);
-		return self();
+		return this.self();
 	}
 
 	public RecordLinkageInput getRecordLinkageInput(final int index) {

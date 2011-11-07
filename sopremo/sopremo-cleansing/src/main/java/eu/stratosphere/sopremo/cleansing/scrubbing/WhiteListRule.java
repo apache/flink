@@ -20,7 +20,7 @@ public class WhiteListRule extends ValidationRule {
 	@SuppressWarnings("unchecked")
 	public WhiteListRule(List<? extends JsonNode> possibleValues, JsonNode defaultValue) {
 		this.possibleValues = (List<JsonNode>) possibleValues;
-		setValueCorrection(new DefaultValueCorrection(defaultValue));
+		this.setValueCorrection(new DefaultValueCorrection(defaultValue));
 	}
 
 	@Override

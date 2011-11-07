@@ -8,6 +8,11 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public class SortedNeighborhood extends MultiPassPartitioning {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6014392203571189742L;
+
 	public SortedNeighborhood(final EvaluationExpression partitionKey) {
 		super(partitionKey);
 	}

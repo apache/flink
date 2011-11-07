@@ -187,7 +187,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// ObjectAccess("lastName"), new ConstantExpression(0), new ConstantExpression(2)));
 		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(new Naive()).
-			withDuplicateCondition(getDuplicateCondition(simmFunction, 0.8)).
+			withDuplicateCondition(this.getDuplicateCondition(simmFunction, 0.8)).
 			withLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT).
 			withInputs(this.inputs[CONGRESS][LEGAL_ENTITY], this.inputs[EARMARK][LEGAL_ENTITY]);
 
@@ -220,7 +220,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		DisjunctPartitioning partitioning = new DisjunctPartitioning(new ObjectAccess("lastName"));
 		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(partitioning).
-			withDuplicateCondition(getDuplicateCondition(simmFunction, 0.6)).
+			withDuplicateCondition(this.getDuplicateCondition(simmFunction, 0.6)).
 			withLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT).
 			withInputs(this.inputs[CONGRESS][PERSON], this.inputs[EARMARK][PERSON]);
 
@@ -271,7 +271,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(partitioning).
-			withDuplicateCondition(getDuplicateCondition(simmFunction, 0.8)).
+			withDuplicateCondition(this.getDuplicateCondition(simmFunction, 0.8)).
 			withLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT).
 			withInputs(this.fused[EARMARK][LEGAL_ENTITY], this.inputs[SPENDING][LEGAL_ENTITY]);
 

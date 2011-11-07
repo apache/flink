@@ -202,8 +202,8 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
 			@Override
 			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-				out.collect(((ArrayNode)value).get(0), NullNode.getInstance());
-				out.collect(((ArrayNode)value).get(1), NullNode.getInstance());
+				out.collect(((ArrayNode) value).get(0), NullNode.getInstance());
+				out.collect(((ArrayNode) value).get(1), NullNode.getInstance());
 			}
 		}
 	}
@@ -332,10 +332,10 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 				@SuppressWarnings("unchecked")
 				BinarySparseMatrix<ProvenancedItem<JsonNode>> matrix = (BinarySparseMatrix<ProvenancedItem<JsonNode>>) genMatrix;
 
-				for (final JsonNode pair : (ArrayNode)pairs) {
+				for (final JsonNode pair : (ArrayNode) pairs) {
 					ProvenancedItem<JsonNode> value1 = null, value2 = null;
-					for (int sourceIndex = 0; sourceIndex < ((ArrayNode)pair).size(); sourceIndex++) {
-						JsonNode value = ((ArrayNode)pair).get(sourceIndex);
+					for (int sourceIndex = 0; sourceIndex < ((ArrayNode) pair).size(); sourceIndex++) {
+						JsonNode value = ((ArrayNode) pair).get(sourceIndex);
 						if (value != NullNode.getInstance())
 							if (value1 == null)
 								value1 = new ProvenancedItem<JsonNode>(value, sourceIndex);
@@ -348,7 +348,7 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 					matrix.set(value2, value1);
 				}
 
-				this.sourceCount = ((ArrayNode)((ArrayNode)pairs).get(((ArrayNode)pairs).size() - 1)).size();
+				this.sourceCount = ((ArrayNode) ((ArrayNode) pairs).get(((ArrayNode) pairs).size() - 1)).size();
 			}
 		}
 
@@ -373,10 +373,10 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 				@SuppressWarnings("unchecked")
 				BinarySparseMatrix<JsonNode> matrix = (BinarySparseMatrix<JsonNode>) genMatrix;
 
-				for (final JsonNode pair : (ArrayNode)pairs) {
+				for (final JsonNode pair : (ArrayNode) pairs) {
 					JsonNode value1 = null, value2 = null;
-					for (int sourceIndex = 0; sourceIndex < ((ArrayNode)pair).size(); sourceIndex++) {
-						JsonNode value = ((ArrayNode)pair).get(sourceIndex);
+					for (int sourceIndex = 0; sourceIndex < ((ArrayNode) pair).size(); sourceIndex++) {
+						JsonNode value = ((ArrayNode) pair).get(sourceIndex);
 						if (value != NullNode.getInstance())
 							if (value1 == null)
 								value1 = value;

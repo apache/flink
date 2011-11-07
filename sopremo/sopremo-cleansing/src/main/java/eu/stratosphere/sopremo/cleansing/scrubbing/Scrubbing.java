@@ -8,7 +8,6 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
@@ -90,11 +89,11 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 	}
 
 	public void addRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		this.ruleManager.addRule(wrapRuleForDirectAccess(rule), target);
+		this.ruleManager.addRule(this.wrapRuleForDirectAccess(rule), target);
 	}
 
 	public void addRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.ruleManager.addRule(wrapRuleForDirectAccess(rule), target);
+		this.ruleManager.addRule(this.wrapRuleForDirectAccess(rule), target);
 	}
 
 	protected PathExpression wrapRuleForDirectAccess(EvaluationExpression rule) {
@@ -102,11 +101,11 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 	}
 
 	public void removeRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		this.ruleManager.removeRule(wrapRuleForDirectAccess(rule), target);
+		this.ruleManager.removeRule(this.wrapRuleForDirectAccess(rule), target);
 	}
 
 	public void removeRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.ruleManager.removeRule(wrapRuleForDirectAccess(rule), target);
+		this.ruleManager.removeRule(this.wrapRuleForDirectAccess(rule), target);
 	}
 
 	@Override

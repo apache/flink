@@ -123,11 +123,11 @@ public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLin
 			}
 		else {
 			ArraySplit allTuples = new ArraySplit().
-					withInputs(closure).
+				withInputs(closure).
 				withArrayPath(EvaluationExpression.VALUE).
 				withKeyProjection(new ArrayAccess(0)).
 				withValueProjection(EvaluationExpression.NULL);
-			
+
 			for (int index = 0; index < originalInputs.size(); index++) {
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
 				Difference singleRecords = new Difference().

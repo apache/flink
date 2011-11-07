@@ -17,6 +17,11 @@ import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 public class DisjunctPartitioning extends MultiPassPartitioning {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 2461052742101589951L;
+
 	public DisjunctPartitioning(final EvaluationExpression partitionKey) {
 		super(partitionKey);
 	}
