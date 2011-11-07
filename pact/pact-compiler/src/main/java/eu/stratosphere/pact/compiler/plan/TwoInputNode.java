@@ -492,20 +492,72 @@ public abstract class TwoInputNode extends OptimizerNode
 		if (this.lastJoinedBranchNode == null) {
 			return;
 		}
+
+		// we have to look for closing branches for all input-pair-combinations,
+		// including input-pairs of the same input which are unioned
+
+		final int sizeInput1 = this.input1.size();
+		final int sizeInput2 = this.input2.size();
 		
+		// all unioned inputs from input1
+		for(int i = 0; i < sizeInput1; ++i) {
+			PactConnection pc1 = this.input1.get(i);
+			for(int j = i+1; j < sizeInput1; ++j) {
+				PactConnection pc2 = this.input1.get(j);
+
+				// get the children and check their existence
+				OptimizerNode child1 = pc1.getSourcePact();
+				OptimizerNode child2 = pc2.getSourcePact();
+				
+				if (child1 == null || child2 == null) {
+					continue;
+				}
+				
+				// get the cumulative costs of the last joined branching node
+				OptimizerNode lastCommonChild = child1.branchPlan.get(this.lastJoinedBranchNode);
+				Costs douleCounted = lastCommonChild.getCumulativeCosts();
+				getCumulativeCosts().subtractCosts(douleCounted);
+			}
+		}
 		
-		// TODO: mjsax
-//		// get the children and check their existence
-//		OptimizerNode child1 = (this.input1 == null ? null : this.input1.getSourcePact());
-//		OptimizerNode child2 = (this.input2 == null ? null : this.input2.getSourcePact());
-//		
-//		if (child1 == null || child2 == null) {
-//			return;
-//		}
-//		
-//		// get the cumulative costs of the last joined branching node
-//		OptimizerNode lastCommonChild = child1.branchPlan.get(this.lastJoinedBranchNode);
-//		Costs douleCounted = lastCommonChild.getCumulativeCosts();
-//		getCumulativeCosts().subtractCosts(douleCounted);
+		// all unioned inputs from input2
+		for(int i = 0; i < sizeInput2; ++i) {
+			PactConnection pc1 = this.input2.get(i);
+			for(int j = i+1; j < sizeInput2; ++j) {
+				PactConnection pc2 = this.input2.get(j);
+
+				// get the children and check their existence
+				OptimizerNode child1 = pc1.getSourcePact();
+				OptimizerNode child2 = pc2.getSourcePact();
+				
+				if (child1 == null || child2 == null) {
+					continue;
+				}
+				
+				// get the cumulative costs of the last joined branching node
+				OptimizerNode lastCommonChild = child1.branchPlan.get(this.lastJoinedBranchNode);
+				Costs douleCounted = lastCommonChild.getCumulativeCosts();
+				getCumulativeCosts().subtractCosts(douleCounted);
+			}
+		}
+
+		// all input pairs from input1 and input2
+		for(PactConnection pc1 : this.input1) {
+			for(PactConnection pc2 : this.input2) {
+
+				// get the children and check their existence
+				OptimizerNode child1 = pc1.getSourcePact();
+				OptimizerNode child2 = pc2.getSourcePact();
+				
+				if (child1 == null || child2 == null) {
+					continue;
+				}
+				
+				// get the cumulative costs of the last joined branching node
+				OptimizerNode lastCommonChild = child1.branchPlan.get(this.lastJoinedBranchNode);
+				Costs douleCounted = lastCommonChild.getCumulativeCosts();
+				getCumulativeCosts().subtractCosts(douleCounted);
+			}
+		}
 	}
 }

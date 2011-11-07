@@ -265,7 +265,35 @@ public abstract class SingleInputNode extends OptimizerNode {
 	public void setCosts(Costs nodeCosts) {
 		super.setCosts(nodeCosts);
 		
-		// TODO: mjsax
-		// see TwoInputNode.java
+		// check, if this node has no branch beneath it, no double-counted cost then
+		if (this.lastJoinedBranchNode == null) {
+			return;
+		}
+
+		// we have to look for closing branches for all input-pair-combinations in the union case
+
+		final int sizeInput = this.input.size();
+		
+		// check all all unioned inputs pair combination
+		// all unioned inputs from input1
+		for(int i = 0; i < sizeInput; ++i) {
+			PactConnection pc1 = this.input.get(i);
+			for(int j = i+1; j < sizeInput; ++j) {
+				PactConnection pc2 = this.input.get(j);
+
+				// get the children and check their existence
+				OptimizerNode child1 = pc1.getSourcePact();
+				OptimizerNode child2 = pc2.getSourcePact();
+				
+				if (child1 == null || child2 == null) {
+					continue;
+				}
+				
+				// get the cumulative costs of the last joined branching node
+				OptimizerNode lastCommonChild = child1.branchPlan.get(this.lastJoinedBranchNode);
+				Costs douleCounted = lastCommonChild.getCumulativeCosts();
+				getCumulativeCosts().subtractCosts(douleCounted);
+			}
+		}
 	}
 }
