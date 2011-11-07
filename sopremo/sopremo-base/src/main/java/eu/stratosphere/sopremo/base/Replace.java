@@ -182,8 +182,10 @@ public class Replace extends CompositeOperator<Replace> {
 		if (isArrayElementsReplacement())
 			builder.append(" all ");
 		getReplaceExpression().toString(builder);
-		builder.append(" with ");
-		getDictionary().toString(builder);
+		if (getInput(1) != null) {
+			builder.append(" with ");
+			getDictionary().toString(builder);
+		}
 		builder.append(" default ");
 		getDefaultExpression().toString(builder);
 	}
@@ -318,7 +320,7 @@ public class Replace extends CompositeOperator<Replace> {
 					JsonNode value = valueIterator.next();
 					final JsonNode index = ((ArrayNode) value).get(0);
 					JsonNode replacement = replaceValue != null ? replaceValue :
-						defaultExpression.evaluate(
+						this.defaultExpression.evaluate(
 							((ArrayNode) ((ArrayNode) value).get(1)).get(((IntNode) index).getIntValue()), context);
 					out.collect(((ArrayNode) value).get(1), JsonUtil.asArray(index, replacement));
 				}

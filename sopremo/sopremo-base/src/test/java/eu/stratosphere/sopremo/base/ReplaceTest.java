@@ -1,5 +1,10 @@
 package eu.stratosphere.sopremo.base;
 
+import java.util.Arrays;
+import java.util.List;
+
+import nl.jqno.equalsverifier.EqualsVerifier;
+
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
@@ -15,6 +20,15 @@ public class ReplaceTest extends SopremoTest<Replace> {
 	@Override
 	protected Replace createDefaultInstance(int index) {
 		return new Replace().withReplaceExpression(new ArrayAccess(index));
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoTest#initVerifier(nl.jqno.equalsverifier.EqualsVerifier)
+	 */
+	@Override
+	protected void initVerifier(EqualsVerifier<Replace> equalVerifier) {
+		super.initVerifier(equalVerifier);
+		equalVerifier.withPrefabValues(List.class, Arrays.asList(null, null), Arrays.asList(null, null, null));
 	}
 
 	@Test

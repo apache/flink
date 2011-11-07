@@ -65,7 +65,7 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 					if (inputExpr.getStream() == context.getCurrentOperator()) {
 						PathExpression path = ((RewriteContext) context).getRewritePath();
 						path.add(0, new ArrayAccess(1));
-						return   path;
+						return path;
 					}
 					return new ArrayAccess(1);
 				}
@@ -81,28 +81,32 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 				 */
 				@Override
 				public EvaluationExpression call(CleansingRule<?> rule, EvaluationContext context) {
-//					PathExpression path = ((RewriteContext) context).getRewritePath();
-//					path.add(rule);
-//					return  path;
+					// PathExpression path = ((RewriteContext) context).getRewritePath();
+					// path.add(rule);
+					// return path;
 					return new ArrayAccess(0);
 				}
 			});
 	}
 
 	public void addRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		this.ruleManager.addRule(rule, target);
+		this.ruleManager.addRule(wrapRuleForDirectAccess(rule), target);
 	}
 
 	public void addRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.ruleManager.addRule(rule, target);
+		this.ruleManager.addRule(wrapRuleForDirectAccess(rule), target);
+	}
+
+	protected PathExpression wrapRuleForDirectAccess(EvaluationExpression rule) {
+		return new PathExpression(new ArrayAccess(0), rule);
 	}
 
 	public void removeRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		this.ruleManager.removeRule(rule, target);
+		this.ruleManager.removeRule(wrapRuleForDirectAccess(rule), target);
 	}
 
 	public void removeRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.ruleManager.removeRule(rule, target);
+		this.ruleManager.removeRule(wrapRuleForDirectAccess(rule), target);
 	}
 
 	@Override
@@ -119,6 +123,7 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 	@Name(preposition = "with")
 	public void setRuleExpression(ObjectCreation ruleExpression) {
 		this.ruleManager.parse(ruleExpression, this, RuleFactory);
+		System.out.println(this.ruleManager);
 	}
 
 	public ObjectCreation getRuleExpression() {

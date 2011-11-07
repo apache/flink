@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -121,8 +122,8 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 	@Override
 	protected void initVerifier(final EqualsVerifier<PathExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
-		equalVerifier.withPrefabValues(List.class,
-			new ArrayList<Object>(),
-			new ArrayList<Object>(Arrays.asList(new ObjectAccess("field"))));
+		equalVerifier.withPrefabValues(LinkedList.class,
+			new LinkedList<Object>(),
+			new LinkedList<Object>(Arrays.asList(new ObjectAccess("field"))));
 	}
 }
