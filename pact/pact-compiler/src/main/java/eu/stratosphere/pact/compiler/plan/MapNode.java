@@ -165,10 +165,16 @@ public class MapNode extends SingleInputNode {
 			if(ss == ShipStrategy.NONE)
 				ss = ShipStrategy.FORWARD;
 			
-			// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-			// we need to figure out, what the right gp and lp is, for the union case
-			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
+			GlobalProperties gp;
+			LocalProperties lp;
+			if(predList.size() == 1) {
+				gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
+			} else {
+				// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+				gp = new GlobalProperties();
+				lp = new LocalProperties();
+			}
 			
 			
 			MapNode nMap = new MapNode(this, predList, this.input, gp, lp);
