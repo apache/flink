@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.transitiveClosure;
 
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
 
@@ -11,7 +10,6 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.Grouping;
-import eu.stratosphere.sopremo.base.Union;
 import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.cleansing.record_linkage.BinarySparseMatrix;
 import eu.stratosphere.sopremo.cleansing.record_linkage.ClosureMode;
@@ -49,6 +47,9 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 
 		// compute transitive Closure P2
 		final Phase2 phase2 = new Phase2().withInputs(phase1, genMatrix);
+		
+		// compute transitive Closure P3
+		final Phase3 phase3 = new Phase3().withInputs(phase1, phase2);
 
 		// emit Results as Links
 		final EmitMatrix result = new EmitMatrix().withInputs(new UnionAll().withInputs(phase1, phase2));
