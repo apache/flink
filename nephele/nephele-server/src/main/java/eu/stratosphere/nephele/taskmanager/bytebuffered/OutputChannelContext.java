@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
@@ -71,14 +72,17 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	private int sequenceNumber = 0;
 
 	OutputChannelContext(final OutputGateContext outputGateContext,
-			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel, final boolean isReceiverRunning) {
+			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel, final boolean isReceiverRunning,
+			final boolean mergeSpilledBuffers) {
 
 		this.outputGateContext = outputGateContext;
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
 		this.isReceiverRunning = isReceiverRunning;
 
-		this.queuedOutgoingEnvelopes = new SpillingQueue(outputGateContext.getFileOwnerID());
+		final AbstractID fileOwnerID = mergeSpilledBuffers ? outputGateContext.getFileOwnerID()
+			: byteBufferedOutputChannel.getID();
+		this.queuedOutgoingEnvelopes = new SpillingQueue(fileOwnerID);
 
 		// Register as inactive channel so queue can be spilled to disk when we run out of memory buffers
 		if (!isReceiverRunning) {

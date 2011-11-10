@@ -70,6 +70,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private static final boolean DEFAULT_ALLOW_SENDER_SIDE_SPILLING = false;
 
+	private static final boolean DEFAULT_MERGE_SPILLED_BUFFERS = true;
+
 	private final Map<ChannelID, ChannelContext> registeredChannels = new ConcurrentHashMap<ChannelID, ChannelContext>();
 
 	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
@@ -85,6 +87,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private final LocalBufferPool transitBufferPool;
 
 	private final boolean allowSenderSideSpilling;
+
+	private final boolean mergeSpilledBuffers;
 
 	private final boolean multicastEnabled = true;
 
@@ -125,8 +129,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.allowSenderSideSpilling = GlobalConfiguration.getBoolean("channel.network.allowSenderSideSpilling",
 			DEFAULT_ALLOW_SENDER_SIDE_SPILLING);
 
-		LOG.info("Initialized byte buffered channel manager with sender-side spilling "
-			+ (this.allowSenderSideSpilling ? "enabled" : "disabled"));
+		this.mergeSpilledBuffers = GlobalConfiguration.getBoolean("channel.network.mergeSpilledBuffers",
+			DEFAULT_MERGE_SPILLED_BUFFERS);
 
 		// Begin temporary logging code
 		String logDir = System.getProperty("log.file");
@@ -144,6 +148,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.bufferedWriter = new BufferedWriter(new FileWriter(logDir + File.separator + "multicast_"
 			+ localInstanceConnectionInfo.getHostName()));
 		// End temporary logging code
+
+		LOG.info("Initialized byte buffered channel manager with sender-side spilling "
+			+ (this.allowSenderSideSpilling ? "enabled" : "disabled")
+			+ (this.mergeSpilledBuffers ? " and spilled buffer merging enabled" : ""));
 	}
 
 	/**
@@ -190,7 +198,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						+ (isActive ? "active" : "inactive") + ")");
 
 				final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc,
-						isActive);
+						isActive, this.mergeSpilledBuffers);
 				this.registeredChannels.put(bboc.getID(), outputChannelContext);
 			}
 		}
