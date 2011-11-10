@@ -48,6 +48,10 @@ import eu.stratosphere.nephele.types.Record;
 
 public class MulticastManager implements ChannelLookupProtocol {
 
+	// Indicates whether topology information is available and will be used in order to construct
+	// the multicast overlay-tree.
+	private final boolean topologyaware;
+
 	// Indicates if the arrangement of nodes within the overlay-tree should be randomized or not.
 	// If set to false, arrangement of the same set of receiver nodes is guaranteed to be the same
 	private final boolean randomized;
@@ -67,6 +71,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		this.randomized = GlobalConfiguration.getBoolean("multicast.randomize", false);
 		this.treebranching = GlobalConfiguration.getInteger("multicast.branching", 1);
+		this.topologyaware = GlobalConfiguration.getBoolean("multicast.topologyaware", false);
 	}
 
 	/**
@@ -110,15 +115,15 @@ public class MulticastManager implements ChannelLookupProtocol {
 			// receivers up and running.. create tree
 			LinkedList<TreeNode> treenodes = extractTreeNodes(caller, jobID, sourceChannelID, this.randomized);
 
-			if(this.treebranching == 0){
-				// We want a unicast tree.. 
+			if (this.treebranching == 0) {
+				// We want a unicast tree..
 				cachedTrees.put(sourceChannelID, createUnicastTree(treenodes));
-			} else if(this.treebranching == 1){
+			} else if (this.treebranching == 1) {
 				cachedTrees.put(sourceChannelID, createSequentialTree(treenodes));
-			}else if(this.treebranching == 2){
+			} else if (this.treebranching == 2) {
 				cachedTrees.put(sourceChannelID, createBinaryTree(treenodes));
-			}else{
-				cachedTrees.put(sourceChannelID, MulticastCluster.createClusteredTree(treenodes, this.treebranching));
+			} else if (this.treebranching == 3){
+				cachedTrees.put(sourceChannelID, createTopologyBranchTree(treenodes));
 			}
 
 			// cachedTrees.put(sourceChannelID, MulticastCluster.createClusteredTree(treenodes, 2));
@@ -144,8 +149,11 @@ public class MulticastManager implements ChannelLookupProtocol {
 		MulticastForwardingTable table = new MulticastForwardingTable();
 		String treelist = "";
 
+		TreeNode actualnode = null;
 		while (nodes.size() > 0) {
-			TreeNode actualnode = nodes.pollFirst();
+
+			actualnode = pollClosestNode(actualnode, nodes);
+
 			treelist = treelist + "-> " + actualnode.getConnectionInfo();
 
 			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
@@ -157,12 +165,128 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			// add remote target - next node in the list
 			if (nodes.size() > 0) {
-				actualentry.addRemoteTarget(nodes.getFirst().getConnectionInfo());
+				actualentry.addRemoteTarget(getClosestNode(actualnode, nodes).getConnectionInfo());
 			}
 
 			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
 		}
 		System.out.println("Sequential TreeList: " + treelist);
+		return table;
+	}
+
+	private TreeNode pollClosestNode(TreeNode indicator, LinkedList<TreeNode> nodes) {
+
+		if (indicator == null || !this.topologyaware) {
+			return nodes.pollFirst();
+		}
+
+		TreeNode closestnode = null;
+
+		for (TreeNode n : nodes) {
+			if (closestnode == null || n.getDistance(indicator) < closestnode.getDistance(indicator)) {
+				closestnode = n;
+			}
+		}
+
+		nodes.remove(closestnode);
+
+		return closestnode;
+
+	}
+
+	private TreeNode getClosestNode(TreeNode indicator, LinkedList<TreeNode> nodes) {
+
+		if (indicator == null || !this.topologyaware) {
+			return nodes.getFirst();
+		}
+
+		TreeNode closestnode = null;
+
+		for (TreeNode n : nodes) {
+			if (closestnode == null || n.getDistance(indicator) < closestnode.getDistance(indicator)) {
+				closestnode = n;
+			}
+		}
+
+		return closestnode;
+
+	}
+
+	private LinkedList<TreeNode> pollNodesOnSameHost(TreeNode indicator, LinkedList<TreeNode> nodes) {
+
+		LinkedList<TreeNode> neighbors = new LinkedList<TreeNode>();
+
+		for (TreeNode n : nodes) {
+			if (n.getDistance(indicator) == 2) {
+				// this node is a neighbor!
+				neighbors.add(n);
+			}
+		}
+		nodes.removeAll(neighbors);
+
+		return neighbors;
+
+	}
+
+	private MulticastForwardingTable createTopologyBranchTree(LinkedList<TreeNode> nodes) {
+		MulticastForwardingTable table = new MulticastForwardingTable();
+
+		TreeNode actualnode = nodes.pollFirst();
+
+		while (nodes.size() > 0) {
+
+			System.out.println("actual node: " + actualnode);
+			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
+
+			LinkedList<TreeNode> neighbors = pollNodesOnSameHost(actualnode, nodes);
+
+			// add local targets..
+			for (ChannelID id : actualnode.getLocalTargets()) {
+				System.out.println("local target: " + id);
+				actualentry.addLocalTarget(id);
+			}
+
+			// Add neighbors as remote targets..
+			for (TreeNode n : neighbors) {
+				actualentry.addRemoteTarget(n.getConnectionInfo());
+			}
+
+			// Now, add one remote receiver on different host...
+			TreeNode closestnode = pollClosestNode(actualnode, nodes);
+
+			if (closestnode != null) {
+				actualentry.addRemoteTarget(actualnode.getConnectionInfo());
+			}
+
+			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
+
+			actualnode = closestnode;
+			
+			// finish up the other neighbor nodes (receivers only)
+			for (TreeNode n : neighbors) {
+				ConnectionInfoLookupResponse receiverentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
+				// add local targets..
+				for (ChannelID id : n.getLocalTargets()) {
+					System.out.println("local target: " + id);
+					receiverentry.addLocalTarget(id);
+				}
+				table.addConnectionInfo(n.getConnectionInfo(), receiverentry);
+			}
+
+		}
+
+		// finally, finish the last actualnode...
+		if (actualnode != null) {
+			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
+			// add local targets..
+			for (ChannelID id : actualnode.getLocalTargets()) {
+				System.out.println("local target: " + id);
+				actualentry.addLocalTarget(id);
+			}
+
+			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
+		}
+
 		return table;
 	}
 
@@ -176,9 +300,10 @@ public class MulticastManager implements ChannelLookupProtocol {
 		// remove sender node...
 		unconnectedNodes.removeFirst();
 
-		while (nodes.size() > 0) {
-			TreeNode actualnode = nodes.pollFirst();
+		TreeNode actualnode = null;
 
+		while (nodes.size() > 0) {
+			actualnode = pollClosestNode(actualnode, nodes);
 			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
 
 			// add all local targets
@@ -189,12 +314,19 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			// add remote target - next node in the list
 			if (unconnectedNodes.size() > 0) {
-				actualentry.addRemoteTarget(unconnectedNodes.pollFirst().getConnectionInfo());
+				actualentry.addRemoteTarget(pollClosestNode(actualnode, unconnectedNodes).getConnectionInfo());
 				if (unconnectedNodes.size() > 0) {
-					actualentry.addRemoteTarget(unconnectedNodes.pollFirst().getConnectionInfo());
+					actualentry.addRemoteTarget(pollClosestNode(actualnode, unconnectedNodes).getConnectionInfo());
 				}
 			}
-
+		
+			// print tree output
+			String out = "STRUCT " + actualnode.toString();
+			for(int i = 0; i < actualentry.getRemoteTargets().size(); i++){
+				out = out + " " + actualentry.getRemoteTargets().get(i).toString();
+			}
+			System.out.println(out);
+			
 			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
 		}
 		return table;
@@ -208,7 +340,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 */
 	private MulticastForwardingTable createUnicastTree(LinkedList<TreeNode> nodes) {
 		MulticastForwardingTable table = new MulticastForwardingTable();
-
 
 		// pop off the first tree node (the sender..)
 		TreeNode firstnode = nodes.pollFirst();
@@ -230,7 +361,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 		while (nodes.size() > 0) {
 			TreeNode actualnode = nodes.pollFirst();
 
-			
 			ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
 
 			// add all local targets
@@ -242,7 +372,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 		}
 		return table;
 	}
-
 
 	/**
 	 * Checks, if all target vertices for a multicast transmission exist.
@@ -309,7 +438,8 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 * @param sourceChannelID
 	 * @return
 	 */
-	private LinkedList<TreeNode> extractTreeNodes(InstanceConnectionInfo source, JobID jobID, ChannelID sourceChannelID, boolean randomize) {
+	private LinkedList<TreeNode> extractTreeNodes(InstanceConnectionInfo source, JobID jobID,
+			ChannelID sourceChannelID, boolean randomize) {
 		System.out.println("==NO CACHE ENTRY FOUND. CREATING TREE==");
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 
@@ -338,6 +468,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 				+ " target instance: "
 				+ eg.getVertexByChannelID(c.getConnectedChannelID()).getAllocatedResource().getInstance()
 					.getInstanceConnectionInfo());
+
 		}
 
 		final LinkedList<TreeNode> treenodes = new LinkedList<TreeNode>();
@@ -345,7 +476,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 		TreeNode actualnode;
 
 		// create sender node (root) with source instance
-		actualnode = new TreeNode(source);
+		actualnode = new TreeNode(eg.getVertexByChannelID(sourceChannelID).getAllocatedResource().getInstance(), source);
 
 		// search for local targets for the tree node
 		for (Iterator<AbstractOutputChannel<? extends Record>> iter = outputChannels.iterator(); iter.hasNext();) {
@@ -366,7 +497,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		treenodes.add(actualnode);
 
-
 		// now we have the root-node.. lets extract all other nodes
 
 		LinkedList<TreeNode> receivernodes = new LinkedList<TreeNode>();
@@ -381,7 +511,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 				.getInstanceConnectionInfo();
 
 			// create tree node for current instance
-			actualnode = new TreeNode(actualinstance);
+			actualnode = new TreeNode(firstTarget.getAllocatedResource().getInstance(), actualinstance);
 
 			// add first local target
 			actualnode.addLocalTarget(firstChannel.getConnectedChannelID());
@@ -412,7 +542,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 		if (randomize) {
 			Collections.shuffle(receivernodes);
 		} else {
-		// Sort Tree Nodes according to host name..
+			// Sort Tree Nodes according to host name..
 			Collections.sort(receivernodes);
 		}
 
