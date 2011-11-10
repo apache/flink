@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.multicast;
 
 import java.util.LinkedList;
 
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 
@@ -30,18 +31,22 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 
 public class TreeNode implements Comparable<TreeNode>{
 
+	private final AbstractInstance instance;
+	
 	private final InstanceConnectionInfo nodeConnectionInfo;
 	
 	private final LinkedList<ChannelID> localTargets;
 	
 	private final LinkedList<InstanceConnectionInfo> remoteTargets = new LinkedList<InstanceConnectionInfo>();
 	
-	public TreeNode(InstanceConnectionInfo nodeConnectionInfo, LinkedList<ChannelID> localTargets){
+	public TreeNode(AbstractInstance instance, InstanceConnectionInfo nodeConnectionInfo, LinkedList<ChannelID> localTargets){
+		this.instance = instance;
 		this.nodeConnectionInfo = nodeConnectionInfo;
 		this.localTargets = localTargets;
 	}
 	
-	public TreeNode(InstanceConnectionInfo nodeConnectionInfo){
+	public TreeNode(AbstractInstance instance, InstanceConnectionInfo nodeConnectionInfo){
+		this.instance = instance;
 		this.nodeConnectionInfo = nodeConnectionInfo;
 		this.localTargets = new LinkedList<ChannelID>();
 	}
@@ -69,6 +74,14 @@ public class TreeNode implements Comparable<TreeNode>{
 	@Override
 	public int compareTo(TreeNode o) {
 		return this.nodeConnectionInfo.compareTo(o.nodeConnectionInfo);
+	}
+	
+	public int getDistance(TreeNode o){
+		return this.instance.getDistance(o.instance);
+	}
+	
+	public String toString(){
+		return this.nodeConnectionInfo.toString();
 	}
 	
 }
