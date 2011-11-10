@@ -208,7 +208,7 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 			return null;
 		}
 
-		final TransferEnvelope te = this.head.poll();
+		TransferEnvelope te = this.head.poll();
 		if (this.head.size() == 0) {
 			this.head = this.head.getNextElement();
 		}
@@ -225,9 +225,12 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 			}
 		}
 
-		// Clear peek cache
-		this.peekCache = null;
-
+		// If the user has called peek before, return cached element
+		if(this.peekCache != null) {
+			te = this.peekCache;
+			this.peekCache = null;
+		}
+		
 		// Decrease element counter
 		--this.size;
 
