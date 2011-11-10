@@ -358,6 +358,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 			final long timestamp = System.currentTimeMillis();
 			final int availableBuffers = this.transitBufferPool.getNumberOfAvailableBuffers();
+			final int requestedBuffers = this.transitBufferPool.getRequestedNumberOfBuffers();
 			final int designatedBuffers = this.transitBufferPool.getDesignatedNumberOfBuffers();
 
 			final StringBuilder sb = new StringBuilder();
@@ -366,6 +367,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			sb.append(val);
 			sb.append(' ');
 			sb.append(availableBuffers);
+			sb.append(' ');
+			sb.append(requestedBuffers);
 			sb.append(' ');
 			sb.append(designatedBuffers);
 
@@ -687,6 +690,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		if (this.multicastEnabled) {
 			totalNumberOfChannels += numberOfChannelsForMulticast;
 		}
+		
+		System.out.println("Total number of buffers: " + totalNumberOfBuffers);
+		System.out.println("Total number of channels: " + totalNumberOfChannels);
+		
 		final double buffersPerChannel = (double) totalNumberOfBuffers / (double) totalNumberOfChannels;
 		if (buffersPerChannel < 1.0) {
 			LOG.warn("System is low on memory buffers. This may result in reduced performance.");
@@ -704,12 +711,16 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		final Iterator<LocalBufferPoolOwner> it = this.localBufferPoolOwner.values().iterator();
 		while (it.hasNext()) {
 			final LocalBufferPoolOwner lbpo = it.next();
-			lbpo.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel * lbpo.getNumberOfChannels()));
+			final int buffersForLocalOwner = (int) Math.ceil(buffersPerChannel * lbpo.getNumberOfChannels());
+			System.out.println("Buffers for " + lbpo + ": " + buffersForLocalOwner);
+			lbpo.setDesignatedNumberOfBuffers(buffersForLocalOwner);
 		}
 
 		if (this.multicastEnabled) {
-			this.transitBufferPool.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel
-				* numberOfChannelsForMulticast));
+			
+			final int buffersForMulticast = (int) Math.ceil(buffersPerChannel * numberOfChannelsForMulticast);
+			System.out.println("Assigning " + buffersForMulticast + " for multicast manager");
+			this.transitBufferPool.setDesignatedNumberOfBuffers(buffersForMulticast);
 		}
 	}
 
