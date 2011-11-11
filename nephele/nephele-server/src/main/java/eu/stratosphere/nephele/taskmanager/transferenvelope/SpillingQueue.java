@@ -24,12 +24,15 @@ import eu.stratosphere.nephele.io.AbstractID;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 
 public final class SpillingQueue implements Queue<TransferEnvelope> {
 
 	private final FileBufferManager fileBufferManager;
 
 	private final AbstractID ownerID;
+	
+	private final BufferProvider bufferProvider;
 
 	private int size = 0;
 
@@ -45,26 +48,30 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	}
 
 	public SpillingQueue() {
-		this(new SpillingQueueID());
+		this(new SpillingQueueID(), null);
 	}
 
-	public SpillingQueue(final AbstractID ownerID) {
+	public SpillingQueue(final AbstractID ownerID, final BufferProvider bufferProvider) {
 
 		this.ownerID = ownerID;
 		this.fileBufferManager = FileBufferManager.getInstance();
+		this.bufferProvider = bufferProvider;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean addAll(Collection<? extends TransferEnvelope> c) {
+	public boolean addAll(final Collection<? extends TransferEnvelope> c) {
 
 		throw new UnsupportedOperationException("addAll is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void clear() {
+	public synchronized void clear() {
 
 		SpillingQueueElement elem = this.head;
 		while (elem != null) {
@@ -76,14 +83,21 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		this.head = null;
 		this.tail = null;
 		this.sizeOfMemoryBuffers = 0;
+		this.size = 0;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean contains(final Object o) {
 
 		throw new UnsupportedOperationException("contains is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean containsAll(final Collection<?> c) {
 
@@ -99,42 +113,63 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		return (this.size == 0);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Iterator<TransferEnvelope> iterator() {
 
 		throw new UnsupportedOperationException("iterator is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean remove(final Object o) {
 
 		throw new UnsupportedOperationException("remove is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean removeAll(final Collection<?> c) {
 
 		throw new UnsupportedOperationException("removeAll is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean retainAll(final Collection<?> c) {
 
 		throw new UnsupportedOperationException("retainAll is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int size() {
+	public synchronized int size() {
 
 		return this.size;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public Object[] toArray() {
 
 		throw new UnsupportedOperationException("toArray is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public <T> T[] toArray(T[] a) {
 
@@ -145,7 +180,7 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean add(final TransferEnvelope transferEnvelope) {
+	public synchronized boolean add(final TransferEnvelope transferEnvelope) {
 
 		if (isEmpty()) {
 			this.head = new SpillingQueueElement(transferEnvelope);
@@ -175,20 +210,29 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		return true;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public TransferEnvelope element() {
 
 		throw new UnsupportedOperationException("element is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean offer(final TransferEnvelope transferEnvelope) {
 
 		throw new UnsupportedOperationException("offer is not supported on this type of queue");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public TransferEnvelope peek() {
+	public synchronized TransferEnvelope peek() {
 
 		if (isEmpty()) {
 			return null;
@@ -201,8 +245,11 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		return this.peekCache;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public TransferEnvelope poll() {
+	public synchronized TransferEnvelope poll() {
 
 		if (isEmpty()) {
 			return null;
@@ -237,6 +284,9 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		return te;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public TransferEnvelope remove() {
 
@@ -268,12 +318,12 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		return reclaimedMemory;
 	}
 
-	public long spillSynchronouslyIncludingHead() throws IOException {
+	public synchronized long spillSynchronouslyIncludingHead() throws IOException {
 
 		return spill(true);
 	}
 
-	public long getAmountOfMainMemoryInQueue() {
+	public synchronized long getAmountOfMainMemoryInQueue() {
 
 		return this.sizeOfMemoryBuffers;
 	}
