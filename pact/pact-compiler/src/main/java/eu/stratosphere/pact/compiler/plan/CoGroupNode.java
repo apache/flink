@@ -44,8 +44,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  */
 public class CoGroupNode extends TwoInputNode {
 
-	private List<CoGroupNode> cachedPlans; // a cache for the computed alternative plans
-
 	/**
 	 * Creates a new CoGroupNode for the given contract.
 	 * 
@@ -241,15 +239,22 @@ public class CoGroupNode extends TwoInputNode {
 				if (ss1 == ShipStrategy.NONE) {
 					// the first connection is free to choose for the compiler
 
-					// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-					// we need to figure out, what the right gp and lp is, for the union case
-					gp1 = predList1.get(0).getGlobalProperties();
+					if(predList1.size() == 1) {
+						gp1 = predList1.get(0).getGlobalProperties();
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp1 = new GlobalProperties();
+					}
 
 					if (ss2 == ShipStrategy.NONE) {
 						// case: both are free to choose
-						// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-						// we need to figure out, what the right gp and lp is, for the union case
-						gp2 = predList2.get(0).getGlobalProperties();
+						
+						if(predList2.size() == 1) {
+							gp2 = predList2.get(0).getGlobalProperties();
+						} else {
+							// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+							gp2 = new GlobalProperties();
+						}
 
 						// test, if one side is pre-partitioned
 						// if that is the case, partitioning the other side accordingly is
@@ -355,9 +360,13 @@ public class CoGroupNode extends TwoInputNode {
 							// ShipStrategy.PARTITION_RANGE, estimator);
 						}
 					} else {
-						// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-						// we need to figure out, what the right gp and lp is, for the union case
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);
+						if(predList2.size() == 1) {
+							gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);							
+						} else {
+							// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+							gp2 = new GlobalProperties();
+
+						}
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
@@ -398,10 +407,18 @@ public class CoGroupNode extends TwoInputNode {
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
 
-					// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-					// we need to figure out, what the right gp and lp is, for the union case
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
-					gp2 = predList2.get(0).getGlobalProperties();
+					if(predList1.size() == 1) {
+						gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp1 = new GlobalProperties();
+					}
+					if(predList2.size() == 1) {
+						gp2 = predList2.get(0).getGlobalProperties();
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp2 = new GlobalProperties();
+					}
 
 					// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
 					// 2) input 1 is hash-partition -> other side must be re-partition by hash as well
@@ -440,10 +457,19 @@ public class CoGroupNode extends TwoInputNode {
 					// both are fixed
 					// check, if they produce a valid plan. for that, we need to have an equal partitioning
 
-					// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-					// we need to figure out, what the right gp and lp is, for the union case
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
-					gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);
+					if(predList1.size() == 1) {
+						gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp1 = new GlobalProperties();
+					}
+					if(predList2.size() == 1) {
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp2 = new GlobalProperties();
+					}
+					
 					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
 						// partitioning there and equal
 						createCoGroupAlternative(outputPlans, predList1, predList2, ss1, ss2, estimator);
@@ -478,14 +504,25 @@ public class CoGroupNode extends TwoInputNode {
 	private void createCoGroupAlternative(List<OptimizerNode> target, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2,
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
 	{
-		// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-		// we need to figure out, what the right gp and lp is, for the union case
-
 		// compute the given properties of the incoming data
-		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
-
-		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
-		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+		GlobalProperties gp1;
+		LocalProperties lp1, lp2;
+		
+		if(allPreds1.size() == 1) {
+			gp1 = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+			lp1 = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+		} else {
+			// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+			gp1 = new GlobalProperties();
+			lp1 = new LocalProperties();
+		}
+		
+		if(allPreds2.size() == 1) {
+			lp2 = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+		} else {
+			// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+			lp2 = new LocalProperties();
+		}
 
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();

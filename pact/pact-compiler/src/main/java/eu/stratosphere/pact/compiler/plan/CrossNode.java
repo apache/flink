@@ -314,16 +314,24 @@ public class CrossNode extends TwoInputNode {
 		boolean isFirst = false;
 
 		if (oc.appliesToFirstInput()) {
-			// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-			// we need to figure out, what the right gp and lp is, for the union case
-			gp = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
-			lp = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+			if(allPreds1.size() == 1) {
+				gp = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+				lp = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+			} else {
+				// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+				gp = new GlobalProperties();
+				lp = new LocalProperties();
+			}
 			isFirst = true;
 		} else if (oc.appliesToSecondInput()) {
-			// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-			// we need to figure out, what the right gp and lp is, for the union case
-			gp = PactConnection.getGlobalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
-			lp = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+			if(allPreds2.size() == 1) {
+				gp = PactConnection.getGlobalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+				lp = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+			} else {
+				// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+				gp = new GlobalProperties();
+				lp = new LocalProperties();
+			}
 		} else {
 			gp = new GlobalProperties();
 			lp = new LocalProperties();

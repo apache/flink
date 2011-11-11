@@ -53,9 +53,10 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	public void getRangePartitionCost(List<PactConnection> conn, Costs costs) {
 		// we assume that all unioned inputs have the same <DistibutionClass>
 		// hence we just pick the fist one blindly
-		// TODO mjsax: verify if this is valid
+		assert (checkDataDistribution(conn)); // check if our assumption is correct
 		Class<? extends DataDistribution> distribution =
 			conn.get(0).getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass();
+		
 		
 		if(distribution == null) {
 			long estOutShipSize = 0;
@@ -379,4 +380,17 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 		costs.setSecondaryStorageCost(is == -1 ? -1 : loops * is);
 	}
 
+	private boolean checkDataDistribution(List<PactConnection> conn) {
+		final int size = conn.size();
+		
+		Class<? extends DataDistribution> distribution =
+				conn.get(0).getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass();
+		
+		for(int i = 1; i < size; ++i) {
+			if(!conn.get(i).getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass().equals(distribution))
+				return false;
+		}
+		
+		return true;
+	}
 }

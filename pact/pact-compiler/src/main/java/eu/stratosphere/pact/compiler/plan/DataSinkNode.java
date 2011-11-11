@@ -345,10 +345,17 @@ public class DataSinkNode extends OptimizerNode {
 			Order go = getPactContract().getGlobalOrder();
 			Order lo = getPactContract().getLocalOrder();
 
-			// TODO mjsax: right now we choose the global and local properties of the last predecessor in the union case
-			// we need to figure out, what the right gp and lp is, for the union case
-			GlobalProperties gp = predList.get(0).getGlobalProperties().createCopy();
-			LocalProperties lp = predList.get(0).getLocalProperties().createCopy();
+			GlobalProperties gp;
+			LocalProperties lp;
+
+			if(predList.size() == 1) {
+				gp = predList.get(0).getGlobalProperties().createCopy();
+				lp = predList.get(0).getLocalProperties().createCopy();
+			} else {
+				// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+				gp = new GlobalProperties();
+				lp = new LocalProperties();
+			}
 
 			ShipStrategy ss = null;
 			LocalStrategy ls = null;

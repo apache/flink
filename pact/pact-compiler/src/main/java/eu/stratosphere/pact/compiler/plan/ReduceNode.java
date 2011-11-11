@@ -265,27 +265,40 @@ public class ReduceNode extends SingleInputNode {
 			}
 			
 
-			// TODO mjsax: right now we choose the global and local properties of the first predecessor in the union case
-			// we need to figure out, what the right gp and lp is, for the union case
 			GlobalProperties gp;
 			LocalProperties lp;
 
 			if (ss == ShipStrategy.NONE) {
-				gp = predList.get(0).getGlobalProperties();
-				lp = predList.get(0).getLocalProperties();
-
-				if (gp.getPartitioning().isPartitioned() || gp.isKeyUnique()) {
-					ss = ShipStrategy.FORWARD;
+				if(predList.size() == 1) {
+					gp = predList.get(0).getGlobalProperties();
+					lp = predList.get(0).getLocalProperties();
+	
+					if (gp.getPartitioning().isPartitioned() || gp.isKeyUnique()) {
+						ss = ShipStrategy.FORWARD;
+					} else {
+						ss = ShipStrategy.PARTITION_HASH;
+					}
+	
+					gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+					lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
 				} else {
+					// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+					gp = new GlobalProperties();
+					lp = new LocalProperties();
+
+					// as we dropped all properties we use hash strategy (forward cannot be applied)
 					ss = ShipStrategy.PARTITION_HASH;
 				}
-
-				gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
 			} else {
-				// fixed strategy
-				gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
+				if(predList.size() == 1) {
+					// fixed strategy
+					gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+					lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
+				} else {
+					// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+					gp = new GlobalProperties();
+					lp = new LocalProperties();
+				}
 
 				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
 					// the shipping strategy is fixed to a value that does not leave us with
