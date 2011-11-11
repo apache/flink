@@ -113,6 +113,37 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	}
 
 	/**
+	 * Connects the inputs to the task wrapped in this contract
+	 * 
+	 * @param input The contracts will be set as input.
+	 */
+	public void addInputs(List<Contract> inputs) {
+		this.input.addAll(inputs);
+	}
+
+	/**
+	 * Clears all previous connections and sets the given contract as
+	 * single input of this contract.
+	 * 
+	 * @param input		The contract will be set as input.
+	 */
+	public void setInput(Contract input) {
+		this.input.clear();
+		this.input.add(input);
+	}
+	
+	/**
+	 * Clears all previous connections and sets the given contracts as
+	 * inputs of this contract.
+	 * 
+	 * @param input		The contracts will be set as inputs.
+	 */
+	public void setInputs(List<Contract> inputs) {
+		this.input.clear();
+		this.input.addAll(inputs);
+	}
+	
+	/**
 	 * Gets the order, in which the data sink writes its data globally. By default, this is <tt>NONE</tt>.
 	 * 
 	 * @return NONE, if the sink writes data in any order, or ASCENDING (resp. DESCENDING),

@@ -149,6 +149,64 @@ public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 
 	}
 
 	/**
+	 * Connects the first inputs to the task wrapped in this contract
+	 * 
+	 * @param firstInput The contracts that is connected as the first inputs.
+	 */
+	public void addFirstInputs(List<Contract> firstInput) {
+		this.firstInput.addAll(firstInput);
+	}
+
+	/**
+	 * Connects the second inputs to the task wrapped in this contract
+	 * 
+	 * @param secondInput The contracts that is connected as the second inputs.
+	 */
+	public void addSecondInputs(List<Contract> secondInput) {
+		this.secondInput.addAll(secondInput);
+	}
+	
+	/**
+	 * Clears all previous connections and connects the first input to the task wrapped in this contract
+	 * 
+	 * @param firstInput The contract that is connected as the first input.
+	 */
+	public void setFirstInput(Contract firstInput) {
+		this.firstInput.clear();
+		this.firstInput.add(firstInput);
+	}
+
+	/**
+	 * Clears all previous connections and connects the second input to the task wrapped in this contract
+	 * 
+	 * @param secondInput The contract that is connected as the second input.
+	 */
+	public void setSecondInput(Contract secondInput) {
+		this.secondInput.clear();
+		this.secondInput.add(secondInput);
+	}
+
+	/**
+	 * Clears all previous connections and connects the first inputs to the task wrapped in this contract
+	 * 
+	 * @param firstInput The contracts that is connected as the first inputs.
+	 */
+	public void setFirstInputs(List<Contract> firstInput) {
+		this.firstInput.clear();
+		this.firstInput.addAll(firstInput);
+	}
+
+	/**
+	 * Clears all previous connections and connects the second inputs to the task wrapped in this contract
+	 * 
+	 * @param secondInput The contracts that is connected as the second inputs.
+	 */
+	public void setSecondInputs(List<Contract> secondInput) {
+		this.secondInput.clear();
+		this.secondInput.addAll(secondInput);
+	}
+	
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override

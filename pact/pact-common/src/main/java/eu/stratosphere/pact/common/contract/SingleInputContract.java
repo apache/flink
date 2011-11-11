@@ -108,6 +108,37 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 	public void addInput(Contract input) {
 		this.input.add(input);
 	}
+	
+	/**
+	 * Connects the inputs to the task wrapped in this contract
+	 * 
+	 * @param input The contracts will be set as input.
+	 */
+	public void addInputs(List<Contract> inputs) {
+		this.input.addAll(inputs);
+	}
+
+	/**
+	 * Clears all previous connections and sets the given contract as
+	 * single input of this contract.
+	 * 
+	 * @param input		The contract will be set as input.
+	 */
+	public void setInput(Contract input) {
+		this.input.clear();
+		this.input.add(input);
+	}
+	
+	/**
+	 * Clears all previous connections and sets the given contracts as
+	 * inputs of this contract.
+	 * 
+	 * @param input		The contracts will be set as inputs.
+	 */
+	public void setInputs(List<Contract> inputs) {
+		this.input.clear();
+		this.input.addAll(inputs);
+	}
 
 
 	@Override
