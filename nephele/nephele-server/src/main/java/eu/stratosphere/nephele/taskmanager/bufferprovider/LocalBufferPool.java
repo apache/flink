@@ -124,7 +124,7 @@ public final class LocalBufferPool implements BufferProvider {
 						}
 					}
 
-					if (this.asynchronousEventOccurred) {
+					if (this.asynchronousEventOccurred && block) {
 						this.asynchronousEventOccurred = false;
 						async = true;
 						break;
