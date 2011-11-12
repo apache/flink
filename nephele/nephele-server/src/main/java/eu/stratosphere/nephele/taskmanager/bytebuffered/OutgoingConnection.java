@@ -148,6 +148,15 @@ public class OutgoingConnection {
 
 		synchronized (this.queuedEnvelopes) {
 
+			checkConnection();
+			this.queuedEnvelopes.add(transferEnvelope);
+		}
+	}
+
+	private void checkConnection() {
+
+		synchronized (this.queuedEnvelopes) {
+
 			if (!this.isConnected) {
 
 				this.retriesLeft = this.numberOfConnectionRetries;
@@ -164,7 +173,6 @@ public class OutgoingConnection {
 				}
 			}
 
-			this.queuedEnvelopes.add(transferEnvelope);
 		}
 	}
 
@@ -547,6 +555,7 @@ public class OutgoingConnection {
 	void registerSpillingQueue(final SpillingQueue spillingQueue) {
 
 		synchronized (this.queuedEnvelopes) {
+			checkConnection();
 			this.queuedEnvelopes.registerSpillingQueue(spillingQueue);
 		}
 	}
@@ -560,8 +569,5 @@ public class OutgoingConnection {
 	 */
 	void unregisterSpillingQueue(final SpillingQueue spillingQueue) {
 
-		synchronized (this.queuedEnvelopes) {
-			this.queuedEnvelopes.unregisterSpillingQueue(spillingQueue);
-		}
 	}
 }
