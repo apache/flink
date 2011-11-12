@@ -31,7 +31,7 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	private final FileBufferManager fileBufferManager;
 
 	private final AbstractID ownerID;
-	
+
 	private final BufferProvider bufferProvider;
 
 	private int size = 0;
@@ -40,10 +40,10 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 
 	private SpillingQueueElement tail = null;
 
-	private TransferEnvelope peekCache = null;
-
 	private long sizeOfMemoryBuffers = 0;
 
+	private boolean allowAsynchronousUnspilling = true;
+	
 	private static final class SpillingQueueID extends AbstractID {
 	}
 
@@ -181,18 +181,21 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	 */
 	@Override
 	public synchronized boolean add(final TransferEnvelope transferEnvelope) {
-
+		
 		if (isEmpty()) {
 			this.head = new SpillingQueueElement(transferEnvelope);
 			this.tail = this.head;
 		} else {
 
-			if (this.tail.canBeAdded(transferEnvelope)) {
-				this.tail.add(transferEnvelope);
-			} else {
-				final SpillingQueueElement newTail = new SpillingQueueElement(transferEnvelope);
-				this.tail.setNextElement(newTail);
-				this.tail = newTail;
+			synchronized (this.tail) {
+
+				if (this.tail.canBeAdded(transferEnvelope)) {
+					this.tail.add(transferEnvelope);
+				} else {
+					final SpillingQueueElement newTail = new SpillingQueueElement(transferEnvelope);
+					this.tail.setNextElement(newTail);
+					this.tail = newTail;
+				}
 			}
 		}
 
@@ -232,36 +235,53 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized TransferEnvelope peek() {
+	public TransferEnvelope peek() {
 
-		if (isEmpty()) {
-			return null;
-		}
-
-		if (this.peekCache == null) {
-			this.peekCache = this.head.peek();
-		}
-
-		return this.peekCache;
+		throw new UnsupportedOperationException("peek is not supported on this type of queue");
 	}
-
+	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public synchronized TransferEnvelope poll() {
-
+		
 		if (isEmpty()) {
 			return null;
 		}
 
-		TransferEnvelope te = this.head.poll();
-		if (this.head.size() == 0) {
-			this.head = this.head.getNextElement();
+		TransferEnvelope te;
+		SpillingQueueThread unspillThread = null;
+		SpillingQueueElement lockedElement = null;
+		synchronized (this.head) {
+
+			te = this.head.poll();
+			final Buffer buffer = te.getBuffer();
+			if (buffer != null) {
+				if (!buffer.isBackedByMemory() && this.allowAsynchronousUnspilling) {
+					unspillThread = new SpillingQueueThread(this.bufferProvider, this.head, this);
+					unspillThread.start();
+					lockedElement = this.head;
+				}
+			}
+
+			if (this.head.size() == 0) {
+				this.head = this.head.getNextElement();
+			}
+
+			if (this.head == null) {
+				this.tail = null;
+			}
 		}
 
-		if (this.head == null) {
-			this.tail = null;
+		// We have triggered the spilling queue thread
+		if (unspillThread != null) {
+
+			unspillThread.waitUntilFirstLockIsAcquired();
+
+			// Wait until the spilling queue thread has finished processing this element
+			synchronized (lockedElement) {
+			}
 		}
 
 		// Keep track of how much main memory is stuck inside this queue
@@ -271,16 +291,10 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 				this.sizeOfMemoryBuffers -= buffer.size();
 			}
 		}
-
-		// If the user has called peek before, return cached element
-		if(this.peekCache != null) {
-			te = this.peekCache;
-			this.peekCache = null;
-		}
 		
 		// Decrease element counter
 		--this.size;
-
+		
 		return te;
 	}
 
@@ -326,5 +340,14 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	public synchronized long getAmountOfMainMemoryInQueue() {
 
 		return this.sizeOfMemoryBuffers;
+	}
+
+	public synchronized void increaseAmountOfMainMemoryInQueue(int amount) {
+
+		this.sizeOfMemoryBuffers += amount;
+	}
+	
+	public synchronized void disableAsynchronousUnspilling() {
+		this.allowAsynchronousUnspilling = false;
 	}
 }
