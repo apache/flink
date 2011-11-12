@@ -24,12 +24,14 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.types.Record;
@@ -266,5 +268,48 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 		// Simply delegate call
 		this.ephemeralCheckpoint.setCheckpointDecisionAsynchronously(checkpointDecision);
+	}
+
+	/**
+	 * Registers the given spilling queue with a network connection. The network connection is in charge of polling the
+	 * remaining elements from the queue.
+	 * 
+	 * @param sourceChannelID
+	 *        the ID of the source channel which is associated with the spilling queue
+	 * @param spillingQueue
+	 *        the spilling queue to be registered
+	 * @return <code>true</code> if the has been successfully registered with the network connection, <code>false</code>
+	 *         if the receiver runs within the same task manager and there is no network operation required to transfer
+	 *         the queued data
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while looking up the destination of the queued envelopes
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while looking up the destination of the queued envelopes
+	 */
+	boolean registerSpillingQueueWithNetworkConnection(final ChannelID sourceChannelID,
+			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
+
+		return this.transferEnvelopeDispatcher.registerSpillingQueueWithNetworkConnection(this.task.getJobID(),
+			sourceChannelID, spillingQueue);
+	}
+
+	/**
+	 * Unregisters the given spilling queue from the network connection. As a result of this operation, the network
+	 * connection will no longer poll elements from the queue.
+	 * 
+	 * @param sourceChannelID
+	 *        the ID of the source channel which is associated with the spilling queue
+	 * @param spillingQueue
+	 *        the spilling queue to be unregistered
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while looking up the network connection
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while looking up the network connection
+	 */
+	void unregisterSpillingQueueFromNetworkConnection(final ChannelID sourceChannelID, final SpillingQueue spillingQueue)
+			throws IOException, InterruptedException {
+
+		this.transferEnvelopeDispatcher.unregisterSpillingQueueFromNetworkConnection(this.task.getJobID(),
+			sourceChannelID, spillingQueue);
 	}
 }

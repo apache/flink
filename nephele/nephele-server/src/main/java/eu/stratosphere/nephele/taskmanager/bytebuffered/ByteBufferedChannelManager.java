@@ -51,6 +51,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
@@ -646,5 +647,51 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			taskContext.setCheckpointDecisionAsynchronously(cd.getCheckpointDecision());
 			taskContext.reportAsynchronousEvent();
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerSpillingQueueWithNetworkConnection(final JobID jobID, final ChannelID sourceChannelID,
+			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
+
+		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
+
+		if (!receiverList.hasRemoteReceivers()) {
+			return false;
+		}
+
+		final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
+		if (remoteReceivers.size() > 1) {
+			LOG.error("Cannot register spilling queue for more than one remote receiver");
+			return false;
+		}
+
+		this.networkConnectionManager.registerSpillingQueueWithNetworkConnection(remoteReceivers.get(0), spillingQueue);
+
+		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void unregisterSpillingQueueFromNetworkConnection(final JobID jobID, final ChannelID sourceChannelID,
+			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
+
+		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
+
+		if (!receiverList.hasRemoteReceivers()) {
+			return;
+		}
+
+		final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
+		if (remoteReceivers.size() > 1) {
+			LOG.error("Cannot unregister spilling queue for more than one remote receiver");
+			return;
+		}
+		
+		this.networkConnectionManager.unregisterSpillingQueueFromNetworkConnection(remoteReceivers.get(0), spillingQueue);
 	}
 }

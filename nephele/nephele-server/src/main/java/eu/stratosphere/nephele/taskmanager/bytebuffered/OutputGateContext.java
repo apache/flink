@@ -24,10 +24,12 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class OutputGateContext implements BufferProvider, AsynchronousEventListener {
@@ -205,5 +207,46 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	public void reportAsynchronousEvent() {
 
 		this.taskContext.reportAsynchronousEvent();
+	}
+
+	/**
+	 * Registers the given spilling queue with a network connection. The network connection is in charge of polling the
+	 * remaining elements from the queue.
+	 * 
+	 * @param sourceChannelID
+	 *        the ID of the source channel which is associated with the spilling queue
+	 * @param spillingQueue
+	 *        the spilling queue to be registered
+	 * @return <code>true</code> if the has been successfully registered with the network connection, <code>false</code>
+	 *         if the receiver runs within the same task manager and there is no network operation required to transfer
+	 *         the queued data
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while looking up the destination of the queued envelopes
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while looking up the destination of the queued envelopes
+	 */
+	boolean registerSpillingQueueWithNetworkConnection(final ChannelID sourceChannelID,
+			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
+
+		return this.taskContext.registerSpillingQueueWithNetworkConnection(sourceChannelID, spillingQueue);
+	}
+
+	/**
+	 * Unregisters the given spilling queue from the network connection. As a result of this operation, the network
+	 * connection will no longer poll elements from the queue.
+	 * 
+	 * @param sourceChannelID
+	 *        the ID of the source channel which is associated with the spilling queue
+	 * @param spillingQueue
+	 *        the spilling queue to be unregistered
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while looking up the network connection
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while looking up the network connection
+	 */
+	void unregisterSpillingQueueFromNetworkConnection(final ChannelID sourceChannelID, final SpillingQueue spillingQueue)
+			throws IOException, InterruptedException {
+
+		this.taskContext.unregisterSpillingQueueFromNetworkConnection(sourceChannelID, spillingQueue);
 	}
 }

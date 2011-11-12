@@ -28,6 +28,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 
@@ -536,5 +537,29 @@ public class OutgoingConnection {
 		}
 
 		return retVal;
+	}
+
+	/**
+	 * Registers the spilling queue with this network connection. The network connection is then in charge of polling
+	 * the elements from the queue.
+	 * 
+	 * @param spillingQueue
+	 *        the queue to register
+	 */
+	void registerSpillingQueue(final SpillingQueue spillingQueue) {
+
+		System.out.println("Registering spilling queue");
+	}
+
+	/**
+	 * Unregisters the spilling queue from this network connection. As a result of this operation, the network
+	 * connection will no longer poll elements from the queue.
+	 * 
+	 * @param spillingQueue
+	 *        the queue to unregister
+	 */
+	void unregisterSpillingQueue(final SpillingQueue spillingQueue) {
+
+		System.out.println("Unregistering spilling queue");
 	}
 }

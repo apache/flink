@@ -82,7 +82,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 		final AbstractID fileOwnerID = mergeSpilledBuffers ? outputGateContext.getFileOwnerID()
 			: byteBufferedOutputChannel.getID();
-		this.queuedOutgoingEnvelopes = new SpillingQueue(fileOwnerID);
+		this.queuedOutgoingEnvelopes = new SpillingQueue(fileOwnerID, this.outputGateContext);
 
 		// Register as inactive channel so queue can be spilled to disk when we run out of memory buffers
 		if (!isReceiverRunning) {
