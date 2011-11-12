@@ -31,6 +31,8 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 
 final class SpillingQueueElement {
 
+	private static final int SIZE_LIMIT = 128;
+
 	private static final Object NULL_OBJECT = new Object();
 
 	private final JobID jobID;
@@ -135,6 +137,10 @@ final class SpillingQueueElement {
 		}
 
 		if (this.tailSequenceNumber != (transferEnvelope.getSequenceNumber() - 1)) {
+			return false;
+		}
+
+		if (this.size() >= SIZE_LIMIT) {
 			return false;
 		}
 
@@ -451,7 +457,7 @@ final class SpillingQueueElement {
 				buffer.recycleBuffer();
 			} else {
 				bufferQueue.add(buffer);
-				return usedMemory;
+				continue;
 			}
 
 			usedMemory += size;
