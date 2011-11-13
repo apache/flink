@@ -99,7 +99,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 		while (it.hasNext()) {
 			final OutputChannelContext channelContext = it.next();
 			if (channelContext.isChannelActive()) {
-				channelContext.flushQueuedOutgoingEnvelopes();
+				channelContext.hasDataLeftToTransmit();
 				it.remove();
 			} else {
 			}
@@ -164,7 +164,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 	@Override
 	public Buffer requestEmptyBuffer(int minimumSizeOfBuffer) throws IOException {
 
-		throw new IllegalStateException("requestEmptyBuffer called on OutputGateContext");
+		return this.taskContext.requestEmptyBuffer(minimumSizeOfBuffer);
 	}
 
 	/**
@@ -229,24 +229,5 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
 
 		return this.taskContext.registerSpillingQueueWithNetworkConnection(sourceChannelID, spillingQueue);
-	}
-
-	/**
-	 * Unregisters the given spilling queue from the network connection. As a result of this operation, the network
-	 * connection will no longer poll elements from the queue.
-	 * 
-	 * @param sourceChannelID
-	 *        the ID of the source channel which is associated with the spilling queue
-	 * @param spillingQueue
-	 *        the spilling queue to be unregistered
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while looking up the network connection
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while looking up the network connection
-	 */
-	void unregisterSpillingQueueFromNetworkConnection(final ChannelID sourceChannelID, final SpillingQueue spillingQueue)
-			throws IOException, InterruptedException {
-
-		this.taskContext.unregisterSpillingQueueFromNetworkConnection(sourceChannelID, spillingQueue);
 	}
 }

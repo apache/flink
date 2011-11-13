@@ -64,22 +64,4 @@ public interface TransferEnvelopeDispatcher {
 	 */
 	boolean registerSpillingQueueWithNetworkConnection(final JobID jobID, final ChannelID sourceChannelID,
 			final SpillingQueue spillingQueue) throws IOException, InterruptedException;
-
-	/**
-	 * Unregisters the given spilling queue from the network connection. As a result of this operation, the network
-	 * connection will no longer poll elements from the queue.
-	 * 
-	 * @param jobID
-	 *        the ID of the job which is associated with the spilling queue
-	 * @param sourceChannelID
-	 *        the ID of the source channel which is associated with the spilling queue
-	 * @param spillingQueue
-	 *        the spilling queue to be unregistered
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while looking up the network connection
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while looking up the network connection
-	 */
-	void unregisterSpillingQueueFromNetworkConnection(final JobID jobID, final ChannelID sourceChannelID,
-			final SpillingQueue spillingQueue) throws IOException, InterruptedException;
 }

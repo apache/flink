@@ -672,26 +672,4 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		return true;
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void unregisterSpillingQueueFromNetworkConnection(final JobID jobID, final ChannelID sourceChannelID,
-			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
-
-		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
-
-		if (!receiverList.hasRemoteReceivers()) {
-			return;
-		}
-
-		final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
-		if (remoteReceivers.size() > 1) {
-			LOG.error("Cannot unregister spilling queue for more than one remote receiver");
-			return;
-		}
-		
-		this.networkConnectionManager.unregisterSpillingQueueFromNetworkConnection(remoteReceivers.get(0), spillingQueue);
-	}
 }

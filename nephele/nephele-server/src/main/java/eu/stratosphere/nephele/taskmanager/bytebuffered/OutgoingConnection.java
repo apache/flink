@@ -559,15 +559,4 @@ public class OutgoingConnection {
 			this.queuedEnvelopes.registerSpillingQueue(spillingQueue);
 		}
 	}
-
-	/**
-	 * Unregisters the spilling queue from this network connection. As a result of this operation, the network
-	 * connection will no longer poll elements from the queue.
-	 * 
-	 * @param spillingQueue
-	 *        the queue to unregister
-	 */
-	void unregisterSpillingQueue(final SpillingQueue spillingQueue) {
-
-	}
 }

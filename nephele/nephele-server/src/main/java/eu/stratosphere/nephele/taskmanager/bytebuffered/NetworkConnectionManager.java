@@ -30,7 +30,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
@@ -236,20 +235,5 @@ public final class NetworkConnectionManager {
 			final SpillingQueue spillingQueue) {
 
 		getOutgoingConnection(targetAddress).registerSpillingQueue(spillingQueue);
-	}
-
-	/**
-	 * Unregisters the given spilling queue from the network connection identified by the target address. As a result of
-	 * this operation, the network connection will no longer poll elements from the queue.
-	 * 
-	 * @param targetAddress
-	 *        the address of the target host
-	 * @param spillingQueue
-	 *        the spilling queue to unregister
-	 */
-	void unregisterSpillingQueueFromNetworkConnection(final InetSocketAddress targetAddress,
-			final SpillingQueue spillingQueue) {
-
-		getOutgoingConnection(targetAddress).unregisterSpillingQueue(spillingQueue);
 	}
 }
