@@ -190,7 +190,7 @@ public class JobManagerITCase {
 	/**
 	 * Tests of the Nephele channels with a large (> 1 MB) file.
 	 */
-	// @Test
+	@Test
 	public void testExecutionWithLargeInputFile() {
 		test(1000000);
 	}
