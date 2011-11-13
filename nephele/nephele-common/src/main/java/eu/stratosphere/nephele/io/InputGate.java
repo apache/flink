@@ -632,7 +632,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 		if (this.channelToReadFrom == -1) {
 
 			if (this.isClosed()) {
-				return false;
+				return true;
 			}
 
 			synchronized (this.availableChannels) {
