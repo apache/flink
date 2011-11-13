@@ -109,10 +109,10 @@ public final class TransferEnvelopeQueue implements Queue<TransferEnvelope> {
 	public boolean add(final TransferEnvelope e) {
 
 		boolean retVal = this.defaultQueue.add(e);
-		if(this.channelQueues.add(this.defaultQueue)) {
+		if (this.channelQueues.add(this.defaultQueue)) {
 			this.iterator = null;
 		}
-		
+
 		return retVal;
 	}
 
@@ -158,11 +158,13 @@ public final class TransferEnvelopeQueue implements Queue<TransferEnvelope> {
 			return retVal;
 		}
 
-		if (this.iterator.hasNext()) {
-			this.headQueue = this.iterator.next();
-		} else {
-			this.iterator = null;
-			this.headQueue = null;
+		if (this.channelQueues.size() > 1) {
+			if (this.iterator.hasNext()) {
+				this.headQueue = this.iterator.next();
+			} else {
+				this.iterator = null;
+				this.headQueue = null;
+			}
 		}
 
 		return retVal;
@@ -213,9 +215,6 @@ public final class TransferEnvelopeQueue implements Queue<TransferEnvelope> {
 
 		if (this.channelQueues.add(spillingQueue)) {
 			this.iterator = null;
-			
-			System.out.println("Registered new spilling queue with " + spillingQueue.size());
-			System.out.println("Number of registered queues: " + this.channelQueues.size());
 		}
 	}
 }
