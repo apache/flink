@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import eu.stratosphere.nephele.io.AbstractID;
 
@@ -34,16 +35,16 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 
 	private final BufferProvider bufferProvider;
 
-	private int size = 0;
+	private final AtomicInteger size = new AtomicInteger(0);
 
 	private SpillingQueueElement head = null;
 
 	private SpillingQueueElement tail = null;
 
-	private long sizeOfMemoryBuffers = 0;
+	private final AtomicInteger sizeOfMemoryBuffers = new AtomicInteger(0);
 
 	private boolean allowAsynchronousUnspilling = true;
-	
+
 	private static final class SpillingQueueID extends AbstractID {
 	}
 
@@ -82,8 +83,8 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 
 		this.head = null;
 		this.tail = null;
-		this.sizeOfMemoryBuffers = 0;
-		this.size = 0;
+		this.sizeOfMemoryBuffers.set(0);
+		this.size.set(0);
 	}
 
 	/**
@@ -110,7 +111,7 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	@Override
 	public boolean isEmpty() {
 
-		return (this.size == 0);
+		return (this.size.get() == 0);
 	}
 
 	/**
@@ -153,9 +154,9 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized int size() {
+	public int size() {
 
-		return this.size;
+		return this.size.get();
 	}
 
 	/**
@@ -181,8 +182,11 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 	 */
 	@Override
 	public synchronized boolean add(final TransferEnvelope transferEnvelope) {
-		
-		if (isEmpty()) {
+
+		// First, increase element counter
+		final int oldSize = this.size.getAndIncrement();
+
+		if (oldSize == 0) {
 			this.head = new SpillingQueueElement(transferEnvelope);
 			this.tail = this.head;
 		} else {
@@ -203,12 +207,9 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		final Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer != null) {
 			if (buffer.isBackedByMemory()) {
-				this.sizeOfMemoryBuffers += buffer.size();
+				this.sizeOfMemoryBuffers.addAndGet(buffer.size());
 			}
 		}
-
-		// Increase element counter
-		++this.size;
 
 		return true;
 	}
@@ -239,13 +240,13 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 
 		throw new UnsupportedOperationException("peek is not supported on this type of queue");
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public synchronized TransferEnvelope poll() {
-		
+
 		if (isEmpty()) {
 			return null;
 		}
@@ -276,9 +277,7 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 
 		// We have triggered the spilling queue thread
 		if (unspillThread != null) {
-
 			unspillThread.waitUntilFirstLockIsAcquired();
-
 			// Wait until the spilling queue thread has finished processing this element
 			synchronized (lockedElement) {
 			}
@@ -288,13 +287,13 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		final Buffer buffer = te.getBuffer();
 		if (buffer != null) {
 			if (buffer.isBackedByMemory()) {
-				this.sizeOfMemoryBuffers -= buffer.size();
+				this.sizeOfMemoryBuffers.addAndGet(-buffer.size());
 			}
 		}
-		
+
 		// Decrease element counter
-		--this.size;
-		
+		this.size.decrementAndGet();
+
 		return te;
 	}
 
@@ -327,7 +326,7 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 			elem = elem.getNextElement();
 		}
 
-		this.sizeOfMemoryBuffers -= reclaimedMemory;
+		this.sizeOfMemoryBuffers.addAndGet(-reclaimedMemory);
 
 		return reclaimedMemory;
 	}
@@ -337,16 +336,16 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		return spill(true);
 	}
 
-	public synchronized long getAmountOfMainMemoryInQueue() {
+	public long getAmountOfMainMemoryInQueue() {
 
-		return this.sizeOfMemoryBuffers;
+		return this.sizeOfMemoryBuffers.get();
 	}
 
-	public synchronized void increaseAmountOfMainMemoryInQueue(int amount) {
+	public void increaseAmountOfMainMemoryInQueue(int amount) {
 
-		this.sizeOfMemoryBuffers += amount;
+		this.sizeOfMemoryBuffers.addAndGet(amount);
 	}
-	
+
 	public synchronized void disableAsynchronousUnspilling() {
 		this.allowAsynchronousUnspilling = false;
 	}
