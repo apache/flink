@@ -601,9 +601,9 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSourceContract<NodePair, Path> pathsInput;
 		
 		if(rdfInput) {
-			pathsInput = new FileDataSourceContract<NodePair, Path>(RDFTripleInFormat.class, paths);
+			pathsInput = new FileDataSourceContract<NodePair, Path>(RDFTripleInFormat.class, paths, "Input RDF Triples");
 		} else {
-			pathsInput = new FileDataSourceContract<NodePair, Path>(PathInFormat.class, paths);
+			pathsInput = new FileDataSourceContract<NodePair, Path>(PathInFormat.class, paths, "Input Paths");
 		}
 		pathsInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		pathsInput.setDegreeOfParallelism(noSubTasks);
@@ -625,7 +625,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		findShortestPaths.setDegreeOfParallelism(noSubTasks);
 
 		FileDataSinkContract<PactNull, Path> result = new FileDataSinkContract<PactNull, Path>(PathOutFormat.class,
-			output);
+			output, "Output Paths");
 		result.setDegreeOfParallelism(noSubTasks);
 
 		result.setInput(findShortestPaths);

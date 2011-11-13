@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.types.Record;
  * 
  * @author warneke
  */
-public class ClassUtils {
+public final class ClassUtils {
 
 	/**
 	 * The log object used for debugging.
@@ -51,7 +51,8 @@ public class ClassUtils {
 	 */
 	// TODO: See if we can improve type safety here
 	@SuppressWarnings("unchecked")
-	public static Class<? extends VersionedProtocol> getProtocolByName(String className) throws ClassNotFoundException {
+	public static Class<? extends VersionedProtocol> getProtocolByName(final String className)
+			throws ClassNotFoundException {
 
 		if (!className.contains("Protocol")) {
 			throw new ClassNotFoundException("Only use this method for protocols!");
@@ -71,7 +72,7 @@ public class ClassUtils {
 	 */
 	// TODO: See if we can improve type safety here
 	@SuppressWarnings("unchecked")
-	public static Class<? extends Record> getRecordByName(String className) throws ClassNotFoundException {
+	public static Class<? extends Record> getRecordByName(final String className) throws ClassNotFoundException {
 
 		return (Class<? extends Record>) Class.forName(className, true, getClassLoader());
 
@@ -88,7 +89,7 @@ public class ClassUtils {
 	 */
 	// TODO: See if we can improve type safety here
 	@SuppressWarnings("unchecked")
-	public static Class<? extends FileSystem> getFileSystemByName(String className) throws ClassNotFoundException {
+	public static Class<? extends FileSystem> getFileSystemByName(final String className) throws ClassNotFoundException {
 
 		return (Class<? extends FileSystem>) Class.forName(className, true, getClassLoader());
 	}

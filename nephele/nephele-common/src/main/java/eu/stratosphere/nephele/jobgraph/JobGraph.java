@@ -52,12 +52,12 @@ public class JobGraph implements IOReadableWritable {
 	/**
 	 * List of input vertices included in this job graph.
 	 */
-	private Map<JobVertexID, JobInputVertex> inputVertices = new HashMap<JobVertexID, JobInputVertex>();
+	private Map<JobVertexID, AbstractJobInputVertex> inputVertices = new HashMap<JobVertexID, AbstractJobInputVertex>();
 
 	/**
 	 * List of output vertices included in this job graph.
 	 */
-	private Map<JobVertexID, JobOutputVertex> outputVertices = new HashMap<JobVertexID, JobOutputVertex>();
+	private Map<JobVertexID, AbstractJobOutputVertex> outputVertices = new HashMap<JobVertexID, AbstractJobOutputVertex>();
 
 	/**
 	 * List of task vertices included in this job graph.
@@ -107,7 +107,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param jobName
 	 *        the name for this job graph
 	 */
-	public JobGraph(String jobName) {
+	public JobGraph(final String jobName) {
 		this();
 		this.jobName = jobName;
 	}
@@ -148,7 +148,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param inputVertex
 	 *        the new input vertex to be added
 	 */
-	public void addVertex(JobInputVertex inputVertex) {
+	public void addVertex(final AbstractJobInputVertex inputVertex) {
 
 		if (!inputVertices.containsKey(inputVertex.getID())) {
 			inputVertices.put(inputVertex.getID(), inputVertex);
@@ -161,7 +161,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param taskVertex
 	 *        the new task vertex to be added
 	 */
-	public void addVertex(JobTaskVertex taskVertex) {
+	public void addVertex(final JobTaskVertex taskVertex) {
 
 		if (!taskVertices.containsKey(taskVertex.getID())) {
 			taskVertices.put(taskVertex.getID(), taskVertex);
@@ -174,7 +174,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param outputVertex
 	 *        the new output vertex to be added
 	 */
-	public void addVertex(JobOutputVertex outputVertex) {
+	public void addVertex(final AbstractJobOutputVertex outputVertex) {
 
 		if (!outputVertices.containsKey(outputVertex.getID())) {
 			outputVertices.put(outputVertex.getID(), outputVertex);
@@ -213,9 +213,9 @@ public class JobGraph implements IOReadableWritable {
 	 * 
 	 * @return an iterator to iterate all input vertices registered with the job graph
 	 */
-	public Iterator<JobInputVertex> getInputVertices() {
+	public Iterator<AbstractJobInputVertex> getInputVertices() {
 
-		final Collection<JobInputVertex> coll = this.inputVertices.values();
+		final Collection<AbstractJobInputVertex> coll = this.inputVertices.values();
 
 		return coll.iterator();
 	}
@@ -225,9 +225,9 @@ public class JobGraph implements IOReadableWritable {
 	 * 
 	 * @return an iterator to iterate all output vertices registered with the job graph
 	 */
-	public Iterator<JobOutputVertex> getOutputVertices() {
+	public Iterator<AbstractJobOutputVertex> getOutputVertices() {
 
-		final Collection<JobOutputVertex> coll = this.outputVertices.values();
+		final Collection<AbstractJobOutputVertex> coll = this.outputVertices.values();
 
 		return coll.iterator();
 	}
@@ -278,12 +278,12 @@ public class JobGraph implements IOReadableWritable {
 		final AbstractJobVertex[] vertices = new AbstractJobVertex[inputVertices.size() + outputVertices.size()
 			+ taskVertices.size()];
 
-		final Iterator<JobInputVertex> iv = getInputVertices();
+		final Iterator<AbstractJobInputVertex> iv = getInputVertices();
 		while (iv.hasNext()) {
 			vertices[i++] = iv.next();
 		}
 
-		final Iterator<JobOutputVertex> ov = getOutputVertices();
+		final Iterator<AbstractJobOutputVertex> ov = getOutputVertices();
 		while (ov.hasNext()) {
 			vertices[i++] = ov.next();
 		}
@@ -304,10 +304,10 @@ public class JobGraph implements IOReadableWritable {
 	 * @param collector
 	 *        a temporary list to store the vertices that have already been visisted
 	 */
-	private void collectVertices(AbstractJobVertex jv, List<AbstractJobVertex> collector) {
+	private void collectVertices(final AbstractJobVertex jv, final List<AbstractJobVertex> collector) {
 
 		if (jv == null) {
-			final Iterator<JobInputVertex> iter = getInputVertices();
+			final Iterator<AbstractJobInputVertex> iter = getInputVertices();
 			while (iter.hasNext()) {
 				collectVertices(iter.next(), collector);
 			}
@@ -341,18 +341,18 @@ public class JobGraph implements IOReadableWritable {
 	 *        the ID of the vertex to search for
 	 * @return the vertex with the matching ID or <code>null</code> if no vertex with such ID could be found
 	 */
-	public AbstractJobVertex findVertexByID(JobVertexID id) {
+	public AbstractJobVertex findVertexByID(final JobVertexID id) {
 
-		if (inputVertices.containsKey(id)) {
-			return inputVertices.get(id);
+		if (this.inputVertices.containsKey(id)) {
+			return this.inputVertices.get(id);
 		}
 
-		if (outputVertices.containsKey(id)) {
-			return outputVertices.get(id);
+		if (this.outputVertices.containsKey(id)) {
+			return this.outputVertices.get(id);
 		}
 
-		if (taskVertices.containsKey(id)) {
-			return taskVertices.get(id);
+		if (this.taskVertices.containsKey(id)) {
+			return this.taskVertices.get(id);
 		}
 
 		return null;
@@ -366,17 +366,17 @@ public class JobGraph implements IOReadableWritable {
 	 * @return <code>true</code> if a vertex with the given ID is registered with the job graph, <code>false</code>
 	 *         otherwise.
 	 */
-	private boolean includedInJobGraph(JobVertexID id) {
+	private boolean includedInJobGraph(final JobVertexID id) {
 
-		if (inputVertices.containsKey(id)) {
+		if (this.inputVertices.containsKey(id)) {
 			return true;
 		}
 
-		if (outputVertices.containsKey(id)) {
+		if (this.outputVertices.containsKey(id)) {
 			return true;
 		}
 
-		if (taskVertices.containsKey(id)) {
+		if (this.taskVertices.containsKey(id)) {
 			return true;
 		}
 
@@ -449,8 +449,9 @@ public class JobGraph implements IOReadableWritable {
 	 * Auxiliary method implementing Tarjan's algorithm for strongly-connected components to determine whether the job
 	 * graph is acyclic.
 	 */
-	private boolean tarjan(AbstractJobVertex jv, Integer index, HashMap<AbstractJobVertex, Integer> indexMap,
-			HashMap<AbstractJobVertex, Integer> lowLinkMap, Stack<AbstractJobVertex> stack) {
+	private boolean tarjan(final AbstractJobVertex jv, Integer index,
+			final HashMap<AbstractJobVertex, Integer> indexMap, final HashMap<AbstractJobVertex, Integer> lowLinkMap,
+			final Stack<AbstractJobVertex> stack) {
 
 		indexMap.put(jv, Integer.valueOf(index));
 		lowLinkMap.put(jv, Integer.valueOf(index));
@@ -501,7 +502,7 @@ public class JobGraph implements IOReadableWritable {
 	public AbstractJobVertex areVertexDegreesCorrect() {
 
 		// Check input vertices
-		final Iterator<JobInputVertex> iter = getInputVertices();
+		final Iterator<AbstractJobInputVertex> iter = getInputVertices();
 		while (iter.hasNext()) {
 
 			final AbstractJobVertex jv = iter.next();
@@ -523,7 +524,7 @@ public class JobGraph implements IOReadableWritable {
 		}
 
 		// Check output vertices
-		final Iterator<JobOutputVertex> iter3 = getOutputVertices();
+		final Iterator<AbstractJobOutputVertex> iter3 = getOutputVertices();
 		while (iter3.hasNext()) {
 
 			final AbstractJobVertex jv = iter3.next();
@@ -540,7 +541,7 @@ public class JobGraph implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		// Read job id
 		this.jobID.read(in);
@@ -625,7 +626,7 @@ public class JobGraph implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write job ID
 		this.jobID.write(out);
@@ -671,7 +672,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @throws IOException
 	 *         thrown if an error occurs while writing to the stream
 	 */
-	private void writeRequiredJarFiles(DataOutput out, AbstractJobVertex[] jobVertices) throws IOException {
+	private void writeRequiredJarFiles(final DataOutput out, final AbstractJobVertex[] jobVertices) throws IOException {
 
 		// Now check if all the collected jar files really exist
 		final FileSystem fs = FileSystem.getLocalFileSystem();
@@ -716,7 +717,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @throws IOException
 	 *         thrown if an error occurs while reading the stream
 	 */
-	private void readRequiredJarFiles(DataInput in) throws IOException {
+	private void readRequiredJarFiles(final DataInput in) throws IOException {
 
 		// Do jar files follow;
 		final int numJars = in.readInt();
@@ -748,7 +749,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param jar
 	 *        path of the JAR file required to run the job on a task manager
 	 */
-	public void addJar(Path jar) {
+	public void addJar(final Path jar) {
 
 		if (jar == null) {
 			return;

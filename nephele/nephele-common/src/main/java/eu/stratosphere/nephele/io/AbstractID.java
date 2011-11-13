@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public abstract class ID implements IOReadableWritable {
+public abstract class AbstractID implements IOReadableWritable {
 
 	/**
 	 * The size of the ID in byte.
@@ -42,9 +42,9 @@ public abstract class ID implements IOReadableWritable {
 	/**
 	 * Constructs a new ID with a specific bytes value.
 	 */
-	public ID(byte[] bytes) {
-		
-		if(bytes.length == SIZE) {
+	public AbstractID(final byte[] bytes) {
+
+		if (bytes.length == SIZE) {
 			System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
 		}
 	}
@@ -52,8 +52,8 @@ public abstract class ID implements IOReadableWritable {
 	/**
 	 * Constructs a new random ID from a uniform distribution.
 	 */
-	public ID() {
-		
+	public AbstractID() {
+
 		for (int i = 0; i < SIZE; i++) {
 			this.bytes[i] = (byte) ((Math.random() * 256.0) + Byte.MIN_VALUE);
 		}
@@ -65,16 +65,16 @@ public abstract class ID implements IOReadableWritable {
 	 * @param src
 	 *        the bytes the ID consists of
 	 */
-	private void setBytes(byte[] src) {
+	private void setBytes(final byte[] src) {
 
 		if (src == null) {
 			return;
 		}
 
-		if(src.length != SIZE) {
+		if (src.length != SIZE) {
 			return;
 		}
-		
+
 		System.arraycopy(src, 0, this.bytes, 0, SIZE);
 	}
 
@@ -93,7 +93,7 @@ public abstract class ID implements IOReadableWritable {
 	 * @param src
 	 *        the source ID
 	 */
-	public void setID(ID src) {
+	public void setID(final AbstractID src) {
 		setBytes(src.getBytes());
 	}
 
@@ -101,13 +101,13 @@ public abstract class ID implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
-		if (!(obj instanceof ID)) {
+		if (!(obj instanceof AbstractID)) {
 			return false;
 		}
 
-		final ID src = (ID) obj;
+		final AbstractID src = (AbstractID) obj;
 
 		final byte[] srcBytes = src.getBytes();
 
@@ -163,7 +163,7 @@ public abstract class ID implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		in.readFully(this.bytes);
 	}
@@ -172,7 +172,7 @@ public abstract class ID implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		// Write the particular bytes
 		out.write(this.bytes);

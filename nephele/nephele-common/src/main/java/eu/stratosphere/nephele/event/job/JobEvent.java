@@ -51,7 +51,7 @@ public class JobEvent extends AbstractEvent {
 	 * @param optionalMessage
 	 *        an optional message that shall be attached to this event, possibly <code>null</code>
 	 */
-	public JobEvent(long timestamp, JobStatus currentJobStatus, String optionalMessage) {
+	public JobEvent(final long timestamp, final JobStatus currentJobStatus, final String optionalMessage) {
 		super(timestamp);
 
 		this.currentJobStatus = currentJobStatus;
@@ -73,7 +73,7 @@ public class JobEvent extends AbstractEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		super.read(in);
 
 		// Read job status
@@ -87,7 +87,7 @@ public class JobEvent extends AbstractEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		super.write(out);
 
 		// Write job status
@@ -128,7 +128,7 @@ public class JobEvent extends AbstractEvent {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (!super.equals(obj)) {
 			return false;

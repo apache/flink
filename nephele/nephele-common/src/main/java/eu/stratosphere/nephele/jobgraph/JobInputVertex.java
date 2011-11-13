@@ -15,46 +15,63 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import eu.stratosphere.nephele.template.AbstractInputTask;
 
-/**
- * An abstract base class for input vertices in Nephele.
- * 
- * @author warneke
- */
-public abstract class JobInputVertex extends AbstractJobVertex {
+public class JobInputVertex extends AbstractJobInputVertex {
 
 	/**
-	 * Constructs a new job input vertex with the given name.
+	 * Creates a new job input vertex with the specified name.
 	 * 
 	 * @param name
-	 *        the name of the new job input vertex
+	 *        The name of the new job file input vertex.
 	 * @param id
-	 *        the ID of this vertex
+	 *        The ID of this vertex.
 	 * @param jobGraph
-	 *        the job graph this vertex belongs to
+	 *        The job graph this vertex belongs to.
 	 */
-	protected JobInputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public JobInputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
 		super(name, id, jobGraph);
-
-		jobGraph.addVertex(this);
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Creates a new job file input vertex with the specified name.
+	 * 
+	 * @param name
+	 *        The name of the new job file input vertex.
+	 * @param jobGraph
+	 *        The job graph this vertex belongs to.
 	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-		super.read(in);
+	public JobInputVertex(final String name, final JobGraph jobGraph) {
+		super(name, null, jobGraph);
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Creates a new job file input vertex.
+	 * 
+	 * @param jobGraph
+	 *        The job graph this vertex belongs to.
 	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		super.write(out);
+	public JobInputVertex(final JobGraph jobGraph) {
+		super(null, null, jobGraph);
+	}
+
+	/**
+	 * Sets the class of the vertex's input task.
+	 * 
+	 * @param inputClass
+	 *        The class of the vertex's input task.
+	 */
+	public void setInputClass(final Class<? extends AbstractInputTask<?>> inputClass) {
+		this.invokableClass = inputClass;
+	}
+
+	/**
+	 * Returns the class of the vertex's input task.
+	 * 
+	 * @return the class of the vertex's input task or <code>null</code> if no task has yet been set
+	 */
+	@SuppressWarnings("unchecked")
+	public Class<? extends AbstractInputTask<?>> getInputClass() {
+		return (Class<? extends AbstractInputTask<?>>) this.invokableClass;
 	}
 }

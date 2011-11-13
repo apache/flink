@@ -28,6 +28,9 @@ public class JobExecutionException extends Exception {
 	 */
 	private static final long serialVersionUID = 2818087325120827525L;
 
+	/**
+	 * Indicates whether the job has been aborted as a result of user request.
+	 */
 	private final boolean canceledByUser;
 
 	/**

@@ -13,61 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.fs.file;
-
-import java.io.IOException;
-
-import eu.stratosphere.nephele.fs.BlockLocation;
+package eu.stratosphere.nephele.jobgraph;
 
 /**
- * Implementation of the {@link BlockLocation} interface for a
- * local file system.
+ * An abstract base class for output vertices in Nephele.
  * 
  * @author warneke
  */
-public class LocalBlockLocation implements BlockLocation {
-
-	private final long length;
-
-	private final String[] hosts;
-
-	public LocalBlockLocation(final String host, final long length) {
-		this.hosts = new String[] { host };
-		this.length = length;
-	}
+public abstract class AbstractJobOutputVertex extends AbstractJobVertex {
 
 	/**
-	 * {@inheritDoc}
+	 * Constructs a new job output vertex with the given name.
+	 * 
+	 * @param name
+	 *        the name of the new job output vertex
+	 * @param id
+	 *        the ID of this vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
 	 */
-	@Override
-	public String[] getHosts() throws IOException {
+	protected AbstractJobOutputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+		super(name, id, jobGraph);
 
-		return this.hosts;
+		jobGraph.addVertex(this);
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public long getLength() {
-
-		return this.length;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public long getOffset() {
-		return 0;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int compareTo(final BlockLocation o) {
-		return 0;
-	}
-
 }

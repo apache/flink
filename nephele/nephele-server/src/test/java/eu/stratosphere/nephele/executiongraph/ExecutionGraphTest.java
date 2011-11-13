@@ -98,8 +98,6 @@ public class ExecutionGraphTest {
 
 			throw new IllegalStateException("requestInstance called on TestInstanceManager");
 		}
-		
-		
 
 		/**
 		 * {@inheritDoc}
@@ -1047,6 +1045,105 @@ public class ExecutionGraphTest {
 				.equals(inputGroupVertex.getGroupMember(2).getAllocatedResource()));
 			assertFalse(inputGroupVertex.getGroupMember(2).getAllocatedResource()
 				.equals(inputGroupVertex.getGroupMember(3).getAllocatedResource()));
+
+		} catch (GraphConversionException e) {
+			fail(e.getMessage());
+		} catch (JobGraphDefinitionException e) {
+			fail(e.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+			if (inputFile1 != null) {
+				inputFile1.delete();
+			}
+			if (jobID != null) {
+				try {
+					LibraryCacheManager.unregister(jobID);
+				} catch (IOException e) {
+				}
+			}
+		}
+	}
+
+	/**
+	 * This test checks the correctness of the instance sharing API. In particular, the test checks the behavior of the
+	 * instance sharing as reported broken in ticket #198
+	 */
+	@Test
+	public void testInstanceSharing() {
+
+		final int degreeOfParallelism = 4;
+		File inputFile1 = null;
+		JobID jobID = null;
+
+		try {
+
+			inputFile1 = ServerTestUtils.createInputFile(0);
+
+			// create job graph
+			final JobGraph jg = new JobGraph("Instance Sharing Test Job");
+			jobID = jg.getJobID();
+
+			// input vertex
+			final JobFileInputVertex input1 = new JobFileInputVertex("Input 1", jg);
+			input1.setFileInputClass(FileLineReader.class);
+			input1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath()));
+			input1.setNumberOfSubtasks(degreeOfParallelism);
+
+			// forward vertex 1
+			final JobTaskVertex forward1 = new JobTaskVertex("Forward 1", jg);
+			forward1.setTaskClass(ForwardTask1Input1Output.class);
+			forward1.setNumberOfSubtasks(degreeOfParallelism);
+
+			// forward vertex 2
+			final JobTaskVertex forward2 = new JobTaskVertex("Forward 2", jg);
+			forward2.setTaskClass(ForwardTask1Input1Output.class);
+			forward2.setNumberOfSubtasks(degreeOfParallelism);
+
+			// forward vertex 3
+			final JobTaskVertex forward3 = new JobTaskVertex("Forward 3", jg);
+			forward3.setTaskClass(ForwardTask1Input1Output.class);
+			forward3.setNumberOfSubtasks(degreeOfParallelism);
+			
+			// output vertex
+			final JobFileOutputVertex output1 = new JobFileOutputVertex("Output 1", jg);
+			output1.setFileOutputClass(FileLineWriter.class);
+			output1.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			output1.setNumberOfSubtasks(degreeOfParallelism);
+
+			// connect vertices
+			input1.connectTo(forward1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			forward1.connectTo(forward2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			forward2.connectTo(forward3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			forward3.connectTo(output1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+			// setup instance sharing
+			input1.setVertexToShareInstancesWith(forward1);
+			forward1.setVertexToShareInstancesWith(forward2);
+			forward2.setVertexToShareInstancesWith(forward3);
+			forward3.setVertexToShareInstancesWith(output1);
+
+			LibraryCacheManager.register(jobID, new String[0]);
+
+			// now convert job graph to execution graph
+			final ExecutionGraph eg = new ExecutionGraph(jg, INSTANCE_MANAGER);
+
+			// Check number of stages
+			assertEquals(1, eg.getNumberOfStages());
+
+			// Check number of vertices in stage
+			final ExecutionStage stage = eg.getStage(0);
+			assertEquals(5, stage.getNumberOfStageMembers());
+
+			// Check number of required instances
+			Map<InstanceType, Integer> instanceMap = new HashMap<InstanceType, Integer>();
+			stage.collectRequiredInstanceTypes(instanceMap, ExecutionState.CREATED);
+
+			// First, we expect all required instances to be of the same type
+			assertEquals(1, instanceMap.size());
+
+			final Integer numberOfRequiredInstances = instanceMap.values().iterator().next();
+			assertEquals(degreeOfParallelism, numberOfRequiredInstances.intValue());
 
 		} catch (GraphConversionException e) {
 			fail(e.getMessage());

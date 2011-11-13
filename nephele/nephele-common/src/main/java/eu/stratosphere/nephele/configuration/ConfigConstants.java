@@ -77,7 +77,7 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
 
 	/**
-	 * The default network port the task manager expects incoming IPC connections
+	 * The default network port the task manager expects incoming IPC connections.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = 6122;
 
@@ -97,7 +97,7 @@ public final class ConfigConstants {
 	public static final long DEFAULT_MEMORY_MANAGER_MIN_UNRESERVED_MEMORY = 256 * 1024 * 1024;
 
 	/**
-	 * The default directory for temporary files of the task manager
+	 * The default directory for temporary files of the task manager.
 	 */
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
 
