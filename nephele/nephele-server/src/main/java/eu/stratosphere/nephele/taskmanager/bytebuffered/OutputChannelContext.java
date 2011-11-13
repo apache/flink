@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
@@ -70,15 +71,23 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 */
 	private int sequenceNumber = 0;
 
+	/**
+	 * Stores if the spilling queue has already been registered with the network connection.
+	 */
+	private boolean spillingQueueRegisteredWithNetworkConnection = false;
+
 	OutputChannelContext(final OutputGateContext outputGateContext,
-			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel, final boolean isReceiverRunning) {
+			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel, final boolean isReceiverRunning,
+			final boolean mergeSpilledBuffers) {
 
 		this.outputGateContext = outputGateContext;
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
 		this.isReceiverRunning = isReceiverRunning;
 
-		this.queuedOutgoingEnvelopes = new SpillingQueue(outputGateContext.getFileOwnerID());
+		final AbstractID fileOwnerID = mergeSpilledBuffers ? outputGateContext.getFileOwnerID()
+			: byteBufferedOutputChannel.getID();
+		this.queuedOutgoingEnvelopes = new SpillingQueue(fileOwnerID, this.outputGateContext);
 
 		// Register as inactive channel so queue can be spilled to disk when we run out of memory buffers
 		if (!isReceiverRunning) {
@@ -151,15 +160,29 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
 		buffer.finishWritePhase();
 
+		// TODO: Add to checkpoint
+
 		if (!this.isReceiverRunning) {
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
-			this.outgoingTransferEnvelope = null;
-			return;
+		} else {
+			if (!this.queuedOutgoingEnvelopes.isEmpty()) {
+				this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
+				if (!this.spillingQueueRegisteredWithNetworkConnection) {
+					if (this.outputGateContext.registerSpillingQueueWithNetworkConnection(
+						this.byteBufferedOutputChannel.getID(), this.queuedOutgoingEnvelopes)) {
+						this.spillingQueueRegisteredWithNetworkConnection = true;
+					} else {
+						// Direct connection, spill the queue
+						while (!this.queuedOutgoingEnvelopes.isEmpty()) {
+							this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
+						}
+					}
+				}
+			} else {
+				this.outputGateContext.processEnvelope(this, this.outgoingTransferEnvelope);
+			}
 		}
 
-		flushQueuedOutgoingEnvelopes();
-
-		this.outputGateContext.processEnvelope(this, this.outgoingTransferEnvelope);
 		this.outgoingTransferEnvelope = null;
 	}
 
@@ -179,12 +202,28 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			if (!this.isReceiverRunning) {
 
 				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
-				return;
+
+			} else {
+
+				if (!this.queuedOutgoingEnvelopes.isEmpty()) {
+					this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
+					if (!this.spillingQueueRegisteredWithNetworkConnection) {
+						if (this.outputGateContext.registerSpillingQueueWithNetworkConnection(
+							this.byteBufferedOutputChannel.getID(), this.queuedOutgoingEnvelopes)) {
+							this.spillingQueueRegisteredWithNetworkConnection = true;
+						} else {
+							// Direct connection, spill the queue but make sure we do not copy data back to main memory
+							this.queuedOutgoingEnvelopes.disableAsynchronousUnspilling();
+
+							while (!this.queuedOutgoingEnvelopes.isEmpty()) {
+								this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
+							}
+						}
+					}
+				} else {
+					this.outputGateContext.processEnvelope(this, ephemeralTransferEnvelope);
+				}
 			}
-
-			flushQueuedOutgoingEnvelopes();
-
-			this.outputGateContext.processEnvelope(this, ephemeralTransferEnvelope);
 		}
 	}
 
@@ -218,13 +257,6 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	boolean isChannelActive() {
 
 		return this.isReceiverRunning;
-	}
-
-	void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
-
-		while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-			this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
-		}
 	}
 
 	/**
@@ -309,9 +341,25 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			return true;
 		}
 
-		flushQueuedOutgoingEnvelopes();
+		if (!this.queuedOutgoingEnvelopes.isEmpty()) {
 
-		return (!this.queuedOutgoingEnvelopes.isEmpty());
+			if (this.outputGateContext.registerSpillingQueueWithNetworkConnection(
+				this.byteBufferedOutputChannel.getID(), this.queuedOutgoingEnvelopes)) {
+
+				return true;
+
+			} else {
+
+				// Direct connection, spill the queue but make sure we do not copy data back to main memory
+				this.queuedOutgoingEnvelopes.disableAsynchronousUnspilling();
+
+				while (!this.queuedOutgoingEnvelopes.isEmpty()) {
+					this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
+				}
+			}
+		}
+
+		return false;
 	}
 
 	long getAmountOfMainMemoryInQueue() {

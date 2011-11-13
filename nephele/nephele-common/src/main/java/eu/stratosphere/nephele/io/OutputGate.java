@@ -329,14 +329,17 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	 */
 	@Override
 	public boolean isClosed() throws IOException, InterruptedException {
+		
+		boolean allClosed = true;
+		
 		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
 			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
 			if (!outputChannel.isClosed()) {
-				return false;
+				allClosed = false;
 			}
 		}
 
-		return true;
+		return allClosed;
 	}
 
 	/**

@@ -27,8 +27,11 @@ import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 
 final class SpillingQueueElement {
+
+	private static final int SIZE_LIMIT = 128;
 
 	private static final Object NULL_OBJECT = new Object();
 
@@ -134,6 +137,10 @@ final class SpillingQueueElement {
 		}
 
 		if (this.tailSequenceNumber != (transferEnvelope.getSequenceNumber() - 1)) {
+			return false;
+		}
+
+		if (this.size() >= SIZE_LIMIT) {
 			return false;
 		}
 
@@ -390,5 +397,72 @@ final class SpillingQueueElement {
 		}
 
 		return reclaimedMemory;
+	}
+
+	int unspill(final BufferProvider bufferProvider) throws IOException {
+
+		if (this.headSequenceNumber == -1) {
+			return 0;
+		}
+
+		if (this.headSequenceNumber == this.tailSequenceNumber) {
+
+			final Buffer buffer = (Buffer) this.bufferRef;
+			if (buffer == null) {
+				return 0;
+			}
+
+			if (buffer.isBackedByMemory()) {
+				return 0;
+			}
+
+			final int size = buffer.size();
+			final Buffer memBuffer = bufferProvider.requestEmptyBuffer(size);
+			if (memBuffer == null) {
+				return 0;
+			}
+
+			buffer.copyToBuffer(memBuffer);
+			this.bufferRef = memBuffer;
+			buffer.recycleBuffer();
+
+			return size;
+		}
+
+		@SuppressWarnings("unchecked")
+		final Queue<Object> bufferQueue = (Queue<Object>) this.bufferRef;
+		final int queueSize = bufferQueue.size();
+		int usedMemory = 0;
+		int count = 0;
+
+		while (count++ < queueSize) {
+
+			final Object obj = bufferQueue.poll();
+			if (obj == NULL_OBJECT) {
+				bufferQueue.add(obj);
+				continue;
+			}
+
+			final Buffer buffer = (Buffer) obj;
+			if (buffer.isBackedByMemory()) {
+				bufferQueue.add(buffer);
+				continue;
+			}
+
+			final int size = buffer.size();
+			final Buffer memBuffer = bufferProvider.requestEmptyBuffer(size);
+			if (memBuffer != null) {
+				buffer.copyToBuffer(memBuffer);
+				bufferQueue.add(memBuffer);
+				buffer.recycleBuffer();
+			} else {
+				bufferQueue.add(buffer);
+				continue;
+			}
+
+			usedMemory += size;
+		}
+
+		return usedMemory;
 	}
 }
