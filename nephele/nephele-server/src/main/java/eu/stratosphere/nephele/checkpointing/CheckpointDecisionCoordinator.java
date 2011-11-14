@@ -96,8 +96,15 @@ public final class CheckpointDecisionCoordinator {
 		// This implementation always creates the checkpoint
 		
 		// TODO: Provide sensible implementation here
+
 		if(rus.getForced() == null){
-			if (rus.getUserCPU() >= 90) { 
+			if(rus.getTotalInputAmount() != 0 && (rus.getTotalOutputAmount() * 1.0 /  rus.getTotalInputAmount() > 2.0)){
+				//estimated size of checkpoint
+				//TODO progress estimation would make sense here
+				checkpointDecision = false;
+				LOG.info("Chechpoint to large");
+				}
+			else if (rus.getUserCPU() >= 90) { 
 				LOG.info("CPU-Bottleneck");
 				//CPU bottleneck 
 				checkpointDecision = true;
@@ -132,3 +139,4 @@ public final class CheckpointDecisionCoordinator {
 	}
 	
 }
+

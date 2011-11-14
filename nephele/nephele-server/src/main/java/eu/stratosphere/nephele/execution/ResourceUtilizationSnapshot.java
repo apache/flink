@@ -52,6 +52,15 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 	 * The forced decision if annotated
 	 */
 	private Boolean forced;
+	
+	/**
+	 * amount of input bytes of all input-channels
+	 */
+	private long totalInputAmount;
+	/**
+	 * amount of transmitted bytes of all output-channels
+	 */
+	private long totalOutputAmount;
 
 
 	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU) {
@@ -69,7 +78,7 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.userCPU = userCPU;
 		
 	}
-	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, Boolean forced) {
+	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, final Boolean forced, final long totalInputAmount, final long totalOutputAmount) {
 
 		if (timestamp <= 0L) {
 			throw new IllegalArgumentException("Argument timestamp must be larger than zero");
@@ -83,7 +92,8 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.channelUtilization = channelUtilization;
 		this.userCPU = userCPU;
 		this.forced = forced;
-		
+		this.totalInputAmount = totalInputAmount;
+		this.totalOutputAmount  = totalOutputAmount;
 	}
 
 	public ResourceUtilizationSnapshot() {
@@ -117,6 +127,8 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 			out.writeByte(1);
 			out.writeBoolean(this.forced);
 		}
+		out.writeLong(this.totalInputAmount);
+		out.writeLong(this.totalOutputAmount);
 	}
 
 	/**
@@ -142,6 +154,9 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		if(in.readByte() == 1){
 			this.forced = in.readBoolean();
 		}
+		this.totalInputAmount = in.readLong();
+		this.totalOutputAmount = in.readLong();
+		
 	}
 
 	/**
@@ -190,4 +205,12 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		return forced;
 	}
 	
+	public long getTotalInputAmount() {
+		return this.totalInputAmount;
+	}
+
+
+	public long getTotalOutputAmount() {
+		return this.totalOutputAmount;
+	}
 }

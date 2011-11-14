@@ -38,7 +38,9 @@ import eu.stratosphere.nephele.execution.ExecutionStateTransition;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -256,14 +258,26 @@ public class Task implements ExecutionObserver {
 		long userCPU = (threadBean.getCurrentThreadUserTime()/NANO_TO_MILLISECONDS) * 100 / (timestamp - this.startTime);
 		
 		//collect outputChannelUtilization
-		final Map<ChannelID, Long> outputChannelUtilization = new HashMap<ChannelID, Long>();
-
+		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
+		long totalOutputAmount = 0;
 		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-				outputChannelUtilization.put(outputChannel.getID(),
+				channelUtilization.put(outputChannel.getID(),
 					Long.valueOf(outputChannel.getAmountOfDataTransmitted()));
+				totalOutputAmount += outputChannel.getAmountOfDataTransmitted();
+			}
+		}
+		long totalInputAmount = 0;
+		for (int i = 0; i < this.environment.getNumberOfInputGates(); ++i) {
+			final InputGate<? extends Record> inputGate = this.environment.getInputGate(i);
+			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
+				channelUtilization.put(inputChannel.getID(),
+					Long.valueOf(inputChannel.getAmountOfDataTransmitted()));
+				totalInputAmount += inputChannel.getAmountOfDataTransmitted();
+
 			}
 		}
 		Boolean force = null;
@@ -278,7 +292,7 @@ public class Task implements ExecutionObserver {
 				force = forced.checkpoint();
 			}
 		}
-		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization, userCPU, force);
+		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization, userCPU, force, totalInputAmount, totalOutputAmount);
 
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();

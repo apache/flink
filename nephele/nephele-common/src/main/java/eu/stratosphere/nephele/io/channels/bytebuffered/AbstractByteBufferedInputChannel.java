@@ -70,6 +70,10 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	private Buffer uncompressedDataBuffer = null;
 
 	private IOException ioException = null;
+	/**
+	 * Stores the number of bytes read through this input channel since its instantiation.
+	 */
+	private long amountOfDataTransmitted = 0L;
 
 	/**
 	 * Creates a new network input channel.
@@ -228,6 +232,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	private void releasedConsumedReadBuffer() {
 
 		this.inputChannelBroker.releaseConsumedReadBuffer();
+		// Keep track of number of bytes transmitted through this channel
+		this.amountOfDataTransmitted += this.uncompressedDataBuffer.size();
 		this.uncompressedDataBuffer = null;
 		this.compressedDataBuffer = null;
 	}
@@ -315,7 +321,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	@Override
 	public long getAmountOfDataTransmitted() {
 
-		// TODO: Implement me
-		return 0L;
+		return this.amountOfDataTransmitted;
 	}
 }
