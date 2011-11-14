@@ -99,9 +99,8 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 		while (it.hasNext()) {
 			final OutputChannelContext channelContext = it.next();
 			if (channelContext.isChannelActive()) {
-				channelContext.hasDataLeftToTransmit();
+				channelContext.flushQueuedOutgoingEnvelopes();
 				it.remove();
-			} else {
 			}
 		}
 	}

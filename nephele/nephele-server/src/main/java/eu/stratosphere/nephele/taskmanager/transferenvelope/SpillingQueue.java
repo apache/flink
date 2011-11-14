@@ -336,6 +336,47 @@ public final class SpillingQueue implements Queue<TransferEnvelope> {
 		return spill(true);
 	}
 
+	/**
+	 * Prints out the current spilling state of this queue, i.e. how many buffers that are encapsulated inside the
+	 * queued transfer envelopes reside in main memory and how many reside on hard disk.
+	 */
+	public synchronized void printSpillingState() {
+
+		final StringBuilder str = new StringBuilder();
+		str.append("Memory footprint of ");
+		str.append(this);
+		str.append(":\n");
+		str.append(size());
+		str.append(" elements in queue\n");
+
+		SpillingQueueElement elem = this.head;
+		while (elem != null) {
+
+			final Iterator<TransferEnvelope> it = elem.iterator();
+			while (it.hasNext()) {
+				while (it.hasNext()) {
+					final TransferEnvelope te = it.next();
+					final Buffer buffer = te.getBuffer();
+					if (buffer == null) {
+						str.append('X');
+					} else {
+						if (buffer.isBackedByMemory()) {
+							str.append('M');
+						} else {
+							str.append('F');
+						}
+					}
+				}
+			}
+
+			elem = elem.getNextElement();
+		}
+
+		str.append('\n');
+
+		System.out.println(str.toString());
+	}
+
 	public long getAmountOfMainMemoryInQueue() {
 
 		return this.sizeOfMemoryBuffers.get();

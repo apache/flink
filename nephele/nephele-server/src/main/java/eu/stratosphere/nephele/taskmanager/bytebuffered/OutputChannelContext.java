@@ -72,9 +72,9 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	private int sequenceNumber = 0;
 
 	/**
-	 * Stores if the spilling queue has already been registered with the network connection.
+	 * Stores if the flushing the of spilling queue has already been triggered.
 	 */
-	private boolean spillingQueueRegisteredWithNetworkConnection = false;
+	private boolean spillingQueueAlreadyFlushed = false;
 
 	OutputChannelContext(final OutputGateContext outputGateContext,
 			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel, final boolean isReceiverRunning,
@@ -165,21 +165,12 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		if (!this.isReceiverRunning) {
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
 		} else {
-			if (!this.queuedOutgoingEnvelopes.isEmpty()) {
-				this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
-				if (!this.spillingQueueRegisteredWithNetworkConnection) {
-					if (this.outputGateContext.registerSpillingQueueWithNetworkConnection(
-						this.byteBufferedOutputChannel.getID(), this.queuedOutgoingEnvelopes)) {
-						this.spillingQueueRegisteredWithNetworkConnection = true;
-					} else {
-						// Direct connection, spill the queue
-						while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-							this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
-						}
-					}
-				}
-			} else {
+
+			if (this.queuedOutgoingEnvelopes.isEmpty()) {
 				this.outputGateContext.processEnvelope(this, this.outgoingTransferEnvelope);
+			} else {
+				this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
+				flushQueuedOutgoingEnvelopes();
 			}
 		}
 
@@ -199,29 +190,17 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			final TransferEnvelope ephemeralTransferEnvelope = createNewOutgoingTransferEnvelope();
 			ephemeralTransferEnvelope.addEvent(event);
 
+			// TODO: Add to checkpoint
+
 			if (!this.isReceiverRunning) {
-
 				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
-
 			} else {
 
-				if (!this.queuedOutgoingEnvelopes.isEmpty()) {
-					this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
-					if (!this.spillingQueueRegisteredWithNetworkConnection) {
-						if (this.outputGateContext.registerSpillingQueueWithNetworkConnection(
-							this.byteBufferedOutputChannel.getID(), this.queuedOutgoingEnvelopes)) {
-							this.spillingQueueRegisteredWithNetworkConnection = true;
-						} else {
-							// Direct connection, spill the queue but make sure we do not copy data back to main memory
-							this.queuedOutgoingEnvelopes.disableAsynchronousUnspilling();
-
-							while (!this.queuedOutgoingEnvelopes.isEmpty()) {
-								this.outputGateContext.processEnvelope(this, this.queuedOutgoingEnvelopes.poll());
-							}
-						}
-					}
-				} else {
+				if (this.queuedOutgoingEnvelopes.isEmpty()) {
 					this.outputGateContext.processEnvelope(this, ephemeralTransferEnvelope);
+				} else {
+					this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
+					flushQueuedOutgoingEnvelopes();
 				}
 			}
 		}
@@ -331,24 +310,20 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean hasDataLeftToTransmit() throws IOException, InterruptedException {
+	void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
 
-		if (!this.isReceiverRunning) {
-			return true;
+		if (this.spillingQueueAlreadyFlushed) {
+			return;
 		}
 
 		if (!this.queuedOutgoingEnvelopes.isEmpty()) {
 
-			if (this.outputGateContext.registerSpillingQueueWithNetworkConnection(
+			// TODO: Make this mechanisms smarter
+			this.queuedOutgoingEnvelopes.spillSynchronouslyIncludingHead();
+			this.queuedOutgoingEnvelopes.printSpillingState();
+
+			if (!this.outputGateContext.registerSpillingQueueWithNetworkConnection(
 				this.byteBufferedOutputChannel.getID(), this.queuedOutgoingEnvelopes)) {
-
-				return true;
-
-			} else {
 
 				// Direct connection, spill the queue but make sure we do not copy data back to main memory
 				this.queuedOutgoingEnvelopes.disableAsynchronousUnspilling();
@@ -359,7 +334,22 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 			}
 		}
 
-		return false;
+		this.spillingQueueAlreadyFlushed = true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean hasDataLeftToTransmit() throws IOException, InterruptedException {
+
+		if (!this.isReceiverRunning) {
+			return true;
+		}
+
+		flushQueuedOutgoingEnvelopes();
+
+		return (!this.queuedOutgoingEnvelopes.isEmpty());
 	}
 
 	long getAmountOfMainMemoryInQueue() {
