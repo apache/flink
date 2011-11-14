@@ -318,7 +318,9 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 		if (!this.queuedOutgoingEnvelopes.isEmpty()) {
 
-			// TODO: Do some calculations on the queue
+			// TODO: Make this mechanisms smarter
+			this.queuedOutgoingEnvelopes.spillSynchronouslyIncludingHead();
+			this.queuedOutgoingEnvelopes.printSpillingState();
 
 			if (!this.outputGateContext.registerSpillingQueueWithNetworkConnection(
 				this.byteBufferedOutputChannel.getID(), this.queuedOutgoingEnvelopes)) {
