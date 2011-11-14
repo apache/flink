@@ -773,7 +773,6 @@ public class Environment implements Runnable, IOReadableWritable {
 	 */
 	private void requestAllOutputGatesToClose() throws IOException, InterruptedException {
 		for (int i = 0; i < getNumberOfOutputGates(); i++) {
-			LOG.info("close gates");
 			this.getOutputGate(i).requestClose();
 		}
 	}

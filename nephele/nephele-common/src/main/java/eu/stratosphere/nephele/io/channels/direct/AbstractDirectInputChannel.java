@@ -104,27 +104,22 @@ public abstract class AbstractDirectInputChannel<T extends Record> extends Abstr
 	 * this channel no more records will follow.
 	 */
 	void requestClose() {
-		LOG.info("close channel request xxx");
-
 		synchronized (this.synchronizationMontior) {
 
 			if (this.closeRequestedByRemote) {
-				LOG.info("close channel request return");
 				return;
 			}
 
 			if (this.currentWriteBuffer != null) {
 
 				this.fullBuffers.add(this.currentWriteBuffer);
-				LOG.info("close channel 22");
 				this.getInputGate().notifyRecordIsAvailable(getChannelIndex());
 				this.currentWriteBuffer = null;
 			}
 
 			this.closeRequestedByRemote = true;
 			// Notify the input gate, so that it will catch the EOF exception
-			LOG.info("close channel 2");
-			this.getInputGate().notifyRecordIsAvailable(getChannelIndex()-100);
+			this.getInputGate().notifyRecordIsAvailable(getChannelIndex());
 		}
 	}
 
