@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 public class TaskUtils {
 
 	/**
-	 * Private constructor, so class cannot be instantiated
+	 * Private constructor, so class cannot be instantiated.
 	 */
 	private TaskUtils() {
 	}
@@ -35,7 +35,7 @@ public class TaskUtils {
 	 * Checks if a task is declared to be stateless.
 	 * 
 	 * @param taskClass
-	 *        the class to check
+	 *        the class of the task to check
 	 * @return <code>true</code> if the given class is declared to be stateless, <code>false</code> otherwise
 	 */
 	public static boolean isStateless(final Class<? extends AbstractInvokable> taskClass) {
