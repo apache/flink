@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 
 final class SpillingQueueElement {
 
-	private static final int SIZE_LIMIT = 128;
+	private static final int SIZE_LIMIT = 16;
 
 	private static final Object NULL_OBJECT = new Object();
 
@@ -162,11 +162,11 @@ final class SpillingQueueElement {
 			this.tailSequenceNumber = transferEnvelope.getSequenceNumber();
 			if (this.tailSequenceNumber == (this.headSequenceNumber + 1)) {
 				final Buffer buf = (Buffer) this.bufferRef;
-				final Queue<Object> bufferQueue = new ArrayDeque<Object>();
+				final Queue<Object> bufferQueue = new CapacityConstrainedArrayQueue<Object>(SIZE_LIMIT);
 				if (buf == null) {
-					bufferQueue.add(NULL_OBJECT);
+					bufferQueue.offer(NULL_OBJECT);
 				} else {
-					bufferQueue.add(buf);
+					bufferQueue.offer(buf);
 				}
 
 				this.bufferRef = bufferQueue;
@@ -176,9 +176,9 @@ final class SpillingQueueElement {
 			final Queue<Object> bufferQueue = (Queue<Object>) this.bufferRef;
 			final Buffer buf = transferEnvelope.getBuffer();
 			if (buf == null) {
-				bufferQueue.add(NULL_OBJECT);
+				bufferQueue.offer(NULL_OBJECT);
 			} else {
-				bufferQueue.add(buf);
+				bufferQueue.offer(buf);
 			}
 		}
 	}
@@ -320,9 +320,9 @@ final class SpillingQueueElement {
 			bufferQueue = new ArrayDeque<Object>();
 
 			if (this.bufferRef == null) {
-				bufferQueue.add(NULL_OBJECT);
+				bufferQueue.offer(NULL_OBJECT);
 			} else {
-				bufferQueue.add(this.bufferRef);
+				bufferQueue.offer(this.bufferRef);
 			}
 
 		} else {
@@ -378,20 +378,20 @@ final class SpillingQueueElement {
 
 			final Object obj = bufferQueue.poll();
 			if (obj == NULL_OBJECT) {
-				bufferQueue.add(obj);
+				bufferQueue.offer(obj);
 				continue;
 			}
 
 			final Buffer buffer = (Buffer) obj;
 			if (!buffer.isBackedByMemory()) {
-				bufferQueue.add(buffer);
+				bufferQueue.offer(buffer);
 				continue;
 			}
 
 			final int size = buffer.size();
 			final Buffer fileBuffer = BufferFactory.createFromFile(size, ownerID, fileBufferManager);
 			buffer.copyToBuffer(fileBuffer);
-			bufferQueue.add(fileBuffer);
+			bufferQueue.offer(fileBuffer);
 			buffer.recycleBuffer();
 			reclaimedMemory += size;
 		}
@@ -439,13 +439,13 @@ final class SpillingQueueElement {
 
 			final Object obj = bufferQueue.poll();
 			if (obj == NULL_OBJECT) {
-				bufferQueue.add(obj);
+				bufferQueue.offer(obj);
 				continue;
 			}
 
 			final Buffer buffer = (Buffer) obj;
 			if (buffer.isBackedByMemory()) {
-				bufferQueue.add(buffer);
+				bufferQueue.offer(buffer);
 				continue;
 			}
 
@@ -453,10 +453,10 @@ final class SpillingQueueElement {
 			final Buffer memBuffer = bufferProvider.requestEmptyBuffer(size);
 			if (memBuffer != null) {
 				buffer.copyToBuffer(memBuffer);
-				bufferQueue.add(memBuffer);
+				bufferQueue.offer(memBuffer);
 				buffer.recycleBuffer();
 			} else {
-				bufferQueue.add(buffer);
+				bufferQueue.offer(buffer);
 				continue;
 			}
 
