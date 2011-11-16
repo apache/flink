@@ -104,18 +104,18 @@ public class MatchITCase extends TestBase
 
 	public static class TestMatcher extends MatchStub {
 
-		private final PactString keyString = new PactString();
-		private final PactString valueString = new PactString();
+		private PactString keyString = new PactString();
+		private PactString valueString = new PactString();
 		
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector out)
 				throws Exception {
-			value1.getField(0, keyString);
+			keyString = value1.getField(0, keyString);
 			keyString.setValue(""+ (Integer.parseInt(keyString.getValue())+1));
 			value1.setField(0, keyString);
-			value1.getField(1, valueString);
+			valueString = value1.getField(1, valueString);
 			int val1 = Integer.parseInt(valueString.getValue())+2;
-			value2.getField(1, valueString);
+			valueString = value2.getField(1, valueString);
 			int val2 = Integer.parseInt(valueString.getValue())+1;
 			
 			value1.setField(1, new PactInteger(val1 - val2));

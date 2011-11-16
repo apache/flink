@@ -396,9 +396,6 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public void reduce(Iterator<PactRecord> pointsWithDistance, Collector out)
 		{
-			// initialize nearest cluster with the first distance
-			CoordVector nearestPoint = null;
-			
 			double nearestDistance = Double.MAX_VALUE;
 			int nearestClusterId = 0;
 
@@ -423,7 +420,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 			// implementation of the average function with a combiner
 			this.centerId.setValue(nearestClusterId);
 			this.result.setField(0, this.centerId);
-			this.result.setField(1, nearestPoint);
+			this.result.setField(1, this.position);
 			this.result.setField(2, this.one);
 				
 			out.collect(this.result);
