@@ -468,7 +468,6 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	@Combinable
 	public static class RecomputeClusterCenter extends ReduceStub
 	{
-		private final CoordVector coordinates = new CoordVector();
 		private final PactInteger count = new PactInteger();
 		
 		/**
@@ -480,7 +479,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 			PactRecord next = null;
 				
 			// initialize coordinate vector sum and count
-			this.coordinates.setCoordinates(null);
+			CoordVector coordinates = new CoordVector();
 			double[] coordinateSum = null;
 			int count = 0;	
 
@@ -494,8 +493,8 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				int thisCount = next.getField(2, PactInteger.class).getValue();
 				
 				if (coordinateSum == null) {
-					if (this.coordinates.getCoordinates() != null) {
-						coordinateSum = this.coordinates.getCoordinates();
+					if (coordinates.getCoordinates() != null) {
+						coordinateSum = coordinates.getCoordinates();
 					}
 					else {
 						coordinateSum = new double[thisCoords.length];
@@ -511,8 +510,8 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				coordinateSum[i] /= count;
 			}
 			
-			this.coordinates.setCoordinates(coordinateSum);
-			next.setField(1, this.coordinates);
+			coordinates.setCoordinates(coordinateSum);
+			next.setField(1, coordinates);
 
 			// emit new position of cluster center
 			out.collect(next);
@@ -527,7 +526,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 			PactRecord next = null;
 			
 			// initialize coordinate vector sum and count
-			this.coordinates.setCoordinates(null);
+			CoordVector coordinates = new CoordVector();
 			double[] coordinateSum = null;
 			int count = 0;	
 
@@ -541,8 +540,8 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				int thisCount = next.getField(2, PactInteger.class).getValue();
 				
 				if (coordinateSum == null) {
-					if (this.coordinates.getCoordinates() != null) {
-						coordinateSum = this.coordinates.getCoordinates();
+					if (coordinates.getCoordinates() != null) {
+						coordinateSum = coordinates.getCoordinates();
 					}
 					else {
 						coordinateSum = new double[thisCoords.length];
@@ -553,9 +552,9 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				count += thisCount;
 			}
 			
-			this.coordinates.setCoordinates(coordinateSum);
+			coordinates.setCoordinates(coordinateSum);
 			this.count.setValue(count);
-			next.setField(1, this.coordinates);
+			next.setField(1, coordinates);
 			next.setField(2, this.count);
 			
 			// emit partial sum and partial count for average computation
