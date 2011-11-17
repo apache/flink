@@ -15,15 +15,41 @@
 
 package eu.stratosphere.nephele.streaming;
 
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 
 public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
+
+	StreamingTaskManagerPlugin(final Configuration pluginConfiguration) {
+		System.out.println("Task Manager plugin loaded");
+	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void shutdown() {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final Environment environment) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void unregisterTask(final ExecutionVertexID id, final Environment environment) {
 		// TODO Auto-generated method stub
 
 	}

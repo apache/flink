@@ -138,7 +138,7 @@ public class TaskManager implements TaskOperationProtocol {
 	private final HardwareDescription hardwareDescription;
 
 	private final List<TaskManagerPlugin> taskManagerPlugins;
-	
+
 	/**
 	 * Stores whether the task manager has already been shut down.
 	 */
@@ -310,7 +310,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Load the plugins
 		this.taskManagerPlugins = PluginManager.getTaskManagerPlugins(configDir);
-		
+
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
 	}
@@ -572,6 +572,13 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 
+		// Allow plugins to register their listeners for this task
+		if (!this.taskManagerPlugins.isEmpty()) {
+			for (final TaskManagerPlugin plugin : this.taskManagerPlugins) {
+				plugin.registerTask(id, jobConfiguration, ee);
+			}
+		}
+
 		// The environment itself will put the task into the running task map
 
 		return null;
@@ -639,6 +646,13 @@ public class TaskManager implements TaskOperationProtocol {
 		// Unregister task from memory manager
 		if (this.memoryManager != null) {
 			this.memoryManager.releaseAll(task.getEnvironment().getInvokable());
+		}
+
+		// Allow plugins to unregister their listeners for this task
+		if (!this.taskManagerPlugins.isEmpty()) {
+			for (final TaskManagerPlugin plugin : this.taskManagerPlugins) {
+				plugin.unregisterTask(id, task.getEnvironment());
+			}
 		}
 
 		// Check if there are still vertices running that belong to the same job
@@ -794,10 +808,10 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		// Shut down the plugins
-		for(final TaskManagerPlugin plugin: this.taskManagerPlugins) {
+		for (final TaskManagerPlugin plugin : this.taskManagerPlugins) {
 			plugin.shutdown();
 		}
-		
+
 		this.isShutDown = true;
 	}
 

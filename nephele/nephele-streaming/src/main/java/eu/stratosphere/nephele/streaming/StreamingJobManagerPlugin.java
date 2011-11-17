@@ -15,12 +15,16 @@
 
 package eu.stratosphere.nephele.streaming;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 
 public class StreamingJobManagerPlugin implements JobManagerPlugin {
 
+	StreamingJobManagerPlugin(final Configuration pluginConfiguration) {
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */

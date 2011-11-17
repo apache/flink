@@ -37,7 +37,7 @@ public class StreamingPluginLoader extends AbstractPluginLoader {
 	public synchronized JobManagerPlugin getJobManagerPlugin() {
 
 		if (this.jobManagerPlugin == null) {
-			this.jobManagerPlugin = new StreamingJobManagerPlugin();
+			this.jobManagerPlugin = new StreamingJobManagerPlugin(getPluginConfiguration());
 		}
 
 		return this.jobManagerPlugin;
@@ -50,7 +50,7 @@ public class StreamingPluginLoader extends AbstractPluginLoader {
 	public synchronized TaskManagerPlugin getTaskManagerPlugin() {
 
 		if (this.taskManagerPlugin == null) {
-			this.taskManagerPlugin = new StreamingTaskManagerPlugin();
+			this.taskManagerPlugin = new StreamingTaskManagerPlugin(getPluginConfiguration());
 		}
 
 		return this.taskManagerPlugin;

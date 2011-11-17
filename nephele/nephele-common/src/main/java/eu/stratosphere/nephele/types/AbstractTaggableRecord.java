@@ -32,6 +32,9 @@ public abstract class AbstractTaggableRecord implements Record {
 		return this.tag;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -45,6 +48,9 @@ public abstract class AbstractTaggableRecord implements Record {
 
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
 

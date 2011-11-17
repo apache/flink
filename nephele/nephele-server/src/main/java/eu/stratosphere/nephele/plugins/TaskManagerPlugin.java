@@ -15,7 +15,33 @@
 
 package eu.stratosphere.nephele.plugins;
 
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+
 public interface TaskManagerPlugin {
+
+	/**
+	 * Registers a new incoming task with this task manager plugin.
+	 * 
+	 * @param id
+	 *        the ID of the vertex representing the task
+	 * @param jobConfiguration
+	 *        the job configuration
+	 * @param environment
+	 *        the environment of the task
+	 */
+	void registerTask(ExecutionVertexID id, Configuration jobConfiguration, Environment environment);
+
+	/**
+	 * Unregisters a finished, canceled, or failed task from this task manager plugin.
+	 * 
+	 * @param id
+	 *        the ID of the vertex representing the task
+	 * @param environment
+	 *        the environment of the task
+	 */
+	void unregisterTask(ExecutionVertexID id, Environment environment);
 
 	/**
 	 * Called by the task manager to indicate that Nephele is about to shut down.
