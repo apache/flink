@@ -63,6 +63,8 @@ import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.plugins.PluginManager;
+import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
@@ -135,6 +137,8 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private final HardwareDescription hardwareDescription;
 
+	private final List<TaskManagerPlugin> taskManagerPlugins;
+	
 	/**
 	 * Stores whether the task manager has already been shut down.
 	 */
@@ -304,6 +308,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 		this.ioManager = new IOManager(tmpDirPaths);
 
+		// Load the plugins
+		this.taskManagerPlugins = PluginManager.getTaskManagerPlugins(configDir);
+		
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
 	}
@@ -786,6 +793,11 @@ public class TaskManager implements TaskOperationProtocol {
 			this.memoryManager.shutdown();
 		}
 
+		// Shut down the plugins
+		for(final TaskManagerPlugin plugin: this.taskManagerPlugins) {
+			plugin.shutdown();
+		}
+		
 		this.isShutDown = true;
 	}
 

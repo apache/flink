@@ -13,18 +13,21 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.optimizer;
+package eu.stratosphere.score;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 
-/**
- * Common interface for Nephele execution graph optimizer.
- * 
- * @author warneke
- *         TODO
- */
-public interface Optimizer {
+public final class ScoreTaskManagerPlugin implements TaskManagerPlugin {
 
-	void optimize(ExecutionGraph executionGraph);
+	ScoreTaskManagerPlugin(final Configuration pluginConfiguration) {
+	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void shutdown() {
+		// TODO Auto-generated method stub
+	}
 }
