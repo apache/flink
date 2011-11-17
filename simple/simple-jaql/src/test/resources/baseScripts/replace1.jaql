@@ -1,8 +1,0 @@
-$persons = read hdfs('Persons.json');
-$nickNames = read hdfs('NickNames.json');
-
-$normalizedPersons = replace $person in $persons 
-	on $person.firstName
-	with $nickNames;
-
-write $normalizedPersons to hdfs('NormalizedPersons.json');

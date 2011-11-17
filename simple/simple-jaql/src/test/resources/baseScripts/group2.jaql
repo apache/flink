@@ -1,8 +1,0 @@
-$employees = read 'employees.json';
-
-$result = group $employees by $.dept into {
-	$.dept, 
-	total: sum($[*].income) 
-};
-
-write $result to 'output.json'; 

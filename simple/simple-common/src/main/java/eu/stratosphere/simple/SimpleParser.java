@@ -345,6 +345,7 @@ public abstract class SimpleParser extends Parser {
 		} catch (RecognitionException e) {
 			throw new SimpleException("Cannot parse script", e);
 		}
+		this.currentPlan.setSinks(this.sinks);
 		return this.currentPlan;
 	}
 

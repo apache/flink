@@ -37,6 +37,12 @@ public class UnaryExpression extends BooleanExpression {
 		return this.expr.equals(other.expr) && this.negate == other.negate;
 	}
 
+	public static BooleanExpression wrap(EvaluationExpression expression) {
+		if (expression instanceof BooleanExpression)
+			return (BooleanExpression) expression;
+		return new UnaryExpression(expression);
+	}
+
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		final BooleanNode result = TypeCoercer.INSTANCE.coerce(this.expr.evaluate(node, context), BooleanNode.class);

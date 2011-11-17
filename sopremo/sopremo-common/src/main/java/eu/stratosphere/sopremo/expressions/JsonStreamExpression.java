@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.List;
+
 import eu.stratosphere.sopremo.JsonStream;
 
 public class JsonStreamExpression extends UnevaluableExpression {
@@ -27,5 +29,13 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	public void toString(StringBuilder builder) {
 		builder.append(this.stream.getSource().getOperator().getName()).
 			append("@").append(this.stream.getSource().getIndex());
+	}
+
+	/**
+	 * @param inputs
+	 * @return
+	 */
+	public Object toInputSelection(List<JsonStream> inputs) {
+		return null;
 	}
 }

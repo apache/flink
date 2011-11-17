@@ -1,5 +1,0 @@
-$input = read 'input.json';
-
-$result = select $input where $.mgr or $.income > 30000;
-
-write $result to 'output.json'; 

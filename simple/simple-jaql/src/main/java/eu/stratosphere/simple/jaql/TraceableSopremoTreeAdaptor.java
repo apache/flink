@@ -9,13 +9,17 @@ public class TraceableSopremoTreeAdaptor extends SopremoTreeAdaptor {
 	public void addJavaFragment(Object result, StringBuilder builder) {
 		Object[] params = this.instantiationInfos.get(result);
 
-		builder.append("new ").append(result.getClass()).append("(");
-		for (int index = 0; index < params.length; index++) {
-			if (index > 0)
-				builder.append(",");
-			builder.append("\n");
-			this.addJavaFragment(params[index], builder);
-		}
+		builder.append("new ").append(result.getClass().getSimpleName()).append("(");
+		if (params == null)
+			builder.append(result);
+		else
+			for (int index = 0; index < params.length; index++) {
+				if (index > 0) {
+					builder.append(",");
+					builder.append("\n");
+				}
+				this.addJavaFragment(params[index], builder);
+			}
 		builder.append(")");
 	}
 

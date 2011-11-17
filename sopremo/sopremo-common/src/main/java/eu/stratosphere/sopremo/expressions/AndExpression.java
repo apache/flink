@@ -19,7 +19,9 @@ public class AndExpression extends BooleanExpression {
 	public AndExpression(final EvaluationExpression... expressions) {
 		if (expressions.length == 0)
 			throw new IllegalArgumentException();
-		this.expressions = expressions;
+		this.expressions = new EvaluationExpression[expressions.length];
+		for (int index = 0; index < expressions.length; index++)
+			this.expressions[index] = UnaryExpression.wrap(expressions[index]);
 	}
 
 	@Override

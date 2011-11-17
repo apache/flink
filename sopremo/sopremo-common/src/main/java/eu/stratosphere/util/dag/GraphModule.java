@@ -17,8 +17,11 @@ package eu.stratosphere.util.dag;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
+import eu.stratosphere.util.IdentitySet;
 
 /**
  * Skeleton implementation of {@link SubGraph}.
@@ -140,7 +143,62 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 		if (!inputList.isEmpty())
 			throw new IllegalStateException(
 				String.format("%s: inputs %s are not fully connected", this.getName(), inputList));
+	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		for (Node node : getReachableNodes())
+			result = prime * result + node.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		GraphModule<Node, InputNode, OutputNode> other = (GraphModule) obj;
+		return this.getUnmatchingNode(other) == null;
+	}
+
+	public Node getUnmatchingNode(GraphModule<Node, InputNode, OutputNode> other) {
+		IdentitySet<Node> seen = new IdentitySet<Node>();
+
+		return this.getUnmatchingNode(Arrays.asList(this.getAllOutputs()), Arrays.asList(other.getAllOutputs()), seen);
+	}
+
+	/**
+	 * @param allOutputs
+	 * @param allOutputs2
+	 * @param seen
+	 * @return
+	 */
+	private Node getUnmatchingNode(Iterable<? extends Node> nodes1, Iterable<? extends Node> nodes2,
+			IdentitySet<Node> seen) {
+		Iterator<? extends Node> iterator1 = nodes1.iterator();
+		Iterator<? extends Node> iterator2 = nodes2.iterator();
+
+		while (iterator1.hasNext() && iterator2.hasNext()) {
+			Node node1 = iterator1.next();
+			Node node2 = iterator2.next();
+
+			if (!node1.equals(node2))
+				return node1;
+
+			Node unmatching = this.getUnmatchingNode(this.navigator.getConnectedNodes(node1),
+				this.navigator.getConnectedNodes(node2), seen);
+			if (unmatching != null)
+				return unmatching;
+		}
+
+		return null;
 	}
 
 }

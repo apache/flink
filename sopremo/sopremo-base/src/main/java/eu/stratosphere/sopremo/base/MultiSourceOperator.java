@@ -76,7 +76,17 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		if (this.getClass() != obj.getClass())
 			return false;
 		final MultiSourceOperator<?> other = (MultiSourceOperator<?>) obj;
-		return this.keyProjections.equals(other.keyProjections) && this.valueProjections.equals(other.valueProjections);
+
+		int size = getInputs().size();
+		if (other.getInputs().size() != size)
+			return false;
+
+		for (int index = 0; index < size; index++)
+			if (!getKeyProjection(index).equals(other.getKeyProjection(index))
+				|| !getValueProjection(index).equals(other.getValueProjection(index)))
+				return false;
+		
+		return true;
 	}
 
 	@SuppressWarnings("unused")

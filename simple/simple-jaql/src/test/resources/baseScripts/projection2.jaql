@@ -1,5 +1,0 @@
-$input = read 'input.json';
-
-$result = project $entry in $input into { c: $entry.a + $entry.b };
-
-write $result to 'output.json'; 

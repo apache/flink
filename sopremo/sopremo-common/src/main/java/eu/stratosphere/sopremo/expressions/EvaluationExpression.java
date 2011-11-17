@@ -13,77 +13,6 @@ import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.util.IdentitySet;
 
 public abstract class EvaluationExpression implements Iterable<EvaluationExpression>, SerializableSopremoType {
-	private static final class SameValueExpression extends EvaluationExpression {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -6957283445639387461L;
-
-		/**
-		 * Returns the node without modifications.
-		 */
-		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return node;
-		}
-
-		private Object readResolve() {
-			return EvaluationExpression.VALUE;
-		}
-
-		@Override
-		public boolean equals(final Object obj) {
-			return this == obj;
-		}
-
-		@Override
-		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
-			return value;
-		}
-
-		@Override
-		public void toString(final StringBuilder builder) {
-			builder.append("<value>");
-		}
-
-		@Override
-		public int hashCode() {
-			return System.identityHashCode(this);
-		}
-	}
-
-	@Override
-	public Iterator<EvaluationExpression> iterator() {
-		return Arrays.asList(this).iterator();
-	}
-
-	public void inferSchema(JsonSchema requiredInput, JsonSchema output, EvaluationContext context) {
-
-	}
-
-	/**
-	 * Evaluates the given node in the provided context.<br>
-	 * The given node can either be a normal {@link JsonNode} or one of the following special nodes:
-	 * <ul>
-	 * <li>{@link CompactArrayNode} wrapping an array of nodes if the evaluation is performed for more than one
-	 * {@link JsonStream},
-	 * <li>{@link StreamArrayNode} wrapping an iterator of incoming nodes which is most likely the content of a complete
-	 * {@link JsonStream} that is going to be aggregated, or
-	 * <li>CompactArrayNode of StreamArrayNodes when aggregating multiple JsonStreams.
-	 * </ul>
-	 * <br>
-	 * Consequently, the result may also be of one of the previously mentioned types.<br>
-	 * The ContextType provides additional information that is relevant for the evaluation, for instance all registered
-	 * functions in the {@link FunctionRegistry}.
-	 * 
-	 * @param node
-	 *        the node that should be evaluated or a special node representing containing several nodes
-	 * @param context
-	 *        the context in which the node should be evaluated
-	 * @return the node resulting from the evaluation or several nodes wrapped in a special node type
-	 */
-	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
-
 	/**
 	 * 
 	 */
@@ -93,23 +22,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * Used for secondary information during plan creation only.
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
-
-	/**
-	 * Sets the value of the node specified by this expression using the given {@link EvaluationContext}.
-	 * 
-	 * @param node
-	 *        the node to change
-	 * @param value
-	 *        the value to set
-	 * @param context
-	 *        the current <code>EvaluationContext</code>
-	 * @return the node or a new node if the expression directly accesses the node
-	 */
-	@SuppressWarnings("unused")
-	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
-		throw new UnsupportedOperationException(String.format(
-			"Cannot change the value with expression %s of node %s to %s", this, node, value));
-	}
 
 	public final static EvaluationExpression KEY = new EvaluationExpression() {
 		/**
@@ -175,12 +87,81 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		this.tags.add(tag);
 	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		EvaluationExpression other = (EvaluationExpression) obj;
+		return this.tags.equals(other.tags);
+	}
+
+	/**
+	 * Evaluates the given node in the provided context.<br>
+	 * The given node can either be a normal {@link JsonNode} or one of the following special nodes:
+	 * <ul>
+	 * <li>{@link CompactArrayNode} wrapping an array of nodes if the evaluation is performed for more than one
+	 * {@link JsonStream},
+	 * <li>{@link StreamArrayNode} wrapping an iterator of incoming nodes which is most likely the content of a complete
+	 * {@link JsonStream} that is going to be aggregated, or
+	 * <li>CompactArrayNode of StreamArrayNodes when aggregating multiple JsonStreams.
+	 * </ul>
+	 * <br>
+	 * Consequently, the result may also be of one of the previously mentioned types.<br>
+	 * The ContextType provides additional information that is relevant for the evaluation, for instance all registered
+	 * functions in the {@link FunctionRegistry}.
+	 * 
+	 * @param node
+	 *        the node that should be evaluated or a special node representing containing several nodes
+	 * @param context
+	 *        the context in which the node should be evaluated
+	 * @return the node resulting from the evaluation or several nodes wrapped in a special node type
+	 */
+	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.tags.hashCode();
+		return result;
+	}
+
 	public boolean hasTag(final ExpressionTag tag) {
 		return this.tags.contains(tag);
 	}
 
+	public void inferSchema(JsonSchema requiredInput, JsonSchema output, EvaluationContext context) {
+
+	}
+
+	@Override
+	public Iterator<EvaluationExpression> iterator() {
+		return Arrays.asList(this).iterator();
+	}
+
 	public boolean removeTag(final ExpressionTag preserve) {
 		return this.tags.remove(preserve);
+	}
+
+	/**
+	 * Sets the value of the node specified by this expression using the given {@link EvaluationContext}.
+	 * 
+	 * @param node
+	 *        the node to change
+	 * @param value
+	 *        the value to set
+	 * @param context
+	 *        the current <code>EvaluationContext</code>
+	 * @return the node or a new node if the expression directly accesses the node
+	 */
+	@SuppressWarnings("unused")
+	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+		throw new UnsupportedOperationException(String.format(
+			"Cannot change the value with expression %s of node %s to %s", this, node, value));
 	}
 
 	@Override
@@ -197,6 +178,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * @param builder
 	 *        the builder to append to
 	 */
+	@Override
 	public void toString(StringBuilder builder) {
 		if (!this.tags.isEmpty())
 			builder.append(this.tags).append(" ");
@@ -205,5 +187,44 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	public EvaluationExpression withTag(final ExpressionTag tag) {
 		this.addTag(tag);
 		return this;
+	}
+
+	private static final class SameValueExpression extends EvaluationExpression {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -6957283445639387461L;
+
+		@Override
+		public boolean equals(final Object obj) {
+			return this == obj;
+		}
+
+		/**
+		 * Returns the node without modifications.
+		 */
+		@Override
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+			return node;
+		}
+
+		@Override
+		public int hashCode() {
+			return System.identityHashCode(this);
+		}
+
+		private Object readResolve() {
+			return EvaluationExpression.VALUE;
+		}
+
+		@Override
+		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+			return value;
+		}
+
+		@Override
+		public void toString(final StringBuilder builder) {
+			builder.append("<value>");
+		}
 	}
 }

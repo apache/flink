@@ -14,8 +14,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.antlr.runtime.ANTLRInputStream;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CharStream;
 import org.antlr.runtime.CommonTokenStream;
-import org.antlr.runtime.RecognitionException;
 
 import eu.stratosphere.simple.PlanCreator;
 import eu.stratosphere.simple.SimpleException;
@@ -39,7 +40,15 @@ public class QueryParser extends PlanCreator {
 	}
 
 	public SopremoPlan tryParse(InputStream stream) throws IOException, SimpleException {
-		SJaqlLexer lexer = new SJaqlLexer(new ANTLRInputStream(stream));
+		return tryParse(new ANTLRInputStream(stream));
+	}
+
+	public SopremoPlan tryParse(String script) throws SimpleException {
+		return tryParse(new ANTLRStringStream(script));
+	}
+
+	protected SopremoPlan tryParse(CharStream tryParse) {
+		SJaqlLexer lexer = new SJaqlLexer(tryParse);
 		CommonTokenStream tokens = new CommonTokenStream();
 		tokens.setTokenSource(lexer);
 		SJaqlParser parser = new SJaqlParser(tokens);
@@ -48,7 +57,15 @@ public class QueryParser extends PlanCreator {
 	}
 
 	public String toJavaString(InputStream stream) throws IOException, SimpleException {
-		SJaqlLexer lexer = new SJaqlLexer(new ANTLRInputStream(stream));
+		return toJavaString(new ANTLRInputStream(stream));
+	}
+
+	public String toJavaString(String script) throws SimpleException {
+		return toJavaString(new ANTLRStringStream(script));
+	}
+
+	protected String toJavaString(CharStream input) {
+		SJaqlLexer lexer = new SJaqlLexer(input);
 		CommonTokenStream tokens = new CommonTokenStream();
 		tokens.setTokenSource(lexer);
 		SJaqlParser parser = new SJaqlParser(tokens);
@@ -99,11 +116,19 @@ public class QueryParser extends PlanCreator {
 				String propertyName = property.getKey();
 				Object actualValue = info.getInputProperty(propertyName, op, index);
 				Object defaultValue = info.getInputProperty(propertyName, defaultInstance, index);
-				if (!actualValue.equals(defaultValue))
-					renderInfo.builder.append(String.format("%s.set%s(%d, %s);\n", renderInfo.getVariableName(op),
-						StringUtil.upperFirstChar(property.getValue().getName()), index, actualValue));
+				if (!actualValue.equals(defaultValue)) {
+					renderInfo.builder.append(renderInfo.getVariableName(op)).
+						append(".set").append(StringUtil.upperFirstChar(property.getValue().getName())).
+						append("(").append(index).append(", ");
+					appendExpression(actualValue, renderInfo);
+					renderInfo.builder.append(");\n");
+				}
 			}
 		}
+	}
+
+	private void appendExpression(Object value, JavaRenderInfo renderInfo) {
+		renderInfo.adaptor.addJavaFragment(value, renderInfo.builder);
 	}
 
 	protected <O extends Operator<O>> void appendOperatorProperties(Operator<O> op, JavaRenderInfo renderInfo,
@@ -113,9 +138,13 @@ public class QueryParser extends PlanCreator {
 			String propertyName = property.getKey();
 			Object actualValue = info.getProperty(propertyName, op);
 			Object defaultValue = info.getProperty(propertyName, defaultInstance);
-			if (!actualValue.equals(defaultValue))
-				renderInfo.builder.append(String.format("%s.set%s(%s);\n", renderInfo.getVariableName(op),
-					StringUtil.upperFirstChar(property.getValue().getName()), actualValue));
+			if (!actualValue.equals(defaultValue)) {
+				renderInfo.builder.append(renderInfo.getVariableName(op)).
+					append(".set").append(StringUtil.upperFirstChar(property.getValue().getName())).
+					append("(");
+				appendExpression(actualValue, renderInfo);
+				renderInfo.builder.append(");\n");
+			}
 		}
 	}
 

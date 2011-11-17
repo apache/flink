@@ -242,6 +242,11 @@ public class Replace extends CompositeOperator<Replace> {
 		return this;
 	}
 
+	public Replace withDefaultExpression(EvaluationExpression defaultExpression) {
+		this.setDefaultExpression(defaultExpression);
+		return this;
+	}
+
 	public Replace withDictionaryValueExtraction(EvaluationExpression dictionaryValueExtraction) {
 		this.setDictionaryValueExtraction(dictionaryValueExtraction);
 		return this;

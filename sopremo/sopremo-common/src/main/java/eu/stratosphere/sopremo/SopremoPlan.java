@@ -5,12 +5,10 @@ import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.plan.Plan;
 
 /**
- * Encapsulate a complete query in Sopremo and translates it to a Pact
- * {@link Plan}.
+ * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
  * 
  * @author Arvid Heise
  */
@@ -35,7 +33,7 @@ public class SopremoPlan {
 	}
 
 	public void setSinks(Sink... sinks) {
-		setSinks(Arrays.asList(sinks));
+		this.setSinks(Arrays.asList(sinks));
 	}
 
 	public void setSinks(List<Sink> sinks) {
@@ -45,8 +43,8 @@ public class SopremoPlan {
 
 	/**
 	 * Assembles the Pacts of the contained Sopremo operators and returns a list
-	 * of all Pact sinks. These sinks may either be directly a
-	 * {@link FileDataSinkContract} or an unconnected {@link Contract}.
+	 * of all Pact sinks. These sinks may either be directly a {@link FileDataSinkContract} or an unconnected
+	 * {@link Contract}.
 	 * 
 	 * @return a list of Pact sinks
 	 */
@@ -77,7 +75,7 @@ public class SopremoPlan {
 	 * Sets the evaluation context of this plan.
 	 * 
 	 * @param context
-	 *            the evaluation context
+	 *        the evaluation context
 	 */
 	public void setContext(final EvaluationContext context) {
 		if (context == null)
@@ -89,5 +87,29 @@ public class SopremoPlan {
 	@Override
 	public String toString() {
 		return this.module.toString();
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.module.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		SopremoPlan other = (SopremoPlan) obj;
+		return this.module.equals(other.module);
+	}
+
+	public Operator<?> getUnmatchingOperator(SopremoPlan other) {
+		return this.module.getUnmatchingNode(other.module);
 	}
 }

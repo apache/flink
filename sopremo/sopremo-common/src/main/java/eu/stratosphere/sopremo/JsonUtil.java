@@ -109,7 +109,7 @@ public class JsonUtil {
 		return new ArrayNode(streamNodes);
 	}
 
-	public static PathExpression createPath(final List<String> parts) {
+	public static EvaluationExpression createPath(final List<String> parts) {
 		final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
 		for (int index = 0; index < parts.size(); index++) {
 			EvaluationExpression segment;
@@ -132,10 +132,10 @@ public class JsonUtil {
 				segment = new ObjectAccess(part);
 			fragments.add(segment);
 		}
-		return new PathExpression(fragments);
+		return PathExpression.valueOf(fragments);
 	}
 
-	public static PathExpression createPath(final String... parts) {
+	public static EvaluationExpression createPath(final String... parts) {
 		return createPath(Arrays.asList(parts));
 	}
 

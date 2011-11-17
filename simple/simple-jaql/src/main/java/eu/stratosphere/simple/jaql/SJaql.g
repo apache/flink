@@ -60,8 +60,13 @@ private EvaluationExpression makePath(Token inputVar, String... path) {
 //    if(inputVar.getText().equals("$"))
 //      input = $operator::numInputs == 1 ? new InputSelection(0) : EvaluationExpression.VALUE;
 //  } else 
-  if(input instanceof Operator<?>)
-    input = new JsonStreamExpression((Operator<?>) input);
+  if(input instanceof Operator<?>) {
+    int inputIndex = $operator::result.getInputs().indexOf(((Operator<?>)input).getSource());
+    input = new InputSelection(inputIndex);
+  } else if(input instanceof JsonStreamExpression)
+    input = ((JsonStreamExpression)input).toInputSelection($operator::result.getInputs());
+  
+//    input = new JsonStreamExpression((Operator<?>) input);
   
   List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
   accesses.add((EvaluationExpression) input);
@@ -258,12 +263,12 @@ operator returns [Operator<?> op=null]
 scope { 
   Operator<?> result;
   int numInputs;
-  Map<Operator<?>, List<ExpressionTag>> inputTags;
+  Map<JsonStream, List<ExpressionTag>> inputTags;
 }
 @init {
   if(state.backtracking == 0) 
 	  getContext().getBindings().addScope();
-	$operator::inputTags = new IdentityHashMap<Operator<?>, List<ExpressionTag>>();
+	$operator::inputTags = new IdentityHashMap<JsonStream, List<ExpressionTag>>();
 }
 @after {
   getContext().getBindings().removeScope();
@@ -280,7 +285,7 @@ writeOperator
 { 
 	Sink sink = new Sink(JsonOutputFormat.class, $file.text);
   $operator::result = sink;
-  sink.setInputs(getBinding(from, Operator.class));
+  sink.setInputs(getBinding(from, JsonStream.class));
   this.sinks.add(sink);
 } ->;
 
@@ -317,11 +322,12 @@ input
 	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
 { 
   int inputIndex = $operator::numInputs++;
-  Operator<?> input = getBinding(from, Operator.class);
-  $operator::result.setInput(inputIndex, getBinding(from, Operator.class));
-  setBinding(name != null ? name : from, input);
-  if(preserveFlag != null)
-    $operator::inputTags.put(input, Arrays.asList(ExpressionTag.RETAIN));
+  JsonStream input = getBinding(from, JsonStream.class);
+  $operator::result.setInput(inputIndex, input);
+  
+  setBinding(name != null ? name : from, new JsonStreamExpression(input).withTag(ExpressionTag.RETAIN));
+//  if(preserveFlag != null)
+//    $operator::inputTags.put(input, Arrays.asList(ExpressionTag.RETAIN));
 } 
 (inputOption=ID {$genericOperator::operatorInfo.hasInputProperty($inputOption.text)}? 
   expr=contextAwareExpression[new InputSelection($operator::numInputs - 1)] { $genericOperator::operatorInfo.setInputProperty($inputOption.text, $operator::result, $operator::numInputs-1, $expr.tree); })?
@@ -330,7 +336,7 @@ input
 arrayInput
   : '[' names+=VAR (',' names+=VAR)? ']' 'in' from=VAR
 { 
-  $operator::result.setInput(0, getBinding(from, Operator.class));
+  $operator::result.setInput(0, getBinding(from, JsonStream.class));
   for(int index = 0; index < $names.size(); index++) {
 	  setBinding((Token) $names.get(index), new InputSelection(index)); 
   }
