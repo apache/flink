@@ -403,7 +403,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	}
 
 	@Override
-	public JobSubmissionResult submitJob(final JobGraph job) throws IOException {
+	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
 
 		// First check if job is null
 		if (job == null) {
