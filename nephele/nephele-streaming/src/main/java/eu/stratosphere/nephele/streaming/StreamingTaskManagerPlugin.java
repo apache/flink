@@ -18,12 +18,14 @@ package eu.stratosphere.nephele.streaming;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
+import eu.stratosphere.nephele.types.Record;
 
 public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 
 	StreamingTaskManagerPlugin(final Configuration pluginConfiguration) {
-		System.out.println("Task Manager plugin loaded");
 	}
 
 	/**
@@ -41,8 +43,18 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	@Override
 	public void registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
 			final Environment environment) {
-		// TODO Auto-generated method stub
 
+		final StreamingTaskListener listener = new StreamingTaskListener();
+
+		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			outputGate.registerOutputGateListener(listener);
+		}
+
+		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
+			final InputGate<? extends Record> inputGate = environment.getInputGate(i);
+			inputGate.registerInputGateListener(listener);
+		}
 	}
 
 	/**
@@ -50,8 +62,8 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	 */
 	@Override
 	public void unregisterTask(final ExecutionVertexID id, final Environment environment) {
-		// TODO Auto-generated method stub
 
+		// Nothing to do here
 	}
 
 }

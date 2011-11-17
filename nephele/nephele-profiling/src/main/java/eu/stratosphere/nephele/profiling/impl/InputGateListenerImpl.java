@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.profiling.impl;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGateListener;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.types.Record;
 
 public class InputGateListenerImpl implements InputGateListener {
 
@@ -60,5 +61,14 @@ public class InputGateListenerImpl implements InputGateListener {
 
 	public int getGateIndex() {
 		return this.gateIndex;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void recordReceived(final Record record) {
+		// Nothing to do here
+
 	}
 }

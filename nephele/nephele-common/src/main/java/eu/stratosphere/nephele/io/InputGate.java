@@ -352,6 +352,12 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 			}
 		}
 
+		if (this.inputGateListeners != null) {
+			for (final InputGateListener inputGateListener : this.inputGateListeners) {
+				inputGateListener.recordReceived(record);
+			}
+		}
+
 		return record;
 	}
 
@@ -427,8 +433,8 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 			AbstractInputChannel<T> eic = null;
 			try {
 				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
-						.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
-							CompressionLevel.class);
+					.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
+						CompressionLevel.class);
 				if (constructor == null) {
 					throw new IOException("Constructor is null!");
 				}

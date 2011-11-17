@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.io;
 
+import eu.stratosphere.nephele.types.Record;
+
 /**
  * This listener interface can be used to obtain information
  * about the utilization of the attached {@link InputGate}.
@@ -28,4 +30,12 @@ public interface InputGateListener {
 	 * wait because none of its channels can currently deliver new data.
 	 */
 	void waitingForAnyChannel();
+
+	/**
+	 * This method is called by the {@link InputGate} whenever it is about to pass a new record to the task.
+	 * 
+	 * @param record
+	 *        the record which is about to be passed to the application
+	 */
+	void recordReceived(final Record record);
 }

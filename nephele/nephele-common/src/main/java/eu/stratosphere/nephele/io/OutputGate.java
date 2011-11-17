@@ -73,7 +73,7 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	 * The class of the record transported through this output gate.
 	 */
 	private final Class<T> type;
-	
+
 	/**
 	 * The listener objects registered for this output gate.
 	 */
@@ -114,7 +114,7 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 
 		this.isBroadcast = isBroadcast;
 		this.type = inputClass;
-		
+
 		if (this.isBroadcast) {
 			this.channelSelector = null;
 		} else {
@@ -134,7 +134,7 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	public final Class<T> getType() {
 		return this.type;
 	}
-	
+
 	/**
 	 * Adds a new output channel to the output gate.
 	 * 
@@ -329,9 +329,9 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 	 */
 	@Override
 	public boolean isClosed() throws IOException, InterruptedException {
-		
+
 		boolean allClosed = true;
-		
+
 		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
 			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
 			if (!outputChannel.isClosed()) {
@@ -360,6 +360,12 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 
 		if (this.executingThread.isInterrupted()) {
 			throw new InterruptedException();
+		}
+
+		if (this.outputGateListeners != null) {
+			for (final OutputGateListener outputGateListener : this.outputGateListeners) {
+				outputGateListener.recordEmitted(record);
+			}
 		}
 
 		if (this.isBroadcast) {
@@ -439,7 +445,7 @@ public class OutputGate<T extends Record> extends AbstractGate<T> {
 				constructor.setAccessible(true);
 
 				eoc = constructor.newInstance(this, i, channelID, compressionLevel);
-				
+
 			} catch (InstantiationException e) {
 				LOG.error(e);
 			} catch (IllegalArgumentException e) {
