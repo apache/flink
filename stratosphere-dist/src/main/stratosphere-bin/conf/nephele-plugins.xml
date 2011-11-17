@@ -17,8 +17,8 @@
 -->
 <plugins>
 	<plugin>
-		<name>SCORE</name>
-		<class>eu.stratosphere.score.ScorePluginLoader</class>
+		<name>NepheleStreaming</name>
+		<class>eu.stratosphere.nephele.streaming.StreamingPluginLoader</class>
 		<configuration>
 			<property>
 				<key>testkey</key>
