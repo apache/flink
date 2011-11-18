@@ -15,7 +15,53 @@
 
 package eu.stratosphere.nephele.plugins;
 
+import java.io.IOException;
+
+import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
+
 public final class JobManagerLookupService implements PluginLookupService {
+
+	private final PluginCommunicationProtocol jobManager;
+
+	JobManagerLookupService(final PluginCommunicationProtocol jobManager) {
+		this.jobManager = jobManager;
+	}
+
+	private static final class JobManagerStub implements PluginCommunication {
+
+		private final PluginCommunicationProtocol jobManager;
+
+		private final PluginID pluginID;
+
+		public JobManagerStub(final PluginCommunicationProtocol jobManager, final PluginID pluginID) {
+			this.jobManager = jobManager;
+			this.pluginID = pluginID;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void sendData(final IOReadableWritable data) throws IOException {
+
+			synchronized (this.jobManager) {
+				this.jobManager.sendData(this.pluginID, data);
+			}
+
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
+
+			synchronized (this.jobManager) {
+				return this.jobManager.requestData(this.pluginID, data);
+			}
+		}
+	}
 
 	/**
 	 * {@inheritDoc}
@@ -23,8 +69,7 @@ public final class JobManagerLookupService implements PluginLookupService {
 	@Override
 	public PluginCommunication getJobManagerComponent(final PluginID pluginID) {
 
-		throw new IllegalStateException(
-			"getJobManagerComponent must not be called from the plugin component running on the job manager");
+		return new JobManagerStub(this.jobManager, pluginID);
 	}
 
 }

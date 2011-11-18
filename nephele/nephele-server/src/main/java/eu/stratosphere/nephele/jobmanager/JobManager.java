@@ -234,6 +234,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		LOG.info("Starting job manager in " + executionMode + " mode");
 
+		// Load the plugins
+		this.jobManagerPlugins = PluginManager.getJobManagerPlugins(this, configDir);
+
 		// Try to load the instance manager for the given execution mode
 		// Try to load the scheduler for the given execution mode
 		if ("local".equals(executionMode)) {
@@ -290,9 +293,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.profiler = null;
 			LOG.debug("Profiler disabled");
 		}
-
-		// Load the plugins
-		this.jobManagerPlugins = PluginManager.getJobManagerPlugins(configDir);
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new JobManagerCleanUp(this));
