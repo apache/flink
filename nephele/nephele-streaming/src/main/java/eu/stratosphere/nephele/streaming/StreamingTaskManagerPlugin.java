@@ -20,6 +20,7 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.plugins.PluginCommunication;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 import eu.stratosphere.nephele.types.Record;
 
@@ -56,11 +57,19 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	 */
 	private final int aggregationInterval;
 
-	StreamingTaskManagerPlugin(final Configuration pluginConfiguration) {
+	/**
+	 * A special thread to asynchronously send data to the job manager component without suffering from the RPC latency.
+	 */
+	private final StreamingCommunicationThread communicationThread;
+
+	StreamingTaskManagerPlugin(final Configuration pluginConfiguration, final PluginCommunication jobManagerComponent) {
 
 		this.taggingInterval = pluginConfiguration.getInteger(TAGGING_INTERVAL_KEY, DEFAULT_TAGGING_INTERVAL);
 		this.aggregationInterval = pluginConfiguration.getInteger(AGGREGATION_INTERVAL_KEY,
 			DEFAULT_AGGREGATION_INTERVAL);
+
+		this.communicationThread = new StreamingCommunicationThread(jobManagerComponent);
+		this.communicationThread.start();
 	}
 
 	/**
@@ -68,8 +77,8 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	 */
 	@Override
 	public void shutdown() {
-		// TODO Auto-generated method stub
 
+		this.communicationThread.stopCommunicationThread();
 	}
 
 	/**

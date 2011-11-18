@@ -58,7 +58,8 @@ public class StreamingPluginLoader extends AbstractPluginLoader {
 	public synchronized TaskManagerPlugin getTaskManagerPlugin() {
 
 		if (this.taskManagerPlugin == null) {
-			this.taskManagerPlugin = new StreamingTaskManagerPlugin(getPluginConfiguration());
+			this.taskManagerPlugin = new StreamingTaskManagerPlugin(getPluginConfiguration(), getPluginLookupService()
+				.getJobManagerComponent(getPluginID()));
 		}
 
 		return this.taskManagerPlugin;
