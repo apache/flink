@@ -13,10 +13,26 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	private static final long serialVersionUID = -4195183303903303669L;
 
 	private JsonStream stream;
-	
+
+	private int inputIndex;
+
 	public JsonStreamExpression(JsonStream stream) {
+		this(stream, -1);
+	}
+
+	public JsonStreamExpression(JsonStream stream, int inputIndex) {
 		super("JsonStream placeholder");
 		this.stream = stream;
+		this.inputIndex = inputIndex;
+	}
+
+	/**
+	 * Returns the inputIndex.
+	 * 
+	 * @return the inputIndex
+	 */
+	public int getInputIndex() {
+		return this.inputIndex;
 	}
 
 	public JsonStream getStream() {
@@ -38,13 +54,18 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	 * @return
 	 */
 	public EvaluationExpression toInputSelection(Operator<?> operator) {
-		if(operator == stream)
-			return new InputSelection(0);
-		int index = operator.getInputs().indexOf(stream.getSource());
-		if(index == -1)
-			return this;
-		InputSelection inputSelection = new InputSelection(index);
-		for(ExpressionTag tag : this.getTags())
+		InputSelection inputSelection;
+		if (inputIndex != -1)
+			inputSelection = new InputSelection(inputIndex);
+		else if (operator.getSource() == stream.getSource())
+			inputSelection = new InputSelection(0);
+		else {
+			int index = operator.getInputs().indexOf(stream.getSource());
+			if (index == -1)
+				return this;
+			inputSelection = new InputSelection(index);
+		}
+		for (ExpressionTag tag : this.getTags())
 			inputSelection.addTag(tag);
 		return inputSelection;
 	}

@@ -128,8 +128,10 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		for (final EvaluationExpression fragment : this.fragments)
+		for (final EvaluationExpression fragment : this.fragments) {
 			fragment.toString(builder);
+			builder.append(" ");
+		}
 	}
 
 	private PathExpression wrapAsPath(final EvaluationExpression expression) {

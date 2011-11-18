@@ -1,41 +1,46 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 
 @Name(verb = "extract from")
+@InputCardinality(min = 1, max = 1)
+@OutputCardinality(min = 0, max = Integer.MAX_VALUE)
 public class EntityExtraction extends CompositeOperator<EntityExtraction> {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 5817110603520085487L;
 
-	private ObjectCreation projections = new ObjectCreation();
+	private ObjectCreation extractions = new ObjectCreation();
 
-	public ObjectCreation getProjections() {
-		return this.projections;
+	public ObjectCreation getExtractions() {
+		return this.extractions;
 	}
 
 	@Property
 	@Name(preposition = "into")
-	public void setProjections(ObjectCreation projections) {
-		if (projections == null)
+	public void setExtractions(ObjectCreation extractions) {
+		if (extractions == null)
 			throw new NullPointerException("projection must not be null");
 
-		this.projections = projections;
+		this.extractions = extractions;
 	}
 
 	public EntityExtraction withProjections(ObjectCreation projection) {
-		this.setProjections(projection);
+		this.setExtractions(projection);
 		return this;
 	}
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		return SopremoModule.valueOf(this.getName());
+		SopremoModule module = new SopremoModule(this.getName(), 1, this.extractions.getMappingSize());
+		return module;
 	}
 
 }

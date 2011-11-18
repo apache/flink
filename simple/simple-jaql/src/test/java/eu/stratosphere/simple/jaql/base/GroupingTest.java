@@ -115,7 +115,7 @@ public class GroupingTest extends SimpleTest {
 		Grouping selection = new Grouping().
 			withInputs(employees, depts).
 			withGroupingKey(0, JsonUtil.createPath("0", "dept")).
-			withGroupingKey(1, JsonUtil.createPath("0", "did")).
+			withGroupingKey(1, JsonUtil.createPath("1", "did")).
 			withResultProjection(new ObjectCreation(
 				new ObjectCreation.FieldAssignment("dept", JsonUtil.createPath("1", "did")),
 				new ObjectCreation.FieldAssignment("deptName", JsonUtil.createPath("1", "[0]", "name")),
@@ -147,7 +147,7 @@ public class GroupingTest extends SimpleTest {
 		Grouping selection = new Grouping().
 			withInputs(employees, depts).
 			withGroupingKey(0, JsonUtil.createPath("0", "dept")).
-			withGroupingKey(1, JsonUtil.createPath("0", "did")).
+			withGroupingKey(1, JsonUtil.createPath("1", "did")).
 			withResultProjection(new ObjectCreation(
 				new ObjectCreation.FieldAssignment("dept", JsonUtil.createPath("1", "did")),
 				new ObjectCreation.FieldAssignment("deptName", JsonUtil.createPath("1", "[0]", "name")),

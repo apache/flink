@@ -84,7 +84,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	@Override
 	public String toString() {
 		final GraphPrinter<Operator<?>> graphPrinter = new GraphPrinter<Operator<?>>();
-		graphPrinter.setWidth(40);
+		graphPrinter.setWidth(200);
 		return graphPrinter.toString(this.getAllOutputs(), OperatorNavigator.INSTANCE);
 	}
 

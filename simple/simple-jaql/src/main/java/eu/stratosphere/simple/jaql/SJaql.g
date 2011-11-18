@@ -168,25 +168,24 @@ castExpression
 	-> $expr;
 	
 generalPathExpression
-	: pathExpression;//(({$contextAwareExpression::context != null}?=> contextAwarePathExpression) | pathExpression);
+	: value=valueExpression path=pathExpression[false] { ((PathExpression) path.getTree()).add(0, $value.tree); } -> $path
+	| valueExpression;//(({$contextAwareExpression::context != null}?=> contextAwarePathExpression) | pathExpression);
 	
 contextAwarePathExpression[EvaluationExpression context]
 scope {  List<EvaluationExpression> fragments; }
 @init { $contextAwarePathExpression::fragments = new ArrayList<EvaluationExpression>(); }
-  : start=ID { $contextAwarePathExpression::fragments.add($context); $contextAwarePathExpression::fragments.add(new ObjectAccess($start.text));}
+  : start=ID { if($context != null) $contextAwarePathExpression::fragments.add($context); $contextAwarePathExpression::fragments.add(new ObjectAccess($start.text));}
     ( ('.' (field=ID { $contextAwarePathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
         | arrayAccess { $contextAwarePathExpression::fragments.add($arrayAccess.tree); } )* ->  ^(EXPRESSION["PathExpression"] { $contextAwarePathExpression::fragments } );
   
-pathExpression
+pathExpression[boolean canonicalize]
 scope {  List<EvaluationExpression> fragments; }
 @init { $pathExpression::fragments = new ArrayList<EvaluationExpression>(); }
-  : // entry point: valueExpression such as variable name
-    valueExpression
-    // add .field or [index] to path
+  : // add .field or [index] to path
     ( ('.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
-        | arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ { $pathExpression::fragments.add(0, $valueExpression.tree); } ->  ^(EXPRESSION["PathExpression"] { $pathExpression::fragments } )
-  // or use expression only
-  | valueExpression;
+        | arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ 
+  -> {canonicalize}? { PathExpression.valueOf($pathExpression::fragments) }
+  -> ^(EXPRESSION["PathExpression"] { $pathExpression::fragments } );
 
 valueExpression
 	:	methodCall[null]
@@ -211,7 +210,7 @@ methodCall [EvaluationExpression targetExpr]
 	(',' param=expression { params.add($param.tree); })*)? 
 	')' -> { createCheckedMethodCall($name, $targetExpr, params.toArray(new EvaluationExpression[params.size()])) };
 	
-fieldAssignment returns [ObjectCreation.Mapping mapping]
+fieldAssignment
 	:	ID ':' expression 
     { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($ID.text, $expression.tree)); } ->
   | VAR 
@@ -222,7 +221,10 @@ fieldAssignment returns [ObjectCreation.Mapping mapping]
           { $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>($p.tree, $e.tree)); } ->
     )      
     | ':' e2=expression { $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>(makePath($VAR), $e2.tree)); } ->
-    | '=' source=operator { setBinding($VAR, new JsonStreamExpression($source.op), 1); }
+    | '=' op=operator {
+      JsonStreamExpression output = new JsonStreamExpression($operator::result.getOutput($objectCreation::mappings.size()));
+      $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>($VAR.text, new JsonStreamExpression($op.op)));
+      setBinding($VAR, output, 1); }
     | /* empty */ { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($VAR.text.substring(1), makePath($VAR))); } ->    
     );
 
@@ -245,16 +247,17 @@ literal
   | 'null' -> { EvaluationExpression.NULL };
 
 arrayAccess
-  : '[' STAR ']' 
-  -> ^(EXPRESSION["ArrayAccess"])  
+  : '[' STAR ']' path=pathExpression[true]
+  -> ^(EXPRESSION["ArrayProjection"] $path)  
   | '[' (pos=INTEGER | pos=UINT) ']' 
   -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($pos.text) })
   | '[' (start=INTEGER | start=UINT) ':' (end=INTEGER | end=UINT) ']' 
   -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($start.text) } { Integer.valueOf($end.text) });
   
 streamIndexAccess
-  : VAR '[' pathExpression ']' 
-  -> { new StreamIndexExpression(getBinding($VAR, JsonStreamExpression.class).getStream(), $pathExpression.tree) };
+  : VAR { $operator::result != null && !$operator::result.getInputs().contains(getBinding($VAR, JsonStreamExpression.class).getStream().getSource()) }?=> 
+    '[' path=generalPathExpression ']' 
+  -> { new StreamIndexExpression(getBinding($VAR, JsonStreamExpression.class).getStream(), $path.tree) };
 	
 arrayCreation
 	:	 '[' elems+=expression (',' elems+=expression)* ','? ']' -> ^(EXPRESSION["ArrayCreation"] { $elems.toArray(new EvaluationExpression[$elems.size()]) });
@@ -326,12 +329,20 @@ input
   $operator::result.setInput(inputIndex, input.getStream());
   
   if(preserveFlag != null)
-    setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream()).withTag(ExpressionTag.RETAIN));
-  else setBinding(name != null ? name : from, input);
+    setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream(), inputIndex).withTag(ExpressionTag.RETAIN));
+  else setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream(), inputIndex));
 //    $operator::inputTags.put(input, Arrays.asList(ExpressionTag.RETAIN));
 } 
+{ if(state.backtracking == 0) {
+    addScope();
+    getContext().getBindings().set("$", new JsonStreamExpression($operator::result)); 
+  }
+}
 (inputOption=ID {$genericOperator::operatorInfo.hasInputProperty($inputOption.text)}? 
   expr=contextAwareExpression[new InputSelection($operator::numInputs - 1)] { $genericOperator::operatorInfo.setInputProperty($inputOption.text, $operator::result, $operator::numInputs-1, $expr.tree); })?
+{ if(state.backtracking == 0) 
+    removeScope();
+}  
 -> ;
 
 arrayInput

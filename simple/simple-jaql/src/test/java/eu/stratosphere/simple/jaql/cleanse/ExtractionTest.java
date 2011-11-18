@@ -36,8 +36,8 @@ public class ExtractionTest extends SimpleTest {
 	@Test
 	public void testExtraction() {
 		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
-				"$scrubbed_earmarks = read 'scrubbedEarmarks.json';\n" +
-				"extract from $scrubbed_earmarks into {\n" +
+				"$scrubbedEarmarks = read 'scrubbedEarmarks.json';\n" +
+				"extract from $scrubbedEarmarks into {\n" +
 				"	$funds = group $ by $.earmarkId into {\n" +
 				"		id: generateId('earmark'),\n" +
 				"		amount: sum($[*].amount),\n" +
@@ -48,16 +48,17 @@ public class ExtractionTest extends SimpleTest {
 				"		subject: $[0].shortDescription\n" +
 				"	},\n" +
 				"	$recipients = group $ by $.recipient into {\n" +
-				"		/*id: generateId('earmark_person'),\n" +
-				"		names: [$.recipient],*/\n" +
-				"		receivedFunds: project $ into {\n" +
-				"			id: $funds[$.earmarkId].id,\n" +
-				"			amount: $.amount\n" +
-				"		},\n" +
+//				"		/*id: generateId('earmark_person'),\n" +
+//				"		names: [$.recipient],*/\n" +
+//				"		receivedFunds: project $ into {\n" +
+//				"			id: $funds[$.earmarkId].id,\n" +
+//				"			amount: $.amount\n" +
+//				"		},\n" +
 				"		category: $[0].recipientType\n" +
 				"	}\n" +
 				"};\n" +
-				"write $funds to hdfs('Earmark_Funds.json');");
+				"write $funds to hdfs('Earmark_Funds.json');\n");
+				//"write $recipients to hdfs('Earmark_Recipients.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
 		Source input = new Source("input.json");

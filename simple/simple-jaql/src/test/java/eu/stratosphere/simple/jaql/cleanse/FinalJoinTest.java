@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.simple.jaql.cleanse;
 
+import static eu.stratosphere.sopremo.JsonUtil.createPath;
+
 import org.junit.Test;
 
 import eu.stratosphere.simple.jaql.SimpleTest;
@@ -21,12 +23,14 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.base.Selection;
+import eu.stratosphere.sopremo.base.Join;
+import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
+import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.OrExpression;
-import eu.stratosphere.sopremo.expressions.UnaryExpression;
 
 /**
  * @author Arvid Heise
@@ -50,6 +54,7 @@ public class FinalJoinTest extends SimpleTest {
 			"	($relative.id in $sponsor.relatives[*].id or\n" +
 			"	 $relative.id == $sponsor.id) and\n" +
 			"	 $fund.id in $sponsor.enacted_funds[*].id and\n" +
+			"	 $recipient.id in $fund.recipients and\n" +
 			"	($subsidiary.id in $recipient.subsidiaries[*].id\n" +
 			"	or $subsidiary.id == $recipient.id) and\n" +
 			"	 $subsidiary.id in $relative.worksFor\n" +
@@ -60,18 +65,29 @@ public class FinalJoinTest extends SimpleTest {
 			"write $result to hdfs('result.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("input.json");
-		Selection selection = new Selection().
-			withCondition(
-				new OrExpression(
-					new UnaryExpression(JsonUtil.createPath("$", "mgr")),
-					new ComparativeExpression(JsonUtil.createPath("$", "income"), BinaryOperator.GREATER,
-						new ConstantExpression(30000)))).
-			withInputs(input);
-		Sink output = new Sink("output.json").withInputs(selection);
-		expectedPlan.setSinks(output);
+		Source persons = new Source("persons.json");
+		Source funds = new Source("funds.json");
+		Source legal_entity = new Source("legal_entity.json");
+		Join join = new Join().
+			withInputs(persons, persons, funds, legal_entity, legal_entity).
+			withJoinCondition(
+				new AndExpression(
+					new OrExpression(
+						new ElementInSetExpression(createPath("1", "id"), Quantor.EXISTS_IN, createPath("0", "relatives", "[*]", "id")),
+						new ComparativeExpression(createPath("1", "id"), BinaryOperator.EQUAL, createPath("0", "id"))),
+					new ElementInSetExpression(createPath("2", "id"), Quantor.EXISTS_IN, createPath("0", "enacted_funds", "[*]", "id")),
+					new ElementInSetExpression(createPath("3", "id"), Quantor.EXISTS_IN, createPath("2", "recipients")),
+					new OrExpression(
+						new ElementInSetExpression(createPath("4", "id"), Quantor.EXISTS_IN, createPath("3", "subsidiaries", "[*]", "id")),
+						new ComparativeExpression(createPath("4", "id"), BinaryOperator.EQUAL, createPath("3", "id"))),
+					new ElementInSetExpression(createPath("4", "id"), Quantor.EXISTS_IN, createPath("1", "worksFor")))).
+			withResultProjection(new ObjectCreation(
+				new ObjectCreation.CopyFields(JsonUtil.createPath("0")),
+				new ObjectCreation.CopyFields(JsonUtil.createPath("1"))
+				));
+		Sink result = new Sink("result.json").withInputs(join);
+		expectedPlan.setSinks(result);
 
 		assertEquals(expectedPlan, actualPlan);
 	}
-
 }

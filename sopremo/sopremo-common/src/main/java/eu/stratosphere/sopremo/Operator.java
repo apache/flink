@@ -14,6 +14,7 @@ import java.beans.SimpleBeanInfo;
 import java.lang.reflect.Method;
 import java.util.AbstractList;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.ListIterator;
@@ -34,6 +35,7 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * @author Arvid Heise
  */
 @InputCardinality(min = 1, max = 1)
+@OutputCardinality(min = 1, max = 1)
 public abstract class Operator<Self extends Operator<Self>> extends AbstractSopremoType implements
 		SerializableSopremoType, JsonStream, Cloneable, BeanInfo {
 	/**
@@ -47,7 +49,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 
 	private transient List<JsonStream> outputs = new ArrayList<JsonStream>();
 
-	private int minInputs, maxInputs;
+	private int minInputs, maxInputs, minOutputs, maxOutputs;
 
 	/**
 	 * Initializes the Operator with the number of outputs set to 1.
@@ -66,6 +68,8 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		this.setNumberOfOutputs(numberOfOutputs);
 		InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
 		this.setNumberOfInputs(inputs.min(), inputs.max());
+		OutputCardinality outputs = ReflectUtil.getAnnotation(this.getClass(), OutputCardinality.class);
+		this.setNumberOfOutputs(outputs.min(), outputs.max());
 		this.name = this.getClass().getSimpleName();
 	}
 
@@ -292,6 +296,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @return the output at the given position
 	 */
 	public JsonStream getOutput(final int index) {
+		checkSize(index, this.maxOutputs, this.outputs);
 		return this.outputs.get(index);
 	}
 
@@ -335,11 +340,16 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 *        the new input
 	 */
 	public void setInput(final int index, final JsonStream input) {
-		if (index >= this.maxInputs)
-			throw new IndexOutOfBoundsException();
+		checkSize(index, this.maxInputs, this.inputs);
 
-		CollectionUtil.ensureSize(this.inputs, index + 1);
+		checkInput(input);
 		this.inputs.set(index, input == null ? null : input.getSource());
+	}
+	
+	private void checkSize(int index, int max, List<?> list) {
+		if (index >= max)
+			throw new IndexOutOfBoundsException();
+		CollectionUtil.ensureSize(list, index + 1);
 	}
 
 	/**
@@ -349,14 +359,13 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 *        the new inputs
 	 */
 	public void setInputs(final JsonStream... inputs) {
-		if (inputs == null)
-			throw new NullPointerException("inputs must not be null");
-		if (this.minInputs > inputs.length || inputs.length > this.maxInputs)
-			throw new IndexOutOfBoundsException();
+		setInputs(Arrays.asList(inputs));
+	}
 
-		this.inputs.clear();
-		for (final JsonStream input : inputs)
-			this.inputs.add(input == null ? null : input.getSource());
+	protected void checkInput(final JsonStream input) {
+		// current constraint, may be removed later
+		if (input != null && input.getSource().getOperator() == this)
+			throw new IllegalArgumentException("Cyclic reference");
 	}
 
 	/**
@@ -372,8 +381,10 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 			throw new IndexOutOfBoundsException();
 
 		this.inputs.clear();
-		for (final JsonStream input : inputs)
+		for (final JsonStream input : inputs) {
+			checkInput(input);
 			this.inputs.add(input == null ? null : input.getSource());
+		}
 	}
 
 	/**
@@ -413,6 +424,16 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		this.minInputs = min;
 		this.maxInputs = max;
 		CollectionUtil.ensureSize(this.inputs, this.minInputs);
+	}
+
+	protected void setNumberOfOutputs(int min, int max) {
+		if (min > max)
+			throw new IllegalArgumentException();
+		if (min < 0 || max < 0)
+			throw new IllegalArgumentException();
+		this.minOutputs = min;
+		this.maxOutputs = max;
+		CollectionUtil.ensureSize(this.outputs, this.minOutputs);
 	}
 
 	protected void setNumberOfInputs(int num) {
@@ -611,6 +632,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 			result = prime * result + this.getOperator().hashCode();
 			return result;
 		}
+
 		@Override
 		public void toString(StringBuilder builder) {
 			builder.append(this.getOperator()).append('@').append(this.index);
