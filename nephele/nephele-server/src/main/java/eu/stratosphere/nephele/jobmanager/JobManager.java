@@ -1098,9 +1098,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return;
 		}
 
-		// Method executionGraph field of vertex is immutable, so no need to synchronized access
-		final ExecutionGraph eg = verticesToBeDeployed.get(0).getExecutionGraph();
-
 		for (final ExecutionVertex vertex : verticesToBeDeployed) {
 
 			// Check vertex state

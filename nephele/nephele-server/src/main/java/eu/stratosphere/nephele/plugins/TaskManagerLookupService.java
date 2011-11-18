@@ -46,7 +46,7 @@ public final class TaskManagerLookupService implements PluginLookupService {
 		@Override
 		public void sendData(final IOReadableWritable data) throws IOException {
 
-			this.taskManager.sendData(this.pluginID, data);
+			this.taskManager.sendDataToJobManager(this.pluginID, data);
 		}
 
 		/**
@@ -55,7 +55,7 @@ public final class TaskManagerLookupService implements PluginLookupService {
 		@Override
 		public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
 
-			return this.taskManager.requestData(this.pluginID, data);
+			return this.taskManager.requestDataFromJobManager(this.pluginID, data);
 		}
 	}
 

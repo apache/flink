@@ -15,9 +15,12 @@
 
 package eu.stratosphere.score;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 
 public final class ScoreTaskManagerPlugin implements TaskManagerPlugin {
@@ -50,5 +53,23 @@ public final class ScoreTaskManagerPlugin implements TaskManagerPlugin {
 	public void unregisterTask(final ExecutionVertexID id, final Environment environment) {
 		// TODO Auto-generated method stub
 
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void sendData(final IOReadableWritable data) throws IOException {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }
