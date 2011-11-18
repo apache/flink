@@ -97,11 +97,11 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 			// Check if user has provided a job-specific tagging interval
 			final int taggingInterval = jobConfiguration.getInteger(TAGGING_INTERVAL_KEY, this.taggingInterval);
 
-			listener = StreamingTaskListener.createForInputTask(taggingInterval, aggregationInterval);
+			listener = StreamingTaskListener.createForInputTask(id, taggingInterval, aggregationInterval);
 		} else if (environment.getNumberOfOutputGates() == 0) {
-			listener = StreamingTaskListener.createForOutputTask(aggregationInterval);
+			listener = StreamingTaskListener.createForOutputTask(id, aggregationInterval);
 		} else {
-			listener = StreamingTaskListener.createForRegularTask(aggregationInterval);
+			listener = StreamingTaskListener.createForRegularTask(id, aggregationInterval);
 		}
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {

@@ -13,25 +13,49 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.types;
+package eu.stratosphere.nephele.streaming;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.types.Tag;
 
-public abstract class AbstractTaggableRecord implements Record {
+public final class StreamingTag implements Tag {
 
-	private Tag tag = null;
+	private final ExecutionVertexID sourceID;
 
-	public void setTag(final Tag tag) {
-		this.tag = tag;
+	private long timestamp = 0L;
+
+	StreamingTag(final ExecutionVertexID sourceID) {
+
+		if (sourceID == null) {
+			throw new IllegalArgumentException("sourceID must not be null");
+		}
+
+		this.sourceID = sourceID;
 	}
 
-	public Tag getTag() {
+	/**
+	 * Default constructor for deserialization.
+	 */
+	public StreamingTag() {
+		this.sourceID = new ExecutionVertexID();
+	}
 
-		return this.tag;
+	public void setTimestamp(final long timestamp) {
+		this.timestamp = timestamp;
+	}
+
+	public ExecutionVertexID getSourceID() {
+
+		return this.sourceID;
+	}
+
+	public long getTimestamp() {
+
+		return this.timestamp;
 	}
 
 	/**
@@ -39,38 +63,19 @@ public abstract class AbstractTaggableRecord implements Record {
 	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
+		// TODO Auto-generated method stub
 
-		if (this.tag == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			StringRecord.writeString(out, this.tag.getClass().getName());
-			this.tag.write(out);
-		}
+		this.sourceID.write(out);
+		out.writeLong(this.timestamp);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final DataInput in) throws IOException {
 
-		if (in.readBoolean()) {
-			final String tagType = StringRecord.readString(in);
-			Class<Tag> clazz = null;
-			try {
-				clazz = (Class<Tag>) Class.forName(tagType);
-			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
-
-			try {
-				this.tag = clazz.newInstance();
-			} catch (Exception e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
-			this.tag.read(in);
-		}
+		this.sourceID.read(in);
+		this.timestamp = in.readLong();
 	}
 }

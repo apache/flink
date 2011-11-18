@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.streaming;
 
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGateListener;
 import eu.stratosphere.nephele.io.OutputGateListener;
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
@@ -22,11 +23,11 @@ import eu.stratosphere.nephele.types.Record;
 
 public final class StreamingTaskListener implements InputGateListener, OutputGateListener {
 
-	private final static int SIZEOFLONG = 8;
-
 	private static enum TaskType {
 		INPUT, REGULAR, OUTPUT
 	};
+
+	private final ExecutionVertexID vertexID;
 
 	private final TaskType taskType;
 
@@ -34,7 +35,7 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 
 	private final int aggregationInterval;
 
-	private byte[] tag = null;
+	private StreamingTag tag = null;
 
 	private int tagCounter = 0;
 
@@ -42,23 +43,26 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 
 	private double aggregatedValue = -1.0;
 
-	static StreamingTaskListener createForInputTask(final int taggingInterval, final int aggregationInterval) {
+	static StreamingTaskListener createForInputTask(final ExecutionVertexID vertexID, final int taggingInterval,
+			final int aggregationInterval) {
 
-		return new StreamingTaskListener(TaskType.INPUT, taggingInterval, aggregationInterval);
+		return new StreamingTaskListener(vertexID, TaskType.INPUT, taggingInterval, aggregationInterval);
 	}
 
-	static StreamingTaskListener createForRegularTask(final int aggregationInterval) {
+	static StreamingTaskListener createForRegularTask(final ExecutionVertexID vertexID, final int aggregationInterval) {
 
-		return new StreamingTaskListener(TaskType.REGULAR, 0, aggregationInterval);
+		return new StreamingTaskListener(vertexID, TaskType.REGULAR, 0, aggregationInterval);
 	}
 
-	static StreamingTaskListener createForOutputTask(final int aggregationInterval) {
+	static StreamingTaskListener createForOutputTask(final ExecutionVertexID vertexID, final int aggregationInterval) {
 
-		return new StreamingTaskListener(TaskType.OUTPUT, 0, aggregationInterval);
+		return new StreamingTaskListener(vertexID, TaskType.OUTPUT, 0, aggregationInterval);
 	}
 
-	private StreamingTaskListener(final TaskType taskType, final int taggingInterval, final int aggregationInterval) {
+	private StreamingTaskListener(final ExecutionVertexID vertexID, final TaskType taskType, final int taggingInterval,
+			final int aggregationInterval) {
 
+		this.vertexID = vertexID;
 		this.taskType = taskType;
 		this.taggingInterval = taggingInterval;
 		this.aggregationInterval = aggregationInterval;
@@ -117,15 +121,15 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 			throw new IllegalStateException("Input task received record");
 		case REGULAR: {
 			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-			this.tag = taggableRecord.getTag();
+			this.tag = (StreamingTag) taggableRecord.getTag();
 		}
 			break;
 		case OUTPUT: {
 			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-			this.tag = taggableRecord.getTag();
+			this.tag = (StreamingTag) taggableRecord.getTag();
 			if (this.tag != null) {
 
-				System.out.println(System.currentTimeMillis() - byteArrayToLong(this.tag));
+				System.out.println(System.currentTimeMillis() - this.tag.getTimestamp());
 			}
 		}
 			break;
@@ -133,33 +137,15 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 
 	}
 
-	private byte[] createTag() {
+	private StreamingTag createTag() {
 
 		if (this.tag == null) {
-			this.tag = new byte[SIZEOFLONG];
+			this.tag = new StreamingTag(this.vertexID);
 		}
 
-		longToByteArray(System.currentTimeMillis(), this.tag);
+		this.tag.setTimestamp(System.currentTimeMillis());
 
 		return this.tag;
 	}
 
-	private static void longToByteArray(final long longToSerialize, final byte[] buffer) {
-
-		for (int i = 0; i < SIZEOFLONG; ++i) {
-			final int shift = i << 3; // i * 8
-			buffer[(SIZEOFLONG - 1) - i] = (byte) ((longToSerialize & (0xffL << shift)) >>> shift);
-		}
-	}
-
-	private static long byteArrayToLong(final byte[] buffer) {
-
-		long l = 0;
-
-		for (int i = 0; i < SIZEOFLONG; ++i) {
-			l |= (buffer[(SIZEOFLONG - 1) - i] & 0xffL) << (i << 3);
-		}
-
-		return l;
-	}
 }
