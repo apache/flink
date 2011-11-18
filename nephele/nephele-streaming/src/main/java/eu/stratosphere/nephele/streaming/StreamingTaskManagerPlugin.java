@@ -25,7 +25,42 @@ import eu.stratosphere.nephele.types.Record;
 
 public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 
+	/**
+	 * Provides access to the configuration entry which defines the interval in which records shall be tagged.
+	 */
+	private static final String TAGGING_INTERVAL_KEY = "streaming.tagging.interval";
+
+	/**
+	 * The default tagging interval.
+	 */
+	private static final int DEFAULT_TAGGING_INTERVAL = 10;
+
+	/**
+	 * Provides access to the configuration entry which defines the interval in which received tags shall be aggregated
+	 * and sent to the job manager plugin component.
+	 */
+	private static final String AGGREGATION_INTERVAL_KEY = "streaming.aggregation.interval";
+
+	/**
+	 * The default aggregation interval.
+	 */
+	private static final int DEFAULT_AGGREGATION_INTERVAL = 10;
+
+	/**
+	 * The tagging interval as specified in the plugin configuration.
+	 */
+	private final int taggingInterval;
+
+	/**
+	 * The aggregation interval as specified in the plugin configuration.
+	 */
+	private final int aggregationInterval;
+
 	StreamingTaskManagerPlugin(final Configuration pluginConfiguration) {
+
+		this.taggingInterval = pluginConfiguration.getInteger(TAGGING_INTERVAL_KEY, DEFAULT_TAGGING_INTERVAL);
+		this.aggregationInterval = pluginConfiguration.getInteger(AGGREGATION_INTERVAL_KEY,
+			DEFAULT_AGGREGATION_INTERVAL);
 	}
 
 	/**
@@ -44,7 +79,21 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	public void registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
 			final Environment environment) {
 
-		final StreamingTaskListener listener = new StreamingTaskListener();
+		// Check if user has provided a job-specific aggregation interval
+		final int aggregationInterval = jobConfiguration.getInteger(AGGREGATION_INTERVAL_KEY,
+			this.aggregationInterval);
+
+		StreamingTaskListener listener = null;
+		if (environment.getNumberOfInputGates() == 0) {
+			// Check if user has provided a job-specific tagging interval
+			final int taggingInterval = jobConfiguration.getInteger(TAGGING_INTERVAL_KEY, this.taggingInterval);
+
+			listener = StreamingTaskListener.createForInputTask(taggingInterval, aggregationInterval);
+		} else if (environment.getNumberOfOutputGates() == 0) {
+			listener = StreamingTaskListener.createForOutputTask(aggregationInterval);
+		} else {
+			listener = StreamingTaskListener.createForRegularTask(aggregationInterval);
+		}
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);

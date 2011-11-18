@@ -23,7 +23,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
  * 
  * @author warneke
  */
-public interface JobManagerPlugin {
+public interface JobManagerPlugin extends PluginCommunication {
 
 	/**
 	 * This method is called upon the reception of a new job graph. It gives the plugin the possibility to to rewrite

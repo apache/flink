@@ -32,7 +32,7 @@ public abstract class AbstractID implements IOReadableWritable {
 	/**
 	 * The size of the ID in byte.
 	 */
-	private static final int SIZE = 16;
+	protected static final int SIZE = 16;
 
 	/**
 	 * The buffer storing the actual ID.

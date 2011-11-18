@@ -18,6 +18,8 @@ package eu.stratosphere.nephele.streaming;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.plugins.AbstractPluginLoader;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
+import eu.stratosphere.nephele.plugins.PluginID;
+import eu.stratosphere.nephele.plugins.PluginLookupService;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 
 public class StreamingPluginLoader extends AbstractPluginLoader {
@@ -26,8 +28,14 @@ public class StreamingPluginLoader extends AbstractPluginLoader {
 
 	private StreamingTaskManagerPlugin taskManagerPlugin = null;
 
-	public StreamingPluginLoader(final Configuration pluginConfiguration) {
-		super(pluginConfiguration);
+	private final PluginID pluginID;
+
+	public StreamingPluginLoader(final String pluginName, final Configuration pluginConfiguration,
+			final PluginLookupService pluginLookupService) {
+		super(pluginName, pluginConfiguration, pluginLookupService);
+
+		this.pluginID = PluginID.fromByteArray(new byte[] { 0x3c, 0x00, 0x00, -0x1b, 0x38, 0x4a, 0x60, -0x61, -0x25,
+			0x00, 0x00, 0x16, 0x00, 0x18, 0x7f, 0x01 });
 	}
 
 	/**
@@ -54,6 +62,15 @@ public class StreamingPluginLoader extends AbstractPluginLoader {
 		}
 
 		return this.taskManagerPlugin;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public PluginID getPluginID() {
+
+		return this.pluginID;
 	}
 
 }
