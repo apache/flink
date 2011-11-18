@@ -22,34 +22,63 @@ import java.io.IOException;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
+/**
+ * This class stores information about the latency of a specific (sub) path from a start to an end vertex.
+ * 
+ * @author warneke
+ */
 public final class PathLatency implements StreamingData {
 
+	/**
+	 * The ID of the job this path latency information refers to
+	 */
 	private final JobID jobID;
 
-	private final ExecutionVertexID sourceID;
+	/**
+	 * The ID of the vertex representing the start of the path.
+	 */
+	private final ExecutionVertexID startVertexID;
 
-	private final ExecutionVertexID targetID;
+	/**
+	 * The ID of the vertex representing the end of the path.
+	 */
+	private final ExecutionVertexID endVertexID;
 
+	/**
+	 * The path latency in milliseconds
+	 */
 	private double pathLatency;
 
-	public PathLatency(final JobID jobID, final ExecutionVertexID sourceID, final ExecutionVertexID targetID,
+	/**
+	 * Constructs a new path latency object.
+	 * 
+	 * @param jobID
+	 *        the ID of the job this path latency information refers to
+	 * @param startVertexID
+	 *        the ID of the vertex representing the start of the path
+	 * @param endVertexID
+	 *        the ID of the vertex representing the end of the path
+	 * @param pathLatency
+	 *        the path latency in milliseconds
+	 */
+	public PathLatency(final JobID jobID, final ExecutionVertexID startVertexID, final ExecutionVertexID endVertexID,
 			final double pathLatency) {
 
 		if (jobID == null) {
 			throw new IllegalArgumentException("jobID must not be null");
 		}
 
-		if (sourceID == null) {
+		if (startVertexID == null) {
 			throw new IllegalArgumentException("sourceID must not be null");
 		}
 
-		if (targetID == null) {
+		if (endVertexID == null) {
 			throw new IllegalArgumentException("targetID must not be null");
 		}
 
 		this.jobID = jobID;
-		this.sourceID = sourceID;
-		this.targetID = targetID;
+		this.startVertexID = startVertexID;
+		this.endVertexID = endVertexID;
 		this.pathLatency = pathLatency;
 	}
 
@@ -58,8 +87,8 @@ public final class PathLatency implements StreamingData {
 	 */
 	public PathLatency() {
 		this.jobID = new JobID();
-		this.sourceID = new ExecutionVertexID();
-		this.targetID = new ExecutionVertexID();
+		this.startVertexID = new ExecutionVertexID();
+		this.endVertexID = new ExecutionVertexID();
 		this.pathLatency = 0.0;
 	}
 
@@ -70,8 +99,8 @@ public final class PathLatency implements StreamingData {
 	public void write(final DataOutput out) throws IOException {
 
 		this.jobID.write(out);
-		this.sourceID.write(out);
-		this.targetID.write(out);
+		this.startVertexID.write(out);
+		this.endVertexID.write(out);
 		out.writeDouble(this.pathLatency);
 	}
 
@@ -82,28 +111,64 @@ public final class PathLatency implements StreamingData {
 	public void read(final DataInput in) throws IOException {
 
 		this.jobID.read(in);
-		this.sourceID.read(in);
-		this.targetID.read(in);
+		this.startVertexID.read(in);
+		this.endVertexID.read(in);
 		this.pathLatency = in.readDouble();
 	}
 
+	/**
+	 * Returns the ID of the job this path latency information refers to.
+	 * 
+	 * @return the ID of the job this path latency information refers to
+	 */
 	public JobID getJobID() {
 
 		return this.jobID;
 	}
 
-	public ExecutionVertexID getSourceID() {
+	/**
+	 * Returns the ID of the vertex representing the start of the path.
+	 * 
+	 * @return the ID of the vertex representing the start of the path
+	 */
+	public ExecutionVertexID getStartVertexID() {
 
-		return this.sourceID;
+		return this.startVertexID;
 	}
 
-	public ExecutionVertexID getTargetID() {
+	/**
+	 * Returns the ID of the vertex representing the end of the path.
+	 * 
+	 * @return the ID of the vertex representing the end of the path
+	 */
+	public ExecutionVertexID getEndVertexID() {
 
-		return this.targetID;
+		return this.endVertexID;
 	}
 
+	/**
+	 * Returns the path latency in milliseconds.
+	 * 
+	 * @return the path latency in milliseconds
+	 */
 	public double getPathLatency() {
 
 		return this.pathLatency;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String toString() {
+
+		final StringBuilder str = new StringBuilder();
+		str.append(this.startVertexID.toString());
+		str.append(" -> ");
+		str.append(this.endVertexID.toString());
+		str.append(": ");
+		str.append(this.pathLatency);
+
+		return str.toString();
 	}
 }
