@@ -15,7 +15,11 @@
 
 package eu.stratosphere.nephele.plugins;
 
+import eu.stratosphere.nephele.instance.AbstractInstance;
+
 public interface PluginLookupService {
 
 	PluginCommunication getJobManagerComponent(PluginID pluginID);
+	
+	PluginCommunication getTaskManagerComponent(PluginID pluginID, AbstractInstance instance);
 }
