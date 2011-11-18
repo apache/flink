@@ -381,7 +381,7 @@ public abstract class SimpleParser extends Parser {
 			throw new IllegalArgumentException("Unknown class " + className);
 		}
 		if (function.getSignatures().isEmpty())
-			throw new IllegalArgumentException("Unknown method " + methodName);
+			throw new IllegalArgumentException(String.format("Method %s not found in class %s", methodName, className));
 		this.getContext().getFunctionRegistry().register(function);
 	}
 

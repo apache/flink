@@ -35,28 +35,28 @@ public class ExtractionTest extends SimpleTest {
 
 	@Test
 	public void testExtraction() {
-		SopremoPlan actualPlan = parseScript("using cleansing;" +
-				"$scrubbed_earmarks = read 'scrubbedEarmarks.json';" +
-				"extract from $scrubbed_earmarks into {" +
-				"	$funds = group $ by $.earmarkId into {" +
-				"		id: generateId('earmark')," +
-				"		amount: sum($[*].amount)," +
-				"		currency: 'USD'," +
-				"		date: {" +
-				"			year: $[0].enactedYear" +
-				"		}," +
-				"		subject: $[0].shortDescription" +
-				"	}," +
-				"	$recipients = group $ by $.recipient into {" +
-				"		/*id: generateId('earmark_person')," +
-				"		names: [$.recipient],*/" +
-				"		receivedFunds: project $ into {" +
-				"			id: $funds[$.earmarkId].id," +
-				"			amount: $.amount" +
-				"		}," +
-				"		category: $[0].recipientType" +
-				"	}" +
-				"};" +
+		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+				"$scrubbed_earmarks = read 'scrubbedEarmarks.json';\n" +
+				"extract from $scrubbed_earmarks into {\n" +
+				"	$funds = group $ by $.earmarkId into {\n" +
+				"		id: generateId('earmark'),\n" +
+				"		amount: sum($[*].amount),\n" +
+				"		currency: 'USD',\n" +
+				"		date: {\n" +
+				"			year: $[0].enactedYear\n" +
+				"		},\n" +
+				"		subject: $[0].shortDescription\n" +
+				"	},\n" +
+				"	$recipients = group $ by $.recipient into {\n" +
+				"		/*id: generateId('earmark_person'),\n" +
+				"		names: [$.recipient],*/\n" +
+				"		receivedFunds: project $ into {\n" +
+				"			id: $funds[$.earmarkId].id,\n" +
+				"			amount: $.amount\n" +
+				"		},\n" +
+				"		category: $[0].recipientType\n" +
+				"	}\n" +
+				"};\n" +
 				"write $funds to hdfs('Earmark_Funds.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();

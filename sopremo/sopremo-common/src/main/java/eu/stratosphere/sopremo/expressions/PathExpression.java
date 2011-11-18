@@ -44,11 +44,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final PathExpression other = (PathExpression) obj;
 		return this.fragments.equals(other.fragments);

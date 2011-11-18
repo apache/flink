@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.cleansing.similarity;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.JsonNode;
@@ -57,11 +58,7 @@ public class MongeElkanSimilarity extends EvaluationExpression {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		MongeElkanSimilarity other = (MongeElkanSimilarity) obj;
 		return this.baseMeasure.equals(other.baseMeasure) && this.leftExpression.equals(other.leftExpression)

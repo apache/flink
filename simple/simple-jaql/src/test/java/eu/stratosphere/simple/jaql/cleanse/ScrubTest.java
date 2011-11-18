@@ -27,6 +27,7 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.OrExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
+import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author Arvid Heise
@@ -34,18 +35,18 @@ import eu.stratosphere.sopremo.expressions.UnaryExpression;
 public class ScrubTest extends SimpleTest {
 
 	@Test
-	public void testExtraction() {
-		SopremoPlan actualPlan = parseScript("using cleansing;" +
-			"$dirty_earmarks = read hdfs('UsEarmark.json');" +
-			"$nick_names = read hdfs('UsNickNames.json');" +
-			"NormalizeName = javaudf('eu.stratosphere.simple.jaql.CleansOperatorTest.normalizeName');" +
-			"$scrubbed_earmarks = scrub $dirty_earmark in $dirty_earmarks with {" +
-			"	// normalization with built-in expressions" +
-			"	amount: [$ as decimal, $ * 1000]," +
-			"	// normalization with user-defined functions" +
-			"	sponsorLastName: [required if $dirty_earmark.type == 's', NormalizeName]," +
-			"	sponsorFirstName: [required, NormalizeName, replace $ with $nick_names default $]," +
-			"};" +
+	public void testScrub() {
+		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+			"$dirty_earmarks = read hdfs('UsEarmark.json');\n" +
+			"$nick_names = read hdfs('UsNickNames.json');\n" +
+			"NormalizeName = javaudf('eu.stratosphere.simple.jaql.cleanse.ScrubTest.normalizeName');\n" +
+			"$scrubbed_earmarks = scrub $dirty_earmark in $dirty_earmarks with {\n" +
+			"	// normalization with built-in expressions\n" +
+			"	amount: [$ as decimal, $ * 1000],\n" +
+			"	// normalization with user-defined functions\n" +
+			"	sponsorLastName: [required if $dirty_earmark.type == 's', NormalizeName],\n" +
+			"	sponsorFirstName: [required, NormalizeName, replace $ with $nick_names default $],\n" +
+			"};\n" +
 			"write $scrubbed_earmarks to hdfs('scrubbed_earmarks.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -63,4 +64,7 @@ public class ScrubTest extends SimpleTest {
 		assertEquals(expectedPlan, actualPlan);
 	}
 
+	public static TextNode normalizeName(TextNode node) {
+		return node;
+	}
 }

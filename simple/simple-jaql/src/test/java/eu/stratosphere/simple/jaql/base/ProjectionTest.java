@@ -33,8 +33,8 @@ public class ProjectionTest extends SimpleTest {
 
 	@Test
 	public void testProjection1() {
-		SopremoPlan actualPlan = parseScript("$input = read 'input.json';" +
-			"$result = project $input into {sum: $.a + $.b};" +
+		SopremoPlan actualPlan = parseScript("$input = read 'input.json';\n" +
+			"$result = project $input into {sum: $.a + $.b};\n" +
 			"write $result to 'output.json'; ");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -54,8 +54,8 @@ public class ProjectionTest extends SimpleTest {
 
 	@Test
 	public void testProjection2() {
-		SopremoPlan actualPlan = parseScript("$input = read 'input.json';" +
-				"$result = project $entry in $input into { sum: $entry.a + $entry.b };" +
+		SopremoPlan actualPlan = parseScript("$input = read 'input.json';\n" +
+				"$result = project $entry in $input into { sum: $entry.a + $entry.b };\n" +
 				"write $result to 'output.json'; ");
 
 			SopremoPlan expectedPlan = new SopremoPlan();

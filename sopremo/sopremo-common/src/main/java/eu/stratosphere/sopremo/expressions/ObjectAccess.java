@@ -40,9 +40,10 @@ public class ObjectAccess extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.field.equals(((ObjectAccess) obj).field);
+		final ObjectAccess other = (ObjectAccess) obj;
+		return this.field.equals(other.field);
 	}
 
 	/**

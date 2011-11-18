@@ -16,9 +16,9 @@ public class UnionTest extends SimpleTest {
 
 	@Test
 	public void testUnion1() {
-		SopremoPlan actualPlan = parseScript("$users1 = read 'users1.json';" +
-			"$users2 = read 'users2.json';" +
-			"$allUsers = union $users1, $users2;" +
+		SopremoPlan actualPlan = parseScript("$users1 = read 'users1.json';\n" +
+			"$users2 = read 'users2.json';\n" +
+			"$allUsers = union $users1, $users2;\n" +
 			"write $allUsers to 'allUsers.json';");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -34,9 +34,9 @@ public class UnionTest extends SimpleTest {
 
 	@Test
 	public void testUnion2() {
-		SopremoPlan actualPlan = parseScript("$users1 = read 'users1.json';" +
-			"$users2 = read 'users2.json';" +
-			"$allUsers = union $users1 on $users1.firstName + $users1.lastName, $users2 on $users2.name;" +
+		SopremoPlan actualPlan = parseScript("$users1 = read 'users1.json';\n" +
+			"$users2 = read 'users2.json';\n" +
+			"$allUsers = union $users1 on $users1.firstName + $users1.lastName, $users2 on $users2.name;\n" +
 			"write $allUsers to 'allUsers.json';");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -55,9 +55,9 @@ public class UnionTest extends SimpleTest {
 
 	@Test
 	public void testUnion3() {
-		SopremoPlan actualPlan = parseScript("$users1 = read 'users1.json';" +
-			"$users2 = read 'users2.json';" +
-			"$allUsers = union $users1 on concat($users1.firstName, $users1.lastName), $users2 on $users2.name;" +
+		SopremoPlan actualPlan = parseScript("$users1 = read 'users1.json';\n" +
+			"$users2 = read 'users2.json';\n" +
+			"$allUsers = union $users1 on concat($users1.firstName, $users1.lastName), $users2 on $users2.name;\n" +
 			"write $allUsers to 'allUsers.json';");
 
 		SopremoPlan expectedPlan = new SopremoPlan();

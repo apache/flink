@@ -37,9 +37,9 @@ public class FunctionTest extends SimpleTest {
 
 	@Test
 	public void testFunctionDefinition() {
-		SopremoPlan actualPlan = parseScript("square = fn(x) x * x;" +
-			"$input = read 'input.json';" +
-			"$result = project $input into { squared: square($input) };" +
+		SopremoPlan actualPlan = parseScript("square = fn(x) x * x;\n" +
+			"$input = read 'input.json';\n" +
+			"$result = project $input into { squared: square($input) };\n" +
 			"write $result to 'output.json'; ");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -58,9 +58,9 @@ public class FunctionTest extends SimpleTest {
 
 	@Test
 	public void testFunctionImport() {
-		SopremoPlan actualPlan = parseScript("testudf = javaudf('eu.stratosphere.simple.jaql.FunctionTest.udfTest');" +
-			"$input = read 'input.json';" +
-			"$result = project $input into { squared: testudf($input) };" +
+		SopremoPlan actualPlan = parseScript("testudf = javaudf('eu.stratosphere.simple.jaql.expression.FunctionTest.udfTest');\n" +
+			"$input = read 'input.json';\n" +
+			"$result = project $input into { squared: testudf($input) };\n" +
 			"write $result to 'output.json'; ");
 
 		SopremoPlan expectedPlan = new SopremoPlan();

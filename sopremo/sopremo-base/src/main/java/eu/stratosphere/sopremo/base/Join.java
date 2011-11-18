@@ -223,8 +223,8 @@ public class Join extends CompositeOperator<Join> {
 		public Operator<?> createJoinContract(final Operator<?> left, final Operator<?> right) {
 			switch (this.comparison.getBinaryOperator()) {
 			case EQUAL:
-				final boolean leftOuter = this.getLeftJoinKey().hasTag(ExpressionTag.RETAIN);
-				final boolean rightOuter = this.getRightJoinKey().hasTag(ExpressionTag.RETAIN);
+				final boolean leftOuter = this.getLeftJoinKey().find(InputSelection.class) .hasTag(ExpressionTag.RETAIN);
+				final boolean rightOuter = this.getRightJoinKey().find(InputSelection.class).hasTag(ExpressionTag.RETAIN);
 				if (leftOuter || rightOuter)
 					return new OuterJoinStub(leftOuter, rightOuter).withInputs(left, right);
 

@@ -26,11 +26,7 @@ public class ComparativeExpression extends BooleanExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final ComparativeExpression other = (ComparativeExpression) obj;
 		return this.binaryOperator == other.binaryOperator && this.expr1.equals(other.expr1)

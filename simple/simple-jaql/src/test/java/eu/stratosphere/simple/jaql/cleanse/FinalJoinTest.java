@@ -35,28 +35,28 @@ public class FinalJoinTest extends SimpleTest {
 
 	@Test
 	public void testComplexJoin() {
-		SopremoPlan actualPlan = parseScript("using cleansing;" +
-			"$persons = read 'persons.json';" +
-			"$funds = read 'funds.json';" +
-			"$legal_entity = read 'legal_entity.json';" +
-			"" +
-			"$result = join" +
-			"	$sponsor in $persons," +
-			"	$relative in $persons," +
-			"	$fund in $funds," +
-			"	$recipient in $legal_entity," +
-			"	$subsidiary in $legal_entity" +
-			"	where" +
-			"	($relative.id in $sponsor.relatives[*].id or" +
-			"	 $relative.id == $sponsor.id) and" +
-			"	 $fund.id in $sponsor.enacted_funds[*].id and" +
-			"	($subsidiary.id in $recipient.subsidiaries[*].id" +
-			"	or $subsidiary.id == $recipient.id) and" +
-			"	 $subsidiary.id in $relative.worksFor" +
-			"	into {" +
-			"	$sponsor.*," +
-			"	$relative.*" +
-			"};" +
+		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+			"$persons = read 'persons.json';\n" +
+			"$funds = read 'funds.json';\n" +
+			"$legal_entity = read 'legal_entity.json';\n" +
+			"\n" +
+			"$result = join\n" +
+			"	$sponsor in $persons,\n" +
+			"	$relative in $persons,\n" +
+			"	$fund in $funds,\n" +
+			"	$recipient in $legal_entity,\n" +
+			"	$subsidiary in $legal_entity\n" +
+			"	where\n" +
+			"	($relative.id in $sponsor.relatives[*].id or\n" +
+			"	 $relative.id == $sponsor.id) and\n" +
+			"	 $fund.id in $sponsor.enacted_funds[*].id and\n" +
+			"	($subsidiary.id in $recipient.subsidiaries[*].id\n" +
+			"	or $subsidiary.id == $recipient.id) and\n" +
+			"	 $subsidiary.id in $relative.worksFor\n" +
+			"	into {\n" +
+			"	$sponsor.*,\n" +
+			"	$relative.*\n" +
+			"};\n" +
 			"write $result to hdfs('result.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();

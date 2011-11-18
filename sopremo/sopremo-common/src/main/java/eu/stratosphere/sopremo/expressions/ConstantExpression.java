@@ -35,9 +35,10 @@ public class ConstantExpression extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.constant.equals(((ConstantExpression) obj).constant);
+		final ConstantExpression other = (ConstantExpression) obj;
+		return this.constant.equals(other.constant);
 	}
 
 	@Override

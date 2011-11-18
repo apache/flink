@@ -19,9 +19,10 @@ public class UnevaluableExpression extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.message.equals(((UnevaluableExpression) obj).message);
+		final UnevaluableExpression other = (UnevaluableExpression) obj;
+		return this.message.equals(other.message);
 	}
 
 	@Override

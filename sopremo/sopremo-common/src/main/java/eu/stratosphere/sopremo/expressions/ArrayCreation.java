@@ -48,9 +48,10 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return Arrays.equals(this.elements, ((ArrayCreation) obj).elements);
+		final ArrayCreation other = (ArrayCreation) obj;
+		return Arrays.equals(this.elements, other.elements);
 	}
 
 	@Override

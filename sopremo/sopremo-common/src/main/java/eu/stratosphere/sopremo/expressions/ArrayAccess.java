@@ -66,9 +66,10 @@ public class ArrayAccess extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.startIndex == ((ArrayAccess) obj).startIndex && this.endIndex == ((ArrayAccess) obj).endIndex;
+		ArrayAccess other = (ArrayAccess) obj;
+		return this.startIndex == other.startIndex && this.endIndex == other.endIndex;
 	}
 
 	@Override

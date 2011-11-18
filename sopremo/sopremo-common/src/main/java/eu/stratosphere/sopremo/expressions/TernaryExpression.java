@@ -86,31 +86,12 @@ public class TernaryExpression extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
+		if (!super.equals(obj))
 			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-
 		final TernaryExpression other = (TernaryExpression) obj;
-		if (this.ifClause == null) {
-			if (other.ifClause != null)
-				return false;
-		} else if (!this.ifClause.equals(other.ifClause))
-			return false;
-		if (this.ifExpression == null) {
-			if (other.ifExpression != null)
-				return false;
-		} else if (!this.ifExpression.equals(other.ifExpression))
-			return false;
-		if (this.thenExpression == null) {
-			if (other.thenExpression != null)
-				return false;
-		} else if (!this.thenExpression.equals(other.thenExpression))
-			return false;
-
-		return true;
+		return this.ifClause.equals(other.ifClause)
+				&& this.ifExpression.equals(other.ifExpression)
+				&& this.thenExpression.equals(other.thenExpression);
 	}
 
 }

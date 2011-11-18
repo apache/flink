@@ -27,10 +27,11 @@ public class MethodCall extends ContainerExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.function.equals(((MethodCall) obj).function)
-			&& Arrays.equals(this.paramExprs, ((MethodCall) obj).paramExprs);
+		final MethodCall other = (MethodCall) obj;
+		return this.function.equals(other.function)
+			&& Arrays.equals(this.paramExprs, other.paramExprs);
 	}
 
 	@Override

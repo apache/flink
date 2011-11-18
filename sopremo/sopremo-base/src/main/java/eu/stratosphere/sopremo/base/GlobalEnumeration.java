@@ -8,6 +8,7 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -22,23 +23,33 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	 */
 	private static final long serialVersionUID = 8552367347318407324L;
 
-	public static final EvaluationExpression CONCATENATION = new EvaluationExpression() {
+	public static final EvaluationExpression CONCATENATION = new SingletonExpression() {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -3340948936846733311L;
-
+		
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			return TextNode.valueOf(String.format("%d_%d", ((ArrayNode)node).get(0), ((ArrayNode)node).get(1)));
 		}
+
+		@Override
+		protected Object readResolve() {
+			return CONCATENATION;
+		}
 	};
 
-	public static final EvaluationExpression LONG_COMBINATION = new EvaluationExpression() {
+	public static final EvaluationExpression LONG_COMBINATION = new SingletonExpression() {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -9084196126957908547L;
+
+		@Override
+		protected Object readResolve() {
+			return LONG_COMBINATION;
+		}
 
 		@Override
 		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {

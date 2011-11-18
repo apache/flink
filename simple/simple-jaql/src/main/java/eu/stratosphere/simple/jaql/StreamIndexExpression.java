@@ -22,6 +22,11 @@ import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
  * @author Arvid Heise
  */
 public class StreamIndexExpression extends UnevaluableExpression {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -1317711966846556055L;
+
 	private JsonStream stream;
 
 	private EvaluationExpression indexExpression;

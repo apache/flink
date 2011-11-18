@@ -26,11 +26,7 @@ public class OrExpression extends BooleanExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final OrExpression other = (OrExpression) obj;
 		return Arrays.equals(this.expressions, other.expressions);

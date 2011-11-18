@@ -7,6 +7,8 @@ import java.util.Set;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.ExpressionTag;
+import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
@@ -23,7 +25,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
 
-	public final static EvaluationExpression KEY = new EvaluationExpression() {
+	public final static EvaluationExpression KEY = new SingletonExpression() {
 		/**
 		 * 
 		 */
@@ -34,7 +36,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 			throw new EvaluationException();
 		}
 
-		private Object readResolve() {
+		protected Object readResolve() {
 			return EvaluationExpression.KEY;
 		}
 
@@ -44,7 +46,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		};
 	};
 
-	public final static EvaluationExpression AS_KEY = new EvaluationExpression() {
+	public final static EvaluationExpression AS_KEY = new SingletonExpression() {
 		/**
 		 * 
 		 */
@@ -55,7 +57,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 			throw new EvaluationException();
 		}
 
-		private Object readResolve() {
+		protected Object readResolve() {
 			return EvaluationExpression.AS_KEY;
 		}
 
@@ -97,6 +99,22 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 			return false;
 		EvaluationExpression other = (EvaluationExpression) obj;
 		return this.tags.equals(other.tags);
+	}
+
+
+	@SuppressWarnings("unchecked")
+	public <T extends EvaluationExpression> T find(final Class<T> evaluableClass) {
+		for (final EvaluationExpression element : this) {
+			if (evaluableClass.isInstance(element))
+				return (T) element;
+
+			if (element instanceof ContainerExpression) {
+				final T subSearch = ((ContainerExpression) element).find(evaluableClass);
+				if (subSearch != null)
+					return subSearch;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -187,6 +205,10 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	public EvaluationExpression withTag(final ExpressionTag tag) {
 		this.addTag(tag);
 		return this;
+	}
+	
+	public Set<ExpressionTag> getTags() {
+		return tags;
 	}
 
 	private static final class SameValueExpression extends EvaluationExpression {

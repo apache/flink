@@ -87,11 +87,12 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.firstOperand.equals(((ArithmeticExpression) obj).firstOperand)
-			&& this.operator.equals(((ArithmeticExpression) obj).operator)
-			&& this.secondOperand.equals(((ArithmeticExpression) obj).secondOperand);
+		ArithmeticExpression other = (ArithmeticExpression) obj;
+		return this.firstOperand.equals(other .firstOperand)
+			&& this.operator.equals(other.operator)
+			&& this.secondOperand.equals(other.secondOperand);
 	}
 
 	@Override

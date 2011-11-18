@@ -36,7 +36,6 @@ public abstract class ValidationRule extends CleansingRule<ValidationContext> {
 		this.valueCorrection = valueCorrection;
 	}
 
-	@SuppressWarnings("unused")
 	protected boolean validate(final JsonNode value, final ValidationContext context) {
 		return false;
 	}

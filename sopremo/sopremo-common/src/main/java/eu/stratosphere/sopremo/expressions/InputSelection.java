@@ -20,9 +20,10 @@ public class InputSelection extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.index == ((InputSelection) obj).index;
+		final InputSelection other = (InputSelection) obj;
+		return this.index == other.index;
 	}
 
 	@Override

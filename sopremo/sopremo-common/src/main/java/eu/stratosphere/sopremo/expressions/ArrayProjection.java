@@ -19,11 +19,7 @@ public class ArrayProjection extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final ArrayProjection other = (ArrayProjection) obj;
 		return this.expression.equals(other.expression);

@@ -58,13 +58,8 @@ public class CoerceExpression extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
+		if (!super.equals(obj))
 			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-
 		final CoerceExpression other = (CoerceExpression) obj;
 		return this.targetType == other.targetType && this.valueExpression.equals(other.valueExpression);
 	}

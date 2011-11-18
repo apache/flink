@@ -16,11 +16,11 @@ public class ReplaceTest extends SimpleTest {
 
 	@Test
 	public void testSimpleReplace() {
-		SopremoPlan actualPlan = parseScript("$persons = read hdfs('persons.json');" +
-			"$nickNames = read hdfs('nickNames.json');" +
-			"$normalizedPersons = replace $person in $persons" +
-			"	on $person.firstName" +
-			"	with $nickNames;" +
+		SopremoPlan actualPlan = parseScript("$persons = read hdfs('persons.json');\n" +
+			"$nickNames = read hdfs('nickNames.json');\n" +
+			"$normalizedPersons = replace $person in $persons\n" +
+			"	on $person.firstName\n" +
+			"	with $nickNames;\n" +
 			"write $normalizedPersons to hdfs('normalizedPersons.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -37,11 +37,11 @@ public class ReplaceTest extends SimpleTest {
 
 	@Test
 	public void testReplaceAll() {
-		SopremoPlan actualPlan = parseScript("$persons = read hdfs('persons.json');" +
-			"$languages = read hdfs('languages.json');" +
-			"$normalizedPersons = replace all $person in $persons " +
-			"	on $person.spokenLanguages" +
-			"	with $languages;" +
+		SopremoPlan actualPlan = parseScript("$persons = read hdfs('persons.json');\n" +
+			"$languages = read hdfs('languages.json');\n" +
+			"$normalizedPersons = replace all $person in $persons \n" +
+			"	on $person.spokenLanguages\n" +
+			"	with $languages;\n" +
 			"write $normalizedPersons to hdfs('normalizedPersons.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -59,12 +59,12 @@ public class ReplaceTest extends SimpleTest {
 
 	@Test
 	public void testReplaceWithDefaultValue() {
-		SopremoPlan actualPlan = parseScript("$persons = read hdfs('persons.json');" +
-			"$languages = read hdfs('languages.json');" +
-			"$normalizedPersons = replace all $person in $persons " +
-			"	on $person.spokenLanguages" +
-			"	with $languages" +
-			"	default 'unknown language ' + $person.spokenLanguages;" +
+		SopremoPlan actualPlan = parseScript("$persons = read hdfs('persons.json');\n" +
+			"$languages = read hdfs('languages.json');\n" +
+			"$normalizedPersons = replace all $person in $persons \n" +
+			"	on $person.spokenLanguages\n" +
+			"	with $languages\n" +
+			"	default 'unknown language ' + $person.spokenLanguages;\n" +
 			"write $normalizedPersons to hdfs('normalizedPersons.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -73,7 +73,7 @@ public class ReplaceTest extends SimpleTest {
 		Replace replace = new Replace().
 			withInputs(persons, languages).
 			withArrayElementsReplacement(true).
-			withDefaultExpression(new ArithmeticExpression(new ConstantExpression("unknown language"),
+			withDefaultExpression(new ArithmeticExpression(new ConstantExpression("unknown language "),
 				ArithmeticOperator.ADDITION, JsonUtil.createPath("0", "spokenLanguages"))).
 			withReplaceExpression(JsonUtil.createPath("0", "spokenLanguages"));
 		Sink normalizedPersons = new Sink("normalizedPersons.json").withInputs(replace);

@@ -13,9 +13,9 @@ public class DifferenceTest extends SimpleTest {
 
 	@Test
 	public void testDifference1() {
-		SopremoPlan actualPlan = parseScript("$oldUsers = read 'oldUsers.json';" +
-			"$currentUsers = read 'currentUsers.json';" +
-			"$newUsers = difference $currentUsers, $oldUsers;" +
+		SopremoPlan actualPlan = parseScript("$oldUsers = read 'oldUsers.json';\n" +
+			"$currentUsers = read 'currentUsers.json';\n" +
+			"$newUsers = difference $currentUsers, $oldUsers;\n" +
 			"write $newUsers to 'newUsers.json';");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
@@ -32,9 +32,9 @@ public class DifferenceTest extends SimpleTest {
 
 	@Test
 	public void testDifference2() {
-		SopremoPlan actualPlan = parseScript("$oldUsers = read 'oldUsers.json';" +
-			"$currentUsers = read 'currentUsers.json';" +
-			"$newUsers = difference $currentUsers on $currentUsers.id, $oldUsers on $oldUsers.id;" +
+		SopremoPlan actualPlan = parseScript("$oldUsers = read 'oldUsers.json';\n" +
+			"$currentUsers = read 'currentUsers.json';\n" +
+			"$newUsers = difference $currentUsers on $currentUsers.id, $oldUsers on $oldUsers.id;\n" +
 			"write $newUsers to 'newUsers.json';");
 
 		SopremoPlan expectedPlan = new SopremoPlan();

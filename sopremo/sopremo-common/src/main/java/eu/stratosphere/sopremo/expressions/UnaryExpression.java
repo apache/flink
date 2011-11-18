@@ -27,11 +27,7 @@ public class UnaryExpression extends BooleanExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final UnaryExpression other = (UnaryExpression) obj;
 		return this.expr.equals(other.expr) && this.negate == other.negate;

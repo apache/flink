@@ -11,9 +11,9 @@ import eu.stratosphere.sopremo.base.UnionAll;
 public class UnionAllTest extends SimpleTest {
 	@Test
 	public void testUnionAll1() {
-		SopremoPlan actualPlan = parseScript("$users1 = read 'users1.json';" +
-			"$users2 = read 'users2.json';" +
-			"$allUsers = union all $users1, $users2;" +
+		SopremoPlan actualPlan = parseScript("$users1 = read 'users1.json';\n" +
+			"$users2 = read 'users2.json';\n" +
+			"$allUsers = union all $users1, $users2;\n" +
 			"write $allUsers to 'allUsers.json';");
 
 		SopremoPlan expectedPlan = new SopremoPlan();

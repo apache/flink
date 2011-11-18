@@ -51,24 +51,10 @@ public class AggregationExpression extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final AggregationExpression other = (AggregationExpression) obj;
-		if (this.function == null) {
-			if (other.function != null)
-				return false;
-		} else if (!this.function.equals(other.function))
-			return false;
-		if (this.preprocessing == null) {
-			if (other.preprocessing != null)
-				return false;
-		} else if (!this.preprocessing.equals(other.preprocessing))
-			return false;
-		return true;
+		return this.function.equals(other.function) && this.preprocessing.equals(other.preprocessing);
 	}
 
 	@Override

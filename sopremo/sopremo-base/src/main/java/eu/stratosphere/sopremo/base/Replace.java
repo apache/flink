@@ -15,6 +15,7 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
+import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
@@ -37,7 +38,7 @@ public class Replace extends CompositeOperator<Replace> {
 
 	private EvaluationExpression replaceExpression = EvaluationExpression.VALUE;
 
-	public final static EvaluationExpression FILTER_RECORDS = new EvaluationExpression() {
+	public final static EvaluationExpression FILTER_RECORDS = new SingletonExpression() {
 		/**
 		 * 
 		 */
@@ -48,7 +49,7 @@ public class Replace extends CompositeOperator<Replace> {
 			throw new EvaluationException("Tag expression");
 		}
 
-		private Object readResolve() {
+		protected Object readResolve() {
 			return FILTER_RECORDS;
 		}
 

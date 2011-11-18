@@ -28,6 +28,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.FieldAssignment;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
 import eu.stratosphere.util.AbstractIterable;
@@ -44,7 +45,7 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 
 	private List<Map.Entry<PathExpression, EvaluationExpression>> rules = new ArrayList<Map.Entry<PathExpression, EvaluationExpression>>();
 
-	private EvaluationExpression parsedExpression;
+	private EvaluationExpression parsedExpression = new ObjectCreation();
 
 	public void addRule(EvaluationExpression rule, List<EvaluationExpression> target) {
 		this.addRule(rule, new PathExpression(target));

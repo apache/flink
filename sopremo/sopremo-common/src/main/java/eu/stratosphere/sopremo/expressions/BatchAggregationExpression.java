@@ -95,19 +95,10 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final BatchAggregationExpression other = (BatchAggregationExpression) obj;
-		if (this.partials == null) {
-			if (other.partials != null)
-				return false;
-		} else if (!this.partials.equals(other.partials))
-			return false;
-		return true;
+		return this.partials.equals(other.partials);
 	}
 
 	@Override

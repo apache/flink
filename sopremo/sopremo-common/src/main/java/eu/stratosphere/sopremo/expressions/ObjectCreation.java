@@ -64,11 +64,7 @@ public class ObjectCreation extends ContainerExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final ObjectCreation other = (ObjectCreation) obj;
 		return this.mappings.equals(other.mappings);

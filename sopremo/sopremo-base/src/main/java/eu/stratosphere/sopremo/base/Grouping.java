@@ -58,8 +58,6 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
 		final Grouping other = (Grouping) obj;
 		return this.resultProjection.equals(other.resultProjection);
 	}

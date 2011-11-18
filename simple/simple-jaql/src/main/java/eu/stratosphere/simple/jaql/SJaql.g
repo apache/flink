@@ -64,7 +64,7 @@ private EvaluationExpression makePath(Token inputVar, String... path) {
     int inputIndex = $operator::result.getInputs().indexOf(((Operator<?>)input).getSource());
     input = new InputSelection(inputIndex);
   } else if(input instanceof JsonStreamExpression)
-    input = ((JsonStreamExpression)input).toInputSelection($operator::result.getInputs());
+    input = ((JsonStreamExpression)input).toInputSelection($operator::result);
   
 //    input = new JsonStreamExpression((Operator<?>) input);
   
@@ -86,7 +86,7 @@ packageImport
   :  'using' packageName=ID { importPackage($packageName.text); }->;
 	
 assignment
-	:	target=VAR '=' source=operator { setBinding($target, $source.op); } -> ;
+	:	target=VAR '=' source=operator { setBinding($target, new JsonStreamExpression($source.op)); } -> ;
 
 functionDefinition
 @init { List<Token> params = new ArrayList(); }
@@ -222,7 +222,7 @@ fieldAssignment returns [ObjectCreation.Mapping mapping]
           { $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>($p.tree, $e.tree)); } ->
     )      
     | ':' e2=expression { $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>(makePath($VAR), $e2.tree)); } ->
-    | '=' source=operator { setBinding($VAR, $source.op, 1); }
+    | '=' source=operator { setBinding($VAR, new JsonStreamExpression($source.op), 1); }
     | /* empty */ { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($VAR.text.substring(1), makePath($VAR))); } ->    
     );
 
@@ -254,7 +254,7 @@ arrayAccess
   
 streamIndexAccess
   : VAR '[' pathExpression ']' 
-  -> { new StreamIndexExpression(getBinding($VAR, JsonStream.class), $pathExpression.tree) };
+  -> { new StreamIndexExpression(getBinding($VAR, JsonStreamExpression.class).getStream(), $pathExpression.tree) };
 	
 arrayCreation
 	:	 '[' elems+=expression (',' elems+=expression)* ','? ']' -> ^(EXPRESSION["ArrayCreation"] { $elems.toArray(new EvaluationExpression[$elems.size()]) });
@@ -285,7 +285,7 @@ writeOperator
 { 
 	Sink sink = new Sink(JsonOutputFormat.class, $file.text);
   $operator::result = sink;
-  sink.setInputs(getBinding(from, JsonStream.class));
+  sink.setInputs(getBinding(from, JsonStreamExpression.class).getStream());
   this.sinks.add(sink);
 } ->;
 
@@ -297,7 +297,7 @@ scope {
 operatorFlag*
 (arrayInput | input (',' input)*)	
 { if(state.backtracking == 0) 
-    getContext().getBindings().set("$", $operator::result); }
+    getContext().getBindings().set("$", new JsonStreamExpression($operator::result)); }
 operatorOption* ->; 
 	
 operatorOption
@@ -322,11 +322,12 @@ input
 	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
 { 
   int inputIndex = $operator::numInputs++;
-  JsonStream input = getBinding(from, JsonStream.class);
-  $operator::result.setInput(inputIndex, input);
+  JsonStreamExpression input = getBinding(from, JsonStreamExpression.class);
+  $operator::result.setInput(inputIndex, input.getStream());
   
-  setBinding(name != null ? name : from, new JsonStreamExpression(input).withTag(ExpressionTag.RETAIN));
-//  if(preserveFlag != null)
+  if(preserveFlag != null)
+    setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream()).withTag(ExpressionTag.RETAIN));
+  else setBinding(name != null ? name : from, input);
 //    $operator::inputTags.put(input, Arrays.asList(ExpressionTag.RETAIN));
 } 
 (inputOption=ID {$genericOperator::operatorInfo.hasInputProperty($inputOption.text)}? 
@@ -336,7 +337,7 @@ input
 arrayInput
   : '[' names+=VAR (',' names+=VAR)? ']' 'in' from=VAR
 { 
-  $operator::result.setInput(0, getBinding(from, JsonStream.class));
+  $operator::result.setInput(0, getBinding(from, JsonStreamExpression.class).getStream());
   for(int index = 0; index < $names.size(); index++) {
 	  setBinding((Token) $names.get(index), new InputSelection(index)); 
   }
