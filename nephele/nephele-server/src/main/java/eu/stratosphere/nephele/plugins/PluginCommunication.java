@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.plugins;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 
@@ -24,9 +23,5 @@ public interface PluginCommunication {
 
 	void sendData(IOReadableWritable data) throws IOException;
 
-	void sendData(List<IOReadableWritable> listOfData) throws IOException;
-
 	IOReadableWritable requestData(IOReadableWritable data) throws IOException;
-
-	IOReadableWritable requestData(List<IOReadableWritable> listOfData) throws IOException;
 }

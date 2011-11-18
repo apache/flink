@@ -15,11 +15,13 @@
 
 package eu.stratosphere.score;
 
+import java.io.IOException;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 
@@ -62,6 +64,24 @@ public final class ScoreJobManagerPlugin implements JobManagerPlugin {
 	@Override
 	public void shutdown() {
 		// TODO Auto-generated method stub
-		
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void sendData(final IOReadableWritable data) throws IOException {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.plugins.PluginID;
@@ -25,9 +24,5 @@ public interface PluginCommunicationProtocol extends VersionedProtocol {
 
 	void sendData(PluginID pluginID, IOReadableWritable data) throws IOException;
 
-	void sendData(PluginID pluginID, List<IOReadableWritable> listOfData) throws IOException;
-
 	IOReadableWritable requestData(PluginID pluginID, IOReadableWritable data) throws IOException;
-
-	IOReadableWritable requestData(PluginID pluginID, List<IOReadableWritable> listOfData) throws IOException;
 }

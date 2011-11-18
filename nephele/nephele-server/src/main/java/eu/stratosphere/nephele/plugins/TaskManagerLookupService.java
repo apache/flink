@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.plugins;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
@@ -53,29 +52,10 @@ public final class TaskManagerLookupService implements PluginLookupService {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void sendData(final List<IOReadableWritable> listOfData) throws IOException {
-
-			this.taskManager.sendData(this.pluginID, listOfData);
-		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
 		public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
 
 			return this.taskManager.requestData(this.pluginID, data);
 		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
-		public IOReadableWritable requestData(final List<IOReadableWritable> listOfData) throws IOException {
-
-			return this.taskManager.requestData(this.pluginID, listOfData);
-		}
-
 	}
 
 	/**

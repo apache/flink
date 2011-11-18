@@ -15,8 +15,11 @@
 
 package eu.stratosphere.nephele.streaming;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 
@@ -24,7 +27,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 
 	StreamingJobManagerPlugin(final Configuration pluginConfiguration) {
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -52,4 +55,21 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void sendData(final IOReadableWritable data) throws IOException {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

@@ -325,7 +325,7 @@ public class TaskManager implements TaskOperationProtocol {
 		this.ioManager = new IOManager(tmpDirPaths);
 
 		// Load the plugins
-		this.taskManagerPlugins = PluginManager.getTaskManagerPlugins(configDir);
+		this.taskManagerPlugins = PluginManager.getTaskManagerPlugins(this, configDir);
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
@@ -945,24 +945,6 @@ public class TaskManager implements TaskOperationProtocol {
 	}
 
 	/**
-	 * Sends a list of data from the plugin with the given ID to the respective component of the plugin running at the
-	 * job manager.
-	 * 
-	 * @param pluginID
-	 *        the ID of plugin
-	 * @param listOfData
-	 *        the data to be sent
-	 * @throws IOException
-	 *         thrown if an I/O error occurs during the RPC call
-	 */
-	public void sendData(final PluginID pluginID, final List<IOReadableWritable> listOfData) throws IOException {
-
-		synchronized (this.pluginCommunicationService) {
-			this.pluginCommunicationService.sendData(pluginID, listOfData);
-		}
-	}
-
-	/**
 	 * Requests data for the plugin with the given ID from the respective plugin component running at the job manager.
 	 * 
 	 * @param pluginID
@@ -977,25 +959,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 		synchronized (this.pluginCommunicationService) {
 			return this.pluginCommunicationService.requestData(pluginID, data);
-		}
-	}
-
-	/**
-	 * Requests data for the plugin with the given ID from the respective plugin component running at the job manager.
-	 * 
-	 * @param pluginID
-	 *        the ID of the plugin
-	 * @param listOfData
-	 *        the list of data to specify the request
-	 * @return the requested data
-	 * @throws IOException
-	 *         thrown if an I/O error occurs during the RPC call
-	 */
-	public IOReadableWritable requestData(final PluginID pluginID, final List<IOReadableWritable> listOfData)
-			throws IOException {
-
-		synchronized (this.pluginCommunicationService) {
-			return this.pluginCommunicationService.requestData(pluginID, listOfData);
 		}
 	}
 }
