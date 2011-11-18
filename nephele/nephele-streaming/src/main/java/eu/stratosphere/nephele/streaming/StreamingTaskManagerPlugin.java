@@ -20,6 +20,7 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.PluginCommunication;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 import eu.stratosphere.nephele.types.Record;
@@ -93,15 +94,20 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 			this.aggregationInterval);
 
 		StreamingTaskListener listener = null;
+		final JobID jobID = environment.getJobID();
+
 		if (environment.getNumberOfInputGates() == 0) {
 			// Check if user has provided a job-specific tagging interval
 			final int taggingInterval = jobConfiguration.getInteger(TAGGING_INTERVAL_KEY, this.taggingInterval);
 
-			listener = StreamingTaskListener.createForInputTask(id, taggingInterval, aggregationInterval);
+			listener = StreamingTaskListener.createForInputTask(this.communicationThread, jobID, id, taggingInterval,
+				aggregationInterval);
 		} else if (environment.getNumberOfOutputGates() == 0) {
-			listener = StreamingTaskListener.createForOutputTask(id, aggregationInterval);
+			listener = StreamingTaskListener.createForOutputTask(this.communicationThread, jobID, id,
+				aggregationInterval);
 		} else {
-			listener = StreamingTaskListener.createForRegularTask(id, aggregationInterval);
+			listener = StreamingTaskListener.createForRegularTask(this.communicationThread, jobID, id,
+				aggregationInterval);
 		}
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {

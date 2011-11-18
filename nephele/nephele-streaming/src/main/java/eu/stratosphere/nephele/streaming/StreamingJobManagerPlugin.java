@@ -17,6 +17,9 @@ package eu.stratosphere.nephele.streaming;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.io.IOReadableWritable;
@@ -24,6 +27,11 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 
 public class StreamingJobManagerPlugin implements JobManagerPlugin {
+
+	/**
+	 * The log object.
+	 */
+	private static final Log LOG = LogFactory.getLog(StreamingJobManagerPlugin.class);
 
 	StreamingJobManagerPlugin(final Configuration pluginConfiguration) {
 	}
@@ -60,8 +68,13 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	 */
 	@Override
 	public void sendData(final IOReadableWritable data) throws IOException {
-		// TODO Auto-generated method stub
 
+		if (!(data instanceof StreamingData)) {
+			LOG.error("Received unexpected data of type " + data);
+			return;
+		}
+
+		System.out.println(data);
 	}
 
 	/**
@@ -69,7 +82,12 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	 */
 	@Override
 	public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
-		// TODO Auto-generated method stub
+
+		if (!(data instanceof StreamingData)) {
+			LOG.error("Received unexpected data of type " + data);
+			return null;
+		}
+
 		return null;
 	}
 }
