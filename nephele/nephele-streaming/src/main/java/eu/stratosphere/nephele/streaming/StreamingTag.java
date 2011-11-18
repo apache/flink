@@ -13,63 +13,69 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.score;
+package eu.stratosphere.nephele.streaming;
 
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
+import eu.stratosphere.nephele.types.Tag;
 
-public final class ScoreTaskManagerPlugin implements TaskManagerPlugin {
+public final class StreamingTag implements Tag {
 
-	ScoreTaskManagerPlugin(final Configuration pluginConfiguration) {
+	private final ExecutionVertexID sourceID;
+
+	private long timestamp = 0L;
+
+	StreamingTag(final ExecutionVertexID sourceID) {
+
+		if (sourceID == null) {
+			throw new IllegalArgumentException("sourceID must not be null");
+		}
+
+		this.sourceID = sourceID;
+	}
+
+	/**
+	 * Default constructor for deserialization.
+	 */
+	public StreamingTag() {
+		this.sourceID = new ExecutionVertexID();
+	}
+
+	public void setTimestamp(final long timestamp) {
+		this.timestamp = timestamp;
+	}
+
+	public ExecutionVertexID getSourceID() {
+
+		return this.sourceID;
+	}
+
+	public long getTimestamp() {
+
+		return this.timestamp;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
+	public void write(final DataOutput out) throws IOException {
 		// TODO Auto-generated method stub
+
+		this.sourceID.write(out);
+		out.writeLong(this.timestamp);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment environment) {
-		// TODO Auto-generated method stub
+	public void read(final DataInput in) throws IOException {
 
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void unregisterTask(final ExecutionVertexID id, final Environment environment) {
-		// TODO Auto-generated method stub
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void sendData(final IOReadableWritable data) throws IOException {
-		// TODO Auto-generated method stub
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+		this.sourceID.read(in);
+		this.timestamp = in.readLong();
 	}
 }

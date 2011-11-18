@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.plugins;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 
@@ -34,7 +35,7 @@ public final class TaskManagerLookupService implements PluginLookupService {
 
 		private final PluginID pluginID;
 
-		public JobManagerStub(final TaskManager taskManager, final PluginID pluginID) {
+		private JobManagerStub(final TaskManager taskManager, final PluginID pluginID) {
 			this.taskManager = taskManager;
 			this.pluginID = pluginID;
 		}
@@ -45,7 +46,7 @@ public final class TaskManagerLookupService implements PluginLookupService {
 		@Override
 		public void sendData(final IOReadableWritable data) throws IOException {
 
-			this.taskManager.sendData(this.pluginID, data);
+			this.taskManager.sendDataToJobManager(this.pluginID, data);
 		}
 
 		/**
@@ -54,7 +55,7 @@ public final class TaskManagerLookupService implements PluginLookupService {
 		@Override
 		public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
 
-			return this.taskManager.requestData(this.pluginID, data);
+			return this.taskManager.requestDataFromJobManager(this.pluginID, data);
 		}
 	}
 
@@ -65,5 +66,14 @@ public final class TaskManagerLookupService implements PluginLookupService {
 	public PluginCommunication getJobManagerComponent(final PluginID pluginID) {
 
 		return new JobManagerStub(this.taskManager, pluginID);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public PluginCommunication getTaskManagerComponent(final PluginID pluginID, final AbstractInstance instance) {
+
+		throw new UnsupportedOperationException("getTaskManagerComponenet must not be called on this lookup service");
 	}
 }

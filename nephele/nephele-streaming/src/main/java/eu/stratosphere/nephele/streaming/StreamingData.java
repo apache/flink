@@ -13,13 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.plugins;
+package eu.stratosphere.nephele.streaming;
 
-import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.io.IOReadableWritable;
 
-public interface PluginLookupService {
-
-	PluginCommunication getJobManagerComponent(PluginID pluginID);
-	
-	PluginCommunication getTaskManagerComponent(PluginID pluginID, AbstractInstance instance);
+/**
+ * This is a marker interface to identify data exchanged between the different components of the streaming plugin.
+ * 
+ * @author warneke
+ */
+public interface StreamingData extends IOReadableWritable {
 }

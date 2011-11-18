@@ -15,18 +15,38 @@
 
 package eu.stratosphere.nephele.streaming;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGateListener;
 import eu.stratosphere.nephele.io.OutputGateListener;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.StringUtils;
 
 public final class StreamingTaskListener implements InputGateListener, OutputGateListener {
 
-	private final static int SIZEOFLONG = 8;
+	/**
+	 * The log object.
+	 */
+	private static final Log LOG = LogFactory.getLog(StreamingTaskListener.class);
 
 	private static enum TaskType {
 		INPUT, REGULAR, OUTPUT
 	};
+
+	private final static double ALPHA = 0.5;
+
+	private final StreamingCommunicationThread communicationThread;
+
+	private final JobID jobID;
+
+	private final ExecutionVertexID vertexID;
 
 	private final TaskType taskType;
 
@@ -34,31 +54,41 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 
 	private final int aggregationInterval;
 
-	private byte[] tag = null;
+	private StreamingTag tag = null;
 
 	private int tagCounter = 0;
 
-	private int aggregationCounter = 0;
+	private Map<ExecutionVertexID, Integer> aggregationCounter = new HashMap<ExecutionVertexID, Integer>();
 
-	private double aggregatedValue = -1.0;
+	private Map<ExecutionVertexID, Double> aggregatedValue = new HashMap<ExecutionVertexID, Double>();
 
-	static StreamingTaskListener createForInputTask(final int taggingInterval, final int aggregationInterval) {
+	static StreamingTaskListener createForInputTask(final StreamingCommunicationThread communicationThread,
+			final JobID jobID, final ExecutionVertexID vertexID, final int taggingInterval,
+			final int aggregationInterval) {
 
-		return new StreamingTaskListener(TaskType.INPUT, taggingInterval, aggregationInterval);
+		return new StreamingTaskListener(communicationThread, jobID, vertexID, TaskType.INPUT, taggingInterval,
+			aggregationInterval);
 	}
 
-	static StreamingTaskListener createForRegularTask(final int aggregationInterval) {
+	static StreamingTaskListener createForRegularTask(final StreamingCommunicationThread communicationThread,
+			final JobID jobID, final ExecutionVertexID vertexID, final int aggregationInterval) {
 
-		return new StreamingTaskListener(TaskType.REGULAR, 0, aggregationInterval);
+		return new StreamingTaskListener(communicationThread, jobID, vertexID, TaskType.REGULAR, 0, aggregationInterval);
 	}
 
-	static StreamingTaskListener createForOutputTask(final int aggregationInterval) {
+	static StreamingTaskListener createForOutputTask(final StreamingCommunicationThread communicationThread,
+			final JobID jobID, final ExecutionVertexID vertexID, final int aggregationInterval) {
 
-		return new StreamingTaskListener(TaskType.OUTPUT, 0, aggregationInterval);
+		return new StreamingTaskListener(communicationThread, jobID, vertexID, TaskType.OUTPUT, 0, aggregationInterval);
 	}
 
-	private StreamingTaskListener(final TaskType taskType, final int taggingInterval, final int aggregationInterval) {
+	private StreamingTaskListener(final StreamingCommunicationThread communicationThread, final JobID jobID,
+			final ExecutionVertexID vertexID, final TaskType taskType, final int taggingInterval,
+			final int aggregationInterval) {
 
+		this.communicationThread = communicationThread;
+		this.jobID = jobID;
+		this.vertexID = vertexID;
 		this.taskType = taskType;
 		this.taggingInterval = taggingInterval;
 		this.aggregationInterval = aggregationInterval;
@@ -112,54 +142,62 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 	@Override
 	public void recordReceived(final Record record) {
 
-		switch (this.taskType) {
-		case INPUT:
+		if (this.taskType == TaskType.INPUT) {
 			throw new IllegalStateException("Input task received record");
-		case REGULAR: {
-			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-			this.tag = taggableRecord.getTag();
 		}
-			break;
-		case OUTPUT: {
-			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-			this.tag = taggableRecord.getTag();
-			if (this.tag != null) {
 
-				System.out.println(System.currentTimeMillis() - byteArrayToLong(this.tag));
+		final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
+		this.tag = (StreamingTag) taggableRecord.getTag();
+		if (this.tag != null) {
+
+			final long pathLatency = System.currentTimeMillis() - this.tag.getTimestamp();
+
+			final ExecutionVertexID sourceID = this.tag.getSourceID();
+
+			// Calculate moving average
+			Double aggregatedLatency = this.aggregatedValue.get(sourceID);
+			if (aggregatedLatency == null) {
+				aggregatedLatency = Double.valueOf(pathLatency);
+			} else {
+				aggregatedLatency = Double.valueOf((ALPHA * pathLatency)
+					+ ((1 - ALPHA) * aggregatedLatency.doubleValue()));
 			}
-		}
-			break;
+			this.aggregatedValue.put(sourceID, aggregatedLatency);
+
+			// Check if we need to compute an event and send it to the job manager component
+			Integer counter = this.aggregationCounter.get(sourceID);
+			if (counter == null) {
+				counter = Integer.valueOf(0);
+			}
+
+			counter = Integer.valueOf(counter.intValue() + 1);
+			if (counter.intValue() == this.aggregationInterval) {
+
+				final PathLatency pl = new PathLatency(this.jobID, sourceID, this.vertexID,
+					aggregatedLatency.doubleValue());
+
+				try {
+					this.communicationThread.sendDataAsynchronously(pl);
+				} catch (InterruptedException e) {
+					LOG.warn(StringUtils.stringifyException(e));
+				}
+
+				counter = Integer.valueOf(0);
+			}
+			this.aggregationCounter.put(sourceID, counter);
 		}
 
 	}
 
-	private byte[] createTag() {
+	private StreamingTag createTag() {
 
 		if (this.tag == null) {
-			this.tag = new byte[SIZEOFLONG];
+			this.tag = new StreamingTag(this.vertexID);
 		}
 
-		longToByteArray(System.currentTimeMillis(), this.tag);
+		this.tag.setTimestamp(System.currentTimeMillis());
 
 		return this.tag;
 	}
 
-	private static void longToByteArray(final long longToSerialize, final byte[] buffer) {
-
-		for (int i = 0; i < SIZEOFLONG; ++i) {
-			final int shift = i << 3; // i * 8
-			buffer[(SIZEOFLONG - 1) - i] = (byte) ((longToSerialize & (0xffL << shift)) >>> shift);
-		}
-	}
-
-	private static long byteArrayToLong(final byte[] buffer) {
-
-		long l = 0;
-
-		for (int i = 0; i < SIZEOFLONG; ++i) {
-			l |= (buffer[(SIZEOFLONG - 1) - i] & 0xffL) << (i << 3);
-		}
-
-		return l;
-	}
 }

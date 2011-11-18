@@ -13,13 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.plugins;
+package eu.stratosphere.nephele.types;
 
-import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.io.IOReadableWritable;
 
-public interface PluginLookupService {
+/**
+ * This interface specifies a tag. A tag is a piece of metadata that can be attached to {@link AbstractTaggableRecord}
+ * objects.
+ * 
+ * @author warneke
+ */
+public interface Tag extends IOReadableWritable {
 
-	PluginCommunication getJobManagerComponent(PluginID pluginID);
-	
-	PluginCommunication getTaskManagerComponent(PluginID pluginID, AbstractInstance instance);
 }

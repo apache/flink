@@ -39,6 +39,7 @@ import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -68,8 +69,6 @@ public final class PluginManager {
 
 	private final Map<String, AbstractPluginLoader> plugins;
 
-	private final PluginLookupService pluginLookupService;
-
 	private PluginManager(final String configDir, final PluginLookupService pluginLookupService) {
 
 		// Check if the configuration file exists
@@ -80,8 +79,6 @@ public final class PluginManager {
 			this.plugins = Collections.emptyMap();
 			LOG.warn("Unable to load plugins: configuration file " + configFile.getAbsolutePath() + " not found");
 		}
-
-		this.pluginLookupService = pluginLookupService;
 	}
 
 	private String getTextChild(final Node node) {
@@ -293,7 +290,7 @@ public final class PluginManager {
 				AbstractPluginLoader pluginLoader = null;
 
 				try {
-					pluginLoader = constructor.newInstance(pluginName, pluginConfiguration, this.pluginLookupService);
+					pluginLoader = constructor.newInstance(pluginName, pluginConfiguration, pluginLookupService);
 				} catch (IllegalArgumentException e) {
 					LOG.error("Unable to load plugin " + pluginName + ": " + StringUtils.stringifyException(e));
 					continue;
@@ -382,9 +379,10 @@ public final class PluginManager {
 		return Collections.unmodifiableMap(taskManagerPluginMap);
 	}
 
-	public static Map<PluginID, JobManagerPlugin> getJobManagerPlugins(final String configDir) {
+	public static Map<PluginID, JobManagerPlugin> getJobManagerPlugins(final PluginCommunicationProtocol jobManager,
+			final String configDir) {
 
-		final JobManagerLookupService lookupService = new JobManagerLookupService();
+		final JobManagerLookupService lookupService = new JobManagerLookupService(jobManager);
 
 		return getInstance(configDir, lookupService).getJobManagerPluginsInternal();
 	}

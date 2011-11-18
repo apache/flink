@@ -19,15 +19,17 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.nephele.util.StringUtils;
+
 public abstract class AbstractTaggableRecord implements Record {
 
-	private byte[] tag = null;
+	private Tag tag = null;
 
-	public void setTag(final byte[] tag) {
+	public void setTag(final Tag tag) {
 		this.tag = tag;
 	}
 
-	public byte[] getTag() {
+	public Tag getTag() {
 
 		return this.tag;
 	}
@@ -42,22 +44,33 @@ public abstract class AbstractTaggableRecord implements Record {
 			out.writeBoolean(false);
 		} else {
 			out.writeBoolean(true);
-			out.writeShort((short) this.tag.length);
-			out.write(this.tag);
+			StringRecord.writeString(out, this.tag.getClass().getName());
+			this.tag.write(out);
 		}
-
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final DataInput in) throws IOException {
 
 		if (in.readBoolean()) {
-			final short length = in.readShort();
-			this.tag = new byte[length];
-			in.readFully(this.tag);
+			final String tagType = StringRecord.readString(in);
+			Class<Tag> clazz = null;
+			try {
+				clazz = (Class<Tag>) Class.forName(tagType);
+			} catch (ClassNotFoundException e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			}
+
+			try {
+				this.tag = clazz.newInstance();
+			} catch (Exception e) {
+				throw new IOException(StringUtils.stringifyException(e));
+			}
+			this.tag.read(in);
 		}
 	}
 }

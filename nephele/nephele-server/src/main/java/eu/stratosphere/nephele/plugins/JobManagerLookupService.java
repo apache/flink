@@ -15,7 +15,84 @@
 
 package eu.stratosphere.nephele.plugins;
 
+import java.io.IOException;
+
+import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
+
 public final class JobManagerLookupService implements PluginLookupService {
+
+	private final PluginCommunicationProtocol jobManager;
+
+	JobManagerLookupService(final PluginCommunicationProtocol jobManager) {
+		this.jobManager = jobManager;
+	}
+
+	private static final class JobManagerStub implements PluginCommunication {
+
+		private final PluginCommunicationProtocol jobManager;
+
+		private final PluginID pluginID;
+
+		private JobManagerStub(final PluginCommunicationProtocol jobManager, final PluginID pluginID) {
+			this.jobManager = jobManager;
+			this.pluginID = pluginID;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void sendData(final IOReadableWritable data) throws IOException {
+
+			synchronized (this.jobManager) {
+				this.jobManager.sendData(this.pluginID, data);
+			}
+
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
+
+			synchronized (this.jobManager) {
+				return this.jobManager.requestData(this.pluginID, data);
+			}
+		}
+	}
+
+	private final static class TaskManagerStub implements PluginCommunication {
+
+		private final AbstractInstance instance;
+
+		private final PluginID pluginID;
+
+		private TaskManagerStub(final AbstractInstance instance, final PluginID pluginID) {
+			this.instance = instance;
+			this.pluginID = pluginID;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void sendData(final IOReadableWritable data) throws IOException {
+
+			this.instance.sendData(this.pluginID, data);
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
+
+			return this.instance.requestData(this.pluginID, data);
+		}
+	}
 
 	/**
 	 * {@inheritDoc}
@@ -23,8 +100,16 @@ public final class JobManagerLookupService implements PluginLookupService {
 	@Override
 	public PluginCommunication getJobManagerComponent(final PluginID pluginID) {
 
-		throw new IllegalStateException(
-			"getJobManagerComponent must not be called from the plugin component running on the job manager");
+		return new JobManagerStub(this.jobManager, pluginID);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public PluginCommunication getTaskManagerComponent(final PluginID pluginID, final AbstractInstance instance) {
+
+		return new TaskManagerStub(instance, pluginID);
 	}
 
 }

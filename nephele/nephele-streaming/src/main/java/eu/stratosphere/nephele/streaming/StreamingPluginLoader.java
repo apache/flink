@@ -22,14 +22,40 @@ import eu.stratosphere.nephele.plugins.PluginID;
 import eu.stratosphere.nephele.plugins.PluginLookupService;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 
-public class StreamingPluginLoader extends AbstractPluginLoader {
+/**
+ * This class implements the loader functionality for the Nephele streaming plugin.
+ * <p>
+ * This class is thread-safe.
+ * 
+ * @author warneke
+ */
+public final class StreamingPluginLoader extends AbstractPluginLoader {
 
+	/**
+	 * The job manager component of this plugin.
+	 */
 	private StreamingJobManagerPlugin jobManagerPlugin = null;
 
+	/**
+	 * The task manager component of this plugin.
+	 */
 	private StreamingTaskManagerPlugin taskManagerPlugin = null;
 
+	/**
+	 * The ID of this plugin.
+	 */
 	private final PluginID pluginID;
 
+	/**
+	 * Constructs a loader for the Nephele streaming plugin.
+	 * 
+	 * @param pluginName
+	 *        the name of the plugin as specified in the plugin configuration file
+	 * @param pluginConfiguration
+	 *        the configuration of this plugin
+	 * @param pluginLookupService
+	 *        the lookup service to locate the remote components of this plugin
+	 */
 	public StreamingPluginLoader(final String pluginName, final Configuration pluginConfiguration,
 			final PluginLookupService pluginLookupService) {
 		super(pluginName, pluginConfiguration, pluginLookupService);
@@ -58,7 +84,8 @@ public class StreamingPluginLoader extends AbstractPluginLoader {
 	public synchronized TaskManagerPlugin getTaskManagerPlugin() {
 
 		if (this.taskManagerPlugin == null) {
-			this.taskManagerPlugin = new StreamingTaskManagerPlugin(getPluginConfiguration());
+			this.taskManagerPlugin = new StreamingTaskManagerPlugin(getPluginConfiguration(), getPluginLookupService()
+				.getJobManagerComponent(getPluginID()));
 		}
 
 		return this.taskManagerPlugin;
@@ -72,5 +99,4 @@ public class StreamingPluginLoader extends AbstractPluginLoader {
 
 		return this.pluginID;
 	}
-
 }
