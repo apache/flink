@@ -58,11 +58,13 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
+import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.plugins.PluginID;
 import eu.stratosphere.nephele.plugins.PluginManager;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
@@ -70,6 +72,7 @@ import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
+import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -96,6 +99,8 @@ public class TaskManager implements TaskOperationProtocol {
 	private final InputSplitProviderProtocol globalInputSplitProvider;
 
 	private final ChannelLookupProtocol lookupService;
+
+	private final PluginCommunicationProtocol pluginCommunicationService;
 
 	private static final int handlerCount = 1;
 
@@ -137,7 +142,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private final HardwareDescription hardwareDescription;
 
-	private final List<TaskManagerPlugin> taskManagerPlugins;
+	private final Map<PluginID, TaskManagerPlugin> taskManagerPlugins;
 
 	/**
 	 * Stores whether the task manager has already been shut down.
@@ -234,6 +239,17 @@ public class TaskManager implements TaskOperationProtocol {
 			throw new Exception("Failed to initialize channel lookup protocol. " + e.getMessage(), e);
 		}
 		this.lookupService = lookupService;
+
+		// Try to create local stub for the plugin communication service
+		PluginCommunicationProtocol pluginCommunicationService = null;
+		try {
+			pluginCommunicationService = (PluginCommunicationProtocol) RPC.getProxy(PluginCommunicationProtocol.class,
+				jobManagerAddress, NetUtils.getSocketFactory());
+		} catch (IOException e) {
+			LOG.error(StringUtils.stringifyException(e));
+			throw new Exception("Failed to initialize plugin communication protocol. " + e.getMessage(), e);
+		}
+		this.pluginCommunicationService = pluginCommunicationService;
 
 		// Start local RPC server
 		Server taskManagerServer = null;
@@ -574,8 +590,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Allow plugins to register their listeners for this task
 		if (!this.taskManagerPlugins.isEmpty()) {
-			for (final TaskManagerPlugin plugin : this.taskManagerPlugins) {
-				plugin.registerTask(id, jobConfiguration, ee);
+			final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
+			while (it.hasNext()) {
+				it.next().registerTask(id, jobConfiguration, ee);
 			}
 		}
 
@@ -650,8 +667,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Allow plugins to unregister their listeners for this task
 		if (!this.taskManagerPlugins.isEmpty()) {
-			for (final TaskManagerPlugin plugin : this.taskManagerPlugins) {
-				plugin.unregisterTask(id, task.getEnvironment());
+			final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
+			while (it.hasNext()) {
+				it.next().unregisterTask(id, task.getEnvironment());
 			}
 		}
 
@@ -808,8 +826,9 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		// Shut down the plugins
-		for (final TaskManagerPlugin plugin : this.taskManagerPlugins) {
-			plugin.shutdown();
+		final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
+		while (it.hasNext()) {
+			it.next().shutdown();
 		}
 
 		this.isShutDown = true;
@@ -905,5 +924,78 @@ public class TaskManager implements TaskOperationProtocol {
 		};
 
 		timer.schedule(timerTask, 10L);
+	}
+
+	/**
+	 * Sends data from the plugin with the given ID to the respective component of the plugin running at the job
+	 * manager.
+	 * 
+	 * @param pluginID
+	 *        the ID of plugin
+	 * @param data
+	 *        the data to be sent
+	 * @throws IOException
+	 *         thrown if an I/O error occurs during the RPC call
+	 */
+	public void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
+
+		synchronized (this.pluginCommunicationService) {
+			this.pluginCommunicationService.sendData(pluginID, data);
+		}
+	}
+
+	/**
+	 * Sends a list of data from the plugin with the given ID to the respective component of the plugin running at the
+	 * job manager.
+	 * 
+	 * @param pluginID
+	 *        the ID of plugin
+	 * @param listOfData
+	 *        the data to be sent
+	 * @throws IOException
+	 *         thrown if an I/O error occurs during the RPC call
+	 */
+	public void sendData(final PluginID pluginID, final List<IOReadableWritable> listOfData) throws IOException {
+
+		synchronized (this.pluginCommunicationService) {
+			this.pluginCommunicationService.sendData(pluginID, listOfData);
+		}
+	}
+
+	/**
+	 * Requests data for the plugin with the given ID from the respective plugin component running at the job manager.
+	 * 
+	 * @param pluginID
+	 *        the ID of the plugin
+	 * @param data
+	 *        the data to specify the request
+	 * @return the requested data
+	 * @throws IOException
+	 *         thrown if an I/O error occurs during the RPC call
+	 */
+	public IOReadableWritable requestData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
+
+		synchronized (this.pluginCommunicationService) {
+			return this.pluginCommunicationService.requestData(pluginID, data);
+		}
+	}
+
+	/**
+	 * Requests data for the plugin with the given ID from the respective plugin component running at the job manager.
+	 * 
+	 * @param pluginID
+	 *        the ID of the plugin
+	 * @param listOfData
+	 *        the list of data to specify the request
+	 * @return the requested data
+	 * @throws IOException
+	 *         thrown if an I/O error occurs during the RPC call
+	 */
+	public IOReadableWritable requestData(final PluginID pluginID, final List<IOReadableWritable> listOfData)
+			throws IOException {
+
+		synchronized (this.pluginCommunicationService) {
+			return this.pluginCommunicationService.requestData(pluginID, listOfData);
+		}
 	}
 }

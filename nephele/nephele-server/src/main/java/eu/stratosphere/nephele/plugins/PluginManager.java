@@ -19,11 +19,10 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -332,44 +331,56 @@ public final class PluginManager {
 		return INSTANCE;
 	}
 
-	private List<JobManagerPlugin> getJobManagerPluginsInternal() {
+	private Map<PluginID, JobManagerPlugin> getJobManagerPluginsInternal() {
 
-		final List<JobManagerPlugin> jobManagerPluginList = new ArrayList<JobManagerPlugin>();
-
-		final Iterator<AbstractPluginLoader> it = this.plugins.values().iterator();
-		while (it.hasNext()) {
-
-			final JobManagerPlugin jmp = it.next().getJobManagerPlugin();
-			if (jmp != null) {
-				jobManagerPluginList.add(jmp);
-			}
-		}
-
-		return Collections.unmodifiableList(jobManagerPluginList);
-	}
-
-	private List<TaskManagerPlugin> getTaskManagerPluginsInternal() {
-
-		final List<TaskManagerPlugin> taskManagerPluginList = new ArrayList<TaskManagerPlugin>();
+		final Map<PluginID, JobManagerPlugin> jobManagerPluginMap = new HashMap<PluginID, JobManagerPlugin>();
 
 		final Iterator<AbstractPluginLoader> it = this.plugins.values().iterator();
 		while (it.hasNext()) {
 
-			final TaskManagerPlugin jmp = it.next().getTaskManagerPlugin();
+			final AbstractPluginLoader apl = it.next();
+			final PluginID pluginID = apl.getPluginID();
+			final JobManagerPlugin jmp = apl.getJobManagerPlugin();
 			if (jmp != null) {
-				taskManagerPluginList.add(jmp);
+				if (!jobManagerPluginMap.containsKey(pluginID)) {
+					jobManagerPluginMap.put(pluginID, jmp);
+				} else {
+					LOG.error("Detected ID collision for plugin " + apl.getPluginName() + ", skipping it...");
+				}
 			}
 		}
 
-		return Collections.unmodifiableList(taskManagerPluginList);
+		return Collections.unmodifiableMap(jobManagerPluginMap);
 	}
 
-	public static List<JobManagerPlugin> getJobManagerPlugins(final String configDir) {
+	private Map<PluginID, TaskManagerPlugin> getTaskManagerPluginsInternal() {
+
+		final Map<PluginID, TaskManagerPlugin> taskManagerPluginMap = new HashMap<PluginID, TaskManagerPlugin>();
+
+		final Iterator<AbstractPluginLoader> it = this.plugins.values().iterator();
+		while (it.hasNext()) {
+
+			final AbstractPluginLoader apl = it.next();
+			final PluginID pluginID = apl.getPluginID();
+			final TaskManagerPlugin tmp = apl.getTaskManagerPlugin();
+			if (tmp != null) {
+				if (!taskManagerPluginMap.containsKey(pluginID)) {
+					taskManagerPluginMap.put(pluginID, tmp);
+				} else {
+					LOG.error("Detected ID collision for plugin " + apl.getPluginName() + ", skipping it...");
+				}
+			}
+		}
+
+		return Collections.unmodifiableMap(taskManagerPluginMap);
+	}
+
+	public static Map<PluginID, JobManagerPlugin> getJobManagerPlugins(final String configDir) {
 
 		return getInstance(configDir).getJobManagerPluginsInternal();
 	}
 
-	public static List<TaskManagerPlugin> getTaskManagerPlugins(final String configDir) {
+	public static Map<PluginID, TaskManagerPlugin> getTaskManagerPlugins(final String configDir) {
 
 		return getInstance(configDir).getTaskManagerPluginsInternal();
 	}

@@ -28,18 +28,36 @@ import eu.stratosphere.nephele.configuration.Configuration;
 public abstract class AbstractPluginLoader {
 
 	/**
+	 * The name of the configuration as specified in the plugin configuration file
+	 */
+	private final String pluginName;
+
+	/**
 	 * The configuration for this plugin.
 	 */
 	private final Configuration pluginConfiguration;
 
 	/**
+	 * A service to lookup the location of the plugin's remote components.
+	 */
+	private final PluginLookupService pluginLookupService;
+
+	/**
 	 * Constructs the plugin loader.
 	 * 
+	 * @param pluginName
+	 *        the name of the plugin as specified in the plugin configuration file
 	 * @param pluginConfiguration
 	 *        the plugin configuration
+	 * @param pluginLookupService
+	 *        a service to lookup the location of the plugin's remote components
 	 */
-	public AbstractPluginLoader(final Configuration pluginConfiguration) {
+	public AbstractPluginLoader(final String pluginName, final Configuration pluginConfiguration,
+			final PluginLookupService pluginLookupService) {
+
+		this.pluginName = pluginName;
 		this.pluginConfiguration = pluginConfiguration;
+		this.pluginLookupService = pluginLookupService;
 	}
 
 	/**
@@ -51,6 +69,33 @@ public abstract class AbstractPluginLoader {
 
 		return this.pluginConfiguration;
 	}
+
+	/**
+	 * Returns the name of the plugin as specified in the plugin configuration file.
+	 * 
+	 * @return the anem of the plugin as specified in the plugin configuration file
+	 */
+	final String getPluginName() {
+
+		return this.pluginName;
+	}
+
+	/**
+	 * Returns a service through which a plugin can determine the location of its remote components.
+	 * 
+	 * @return a service through which a plugin can determine the location of its remote components
+	 */
+	protected final PluginLookupService getPluginLookupService() {
+
+		return this.pluginLookupService;
+	}
+
+	/**
+	 * Returns an ID which uniquely specifies the plugin.
+	 * 
+	 * @return an ID which uniquely specified the plugin
+	 */
+	public abstract PluginID getPluginID();
 
 	/**
 	 * Loads and returns the plugin component which is supposed to run inside Nephele's {@link JobManager}.
