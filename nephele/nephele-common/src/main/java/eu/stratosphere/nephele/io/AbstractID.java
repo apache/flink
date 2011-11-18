@@ -40,6 +40,23 @@ public abstract class AbstractID implements IOReadableWritable {
 	private final byte[] bytes = new byte[SIZE];
 
 	/**
+	 * Creates a new id by merging the two given IDs.
+	 * 
+	 * @param one
+	 *        The first id to use for merging
+	 * @param two
+	 *        The second id to use for merging
+	 */
+	public AbstractID(AbstractID one, AbstractID two) {
+		byte[] firstBytes = one.getBytes();
+		byte[] secondBytes = two.getBytes();
+
+		for (int i = 0; i < SIZE; i++) {
+			bytes[i] = (byte) (firstBytes[i] ^ secondBytes[i]);
+		}
+	}
+
+	/**
 	 * Constructs a new ID with a specific bytes value.
 	 */
 	public AbstractID(final byte[] bytes) {

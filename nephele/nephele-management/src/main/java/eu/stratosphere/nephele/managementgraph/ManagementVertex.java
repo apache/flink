@@ -323,7 +323,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		for (int i = 0; i < numberOfInputGates; i++) {
 
 			final String recordType = StringRecord.readString(in);
-			new ManagementGate(this, i, true, recordType);
+			new ManagementGate(this, new ManagementGateID(), i, true, recordType);
 		}
 
 		// Read number of input gates and record types
@@ -331,7 +331,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		for (int i = 0; i < numberOfOutputGates; i++) {
 
 			final String recordType = StringRecord.readString(in);
-			new ManagementGate(this, i, false, recordType);
+			new ManagementGate(this, new ManagementGateID(), i, false, recordType);
 		}
 
 		this.instanceName = StringRecord.readString(in);

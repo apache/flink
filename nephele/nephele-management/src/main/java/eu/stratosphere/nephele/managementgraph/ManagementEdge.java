@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
  * 
  * @author warneke
  */
-public final class ManagementEdge {
+public final class ManagementEdge extends ManagementAttachment {
 
 	/**
 	 * The source of the edge referring to the output gate of an execution vertex.
@@ -59,8 +59,15 @@ public final class ManagementEdge {
 	private final CompressionLevel compressionLevel;
 
 	/**
+	 * The ID of the management edge.
+	 */
+	private ManagementEdgeID managementEdgeID;
+
+	/**
 	 * Constructs a new edge object.
 	 * 
+	 * @param managementEdgeID
+	 *        the ID the new management edge
 	 * @param source
 	 *        the source of the edge referring to the output gate of an execution vertex
 	 * @param sourceIndex
@@ -74,9 +81,11 @@ public final class ManagementEdge {
 	 * @param compressionLevel
 	 *        the compression level of the channel this edge refers to
 	 */
-	public ManagementEdge(final ManagementGate source, final int sourceIndex, final ManagementGate target,
+	public ManagementEdge(final ManagementEdgeID managementEdgeID,
+			final ManagementGate source, final int sourceIndex, final ManagementGate target,
 			final int targetIndex,
 			final ChannelType channelType, final CompressionLevel compressionLevel) {
+		this.managementEdgeID = managementEdgeID;
 		this.source = source;
 		this.target = target;
 		this.sourceIndex = sourceIndex;
@@ -140,5 +149,14 @@ public final class ManagementEdge {
 	 */
 	public int getTargetIndex() {
 		return this.targetIndex;
+	}
+
+	/**
+	 * Returns the management edge ID.
+	 * 
+	 * @return The management edge ID
+	 */
+	public ManagementEdgeID getManagementEdgeID() {
+		return managementEdgeID;
 	}
 }

@@ -26,7 +26,9 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.managementgraph.ManagementEdge;
+import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
 import eu.stratosphere.nephele.managementgraph.ManagementGate;
+import eu.stratosphere.nephele.managementgraph.ManagementGateID;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupEdge;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupVertex;
@@ -135,14 +137,15 @@ public class ManagementGraphFactory {
 
 			for (int i = 0; i < ev.getEnvironment().getNumberOfOutputGates(); i++) {
 				final OutputGate<? extends Record> outputGate = ev.getEnvironment().getOutputGate(i);
-				final ManagementGate managementGate = new ManagementGate(managementVertex, i, false, outputGate
-					.getType().toString());
+				final ManagementGate managementGate = new ManagementGate(managementVertex, 
+					new ManagementGateID(), i, false, outputGate.getType().toString());
 				gateMap.put(outputGate, managementGate);
 			}
 
 			for (int i = 0; i < ev.getEnvironment().getNumberOfInputGates(); i++) {
 				final InputGate<? extends Record> inputGate = ev.getEnvironment().getInputGate(i);
-				final ManagementGate managementGate = new ManagementGate(managementVertex, i, true, "");
+				final ManagementGate managementGate = new ManagementGate(managementVertex,
+					new ManagementGateID(), i, true, "");
 				gateMap.put(inputGate, managementGate);
 			}
 		}
@@ -169,7 +172,12 @@ public class ManagementGraphFactory {
 					final AbstractInputChannel<? extends Record> inputChannel = executionGraph
 						.getInputChannelByID(inputChannelID);
 					final ManagementGate managementInputGate = gateMap.get(inputChannel.getInputGate());
-					new ManagementEdge(manangementOutputGate, j, managementInputGate, inputChannel.getChannelIndex(),
+					
+					final ManagementEdgeID managementEdgeID = new ManagementEdgeID(
+						manangementOutputGate.getManagementGateID(),
+						managementInputGate.getManagementGateID());
+					new ManagementEdge(managementEdgeID, manangementOutputGate, j, managementInputGate,
+						inputChannel.getChannelIndex(),
 						inputChannel.getType(), inputChannel.getCompressionLevel());
 				}
 			}

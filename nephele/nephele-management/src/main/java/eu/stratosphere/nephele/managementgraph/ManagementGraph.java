@@ -20,6 +20,8 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -318,6 +320,15 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 	}
 
 	/**
+	 * Returns an unmodifiable collection of all group vertices with no guarantees on their order.
+	 * 
+	 * @return an unmodifiable collection of all group vertices with no guarantees on their order
+	 */
+	public Collection<ManagementGroupVertex> getGroupVertices() {
+		return Collections.unmodifiableCollection(groupVertices.values());
+	}
+
+	/**
 	 * Returns a list of group vertices sorted in topological order.
 	 * 
 	 * @return a list of group vertices sorted in topological order
@@ -468,7 +479,10 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 
 					final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
 					final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-					new ManagementEdge(sourceGate, sourceIndex, targetGate, targetIndex, channelType, compressionLevel);
+					final ManagementEdgeID managementEdgeID = new ManagementEdgeID(sourceGate.getManagementGateID(),
+						targetGate.getManagementGateID());
+					new ManagementEdge(managementEdgeID, sourceGate, sourceIndex, targetGate, targetIndex, channelType,
+						compressionLevel);
 				}
 
 			}
