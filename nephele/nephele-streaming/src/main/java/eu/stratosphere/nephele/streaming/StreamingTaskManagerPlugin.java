@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.streaming;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -87,7 +87,7 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	 */
 	@Override
 	public void registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment environment) {
+			final RuntimeEnvironment environment) {
 
 		// Check if user has provided a job-specific aggregation interval
 		final int aggregationInterval = jobConfiguration.getInteger(AGGREGATION_INTERVAL_KEY,
@@ -125,7 +125,7 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void unregisterTask(final ExecutionVertexID id, final Environment environment) {
+	public void unregisterTask(final ExecutionVertexID id, final RuntimeEnvironment environment) {
 
 		// Nothing to do here
 	}

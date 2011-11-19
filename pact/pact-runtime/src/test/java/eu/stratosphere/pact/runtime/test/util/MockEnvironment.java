@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
@@ -34,7 +34,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 
-public class MockEnvironment extends Environment
+public class MockEnvironment extends RuntimeEnvironment
 {
 	private MemoryManager memManager;
 

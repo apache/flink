@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.streaming;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -23,8 +24,14 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.jobgraph.AbstractJobInputVertex;
+import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
+import eu.stratosphere.nephele.streaming.wrapper.StreamingTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.AbstractTask;
 
 public class StreamingJobManagerPlugin implements JobManagerPlugin {
 
@@ -41,6 +48,21 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	 */
 	@Override
 	public JobGraph rewriteJobGraph(final JobGraph jobGraph) {
+
+		// Rewrite input vertices
+		final Iterator<AbstractJobInputVertex> inputIt = jobGraph.getInputVertices();
+
+		final Iterator<JobTaskVertex> taskIt = jobGraph.getTaskVertices();
+		while (taskIt.hasNext()) {
+
+			final JobTaskVertex taskVertex = taskIt.next();
+
+			final Class<? extends AbstractInvokable> originalClass = taskVertex.getInvokableClass();
+
+			taskVertex.setTaskClass(StreamingTask.class);
+			taskVertex.getConfiguration().setString("origClass", originalClass.getName());
+		}
+
 		// TODO Auto-generated method stub
 		return null;
 	}
