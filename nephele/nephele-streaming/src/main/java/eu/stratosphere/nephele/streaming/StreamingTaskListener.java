@@ -119,7 +119,12 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 			break;
 		case REGULAR:
 			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-			taggableRecord.setTag(this.tag);
+			if(this.tag == null) {
+				taggableRecord.setTag(null);
+			} else {
+				this.tag = createTag();
+				taggableRecord.setTag(this.tag);
+			}
 			break;
 		case OUTPUT:
 			throw new IllegalStateException("Output task emitted record");
@@ -191,10 +196,7 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 
 	private StreamingTag createTag() {
 
-		if (this.tag == null) {
-			this.tag = new StreamingTag(this.vertexID);
-		}
-
+		this.tag = new StreamingTag(this.vertexID);
 		this.tag.setTimestamp(System.currentTimeMillis());
 
 		return this.tag;
