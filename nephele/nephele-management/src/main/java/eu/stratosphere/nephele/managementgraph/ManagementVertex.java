@@ -373,6 +373,6 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	
 	@Override
 	public String toString() {
-		return String.format("ManagementVertex(%s_%d)", getGroupVertex().getName(), indexInGroup);
+		return String.format("%s_%d", getGroupVertex().getName(), indexInGroup);
 	}
 }

@@ -479,8 +479,8 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 
 					final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
 					final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-					final ManagementEdgeID managementEdgeID = new ManagementEdgeID(sourceGate.getManagementGateID(),
-						targetGate.getManagementGateID());
+					final ManagementEdgeID managementEdgeID = new ManagementEdgeID(sourceVertex.getID(),
+						targetVertex.getID());
 					new ManagementEdge(managementEdgeID, sourceGate, sourceIndex, targetGate, targetIndex, channelType,
 						compressionLevel);
 				}

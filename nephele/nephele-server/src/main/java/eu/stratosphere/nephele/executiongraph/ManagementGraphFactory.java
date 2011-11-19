@@ -174,8 +174,8 @@ public class ManagementGraphFactory {
 					final ManagementGate managementInputGate = gateMap.get(inputChannel.getInputGate());
 					
 					final ManagementEdgeID managementEdgeID = new ManagementEdgeID(
-						manangementOutputGate.getManagementGateID(),
-						managementInputGate.getManagementGateID());
+						manangementOutputGate.getVertex().getID(),
+						managementInputGate.getVertex().getID());
 					new ManagementEdge(managementEdgeID, manangementOutputGate, j, managementInputGate,
 						inputChannel.getChannelIndex(),
 						inputChannel.getType(), inputChannel.getCompressionLevel());
