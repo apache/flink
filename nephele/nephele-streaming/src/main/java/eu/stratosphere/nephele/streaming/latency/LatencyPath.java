@@ -49,7 +49,7 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 	}
 
 	public ManagementVertex getEnd() {
-		return pathVertices.getFirst();
+		return pathVertices.getLast();
 	}
 
 	public ManagementEdge getIngoingEdge(ManagementVertex vertex) {
@@ -105,5 +105,22 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 
 	public long getPathLatencyInMillis() {
 		return this.pathLatencyInMillis;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("LatencyPath[");
+		ManagementVertex previous = null;
+		for (ManagementVertex vertex : pathVertices) {
+			if (previous != null) {
+				builder.append("->");
+			}
+			builder.append(vertex);
+			previous = vertex;
+		}
+		builder.append("]");
+
+		return builder.toString();
 	}
 }

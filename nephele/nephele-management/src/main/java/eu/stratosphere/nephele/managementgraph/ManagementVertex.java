@@ -370,4 +370,9 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		StringRecord.writeString(out, this.instanceType);
 		StringRecord.writeString(out, this.checkpointState);
 	}
+	
+	@Override
+	public String toString() {
+		return String.format("ManagementVertex(%s_%d)", getGroupVertex().getName(), indexInGroup);
+	}
 }

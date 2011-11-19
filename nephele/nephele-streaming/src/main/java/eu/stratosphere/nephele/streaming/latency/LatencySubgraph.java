@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -24,6 +27,8 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  * @author Bjoern Lohrmann
  */
 public class LatencySubgraph {
+	
+	private static Log LOG = LogFactory.getLog(LatencySubgraph.class);
 
 	private ManagementGroupVertex subgraphStart;
 
@@ -31,9 +36,9 @@ public class LatencySubgraph {
 
 	private List<LatencyPath> latencyPaths;
 
-	private HashMap<ManagementVertexID, VertexLatency> vertexLatencies;
+	private HashMap<ManagementVertexID, VertexLatency> vertexLatencies = new HashMap<ManagementVertexID, VertexLatency>();
 
-	private HashMap<ManagementEdgeID, EdgeLatency> edgeLatencies;
+	private HashMap<ManagementEdgeID, EdgeLatency> edgeLatencies = new HashMap<ManagementEdgeID, EdgeLatency>();
 
 	public LatencySubgraph(ExecutionGraph executionGraph, ExecutionGroupVertex subgraphStart,
 			ExecutionGroupVertex subgraphEnd) {

@@ -34,12 +34,12 @@ import eu.stratosphere.nephele.streaming.latency.LatencyOptimizerThread;
 
 public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusListener {
 
-	private ConcurrentHashMap<JobID, LatencyOptimizerThread> latencyOptimizerThreads = new ConcurrentHashMap<JobID, LatencyOptimizerThread>();
-
 	/**
 	 * The log object.
 	 */
 	private static final Log LOG = LogFactory.getLog(StreamingJobManagerPlugin.class);
+
+	private ConcurrentHashMap<JobID, LatencyOptimizerThread> latencyOptimizerThreads = new ConcurrentHashMap<JobID, LatencyOptimizerThread>();
 
 	StreamingJobManagerPlugin(final Configuration pluginConfiguration) {
 	}
@@ -78,7 +78,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 		while (iter.hasNext()) {
 			LatencyOptimizerThread thread = iter.next();
 			thread.interrupt();
-			
+
 			// also removes jobID mappings from underlying map
 			iter.remove();
 		}
@@ -94,7 +94,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 			LOG.error("Received unexpected data of type " + data);
 			return;
 		}
-		
+
 		AbstractStreamingData streamingData = (AbstractStreamingData) data;
 		LatencyOptimizerThread optimizerThread = latencyOptimizerThreads.get(streamingData.getJobID());
 		optimizerThread.handOffStreamingData(streamingData);
@@ -118,7 +118,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 	public void jobStatusHasChanged(ExecutionGraph executionGraph,
 			InternalJobStatus newJobStatus,
 			String optionalMessage) {
-		
+
 		if (newJobStatus == InternalJobStatus.FAILED
 			|| newJobStatus == InternalJobStatus.CANCELED
 			|| newJobStatus == InternalJobStatus.FINISHED) {

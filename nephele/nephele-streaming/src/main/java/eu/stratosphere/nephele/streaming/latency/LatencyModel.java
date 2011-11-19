@@ -1,10 +1,15 @@
 package eu.stratosphere.nephele.streaming.latency;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.streaming.PathLatency;
 
 public class LatencyModel {
+	
+	private static Log LOG = LogFactory.getLog(LatencyModel.class);  
 	
 	private ExecutionGraph executionGraph;
 	
@@ -22,6 +27,6 @@ public class LatencyModel {
 	}
 	
 	public void refreshEdgeLatency(PathLatency pathLatency) {
-		
+		LOG.info("Received " + pathLatency);
 	}
 }
