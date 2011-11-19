@@ -90,7 +90,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class TaskManager implements TaskOperationProtocol {
+public class TaskManager implements TaskOperationProtocol, PluginCommunicationProtocol {
 
 	private static final Log LOG = LogFactory.getLog(TaskManager.class);
 
@@ -937,7 +937,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs during the RPC call
 	 */
-	public void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
+	public void sendDataToJobManager(final PluginID pluginID, final IOReadableWritable data) throws IOException {
 
 		synchronized (this.pluginCommunicationService) {
 			this.pluginCommunicationService.sendData(pluginID, data);
@@ -955,10 +955,42 @@ public class TaskManager implements TaskOperationProtocol {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs during the RPC call
 	 */
-	public IOReadableWritable requestData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
+	public IOReadableWritable requestDataFromJobManager(final PluginID pluginID, final IOReadableWritable data)
+			throws IOException {
 
 		synchronized (this.pluginCommunicationService) {
 			return this.pluginCommunicationService.requestData(pluginID, data);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
+
+		final TaskManagerPlugin tmp = this.taskManagerPlugins.get(pluginID);
+		if (tmp == null) {
+			LOG.error("Cannot find task manager plugin for plugin ID " + pluginID);
+			return;
+		}
+
+		tmp.sendData(data);
+
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public IOReadableWritable requestData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
+
+		final TaskManagerPlugin tmp = this.taskManagerPlugins.get(pluginID);
+		if (tmp == null) {
+			LOG.error("Cannot find task manager plugin for plugin ID " + pluginID);
+			return null;
+		}
+
+		return tmp.requestData(data);
 	}
 }

@@ -15,9 +15,12 @@
 
 package eu.stratosphere.nephele.streaming;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -128,6 +131,26 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	public void unregisterTask(final ExecutionVertexID id, final RuntimeEnvironment environment) {
 
 		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void sendData(final IOReadableWritable data) throws IOException {
+
+		// TODO Implement me
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
+
+		// TODO Implement me
+
+		return null;
 	}
 
 }

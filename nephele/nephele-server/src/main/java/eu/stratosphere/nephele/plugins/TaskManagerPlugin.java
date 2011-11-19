@@ -19,7 +19,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
-public interface TaskManagerPlugin {
+public interface TaskManagerPlugin extends PluginCommunication {
 
 	/**
 	 * Registers a new incoming task with this task manager plugin.
