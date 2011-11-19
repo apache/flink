@@ -6,21 +6,27 @@ public class VertexLatency {
 
 	private ManagementVertex vertex;
 
-	private long latencyInMillis;
+	private double latencyInMillis;
 
 	public VertexLatency(ManagementVertex vertex) {
 		this.vertex = vertex;
+		this.latencyInMillis = -1;
 	}
 
 	public ManagementVertex getVertex() {
 		return vertex;
 	}
 
-	public long getLatencyInMillis() {
+	public double getLatencyInMillis() {
 		return latencyInMillis;
 	}
 
-	public void setLatencyInMillis(long latencyInMillis) {
+	public void setLatencyInMillis(double latencyInMillis) {
 		this.latencyInMillis = latencyInMillis;
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("VertexLatency[%s|%.03f]", vertex.toString(), latencyInMillis);
 	}
 }

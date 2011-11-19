@@ -23,7 +23,7 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 
 	private LatencySubgraph graph;
 
-	private long pathLatencyInMillis;
+	private double pathLatencyInMillis;
 
 	@SuppressWarnings("unchecked")
 	public LatencyPath(LatencyPath toClone) {
@@ -90,20 +90,30 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 		return pathVertices.iterator();
 	}
 
-	public long refreshPathLatency() {
+	public double refreshPathLatency() {
 		this.pathLatencyInMillis = 0;
 		for (ManagementVertex vertex : pathVertices) {
 			ManagementEdge ingoingEdge = ingoingEdges.get(vertex.getID());
 
 			if (ingoingEdge != null) {
-				this.pathLatencyInMillis += ((EdgeLatency) ingoingEdge.getAttachment()).getLatencyInMillis();
+				double edgeLatency = ((EdgeLatency) ingoingEdge.getAttachment()).getLatencyInMillis();
+				if (edgeLatency == -1) {
+					throw new IllegalStateException("Edge latency has not yet been initialized: " + edgeLatency);
+				}
+
+				this.pathLatencyInMillis += edgeLatency;
 			}
-			this.pathLatencyInMillis += ((VertexLatency) vertex.getAttachment()).getLatencyInMillis();
+
+			double vertexLatency = ((VertexLatency) vertex.getAttachment()).getLatencyInMillis();
+			if (vertexLatency == -1) {
+				throw new IllegalStateException("Vertex latency has not yet been initialized: " + vertexLatency);
+			}
+			this.pathLatencyInMillis += vertexLatency;
 		}
 		return this.pathLatencyInMillis;
 	}
 
-	public long getPathLatencyInMillis() {
+	public double getPathLatencyInMillis() {
 		return this.pathLatencyInMillis;
 	}
 
@@ -122,5 +132,22 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 		builder.append("]");
 
 		return builder.toString();
+	}
+
+	public void dumpLatencies() {
+
+		for (ManagementVertex vertex : pathVertices) {
+			ManagementEdge ingoing = ingoingEdges.get(vertex.getID());
+
+			if (ingoing != null) {
+				System.out.printf("---edge(%.03f)---%s(%.03f)\n",
+					((EdgeLatency) ingoing.getAttachment()).getLatencyInMillis(),
+					vertex,
+					((VertexLatency) vertex.getAttachment()).getLatencyInMillis());
+			} else {
+				System.out.printf("%s(%.03f)\n", vertex,
+					((VertexLatency) vertex.getAttachment()).getLatencyInMillis());
+			}
+		}
 	}
 }

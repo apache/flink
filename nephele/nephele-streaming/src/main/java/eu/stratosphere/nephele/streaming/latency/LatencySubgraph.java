@@ -128,4 +128,16 @@ public class LatencySubgraph {
 		this.subgraphEnd = managementGraph.getVertexByID(vertexInPathEndGroup).getGroupVertex();
 	}
 
+	public EdgeLatency getEdgeLatency(ManagementEdgeID edgeID) {
+		return edgeLatencies.get(edgeID);
+	}
+	
+	public VertexLatency getVertexLatency(ManagementVertexID managementVertexID) {
+		return vertexLatencies.get(managementVertexID);
+	}
+	
+	public List<LatencyPath> getLatencyPaths() {
+		return latencyPaths;
+	}
+
 }

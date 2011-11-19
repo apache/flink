@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public final class PathLatency extends AbstractStreamingData {
+public final class ChannelLatency extends AbstractStreamingData {
 
 	/**
 	 * The ID of the vertex representing the start of the path.
@@ -56,7 +56,7 @@ public final class PathLatency extends AbstractStreamingData {
 	 * @param pathLatency
 	 *        the path latency in milliseconds
 	 */
-	public PathLatency(final JobID jobID, final ExecutionVertexID startVertexID, final ExecutionVertexID endVertexID,
+	public ChannelLatency(final JobID jobID, final ExecutionVertexID startVertexID, final ExecutionVertexID endVertexID,
 			final double pathLatency) {
 
 		super(jobID);
@@ -77,7 +77,7 @@ public final class PathLatency extends AbstractStreamingData {
 	/**
 	 * Default constructor for the deserialization of the object.
 	 */
-	public PathLatency() {
+	public ChannelLatency() {
 		super(new JobID());
 		this.startVertexID = new ExecutionVertexID();
 		this.endVertexID = new ExecutionVertexID();

@@ -7,7 +7,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.streaming.AbstractStreamingData;
-import eu.stratosphere.nephele.streaming.PathLatency;
+import eu.stratosphere.nephele.streaming.ChannelLatency;
 
 public class LatencyOptimizerThread extends Thread {
 
@@ -32,8 +32,8 @@ public class LatencyOptimizerThread extends Thread {
 			while (!interrupted()) {
 				AbstractStreamingData streamingData = streamingDataQueue.take();
 
-				if (streamingData instanceof PathLatency) {
-					latencyModel.refreshEdgeLatency((PathLatency) streamingData);
+				if (streamingData instanceof ChannelLatency) {
+					latencyModel.refreshEdgeLatency((ChannelLatency) streamingData);
 				}
 
 			}

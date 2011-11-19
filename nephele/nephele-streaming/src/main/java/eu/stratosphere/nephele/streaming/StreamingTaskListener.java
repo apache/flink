@@ -178,7 +178,7 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 			counter = Integer.valueOf(counter.intValue() + 1);
 			if (counter.intValue() == this.aggregationInterval) {
 
-				final PathLatency pl = new PathLatency(this.jobID, sourceID, this.vertexID,
+				final ChannelLatency pl = new ChannelLatency(this.jobID, sourceID, this.vertexID,
 					aggregatedLatency.doubleValue());
 
 				try {
