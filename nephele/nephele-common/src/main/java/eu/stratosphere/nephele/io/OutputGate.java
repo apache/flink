@@ -91,4 +91,11 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 * @return the number of output channels associated with this output gate
 	 */
 	int getNumberOfOutputChannels();
+
+	/**
+	 * Returns the output gate's channel selector.
+	 * 
+	 * @return the output gate's channel selector or <code>null</code> if the gate operates in broadcast mode
+	 */
+	ChannelSelector<T> getChannelSelector();
 }

@@ -24,7 +24,8 @@ import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -32,7 +33,6 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-
 
 public class MockEnvironment extends RuntimeEnvironment
 {
@@ -42,16 +42,17 @@ public class MockEnvironment extends RuntimeEnvironment
 
 	private Configuration config;
 
-	private List<InputGate<PactRecord>> inputs;
-	private List<OutputGate<PactRecord>> outputs;
-	
+	private List<RuntimeInputGate<PactRecord>> inputs;
+
+	private List<RuntimeOutputGate<PactRecord>> outputs;
+
 	private final JobID jobId = new JobID();
 
 	public MockEnvironment(long memorySize) {
 		this.config = new Configuration();
-		this.inputs = new ArrayList<InputGate<PactRecord>>();
-		this.outputs = new ArrayList<OutputGate<PactRecord>>();
-	
+		this.inputs = new ArrayList<RuntimeInputGate<PactRecord>>();
+		this.outputs = new ArrayList<RuntimeOutputGate<PactRecord>>();
+
 		this.memManager = new DefaultMemoryManager(memorySize);
 		this.ioManager = new IOManager(System.getProperty("java.io.tmpdir"));
 	}
@@ -60,7 +61,7 @@ public class MockEnvironment extends RuntimeEnvironment
 		int id = inputs.size();
 		inputs.add(new MockInputGate(id, inputIterator));
 	}
-	
+
 	public void addOutput(List<PactRecord> outputList) {
 		int id = outputs.size();
 		outputs.add(new MockOutputGate(id, outputList));
@@ -100,12 +101,12 @@ public class MockEnvironment extends RuntimeEnvironment
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
-	
+
 	public JobID getJobID() {
 		return this.jobId;
 	}
 
-	private static class MockInputGate extends InputGate<PactRecord> {
+	private static class MockInputGate extends RuntimeInputGate<PactRecord> {
 
 		private MutableObjectIterator<PactRecord> it;
 
@@ -116,7 +117,7 @@ public class MockEnvironment extends RuntimeEnvironment
 
 		@Override
 		public PactRecord readRecord(PactRecord target) throws IOException, InterruptedException {
-			
+
 			if (it.next(target)) {
 				return target;
 			} else {
@@ -124,13 +125,13 @@ public class MockEnvironment extends RuntimeEnvironment
 			}
 		}
 	}
-	
-	private static class MockOutputGate extends OutputGate<PactRecord> {
-		
+
+	private static class MockOutputGate extends RuntimeOutputGate<PactRecord> {
+
 		private List<PactRecord> out;
-		
+
 		public MockOutputGate(int index, List<PactRecord> outList) {
-			super(new JobID(), new GateID(), PactRecord.class, index, null ,false);
+			super(new JobID(), new GateID(), PactRecord.class, index, null, false);
 			this.out = outList;
 		}
 

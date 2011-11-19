@@ -21,8 +21,8 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.PluginCommunication;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
@@ -114,12 +114,12 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 		}
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			final RuntimeOutputGate<? extends Record> outputGate = environment.getOutputGate(i);
 			outputGate.registerOutputGateListener(listener);
 		}
 
 		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final InputGate<? extends Record> inputGate = environment.getInputGate(i);
+			final RuntimeInputGate<? extends Record> inputGate = environment.getInputGate(i);
 			inputGate.registerInputGateListener(listener);
 		}
 	}

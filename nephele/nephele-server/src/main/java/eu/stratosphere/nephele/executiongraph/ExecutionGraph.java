@@ -37,8 +37,7 @@ import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
@@ -326,7 +325,7 @@ public class ExecutionGraph implements ExecutionListener {
 			final AbstractJobVertex target = edge.getConnectedVertex();
 
 			// find output gate of execution vertex
-			final OutputGate<? extends Record> eog = ev.getEnvironment().getOutputGate(j);
+			final RuntimeOutputGate<? extends Record> eog = ev.getEnvironment().getOutputGate(j);
 			if (eog == null) {
 				throw new GraphConversionException("Cannot retrieve output gate " + j + " from vertex "
 					+ jobVertex.getName());
@@ -337,7 +336,7 @@ public class ExecutionGraph implements ExecutionListener {
 				throw new GraphConversionException("Cannot find mapping for vertex " + target.getName());
 			}
 
-			final InputGate<? extends Record> eig = executionTarget.getEnvironment().getInputGate(
+			final RuntimeInputGate<? extends Record> eig = executionTarget.getEnvironment().getInputGate(
 				edge.getIndexOfInputGate());
 			if (eig == null) {
 				throw new GraphConversionException("Cannot retrieve input gate " + edge.getIndexOfInputGate()
@@ -412,7 +411,8 @@ public class ExecutionGraph implements ExecutionListener {
 		for (int i = 0; i < target.getCurrentNumberOfGroupMembers(); i++) {
 
 			final ExecutionVertex targetVertex = target.getGroupMember(i);
-			final RuntimeInputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(indexOfInputGate);
+			final RuntimeInputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(
+				indexOfInputGate);
 			if (inputGate == null) {
 				throw new GraphConversionException("unwire: " + targetVertex.getName()
 					+ " has no input gate with index " + indexOfInputGate);
@@ -436,7 +436,7 @@ public class ExecutionGraph implements ExecutionListener {
 		for (int i = 0; i < source.getCurrentNumberOfGroupMembers(); i++) {
 
 			final ExecutionVertex sourceVertex = source.getGroupMember(i);
-			final OutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
+			final RuntimeOutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
 				indexOfOutputGate);
 			if (outputGate == null) {
 				throw new GraphConversionException("wire: " + sourceVertex.getName()
@@ -450,7 +450,7 @@ public class ExecutionGraph implements ExecutionListener {
 			for (int j = 0; j < target.getCurrentNumberOfGroupMembers(); j++) {
 
 				final ExecutionVertex targetVertex = target.getGroupMember(j);
-				final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(
+				final RuntimeInputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(
 					indexOfInputGate);
 				if (inputGate == null) {
 					throw new GraphConversionException("wire: " + targetVertex.getName()
@@ -477,10 +477,9 @@ public class ExecutionGraph implements ExecutionListener {
 
 	}
 
-	private void createChannel(final ExecutionVertex source, final OutputGate<? extends Record> outputGate,
-			final ExecutionVertex target, final InputGate<? extends Record> inputGate, final ChannelType channelType,
-			final CompressionLevel compressionLevel)
-			throws GraphConversionException {
+	private void createChannel(final ExecutionVertex source, final RuntimeOutputGate<? extends Record> outputGate,
+			final ExecutionVertex target, final RuntimeInputGate<? extends Record> inputGate,
+			final ChannelType channelType, final CompressionLevel compressionLevel) throws GraphConversionException {
 
 		AbstractOutputChannel<? extends Record> outputChannel;
 		AbstractInputChannel<? extends Record> inputChannel;
@@ -1072,7 +1071,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 			for (int i = 0; i < sourceVertex.getEnvironment().getNumberOfOutputGates(); i++) {
 
-				final OutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(i);
+				final RuntimeOutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(i);
 				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); j++) {
 					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 					final ChannelType channelType = outputChannel.getType();
@@ -1092,7 +1091,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 			for (int i = 0; i < targetVertex.getEnvironment().getNumberOfInputGates(); i++) {
 
-				final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(i);
+				final RuntimeInputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(i);
 				for (int j = 0; j < inputGate.getNumberOfInputChannels(); j++) {
 					final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
 					final ChannelType channelType = inputChannel.getType();
@@ -1120,7 +1119,7 @@ public class ExecutionGraph implements ExecutionListener {
 		final ExecutionGroupEdge edge = edges.get(0);
 
 		// Now lets see if these two concrete subtasks are connected
-		final OutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
+		final RuntimeOutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
 			edge.getIndexOfOutputGate());
 		for (int i = 0; i < outputGate.getNumberOfOutputChannels(); i++) {
 

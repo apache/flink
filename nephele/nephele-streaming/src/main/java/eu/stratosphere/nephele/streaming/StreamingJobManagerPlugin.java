@@ -50,7 +50,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	public JobGraph rewriteJobGraph(final JobGraph jobGraph) {
 
 		// Rewrite input vertices
-		final Iterator<AbstractJobInputVertex> inputIt = jobGraph.getInputVertices();
+		/*final Iterator<AbstractJobInputVertex> inputIt = jobGraph.getInputVertices();
 
 		final Iterator<JobTaskVertex> taskIt = jobGraph.getTaskVertices();
 		while (taskIt.hasNext()) {
@@ -61,7 +61,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 
 			taskVertex.setTaskClass(StreamingTask.class);
 			taskVertex.getConfiguration().setString("origClass", originalClass.getName());
-		}
+		}*/
 
 		// TODO Auto-generated method stub
 		return null;

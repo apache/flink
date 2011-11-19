@@ -43,7 +43,7 @@ import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
@@ -218,7 +218,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final int numberOfOutputGates = env.getNumberOfOutputGates();
 		for (int i = 0; i < numberOfOutputGates; ++i) {
 
-			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+			final RuntimeOutputGate<? extends Record> outputGate = env.getOutputGate(i);
 			boolean deployTarget;
 
 			switch (outputGate.getChannelType()) {

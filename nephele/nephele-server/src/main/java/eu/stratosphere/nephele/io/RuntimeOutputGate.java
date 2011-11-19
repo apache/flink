@@ -407,7 +407,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 
 		final int numOutputChannels = in.readInt();
 
-		final Class<?>[] parameters = { this.getClass(), int.class, ChannelID.class, CompressionLevel.class };
+		final Class<?>[] parameters = { OutputGate.class, int.class, ChannelID.class, CompressionLevel.class };
 
 		for (int i = 0; i < numOutputChannels; i++) {
 
@@ -565,10 +565,9 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	}
 
 	/**
-	 * Returns the output gate's channel selector.
-	 * 
-	 * @return the output gate's channel selector or <code>null</code> if the gate operates in broadcast mode
+	 * {@inheritDoc}
 	 */
+	@Override
 	public ChannelSelector<T> getChannelSelector() {
 
 		return this.channelSelector;

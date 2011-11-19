@@ -438,7 +438,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 *        the index of the input gate to return
 	 * @return the input gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public InputGate<? extends Record> getInputGate(final int pos) {
+	public RuntimeInputGate<? extends Record> getInputGate(final int pos) {
 		if (pos < this.inputGates.size()) {
 			return this.inputGates.get(pos);
 		}

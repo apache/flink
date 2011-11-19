@@ -58,7 +58,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public final class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T>,
+public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T>,
 		IOReadableWritable {
 
 	/**
@@ -424,7 +424,7 @@ public final class RuntimeInputGate<T extends Record> extends AbstractGate<T> im
 			AbstractInputChannel<T> eic = null;
 			try {
 				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
-					.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
+					.getDeclaredConstructor(InputGate.class, int.class, RecordDeserializer.class, ChannelID.class,
 						CompressionLevel.class);
 				if (constructor == null) {
 					throw new IOException("Constructor is null!");

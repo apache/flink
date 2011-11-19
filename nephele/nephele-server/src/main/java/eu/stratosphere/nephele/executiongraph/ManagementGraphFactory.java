@@ -20,8 +20,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import eu.stratosphere.nephele.io.AbstractGate;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
@@ -142,7 +141,7 @@ public class ManagementGraphFactory {
 			}
 
 			for (int i = 0; i < ev.getEnvironment().getNumberOfInputGates(); i++) {
-				final InputGate<? extends Record> inputGate = ev.getEnvironment().getInputGate(i);
+				final RuntimeInputGate<? extends Record> inputGate = ev.getEnvironment().getInputGate(i);
 				final ManagementGate managementGate = new ManagementGate(managementVertex, i, true, "");
 				gateMap.put(inputGate, managementGate);
 			}
@@ -157,8 +156,8 @@ public class ManagementGraphFactory {
 
 			for (int i = 0; i < source.getEnvironment().getNumberOfOutputGates(); i++) {
 
-				final OutputGate<? extends Record> outputGate = (OutputGate<? extends Record>) source.getEnvironment()
-					.getOutputGate(i);
+				final RuntimeOutputGate<? extends Record> outputGate = (RuntimeOutputGate<? extends Record>) source
+					.getEnvironment().getOutputGate(i);
 				final ManagementGate manangementOutputGate = gateMap.get(outputGate);
 
 				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); j++) {
