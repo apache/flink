@@ -32,7 +32,7 @@ import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -477,7 +477,7 @@ public final class ExecutionVertex {
 
 		for (int i = 0; i < this.environment.getNumberOfOutputGates(); i++) {
 
-			final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
+			final RuntimeOutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
 
 			if (index >= 0 && index < outputGate.getNumberOfOutputChannels()) {
 
@@ -522,7 +522,7 @@ public final class ExecutionVertex {
 			final int numberOfOutputGates = this.environment.getNumberOfOutputGates();
 			for (int i = 0; i < numberOfOutputGates; ++i) {
 
-				final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
+				final RuntimeOutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
 				final ChannelType channelType = outputGate.getChannelType();
 				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
 				for (int j = 0; j < numberOfOutputChannels; ++j) {

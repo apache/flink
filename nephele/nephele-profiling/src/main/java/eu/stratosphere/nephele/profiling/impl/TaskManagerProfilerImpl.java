@@ -36,6 +36,8 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.profiling.ProfilingException;
@@ -73,7 +75,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	private final Map<OutputGate<? extends Record>, OutputGateListenerImpl> monitoredOutputGates = new HashMap<OutputGate<? extends Record>, OutputGateListenerImpl>();
 
 	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, InstanceConnectionInfo instanceConnectionInfo)
-																												throws ProfilingException {
+			throws ProfilingException {
 
 		// Create RPC stub for communication with job manager's profiling component.
 		final InetSocketAddress profilingAddress = new InetSocketAddress(jobManagerAddress, GlobalConfiguration
@@ -120,7 +122,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	@Override
 	public void registerInputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			InputGate<? extends Record> inputGate) {
+			RuntimeInputGate<? extends Record> inputGate) {
 
 		synchronized (this.monitoredInputGates) {
 
@@ -133,7 +135,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	@Override
 	public void registerOutputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			OutputGate<? extends Record> outputGate) {
+			RuntimeOutputGate<? extends Record> outputGate) {
 
 		synchronized (this.monitoredOutputGates) {
 

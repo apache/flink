@@ -66,10 +66,8 @@ public abstract class AbstractRecordReader<T extends Record> {
 		if (this.environment.hasUnboundInputGates()) {
 			this.inputGate = (InputGate<T>) this.environment.getUnboundInputGate(inputGateID);
 		} else {
-			this.inputGate = new InputGate<T>(environment.getJobID(), new GateID(), deserializer,
-				this.environment.getNumberOfInputGates(),
+			this.inputGate = (InputGate<T>) this.environment.createAndRegisterInputGate(deserializer,
 				distributionPattern);
-			this.environment.registerInputGate(this.inputGate);
 		}
 	}
 
@@ -103,17 +101,6 @@ public abstract class AbstractRecordReader<T extends Record> {
 	}
 
 	/**
-	 * Registers a new listener object with the assigned input gate.
-	 * 
-	 * @param inputGateListener
-	 *        the listener object to register
-	 */
-	public final void registerInputGateListener(final InputGateListener inputGateListener) {
-
-		this.inputGate.registerInputGateListener(inputGateListener);
-	}
-
-	/**
 	 * Subscribes the listener object to receive events of the given type.
 	 * 
 	 * @param eventListener
@@ -121,7 +108,8 @@ public abstract class AbstractRecordReader<T extends Record> {
 	 * @param eventType
 	 *        the type of event to register the listener for
 	 */
-	public final void subscribeToEvent(final EventListener eventListener, final Class<? extends AbstractTaskEvent> eventType) {
+	public final void subscribeToEvent(final EventListener eventListener,
+			final Class<? extends AbstractTaskEvent> eventType) {
 
 		// Delegate call to input gate
 		this.inputGate.subscribeToEvent(eventListener, eventType);

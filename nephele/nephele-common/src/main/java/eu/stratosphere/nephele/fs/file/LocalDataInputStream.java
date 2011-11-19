@@ -35,11 +35,6 @@ public class LocalDataInputStream extends FSDataInputStream {
 	private FileInputStream fis = null;
 
 	/**
-	 * The current position in the stream.
-	 */
-	private long position = 0;
-
-	/**
 	 * Constructs a new <code>LocalDataInputStream</code> object from a given {@link File} object.
 	 * 
 	 * @param file
@@ -50,7 +45,6 @@ public class LocalDataInputStream extends FSDataInputStream {
 	public LocalDataInputStream(final File file) throws IOException {
 
 		this.fis = new FileInputStream(file);
-		this.position = 0;
 	}
 
 	/**
@@ -60,7 +54,6 @@ public class LocalDataInputStream extends FSDataInputStream {
 	public void seek(final long desired) throws IOException {
 
 		this.fis.getChannel().position(desired);
-		this.position = desired;
 	}
 
 	/**
@@ -69,12 +62,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	@Override
 	public int read() throws IOException {
 
-		final int value = this.fis.read();
-		if (value >= 0) {
-			this.position++;
-		}
-
-		return value;
+		return this.fis.read();
 	}
 
 	/**
@@ -83,12 +71,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 	@Override
 	public int read(final byte[] buffer, final int offset, final int length) throws IOException {
 
-		final int value = this.fis.read(buffer, offset, length);
-		if (value > 0) {
-			this.position += value;
-		}
-
-		return value;
+		return this.fis.read(buffer, offset, length);
 	}
 
 	/**

@@ -39,7 +39,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * @param <T>
  *        the record type to be transported from this gate
  */
-public abstract class AbstractGate<T extends Record> implements IOReadableWritable {
+public abstract class AbstractGate<T extends Record> implements Gate<T>, IOReadableWritable {
 
 	/**
 	 * The ID of the job this gate belongs to.
@@ -128,26 +128,18 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	}
 
 	/**
-	 * Subscribes the listener object to receive events of the given type.
-	 * 
-	 * @param eventListener
-	 *        the listener object to register
-	 * @param eventType
-	 *        the type of event to register the listener for
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
 	}
 
 	/**
-	 * Removes the subscription for events of the given type for the listener object.
-	 * 
-	 * @param eventListener
-	 *        the listener object to cancel the subscription for
-	 * @param eventType
-	 *        the type of the event to cancel the subscription for
+	 * {@inheritDoc}
 	 */
+	@Override
 	public final void unsubscribeFromEvent(final EventListener eventListener,
 			final Class<? extends AbstractTaskEvent> eventType) {
 
@@ -155,27 +147,13 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	}
 
 	/**
-	 * Passes a received event on to the event notification manager so it cam ne dispatched.
-	 * 
-	 * @param event
-	 *        the event to pass on to the notification manager
+	 * {@inheritDoc}
 	 */
+	@Override
 	public final void deliverEvent(final AbstractTaskEvent event) {
 
 		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);
 	}
-
-	/**
-	 * Publishes an event.
-	 * 
-	 * @param event
-	 *        the event to be published
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the event
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the event to be published
-	 */
-	public abstract void publishEvent(final AbstractTaskEvent event) throws IOException, InterruptedException;
 
 	/**
 	 * Sets the type of the input/output channels which are connected to this gate.
@@ -217,10 +195,9 @@ public abstract class AbstractGate<T extends Record> implements IOReadableWritab
 	}
 
 	/**
-	 * Returns the ID of the job this gate belongs to.
-	 * 
-	 * @return the ID of the job this gate belongs to
+	 * {@inheritDoc}
 	 */
+	@Override
 	public JobID getJobID() {
 
 		return this.jobID;

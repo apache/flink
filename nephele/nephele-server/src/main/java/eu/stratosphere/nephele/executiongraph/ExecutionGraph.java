@@ -39,6 +39,7 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -391,7 +392,7 @@ public class ExecutionGraph implements ExecutionListener {
 		for (int i = 0; i < source.getCurrentNumberOfGroupMembers(); i++) {
 
 			final ExecutionVertex sourceVertex = source.getGroupMember(i);
-			final OutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
+			final RuntimeOutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
 				indexOfOutputGate);
 			if (outputGate == null) {
 				throw new GraphConversionException("unwire: " + sourceVertex.getName()
@@ -411,7 +412,7 @@ public class ExecutionGraph implements ExecutionListener {
 		for (int i = 0; i < target.getCurrentNumberOfGroupMembers(); i++) {
 
 			final ExecutionVertex targetVertex = target.getGroupMember(i);
-			final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(indexOfInputGate);
+			final RuntimeInputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(indexOfInputGate);
 			if (inputGate == null) {
 				throw new GraphConversionException("unwire: " + targetVertex.getName()
 					+ " has no input gate with index " + indexOfInputGate);
@@ -622,11 +623,11 @@ public class ExecutionGraph implements ExecutionListener {
 			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
 				try {
 					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable()).
-							computeInputSplits(jobVertex.getNumberOfSubtasks());
+						computeInputSplits(jobVertex.getNumberOfSubtasks());
 				} catch (Exception e) {
 					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName()
 						+ ": "
-							+ StringUtils.stringifyException(e));
+						+ StringUtils.stringifyException(e));
 				}
 			} else {
 				throw new GraphConversionException(

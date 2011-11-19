@@ -16,8 +16,11 @@
 package eu.stratosphere.nephele.execution;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -154,18 +157,23 @@ public interface Environment {
 	int getNumberOfInputGates();
 
 	/**
-	 * Registers an output gate with the environment.
+	 * Creates and registers an output gate with the environment.
 	 * 
-	 * @param outputGate
-	 *        the output gate to be registered with the environment
+	 * @param outputClass
+	 * @param selector
+	 * @param isBroadcast
+	 * @return the created output gate
 	 */
-	void registerOutputGate(final OutputGate<? extends Record> outputGate);
+	OutputGate<? extends Record> createAndRegisterOutputGate(Class<? extends Record> outputClass,
+			ChannelSelector<? extends Record> selector, boolean isBroadcast);
 
 	/**
-	 * Registers an input gate with the environment.
+	 * Creates and registers an input gate with the environment.
 	 * 
-	 * @param inputGate
-	 *        the input gate to be registered with the environment
+	 * @param deserializer
+	 * @param distributionPattern
+	 * @return the created input gate
 	 */
-	void registerInputGate(final InputGate<? extends Record> inputGate);
+	InputGate<? extends Record> createAndRegisterInputGate(RecordDeserializer<? extends Record> deserializer,
+			DistributionPattern distributionPattern);
 }

@@ -22,6 +22,7 @@ import java.util.Map;
 import eu.stratosphere.nephele.io.AbstractGate;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -134,7 +135,7 @@ public class ManagementGraphFactory {
 			vertexMap.put(ev, managementVertex);
 
 			for (int i = 0; i < ev.getEnvironment().getNumberOfOutputGates(); i++) {
-				final OutputGate<? extends Record> outputGate = ev.getEnvironment().getOutputGate(i);
+				final RuntimeOutputGate<? extends Record> outputGate = ev.getEnvironment().getOutputGate(i);
 				final ManagementGate managementGate = new ManagementGate(managementVertex, i, false, outputGate
 					.getType().toString());
 				gateMap.put(outputGate, managementGate);

@@ -88,9 +88,8 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 
 			this.outputGate = eog;
 		} else {
-			this.outputGate = new OutputGate<T>(environment.getJobID(), new GateID(), outputClass,
-				this.environment.getNumberOfOutputGates(), selector, isBroadcast);
-			this.environment.registerOutputGate(this.outputGate);
+			this.outputGate = (OutputGate<T>) this.environment.createAndRegisterOutputGate(outputClass, selector,
+				isBroadcast);
 		}
 	}
 
@@ -103,7 +102,7 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 * @throws IOException
 	 *         Thrown on an error that may happen during the transfer of the given record or a previous record.
 	 */
-	public void emit(T record) throws IOException, InterruptedException {
+	public void emit(final T record) throws IOException, InterruptedException {
 
 		// Simply pass record through to the corresponding output gate
 		this.outputGate.writeRecord(record);
@@ -116,17 +115,6 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 */
 	public List<AbstractOutputChannel<T>> getOutputChannels() {
 		return this.outputGate.getOutputChannels();
-	}
-
-	/**
-	 * Registers a new listener object with the assigned output gate.
-	 * 
-	 * @param inputGateListener
-	 *        the listener object to register
-	 */
-	public void registerOutputGateListener(OutputGateListener outputGateListener) {
-
-		this.outputGate.registerOutputGateListener(outputGateListener);
 	}
 
 	// TODO (en)
