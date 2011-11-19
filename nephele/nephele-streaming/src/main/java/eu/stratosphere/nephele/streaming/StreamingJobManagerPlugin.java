@@ -16,17 +16,25 @@
 package eu.stratosphere.nephele.streaming;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
+import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
+import eu.stratosphere.nephele.streaming.latency.LatencyOptimizerThread;
 
-public class StreamingJobManagerPlugin implements JobManagerPlugin {
+public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusListener {
+
+	private ConcurrentHashMap<JobID, LatencyOptimizerThread> latencyOptimizerThreads = new ConcurrentHashMap<JobID, LatencyOptimizerThread>();
 
 	/**
 	 * The log object.
@@ -50,8 +58,11 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	 */
 	@Override
 	public ExecutionGraph rewriteExecutionGraph(final ExecutionGraph executionGraph) {
-		// TODO Auto-generated method stub
-		return null;
+		JobID jobId = executionGraph.getJobID();
+		LatencyOptimizerThread optimizerThread = new LatencyOptimizerThread(executionGraph);
+		latencyOptimizerThreads.put(jobId, optimizerThread);
+		optimizerThread.start();
+		return executionGraph;
 	}
 
 	/**
@@ -59,8 +70,18 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	 */
 	@Override
 	public void shutdown() {
-		// TODO Auto-generated method stub
+		shutdownLatencyOptimizerThreads();
+	}
 
+	private void shutdownLatencyOptimizerThreads() {
+		Iterator<LatencyOptimizerThread> iter = latencyOptimizerThreads.values().iterator();
+		while (iter.hasNext()) {
+			LatencyOptimizerThread thread = iter.next();
+			thread.interrupt();
+			
+			// also removes jobID mappings from underlying map
+			iter.remove();
+		}
 	}
 
 	/**
@@ -69,12 +90,14 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	@Override
 	public void sendData(final IOReadableWritable data) throws IOException {
 
-		if (!(data instanceof StreamingData)) {
+		if (!(data instanceof AbstractStreamingData)) {
 			LOG.error("Received unexpected data of type " + data);
 			return;
 		}
-
-		System.out.println(data);
+		
+		AbstractStreamingData streamingData = (AbstractStreamingData) data;
+		LatencyOptimizerThread optimizerThread = latencyOptimizerThreads.get(streamingData.getJobID());
+		optimizerThread.handOffStreamingData(streamingData);
 	}
 
 	/**
@@ -83,11 +106,27 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	@Override
 	public IOReadableWritable requestData(final IOReadableWritable data) throws IOException {
 
-		if (!(data instanceof StreamingData)) {
+		if (!(data instanceof AbstractStreamingData)) {
 			LOG.error("Received unexpected data of type " + data);
 			return null;
 		}
 
 		return null;
+	}
+
+	@Override
+	public void jobStatusHasChanged(ExecutionGraph executionGraph,
+			InternalJobStatus newJobStatus,
+			String optionalMessage) {
+		
+		if (newJobStatus == InternalJobStatus.FAILED
+			|| newJobStatus == InternalJobStatus.CANCELED
+			|| newJobStatus == InternalJobStatus.FINISHED) {
+
+			LatencyOptimizerThread optimizerThread = latencyOptimizerThreads.remove(executionGraph.getJobID());
+			if (optimizerThread != null) {
+				optimizerThread.interrupt();
+			}
+		}
 	}
 }

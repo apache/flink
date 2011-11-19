@@ -27,12 +27,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public final class PathLatency implements StreamingData {
-
-	/**
-	 * The ID of the job this path latency information refers to
-	 */
-	private final JobID jobID;
+public final class PathLatency extends AbstractStreamingData {
 
 	/**
 	 * The ID of the vertex representing the start of the path.
@@ -64,9 +59,7 @@ public final class PathLatency implements StreamingData {
 	public PathLatency(final JobID jobID, final ExecutionVertexID startVertexID, final ExecutionVertexID endVertexID,
 			final double pathLatency) {
 
-		if (jobID == null) {
-			throw new IllegalArgumentException("jobID must not be null");
-		}
+		super(jobID);
 
 		if (startVertexID == null) {
 			throw new IllegalArgumentException("sourceID must not be null");
@@ -76,7 +69,6 @@ public final class PathLatency implements StreamingData {
 			throw new IllegalArgumentException("targetID must not be null");
 		}
 
-		this.jobID = jobID;
 		this.startVertexID = startVertexID;
 		this.endVertexID = endVertexID;
 		this.pathLatency = pathLatency;
@@ -86,7 +78,7 @@ public final class PathLatency implements StreamingData {
 	 * Default constructor for the deserialization of the object.
 	 */
 	public PathLatency() {
-		this.jobID = new JobID();
+		super(new JobID());
 		this.startVertexID = new ExecutionVertexID();
 		this.endVertexID = new ExecutionVertexID();
 		this.pathLatency = 0.0;
@@ -97,8 +89,7 @@ public final class PathLatency implements StreamingData {
 	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
-
-		this.jobID.write(out);
+		super.write(out);
 		this.startVertexID.write(out);
 		this.endVertexID.write(out);
 		out.writeDouble(this.pathLatency);
@@ -109,22 +100,13 @@ public final class PathLatency implements StreamingData {
 	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
-
-		this.jobID.read(in);
+		super.read(in);
 		this.startVertexID.read(in);
 		this.endVertexID.read(in);
 		this.pathLatency = in.readDouble();
 	}
 
-	/**
-	 * Returns the ID of the job this path latency information refers to.
-	 * 
-	 * @return the ID of the job this path latency information refers to
-	 */
-	public JobID getJobID() {
 
-		return this.jobID;
-	}
 
 	/**
 	 * Returns the ID of the vertex representing the start of the path.

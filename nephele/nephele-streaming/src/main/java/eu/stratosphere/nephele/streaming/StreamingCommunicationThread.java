@@ -54,7 +54,7 @@ final class StreamingCommunicationThread extends Thread {
 	/**
 	 * The blocking queue which is used to asynchronously exchange data with the job manager component of this plugin.
 	 */
-	private final BlockingQueue<StreamingData> dataQueue = new ArrayBlockingQueue<StreamingData>(QUEUE_CAPACITY);
+	private final BlockingQueue<AbstractStreamingData> dataQueue = new ArrayBlockingQueue<AbstractStreamingData>(QUEUE_CAPACITY);
 
 	/**
 	 * Stores whether the communication thread has been requested to stop.
@@ -109,7 +109,7 @@ final class StreamingCommunicationThread extends Thread {
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the communication thread to accept the data
 	 */
-	void sendDataAsynchronously(final StreamingData data) throws InterruptedException {
+	void sendDataAsynchronously(final AbstractStreamingData data) throws InterruptedException {
 
 		this.dataQueue.put(data);
 	}

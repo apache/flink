@@ -61,6 +61,30 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 		ingoingEdges.remove(removed);
 	}
 
+	/**
+	 * Returns whether we have latency values for all parts (vertices and edges) of this
+	 * path.
+	 * 
+	 * @return Whether we have latency values for all parts of this path
+	 */
+	public boolean isActive() {
+		// FIXME inefficient, naive implementation. This may need to be precomputed.
+
+		for (ManagementVertex vertex : pathVertices) {
+			if (((VertexLatency) vertex.getAttachment()).getLatencyInMillis() == -1) {
+				return false;
+			}
+		}
+
+		for (ManagementEdge edge : ingoingEdges.values()) {
+			if (((EdgeLatency) edge.getAttachment()).getLatencyInMillis() == -1) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	@Override
 	public Iterator<ManagementVertex> iterator() {
 		return pathVertices.iterator();
