@@ -130,37 +130,46 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	void removeAllOutputChannels();
 
 	/**
-	 * Creates a new network output channel and assigns it to the output gate.
+	 * Creates a new network output channel and assigns it to the given output gate.
 	 * 
+	 * @param outputGate
+	 *        the output gate the channel shall be assigned to
 	 * @param channelID
 	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 * @return the new network output channel
 	 */
-	NetworkOutputChannel<T> createNetworkOutputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+	NetworkOutputChannel<T> createNetworkOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+			CompressionLevel compressionLevel);
 
 	/**
-	 * Creates a new file output channel and assigns it to the output gate.
+	 * Creates a new file output channel and assigns it to the given output gate.
 	 * 
+	 * @param outputGate
+	 *        the output gate the channel shall be assigned to
 	 * @param channelID
 	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 * @return the new file output channel
 	 */
-	FileOutputChannel<T> createFileOutputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+	FileOutputChannel<T> createFileOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+			CompressionLevel compressionLevel);
 
 	/**
-	 * Creates a new in-memory output channel and assigns it to the output gate.
+	 * Creates a new in-memory output channel and assigns it to the given output gate.
 	 * 
+	 * @param outputGate
+	 *        the output gate the channel shall be assigned to
 	 * @param channelID
 	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 * @return the new in-memory output channel
 	 */
-	InMemoryOutputChannel<T> createInMemoryOutputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+	InMemoryOutputChannel<T> createInMemoryOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+			CompressionLevel compressionLevel);
 
 	/**
 	 * Registers a new listener object for this output gate.

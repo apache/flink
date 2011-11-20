@@ -477,7 +477,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	/**
 	 * {@inheritDoc}
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -566,13 +566,16 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 
 				switch (channelType) {
 				case INMEMORY:
-					outputChannel = outputGate.createInMemoryOutputChannel(channelID, compressionLevel);
+					outputChannel = outputGate.createInMemoryOutputChannel((OutputGate) outputGate, channelID,
+						compressionLevel);
 					break;
 				case NETWORK:
-					outputChannel = outputGate.createNetworkOutputChannel(channelID, compressionLevel);
+					outputChannel = outputGate.createNetworkOutputChannel((OutputGate) outputGate, channelID,
+						compressionLevel);
 					break;
 				case FILE:
-					outputChannel = outputGate.createFileOutputChannel(channelID, compressionLevel);
+					outputChannel = outputGate.createFileOutputChannel((OutputGate) outputGate, channelID,
+						compressionLevel);
 					break;
 				}
 
@@ -600,13 +603,15 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 
 				switch (channelType) {
 				case INMEMORY:
-					inputChannel = inputGate.createInMemoryInputChannel(channelID, compressionLevel);
+					inputChannel = inputGate.createInMemoryInputChannel((InputGate) inputGate, channelID,
+						compressionLevel);
 					break;
 				case NETWORK:
-					inputChannel = inputGate.createNetworkInputChannel(channelID, compressionLevel);
+					inputChannel = inputGate.createNetworkInputChannel((InputGate) inputGate, channelID,
+						compressionLevel);
 					break;
 				case FILE:
-					inputChannel = inputGate.createFileInputChannel(channelID, compressionLevel);
+					inputChannel = inputGate.createFileInputChannel((InputGate) inputGate, channelID, compressionLevel);
 					break;
 				}
 

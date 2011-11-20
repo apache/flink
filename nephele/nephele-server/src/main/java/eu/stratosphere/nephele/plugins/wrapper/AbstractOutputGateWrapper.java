@@ -289,30 +289,31 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkOutputChannel<T> createNetworkOutputChannel(final ChannelID channelID,
+	public NetworkOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
+			final ChannelID channelID,
 			final CompressionLevel compressionLevel) {
 
-		return this.wrappedOutputGate.createNetworkOutputChannel(channelID, compressionLevel);
+		return this.wrappedOutputGate.createNetworkOutputChannel(outputGate, channelID, compressionLevel);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileOutputChannel<T> createFileOutputChannel(final ChannelID channelID,
+	public FileOutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
 			final CompressionLevel compressionLevel) {
 
-		return this.wrappedOutputGate.createFileOutputChannel(channelID, compressionLevel);
+		return this.wrappedOutputGate.createFileOutputChannel(outputGate, channelID, compressionLevel);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
+			final ChannelID channelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedOutputGate.createInMemoryOutputChannel(channelID, compressionLevel);
+		return this.wrappedOutputGate.createInMemoryOutputChannel(outputGate, channelID, compressionLevel);
 	}
 
 	/**

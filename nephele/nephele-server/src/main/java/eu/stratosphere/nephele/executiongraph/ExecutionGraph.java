@@ -478,6 +478,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void createChannel(final ExecutionVertex source, final OutputGate<? extends Record> outputGate,
 			final ExecutionVertex target, final InputGate<? extends Record> inputGate,
 			final ChannelType channelType, final CompressionLevel compressionLevel) throws GraphConversionException {
@@ -487,16 +488,16 @@ public class ExecutionGraph implements ExecutionListener {
 
 		switch (channelType) {
 		case NETWORK:
-			outputChannel = outputGate.createNetworkOutputChannel(null, compressionLevel);
-			inputChannel = inputGate.createNetworkInputChannel(null, compressionLevel);
+			outputChannel = outputGate.createNetworkOutputChannel((OutputGate) outputGate, null, compressionLevel);
+			inputChannel = inputGate.createNetworkInputChannel((InputGate) inputGate, null, compressionLevel);
 			break;
 		case INMEMORY:
-			outputChannel = outputGate.createInMemoryOutputChannel(null, compressionLevel);
-			inputChannel = inputGate.createInMemoryInputChannel(null, compressionLevel);
+			outputChannel = outputGate.createInMemoryOutputChannel((OutputGate) outputGate, null, compressionLevel);
+			inputChannel = inputGate.createInMemoryInputChannel((InputGate) inputGate, null, compressionLevel);
 			break;
 		case FILE:
-			outputChannel = outputGate.createFileOutputChannel(null, compressionLevel);
-			inputChannel = inputGate.createFileInputChannel(null, compressionLevel);
+			outputChannel = outputGate.createFileOutputChannel((OutputGate) outputGate, null, compressionLevel);
+			inputChannel = inputGate.createFileInputChannel((InputGate) inputGate, null, compressionLevel);
 			break;
 		default:
 			throw new GraphConversionException("Cannot create channel: unknown type");

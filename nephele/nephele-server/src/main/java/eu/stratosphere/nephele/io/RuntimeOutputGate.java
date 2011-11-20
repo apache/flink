@@ -251,10 +251,11 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkOutputChannel<T> createNetworkOutputChannel(final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+	public NetworkOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
+			final ChannelID channelID, final CompressionLevel compressionLevel) {
 
-		final NetworkOutputChannel<T> enoc = new NetworkOutputChannel<T>(this, this.outputChannels.size(), channelID,
+		final NetworkOutputChannel<T> enoc = new NetworkOutputChannel<T>(outputGate, this.outputChannels.size(),
+			channelID,
 			compressionLevel);
 		addOutputChannel(enoc);
 
@@ -265,10 +266,10 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileOutputChannel<T> createFileOutputChannel(final ChannelID channelID,
+	public FileOutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
 			final CompressionLevel compressionLevel) {
 
-		final FileOutputChannel<T> efoc = new FileOutputChannel<T>(this, this.outputChannels.size(), channelID,
+		final FileOutputChannel<T> efoc = new FileOutputChannel<T>(outputGate, this.outputChannels.size(), channelID,
 			compressionLevel);
 		addOutputChannel(efoc);
 
@@ -279,10 +280,10 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
+			final ChannelID channelID, final CompressionLevel compressionLevel) {
 
-		final InMemoryOutputChannel<T> einoc = new InMemoryOutputChannel<T>(this, this.outputChannels.size(),
+		final InMemoryOutputChannel<T> einoc = new InMemoryOutputChannel<T>(outputGate, this.outputChannels.size(),
 			channelID, compressionLevel);
 		addOutputChannel(einoc);
 

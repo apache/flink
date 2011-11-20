@@ -247,11 +247,11 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkInputChannel<T> createNetworkInputChannel(final ChannelID channelID,
+	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final CompressionLevel compressionLevel) {
 
-		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(this, this.inputChannels.size(), deserializer,
-			channelID, compressionLevel);
+		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),
+			this.deserializer, channelID, compressionLevel);
 		addInputChannel(enic);
 
 		return enic;
@@ -261,10 +261,11 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileInputChannel<T> createFileInputChannel(final ChannelID channelID, final CompressionLevel compressionLevel) {
+	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+			final CompressionLevel compressionLevel) {
 
-		final FileInputChannel<T> efic = new FileInputChannel<T>(this, this.inputChannels.size(), deserializer,
-			channelID, compressionLevel);
+		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(),
+			this.deserializer, channelID, compressionLevel);
 		addInputChannel(efic);
 
 		return efic;
@@ -274,11 +275,11 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryInputChannel<T> createInMemoryInputChannel(final ChannelID channelID,
+	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final CompressionLevel compressionLevel) {
 
-		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(this, this.inputChannels.size(),
-			deserializer, channelID, compressionLevel);
+		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
+			this.deserializer, channelID, compressionLevel);
 		addInputChannel(eimic);
 
 		return eimic;
