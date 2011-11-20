@@ -10,9 +10,7 @@
         <version>0.2</version>
     </parent>
 
-    <groupId>eu.stratosphere</groupId>
     <artifactId>nephele-examples</artifactId>
-    <version>0.2</version>
     <name>nephele-examples</name>
     <packaging>jar</packaging>
     
