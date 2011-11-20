@@ -9,9 +9,7 @@
     <version>0.2</version>
   </parent>
 
-  <groupId>eu.stratosphere</groupId>
   <artifactId>nephele-common</artifactId>
-  <version>0.2</version>
   <name>nephele-common</name>
 
   <packaging>jar</packaging>

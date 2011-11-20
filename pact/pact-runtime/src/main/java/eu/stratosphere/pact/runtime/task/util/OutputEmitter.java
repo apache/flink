@@ -15,13 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -52,20 +46,18 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	// ------------------------------------------------------------------------
 
 	private static final byte[] DEFAULT_SALT = new byte[] { 17, 31, 47, 51, 83, 1 };
-	
-	private ShipStrategy strategy;				// the shipping strategy used by this output emitter
-	
-	private int[] channels;						// the reused array defining target channels
-	
-	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
-	
+
+	private ShipStrategy strategy; // the shipping strategy used by this output emitter
+
+	private int[] channels; // the reused array defining target channels
+
+	private int nextChannelToSendTo = 0; // counter to go over channels round robin
+
 	private Class<? extends Key>[] keyClasses;
-	
+
 	private int[] keyPositions;
-	
-	private final byte[] salt;					// the salt used to randomize the hash values
-	
-	private JobID jobId;						// the job ID is necessary to obtain the class loader
+
+	private final byte[] salt; // the salt used to randomize the hash values
 
 	private PartitionFunction partitionFunction;
 
@@ -91,23 +83,23 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	{
 		this.strategy = strategy;
 		this.salt = DEFAULT_SALT;
-	}	
-		
-	public OutputEmitter(ShipStrategy strategy, JobID jobId, int[] keyPositions, Class<? extends Key>[] keyTypes)
-	{
-		this(strategy, jobId, DEFAULT_SALT, keyPositions, keyTypes);
 	}
-	
-	public OutputEmitter(ShipStrategy strategy, JobID jobId, byte[] salt , int[] keyPositions, Class<? extends Key>[] keyTypes)
+
+	public OutputEmitter(ShipStrategy strategy, int[] keyPositions, Class<? extends Key>[] keyTypes)
 	{
-		if (strategy == null | jobId == null | salt == null | keyPositions == null | keyTypes == null) { 
+		this(strategy, DEFAULT_SALT, keyPositions, keyTypes);
+	}
+
+	public OutputEmitter(ShipStrategy strategy, byte[] salt, int[] keyPositions,
+			Class<? extends Key>[] keyTypes)
+	{
+		if (strategy == null | salt == null | keyPositions == null | keyTypes == null) {
 			throw new NullPointerException();
 		}
 		this.strategy = strategy;
 		this.salt = salt;
 		this.keyPositions = keyPositions;
 		this.keyClasses = keyTypes;
-		this.jobId = jobId;
 	}
 
 	// ------------------------------------------------------------------------
@@ -135,9 +127,10 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
 	}
-	
+
 	/**
 	 * Set the partition function that is used for range partitioning
+	 * 
 	 * @param func
 	 */
 	public void setPartitionFunction(PartitionFunction func) {
@@ -147,7 +140,7 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	private int[] partition_range(PactRecord record, int numberOfChannels) {
 		return partitionFunction.selectChannels(record, numberOfChannels);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	private final int[] robin(int numberOfChannels)
@@ -155,10 +148,10 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 		if (this.channels == null || this.channels.length != 1) {
 			this.channels = new int[1];
 		}
-		
+
 		int nextChannel = nextChannelToSendTo + 1;
 		nextChannel = nextChannel < numberOfChannels ? nextChannel : 0;
-		
+
 		this.nextChannelToSendTo = nextChannel;
 		this.channels[0] = nextChannel;
 		return this.channels;
@@ -180,93 +173,18 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 		if (channels == null || channels.length != 1) {
 			channels = new int[1];
 		}
-		
+
 		int hash = 0;
 		for (int i = 0; i < this.keyPositions.length; i++) {
 			final Key k = record.getField(this.keyPositions[i], this.keyClasses[i]);
 			hash ^= (1315423911 ^ ((1315423911 << 5) + k.hashCode() + (1315423911 >> 2)));
 		}
-		
+
 		for (int i = 0; i < salt.length; i++) {
 			hash ^= ((hash << 5) + salt[i] + (hash >> 2));
 		}
-	
+
 		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
 		return this.channels;
-	}
-
-	// ------------------------------------------------------------------------
-	// Serialization
-	// ------------------------------------------------------------------------
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
-	@Override
-	public void read(DataInput in) throws IOException
-	{
-		// strategy
-		this.strategy = ShipStrategy.valueOf(in.readUTF());
-		
-		// check whether further parameters come
-		final boolean keyParameterized = in.readBoolean();
-		
-		if (keyParameterized) {
-			// read the jobID to find the classloader
-			this.jobId = new JobID();
-			this.jobId.read(in);			
-			final ClassLoader loader = LibraryCacheManager.getClassLoader(this.jobId);
-		
-			// read the number of keys and key positions
-			int numKeys = in.readInt();
-			this.keyPositions = new int[numKeys];
-			for (int i = 0; i < numKeys; i++) {
-				this.keyPositions[i] = in.readInt();
-			}
-			
-			// read the key types
-			@SuppressWarnings("unchecked")
-			Class<? extends Key>[] classes = (Class<? extends Key>[]) new Class[numKeys];
-			try {
-				for (int i = 0; i < numKeys; i++) {
-					String className = in.readUTF();
-					classes[i] = Class.forName(className, true, loader).asSubclass(Key.class);
-				}
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Output Emmitter is unable to load the classes that describe the key types: "
-					+ e.getMessage(), e); 
-			}
-			this.keyClasses = classes;
-		}
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException
-	{
-		out.writeUTF(strategy.name());
-		
-		if (this.keyClasses != null) {
-			// write additional info
-			out.writeBoolean(true);
-			this.jobId.write(out);
-			
-			// write number of keys, key positions and key types
-			out.writeInt(this.keyClasses.length);
-			for (int i = 0; i < this.keyPositions.length; i++) {
-				out.writeInt(this.keyPositions[i]);
-			}
-			for (int i = 0; i < this.keyClasses.length; i++) {
-				out.writeUTF(this.keyClasses[i].getName());
-			}
-		}
-		else {
-			out.writeBoolean(false);
-		}
 	}
 }

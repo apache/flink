@@ -73,7 +73,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	private final Map<OutputGate<? extends Record>, OutputGateListenerImpl> monitoredOutputGates = new HashMap<OutputGate<? extends Record>, OutputGateListenerImpl>();
 
 	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, InstanceConnectionInfo instanceConnectionInfo)
-																												throws ProfilingException {
+			throws ProfilingException {
 
 		// Create RPC stub for communication with job manager's profiling component.
 		final InetSocketAddress profilingAddress = new InetSocketAddress(jobManagerAddress, GlobalConfiguration
@@ -118,8 +118,11 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getEnvironment()));
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void registerInputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
+	public void registerInputGateListener(final ExecutionVertexID id, final Configuration jobConfiguration,
 			InputGate<? extends Record> inputGate) {
 
 		synchronized (this.monitoredInputGates) {
@@ -131,9 +134,12 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void registerOutputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			OutputGate<? extends Record> outputGate) {
+	public void registerOutputGateListener(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final OutputGate<? extends Record> outputGate) {
 
 		synchronized (this.monitoredOutputGates) {
 

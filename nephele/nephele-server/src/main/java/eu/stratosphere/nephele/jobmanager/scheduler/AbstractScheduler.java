@@ -26,8 +26,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
@@ -44,6 +44,7 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
@@ -199,9 +200,9 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 			if (instance instanceof DummyInstance) {
 				LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
-						+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
-						+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
-						+ ") is about to be deployed on a DummyInstance");
+					+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
+					+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
+					+ ") is about to be deployed on a DummyInstance");
 			}
 
 			List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
@@ -214,7 +215,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			verticesForInstance.add(vertex);
 		}
 
-		final Environment env = vertex.getEnvironment();
+		final RuntimeEnvironment env = vertex.getEnvironment();
 		final int numberOfOutputGates = env.getNumberOfOutputGates();
 		for (int i = 0; i < numberOfOutputGates; ++i) {
 
@@ -241,7 +242,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 				for (int j = 0; j < numberOfOutputChannels; ++j) {
 					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
-							outputChannel.getConnectedChannelID());
+						outputChannel.getConnectedChannelID());
 					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed);
 				}
 			}
@@ -409,7 +410,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 		}
 
 		final List<ExecutionVertex> assignedVertices = executionGraph
-				.getVerticesAssignedToResource(allocatedResource);
+			.getVerticesAssignedToResource(allocatedResource);
 		if (assignedVertices.isEmpty()) {
 			return;
 		}
@@ -421,7 +422,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			final ExecutionState state = vertex.getExecutionState();
 
 			if (state != ExecutionState.CREATED && state != ExecutionState.FINISHED
-					&& state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
+				&& state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
 
 				instanceCanBeReleased = false;
 				break;
@@ -432,7 +433,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			LOG.info("Releasing instance " + allocatedResource.getInstance());
 			try {
 				getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
-						.getJobConfiguration(), allocatedResource);
+					.getJobConfiguration(), allocatedResource);
 			} catch (InstanceException e) {
 				LOG.error(StringUtils.stringifyException(e));
 			}
@@ -465,7 +466,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 		}
 
 		final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> it = checkpointsToReplay.entrySet()
-				.iterator();
+			.iterator();
 		while (it.hasNext()) {
 			final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = it.next();
 			this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
@@ -477,7 +478,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 */
 	@Override
 	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
-		
-		//TODO: Don't forget to synchronize on stage here
+
+		// TODO: Don't forget to synchronize on stage here
 	}
 }

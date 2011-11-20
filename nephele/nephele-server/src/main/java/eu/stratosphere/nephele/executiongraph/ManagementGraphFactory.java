@@ -19,9 +19,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import eu.stratosphere.nephele.io.AbstractGate;
+import eu.stratosphere.nephele.io.Gate;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -120,7 +121,7 @@ public class ManagementGraphFactory {
 
 		ExecutionGraphIterator iterator = new ExecutionGraphIterator(executionGraph, true);
 		final Map<ExecutionVertex, ManagementVertex> vertexMap = new HashMap<ExecutionVertex, ManagementVertex>();
-		final Map<AbstractGate<? extends Record>, ManagementGate> gateMap = new HashMap<AbstractGate<? extends Record>, ManagementGate>();
+		final Map<Gate<? extends Record>, ManagementGate> gateMap = new HashMap<Gate<? extends Record>, ManagementGate>();
 
 		while (iterator.hasNext()) {
 
@@ -159,8 +160,8 @@ public class ManagementGraphFactory {
 
 			for (int i = 0; i < source.getEnvironment().getNumberOfOutputGates(); i++) {
 
-				final OutputGate<? extends Record> outputGate = (OutputGate<? extends Record>) source.getEnvironment()
-					.getOutputGate(i);
+				final RuntimeOutputGate<? extends Record> outputGate = (RuntimeOutputGate<? extends Record>) source
+					.getEnvironment().getOutputGate(i);
 				final ManagementGate manangementOutputGate = gateMap.get(outputGate);
 
 				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); j++) {

@@ -108,7 +108,6 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override
 	public void recordEmitted(final Record record) {
 
 		switch (this.taskType) {
@@ -159,7 +158,6 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override
 	public void recordReceived(final Record record) {
 
 		if (this.taskType == TaskType.INPUT) {

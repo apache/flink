@@ -17,7 +17,10 @@ package eu.stratosphere.nephele.streaming;
 
 import java.io.IOException;
 import java.util.Iterator;
+<<<<<<< HEAD
 import java.util.concurrent.ConcurrentHashMap;
+=======
+>>>>>>> streaming_test
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,9 +31,15 @@ import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+<<<<<<< HEAD
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 import eu.stratosphere.nephele.streaming.latency.LatencyOptimizerThread;
+=======
+import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.nephele.plugins.JobManagerPlugin;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+>>>>>>> streaming_test
 
 public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusListener {
 
@@ -49,6 +58,21 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 	 */
 	@Override
 	public JobGraph rewriteJobGraph(final JobGraph jobGraph) {
+
+		// Rewrite input vertices
+		//final Iterator<AbstractJobInputVertex> inputIt = jobGraph.getInputVertices();
+
+		final Iterator<JobTaskVertex> taskIt = jobGraph.getTaskVertices();
+		while (taskIt.hasNext()) {
+
+			final JobTaskVertex taskVertex = taskIt.next();
+
+			final Class<? extends AbstractInvokable> originalClass = taskVertex.getInvokableClass();
+
+			taskVertex.setTaskClass(TaskWrapper.class);
+			taskVertex.getConfiguration().setString(TaskWrapper.WRAPPED_CLASS_KEY, originalClass.getName());
+		}
+
 		// TODO Auto-generated method stub
 		return null;
 	}

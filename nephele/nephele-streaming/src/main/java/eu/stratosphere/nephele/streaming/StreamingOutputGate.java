@@ -13,9 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.streaming;
 
-public interface OutputGateListener {
+import java.io.IOException;
 
-	void channelCapacityExhausted(int channelIndex);
+import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.plugins.wrapper.AbstractOutputGateWrapper;
+import eu.stratosphere.nephele.types.Record;
+
+public final class StreamingOutputGate<T extends Record> extends AbstractOutputGateWrapper<T> {
+
+	StreamingOutputGate(final OutputGate<T> wrappedOutputGate) {
+		super(wrappedOutputGate);
+		
+		System.out.println("STREAMING CREATED");
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void writeRecord(final T record) throws IOException, InterruptedException {
+
+		System.out.println("DADADADADADADAD");
+		
+		getWrappedOutputGate().writeRecord(record);
+	}
 }

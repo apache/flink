@@ -19,7 +19,6 @@ import junit.framework.TestCase;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -32,14 +31,15 @@ public class OutputEmitterTest extends TestCase {
 	public static void testPartitioning() {
 
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] { 0 },
+			new Class[] { PactInteger.class });
 
 		int[] hit = new int[100];
 
 		for (int i = 0; i < 1000000; i++) {
 			PactInteger k = new PactInteger(i);
 			PactRecord rec = new PactRecord(k);
-			
+
 			hit[oe1.selectChannels(rec, hit.length)[0]]++;
 
 		}
@@ -49,14 +49,15 @@ public class OutputEmitterTest extends TestCase {
 		}
 
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
+		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] { 0 },
+			new Class[] { PactInteger.class });
 
 		hit = new int[10];
 
 		for (int i = 0; i < 1000; i++) {
 			PactString k = new PactString(i + "");
 			PactRecord rec = new PactRecord(k);
-				
+
 			hit[oe2.selectChannels(rec, hit.length)[0]]++;
 
 		}

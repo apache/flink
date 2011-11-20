@@ -18,11 +18,13 @@ package eu.stratosphere.nephele.streaming;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.PluginCommunication;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
@@ -90,45 +92,21 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	 */
 	@Override
 	public void registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment environment) {
+			final RuntimeEnvironment environment) {
 
 		// Check if user has provided a job-specific aggregation interval
 		final int aggregationInterval = jobConfiguration.getInteger(AGGREGATION_INTERVAL_KEY,
 			this.aggregationInterval);
 
-		StreamingTaskListener listener = null;
-		final JobID jobID = environment.getJobID();
-
-		if (environment.getNumberOfInputGates() == 0) {
-			// Check if user has provided a job-specific tagging interval
-			final int taggingInterval = jobConfiguration.getInteger(TAGGING_INTERVAL_KEY, this.taggingInterval);
-
-			listener = StreamingTaskListener.createForInputTask(this.communicationThread, jobID, id, taggingInterval,
-				aggregationInterval);
-		} else if (environment.getNumberOfOutputGates() == 0) {
-			listener = StreamingTaskListener.createForOutputTask(this.communicationThread, jobID, id,
-				aggregationInterval);
-		} else {
-			listener = StreamingTaskListener.createForRegularTask(this.communicationThread, jobID, id,
-				aggregationInterval);
-		}
-
-		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
-			outputGate.registerOutputGateListener(listener);
-		}
-
-		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final InputGate<? extends Record> inputGate = environment.getInputGate(i);
-			inputGate.registerInputGateListener(listener);
-		}
+		final int taggingInterval = jobConfiguration.getInteger(TAGGING_INTERVAL_KEY, this.taggingInterval);
+		
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void unregisterTask(final ExecutionVertexID id, final Environment environment) {
+	public void unregisterTask(final ExecutionVertexID id, final RuntimeEnvironment environment) {
 
 		// Nothing to do here
 	}

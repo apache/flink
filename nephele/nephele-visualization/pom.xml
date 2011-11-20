@@ -11,9 +11,7 @@
 		<version>0.2</version>
 	</parent>
 
-	<groupId>eu.stratosphere</groupId>
 	<artifactId>nephele-visualization</artifactId>
-	<version>0.2</version>
 	<name>nephele-visualization</name>
 	<packaging>jar</packaging>
 

@@ -35,7 +35,7 @@ public abstract class AbstractFileOutputTask extends AbstractOutputTask {
 	public Path getFileOutputPath() {
 
 		// TODO: This is a quick workaround, problem can be solved in a more generic way
-		final Configuration conf = getEnvironment().getRuntimeConfiguration();
+		final Configuration conf = getEnvironment().getTaskConfiguration();
 
 		final String outputPath = conf.getString("outputPath", null);
 

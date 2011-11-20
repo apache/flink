@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -63,7 +63,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		this.localBufferPool = new LocalBufferPool(1, false, this);
 		this.task = task;
 
-		final Environment environment = task.getEnvironment();
+		final RuntimeEnvironment environment = task.getEnvironment();
 
 		// Compute number of output input channels
 		int nooc = 0;
@@ -163,7 +163,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		final int req = this.localBufferPool.getRequestedNumberOfBuffers();
 		final int des = this.localBufferPool.getDesignatedNumberOfBuffers();
 
-		final Environment environment = this.task.getEnvironment();
+		final RuntimeEnvironment environment = this.task.getEnvironment();
 
 		System.out.println("\t\t" + environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
 			+ des + " designated");

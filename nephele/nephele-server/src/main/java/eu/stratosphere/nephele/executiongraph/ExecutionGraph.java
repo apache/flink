@@ -271,7 +271,8 @@ public class ExecutionGraph implements ExecutionListener {
 		// Convert job vertices to execution vertices and initialize them
 		final AbstractJobVertex[] all = jobGraph.getAllJobVertices();
 		for (int i = 0; i < all.length; i++) {
-			final ExecutionVertex createdVertex = createVertex(all[i], instanceManager, initialExecutionStage);
+			final ExecutionVertex createdVertex = createVertex(all[i], instanceManager, initialExecutionStage,
+				jobGraph.getJobConfiguration());
 			temporaryVertexMap.put(all[i], createdVertex);
 			temporaryGroupVertexMap.put(all[i], createdVertex.getGroupVertex());
 		}
@@ -411,7 +412,8 @@ public class ExecutionGraph implements ExecutionListener {
 		for (int i = 0; i < target.getCurrentNumberOfGroupMembers(); i++) {
 
 			final ExecutionVertex targetVertex = target.getGroupMember(i);
-			final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(indexOfInputGate);
+			final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(
+				indexOfInputGate);
 			if (inputGate == null) {
 				throw new GraphConversionException("unwire: " + targetVertex.getName()
 					+ " has no input gate with index " + indexOfInputGate);
@@ -477,9 +479,8 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	private void createChannel(final ExecutionVertex source, final OutputGate<? extends Record> outputGate,
-			final ExecutionVertex target, final InputGate<? extends Record> inputGate, final ChannelType channelType,
-			final CompressionLevel compressionLevel)
-			throws GraphConversionException {
+			final ExecutionVertex target, final InputGate<? extends Record> inputGate,
+			final ChannelType channelType, final CompressionLevel compressionLevel) throws GraphConversionException {
 
 		AbstractOutputChannel<? extends Record> outputChannel;
 		AbstractInputChannel<? extends Record> inputChannel;
@@ -520,12 +521,15 @@ public class ExecutionGraph implements ExecutionListener {
 	 *        the instanceManager
 	 * @param initialExecutionStage
 	 *        the initial execution stage all group vertices are added to
+	 * @param jobConfiguration
+	 *        the configuration object originally attached to the {@link JobGraph}
 	 * @return the new execution vertex
 	 * @throws GraphConversionException
 	 *         thrown if the job vertex is of an unknown subclass
 	 */
 	private ExecutionVertex createVertex(final AbstractJobVertex jobVertex, final InstanceManager instanceManager,
-			final ExecutionStage initialExecutionStage) throws GraphConversionException {
+			final ExecutionStage initialExecutionStage, final Configuration jobConfiguration)
+			throws GraphConversionException {
 
 		// If the user has requested instance type, check if the type is known by the current instance manager
 		InstanceType instanceType = null;
@@ -566,7 +570,7 @@ public class ExecutionGraph implements ExecutionListener {
 		ExecutionVertex ev = null;
 		try {
 			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
-				groupVertex);
+				groupVertex, jobConfiguration);
 		} catch (Throwable t) {
 			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
@@ -622,11 +626,11 @@ public class ExecutionGraph implements ExecutionListener {
 			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
 				try {
 					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable()).
-							computeInputSplits(jobVertex.getNumberOfSubtasks());
+						computeInputSplits(jobVertex.getNumberOfSubtasks());
 				} catch (Exception e) {
 					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName()
 						+ ": "
-							+ StringUtils.stringifyException(e));
+						+ StringUtils.stringifyException(e));
 				}
 			} else {
 				throw new GraphConversionException(

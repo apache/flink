@@ -13,9 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.streaming;
 
-public interface OutputGateListener {
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.plugins.wrapper.AbstractInputGateWrapper;
+import eu.stratosphere.nephele.types.Record;
 
-	void channelCapacityExhausted(int channelIndex);
+public final class StreamingInputGate<T extends Record> extends AbstractInputGateWrapper<T> {
+
+	StreamingInputGate(final InputGate<T> wrappedInputGate) {
+		super(wrappedInputGate);
+	}
 }

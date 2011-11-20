@@ -10,9 +10,7 @@
         <version>0.2</version>
     </parent>
 
-    <groupId>eu.stratosphere</groupId>
     <artifactId>nephele-streaming</artifactId>
-    <version>0.2</version>
     <name>nephele-streaming</name>
     <packaging>jar</packaging>
     

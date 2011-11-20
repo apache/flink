@@ -25,15 +25,16 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -50,7 +51,7 @@ public class Task implements ExecutionObserver {
 
 	private final ExecutionVertexID vertexID;
 
-	private final Environment environment;
+	private final RuntimeEnvironment environment;
 
 	private final TaskManager taskManager;
 
@@ -66,7 +67,7 @@ public class Task implements ExecutionObserver {
 
 	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
 
-	Task(final ExecutionVertexID vertexID, final Environment environment, final TaskManager taskManager) {
+	Task(final ExecutionVertexID vertexID, final RuntimeEnvironment environment, final TaskManager taskManager) {
 
 		this.vertexID = vertexID;
 		this.environment = environment;
@@ -291,7 +292,7 @@ public class Task implements ExecutionObserver {
 	 * 
 	 * @return the environment associated with this task
 	 */
-	public Environment getEnvironment() {
+	public RuntimeEnvironment getEnvironment() {
 
 		return this.environment;
 	}
