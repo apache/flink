@@ -37,6 +37,8 @@ import eu.stratosphere.nephele.types.Record;
  * This class provides an abstract base class for an input gate wrapper. An input gate wrapper can be used by a plugin
  * to wrap an input gate and intercept particular method calls. The default implementation of this abstract base class
  * simply forwards every method call to the encapsulated input gate.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  * @param <T>

@@ -38,6 +38,8 @@ import eu.stratosphere.nephele.types.Record;
  * This class provides an abstract base class for an output gate wrapper. An output gate wrapper can be used by a plugin
  * to wrap an output gate and intercept particular method calls. The default implementation of this abstract base class
  * simply forwards every method call to the encapsulated output gate.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  * @param <T>
