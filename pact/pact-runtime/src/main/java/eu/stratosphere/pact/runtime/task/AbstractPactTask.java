@@ -323,7 +323,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			
 			OutputEmitter oe = (keyPositions == null || keyClasses == null) ?
 					new OutputEmitter(strategy) :
-					new OutputEmitter(strategy, jobId, keyPositions, keyClasses);
+					new OutputEmitter(strategy, keyPositions, keyClasses);
 					
 			// create writer
 			RecordWriter<PactRecord> writer= new RecordWriter<PactRecord>(this, PactRecord.class, oe);
