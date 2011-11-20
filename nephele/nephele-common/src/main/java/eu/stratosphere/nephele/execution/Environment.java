@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.execution;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
@@ -111,36 +112,18 @@ public interface Environment {
 	String getTaskName();
 
 	/**
-	 * Checks if the environment has unbound input gates.
+	 * Returns the next unbound input gate ID or <code>null</code> if no such ID exists
 	 * 
-	 * @return <code>true</code> if the environment has unbound input gates, <code>false</code> otherwise
+	 * @return the next unbound input gate ID or <code>null</code> if no such ID exists
 	 */
-	boolean hasUnboundInputGates();
+	GateID getNextUnboundInputGateID();
 
 	/**
-	 * Checks if the environment has unbound output gates.
+	 * Returns the next unbound output gate ID or <code>null</code> if no such ID exists
 	 * 
-	 * @return <code>true</code> if the environment has unbound output gates, <code>false</code> otherwise
+	 * @return the next unbound output gate ID or <code>null</code> if no such ID exists
 	 */
-	boolean hasUnboundOutputGates();
-
-	/**
-	 * Retrieves and removes the unbound output gate with the given ID from the list of unbound output gates.
-	 * 
-	 * @param gateID
-	 *        the index of the unbound output gate
-	 * @return the unbound output gate with the given ID, or <code>null</code> if no such gate exists
-	 */
-	OutputGate<? extends Record> getUnboundOutputGate(final int gateID);
-
-	/**
-	 * Retrieves and removes unbound input gate with the given ID from the list of unbound input gates.
-	 * 
-	 * @param gateID
-	 *        the index of the unbound input gate
-	 * @return the unbound input gate with the given ID, or <code>null</code> if no such gate exists
-	 */
-	InputGate<? extends Record> getUnboundInputGate(final int gateID);
+	GateID getNextUnboundOutputGateID();
 
 	/**
 	 * Returns the number of output gates registered with this environment.
@@ -157,23 +140,41 @@ public interface Environment {
 	int getNumberOfInputGates();
 
 	/**
-	 * Creates and registers an output gate with the environment.
+	 * Creates an output gate.
 	 * 
+	 * @param gateID
 	 * @param outputClass
 	 * @param selector
 	 * @param isBroadcast
 	 * @return the created output gate
 	 */
-	OutputGate<? extends Record> createAndRegisterOutputGate(Class<? extends Record> outputClass,
+	OutputGate<? extends Record> createOutputGate(GateID gateID, Class<? extends Record> outputClass,
 			ChannelSelector<? extends Record> selector, boolean isBroadcast);
 
 	/**
-	 * Creates and registers an input gate with the environment.
+	 * Creates an input gate.
 	 * 
+	 * @param gateID
 	 * @param deserializer
 	 * @param distributionPattern
 	 * @return the created input gate
 	 */
-	InputGate<? extends Record> createAndRegisterInputGate(RecordDeserializer<? extends Record> deserializer,
+	InputGate<? extends Record> createInputGate(GateID gateID, RecordDeserializer<? extends Record> deserializer,
 			DistributionPattern distributionPattern);
+
+	/**
+	 * Registers an output gate with this environment.
+	 * 
+	 * @param outputGate
+	 *        the output gate to be registered
+	 */
+	void registerOutputGate(OutputGate<? extends Record> outputGate);
+
+	/**
+	 * Registers an input gate with this environment.
+	 * 
+	 * @param inputGate
+	 *        the input gate to be registered
+	 */
+	void registerInputGate(InputGate<? extends Record> inputGate);
 }

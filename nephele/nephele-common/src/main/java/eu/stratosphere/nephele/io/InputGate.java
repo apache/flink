@@ -18,6 +18,11 @@ package eu.stratosphere.nephele.io;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -68,4 +73,80 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 * at least one record available.
 	 */
 	void notifyRecordIsAvailable(int channelIndex);
+
+	/**
+	 * Activates all of the task's input channels.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transmitting one of the activation requests to the corresponding
+	 *         output channels
+	 * @throws InterruptedException
+	 *         throws if the task is interrupted while waiting for the activation process to complete
+	 */
+	void activateInputChannels() throws IOException, InterruptedException;
+
+	/**
+	 * Immediately closes the input gate and all its input channels. The corresponding
+	 * output channels are notified. Any remaining records in any buffers or queue is considered
+	 * irrelevant and is discarded.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while closing the gate
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the gate to be closed
+	 */
+	void close() throws IOException, InterruptedException;
+
+	/**
+	 * Registers a new listener object for this input gate.
+	 * 
+	 * @param inputGateListener
+	 *        the listener object to register
+	 */
+	void registerInputGateListener(InputGateListener inputGateListener);
+
+	/**
+	 * Returns the {@link DistributionPattern} associated with this input gate.
+	 * 
+	 * @return the {@link DistributionPattern} associated with this input gate
+	 */
+	DistributionPattern getDistributionPattern();
+
+	/**
+	 * Creates a new network input channel and assigns it to the input gate.
+	 * 
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new network input channel
+	 */
+	NetworkInputChannel<T> createNetworkInputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+
+	/**
+	 * Creates a new file input channel and assigns it to the input gate.
+	 * 
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new file input channel
+	 */
+	FileInputChannel<T> createFileInputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+
+	/**
+	 * Creates a new in-memory input channel and assigns it to the input gate.
+	 * 
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new in-memory input channel
+	 */
+	InMemoryInputChannel<T> createInMemoryInputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+
+	/**
+	 * Removes all input channels from the input gate.
+	 */
+	void removeAllInputChannels();
 }

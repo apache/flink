@@ -18,7 +18,9 @@ package eu.stratosphere.nephele.execution;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.logging.Log;
@@ -35,6 +37,11 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -42,6 +49,7 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -68,22 +76,24 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	/**
 	 * List of output gates created by the task.
 	 */
-	private final List<RuntimeOutputGate<? extends Record>> outputGates = new CopyOnWriteArrayList<RuntimeOutputGate<? extends Record>>();
+	private final List<OutputGate<? extends Record>> outputGates = new CopyOnWriteArrayList<OutputGate<? extends Record>>();
 
 	/**
 	 * List of input gates created by the task.
 	 */
-	private final List<RuntimeInputGate<? extends Record>> inputGates = new CopyOnWriteArrayList<RuntimeInputGate<? extends Record>>();
+	private final List<InputGate<? extends Record>> inputGates = new CopyOnWriteArrayList<InputGate<? extends Record>>();
 
 	/**
-	 * List of output gates which have to be rebound to a task after transferring the environment to a TaskManager.
+	 * Queue of unbound output gate IDs which are required for deserializing an environment in the course of an RPC
+	 * call.
 	 */
-	private final List<RuntimeOutputGate<? extends Record>> unboundOutputGates = new CopyOnWriteArrayList<RuntimeOutputGate<? extends Record>>();
+	private final Queue<GateID> unboundOutputGateIDs = new ArrayDeque<GateID>();
 
 	/**
-	 * List of input gates which have to be rebound to a task after transferring the environment to a TaskManager.
+	 * Queue of unbound input gate IDs which are required for deserializing an environment in the course of an RPC
+	 * call.
 	 */
-	private final List<RuntimeInputGate<? extends Record>> unboundInputGates = new CopyOnWriteArrayList<RuntimeInputGate<? extends Record>>();
+	private final Queue<GateID> unboundInputGateIDs = new ArrayDeque<GateID>();
 
 	/**
 	 * The memory manager of the current environment (currently the one associated with the executing TaskManager).
@@ -193,49 +203,17 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean hasUnboundInputGates() {
+	public GateID getNextUnboundInputGateID() {
 
-		return (this.unboundInputGates.size() > 0);
+		return this.unboundInputGateIDs.poll();
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override
-	public boolean hasUnboundOutputGates() {
+	public GateID getNextUnboundOutputGateID() {
 
-		return (this.unboundOutputGates.size() > 0);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public OutputGate<? extends Record> getUnboundOutputGate(final int gateID) {
-
-		if (this.unboundOutputGates.size() == 0) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("No unbound output gates");
-			}
-			return null;
-		}
-		return this.unboundOutputGates.remove(gateID);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public InputGate<? extends Record> getUnboundInputGate(final int gateID) {
-
-		if (this.unboundInputGates.size() == 0) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("No unbound input gates");
-			}
-			return null;
-		}
-
-		return this.unboundInputGates.remove(gateID);
+		return this.unboundOutputGateIDs.poll();
 	}
 
 	/**
@@ -376,10 +354,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	private void activateInputChannels() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfInputGates(); ++i) {
-			final InputGate<? extends Record> eig = getInputGate(i);
-			for (int j = 0; j < eig.getNumberOfInputChannels(); ++j) {
-				eig.getInputChannel(j).activate();
-			}
+			this.inputGates.get(i).activateInputChannels();
 		}
 	}
 
@@ -387,14 +362,12 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 * {@inheritDoc}
 	 */
 	@Override
-	public OutputGate<? extends Record> createAndRegisterOutputGate(final Class<? extends Record> outputClass,
+	public OutputGate<? extends Record> createOutputGate(final GateID gateID, Class<? extends Record> outputClass,
 			final ChannelSelector<? extends Record> selector, final boolean isBroadcast) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		final RuntimeOutputGate<? extends Record> rog = (RuntimeOutputGate<? extends Record>) new RuntimeOutputGate(
-			getJobID(), new GateID(), outputClass, getNumberOfOutputGates(), selector, isBroadcast);
-
-		this.outputGates.add(rog);
+			getJobID(), gateID, outputClass, getNumberOfOutputGates(), selector, isBroadcast);
 
 		return rog;
 	}
@@ -403,17 +376,26 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputGate<? extends Record> createAndRegisterInputGate(
-			final RecordDeserializer<? extends Record> deserializer,
-			final DistributionPattern distributionPattern) {
+	public InputGate<? extends Record> createInputGate(final GateID gateID,
+			final RecordDeserializer<? extends Record> deserializer, final DistributionPattern distributionPattern) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		final RuntimeInputGate<? extends Record> rig = (RuntimeInputGate<? extends Record>) new RuntimeInputGate(
-			getJobID(), new GateID(), deserializer, getNumberOfInputGates(), distributionPattern);
-
-		this.inputGates.add(rig);
+			getJobID(), gateID, deserializer, getNumberOfInputGates(), distributionPattern);
 
 		return rig;
+	}
+
+	@Override
+	public void registerOutputGate(OutputGate<? extends Record> outputGate) {
+
+		this.outputGates.add(outputGate);
+	}
+
+	@Override
+	public void registerInputGate(InputGate<? extends Record> inputGate) {
+
+		this.inputGates.add(inputGate);
 	}
 
 	/**
@@ -438,7 +420,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 *        the index of the input gate to return
 	 * @return the input gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public RuntimeInputGate<? extends Record> getInputGate(final int pos) {
+	public InputGate<? extends Record> getInputGate(final int pos) {
 		if (pos < this.inputGates.size()) {
 			return this.inputGates.get(pos);
 		}
@@ -453,7 +435,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 *        the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public RuntimeOutputGate<? extends Record> getOutputGate(final int pos) {
+	public OutputGate<? extends Record> getOutputGate(final int pos) {
 		if (pos < this.outputGates.size()) {
 			return this.outputGates.get(pos);
 		}
@@ -529,43 +511,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 
 			final GateID gateID = new GateID();
 			gateID.read(in);
-
-			final String typeClassName = StringRecord.readString(in);
-			Class<? extends Record> type = null;
-			try {
-				type = (Class<? extends Record>) Class.forName(typeClassName, true, cl);
-			} catch (ClassNotFoundException cnfe) {
-				throw new IOException("Class " + typeClassName + " not found in one of the supplied jar files: "
-					+ StringUtils.stringifyException(cnfe));
-			}
-
-			final boolean isBroadcast = in.readBoolean();
-
-			ChannelSelector<? extends Record> channelSelector = null;
-			if (!isBroadcast) {
-
-				final String channelSelectorClassName = StringRecord.readString(in);
-				try {
-					channelSelector = (ChannelSelector<? extends Record>) Class.forName(channelSelectorClassName, true,
-						cl).newInstance();
-				} catch (InstantiationException e) {
-					throw new IOException(StringUtils.stringifyException(e));
-				} catch (IllegalAccessException e) {
-					throw new IOException(StringUtils.stringifyException(e));
-				} catch (ClassNotFoundException e) {
-					throw new IOException(StringUtils.stringifyException(e));
-				}
-
-				channelSelector.read(in);
-			}
-
-			@SuppressWarnings("rawtypes")
-			final RuntimeOutputGate<? extends Record> eog = new RuntimeOutputGate(this.jobID, gateID, type, i,
-				channelSelector, isBroadcast);
-			eog.read(in);
-			this.outputGates.add(eog);
-			// Mark as unbound for reconnection of RecordWriter
-			this.unboundOutputGates.add(eog);
+			this.unboundOutputGateIDs.add(gateID);
 		}
 
 		final int numInputGates = in.readInt();
@@ -574,50 +520,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 
 			final GateID gateID = new GateID();
 			gateID.read(in);
-
-			final String deserializerClassName = StringRecord.readString(in);
-			RecordDeserializer<? extends Record> recordDeserializer = null;
-			Class<? extends RecordDeserializer<? extends Record>> deserializerClass = null;
-			try {
-				deserializerClass = (Class<? extends RecordDeserializer<? extends Record>>) cl
-					.loadClass(deserializerClassName);
-				recordDeserializer = deserializerClass.newInstance();
-
-			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			} catch (InstantiationException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			} catch (IllegalAccessException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
-
-			recordDeserializer.setClassLoader(cl);
-			recordDeserializer.read(in);
-
-			final String distributionPatternClassName = StringRecord.readString(in);
-			DistributionPattern distributionPattern = null;
-			Class<? extends DistributionPattern> distributionPatternClass = null;
-			try {
-				distributionPatternClass = (Class<? extends DistributionPattern>) cl
-					.loadClass(distributionPatternClassName);
-
-				distributionPattern = distributionPatternClass.newInstance();
-
-			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			} catch (InstantiationException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			} catch (IllegalAccessException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
-
-			@SuppressWarnings("rawtypes")
-			final RuntimeInputGate<? extends Record> eig = new RuntimeInputGate(this.jobID, gateID, recordDeserializer,
-				i, distributionPattern);
-			eig.read(in);
-			this.inputGates.add(eig);
-			// Mark as unbound for reconnection of RecordReader
-			this.unboundInputGates.add(eig);
+			this.unboundInputGateIDs.add(gateID);
 		}
 
 		// The configuration object
@@ -634,6 +537,74 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 			instantiateInvokable();
 		} catch (Exception e) {
 			throw new IOException(StringUtils.stringifyException(e));
+		}
+
+		// Output channels
+		for (int i = 0; i < numOuputGates; ++i) {
+			final OutputGate<? extends Record> outputGate = this.outputGates.get(i);
+			final int numberOfOutputChannels = in.readInt();
+			for (int j = 0; j < numberOfOutputChannels; ++j) {
+				final ChannelID channelID = new ChannelID();
+				channelID.read(in);
+				final ChannelID connectedChannelID = new ChannelID();
+				connectedChannelID.read(in);
+				final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
+				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
+
+				AbstractOutputChannel<? extends Record> outputChannel = null;
+
+				switch (channelType) {
+				case INMEMORY:
+					outputChannel = outputGate.createInMemoryOutputChannel(channelID, compressionLevel);
+					break;
+				case NETWORK:
+					outputChannel = outputGate.createNetworkOutputChannel(channelID, compressionLevel);
+					break;
+				case FILE:
+					outputChannel = outputGate.createFileOutputChannel(channelID, compressionLevel);
+					break;
+				}
+
+				if (outputChannel == null) {
+					throw new IOException("Unable to create output channel for channel ID " + channelID);
+				}
+
+				outputChannel.setConnectedChannelID(connectedChannelID);
+			}
+		}
+
+		// Input channels
+		for (int i = 0; i < numInputGates; ++i) {
+			final InputGate<? extends Record> inputGate = this.inputGates.get(i);
+			final int numberOfInputChannels = in.readInt();
+			for (int j = 0; j < numberOfInputChannels; ++j) {
+				final ChannelID channelID = new ChannelID();
+				channelID.read(in);
+				final ChannelID connectedChannelID = new ChannelID();
+				connectedChannelID.read(in);
+				final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
+				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
+
+				AbstractInputChannel<? extends Record> inputChannel = null;
+
+				switch (channelType) {
+				case INMEMORY:
+					inputChannel = inputGate.createInMemoryInputChannel(channelID, compressionLevel);
+					break;
+				case NETWORK:
+					inputChannel = inputGate.createNetworkInputChannel(channelID, compressionLevel);
+					break;
+				case FILE:
+					inputChannel = inputGate.createFileInputChannel(channelID, compressionLevel);
+					break;
+				}
+
+				if (inputChannel == null) {
+					throw new IOException("Unable to create output channel for channel ID " + channelID);
+				}
+
+				inputChannel.setConnectedChannelID(connectedChannelID);
+			}
 		}
 	}
 
@@ -669,30 +640,19 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		StringRecord.writeString(out, this.invokableClass.getName());
 
 		// Output gates
-		out.writeInt(this.outputGates.size());
-		for (int i = 0; i < this.outputGates.size(); i++) {
-			final RuntimeOutputGate<? extends Record> outputGate = this.outputGates.get(i);
+		final int numberOfOutputGates = this.outputGates.size();
+		out.writeInt(numberOfOutputGates);
+		for (int i = 0; i < numberOfOutputGates; ++i) {
+			final OutputGate<? extends Record> outputGate = this.outputGates.get(i);
 			outputGate.getGateID().write(out);
-			StringRecord.writeString(out, outputGate.getType().getName());
-			out.writeBoolean(outputGate.isBroadcast());
-			if (!outputGate.isBroadcast()) {
-				// Write out class name of channel selector
-				StringRecord.writeString(out, outputGate.getChannelSelector().getClass().getName());
-				outputGate.getChannelSelector().write(out);
-			}
-
-			outputGate.write(out);
 		}
 
 		// Input gates
-		out.writeInt(getNumberOfInputGates());
-		for (int i = 0; i < getNumberOfInputGates(); i++) {
-			final RuntimeInputGate<? extends Record> inputGate = this.inputGates.get(i);
+		final int numberOfInputGates = this.inputGates.size();
+		out.writeInt(numberOfInputGates);
+		for (int i = 0; i < numberOfInputGates; i++) {
+			final InputGate<? extends Record> inputGate = this.inputGates.get(i);
 			inputGate.getGateID().write(out);
-			StringRecord.writeString(out, inputGate.getRecordDeserializer().getClass().getName());
-			inputGate.getRecordDeserializer().write(out);
-			StringRecord.writeString(out, inputGate.getDistributionPattern().getClass().getName());
-			inputGate.write(out);
 		}
 
 		// The configuration object
@@ -702,6 +662,34 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		out.writeInt(this.currentNumberOfSubtasks);
 		// The index in the subtask group
 		out.writeInt(this.indexInSubtaskGroup);
+
+		// Output channels
+		for (int i = 0; i < numberOfOutputGates; ++i) {
+			final OutputGate<? extends Record> outputGate = this.outputGates.get(i);
+			final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+			out.writeInt(numberOfOutputChannels);
+			for (int j = 0; j < numberOfOutputChannels; ++j) {
+				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+				outputChannel.getID().write(out);
+				outputChannel.getConnectedChannelID().write(out);
+				EnumUtils.writeEnum(out, outputChannel.getType());
+				EnumUtils.writeEnum(out, outputChannel.getCompressionLevel());
+			}
+		}
+
+		// Input channels
+		for (int i = 0; i < numberOfInputGates; ++i) {
+			final InputGate<? extends Record> inputGate = this.inputGates.get(i);
+			final int numberOfInputChannels = inputGate.getNumberOfInputChannels();
+			out.writeInt(numberOfInputChannels);
+			for (int j = 0; j < numberOfInputChannels; ++j) {
+				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
+				inputChannel.getID().write(out);
+				inputChannel.getConnectedChannelID().write(out);
+				EnumUtils.writeEnum(out, inputChannel.getType());
+				EnumUtils.writeEnum(out, inputChannel.getCompressionLevel());
+			}
+		}
 	}
 
 	/**
@@ -724,8 +712,8 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 
 			boolean allClosed = true;
 			for (int i = 0; i < getNumberOfOutputGates(); i++) {
-				final RuntimeOutputGate<? extends Record> rog = this.outputGates.get(i);
-				if (!rog.isClosed()) {
+				final OutputGate<? extends Record> og = this.outputGates.get(i);
+				if (!og.isClosed()) {
 					allClosed = false;
 				}
 			}
@@ -758,7 +746,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 
 			boolean allClosed = true;
 			for (int i = 0; i < getNumberOfInputGates(); i++) {
-				final RuntimeInputGate<? extends Record> eig = this.inputGates.get(i);
+				final InputGate<? extends Record> eig = this.inputGates.get(i);
 				if (!eig.isClosed()) {
 					allClosed = false;
 				}
@@ -778,7 +766,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	private void closeInputGates() throws IOException, InterruptedException {
 
 		for (int i = 0; i < this.inputGates.size(); i++) {
-			final RuntimeInputGate<? extends Record> eig = this.inputGates.get(i);
+			final InputGate<? extends Record> eig = this.inputGates.get(i);
 			// Important: close must be called on each input gate exactly once
 			eig.close();
 		}

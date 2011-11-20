@@ -558,14 +558,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		final RuntimeEnvironment ee = task.getEnvironment();
 
-		// Check if the task has unbound input/output gates
-		if (ee.hasUnboundInputGates() || ee.hasUnboundOutputGates()) {
-			LOG.debug("Task with ID " + id + " has unbound gates");
-			TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription("Task with ID " + id + " has unbound gates");
-			return result;
-		}
-
 		// Register the task with the byte buffered channel manager
 		this.byteBufferedChannelManager.register(task, activeOutputChannels);
 

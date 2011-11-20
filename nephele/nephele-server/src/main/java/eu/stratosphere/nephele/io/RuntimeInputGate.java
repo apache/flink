@@ -15,12 +15,8 @@
 
 package eu.stratosphere.nephele.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -40,9 +36,6 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.ClassUtils;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * In Nephele input gates are a specialization of general gates and connect input channels and record readers. As
@@ -58,8 +51,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T>,
-		IOReadableWritable {
+public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T> {
 
 	/**
 	 * The log object used for debugging.
@@ -161,8 +153,9 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 	/**
-	 * Removes all input channels from the input gate.
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void removeAllInputChannels() {
 
 		this.inputChannels.clear();
@@ -212,10 +205,9 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 	/**
-	 * Returns the {@link DistributionPattern} associated with this input gate.
-	 * 
-	 * @return the {@link DistributionPattern} associated with this input gate
+	 * {@inheritDoc}
 	 */
+	@Override
 	public DistributionPattern getDistributionPattern() {
 		return this.distributionPattern;
 	}
@@ -252,15 +244,11 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 	/**
-	 * Creates a new network input channel and assigns it to the input gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new network input channel
+	 * {@inheritDoc}
 	 */
-	public NetworkInputChannel<T> createNetworkInputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
+	@Override
+	public NetworkInputChannel<T> createNetworkInputChannel(final ChannelID channelID,
+			final CompressionLevel compressionLevel) {
 
 		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(this, this.inputChannels.size(), deserializer,
 			channelID, compressionLevel);
@@ -270,15 +258,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 	/**
-	 * Creates a new file input channel and assigns it to the input gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new file input channel
+	 * {@inheritDoc}
 	 */
-	public FileInputChannel<T> createFileInputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
+	@Override
+	public FileInputChannel<T> createFileInputChannel(final ChannelID channelID, final CompressionLevel compressionLevel) {
 
 		final FileInputChannel<T> efic = new FileInputChannel<T>(this, this.inputChannels.size(), deserializer,
 			channelID, compressionLevel);
@@ -288,15 +271,11 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 	/**
-	 * Creates a new in-memory input channel and assigns it to the input gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new in-memory input channel
+	 * {@inheritDoc}
 	 */
-	public InMemoryInputChannel<T> createInMemoryInputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
+	@Override
+	public InMemoryInputChannel<T> createInMemoryInputChannel(final ChannelID channelID,
+			final CompressionLevel compressionLevel) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(this, this.inputChannels.size(),
 			deserializer, channelID, compressionLevel);
@@ -391,87 +370,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		}
 	}
 
-	// TODO: See if type safety can be improved here
-	/**
-	 * {@inheritDoc}
-	 */
-	@SuppressWarnings("unchecked")
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		super.read(in);
-
-		final int numInputChannels = in.readInt();
-
-		for (int i = 0; i < numInputChannels; i++) {
-
-			final ChannelID channelID = new ChannelID();
-			channelID.read(in);
-			final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-
-			final String className = StringRecord.readString(in);
-			Class<? extends IOReadableWritable> c = null;
-			try {
-				c = ClassUtils.getRecordByName(className);
-			} catch (ClassNotFoundException e) {
-				LOG.error(e);
-			}
-
-			if (c == null) {
-				throw new IOException("Class is null!");
-			}
-
-			AbstractInputChannel<T> eic = null;
-			try {
-				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
-					.getDeclaredConstructor(InputGate.class, int.class, RecordDeserializer.class, ChannelID.class,
-						CompressionLevel.class);
-				if (constructor == null) {
-					throw new IOException("Constructor is null!");
-				}
-				constructor.setAccessible(true);
-				eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
-			} catch (SecurityException e) {
-				LOG.error(e);
-			} catch (NoSuchMethodException e) {
-				LOG.error(e);
-			} catch (IllegalArgumentException e) {
-				LOG.error(e);
-			} catch (InstantiationException e) {
-				LOG.error(e);
-			} catch (IllegalAccessException e) {
-				LOG.error(e);
-			} catch (InvocationTargetException e) {
-				LOG.error(e);
-			}
-			if (eic == null) {
-				throw new IOException("Created input channel is null!");
-			}
-
-			eic.read(in);
-			addInputChannel(eic);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		super.write(out);
-
-		// Connected input channels
-		out.writeInt(this.getNumberOfInputChannels());
-		for (int i = 0; i < getNumberOfInputChannels(); i++) {
-			getInputChannel(i).getID().write(out);
-			EnumUtils.writeEnum(out, getInputChannel(i).getCompressionLevel());
-			StringRecord.writeString(out, getInputChannel(i).getClass().getName());
-			getInputChannel(i).write(out);
-		}
-
-	}
-
 	/**
 	 * {@inheritDoc}
 	 */
@@ -489,15 +387,9 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 	/**
-	 * Immediately closes the input gate and all its input channels. The corresponding
-	 * output channels are notified. Any remaining records in any buffers or queue is considered
-	 * irrelevant and is discarded.
-	 * 
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while closing the gate
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the gate to be closed
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void close() throws IOException, InterruptedException {
 
 		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
@@ -512,6 +404,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * 
 	 * @return the list of InputChannels that feed this RecordReader
 	 */
+	@Deprecated
 	public List<AbstractInputChannel<T>> getInputChannels() {
 		return inputChannels;
 	}
@@ -576,5 +469,11 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		while (it.hasNext()) {
 			it.next().releaseResources();
 		}
+	}
+
+	@Override
+	public void activateInputChannels() throws IOException, InterruptedException {
+		// TODO Auto-generated method stub
+
 	}
 }

@@ -18,10 +18,10 @@ package eu.stratosphere.nephele.profiling;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.InputGateListener;
-import eu.stratosphere.nephele.io.RuntimeOutputGate;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.OutputGateListener;
-import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.types.Record;
 
@@ -54,7 +54,7 @@ public interface TaskManagerProfiler {
 	 *        the input gate to register a {@link InputGateListener} object for
 	 */
 	void registerInputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			RuntimeInputGate<? extends Record> inputGate);
+			InputGate<? extends Record> inputGate);
 
 	/**
 	 * Registers a {@link OutputGateListener} object for the given output gate.
@@ -67,7 +67,7 @@ public interface TaskManagerProfiler {
 	 *        the output gate to register a {@link InputGateListener} object for
 	 */
 	void registerOutputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			RuntimeOutputGate<? extends Record> outputGate);
+			OutputGate<? extends Record> outputGate);
 
 	/**
 	 * Unregisters all previously register {@link ExecutionListener} objects for

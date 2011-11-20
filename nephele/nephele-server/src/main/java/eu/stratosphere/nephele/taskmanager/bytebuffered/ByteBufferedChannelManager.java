@@ -32,6 +32,8 @@ import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
@@ -139,7 +141,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		final TaskContext taskContext = new TaskContext(task, this, this.tasksWithUndecidedCheckpoints);
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final RuntimeOutputGate<?> outputGate = environment.getOutputGate(i);
+			final OutputGate<?> outputGate = environment.getOutputGate(i);
 			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate.getChannelType(),
 				outputGate.getIndex());
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
@@ -174,7 +176,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 
 		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final RuntimeInputGate<?> inputGate = environment.getInputGate(i);
+			final InputGate<?> inputGate = environment.getInputGate(i);
 			final InputGateContext inputGateContext = new InputGateContext(inputGate.getNumberOfInputChannels());
 			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
 				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
@@ -225,7 +227,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		final RuntimeEnvironment environment = task.getEnvironment();
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final RuntimeOutputGate<?> outputGate = environment.getOutputGate(i);
+			final OutputGate<?> outputGate = environment.getOutputGate(i);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
 				this.registeredChannels.remove(outputChannel.getID());
@@ -234,7 +236,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 
 		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final RuntimeInputGate<?> inputGate = environment.getInputGate(i);
+			final InputGate<?> inputGate = environment.getInputGate(i);
 			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
 				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
 				this.registeredChannels.remove(inputChannel.getID());

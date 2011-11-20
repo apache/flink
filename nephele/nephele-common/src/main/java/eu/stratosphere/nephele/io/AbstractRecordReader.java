@@ -62,13 +62,13 @@ public abstract class AbstractRecordReader<T extends Record> {
 	private void connectInputGate(final RecordDeserializer<T> deserializer, final int inputGateID,
 			final DistributionPattern distributionPattern) {
 
-		// See if there are any unbound input gates left we can connect to
-		if (this.environment.hasUnboundInputGates()) {
-			this.inputGate = (InputGate<T>) this.environment.getUnboundInputGate(inputGateID);
-		} else {
-			this.inputGate = (InputGate<T>) this.environment.createAndRegisterInputGate(deserializer,
-				distributionPattern);
+		GateID gateID = this.environment.getNextUnboundInputGateID();
+		if (gateID == null) {
+			gateID = new GateID();
 		}
+
+		this.inputGate = (InputGate<T>) this.environment.createInputGate(gateID, deserializer, distributionPattern);
+		this.environment.registerInputGate(this.inputGate);
 	}
 
 	/**

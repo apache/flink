@@ -79,18 +79,13 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	@SuppressWarnings("unchecked")
 	private void connectOutputGate(Class<T> outputClass, ChannelSelector<T> selector, boolean isBroadcast) {
 
-		// See if there are any unbound input gates left we can connect to
-		if (this.environment.hasUnboundOutputGates()) {
-			final OutputGate<T> eog = (OutputGate<T>) this.environment.getUnboundOutputGate(0);
-			if (!outputClass.equals(eog.getType())) {
-				throw new RuntimeException("Unbound input gate found, but types do not match!");
-			}
-
-			this.outputGate = eog;
-		} else {
-			this.outputGate = (OutputGate<T>) this.environment.createAndRegisterOutputGate(outputClass, selector,
-				isBroadcast);
+		GateID gateID = this.environment.getNextUnboundOutputGateID();
+		if (gateID == null) {
+			gateID = new GateID();
 		}
+
+		this.outputGate = (OutputGate<T>) this.environment.createOutputGate(gateID, outputClass, selector, isBroadcast);
+		this.environment.registerOutputGate(this.outputGate);
 	}
 
 	/**
@@ -118,6 +113,7 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	}
 
 	// TODO (en)
+	@Deprecated
 	public OutputGate<T> getOutputGate() {
 		return outputGate;
 	}

@@ -15,11 +15,7 @@
 
 package eu.stratosphere.nephele.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -38,9 +34,6 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.ClassUtils;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * In Nephele output gates are a specialization of general gates and connect
@@ -255,15 +248,11 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	}
 
 	/**
-	 * Creates a new network output channel and assigns it to the output gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new network output channel
+	 * {@inheritDoc}
 	 */
-	public NetworkOutputChannel<T> createNetworkOutputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
+	@Override
+	public NetworkOutputChannel<T> createNetworkOutputChannel(final ChannelID channelID,
+			final CompressionLevel compressionLevel) {
 
 		final NetworkOutputChannel<T> enoc = new NetworkOutputChannel<T>(this, this.outputChannels.size(), channelID,
 			compressionLevel);
@@ -273,15 +262,11 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	}
 
 	/**
-	 * Creates a new file output channel and assigns it to the output gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new file output channel
+	 * {@inheritDoc}
 	 */
-	public FileOutputChannel<T> createFileOutputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
+	@Override
+	public FileOutputChannel<T> createFileOutputChannel(final ChannelID channelID,
+			final CompressionLevel compressionLevel) {
 
 		final FileOutputChannel<T> efoc = new FileOutputChannel<T>(this, this.outputChannels.size(), channelID,
 			compressionLevel);
@@ -291,15 +276,11 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	}
 
 	/**
-	 * Creates a new in-memory output channel and assigns it to the output gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new in-memory output channel
+	 * {@inheritDoc}
 	 */
-	public InMemoryOutputChannel<T> createInMemoryOutputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
+	@Override
+	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final ChannelID channelID,
+			final CompressionLevel compressionLevel) {
 
 		final InMemoryOutputChannel<T> einoc = new InMemoryOutputChannel<T>(this, this.outputChannels.size(),
 			channelID, compressionLevel);
@@ -309,12 +290,9 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	}
 
 	/**
-	 * Requests the output gate to closed. This means the application will send
-	 * no records through this gate anymore.
-	 * 
-	 * @throws IOException
-	 * @throws InterruptedException
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void requestClose() throws IOException, InterruptedException {
 		// Close all output channels
 		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
@@ -396,91 +374,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 		}
 	}
 
-	// TODO: See if type safety can be improved here
-	/**
-	 * {@inheritDoc}
-	 */
-	@SuppressWarnings("unchecked")
-	public void read(DataInput in) throws IOException {
-
-		super.read(in);
-
-		final int numOutputChannels = in.readInt();
-
-		final Class<?>[] parameters = { OutputGate.class, int.class, ChannelID.class, CompressionLevel.class };
-
-		for (int i = 0; i < numOutputChannels; i++) {
-
-			final ChannelID channelID = new ChannelID();
-			channelID.read(in);
-			final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-			final String className = StringRecord.readString(in);
-			Class<? extends IOReadableWritable> c = null;
-			try {
-				c = ClassUtils.getRecordByName(className);
-			} catch (ClassNotFoundException e) {
-				LOG.error(e);
-			}
-
-			if (c == null) {
-				throw new IOException("Class is null!");
-			}
-
-			AbstractOutputChannel<T> eoc = null;
-			try {
-				final Constructor<AbstractOutputChannel<T>> constructor = (Constructor<AbstractOutputChannel<T>>) c
-					.getDeclaredConstructor(parameters);
-
-				if (constructor == null) {
-					throw new IOException("Constructor is null!");
-				}
-
-				constructor.setAccessible(true);
-
-				eoc = constructor.newInstance(this, i, channelID, compressionLevel);
-
-			} catch (InstantiationException e) {
-				LOG.error(e);
-			} catch (IllegalArgumentException e) {
-				LOG.error(e);
-			} catch (IllegalAccessException e) {
-				LOG.error(e);
-			} catch (InvocationTargetException e) {
-				LOG.error(e);
-			} catch (SecurityException e) {
-				LOG.error(e);
-			} catch (NoSuchMethodException e) {
-				LOG.error(e);
-			}
-
-			if (eoc == null) {
-				throw new IOException("Created output channel is null!");
-			}
-
-			eoc.read(in);
-			addOutputChannel(eoc);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	public void write(DataOutput out) throws IOException {
-
-		super.write(out);
-
-		// Output channels
-		out.writeInt(this.getNumberOfOutputChannels());
-
-		for (int i = 0; i < getNumberOfOutputChannels(); i++) {
-			getOutputChannel(i).getID().write(out);
-			EnumUtils.writeEnum(out, getOutputChannel(i).getCompressionLevel());
-			StringRecord.writeString(out, getOutputChannel(i).getClass().getName());
-			getOutputChannel(i).write(out);
-		}
-
-	}
-
 	/**
 	 * {@inheritDoc}
 	 */
@@ -490,12 +383,10 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	}
 
 	/**
-	 * Registers a new listener object for this output gate.
-	 * 
-	 * @param outputGateListener
-	 *        the listener object to register
+	 * {@inheritDoc}
 	 */
-	public void registerOutputGateListener(OutputGateListener outputGateListener) {
+	@Override
+	public void registerOutputGateListener(final OutputGateListener outputGateListener) {
 
 		if (this.outputGateListeners == null) {
 			this.outputGateListeners = new OutputGateListener[1];

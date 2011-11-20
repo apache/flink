@@ -15,17 +15,12 @@
 
 package eu.stratosphere.nephele.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.event.task.EventNotificationManager;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * In Nephele a gate represents the connection between a user program and the processing framework. A gate
@@ -39,7 +34,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * @param <T>
  *        the record type to be transported from this gate
  */
-public abstract class AbstractGate<T extends Record> implements Gate<T>, IOReadableWritable {
+public abstract class AbstractGate<T extends Record> implements Gate<T> {
 
 	/**
 	 * The ID of the job this gate belongs to.
@@ -83,10 +78,9 @@ public abstract class AbstractGate<T extends Record> implements Gate<T>, IOReada
 	}
 
 	/**
-	 * Returns the index that has been assigned to the gate upon initialization.
-	 * 
-	 * @return the index that has been assigned to the gate upon initialization.
+	 * {@inheritDoc}
 	 */
+	@Override
 	public final int getIndex() {
 		return this.index;
 	}
@@ -101,24 +95,6 @@ public abstract class AbstractGate<T extends Record> implements Gate<T>, IOReada
 	}
 
 	/**
-	 * Checks if the gate is closed. The gate is closed if alls this associated channels are closed.
-	 * 
-	 * @return <code>true</code> if the gate is closed, <code>false</code> otherwise
-	 * @throws IOException
-	 *         thrown if any error occurred while closing the gate
-	 * @throws InterruptedException
-	 *         thrown if the gate is interrupted while waiting for this operation to complete
-	 */
-	public abstract boolean isClosed() throws IOException, InterruptedException;
-
-	/**
-	 * Checks if the considered gate is an input gate.
-	 * 
-	 * @return <code>true</code> if the considered gate is an input gate, <code>false</code> if it is an output gate
-	 */
-	public abstract boolean isInputGate();
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -131,7 +107,7 @@ public abstract class AbstractGate<T extends Record> implements Gate<T>, IOReada
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
+	public final void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
 
 		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
 	}
@@ -156,11 +132,9 @@ public abstract class AbstractGate<T extends Record> implements Gate<T>, IOReada
 	}
 
 	/**
-	 * Sets the type of the input/output channels which are connected to this gate.
-	 * 
-	 * @param channelType
-	 *        the type of input/output channels which are connected to this gate
+	 * {@inheritDoc}
 	 */
+	@Override
 	public final void setChannelType(final ChannelType channelType) {
 
 		this.channelType = channelType;
@@ -180,42 +154,17 @@ public abstract class AbstractGate<T extends Record> implements Gate<T>, IOReada
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.channelType = EnumUtils.readEnum(in, ChannelType.class);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		EnumUtils.writeEnum(out, this.channelType);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public JobID getJobID() {
 
 		return this.jobID;
 	}
 
 	/**
-	 * Returns the ID of the gate.
-	 * 
-	 * @return the ID of the gate
+	 * {@inheritDoc}
 	 */
+	@Override
 	public GateID getGateID() {
 
 		return this.gateID;
 	}
-
-	/**
-	 * Releases the allocated resources (particularly buffer) of all channels attached to this gate. This method
-	 * should only be called after the respected task has stopped running.
-	 */
-	public abstract void releaseAllChannelResources();
 }

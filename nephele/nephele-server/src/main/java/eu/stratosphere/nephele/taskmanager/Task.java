@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -244,7 +245,7 @@ public class Task implements ExecutionObserver {
 		final Map<ChannelID, Long> outputChannelUtilization = new HashMap<ChannelID, Long>();
 
 		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
-			final RuntimeOutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
+			final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 				outputChannelUtilization.put(outputChannel.getID(),

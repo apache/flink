@@ -23,14 +23,12 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
@@ -70,26 +68,6 @@ public class MockEnvironment extends RuntimeEnvironment
 	@Override
 	public Configuration getRuntimeConfiguration() {
 		return this.config;
-	}
-
-	@Override
-	public boolean hasUnboundInputGates() {
-		return this.inputs.size() > 0 ? true : false;
-	}
-
-	@Override
-	public boolean hasUnboundOutputGates() {
-		return this.outputs.size() > 0 ? true : false;
-	}
-
-	@Override
-	public InputGate<? extends Record> getUnboundInputGate(int gateID) {
-		return inputs.remove(gateID);
-	}
-
-	@Override
-	public eu.stratosphere.nephele.io.OutputGate<? extends Record> getUnboundOutputGate(int gateID) {
-		return outputs.remove(gateID);
 	}
 
 	@Override

@@ -26,6 +26,13 @@ import eu.stratosphere.nephele.types.Record;
 public interface Gate<T extends Record> {
 
 	/**
+	 * Returns the index that has been assigned to the gate upon initialization.
+	 * 
+	 * @return the index that has been assigned to the gate upon initialization.
+	 */
+	int getIndex();
+
+	/**
 	 * Subscribes the listener object to receive events of the given type.
 	 * 
 	 * @param eventListener
@@ -78,4 +85,43 @@ public interface Gate<T extends Record> {
 	 * @return the type of input/output channels which are connected to this gate
 	 */
 	ChannelType getChannelType();
+
+	/**
+	 * Returns the ID of the gate.
+	 * 
+	 * @return the ID of the gate
+	 */
+	GateID getGateID();
+
+	/**
+	 * Releases the allocated resources (particularly buffer) of all channels attached to this gate. This method
+	 * should only be called after the respected task has stopped running.
+	 */
+	void releaseAllChannelResources();
+
+	/**
+	 * Checks if the gate is closed. The gate is closed if all this associated channels are closed.
+	 * 
+	 * @return <code>true</code> if the gate is closed, <code>false</code> otherwise
+	 * @throws IOException
+	 *         thrown if any error occurred while closing the gate
+	 * @throws InterruptedException
+	 *         thrown if the gate is interrupted while waiting for this operation to complete
+	 */
+	boolean isClosed() throws IOException, InterruptedException;
+
+	/**
+	 * Checks if the considered gate is an input gate.
+	 * 
+	 * @return <code>true</code> if the considered gate is an input gate, <code>false</code> if it is an output gate
+	 */
+	boolean isInputGate();
+
+	/**
+	 * Sets the type of the input/output channels which are connected to this gate.
+	 * 
+	 * @param channelType
+	 *        the type of input/output channels which are connected to this gate
+	 */
+	void setChannelType(ChannelType channelType);
 }

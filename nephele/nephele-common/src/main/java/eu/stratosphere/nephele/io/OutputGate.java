@@ -19,6 +19,11 @@ import java.io.IOException;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -93,9 +98,75 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	int getNumberOfOutputChannels();
 
 	/**
+	 * Returns the output channel from position <code>pos</code> of the gate's
+	 * internal channel list.
+	 * 
+	 * @param pos
+	 *        the position to retrieve the channel from
+	 * @return the channel from the given position or <code>null</code> if such
+	 *         position does not exist.
+	 */
+	AbstractOutputChannel<T> getOutputChannel(int pos);
+
+	/**
 	 * Returns the output gate's channel selector.
 	 * 
 	 * @return the output gate's channel selector or <code>null</code> if the gate operates in broadcast mode
 	 */
 	ChannelSelector<T> getChannelSelector();
+
+	/**
+	 * Requests the output gate to closed. This means the application will send
+	 * no records through this gate anymore.
+	 * 
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	void requestClose() throws IOException, InterruptedException;
+
+	/**
+	 * Removes all output channels from the output gate.
+	 */
+	void removeAllOutputChannels();
+
+	/**
+	 * Creates a new network output channel and assigns it to the output gate.
+	 * 
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new network output channel
+	 */
+	NetworkOutputChannel<T> createNetworkOutputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+
+	/**
+	 * Creates a new file output channel and assigns it to the output gate.
+	 * 
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new file output channel
+	 */
+	FileOutputChannel<T> createFileOutputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+
+	/**
+	 * Creates a new in-memory output channel and assigns it to the output gate.
+	 * 
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new in-memory output channel
+	 */
+	InMemoryOutputChannel<T> createInMemoryOutputChannel(ChannelID channelID, CompressionLevel compressionLevel);
+
+	/**
+	 * Registers a new listener object for this output gate.
+	 * 
+	 * @param outputGateListener
+	 *        the listener object to register
+	 */
+	void registerOutputGateListener(OutputGateListener outputGateListener);
 }

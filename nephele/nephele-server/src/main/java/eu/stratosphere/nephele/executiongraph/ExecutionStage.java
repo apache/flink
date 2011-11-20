@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
@@ -389,7 +390,7 @@ public final class ExecutionStage {
 			final int numberOfOutputGates = env.getNumberOfOutputGates();
 			for (int i = 0; i < numberOfOutputGates; ++i) {
 
-				final RuntimeOutputGate<? extends Record> outputGate = env.getOutputGate(i);
+				final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
 				final ChannelType channelType = outputGate.getChannelType();
 				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
 				for (int j = 0; j < numberOfOutputChannels; ++j) {
