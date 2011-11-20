@@ -29,20 +29,20 @@ public class LatencyModel {
 	}
 
 	public void refreshEdgeLatency(ChannelLatency latency) {
-		ExecutionVertexID startID = latency.getStartVertexID();
-		ExecutionVertexID endID = latency.getEndVertexID();
+		ExecutionVertexID startID = latency.getSourceVertexID();
+		ExecutionVertexID endID = latency.getSinkVertexID();
 
 		if (startID.equals(endID)) {
 			System.out.println("new vertex latency");
 			VertexLatency vertexLatency = latencySubgraph.getVertexLatency(startID.toManagementVertexID());
-			vertexLatency.setLatencyInMillis(latency.getPathLatency());
+			vertexLatency.setLatencyInMillis(latency.getChannelLatency());
 		} else {
 			System.out.println("new edge latency");
-			ManagementEdgeID edgeID = new ManagementEdgeID(latency.getStartVertexID().toManagementVertexID(),
-				latency.getEndVertexID().toManagementVertexID());
+			ManagementEdgeID edgeID = new ManagementEdgeID(latency.getSourceVertexID().toManagementVertexID(),
+				latency.getSinkVertexID().toManagementVertexID());
 
 			EdgeLatency edgeLatency = latencySubgraph.getEdgeLatency(edgeID);
-			edgeLatency.setLatencyInMillis(latency.getPathLatency());
+			edgeLatency.setLatencyInMillis(latency.getChannelLatency());
 			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
 				path.dumpLatencies();
 			}

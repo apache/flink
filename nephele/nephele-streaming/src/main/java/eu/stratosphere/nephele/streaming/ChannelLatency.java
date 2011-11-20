@@ -23,55 +23,55 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
- * This class stores information about the latency of a specific (sub) path from a start to an end vertex.
+ * This class stores information about the latency of a specific channel from a source to a sink vertex.
  * 
  * @author warneke
  */
 public final class ChannelLatency extends AbstractStreamingData {
 
 	/**
-	 * The ID of the vertex representing the start of the path.
+	 * The ID of the vertex representing the source of the channel.
 	 */
-	private final ExecutionVertexID startVertexID;
+	private final ExecutionVertexID sourceVertexID;
 
 	/**
-	 * The ID of the vertex representing the end of the path.
+	 * The ID of the vertex representing the sink of the channel.
 	 */
-	private final ExecutionVertexID endVertexID;
+	private final ExecutionVertexID sinkVertexID;
 
 	/**
-	 * The path latency in milliseconds
+	 * The channel latency in milliseconds
 	 */
-	private double pathLatency;
+	private double channelLatency;
 
 	/**
 	 * Constructs a new path latency object.
 	 * 
 	 * @param jobID
-	 *        the ID of the job this path latency information refers to
-	 * @param startVertexID
-	 *        the ID of the vertex representing the start of the path
-	 * @param endVertexID
-	 *        the ID of the vertex representing the end of the path
+	 *        the ID of the job this channel latency information refers to
+	 * @param sourceVertexID
+	 *        the ID of the vertex representing the source of the channel
+	 * @param sinkVertexID
+	 *        the ID of the vertex representing the sink of the channel
 	 * @param pathLatency
 	 *        the path latency in milliseconds
 	 */
-	public ChannelLatency(final JobID jobID, final ExecutionVertexID startVertexID, final ExecutionVertexID endVertexID,
-			final double pathLatency) {
+	public ChannelLatency(final JobID jobID, final ExecutionVertexID sourceVertexID,
+			final ExecutionVertexID sinkVertexID, final double channelLatency) {
 
 		super(jobID);
 
-		if (startVertexID == null) {
-			throw new IllegalArgumentException("sourceID must not be null");
+		if (sourceVertexID == null) {
+			throw new IllegalArgumentException("sourceVertexID must not be null");
 		}
 
-		if (endVertexID == null) {
-			throw new IllegalArgumentException("targetID must not be null");
+		if (sinkVertexID == null) {
+			throw new IllegalArgumentException("sinkVertexID must not be null");
 		}
 
-		this.startVertexID = startVertexID;
-		this.endVertexID = endVertexID;
-		this.pathLatency = pathLatency;
+		this.sourceVertexID = sourceVertexID;
+		this.sinkVertexID = sinkVertexID;
+		this.channelLatency = channelLatency;
 	}
 
 	/**
@@ -79,9 +79,9 @@ public final class ChannelLatency extends AbstractStreamingData {
 	 */
 	public ChannelLatency() {
 		super(new JobID());
-		this.startVertexID = new ExecutionVertexID();
-		this.endVertexID = new ExecutionVertexID();
-		this.pathLatency = 0.0;
+		this.sourceVertexID = new ExecutionVertexID();
+		this.sinkVertexID = new ExecutionVertexID();
+		this.channelLatency = 0.0;
 	}
 
 	/**
@@ -90,9 +90,9 @@ public final class ChannelLatency extends AbstractStreamingData {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
-		this.startVertexID.write(out);
-		this.endVertexID.write(out);
-		out.writeDouble(this.pathLatency);
+		this.sourceVertexID.write(out);
+		this.sinkVertexID.write(out);
+		out.writeDouble(this.channelLatency);
 	}
 
 	/**
@@ -101,41 +101,39 @@ public final class ChannelLatency extends AbstractStreamingData {
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
-		this.startVertexID.read(in);
-		this.endVertexID.read(in);
-		this.pathLatency = in.readDouble();
-	}
-
-
-
-	/**
-	 * Returns the ID of the vertex representing the start of the path.
-	 * 
-	 * @return the ID of the vertex representing the start of the path
-	 */
-	public ExecutionVertexID getStartVertexID() {
-
-		return this.startVertexID;
+		this.sourceVertexID.read(in);
+		this.sinkVertexID.read(in);
+		this.channelLatency = in.readDouble();
 	}
 
 	/**
-	 * Returns the ID of the vertex representing the end of the path.
+	 * Returns the ID of the vertex representing the source of the channel.
 	 * 
-	 * @return the ID of the vertex representing the end of the path
+	 * @return the ID of the vertex representing the source of the channel
 	 */
-	public ExecutionVertexID getEndVertexID() {
+	public ExecutionVertexID getSourceVertexID() {
 
-		return this.endVertexID;
+		return this.sourceVertexID;
 	}
 
 	/**
-	 * Returns the path latency in milliseconds.
+	 * Returns the ID of the vertex representing the sink of the channel.
 	 * 
-	 * @return the path latency in milliseconds
+	 * @return the ID of the vertex representing the sink of the channel
 	 */
-	public double getPathLatency() {
+	public ExecutionVertexID getSinkVertexID() {
 
-		return this.pathLatency;
+		return this.sinkVertexID;
+	}
+
+	/**
+	 * Returns the channel latency in milliseconds.
+	 * 
+	 * @return the channel latency in milliseconds
+	 */
+	public double getChannelLatency() {
+
+		return this.channelLatency;
 	}
 
 	/**
@@ -145,11 +143,11 @@ public final class ChannelLatency extends AbstractStreamingData {
 	public String toString() {
 
 		final StringBuilder str = new StringBuilder();
-		str.append(this.startVertexID.toString());
+		str.append(this.sourceVertexID.toString());
 		str.append(" -> ");
-		str.append(this.endVertexID.toString());
+		str.append(this.sinkVertexID.toString());
 		str.append(": ");
-		str.append(this.pathLatency);
+		str.append(this.channelLatency);
 
 		return str.toString();
 	}

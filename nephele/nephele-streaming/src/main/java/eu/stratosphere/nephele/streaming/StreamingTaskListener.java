@@ -58,6 +58,8 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 
 	private int tagCounter = 0;
 
+	private long lastTimestamp = -1L;
+
 	private Map<ExecutionVertexID, Integer> aggregationCounter = new HashMap<ExecutionVertexID, Integer>();
 
 	private Map<ExecutionVertexID, Double> aggregatedValue = new HashMap<ExecutionVertexID, Double>();
@@ -112,18 +114,31 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 		switch (this.taskType) {
 		case INPUT:
 			if (this.tagCounter++ == this.taggingInterval) {
+				final long timestamp = System.currentTimeMillis();
 				final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-				taggableRecord.setTag(createTag());
+				taggableRecord.setTag(createTag(timestamp));
+				if (this.lastTimestamp > 0) {
+					final long taskLatency = (timestamp - this.lastTimestamp) / this.taggingInterval;
+					try {
+						this.communicationThread.sendDataAsynchronously(new TaskLatency(this.jobID, this.vertexID,
+							taskLatency));
+					} catch (InterruptedException e) {
+						LOG.error(StringUtils.stringifyException(e));
+					}
+				}
+				this.lastTimestamp = timestamp;
 				this.tagCounter = 0;
 			}
 			break;
 		case REGULAR:
 			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-			if(this.tag == null) {
+			if (this.tag == null) {
 				taggableRecord.setTag(null);
 			} else {
-				this.tag = createTag();
+				final long timestamp = System.currentTimeMillis();
+				this.tag = createTag(timestamp);
 				taggableRecord.setTag(this.tag);
+				this.lastTimestamp = timestamp;
 			}
 			break;
 		case OUTPUT:
@@ -155,7 +170,22 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 		this.tag = (StreamingTag) taggableRecord.getTag();
 		if (this.tag != null) {
 
-			final long pathLatency = System.currentTimeMillis() - this.tag.getTimestamp();
+			final long timestamp = System.currentTimeMillis();
+			if (this.lastTimestamp > 0) {
+				try {
+					this.communicationThread.sendDataAsynchronously(new TaskLatency(jobID, vertexID, timestamp
+						- this.lastTimestamp));
+				} catch (InterruptedException e) {
+					LOG.error(StringUtils.stringifyException(e));
+				}
+				if (this.taskType == TaskType.REGULAR) {
+					this.lastTimestamp = -1L;
+				} else {
+					this.lastTimestamp = timestamp;
+				}
+			}
+
+			final long pathLatency = timestamp - this.tag.getTimestamp();
 
 			final ExecutionVertexID sourceID = this.tag.getSourceID();
 
@@ -194,10 +224,10 @@ public final class StreamingTaskListener implements InputGateListener, OutputGat
 
 	}
 
-	private StreamingTag createTag() {
+	private StreamingTag createTag(final long timestamp) {
 
 		this.tag = new StreamingTag(this.vertexID);
-		this.tag.setTimestamp(System.currentTimeMillis());
+		this.tag.setTimestamp(timestamp);
 
 		return this.tag;
 	}

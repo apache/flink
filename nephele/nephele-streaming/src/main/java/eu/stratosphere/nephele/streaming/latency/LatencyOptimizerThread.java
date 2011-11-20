@@ -8,6 +8,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.streaming.AbstractStreamingData;
 import eu.stratosphere.nephele.streaming.ChannelLatency;
+import eu.stratosphere.nephele.streaming.TaskLatency;
 
 public class LatencyOptimizerThread extends Thread {
 
@@ -34,7 +35,11 @@ public class LatencyOptimizerThread extends Thread {
 
 				if (streamingData instanceof ChannelLatency) {
 					latencyModel.refreshEdgeLatency((ChannelLatency) streamingData);
+				} else if(streamingData instanceof TaskLatency) {
+					TaskLatency tl = (TaskLatency) streamingData;
+					System.out.println("Task latency: " + tl.getTaskLatency());
 				}
+				
 
 			}
 
