@@ -322,12 +322,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 			}
 		}
 
-		if (this.inputGateListeners != null) {
-			for (final InputGateListener inputGateListener : this.inputGateListeners) {
-				inputGateListener.recordReceived(record);
-			}
-		}
-
 		return record;
 	}
 

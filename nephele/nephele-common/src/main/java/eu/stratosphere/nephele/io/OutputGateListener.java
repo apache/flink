@@ -15,17 +15,7 @@
 
 package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.nephele.types.Record;
-
 public interface OutputGateListener {
 
 	void channelCapacityExhausted(int channelIndex);
-
-	/**
-	 * This method is called to indicate that a record has just been emitted by the task.
-	 * 
-	 * @param record
-	 *        the record which has just been emitted
-	 */
-	void recordEmitted(final Record record);
 }

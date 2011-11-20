@@ -333,12 +333,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 			throw new InterruptedException();
 		}
 
-		if (this.outputGateListeners != null) {
-			for (final OutputGateListener outputGateListener : this.outputGateListeners) {
-				outputGateListener.recordEmitted(record);
-			}
-		}
-
 		if (this.isBroadcast) {
 
 			if (getChannelType() == ChannelType.INMEMORY) {

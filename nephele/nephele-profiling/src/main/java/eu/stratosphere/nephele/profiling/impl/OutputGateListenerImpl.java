@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.profiling.impl;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.OutputGateListener;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.Record;
 
 public class OutputGateListenerImpl implements OutputGateListener {
 
@@ -59,13 +58,5 @@ public class OutputGateListenerImpl implements OutputGateListener {
 		this.counter = 0;
 
 		return retval;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void recordEmitted(final Record record) {
-		// Nothing to do here
 	}
 }
