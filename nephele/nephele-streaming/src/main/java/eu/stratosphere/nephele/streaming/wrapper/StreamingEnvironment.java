@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming;
+package eu.stratosphere.nephele.streaming.wrapper;
 
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
@@ -35,7 +35,13 @@ import eu.stratosphere.nephele.types.Record;
  */
 public final class StreamingEnvironment extends AbstractEnvironmentWrapper {
 
-	public StreamingEnvironment(final Environment wrappedEnvironment) {
+	/**
+	 * Constructs a new straming environment
+	 * 
+	 * @param wrappedEnvironment
+	 *        the environment to be encapsulated by this streaming environment
+	 */
+	StreamingEnvironment(final Environment wrappedEnvironment) {
 		super(wrappedEnvironment);
 	}
 

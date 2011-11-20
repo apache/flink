@@ -13,30 +13,48 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming;
+package eu.stratosphere.nephele.streaming.wrapper;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public final class TaskWrapper extends AbstractTask {
+/**
+ * This class contains convenience methods to access wrapped Nephele task classes.
+ * 
+ * @author warneke
+ */
+public final class WrapperUtils {
 
-	static final String WRAPPED_CLASS_KEY = "streaming.class.name";
+	/**
+	 * The configuration key to access the name of the wrapped class from the task configuration.
+	 */
+	public static final String WRAPPED_CLASS_KEY = "streaming.class.name";
 
-	private AbstractInvokable wrappedInvokable = null;
+	/**
+	 * Private constructor so class cannot be instantiated.
+	 */
+	private WrapperUtils() {
+	}
 
-	private synchronized AbstractInvokable getWrappedInvokable() {
+	/**
+	 * Retrieves the name of the original class from the task configuration, loads the class, creates an instances of
+	 * it, and finally wraps the given environment in an {@link StreamingEnvironment} object.
+	 * 
+	 * @param environment
+	 *        the original environment
+	 * @return an instance of the wrapped invokable class
+	 */
+	static AbstractInvokable getWrappedInvokable(final Environment environment) {
 
-		if (this.wrappedInvokable != null) {
-			return this.wrappedInvokable;
-		}
+		AbstractInvokable wrappedInvokable = null;
 
-		final Configuration conf = getEnvironment().getTaskConfiguration();
-		final JobID jobID = getEnvironment().getJobID();
-		final String className = conf.getString(WRAPPED_CLASS_KEY, null);
+		final Configuration taskConfiguration = environment.getTaskConfiguration();
+		final JobID jobID = environment.getJobID();
+		final String className = taskConfiguration.getString(WRAPPED_CLASS_KEY, null);
 		if (className == null) {
 			throw new IllegalStateException("Cannot find name of wrapped class");
 		}
@@ -48,32 +66,13 @@ public final class TaskWrapper extends AbstractTask {
 			final Class<? extends AbstractInvokable> invokableClass = (Class<? extends AbstractInvokable>) Class
 				.forName(className, true, cl);
 
-			this.wrappedInvokable = invokableClass.newInstance();
+			wrappedInvokable = invokableClass.newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException(StringUtils.stringifyException(e));
 		}
 
-		this.wrappedInvokable.setEnvironment(new StreamingEnvironment(getEnvironment()));
+		wrappedInvokable.setEnvironment(new StreamingEnvironment(environment));
 
-		return this.wrappedInvokable;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputOutput() {
-
-		getWrappedInvokable().registerInputOutput();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void invoke() throws Exception {
-
-		getWrappedInvokable().invoke();
-
+		return wrappedInvokable;
 	}
 }

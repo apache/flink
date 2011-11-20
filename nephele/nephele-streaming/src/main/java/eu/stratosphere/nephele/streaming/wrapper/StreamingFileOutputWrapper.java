@@ -13,15 +13,37 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming;
+package eu.stratosphere.nephele.streaming.wrapper;
 
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.plugins.wrapper.AbstractInputGateWrapper;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
-public final class StreamingInputGate<T extends Record> extends AbstractInputGateWrapper<T> {
+/**
+ * This class provides a wrapper for Nephele tasks of the type {@link AbstractFileOutputTask}.
+ * <p>
+ * This class is thread-safe.
+ * 
+ * @author warneke
+ */
+public final class StreamingFileOutputWrapper extends AbstractFileOutputTask {
 
-	StreamingInputGate(final InputGate<T> wrappedInputGate) {
-		super(wrappedInputGate);
+	private volatile AbstractInvokable wrappedInvokable = null;
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerInputOutput() {
+		this.wrappedInvokable = WrapperUtils.getWrappedInvokable(getEnvironment());
+		this.wrappedInvokable.registerInputOutput();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void invoke() throws Exception {
+
+		this.wrappedInvokable.invoke();
 	}
 }

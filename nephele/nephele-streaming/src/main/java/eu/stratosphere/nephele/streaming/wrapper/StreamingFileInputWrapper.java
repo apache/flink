@@ -13,30 +13,37 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming;
+package eu.stratosphere.nephele.streaming.wrapper;
 
-import java.io.IOException;
+import eu.stratosphere.nephele.template.AbstractFileInputTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.plugins.wrapper.AbstractOutputGateWrapper;
-import eu.stratosphere.nephele.types.Record;
+/**
+ * This class provides a wrapper for Nephele tasks of the type {@link AbstractFileInputTask}.
+ * <p>
+ * This class is thread-safe.
+ * 
+ * @author warneke
+ */
+public final class StreamingFileInputWrapper extends AbstractFileInputTask {
 
-public final class StreamingOutputGate<T extends Record> extends AbstractOutputGateWrapper<T> {
+	private volatile AbstractInvokable wrappedInvokable = null;
 
-	StreamingOutputGate(final OutputGate<T> wrappedOutputGate) {
-		super(wrappedOutputGate);
-		
-		System.out.println("STREAMING CREATED");
-	}
-	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void writeRecord(final T record) throws IOException, InterruptedException {
+	public void registerInputOutput() {
+		this.wrappedInvokable = WrapperUtils.getWrappedInvokable(getEnvironment());
+		this.wrappedInvokable.registerInputOutput();
+	}
 
-		System.out.println("DADADADADADADAD");
-		
-		getWrappedOutputGate().writeRecord(record);
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void invoke() throws Exception {
+
+		this.wrappedInvokable.invoke();
 	}
 }
