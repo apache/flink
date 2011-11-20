@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.streaming;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -24,7 +25,9 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
 public class StreamingJobManagerPlugin implements JobManagerPlugin {
 
@@ -43,7 +46,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 	public JobGraph rewriteJobGraph(final JobGraph jobGraph) {
 
 		// Rewrite input vertices
-		/*final Iterator<AbstractJobInputVertex> inputIt = jobGraph.getInputVertices();
+		//final Iterator<AbstractJobInputVertex> inputIt = jobGraph.getInputVertices();
 
 		final Iterator<JobTaskVertex> taskIt = jobGraph.getTaskVertices();
 		while (taskIt.hasNext()) {
@@ -54,7 +57,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin {
 
 			taskVertex.setTaskClass(TaskWrapper.class);
 			taskVertex.getConfiguration().setString(TaskWrapper.WRAPPED_CLASS_KEY, originalClass.getName());
-		}*/
+		}
 
 		// TODO Auto-generated method stub
 		return null;

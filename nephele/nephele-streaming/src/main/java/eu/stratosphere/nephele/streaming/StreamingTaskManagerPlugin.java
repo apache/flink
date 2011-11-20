@@ -98,32 +98,8 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 		final int aggregationInterval = jobConfiguration.getInteger(AGGREGATION_INTERVAL_KEY,
 			this.aggregationInterval);
 
-		StreamingTaskListener listener = null;
-		final JobID jobID = environment.getJobID();
-
-		if (environment.getNumberOfInputGates() == 0) {
-			// Check if user has provided a job-specific tagging interval
-			final int taggingInterval = jobConfiguration.getInteger(TAGGING_INTERVAL_KEY, this.taggingInterval);
-
-			listener = StreamingTaskListener.createForInputTask(this.communicationThread, jobID, id, taggingInterval,
-				aggregationInterval);
-		} else if (environment.getNumberOfOutputGates() == 0) {
-			listener = StreamingTaskListener.createForOutputTask(this.communicationThread, jobID, id,
-				aggregationInterval);
-		} else {
-			listener = StreamingTaskListener.createForRegularTask(this.communicationThread, jobID, id,
-				aggregationInterval);
-		}
-
-		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
-			outputGate.registerOutputGateListener(listener);
-		}
-
-		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final InputGate<? extends Record> inputGate = environment.getInputGate(i);
-			inputGate.registerInputGateListener(listener);
-		}
+		final int taggingInterval = jobConfiguration.getInteger(TAGGING_INTERVAL_KEY, this.taggingInterval);
+		
 	}
 
 	/**
