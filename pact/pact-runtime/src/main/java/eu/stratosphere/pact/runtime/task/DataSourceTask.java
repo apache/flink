@@ -183,7 +183,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	private void initInputFormat()
 	{
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getTaskConfiguration());
 
 		// obtain stub implementation class
 		try {

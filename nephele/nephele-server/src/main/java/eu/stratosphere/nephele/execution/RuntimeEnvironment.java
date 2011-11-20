@@ -126,9 +126,14 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	private volatile JobID jobID = null;
 
 	/**
-	 * The runtime configuration of the task encapsulated in the environment object.
+	 * The task configuration encapsulated in the environment object.
 	 */
-	private volatile Configuration runtimeConfiguration = null;
+	private volatile Configuration taskConfiguration = null;
+
+	/**
+	 * The job configuration encapsulated in the environment object.
+	 */
+	private volatile Configuration jobConfiguration = null;
 
 	/**
 	 * The input split provider that can be queried for new input splits.
@@ -165,15 +170,19 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 *        the name of task running in this environment
 	 * @param invokableClass
 	 *        invokableClass the class that should be instantiated as a Nephele task
-	 * @param runtimeConfiguration
+	 * @param taskConfiguration
 	 *        the configuration object which was attached to the original {@link JobVertex}
+	 * @param jobConfiguration
+	 *        the configuration object which was attached to the original {@link JobGraph}
 	 */
 	public RuntimeEnvironment(final JobID jobID, final String taskName,
-			final Class<? extends AbstractInvokable> invokableClass, final Configuration runtimeConfiguration) {
+			final Class<? extends AbstractInvokable> invokableClass, final Configuration taskConfiguration,
+			final Configuration jobConfiguration) {
 		this.jobID = jobID;
 		this.taskName = taskName;
 		this.invokableClass = invokableClass;
-		this.runtimeConfiguration = runtimeConfiguration;
+		this.taskConfiguration = taskConfiguration;
+		this.jobConfiguration = jobConfiguration;
 	}
 
 	/**
@@ -523,9 +532,11 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 			this.unboundInputGateIDs.add(gateID);
 		}
 
-		// The configuration object
-		this.runtimeConfiguration = new Configuration();
-		this.runtimeConfiguration.read(in);
+		// The configuration objects
+		this.taskConfiguration = new Configuration();
+		this.taskConfiguration.read(in);
+		this.jobConfiguration = new Configuration();
+		this.jobConfiguration.read(in);
 
 		// The current of number subtasks
 		this.currentNumberOfSubtasks = in.readInt();
@@ -655,8 +666,9 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 			inputGate.getGateID().write(out);
 		}
 
-		// The configuration object
-		this.runtimeConfiguration.write(out);
+		// The configuration objects
+		this.taskConfiguration.write(out);
+		this.jobConfiguration.write(out);
 
 		// The current of number subtasks
 		out.writeInt(this.currentNumberOfSubtasks);
@@ -805,7 +817,8 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		synchronized (duplicatedEnvironment) {
 			duplicatedEnvironment.executingThread = tmpThread;
 		}
-		duplicatedEnvironment.runtimeConfiguration = this.runtimeConfiguration;
+		duplicatedEnvironment.taskConfiguration = this.taskConfiguration;
+		duplicatedEnvironment.jobConfiguration = this.jobConfiguration;
 
 		// We instantiate the invokable of the new environment
 		duplicatedEnvironment.instantiateInvokable();
@@ -853,8 +866,16 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Configuration getRuntimeConfiguration() {
-		return this.runtimeConfiguration;
+	public Configuration getTaskConfiguration() {
+		return this.taskConfiguration;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Configuration getJobConfiguration() {
+		return this.jobConfiguration;
 	}
 
 	/**

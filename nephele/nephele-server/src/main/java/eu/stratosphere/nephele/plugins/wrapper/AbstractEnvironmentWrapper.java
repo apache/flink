@@ -80,9 +80,18 @@ public abstract class AbstractEnvironmentWrapper implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Configuration getRuntimeConfiguration() {
+	public Configuration getTaskConfiguration() {
 
-		return this.wrappedEnvironment.getRuntimeConfiguration();
+		return this.wrappedEnvironment.getTaskConfiguration();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Configuration getJobConfiguration() {
+
+		return this.wrappedEnvironment.getJobConfiguration();
 	}
 
 	/**

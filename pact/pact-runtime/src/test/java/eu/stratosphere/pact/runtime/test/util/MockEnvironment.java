@@ -66,7 +66,7 @@ public class MockEnvironment extends RuntimeEnvironment
 	}
 
 	@Override
-	public Configuration getRuntimeConfiguration() {
+	public Configuration getTaskConfiguration() {
 		return this.config;
 	}
 

@@ -47,11 +47,18 @@ public interface Environment {
 	JobID getJobID();
 
 	/**
-	 * Returns the runtime configuration object which was attached to the original {@link JobVertex}.
+	 * Returns the task configuration object which was attached to the original {@link JobVertex}.
 	 * 
-	 * @return the runtime configuration object which was attached to the original {@link JobVertex}
+	 * @return the task configuration object which was attached to the original {@link JobVertex}
 	 */
-	Configuration getRuntimeConfiguration();
+	Configuration getTaskConfiguration();
+
+	/**
+	 * Returns the job configuration object which was attached to the original {@link JobGraph}.
+	 * 
+	 * @return the job configuration object which was attached to the original {@link JobGraph}
+	 */
+	Configuration getJobConfiguration();
 
 	/**
 	 * Returns the current number of subtasks the respective task is split into.

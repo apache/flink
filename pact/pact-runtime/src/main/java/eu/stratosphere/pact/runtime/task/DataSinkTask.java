@@ -182,7 +182,7 @@ public class DataSinkTask extends AbstractOutputTask
 	private void initOutputFormat()
 	{
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getTaskConfiguration());
 
 		// obtain stub implementation class
 		try {
@@ -290,7 +290,7 @@ public class DataSinkTask extends AbstractOutputTask
 			catch (FileNotFoundException fnfex) {
 				// The exception is thrown if the requested file/directory does not exist.
 				// if the degree of parallelism is > 1, we create a directory for this path
-				int dop = getRuntimeConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
+				int dop = getTaskConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
 				if (dop == 1) {
 					// a none existing file and a degree of parallelism that is one
 					return 1;

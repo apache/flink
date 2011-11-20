@@ -24,6 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
@@ -33,7 +34,6 @@ import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -143,14 +143,17 @@ public final class ExecutionVertex {
 	 *        the execution graph the new vertex belongs to
 	 * @param groupVertex
 	 *        the group vertex the new vertex belongs to
+	 * @param jobConfiguration
+	 *        the configuration object attached to the original {@link JobGraph}
 	 * @throws Exception
 	 *         any exception that might be thrown by the user code during instantiation and registration of input and
 	 *         output channels
 	 */
 	public ExecutionVertex(final JobID jobID, final Class<? extends AbstractInvokable> invokableClass,
-			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex) throws Exception {
+			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
+			final Configuration jobConfiguration) throws Exception {
 		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex, new RuntimeEnvironment(jobID,
-			groupVertex.getName(), invokableClass, groupVertex.getConfiguration()));
+			groupVertex.getName(), invokableClass, groupVertex.getConfiguration(), jobConfiguration));
 
 		this.groupVertex.addInitialSubtask(this);
 
