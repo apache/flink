@@ -13,8 +13,9 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming.wrapper;
+package eu.stratosphere.nephele.streaming.wrappers;
 
+import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 
@@ -27,14 +28,24 @@ import eu.stratosphere.nephele.template.AbstractTask;
  */
 public final class StreamingTaskWrapper extends AbstractTask {
 
+	/**
+	 * The wrapped task.
+	 */
 	private volatile AbstractInvokable wrappedInvokable = null;
+
+	/**
+	 * The stream listener object.
+	 */
+	private volatile StreamListener streamListener = null;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void registerInputOutput() {
-		this.wrappedInvokable = WrapperUtils.getWrappedInvokable(getEnvironment());
+
+		this.streamListener = WrapperUtils.createStreamListener(getEnvironment());
+		this.wrappedInvokable = WrapperUtils.getWrappedInvokable(getEnvironment(), this.streamListener);
 		this.wrappedInvokable.registerInputOutput();
 	}
 
@@ -44,6 +55,7 @@ public final class StreamingTaskWrapper extends AbstractTask {
 	@Override
 	public void invoke() throws Exception {
 
+		this.streamListener.init();
 		this.wrappedInvokable.invoke();
 	}
 }

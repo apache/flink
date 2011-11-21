@@ -7,7 +7,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
-import eu.stratosphere.nephele.streaming.ChannelLatency;
+import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 
 public class LatencyModel {
 

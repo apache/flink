@@ -6,9 +6,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-import eu.stratosphere.nephele.streaming.AbstractStreamingData;
-import eu.stratosphere.nephele.streaming.ChannelLatency;
-import eu.stratosphere.nephele.streaming.TaskLatency;
+import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
+import eu.stratosphere.nephele.streaming.types.ChannelLatency;
+import eu.stratosphere.nephele.streaming.types.TaskLatency;
 
 public class LatencyOptimizerThread extends Thread {
 

@@ -16,19 +16,17 @@
 package eu.stratosphere.nephele.streaming;
 
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RuntimeInputGate;
-import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.PluginCommunication;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.streaming.listeners.StreamListenerContext;
 
 public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 
@@ -54,6 +52,16 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	private static final int DEFAULT_AGGREGATION_INTERVAL = 10;
 
 	/**
+	 * Stores the instance of the streaming task manager plugin.
+	 */
+	private static volatile StreamingTaskManagerPlugin INSTANCE = null;
+
+	/**
+	 * Map storing the listener context objects for the individual stream listners.
+	 */
+	private final ConcurrentMap<String, StreamListenerContext> listenerContexts = new ConcurrentHashMap<String, StreamListenerContext>();
+
+	/**
 	 * The tagging interval as specified in the plugin configuration.
 	 */
 	private final int taggingInterval;
@@ -76,6 +84,17 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 
 		this.communicationThread = new StreamingCommunicationThread(jobManagerComponent);
 		this.communicationThread.start();
+
+		INSTANCE = this;
+	}
+
+	public static StreamListenerContext getStreamingListenerContext(final String listenerKey) {
+
+		if (INSTANCE == null) {
+			throw new IllegalStateException("StreamingTaskManagerPlugin has not been initialized");
+		}
+
+		return INSTANCE.listenerContexts.get(listenerKey);
 	}
 
 	/**
@@ -99,7 +118,25 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 			this.aggregationInterval);
 
 		final int taggingInterval = jobConfiguration.getInteger(TAGGING_INTERVAL_KEY, this.taggingInterval);
-		
+
+		final String idAsString = id.toString();
+
+		environment.getTaskConfiguration().setString(StreamListenerContext.CONTEXT_CONFIGURATION_KEY, idAsString);
+
+		final JobID jobID = environment.getJobID();
+		StreamListenerContext listenerContext = null;
+		if (environment.getNumberOfInputGates() == 0) {
+			listenerContext = StreamListenerContext.createForInputTask(jobID, id, this.communicationThread,
+				aggregationInterval, taggingInterval);
+		} else if (environment.getNumberOfOutputGates() == 0) {
+			listenerContext = StreamListenerContext.createForOutputTask(jobID, id, this.communicationThread,
+				aggregationInterval);
+		} else {
+			listenerContext = StreamListenerContext.createForRegularTask(jobID, id, this.communicationThread,
+				aggregationInterval);
+		}
+
+		this.listenerContexts.putIfAbsent(idAsString, listenerContext);
 	}
 
 	/**
@@ -108,7 +145,7 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	@Override
 	public void unregisterTask(final ExecutionVertexID id, final RuntimeEnvironment environment) {
 
-		// Nothing to do here
+		this.listenerContexts.remove(id.toString());
 	}
 
 	/**

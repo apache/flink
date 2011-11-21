@@ -13,37 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming.wrapper;
+package eu.stratosphere.nephele.streaming.wrappers;
 
-import eu.stratosphere.nephele.template.AbstractFileInputTask;
-import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.plugins.wrapper.AbstractInputGateWrapper;
+import eu.stratosphere.nephele.streaming.listeners.StreamListener;
+import eu.stratosphere.nephele.types.Record;
 
-/**
- * This class provides a wrapper for Nephele tasks of the type {@link AbstractFileInputTask}.
- * <p>
- * This class is thread-safe.
- * 
- * @author warneke
- */
-public final class StreamingFileInputWrapper extends AbstractFileInputTask {
+public final class StreamingInputGate<T extends Record> extends AbstractInputGateWrapper<T> {
 
-	private volatile AbstractInvokable wrappedInvokable = null;
+	private final StreamListener streamListener;
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputOutput() {
-		this.wrappedInvokable = WrapperUtils.getWrappedInvokable(getEnvironment());
-		this.wrappedInvokable.registerInputOutput();
-	}
+	StreamingInputGate(final InputGate<T> wrappedInputGate, final StreamListener streamListener) {
+		super(wrappedInputGate);
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void invoke() throws Exception {
+		if (streamListener == null) {
+			throw new IllegalArgumentException("Argument streamListener must not be null");
+		}
 
-		this.wrappedInvokable.invoke();
+		this.streamListener = streamListener;
 	}
 }

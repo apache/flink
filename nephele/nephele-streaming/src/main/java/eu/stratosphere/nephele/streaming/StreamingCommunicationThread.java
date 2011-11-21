@@ -23,6 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.plugins.PluginCommunication;
+import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -34,7 +35,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-final class StreamingCommunicationThread extends Thread {
+public final class StreamingCommunicationThread extends Thread {
 
 	/**
 	 * The log object.
@@ -54,7 +55,8 @@ final class StreamingCommunicationThread extends Thread {
 	/**
 	 * The blocking queue which is used to asynchronously exchange data with the job manager component of this plugin.
 	 */
-	private final BlockingQueue<AbstractStreamingData> dataQueue = new ArrayBlockingQueue<AbstractStreamingData>(QUEUE_CAPACITY);
+	private final BlockingQueue<AbstractStreamingData> dataQueue = new ArrayBlockingQueue<AbstractStreamingData>(
+		QUEUE_CAPACITY);
 
 	/**
 	 * Stores whether the communication thread has been requested to stop.
@@ -109,7 +111,7 @@ final class StreamingCommunicationThread extends Thread {
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the communication thread to accept the data
 	 */
-	void sendDataAsynchronously(final AbstractStreamingData data) throws InterruptedException {
+	public void sendDataAsynchronously(final AbstractStreamingData data) throws InterruptedException {
 
 		this.dataQueue.put(data);
 	}

@@ -28,7 +28,7 @@ public final class StreamingTag implements Tag {
 
 	private long timestamp = 0L;
 
-	StreamingTag(final ExecutionVertexID sourceID) {
+	public StreamingTag(final ExecutionVertexID sourceID) {
 
 		if (sourceID == null) {
 			throw new IllegalArgumentException("sourceID must not be null");

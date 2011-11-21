@@ -13,12 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming.wrapper;
+package eu.stratosphere.nephele.streaming.wrappers;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -46,9 +47,11 @@ public final class WrapperUtils {
 	 * 
 	 * @param environment
 	 *        the original environment
+	 * @param streamListener
+	 *        the stream listener object
 	 * @return an instance of the wrapped invokable class
 	 */
-	static AbstractInvokable getWrappedInvokable(final Environment environment) {
+	static AbstractInvokable getWrappedInvokable(final Environment environment, final StreamListener streamListener) {
 
 		AbstractInvokable wrappedInvokable = null;
 
@@ -71,8 +74,20 @@ public final class WrapperUtils {
 			throw new RuntimeException(StringUtils.stringifyException(e));
 		}
 
-		wrappedInvokable.setEnvironment(new StreamingEnvironment(environment));
+		wrappedInvokable.setEnvironment(new StreamingEnvironment(environment, streamListener));
 
 		return wrappedInvokable;
+	}
+
+	/**
+	 * Creates and configures a new stream listener.
+	 * 
+	 * @param environment
+	 *        the environment for the newly created stream listener
+	 * @return the configured stream listener
+	 */
+	static StreamListener createStreamListener(final Environment environment) {
+
+		return new StreamListener(environment.getTaskConfiguration());
 	}
 }

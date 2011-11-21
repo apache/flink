@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming.wrapper;
+package eu.stratosphere.nephele.streaming.wrappers;
 
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
@@ -23,6 +23,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.plugins.wrapper.AbstractEnvironmentWrapper;
+import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -35,14 +36,20 @@ import eu.stratosphere.nephele.types.Record;
  */
 public final class StreamingEnvironment extends AbstractEnvironmentWrapper {
 
+	private final StreamListener streamListener;
+
 	/**
-	 * Constructs a new straming environment
+	 * Constructs a new streaming environment
 	 * 
 	 * @param wrappedEnvironment
 	 *        the environment to be encapsulated by this streaming environment
+	 * @param streamListener
+	 *        the stream listener
 	 */
-	StreamingEnvironment(final Environment wrappedEnvironment) {
+	StreamingEnvironment(final Environment wrappedEnvironment, final StreamListener streamListener) {
 		super(wrappedEnvironment);
+
+		this.streamListener = streamListener;
 	}
 
 	/**
@@ -57,7 +64,7 @@ public final class StreamingEnvironment extends AbstractEnvironmentWrapper {
 		final OutputGate<? extends Record> outputGate = getWrappedEnvironment().createOutputGate(gateID, outputClass,
 			selector, isBroadcast);
 
-		return new StreamingOutputGate(outputGate);
+		return new StreamingOutputGate(outputGate, this.streamListener);
 	}
 
 	/**
@@ -71,6 +78,6 @@ public final class StreamingEnvironment extends AbstractEnvironmentWrapper {
 		final InputGate<? extends Record> inputGate = getWrappedEnvironment().createInputGate(gateID, deserializer,
 			distributionPattern);
 
-		return new StreamingInputGate(inputGate);
+		return new StreamingInputGate(inputGate, this.streamListener);
 	}
 }

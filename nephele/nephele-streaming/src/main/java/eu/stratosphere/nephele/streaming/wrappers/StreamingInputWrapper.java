@@ -13,28 +13,39 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.streaming.wrapper;
+package eu.stratosphere.nephele.streaming.wrappers;
 
-import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.nephele.streaming.listeners.StreamListener;
+import eu.stratosphere.nephele.template.AbstractGenericInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
- * This class provides a wrapper for Nephele tasks of the type {@link AbstractFileOutputTask}.
+ * This class provides a wrapper for Nephele tasks of the type {@link AbstractGenericInputTask}.
  * <p>
  * This class is thread-safe.
  * 
  * @author warneke
  */
-public final class StreamingFileOutputWrapper extends AbstractFileOutputTask {
+public final class StreamingInputWrapper extends AbstractGenericInputTask {
 
+	/**
+	 * The wrapped task.
+	 */
 	private volatile AbstractInvokable wrappedInvokable = null;
+
+	/**
+	 * The stream listener object.
+	 */
+	private volatile StreamListener streamListener = null;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void registerInputOutput() {
-		this.wrappedInvokable = WrapperUtils.getWrappedInvokable(getEnvironment());
+
+		this.streamListener = WrapperUtils.createStreamListener(getEnvironment());
+		this.wrappedInvokable = WrapperUtils.getWrappedInvokable(getEnvironment(), this.streamListener);
 		this.wrappedInvokable.registerInputOutput();
 	}
 
@@ -44,6 +55,7 @@ public final class StreamingFileOutputWrapper extends AbstractFileOutputTask {
 	@Override
 	public void invoke() throws Exception {
 
+		this.streamListener.init();
 		this.wrappedInvokable.invoke();
 	}
 }
