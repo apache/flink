@@ -15,15 +15,13 @@
 
 package eu.stratosphere.nephele.streaming.listeners;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.streaming.StreamingTag;
 import eu.stratosphere.nephele.streaming.StreamingTaskManagerPlugin;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
@@ -40,21 +38,16 @@ public final class StreamListener {
 	 */
 	private static final Log LOG = LogFactory.getLog(StreamListener.class);
 
-	private final static double ALPHA = 0.5;
-
 	private final Configuration taskConfiguration;
 
 	private StreamListenerContext listenerContext = null;
 
-	private StreamingTag tag = null;
-
 	private int tagCounter = 0;
 
+	/**
+	 * Indicates the time of the last received tagged incoming record
+	 */
 	private long lastTimestamp = -1L;
-
-	private Map<ExecutionVertexID, Integer> aggregationCounter = new HashMap<ExecutionVertexID, Integer>();
-
-	private Map<ExecutionVertexID, Double> aggregatedValue = new HashMap<ExecutionVertexID, Double>();
 
 	public StreamListener(final Configuration taskConfiguration) {
 
@@ -86,10 +79,13 @@ public final class StreamListener {
 
 		// Input vertex
 		if (this.listenerContext.isInputVertex()) {
+
 			final int taggingInterval = this.listenerContext.getTaggingInterval();
+			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
+
+			// Tag every <taggingInterval> record and calculate task latency
 			if (this.tagCounter++ == taggingInterval) {
 				timestamp = System.currentTimeMillis();
-				final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
 				taggableRecord.setTag(createTag(timestamp));
 				if (this.lastTimestamp > 0L) {
 					final long taskLatency = (timestamp - this.lastTimestamp) / taggingInterval;
@@ -102,16 +98,32 @@ public final class StreamListener {
 				}
 				this.lastTimestamp = timestamp;
 				this.tagCounter = 0;
-			}
-		} else {
-			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-			if (this.tag == null) {
-				taggableRecord.setTag(null);
 			} else {
+				taggableRecord.setTag(null);
+			}
+
+		} else {
+
+			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
+			
+			if(this.lastTimestamp > 0L) {
+				
 				timestamp = System.currentTimeMillis();
-				this.tag = createTag(timestamp);
-				taggableRecord.setTag(this.tag);
-				this.lastTimestamp = timestamp;
+				taggableRecord.setTag(createTag(timestamp));
+				final JobID jobID = this.listenerContext.getJobID();
+				final ExecutionVertexID vertexID = this.listenerContext.getVertexID();
+			
+				// Calculate task latency
+				final TaskLatency tl = new TaskLatency(jobID, vertexID, timestamp - this.lastTimestamp);
+				try {
+					this.listenerContext.sendDataAsynchronously(tl);
+				} catch (InterruptedException e) {
+					LOG.error(StringUtils.stringifyException(e));
+				}
+				
+				this.lastTimestamp = -1L;
+			} else {
+				taggableRecord.setTag(null);
 			}
 		}
 
@@ -124,53 +136,25 @@ public final class StreamListener {
 	public void recordReceived(final Record record) {
 
 		final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-		this.tag = (StreamingTag) taggableRecord.getTag();
-		if (this.tag != null) {
+		final StreamingTag tag = (StreamingTag) taggableRecord.getTag();
+		if(tag != null) {
+			
+			
 			final long timestamp = System.currentTimeMillis();
-			if (this.lastTimestamp > 0) {
-				final TaskLatency tl = new TaskLatency(this.listenerContext.getJobID(),
-					this.listenerContext.getVertexID(), timestamp - this.lastTimestamp);
-				try {
-					this.listenerContext.sendDataAsynchronously(tl);
-				} catch (InterruptedException e) {
-					LOG.error(StringUtils.stringifyException(e));
-				}
-				if (this.listenerContext.isRegularVertex()) {
-					this.lastTimestamp = -1L;
-				} else {
-					this.lastTimestamp = timestamp;
-				}
+			final JobID jobID = this.listenerContext.getJobID();
+			final ExecutionVertexID vertexID = this.listenerContext.getVertexID();
+			
+			// Calculate channel latency
+			final ChannelLatency cl = new ChannelLatency(jobID, tag.getSourceID(), vertexID, timestamp
+				- tag.getTimestamp());
+			try {
+				this.listenerContext.sendDataAsynchronously(cl);
+			} catch (InterruptedException e) {
+				LOG.warn(StringUtils.stringifyException(e));
 			}
-			final long pathLatency = timestamp - this.tag.getTimestamp();
-			final ExecutionVertexID sourceID = this.tag.getSourceID();
-			// Calculate moving average
-			Double aggregatedLatency = this.aggregatedValue.get(sourceID);
-			if (aggregatedLatency == null) {
-				aggregatedLatency = Double.valueOf(pathLatency);
-			} else {
-				aggregatedLatency = Double.valueOf((ALPHA * pathLatency)
-					+ ((1 - ALPHA) * aggregatedLatency.doubleValue()));
-			}
-			this.aggregatedValue.put(sourceID, aggregatedLatency);
-			// Check if we need to compute an event and send it to the job manager component
-			Integer counter = this.aggregationCounter.get(sourceID);
-			if (counter == null) {
-				counter = Integer.valueOf(0);
-			}
-			counter = Integer.valueOf(counter.intValue() + 1);
-			if (counter.intValue() == this.listenerContext.getAggregationInterval()) {
-				final ChannelLatency pl = new ChannelLatency(this.listenerContext.getJobID(), sourceID,
-					this.listenerContext.getVertexID(), aggregatedLatency.doubleValue());
-				try {
-					this.listenerContext.sendDataAsynchronously(pl);
-				} catch (InterruptedException e) {
-					LOG.warn(StringUtils.stringifyException(e));
-				}
-				counter = Integer.valueOf(0);
-			}
-			this.aggregationCounter.put(sourceID, counter);
+			
+			this.lastTimestamp = timestamp;
 		}
-
 	}
 
 	public void reportChannelThroughput(final ChannelID sourceChannelID, final double throughput) {
@@ -184,8 +168,8 @@ public final class StreamListener {
 	}
 
 	private StreamingTag createTag(final long timestamp) {
-		this.tag = new StreamingTag(this.listenerContext.getVertexID());
-		this.tag.setTimestamp(timestamp);
-		return this.tag;
+		StreamingTag tag = new StreamingTag(this.listenerContext.getVertexID());
+		tag.setTimestamp(timestamp);
+		return tag;
 	}
 }
