@@ -15,35 +15,249 @@
 package eu.stratosphere.sopremo.cleansing.transitiveClosure;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
+import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.pact.JsonCollector;
+import eu.stratosphere.sopremo.pact.SopremoCoGroup;
+import eu.stratosphere.sopremo.pact.SopremoMap;
 
-
-public class Phase3 extends CompositeOperator<Phase3>{
+public class Phase3 extends CompositeOperator<Phase3> {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 5629802867631098519L;
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
-	public SopremoModule asElementaryOperators() {		
+	public SopremoModule asElementaryOperators() {
 
-		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
-		JsonStream phase1 = sopremoModule.getInput(0);
-		JsonStream matrix = sopremoModule.getInput(1);
+		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 1, 1);
+		JsonStream input = sopremoModule.getInput(0);
 
-		
+		int itCount = 2;// TODO number of N
+		TransformAKey[] a = new TransformAKey[itCount];
+		TransformBKey[] b = new TransformBKey[itCount];
+		TransformXKey[] x = new TransformXKey[itCount];
+		BAndXCoGroup[] xb = new BAndXCoGroup[itCount];
+		ACoGroup axb[] = new ACoGroup[itCount];
 
-//		final GenerateColumns columns = new GenerateColumns().withInputs(computeRows);
-//		final ComputeBlockTuples computeTuples = new ComputeBlockTuples().withInputs(transDia, columns);
+		for (int i = 0; i < itCount; i++) {
 
-//		sopremoModule.getOutput(0).setInput(0, /*lastOperator*/);
+			a[i] = new TransformAKey().withInputs(i == 0 ? input : axb[i - 1]);
+			a[i].setIterationStep(i + 1);
+			b[i] = new TransformBKey().withInputs(i == 0 ? input : axb[i - 1]);
+			b[i].setIterationStep(i + 1);
+			x[i] = new TransformXKey().withInputs(i == 0 ? input : axb[i - 1]);
+			xb[i] = new BAndXCoGroup().withInputs(b[i], x[i]);
+			axb[i] = new ACoGroup().withInputs(a[i], xb[i]);
+
+		}
+
+		// final GenerateColumns columns = new GenerateColumns().withInputs(computeRows);
+		// final ComputeBlockTuples computeTuples = new ComputeBlockTuples().withInputs(transDia, columns);
+
+		sopremoModule.getOutput(0).setInput(0, axb[itCount - 1]);
 
 		return sopremoModule;
+	}
+
+	private static class TransformAKey extends ElementaryOperator<TransformAKey> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3480847243868518647L;
+
+		private int iterationStep;
+
+		public void setIterationStep(Integer iterationStep) {
+			if (iterationStep == null)
+				throw new NullPointerException("iterationStep must not be null");
+
+			this.iterationStep = iterationStep;
+		}
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			private int iterationStep;
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				if (((ArrayNode) key).get(1).equals(new IntNode(this.iterationStep)))
+					out.collect(key, value);
+			}
+		}
+	}
+
+	private static class TransformBKey extends ElementaryOperator<TransformBKey> {
+		/**
+		 * 
+		 */
+
+		private int iterationStep;
+
+		public void setIterationStep(Integer iterationStep) {
+			if (iterationStep == null)
+				throw new NullPointerException("iterationStep must not be null");
+
+			this.iterationStep = iterationStep;
+		}
+
+		private static final long serialVersionUID = -3480847243868518647L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			private int iterationStep;
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				if (((ArrayNode) key).get(0).equals(new IntNode(this.iterationStep)))
+					out.collect(((ArrayNode) key).get(1), new ArrayNode(key, value));
+			}
+		}
+	}
+
+	private static class TransformXKey extends ElementaryOperator<TransformXKey> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3480847243868518647L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				out.collect(((ArrayNode) key).get(1), new ArrayNode(key, value));
+			}
+		}
+	}
+
+	@InputCardinality(min = 2, max = 2)
+	private static class BAndXCoGroup extends ElementaryOperator<BAndXCoGroup> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3480847243868518647L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.ArrayNode, eu.stratosphere.sopremo.jsondatamodel.ArrayNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
+				if (values1.isEmpty() || values2.isEmpty()) {
+					for (JsonNode value : values1) {
+						out.collect(key, value);
+					}
+					for (JsonNode value : values2) {
+						out.collect(key, value);
+					}
+				} else {
+					for (JsonNode value1 : values1) {
+						for (JsonNode value2 : values2) {
+							ArrayNode oldKeyB = (ArrayNode) ((ArrayNode) value1).get(0);
+							ArrayNode oldKeyX = (ArrayNode) ((ArrayNode) value2).get(0);
+							out.collect(new ArrayNode(oldKeyX.get(0), oldKeyB.get(0)), new ArrayNode(value1, value2));
+						}
+					}
+
+				}
+			}
+		}
+	}
+
+	@InputCardinality(min = 2, max = 2)
+	private static class ACoGroup extends ElementaryOperator<ACoGroup> {
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			// /*
+			// * (non-Javadoc)
+			// * @see eu.stratosphere.sopremo.pact.SopremoMatch#match(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			// * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			// * eu.stratosphere.sopremo.pact.JsonCollector)
+			// */
+			// @Override
+			// protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
+			// BinarySparseMatrix matrixA = (BinarySparseMatrix) value1;
+			// BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0))).get(1);
+			// BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1))).get(1);
+			// JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
+			// // 3-input warshall
+			// out.collect(oldKeyX, matrixX);
+			// }
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.ArrayNode, eu.stratosphere.sopremo.jsondatamodel.ArrayNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
+				if (!key.isArray()) {
+					// was not joined in BAndXCoGroup
+					//we don't want to loose these values for next iteration
+					for (JsonNode array : values2) {
+						out.collect(((ArrayNode) array).get(0), ((ArrayNode) array).get(1));
+					}
+				} else {
+					for (JsonNode value2 : values2) {
+						BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0)))
+							.get(1);
+						BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1)))
+							.get(1);
+						JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
+						// JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
+						if (!values1.isEmpty()) {
+							// 3-input warshall
+						} else {
+							//A is not present
+							//we don't want to loose B, too
+							JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
+							out.collect(oldKeyB, matrixB);
+						}
+						//in both cases we want to collect X
+						out.collect(oldKeyX, matrixX);
+					}
+
+				}
+
+			}
+
+		}
 	}
 
 }

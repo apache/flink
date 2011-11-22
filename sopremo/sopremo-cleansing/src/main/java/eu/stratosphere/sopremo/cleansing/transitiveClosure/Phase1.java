@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.cleansing.transitiveClosure;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.cleansing.record_linkage.BinarySparseMatrix;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;

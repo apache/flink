@@ -1,15 +1,16 @@
-package eu.stratosphere.sopremo.cleansing.record_linkage;
+package eu.stratosphere.sopremo.cleansing.transitiveClosure;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
@@ -20,7 +21,8 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	 * 
 	 */
 	private static final long serialVersionUID = -5533221391825038587L;
-	private final Map<JsonNode, Set<JsonNode>> sparseMatrix = new HashMap<JsonNode, Set<JsonNode>>();
+
+	private final Map<JsonNode, Set<JsonNode>> sparseMatrix = new TreeMap<JsonNode, Set<JsonNode>>();
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -42,7 +44,8 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	}
 
 	public Set<JsonNode> get(final JsonNode n) {
-		return this.sparseMatrix.get(n);
+		Set<JsonNode> set = this.sparseMatrix.get(n);
+		return set == null ? Collections.EMPTY_SET : set;
 	}
 
 	public Set<JsonNode> getRows() {
@@ -58,12 +61,12 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	}
 
 	public boolean isSet(final JsonNode n1, final JsonNode n2) {
-		final Set<JsonNode> set = this.sparseMatrix.get(n1);
+		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		return set != null && set.contains(n2);
 	}
 
 	public void makeSymmetric() {
-		final Set<JsonNode> rows = new HashSet<JsonNode>(this.getRows());
+		final Set<JsonNode> rows = new TreeSet<JsonNode>(this.getRows());
 		for (final JsonNode row : rows)
 			for (final JsonNode column : this.get(row))
 				this.set(column, row);
@@ -72,23 +75,26 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	public void set(final JsonNode n1, final JsonNode n2) {
 		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		if (set == null)
-			this.sparseMatrix.put(n1, set = new HashSet<JsonNode>());
+			this.sparseMatrix.put(n1, set = newSet());
 		set.add(n2);
+	}
+
+	private Set<JsonNode> newSet() {
+		return new TreeSet<JsonNode>();
 	}
 
 	public void setAll(final JsonNode n1, final Set<JsonNode> n2) {
 		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		if (set == null)
-			this.sparseMatrix.put(n1, set = new HashSet<JsonNode>());
+			this.sparseMatrix.put(n1, set = newSet());
 		set.addAll(n2);
 	}
 
 	@Override
-	public String toString() {
-		final StringBuilder builder = new StringBuilder("[\n");
+	public StringBuilder toString(StringBuilder sb) {
 		for (final JsonNode row : this.getRows())
-			builder.append("[").append(row).append(": ").append(this.get(row)).append("]\n");
-		return builder.append("]").toString();
+			sb.append("[").append(row).append(": ").append(this.get(row)).append("]\n");
+		return sb.append("]");
 	}
 
 	public void clear() {
@@ -142,20 +148,20 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 			}
 		}
 	}
-	
-	public BinarySparseMatrix merge(BinarySparseMatrix matrix){
-		for(JsonNode row : matrix.getRows()){
+
+	public BinarySparseMatrix merge(BinarySparseMatrix matrix) {
+		for (JsonNode row : matrix.getRows()) {
 			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
-			for(JsonNode column : columnsToExplore){
+			for (JsonNode column : columnsToExplore) {
 				if (!this.isSet(row, column)) {
 					this.set(row, column);
 				}
 			}
 		}
-		
+
 		return this;
 	}
-	
+
 	@Override
 	public int getTypePos() {
 		return TYPES.CustomNode.ordinal();
@@ -169,10 +175,5 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	@Override
 	public int compareToSameType(JsonNode other) {
 		throw new UnsupportedOperationException("BinarySparseMatrix isn't comparable.");
-	}
-
-	@Override
-	public StringBuilder toString(StringBuilder sb) {
-		return null;
 	}
 }

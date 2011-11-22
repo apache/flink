@@ -5,7 +5,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.cleansing.record_linkage.BinarySparseMatrix;
+import eu.stratosphere.sopremo.cleansing.transitiveClosure.BinarySparseMatrix;
 import eu.stratosphere.sopremo.cleansing.transitiveClosure.TransitiveClosure;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
@@ -27,6 +27,7 @@ public class ParallelTransitiveClosureTest {
 
 		String output = SopremoTest.getResourcePath("phase1Result.json");
 		sopremoTestPlan.getExpectedOutput(0).load(output);
+		sopremoTestPlan.trace();
 
 		sopremoTestPlan.run();
 	}
