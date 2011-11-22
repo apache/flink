@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.streaming.wrappers;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.plugins.wrapper.AbstractInputGateWrapper;
 import eu.stratosphere.nephele.streaming.listeners.StreamListener;
@@ -32,5 +34,18 @@ public final class StreamingInputGate<T extends Record> extends AbstractInputGat
 		}
 
 		this.streamListener = streamListener;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public T readRecord(final T target) throws IOException, InterruptedException {
+
+		final T retVal = getWrappedInputGate().readRecord(target);
+
+		this.streamListener.recordReceived(retVal);
+
+		return retVal;
 	}
 }

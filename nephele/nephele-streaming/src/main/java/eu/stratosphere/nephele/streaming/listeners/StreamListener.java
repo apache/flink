@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.streaming.StreamingTag;
 import eu.stratosphere.nephele.streaming.StreamingTaskManagerPlugin;
+import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
@@ -122,57 +123,53 @@ public final class StreamListener {
 	 */
 	public void recordReceived(final Record record) {
 
-		/*
-		 * if (this.taskType == TaskType.INPUT) {
-		 * throw new IllegalStateException("Input task received record");
-		 * }
-		 * final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-		 * this.tag = (StreamingTag) taggableRecord.getTag();
-		 * if (this.tag != null) {
-		 * final long timestamp = System.currentTimeMillis();
-		 * if (this.lastTimestamp > 0) {
-		 * try {
-		 * this.communicationThread.sendDataAsynchronously(new TaskLatency(jobID, vertexID, timestamp
-		 * - this.lastTimestamp));
-		 * } catch (InterruptedException e) {
-		 * LOG.error(StringUtils.stringifyException(e));
-		 * }
-		 * if (this.taskType == TaskType.REGULAR) {
-		 * this.lastTimestamp = -1L;
-		 * } else {
-		 * this.lastTimestamp = timestamp;
-		 * }
-		 * }
-		 * final long pathLatency = timestamp - this.tag.getTimestamp();
-		 * final ExecutionVertexID sourceID = this.tag.getSourceID();
-		 * // Calculate moving average
-		 * Double aggregatedLatency = this.aggregatedValue.get(sourceID);
-		 * if (aggregatedLatency == null) {
-		 * aggregatedLatency = Double.valueOf(pathLatency);
-		 * } else {
-		 * aggregatedLatency = Double.valueOf((ALPHA * pathLatency)
-		 * + ((1 - ALPHA) * aggregatedLatency.doubleValue()));
-		 * }
-		 * this.aggregatedValue.put(sourceID, aggregatedLatency);
-		 * // Check if we need to compute an event and send it to the job manager component
-		 * Integer counter = this.aggregationCounter.get(sourceID);
-		 * if (counter == null) {
-		 * counter = Integer.valueOf(0);
-		 * }
-		 * counter = Integer.valueOf(counter.intValue() + 1);
-		 * if (counter.intValue() == this.aggregationInterval) {
-		 * final ChannelLatency pl = new ChannelLatency(this.jobID, sourceID, this.vertexID,
-		 * aggregatedLatency.doubleValue());
-		 * try {
-		 * this.communicationThread.sendDataAsynchronously(pl);
-		 * } catch (InterruptedException e) {
-		 * LOG.warn(StringUtils.stringifyException(e));
-		 * }
-		 * counter = Integer.valueOf(0);
-		 * }
-		 * this.aggregationCounter.put(sourceID, counter);
-		 * }
-		 */
+		final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
+		this.tag = (StreamingTag) taggableRecord.getTag();
+		if (this.tag != null) {
+			final long timestamp = System.currentTimeMillis();
+			if (this.lastTimestamp > 0) {
+				final TaskLatency tl = new TaskLatency(this.listenerContext.getJobID(),
+					this.listenerContext.getVertexID(), timestamp - this.lastTimestamp);
+				try {
+					this.listenerContext.sendDataAsynchronously(tl);
+				} catch (InterruptedException e) {
+					LOG.error(StringUtils.stringifyException(e));
+				}
+				if (this.listenerContext.isRegularVertex()) {
+					this.lastTimestamp = -1L;
+				} else {
+					this.lastTimestamp = timestamp;
+				}
+			}
+			final long pathLatency = timestamp - this.tag.getTimestamp();
+			final ExecutionVertexID sourceID = this.tag.getSourceID();
+			// Calculate moving average
+			Double aggregatedLatency = this.aggregatedValue.get(sourceID);
+			if (aggregatedLatency == null) {
+				aggregatedLatency = Double.valueOf(pathLatency);
+			} else {
+				aggregatedLatency = Double.valueOf((ALPHA * pathLatency)
+					+ ((1 - ALPHA) * aggregatedLatency.doubleValue()));
+			}
+			this.aggregatedValue.put(sourceID, aggregatedLatency);
+			// Check if we need to compute an event and send it to the job manager component
+			Integer counter = this.aggregationCounter.get(sourceID);
+			if (counter == null) {
+				counter = Integer.valueOf(0);
+			}
+			counter = Integer.valueOf(counter.intValue() + 1);
+			if (counter.intValue() == this.listenerContext.getAggregationInterval()) {
+				final ChannelLatency pl = new ChannelLatency(this.listenerContext.getJobID(), sourceID,
+					this.listenerContext.getVertexID(), aggregatedLatency.doubleValue());
+				try {
+					this.listenerContext.sendDataAsynchronously(pl);
+				} catch (InterruptedException e) {
+					LOG.warn(StringUtils.stringifyException(e));
+				}
+				counter = Integer.valueOf(0);
+			}
+			this.aggregationCounter.put(sourceID, counter);
+		}
 
 	}
 
