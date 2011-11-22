@@ -36,11 +36,8 @@ public class LatencyOptimizerThread extends Thread {
 				if (streamingData instanceof ChannelLatency) {
 					latencyModel.refreshEdgeLatency((ChannelLatency) streamingData);
 				} else if(streamingData instanceof TaskLatency) {
-					TaskLatency tl = (TaskLatency) streamingData;
-					System.out.println("Task latency: " + tl.getTaskLatency());
+					latencyModel.refreshTaskLatency((TaskLatency) streamingData);					
 				}
-				
-
 			}
 
 		} catch (InterruptedException e) {

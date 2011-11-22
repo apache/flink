@@ -1,17 +1,16 @@
 package eu.stratosphere.nephele.streaming.latency;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
+import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
+import eu.stratosphere.nephele.streaming.types.TaskLatency;
+
 
 public class LatencyModel {
 
-	private static Log LOG = LogFactory.getLog(LatencyModel.class);
+	// private static Log LOG = LogFactory.getLog(LatencyModel.class);
 
 	private ExecutionGraph executionGraph;
 
@@ -28,21 +27,40 @@ public class LatencyModel {
 		this.latencySubgraph = new LatencySubgraph(executionGraph, subgraphStart, subgraphEnd);
 	}
 
-	public void refreshEdgeLatency(ChannelLatency latency) {
-		ExecutionVertexID startID = latency.getSourceVertexID();
-		ExecutionVertexID endID = latency.getSinkVertexID();
+	public int i = 0;
 
-		if (startID.equals(endID)) {
-			System.out.println("new vertex latency");
-			VertexLatency vertexLatency = latencySubgraph.getVertexLatency(startID.toManagementVertexID());
-			vertexLatency.setLatencyInMillis(latency.getChannelLatency());
-		} else {
-			System.out.println("new edge latency");
-			ManagementEdgeID edgeID = new ManagementEdgeID(latency.getSourceVertexID().toManagementVertexID(),
-				latency.getSinkVertexID().toManagementVertexID());
+	public void refreshEdgeLatency(ChannelLatency channelLatency) {
+		
+		// FIXME: this is done to prevent an NPE caused by another bug that causes identical 
+		// vertex ids inside the channel latency
+		ManagementVertexID startID = channelLatency.getSourceVertexID().toManagementVertexID();
+		ManagementVertexID stopID = channelLatency.getSinkVertexID().toManagementVertexID();
+		if(startID.equals(stopID)) {
+			return;
+		}
+		
+		ManagementEdgeID edgeID = new ManagementEdgeID(channelLatency.getSourceVertexID().toManagementVertexID(),
+				channelLatency.getSinkVertexID().toManagementVertexID());
 
-			EdgeLatency edgeLatency = latencySubgraph.getEdgeLatency(edgeID);
-			edgeLatency.setLatencyInMillis(latency.getChannelLatency());
+		EdgeLatency edgeLatency = latencySubgraph.getEdgeLatency(edgeID);
+		edgeLatency.setLatencyInMillis(channelLatency.getChannelLatency());
+		
+		i++;
+		
+		if(i % 20 == 0) {
+			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
+				path.dumpLatencies();
+			}
+		}
+	}
+
+	public void refreshTaskLatency(TaskLatency taskLatency) {
+		VertexLatency vertexLatency = latencySubgraph
+			.getVertexLatency(taskLatency.getVertexID().toManagementVertexID());
+		vertexLatency.setLatencyInMillis(taskLatency.getTaskLatency());
+		i++;
+		
+		if(i % 20 == 0) {
 			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
 				path.dumpLatencies();
 			}
