@@ -148,6 +148,9 @@ public class ChainedCombineTask implements ChainedTask
 		
 		this.combinerThread = new CombinerThread(this.sorter, keyPositions, keyClasses, this.combiner, this.outputCollector);
 		this.combinerThread.start();
+		if (this.parent != null) {
+			this.parent.userThreadStarted(this.combinerThread);
+		}
 	}
 	
 	/* (non-Javadoc)
@@ -162,6 +165,10 @@ public class ChainedCombineTask implements ChainedTask
 				this.combinerThread.join();
 			}
 			catch (InterruptedException iex) {}
+		}
+		
+		if (this.parent != null && this.combinerThread != null) {
+			this.parent.userThreadFinished(this.combinerThread);
 		}
 		
 		if (this.canceled)
