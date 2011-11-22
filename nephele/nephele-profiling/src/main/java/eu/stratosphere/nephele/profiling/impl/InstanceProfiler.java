@@ -34,11 +34,13 @@ public class InstanceProfiler {
 
 	static final String PROC_NET_DEV = "/proc/net/dev";
 
+	private static final String LOOPBACK_INTERFACE_NAME = "lo";
+
 	private static final Pattern CPU_PATTERN = Pattern
 		.compile("^cpu\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+).+$");
 
 	private static final Pattern NETWORK_PATTERN = Pattern
-		.compile("^\\s*\\w+:\\s*(\\d+)\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+(\\d+).+$");
+		.compile("^\\s*(\\w+):\\s*(\\d+)\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+(\\d+).+$");
 
 	private static final Pattern MEMORY_PATTERN = Pattern.compile("^\\w+:\\s*(\\d+)\\s+kB$");
 
@@ -189,8 +191,12 @@ public class InstanceProfiler {
 				 * http://linuxdevcenter.com/pub/a/linux/2000/11/16/LinuxAdmin.html
 				 */
 
-				receivedSum += Long.parseLong(networkMatcher.group(1));
-				transmittedSum += Long.parseLong(networkMatcher.group(2));
+				if (LOOPBACK_INTERFACE_NAME.equals(networkMatcher.group(1))) {
+					continue;
+				}
+
+				receivedSum += Long.parseLong(networkMatcher.group(2));
+				transmittedSum += Long.parseLong(networkMatcher.group(3));
 			}
 
 			in.close();
