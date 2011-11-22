@@ -39,7 +39,7 @@ public class LatencyOptimizerThread extends Thread {
 				} else if(streamingData instanceof TaskLatency) {
 					latencyModel.refreshTaskLatency((TaskLatency) streamingData);					
 				} else if (streamingData instanceof ChannelThroughput) {
-					
+					latencyModel.refreshChannelThroughput((ChannelThroughput) streamingData);
 				}
 			}
 
