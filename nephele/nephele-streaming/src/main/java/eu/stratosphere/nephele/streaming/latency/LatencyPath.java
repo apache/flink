@@ -77,7 +77,7 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 		}
 
 		for (ManagementEdge edge : ingoingEdges.values()) {
-			if (((EdgeLatency) edge.getAttachment()).getLatencyInMillis() == -1) {
+			if (((EdgeCharacteristics) edge.getAttachment()).getLatencyInMillis() == -1) {
 				return false;
 			}
 		}
@@ -96,7 +96,7 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 			ManagementEdge ingoingEdge = ingoingEdges.get(vertex.getID());
 
 			if (ingoingEdge != null) {
-				double edgeLatency = ((EdgeLatency) ingoingEdge.getAttachment()).getLatencyInMillis();
+				double edgeLatency = ((EdgeCharacteristics) ingoingEdge.getAttachment()).getLatencyInMillis();
 				if (edgeLatency == -1) {
 					throw new IllegalStateException("Edge latency has not yet been initialized: " + edgeLatency);
 				}
@@ -141,7 +141,7 @@ public class LatencyPath implements Iterable<ManagementVertex> {
 
 			if (ingoing != null) {
 				System.out.printf("---edge(%.03f)---%s(%.03f)\n",
-					((EdgeLatency) ingoing.getAttachment()).getLatencyInMillis(),
+					((EdgeCharacteristics) ingoing.getAttachment()).getLatencyInMillis(),
 					vertex,
 					((VertexLatency) vertex.getAttachment()).getLatencyInMillis());
 			} else {

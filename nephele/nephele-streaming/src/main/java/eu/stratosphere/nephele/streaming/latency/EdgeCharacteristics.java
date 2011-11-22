@@ -2,13 +2,15 @@ package eu.stratosphere.nephele.streaming.latency;
 
 import eu.stratosphere.nephele.managementgraph.ManagementEdge;
 
-public class EdgeLatency {
+public class EdgeCharacteristics {
 
 	private ManagementEdge edge;
 
 	private double latencyInMillis;
 
-	public EdgeLatency(ManagementEdge edge) {
+	private double throughputInMbit;
+
+	public EdgeCharacteristics(ManagementEdge edge) {
 		this.edge = edge;
 		this.latencyInMillis = -1;
 	}
@@ -24,4 +26,13 @@ public class EdgeLatency {
 	public void setLatencyInMillis(double latencyInMillis) {
 		this.latencyInMillis = latencyInMillis;
 	}
+
+	public double getThroughputInMbit() {
+		return throughputInMbit;
+	}
+
+	public void setThroughputInMbit(double throughputInMbit) {
+		this.throughputInMbit = throughputInMbit;
+	}
+
 }

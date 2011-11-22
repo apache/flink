@@ -106,7 +106,7 @@ public final class StreamListener {
 
 			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
 			
-			if(this.lastTimestamp > 0L) {
+			if(this.lastTimestamp >= 0L) {
 				
 				timestamp = System.currentTimeMillis();
 				taggableRecord.setTag(createTag(timestamp));
@@ -142,6 +142,7 @@ public final class StreamListener {
 			
 			final long timestamp = System.currentTimeMillis();
 			final JobID jobID = this.listenerContext.getJobID();
+			
 			final ExecutionVertexID vertexID = this.listenerContext.getVertexID();
 			
 			// Calculate channel latency

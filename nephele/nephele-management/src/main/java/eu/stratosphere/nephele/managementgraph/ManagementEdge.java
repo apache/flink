@@ -59,15 +59,22 @@ public final class ManagementEdge extends ManagementAttachment {
 	private final CompressionLevel compressionLevel;
 
 	/**
-	 * The ID of the management edge.
+	 * The source ID of the management edge.
 	 */
-	private ManagementEdgeID managementEdgeID;
+	private final ManagementEdgeID sourceEdgeID;
+
+	/**
+	 * The target ID of the management edge.
+	 */
+	private final ManagementEdgeID targetEdgeID;
 
 	/**
 	 * Constructs a new edge object.
 	 * 
-	 * @param managementEdgeID
-	 *        the ID the new management edge
+	 * @param sourceEdgeID
+	 *        source ID of the management edge
+	 * @param targetEdgeID
+	 *        target ID of the management edge
 	 * @param source
 	 *        the source of the edge referring to the output gate of an execution vertex
 	 * @param sourceIndex
@@ -81,11 +88,12 @@ public final class ManagementEdge extends ManagementAttachment {
 	 * @param compressionLevel
 	 *        the compression level of the channel this edge refers to
 	 */
-	public ManagementEdge(final ManagementEdgeID managementEdgeID,
-			final ManagementGate source, final int sourceIndex, final ManagementGate target,
-			final int targetIndex,
+	public ManagementEdge(final ManagementEdgeID sourceEdgeID, final ManagementEdgeID targetEdgeID,
+			final ManagementGate source, final int sourceIndex, final ManagementGate target, final int targetIndex,
 			final ChannelType channelType, final CompressionLevel compressionLevel) {
-		this.managementEdgeID = managementEdgeID;
+
+		this.sourceEdgeID = sourceEdgeID;
+		this.targetEdgeID = targetEdgeID;
 		this.source = source;
 		this.target = target;
 		this.sourceIndex = sourceIndex;
@@ -152,11 +160,20 @@ public final class ManagementEdge extends ManagementAttachment {
 	}
 
 	/**
-	 * Returns the management edge ID.
+	 * Returns the source ID of the edge.
 	 * 
-	 * @return The management edge ID
+	 * @return The source ID of the edge
 	 */
-	public ManagementEdgeID getManagementEdgeID() {
-		return managementEdgeID;
+	public ManagementEdgeID getSourceEdgeID() {
+		return sourceEdgeID;
+	}
+
+	/**
+	 * Returns the target ID of the edge.
+	 * 
+	 * @return The target ID of the edge
+	 */
+	public ManagementEdgeID getTargetEdgeID() {
+		return targetEdgeID;
 	}
 }

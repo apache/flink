@@ -172,12 +172,10 @@ public class ManagementGraphFactory {
 						.getInputChannelByID(inputChannelID);
 					final ManagementGate managementInputGate = gateMap.get(inputChannel.getInputGate());
 					
-					final ManagementEdgeID managementEdgeID = new ManagementEdgeID(
-						manangementOutputGate.getVertex().getID(),
-						managementInputGate.getVertex().getID());
-					new ManagementEdge(managementEdgeID, manangementOutputGate, j, managementInputGate,
-						inputChannel.getChannelIndex(),
-						inputChannel.getType(), inputChannel.getCompressionLevel());
+					final ManagementEdgeID sourceEdgeID = new ManagementEdgeID(outputChannel.getID());
+					final ManagementEdgeID targetEdgeID = new ManagementEdgeID(inputChannelID);
+					new ManagementEdge(sourceEdgeID, targetEdgeID, manangementOutputGate, j, managementInputGate,
+						inputChannel.getChannelIndex(), inputChannel.getType(), inputChannel.getCompressionLevel());
 				}
 			}
 		}

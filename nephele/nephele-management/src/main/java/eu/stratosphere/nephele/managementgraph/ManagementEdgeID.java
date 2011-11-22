@@ -1,6 +1,7 @@
 package eu.stratosphere.nephele.managementgraph;
 
 import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 
 /**
  * A management edge ID uniquely identifies a {@link ManagementEdge}.
@@ -12,15 +13,20 @@ import eu.stratosphere.nephele.io.AbstractID;
 public class ManagementEdgeID extends AbstractID {
 
 	/**
-	 * A ManagementEdgeID is derived from a pair of #{@link ManagementVertexID}s.
-	 * Note that this only works for simple DAGs that are not multi-graphs.
-	 * FIXME: use ManagementGateID to make the management graph fully multi-graph capable. This
-	 * means we have to construct management edge IDs from gate IDs
+	 * Initializes ManagementEdgeID.
+	 */
+	ManagementEdgeID() {
+	}
+
+	/**
+	 * A ManagementEdgeID is derived from the #{@link ChannelID} of the corresponding
+	 * output channel in the execution graph.
 	 * 
 	 * @param source
-	 * @param target
+	 *        ID of the corresponding output channel
 	 */
-	public ManagementEdgeID(ManagementVertexID source, ManagementVertexID target) {
-		super(source, target);
+	public ManagementEdgeID(ChannelID source) {
+		super();
+		this.setID(source);
 	}
 }

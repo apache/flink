@@ -468,6 +468,12 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 				final ManagementGate sourceGate = sourceVertex.getOutputGate(j);
 				int numberOfForwardEdges = in.readInt();
 				for (int k = 0; k < numberOfForwardEdges; k++) {
+					final ManagementEdgeID sourceEdgeID = new ManagementEdgeID();
+					sourceEdgeID.read(in);
+
+					final ManagementEdgeID targetEdgeID = new ManagementEdgeID();
+					targetEdgeID.read(in);
+
 					final ManagementVertexID targetID = new ManagementVertexID();
 					targetID.read(in);
 					final ManagementVertex targetVertex = getVertexByID(targetID);
@@ -479,10 +485,8 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 
 					final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
 					final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-					final ManagementEdgeID managementEdgeID = new ManagementEdgeID(sourceVertex.getID(),
-						targetVertex.getID());
-					new ManagementEdge(managementEdgeID, sourceGate, sourceIndex, targetGate, targetIndex, channelType,
-						compressionLevel);
+					new ManagementEdge(sourceEdgeID, targetEdgeID, sourceGate, sourceIndex, targetGate, targetIndex,
+						channelType, compressionLevel);
 				}
 
 			}
@@ -547,6 +551,10 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 				out.writeInt(outputGate.getNumberOfForwardEdges());
 				for (int j = 0; j < outputGate.getNumberOfForwardEdges(); j++) {
 					final ManagementEdge edge = outputGate.getForwardEdge(j);
+
+					edge.getSourceEdgeID().write(out);
+					edge.getTargetEdgeID().write(out);
+
 					// This identifies the target gate
 					edge.getTarget().getVertex().getID().write(out);
 					out.writeInt(edge.getTarget().getIndex());

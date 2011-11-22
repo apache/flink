@@ -295,21 +295,16 @@ public class ManagementGraphTest {
 		new ManagementGroupEdge(groupVertex3, 0, groupVertex4, 0, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 		// Edges
-		new ManagementEdge(new ManagementEdgeID(vertex1_1.getID(),
-			vertex2_1.getID()), outputGate1_1, 0, inputGate2_1, 0, ChannelType.NETWORK,
-			CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(new ManagementEdgeID(vertex1_1.getID(),
-			vertex2_2.getID()), outputGate1_1, 1, inputGate2_2, 0, ChannelType.NETWORK,
-			CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(new ManagementEdgeID(vertex2_1.getID(),
-			vertex3_1.getID()), outputGate2_1, 0, inputGate3_1, 0, ChannelType.FILE,
-			CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(new ManagementEdgeID(vertex2_2.getID(),
-			vertex3_1.getID()), outputGate2_2, 0, inputGate3_1, 1, ChannelType.FILE,
-			CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(new ManagementEdgeID(vertex3_1.getID(),
-			vertex4_1.getID()), outputGate3_1, 0, inputGate4_1, 0, ChannelType.INMEMORY,
-			CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate1_1, 0, inputGate2_1, 0,
+			ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate1_1, 1, inputGate2_2, 0,
+			ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate2_1, 0, inputGate3_1, 0,
+			ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate2_2, 0, inputGate3_1, 1,
+			ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate3_1, 0, inputGate4_1, 0,
+			ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 		return graph;
 	}

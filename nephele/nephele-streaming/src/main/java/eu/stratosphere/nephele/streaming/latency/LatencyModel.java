@@ -3,10 +3,9 @@ package eu.stratosphere.nephele.streaming.latency;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
-import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
+import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
-
 
 public class LatencyModel {
 
@@ -30,28 +29,19 @@ public class LatencyModel {
 	public int i = 0;
 
 	public void refreshEdgeLatency(ChannelLatency channelLatency) {
-		
-		// FIXME: this is done to prevent an NPE caused by another bug that causes identical 
-		// vertex ids inside the channel latency
-		ManagementVertexID startID = channelLatency.getSourceVertexID().toManagementVertexID();
-		ManagementVertexID stopID = channelLatency.getSinkVertexID().toManagementVertexID();
-		if(startID.equals(stopID)) {
-			return;
-		}
-		
-		ManagementEdgeID edgeID = new ManagementEdgeID(channelLatency.getSourceVertexID().toManagementVertexID(),
-				channelLatency.getSinkVertexID().toManagementVertexID());
-
-		EdgeLatency edgeLatency = latencySubgraph.getEdgeLatency(edgeID);
-		edgeLatency.setLatencyInMillis(channelLatency.getChannelLatency());
-		
-		i++;
-		
-		if(i % 20 == 0) {
-			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
-				path.dumpLatencies();
-			}
-		}
+//		ManagementEdgeID edgeID = new ManagementEdgeID(channelLatency.getSourceVertexID().toManagementVertexID(),
+//				channelLatency.getSinkVertexID().toManagementVertexID());
+//
+//		EdgeCharacteristics edgeLatency = latencySubgraph.getEdgeLatency(edgeID);
+//		edgeLatency.setLatencyInMillis(channelLatency.getChannelLatency());
+//
+//		i++;
+//
+//		if (i % 20 == 0) {
+//			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
+//				path.dumpLatencies();
+//			}
+//		}
 	}
 
 	public void refreshTaskLatency(TaskLatency taskLatency) {
@@ -59,8 +49,22 @@ public class LatencyModel {
 			.getVertexLatency(taskLatency.getVertexID().toManagementVertexID());
 		vertexLatency.setLatencyInMillis(taskLatency.getTaskLatency());
 		i++;
+
+		if (i % 20 == 0) {
+			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
+				path.dumpLatencies();
+			}
+		}
+	}
+
+	public void refreshChannelThroughput(ChannelThroughput channelThroughput) {
+		ManagementEdgeID edgeID = new ManagementEdgeID(channelThroughput.getSourceChannelID());
+		EdgeCharacteristics edgeCharaceristics = latencySubgraph.getEdgeCharacteristicsBySourceEdgeID(edgeID);
+		edgeCharaceristics.setThroughputInMbit(channelThroughput.getThroughput());
 		
-		if(i % 20 == 0) {
+		i++;
+
+		if (i % 20 == 0) {
 			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
 				path.dumpLatencies();
 			}

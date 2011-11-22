@@ -24,8 +24,8 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  * @author Bjoern Lohrmann
  */
 public class LatencySubgraph {
-	
-	//private static Log LOG = LogFactory.getLog(LatencySubgraph.class);
+
+	// private static Log LOG = LogFactory.getLog(LatencySubgraph.class);
 
 	private ManagementGroupVertex subgraphStart;
 
@@ -35,7 +35,7 @@ public class LatencySubgraph {
 
 	private HashMap<ManagementVertexID, VertexLatency> vertexLatencies = new HashMap<ManagementVertexID, VertexLatency>();
 
-	private HashMap<ManagementEdgeID, EdgeLatency> edgeLatencies = new HashMap<ManagementEdgeID, EdgeLatency>();
+	private HashMap<ManagementEdgeID, EdgeCharacteristics> edgeCharacteristics = new HashMap<ManagementEdgeID, EdgeCharacteristics>();
 
 	public LatencySubgraph(ExecutionGraph executionGraph, ExecutionGroupVertex subgraphStart,
 			ExecutionGroupVertex subgraphEnd) {
@@ -63,9 +63,10 @@ public class LatencySubgraph {
 
 			ManagementEdge ingoingEdge = path.getIngoingEdge(vertex);
 			if (ingoingEdge != null && ingoingEdge.getAttachment() == null) {
-				EdgeLatency edgeLatency = new EdgeLatency(ingoingEdge);
-				ingoingEdge.setAttachment(edgeLatency);
-				edgeLatencies.put(ingoingEdge.getManagementEdgeID(), edgeLatency);
+				EdgeCharacteristics characteristics = new EdgeCharacteristics(ingoingEdge);
+				ingoingEdge.setAttachment(characteristics);
+				edgeCharacteristics.put(ingoingEdge.getSourceEdgeID(), characteristics);
+				edgeCharacteristics.put(ingoingEdge.getTargetEdgeID(), characteristics);
 			}
 		}
 	}
@@ -125,14 +126,14 @@ public class LatencySubgraph {
 		this.subgraphEnd = managementGraph.getVertexByID(vertexInPathEndGroup).getGroupVertex();
 	}
 
-	public EdgeLatency getEdgeLatency(ManagementEdgeID edgeID) {
-		return edgeLatencies.get(edgeID);
+	public EdgeCharacteristics getEdgeCharacteristicsBySourceEdgeID(ManagementEdgeID sourceEdgeID) {
+		return edgeCharacteristics.get(sourceEdgeID);
 	}
-	
+
 	public VertexLatency getVertexLatency(ManagementVertexID managementVertexID) {
 		return vertexLatencies.get(managementVertexID);
 	}
-	
+
 	public List<LatencyPath> getLatencyPaths() {
 		return latencyPaths;
 	}

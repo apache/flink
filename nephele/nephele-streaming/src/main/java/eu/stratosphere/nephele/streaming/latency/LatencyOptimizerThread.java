@@ -8,6 +8,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
+import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
 
 public class LatencyOptimizerThread extends Thread {
@@ -37,6 +38,8 @@ public class LatencyOptimizerThread extends Thread {
 					latencyModel.refreshEdgeLatency((ChannelLatency) streamingData);
 				} else if(streamingData instanceof TaskLatency) {
 					latencyModel.refreshTaskLatency((TaskLatency) streamingData);					
+				} else if (streamingData instanceof ChannelThroughput) {
+					
 				}
 			}
 
