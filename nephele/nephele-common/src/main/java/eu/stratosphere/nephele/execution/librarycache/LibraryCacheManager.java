@@ -126,8 +126,14 @@ public final class LibraryCacheManager {
 
 		this.fs = FileSystem.getLocalFileSystem();
 
+		// Add user name of library cache path to avoid conflicts with regard to file permissions
+		String userName = System.getProperty("user.name");
+		if (userName == null) {
+			userName = "default";
+		}
+
 		// Use the File object to the convert the path to a proper URI
-		final File path = new File(tmp + File.separator + LIBRARYCACHENAME);
+		final File path = new File(tmp + File.separator + LIBRARYCACHENAME + "-" + userName);
 		final URI uri = path.toURI();
 
 		this.libraryCachePath = new Path(uri);

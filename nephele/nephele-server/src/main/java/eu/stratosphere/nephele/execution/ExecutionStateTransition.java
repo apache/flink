@@ -67,6 +67,13 @@ public final class ExecutionStateTransition {
 			unexpectedStateChange = false;
 		}
 
+		if (oldState == ExecutionState.CREATED && newState == ExecutionState.ASSIGNED) {
+			/**
+			 * A vertex might skip the SCHEDULED state if its resource has been allocated in a previous stage.
+			 */
+			unexpectedStateChange = false;
+		}
+
 		if (oldState == ExecutionState.SCHEDULED && newState == ExecutionState.CANCELED) {
 			/**
 			 * This transition can appear if a task in a stage which is not yet executed gets canceled.

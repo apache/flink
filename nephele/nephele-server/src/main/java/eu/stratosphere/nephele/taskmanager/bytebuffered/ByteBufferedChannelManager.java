@@ -51,6 +51,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
@@ -64,6 +65,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private static final Log LOG = LogFactory.getLog(ByteBufferedChannelManager.class);
 
 	private static final boolean DEFAULT_ALLOW_SENDER_SIDE_SPILLING = false;
+
+	private static final boolean DEFAULT_MERGE_SPILLED_BUFFERS = true;
 
 	private final Map<ChannelID, ChannelContext> registeredChannels = new ConcurrentHashMap<ChannelID, ChannelContext>();
 
@@ -80,6 +83,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private final LocalBufferPool transitBufferPool;
 
 	private final boolean allowSenderSideSpilling;
+
+	private final boolean mergeSpilledBuffers;
 
 	private final boolean multicastEnabled = true;
 
@@ -111,8 +116,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.allowSenderSideSpilling = GlobalConfiguration.getBoolean("channel.network.allowSenderSideSpilling",
 			DEFAULT_ALLOW_SENDER_SIDE_SPILLING);
 
+		this.mergeSpilledBuffers = GlobalConfiguration.getBoolean("channel.network.mergeSpilledBuffers",
+			DEFAULT_MERGE_SPILLED_BUFFERS);
+
 		LOG.info("Initialized byte buffered channel manager with sender-side spilling "
-			+ (this.allowSenderSideSpilling ? "enabled" : "disabled"));
+			+ (this.allowSenderSideSpilling ? "enabled" : "disabled")
+			+ (this.mergeSpilledBuffers ? " and spilled buffer merging enabled" : ""));
 	}
 
 	/**
@@ -160,7 +169,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 							+ (isActive ? "active" : "inactive") + ")");
 
 				final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc,
-						isActive);
+						isActive, this.mergeSpilledBuffers);
 				this.registeredChannels.put(bboc.getID(), outputChannelContext);
 			}
 		}
@@ -383,10 +392,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	}
 
 	private boolean processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
-			final TransferEnvelopeReceiverList receiverList)
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug("Received envelope without buffer with event list size " + transferEnvelope.getEventList().size());
+			final TransferEnvelopeReceiverList receiverList) {
 
 		// No need to copy anything
 		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
@@ -459,24 +465,28 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				this.receiverCache.put(sourceChannelID, receiverList);
 
 				if (LOG.isDebugEnabled()) {
-					StringBuilder bld = new StringBuilder();
-					bld.append("Receiver list for source channel ID " + sourceChannelID + " at task manager " + this.localConnectionInfo + '\n');
-					
+
+					final StringBuilder sb = new StringBuilder();
+					sb.append("Receiver list for source channel ID " + sourceChannelID + " at task manager "
+						+ this.localConnectionInfo + "\n");
+
 					if (receiverList.hasLocalReceivers()) {
-						bld.append("\tLocal receivers:\n");
+						sb.append("\tLocal receivers:\n");
 						final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
 						while (it.hasNext()) {
-							bld.append("\t\t" + it.next() + '\n');
+							sb.append("\t\t" + it.next() + "\n");
 						}
 					}
 
 					if (receiverList.hasRemoteReceivers()) {
-						bld.append("Remote receivers:\n");
+						sb.append("Remote receivers:\n");
 						final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
 						while (it.hasNext()) {
-							bld.append("\t\t" + it.next() + '\n');
+							sb.append("\t\t" + it.next() + "\n");
 						}
 					}
+
+					LOG.debug(sb.toString());
 				}
 			}
 		}
@@ -501,9 +511,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
 
-		if (LOG.isDebugEnabled())
-			LOG.debug("Received envelope from input channel");
-
 		processEnvelope(transferEnvelope, false);
 	}
 
@@ -513,8 +520,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer)
 			throws IOException {
-
-		// System.out.println("Processing envelope "+ transferEnvelope.getSequenceNumber() + " from network");
 
 		try {
 			processEnvelope(transferEnvelope, freeSourceBuffer);
@@ -640,9 +645,33 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				LOG.error("Cannot report checkpoint decision for vertex " + cd.getVertexID());
 				continue;
 			}
-			
+
 			taskContext.setCheckpointDecisionAsynchronously(cd.getCheckpointDecision());
 			taskContext.reportAsynchronousEvent();
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerSpillingQueueWithNetworkConnection(final JobID jobID, final ChannelID sourceChannelID,
+			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
+
+		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
+
+		if (!receiverList.hasRemoteReceivers()) {
+			return false;
+		}
+
+		final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
+		if (remoteReceivers.size() > 1) {
+			LOG.error("Cannot register spilling queue for more than one remote receiver");
+			return false;
+		}
+
+		this.networkConnectionManager.registerSpillingQueueWithNetworkConnection(remoteReceivers.get(0), spillingQueue);
+
+		return true;
 	}
 }
