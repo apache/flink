@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.streaming.wrappers;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.plugins.wrapper.AbstractOutputGateWrapper;
 import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.types.Record;
@@ -59,10 +60,13 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 				}
 			} else {
 				for (int i = 0; i < numberOfOutputChannels; ++i) {
-					final long amountOfDataTransmitted = getOutputChannel(i).getAmountOfDataTransmitted(); 
+					final AbstractOutputChannel<? extends Record> outputChannel = getOutputChannel(i);
+					final long amountOfDataTransmitted = outputChannel.getAmountOfDataTransmitted();
 					final long dataDiff = amountOfDataTransmitted - this.lastSentBytes[i];
 					this.lastSentBytes[i] = amountOfDataTransmitted;
-					System.out.println("Data diff " + dataDiff);
+					final long timeDiff = timestamp - this.lastTimestamp;
+					final double throughput = (double) (1000 * 8 * dataDiff) / (double) (1024 * 1024 * timeDiff);
+					this.streamListener.reportChannelThroughput(outputChannel.getID(), throughput);
 				}
 			}
 

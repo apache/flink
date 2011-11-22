@@ -23,8 +23,10 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.streaming.StreamingTag;
 import eu.stratosphere.nephele.streaming.StreamingTaskManagerPlugin;
+import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
 import eu.stratosphere.nephele.types.Record;
@@ -172,6 +174,16 @@ public final class StreamListener {
 		 * }
 		 */
 
+	}
+
+	public void reportChannelThroughput(final ChannelID sourceChannelID, final double throughput) {
+
+		try {
+			this.listenerContext.sendDataAsynchronously(new ChannelThroughput(this.listenerContext.getJobID(),
+				this.listenerContext.getVertexID(), sourceChannelID, throughput));
+		} catch (InterruptedException e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
 	}
 
 	private StreamingTag createTag(final long timestamp) {
