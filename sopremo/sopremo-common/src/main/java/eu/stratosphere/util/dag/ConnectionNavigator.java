@@ -1,5 +1,7 @@
 package eu.stratosphere.util.dag;
 
+import java.util.List;
+
 /**
  * Navigates through the directed acyclic graph by returning the targets of the directed edges.
  * 
@@ -7,7 +9,7 @@ package eu.stratosphere.util.dag;
  * @param <Node>
  *        the class of the node
  */
-public interface Navigator<Node> {
+public interface ConnectionNavigator<Node> {
 	/**
 	 * Return all nodes which are referenced by the given node.
 	 * 
@@ -15,5 +17,5 @@ public interface Navigator<Node> {
 	 *        the node
 	 * @return all referenced nodes
 	 */
-	public Iterable<? extends Node> getConnectedNodes(Node node);
+	public List<? extends Node> getConnectedNodes(Node node);
 }

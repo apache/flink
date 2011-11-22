@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.simple.jaql.cleanse;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.simple.jaql.SimpleTest;
@@ -32,6 +33,7 @@ import eu.stratosphere.sopremo.type.TextNode;
 /**
  * @author Arvid Heise
  */
+@Ignore
 public class FusionTest extends SimpleTest {
 
 	@Test

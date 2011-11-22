@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.util.List;
-
 import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
@@ -11,6 +9,8 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	 * 
 	 */
 	private static final long serialVersionUID = -4195183303903303669L;
+
+	public static final ExpressionTag THIS_CONTEXT = new ExpressionTag("This");
 
 	private JsonStream stream;
 
@@ -45,6 +45,7 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	 */
 	@Override
 	public void toString(StringBuilder builder) {
+		appendTags(builder);
 		builder.append(this.stream.getSource().getOperator().getName()).
 			append("@").append(this.stream.getSource().getIndex());
 	}
@@ -55,12 +56,12 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	 */
 	public EvaluationExpression toInputSelection(Operator<?> operator) {
 		InputSelection inputSelection;
-		if (inputIndex != -1)
-			inputSelection = new InputSelection(inputIndex);
-		else if (operator.getSource() == stream.getSource())
+		if (this.inputIndex != -1)
+			inputSelection = new InputSelection(this.inputIndex);
+		else if (operator.getSource() == this.stream.getSource())
 			inputSelection = new InputSelection(0);
 		else {
-			int index = operator.getInputs().indexOf(stream.getSource());
+			int index = operator.getInputs().indexOf(this.stream.getSource());
 			if (index == -1)
 				return this;
 			inputSelection = new InputSelection(index);

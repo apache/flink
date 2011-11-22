@@ -25,7 +25,7 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 * @return all reachable nodes
 	 */
 	public <Node> Iterable<Node> getReachableNodes(final Iterable<? extends Node> startNodes,
-			final Navigator<Node> navigator) {
+			final ConnectionNavigator<Node> navigator) {
 		return this.getReachableNodes(startNodes.iterator(), navigator);
 	}
 
@@ -41,7 +41,7 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 * @return all reachable nodes
 	 */
 	public <Node> Iterable<Node> getReachableNodes(final Iterator<? extends Node> startNodes,
-			final Navigator<Node> navigator) {
+			final ConnectionNavigator<Node> navigator) {
 		final Map<Node, Object> visitedNodes = new IdentityHashMap<Node, Object>();
 
 		this.traverse(startNodes, navigator, new GraphTraverseListener<Node>() {
@@ -65,7 +65,7 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 *        the class of the nodes
 	 * @return all reachable nodes
 	 */
-	public <Node> Iterable<Node> getReachableNodes(final Node[] startNodes, final Navigator<Node> navigator) {
+	public <Node> Iterable<Node> getReachableNodes(final Node[] startNodes, final ConnectionNavigator<Node> navigator) {
 		return this.getReachableNodes(Arrays.asList(startNodes).iterator(), navigator);
 	}
 
@@ -82,7 +82,7 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 * @param <Node>
 	 *        the class of the nodes
 	 */
-	public <Node> void traverse(final Iterable<? extends Node> startNodes, final Navigator<Node> navigator,
+	public <Node> void traverse(final Iterable<? extends Node> startNodes, final ConnectionNavigator<Node> navigator,
 			final GraphTraverseListener<Node> listener) {
 		this.traverse(startNodes.iterator(), navigator, listener);
 	}
@@ -100,7 +100,7 @@ public abstract class AbstractGraphTraverser implements GraphTraverser {
 	 * @param <Node>
 	 *        the class of the nodes
 	 */
-	public <Node> void traverse(final Node[] startNodes, final Navigator<Node> navigator,
+	public <Node> void traverse(final Node[] startNodes, final ConnectionNavigator<Node> navigator,
 			final GraphTraverseListener<Node> listener) {
 		this.traverse(Arrays.asList(startNodes).iterator(), navigator, listener);
 	}

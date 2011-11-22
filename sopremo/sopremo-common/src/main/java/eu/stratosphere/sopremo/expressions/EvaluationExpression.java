@@ -98,7 +98,8 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		if (this.getClass() != obj.getClass())
 			return false;
 		EvaluationExpression other = (EvaluationExpression) obj;
-		return this.tags.equals(other.tags);
+//		return this.tags.equals(other.tags);
+		return true;
 	}
 
 
@@ -144,7 +145,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + this.tags.hashCode();
+//		result = prime * result + this.tags.hashCode();
 		return result;
 	}
 
@@ -197,7 +198,11 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 *        the builder to append to
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(StringBuilder builder) {		
+		appendTags(builder);
+	}
+
+	protected void appendTags(StringBuilder builder) {
 		if (!this.tags.isEmpty())
 			builder.append(this.tags).append(" ");
 	}

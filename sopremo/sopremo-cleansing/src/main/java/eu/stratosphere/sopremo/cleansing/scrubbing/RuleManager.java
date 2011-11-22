@@ -28,7 +28,6 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.FieldAssignment;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
 import eu.stratosphere.util.AbstractIterable;
@@ -45,7 +44,7 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 
 	private List<Map.Entry<PathExpression, EvaluationExpression>> rules = new ArrayList<Map.Entry<PathExpression, EvaluationExpression>>();
 
-	private EvaluationExpression parsedExpression = new ObjectCreation();
+	private transient EvaluationExpression parsedExpression = new ObjectCreation();
 
 	public void addRule(EvaluationExpression rule, List<EvaluationExpression> target) {
 		this.addRule(rule, new PathExpression(target));
@@ -108,7 +107,7 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 			for (int index = 0, size = children.size(); index < size; index++)
 				// context.push(new ArrayAccess(index));
 				this.parse(children.get(index), operator, ruleFactory, contextPath);
-				// context.pop();
+			// context.pop();
 			return;
 		}
 
@@ -144,4 +143,27 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 			}
 		};
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.rules.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		RuleManager other = (RuleManager) obj;
+		System.out.println("this " + this.rules);
+		System.out.println("that " + this.rules);
+		return this.rules.equals(other.rules);
+	}
+
 }

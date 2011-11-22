@@ -114,7 +114,7 @@ ternaryExpression
 	:	ifClause=orExpression ('?' ifExpr=expression? ':' elseExpr=expression)
 	-> ^(EXPRESSION["TernaryExpression"] $ifClause { ifExpr == null ? EvaluationExpression.VALUE : $ifExpr.tree } { $elseExpr.tree })
 	| ifExpr2=orExpression 'if' ifClause2=expression
-	-> ^(EXPRESSION["TernaryExpression"] $ifClause2 $ifExpr2)
+	-> ^(EXPRESSION["TernaryExpression"] $ifClause2 $ifExpr2 { EvaluationExpression.VALUE })
   | orExpression;
 	
 orExpression
@@ -300,7 +300,7 @@ scope {
 operatorFlag*
 (arrayInput | input (',' input)*)	
 { if(state.backtracking == 0) 
-    getContext().getBindings().set("$", new JsonStreamExpression($operator::result)); }
+    getContext().getBindings().set("$", new JsonStreamExpression($operator::result).withTag(JsonStreamExpression.THIS_CONTEXT)); }
 operatorOption* ->; 
 	
 operatorOption
@@ -335,7 +335,7 @@ input
 } 
 { if(state.backtracking == 0) {
     addScope();
-    getContext().getBindings().set("$", new JsonStreamExpression($operator::result)); 
+    getContext().getBindings().set("$", new JsonStreamExpression($operator::result).withTag(JsonStreamExpression.THIS_CONTEXT)); 
   }
 }
 (inputOption=ID {$genericOperator::operatorInfo.hasInputProperty($inputOption.text)}? 

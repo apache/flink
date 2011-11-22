@@ -15,7 +15,7 @@ public class NodeMatcher {
 
 //	private 
 	
-	public <T> void match(Iterator<? extends T> nodes, Navigator<T> navigator, Iterator<? extends T> patterns) {
+	public <T> void match(Iterator<? extends T> nodes, ConnectionNavigator<T> navigator, Iterator<? extends T> patterns) {
 		OneTimeTraverser.INSTANCE.traverse(nodes, navigator, new GraphTraverseListener<T>() {
 			public void nodeTraversed(T node) {
 				

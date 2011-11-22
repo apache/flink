@@ -50,7 +50,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	 */
 	protected final InputNode[] inputNodes;
 
-	private final Navigator<Node> navigator;
+	private final ConnectionNavigator<Node> navigator;
 
 	private final String name;
 
@@ -65,7 +65,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	 *        the navigator used to traverse the graph of nodes
 	 */
 	protected GraphModule(final String name, final InputNode[] inputNodes, final OutputNode[] outputNodes,
-			final Navigator<Node> navigator) {
+			final ConnectionNavigator<Node> navigator) {
 		this.name = name;
 		this.inputNodes = inputNodes;
 		this.outputNodes = outputNodes;

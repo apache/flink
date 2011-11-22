@@ -12,6 +12,7 @@ import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
@@ -47,11 +48,11 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 				 */
 				@Override
 				public EvaluationExpression call(MethodPointerExpression inputExpr, EvaluationContext context) {
-					return new MethodCall(inputExpr.getFunctionName(), ((RewriteContext) context).getRewritePath());
+					return new MethodCall(inputExpr.getFunctionName(), new InputSelection(0));
 				}
 			});
-		RuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(JsonStreamExpression.class),
-			new SimpleMacro<JsonStreamExpression>() {
+		RuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(InputSelection.class),
+			new SimpleMacro<InputSelection>() {
 				private static final long serialVersionUID = 111389216483477521L;
 
 				/*
@@ -60,13 +61,16 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
 				 */
 				@Override
-				public EvaluationExpression call(JsonStreamExpression inputExpr, EvaluationContext context) {
-					if (inputExpr.getStream() == context.getCurrentOperator()) {
-						PathExpression path = ((RewriteContext) context).getRewritePath();
-						path.add(0, new ArrayAccess(1));
-						return path;
-					}
-					return new ArrayAccess(1);
+				public EvaluationExpression call(InputSelection inputExpr, EvaluationContext context) {
+					if(inputExpr.hasTag(JsonStreamExpression.THIS_CONTEXT))
+						return new InputSelection(0);
+					return new InputSelection(1);
+//					if (inputExpr.getStream() == context.getCurrentOperator()) {
+//						PathExpression path = ((RewriteContext) context).getRewritePath();
+//						path.add(0, new InputSelection(1));
+//						return path;
+//					}
+//					return new InputSelection(1);
 				}
 			});
 		RuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(CleansingRule.class),
@@ -80,10 +84,10 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 				 */
 				@Override
 				public EvaluationExpression call(CleansingRule<?> rule, EvaluationContext context) {
-					// PathExpression path = ((RewriteContext) context).getRewritePath();
-					// path.add(rule);
-					// return path;
-					return new ArrayAccess(0);
+//					PathExpression path = ((RewriteContext) context).getRewritePath();
+//					path.add(rule);
+//					return path;
+					 return new PathExpression(new InputSelection(0), rule);
 				}
 			});
 	}
@@ -96,8 +100,16 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 		this.ruleManager.addRule(this.wrapRuleForDirectAccess(rule), target);
 	}
 
+	public void addRawRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+		this.ruleManager.addRule(rule, target);
+	}
+
+	public void addRawRule(EvaluationExpression rule, EvaluationExpression... target) {
+		this.ruleManager.addRule(rule, target);
+	}
+
 	protected PathExpression wrapRuleForDirectAccess(EvaluationExpression rule) {
-		return new PathExpression(new ArrayAccess(0), rule);
+		return new PathExpression(new InputSelection(0), rule);
 	}
 
 	public void removeRule(EvaluationExpression rule, List<EvaluationExpression> target) {
@@ -125,8 +137,41 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 		System.out.println(this.ruleManager);
 	}
 
+	public Scrubbing withRuleExpression(ObjectCreation ruleExpression) {
+		setRuleExpression(ruleExpression);
+		return this;
+	}
+
 	public ObjectCreation getRuleExpression() {
 		return (ObjectCreation) this.ruleManager.getLastParsedExpression();
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + ruleManager.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		Scrubbing other = (Scrubbing) obj;
+		return ruleManager.equals(other.ruleManager);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.Operator#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		super.toString(builder);
+		builder.append(" with rules: ").append(this.ruleManager);
 	}
 
 	public static class Implementation extends

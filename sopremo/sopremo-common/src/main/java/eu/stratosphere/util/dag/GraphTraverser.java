@@ -22,7 +22,7 @@ public interface GraphTraverser {
 	 * @param <Node>
 	 *        the class of the nodes
 	 */
-	public abstract <Node> void traverse(Iterator<? extends Node> startNodes, Navigator<Node> navigator,
+	public abstract <Node> void traverse(Iterator<? extends Node> startNodes, ConnectionNavigator<Node> navigator,
 			GraphTraverseListener<Node> listener);
 
 }

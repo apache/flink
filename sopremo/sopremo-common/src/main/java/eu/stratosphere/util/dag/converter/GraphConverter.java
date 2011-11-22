@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.util.OneElementList;
-import eu.stratosphere.util.dag.Navigator;
+import eu.stratosphere.util.dag.ConnectionNavigator;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
 /**
@@ -47,7 +47,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	}
 
 	@SuppressWarnings("unchecked")
-	private List<OutputType> convertChildren(final Navigator<InputType> navigator, final InputType root,
+	private List<OutputType> convertChildren(final ConnectionNavigator<InputType> navigator, final InputType root,
 			final NodeConverterInfo<InputType, OutputType> converterInfo) {
 		final List<OutputType> childTypes = new ArrayList<OutputType>();
 
@@ -76,7 +76,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start node
 	 */
-	public OutputType convertGraph(final InputType startNode, final Navigator<InputType> navigator) {
+	public OutputType convertGraph(final InputType startNode, final ConnectionNavigator<InputType> navigator) {
 		return this.convertGraph(navigator, startNode, new IdentityHashMap<InputType, OutputType>());
 	}
 
@@ -93,7 +93,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start nodes
 	 */
-	public List<OutputType> convertGraph(final InputType[] startNodes, final Navigator<InputType> navigator) {
+	public List<OutputType> convertGraph(final InputType[] startNodes, final ConnectionNavigator<InputType> navigator) {
 		return this.convertGraph(Arrays.asList(startNodes).iterator(), navigator);
 	}
 
@@ -110,7 +110,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start nodes
 	 */
-	public List<OutputType> convertGraph(final Iterable<InputType> startNodes, final Navigator<InputType> navigator) {
+	public List<OutputType> convertGraph(final Iterable<InputType> startNodes, final ConnectionNavigator<InputType> navigator) {
 		return this.convertGraph(startNodes.iterator(), navigator);
 	}
 
@@ -127,7 +127,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start nodes
 	 */
-	public List<OutputType> convertGraph(final Iterator<InputType> startNodes, final Navigator<InputType> navigator) {
+	public List<OutputType> convertGraph(final Iterator<InputType> startNodes, final ConnectionNavigator<InputType> navigator) {
 		final List<OutputType> results = new ArrayList<OutputType>();
 		final IdentityHashMap<InputType, OutputType> convertedNodes = new IdentityHashMap<InputType, OutputType>();
 		while (startNodes.hasNext())
@@ -136,7 +136,7 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	}
 
 	@SuppressWarnings("unchecked")
-	private OutputType convertGraph(final Navigator<InputType> navigator, final InputType root,
+	private OutputType convertGraph(final ConnectionNavigator<InputType> navigator, final InputType root,
 			final IdentityHashMap<InputType, OutputType> convertedNodes) {
 		if (convertedNodes.containsKey(root))
 			return convertedNodes.get(root);

@@ -80,7 +80,7 @@ public class GraphPrinter<Node> {
 	 *         if an I/O error occurred during the print operation
 	 */
 	public void print(final Appendable appendable, final Iterable<? extends Node> startNodes,
-			final Navigator<Node> navigator)
+			final ConnectionNavigator<Node> navigator)
 			throws IOException {
 		this.print(appendable, startNodes.iterator(), navigator);
 	}
@@ -99,7 +99,7 @@ public class GraphPrinter<Node> {
 	 *         if an I/O error occurred during the print operation
 	 */
 	public void print(final Appendable appendable, final Iterator<? extends Node> startNodes,
-			final Navigator<Node> navigator)
+			final ConnectionNavigator<Node> navigator)
 			throws IOException {
 		new PrintState(appendable, GraphLevelPartitioner.getLevels(startNodes, navigator)).printDAG();
 	}
@@ -117,7 +117,7 @@ public class GraphPrinter<Node> {
 	 * @throws IOException
 	 *         if an I/O error occurred during the print operation
 	 */
-	public void print(final Appendable appendable, final Node[] startNodes, final Navigator<Node> navigator)
+	public void print(final Appendable appendable, final Node[] startNodes, final ConnectionNavigator<Node> navigator)
 			throws IOException {
 		this.print(appendable, Arrays.asList(startNodes).iterator(), navigator);
 	}
@@ -168,7 +168,7 @@ public class GraphPrinter<Node> {
 	 *        the start nodes
 	 * @return a string representation of the directed acyclic graph
 	 */
-	public String toString(final Iterable<? extends Node> startNodes, final Navigator<Node> navigator) {
+	public String toString(final Iterable<? extends Node> startNodes, final ConnectionNavigator<Node> navigator) {
 		return this.toString(startNodes.iterator(), navigator);
 	}
 
@@ -182,7 +182,7 @@ public class GraphPrinter<Node> {
 	 *        the start nodes
 	 * @return a string representation of the directed acyclic graph
 	 */
-	public String toString(final Iterator<? extends Node> startNodes, final Navigator<Node> navigator) {
+	public String toString(final Iterator<? extends Node> startNodes, final ConnectionNavigator<Node> navigator) {
 		final StringBuilder builder = new StringBuilder();
 
 		try {
@@ -204,7 +204,7 @@ public class GraphPrinter<Node> {
 	 *        the start nodes
 	 * @return a string representation of the directed acyclic graph
 	 */
-	public String toString(final Node[] startNodes, final Navigator<Node> navigator) {
+	public String toString(final Node[] startNodes, final ConnectionNavigator<Node> navigator) {
 		return this.toString(Arrays.asList(startNodes), navigator);
 	}
 
