@@ -6,11 +6,11 @@ public class VertexLatency {
 
 	private ManagementVertex vertex;
 
-	private double latencyInMillis;
+	private ProfilingValueStatistic latencyStatistics;
 
 	public VertexLatency(ManagementVertex vertex) {
 		this.vertex = vertex;
-		this.latencyInMillis = -1;
+		this.latencyStatistics = new ProfilingValueStatistic(20);
 	}
 
 	public ManagementVertex getVertex() {
@@ -18,15 +18,20 @@ public class VertexLatency {
 	}
 
 	public double getLatencyInMillis() {
-		return latencyInMillis;
+		if (latencyStatistics.hasValues()) {
+			return latencyStatistics.getMedianValue();
+		} else {
+			return -1;
+		}
 	}
 
-	public void setLatencyInMillis(double latencyInMillis) {
-		this.latencyInMillis = latencyInMillis;
+	public void addLatencyMeasurement(long timestamp, double latencyInMillis) {
+		ProfilingValue value = new ProfilingValue(latencyInMillis, timestamp);
+		latencyStatistics.addValue(value);
 	}
-	
+
 	@Override
 	public String toString() {
-		return String.format("VertexLatency[%s|%.03f]", vertex.toString(), latencyInMillis);
+		return String.format("VertexLatency[%s|%.03f]", vertex.toString(), getLatencyInMillis());
 	}
 }

@@ -47,7 +47,7 @@ public class LatencyModel {
 	public void refreshTaskLatency(TaskLatency taskLatency) {
 		VertexLatency vertexLatency = latencySubgraph
 			.getVertexLatency(taskLatency.getVertexID().toManagementVertexID());
-		vertexLatency.setLatencyInMillis(taskLatency.getTaskLatency());
+		vertexLatency.addLatencyMeasurement(System.currentTimeMillis(), taskLatency.getTaskLatency());
 		i++;
 
 		if (i % 20 == 0) {
@@ -60,8 +60,8 @@ public class LatencyModel {
 	public void refreshChannelThroughput(ChannelThroughput channelThroughput) {
 		ManagementEdgeID edgeID = new ManagementEdgeID(channelThroughput.getSourceChannelID());
 		EdgeCharacteristics edgeCharaceristics = latencySubgraph.getEdgeCharacteristicsBySourceEdgeID(edgeID);
-		edgeCharaceristics.setThroughputInMbit(channelThroughput.getThroughput());
-		
+		edgeCharaceristics.addThroughputMeasurement(System.currentTimeMillis(), channelThroughput.getThroughput());
+
 		i++;
 
 		if (i % 20 == 0) {

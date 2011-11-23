@@ -6,13 +6,14 @@ public class EdgeCharacteristics {
 
 	private ManagementEdge edge;
 
-	private double latencyInMillis;
+	private ProfilingValueStatistic latencyInMillisStatistic;
 
-	private double throughputInMbit;
+	private ProfilingValueStatistic throughputInMbitStatistic;
 
 	public EdgeCharacteristics(ManagementEdge edge) {
 		this.edge = edge;
-		this.latencyInMillis = -1;
+		this.latencyInMillisStatistic = new ProfilingValueStatistic(20);
+		this.throughputInMbitStatistic = new ProfilingValueStatistic(20);
 	}
 
 	public ManagementEdge getEdge() {
@@ -20,19 +21,28 @@ public class EdgeCharacteristics {
 	}
 
 	public double getLatencyInMillis() {
-		return latencyInMillis;
+		if (latencyInMillisStatistic.hasValues()) {
+			return latencyInMillisStatistic.getMedianValue();
+		} else {
+			return -1;
+		}
 	}
 
-	public void setLatencyInMillis(double latencyInMillis) {
-		this.latencyInMillis = latencyInMillis;
+	public void addLatencyMeasurement(long timestamp, double latencyInMillis) {
+		ProfilingValue value = new ProfilingValue(latencyInMillis, timestamp);
+		this.latencyInMillisStatistic.addValue(value);
 	}
 
 	public double getThroughputInMbit() {
-		return throughputInMbit;
+		if (throughputInMbitStatistic.hasValues()) {
+			return throughputInMbitStatistic.getMedianValue();
+		} else {
+			return -1;
+		}
 	}
 
-	public void setThroughputInMbit(double throughputInMbit) {
-		this.throughputInMbit = throughputInMbit;
+	public void addThroughputMeasurement(long timestamp, double throughputInMbit) {
+		ProfilingValue value = new ProfilingValue(throughputInMbit, timestamp);
+		this.throughputInMbitStatistic.addValue(value);
 	}
-
 }
