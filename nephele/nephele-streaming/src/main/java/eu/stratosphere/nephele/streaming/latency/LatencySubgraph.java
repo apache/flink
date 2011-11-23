@@ -1,6 +1,7 @@
 package eu.stratosphere.nephele.streaming.latency;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -12,6 +13,7 @@ import eu.stratosphere.nephele.managementgraph.ManagementEdge;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
 import eu.stratosphere.nephele.managementgraph.ManagementGate;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
+import eu.stratosphere.nephele.managementgraph.ManagementGraphIterator;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
@@ -37,6 +39,8 @@ public class LatencySubgraph {
 
 	private HashMap<ManagementEdgeID, EdgeCharacteristics> edgeCharacteristics = new HashMap<ManagementEdgeID, EdgeCharacteristics>();
 
+	private HashMap<ManagementVertexID, ManagementEdgeID> receiverVertexToSourceEdgeIDMap = new HashMap<ManagementVertexID, ManagementEdgeID>();
+
 	public LatencySubgraph(ExecutionGraph executionGraph, ExecutionGroupVertex subgraphStart,
 			ExecutionGroupVertex subgraphEnd) {
 
@@ -44,6 +48,7 @@ public class LatencySubgraph {
 		determineAnchoringManagementGroupVertices(managementGraph, subgraphStart, subgraphEnd);
 		buildLatencyPaths();
 		initLatenciesOnPaths();
+		initReceiverVertexToSourceEdgeIDMap(managementGraph);
 	}
 
 	private void initLatenciesOnPaths() {
@@ -67,6 +72,25 @@ public class LatencySubgraph {
 				ingoingEdge.setAttachment(characteristics);
 				edgeCharacteristics.put(ingoingEdge.getSourceEdgeID(), characteristics);
 				edgeCharacteristics.put(ingoingEdge.getTargetEdgeID(), characteristics);
+			}
+		}
+	}
+
+	private void initReceiverVertexToSourceEdgeIDMap(final ManagementGraph managementGraph) {
+
+		final Iterator<ManagementVertex> it = new ManagementGraphIterator(managementGraph, true);
+		while (it.hasNext()) {
+
+			final ManagementVertex source = it.next();
+			final int numberOfOutputGates = source.getNumberOfOutputGates();
+			for (int i = 0; i < numberOfOutputGates; ++i) {
+				final ManagementGate outputGate = source.getOutputGate(i);
+				final int numberOfOutgoingEdges = outputGate.getNumberOfForwardEdges();
+				for (int j = 0; j < numberOfOutgoingEdges; ++j) {
+					final ManagementEdge edge = outputGate.getForwardEdge(j);
+					final ManagementVertex receiver = edge.getTarget().getVertex();
+					this.receiverVertexToSourceEdgeIDMap.put(receiver.getID(), edge.getSourceEdgeID());
+				}
 			}
 		}
 	}
