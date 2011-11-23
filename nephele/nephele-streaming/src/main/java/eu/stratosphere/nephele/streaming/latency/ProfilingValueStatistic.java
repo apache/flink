@@ -23,7 +23,7 @@ public class ProfilingValueStatistic {
 		this.noOfStoredValues = 0;
 		this.sumOfValues = 0;
 	}
-
+	
 	public void addValue(ProfilingValue value) {
 		ProfilingValue droppedValue = insertIntoSortedByTimestamp(value);
 
@@ -53,12 +53,11 @@ public class ProfilingValueStatistic {
 
 	protected void insertIntoSortedByValue(ProfilingValue value) {
 		int insertionIndex = Collections.binarySearch(sortedByValue, value);
-		if (insertionIndex > 0) {
-			throw new IllegalArgumentException("Profiling already in list. This should not happen.");
-		} else {
+		if (insertionIndex < 0) {
 			insertionIndex = -(insertionIndex + 1);
-			sortedByValue.add(insertionIndex, value);
 		}
+		
+		sortedByValue.add(insertionIndex, value);
 	}
 
 	protected void removeFromSortedByValue(ProfilingValue toRemove) {

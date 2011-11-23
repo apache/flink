@@ -427,4 +427,16 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		return this.amountOfDataTransmitted;
 	}
+
+	/**
+	 * Limits the size of the buffer this channel will write its records to before passing them on to the framework.
+	 * 
+	 * @param bufferSize
+	 *        the new limit for the by
+	 */
+	public void limitBufferSize(final int bufferSize) {
+
+		// Delegate call to the assigned output channel broker
+		this.outputChannelBroker.limitBufferSize(bufferSize);
+	}
 }

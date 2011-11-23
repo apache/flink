@@ -25,9 +25,13 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.AbstractJobInputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
@@ -37,6 +41,8 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
+import eu.stratosphere.nephele.plugins.PluginID;
+import eu.stratosphere.nephele.streaming.actions.BufferSizeLimitAction;
 import eu.stratosphere.nephele.streaming.latency.LatencyOptimizerThread;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
 import eu.stratosphere.nephele.streaming.wrappers.StreamingFileInputWrapper;
@@ -47,6 +53,7 @@ import eu.stratosphere.nephele.streaming.wrappers.StreamingTaskWrapper;
 import eu.stratosphere.nephele.streaming.wrappers.WrapperUtils;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.util.StringUtils;
 
 public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusListener {
 
@@ -55,9 +62,12 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 	 */
 	private static final Log LOG = LogFactory.getLog(StreamingJobManagerPlugin.class);
 
+	private final PluginID pluginID;
+
 	private ConcurrentHashMap<JobID, LatencyOptimizerThread> latencyOptimizerThreads = new ConcurrentHashMap<JobID, LatencyOptimizerThread>();
 
-	StreamingJobManagerPlugin(final Configuration pluginConfiguration) {
+	StreamingJobManagerPlugin(final PluginID pluginID, final Configuration pluginConfiguration) {
+		this.pluginID = pluginID;
 	}
 
 	/**
@@ -126,8 +136,9 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 	 */
 	@Override
 	public ExecutionGraph rewriteExecutionGraph(final ExecutionGraph executionGraph) {
+
 		JobID jobId = executionGraph.getJobID();
-		LatencyOptimizerThread optimizerThread = new LatencyOptimizerThread(executionGraph);
+		LatencyOptimizerThread optimizerThread = new LatencyOptimizerThread(this, executionGraph);
 		latencyOptimizerThreads.put(jobId, optimizerThread);
 		optimizerThread.start();
 		return executionGraph;
@@ -195,6 +206,25 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 			if (optimizerThread != null) {
 				optimizerThread.interrupt();
 			}
+		}
+	}
+
+	public void limitBufferSize(final ExecutionVertex vertex, final ChannelID sourceChannelID, final int bufferSize) {
+
+		final JobID jobID = vertex.getExecutionGraph().getJobID();
+		final ExecutionVertexID vertexID = vertex.getID();
+
+		final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+		if (instance == null) {
+			LOG.error(vertex + " has no instance assigned");
+			return;
+		}
+
+		final BufferSizeLimitAction bsla = new BufferSizeLimitAction(jobID, vertexID, sourceChannelID, bufferSize);
+		try {
+			instance.sendData(this.pluginID, bsla);
+		} catch (IOException e) {
+			LOG.error(StringUtils.stringifyException(e));
 		}
 	}
 }
