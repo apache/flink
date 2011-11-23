@@ -149,6 +149,10 @@ public class LatencySubgraph {
 		ManagementVertexID vertexInPathEndGroup = pathEndExecVertex.getGroupMember(0).getID().toManagementVertexID();
 		this.subgraphEnd = managementGraph.getVertexByID(vertexInPathEndGroup).getGroupVertex();
 	}
+	
+	public ManagementEdgeID getEdgeByReceiverVertexID(ManagementVertexID receiverVertexID) {
+		return receiverVertexToSourceEdgeIDMap.get(receiverVertexID);
+	}
 
 	public EdgeCharacteristics getEdgeCharacteristicsBySourceEdgeID(ManagementEdgeID sourceEdgeID) {
 		return edgeCharacteristics.get(sourceEdgeID);

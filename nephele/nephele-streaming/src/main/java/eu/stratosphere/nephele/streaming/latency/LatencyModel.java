@@ -26,22 +26,13 @@ public class LatencyModel {
 		this.latencySubgraph = new LatencySubgraph(executionGraph, subgraphStart, subgraphEnd);
 	}
 
-	public int i = 0;
-
 	public void refreshEdgeLatency(ChannelLatency channelLatency) {
-//		ManagementEdgeID edgeID = new ManagementEdgeID(channelLatency.getSourceVertexID().toManagementVertexID(),
-//				channelLatency.getSinkVertexID().toManagementVertexID());
-//
-//		EdgeCharacteristics edgeLatency = latencySubgraph.getEdgeLatency(edgeID);
-//		edgeLatency.setLatencyInMillis(channelLatency.getChannelLatency());
-//
-//		i++;
-//
-//		if (i % 20 == 0) {
-//			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
-//				path.dumpLatencies();
-//			}
-//		}
+
+		ManagementEdgeID sourceEdgeID = latencySubgraph.getEdgeByReceiverVertexID(channelLatency.getSinkVertexID()
+			.toManagementVertexID());
+
+		EdgeCharacteristics edgeLatency = latencySubgraph.getEdgeCharacteristicsBySourceEdgeID(sourceEdgeID);
+		edgeLatency.addLatencyMeasurement(System.currentTimeMillis(), channelLatency.getChannelLatency());
 	}
 
 	public void refreshTaskLatency(TaskLatency taskLatency) {
@@ -57,13 +48,16 @@ public class LatencyModel {
 		}
 	}
 
+	// FIXME this should be removed later on
+	public int i = 0;
+
 	public void refreshChannelThroughput(ChannelThroughput channelThroughput) {
 		ManagementEdgeID edgeID = new ManagementEdgeID(channelThroughput.getSourceChannelID());
 		EdgeCharacteristics edgeCharaceristics = latencySubgraph.getEdgeCharacteristicsBySourceEdgeID(edgeID);
 		edgeCharaceristics.addThroughputMeasurement(System.currentTimeMillis(), channelThroughput.getThroughput());
 
+		// FIXME this should be removed later on
 		i++;
-
 		if (i % 20 == 0) {
 			for (LatencyPath path : latencySubgraph.getLatencyPaths()) {
 				path.dumpLatencies();
