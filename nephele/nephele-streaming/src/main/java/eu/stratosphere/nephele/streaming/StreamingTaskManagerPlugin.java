@@ -19,6 +19,9 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
@@ -26,9 +29,15 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.PluginCommunication;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
+import eu.stratosphere.nephele.streaming.actions.AbstractAction;
 import eu.stratosphere.nephele.streaming.listeners.StreamListenerContext;
 
 public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
+
+	/**
+	 * The log object.
+	 */
+	private static final Log LOG = LogFactory.getLog(StreamingTaskManagerPlugin.class);
 
 	/**
 	 * Provides access to the configuration entry which defines the interval in which records shall be tagged.
@@ -154,7 +163,21 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	@Override
 	public void sendData(final IOReadableWritable data) throws IOException {
 
-		// TODO Implement me
+		if (!(data instanceof AbstractAction)) {
+			LOG.error("Received data is of unknown type " + data.getClass());
+			return;
+		}
+
+		final AbstractAction action = (AbstractAction) data;
+		final StreamListenerContext listenerContext = this.listenerContexts.get(action.getVertexID().toString());
+
+		if (listenerContext == null) {
+			LOG.error("Cannot find listener context for vertex with ID " + action.getVertexID());
+			return;
+		}
+
+		// Queue the action and return
+		listenerContext.queuePendingAction(action);
 	}
 
 	/**

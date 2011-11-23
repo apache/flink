@@ -15,9 +15,13 @@
 
 package eu.stratosphere.nephele.streaming.listeners;
 
+import java.util.ArrayDeque;
+import java.util.Queue;
+
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.streaming.StreamingCommunicationThread;
+import eu.stratosphere.nephele.streaming.actions.AbstractAction;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
 
 public final class StreamListenerContext {
@@ -27,6 +31,8 @@ public final class StreamListenerContext {
 	private static enum TaskType {
 		INPUT, REGULAR, OUTPUT
 	};
+
+	private final Queue<AbstractAction> pendingActions = new ArrayDeque<AbstractAction>();
 
 	private final JobID jobID;
 
@@ -136,5 +142,17 @@ public final class StreamListenerContext {
 	void sendDataAsynchronously(final AbstractStreamingData data) throws InterruptedException {
 
 		this.communicationThread.sendDataAsynchronously(data);
+	}
+
+	public void queuePendingAction(final AbstractAction action) {
+
+		synchronized (this.pendingActions) {
+			this.pendingActions.add(action);
+		}
+	}
+
+	Queue<AbstractAction> getPendingActionsQueue() {
+
+		return this.pendingActions;
 	}
 }
