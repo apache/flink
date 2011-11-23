@@ -20,30 +20,41 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
-public final class BufferSizeLimitAction implements IOReadableWritable {
+/**
+ * This class implements an action to limit the buffer size of a particular output channel.
+ * 
+ * @author warneke
+ */
+public final class BufferSizeLimitAction extends AbstractAction {
 
-	private final JobID jobID;
-
-	private final ExecutionVertexID vertexID;
-
+	/**
+	 * The ID of the output channel whose buffer size shall be limited.
+	 */
 	private final ChannelID sourceChannelID;
 
+	/**
+	 * The new buffer size in bytes.
+	 */
 	private int bufferSize;
 
+	/**
+	 * Constructs a new buffer size limit action object.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the action applies to
+	 * @param vertexID
+	 *        the ID of the vertex the action applies to
+	 * @param sourceChannelID
+	 *        the ID of the output channel whose buffer size shall be limited
+	 * @param bufferSize
+	 *        the new buffer size in bytes
+	 */
 	public BufferSizeLimitAction(final JobID jobID, final ExecutionVertexID vertexID, final ChannelID sourceChannelID,
 			final int bufferSize) {
-
-		if (jobID == null) {
-			throw new IllegalArgumentException("Argument jobID must not be null");
-		}
-
-		if (vertexID == null) {
-			throw new IllegalArgumentException("Argument vertexID must not be null");
-		}
+		super(jobID, vertexID);
 
 		if (sourceChannelID == null) {
 			throw new IllegalArgumentException("Argument sourceChannelID must not be null");
@@ -53,8 +64,6 @@ public final class BufferSizeLimitAction implements IOReadableWritable {
 			throw new IllegalArgumentException("Argument bufferSize must be greather than zero");
 		}
 
-		this.jobID = jobID;
-		this.vertexID = vertexID;
 		this.sourceChannelID = sourceChannelID;
 		this.bufferSize = bufferSize;
 	}
@@ -63,8 +72,7 @@ public final class BufferSizeLimitAction implements IOReadableWritable {
 	 * Default constructor for deserialization.
 	 */
 	public BufferSizeLimitAction() {
-		this.jobID = new JobID();
-		this.vertexID = new ExecutionVertexID();
+		super();
 		this.sourceChannelID = new ChannelID();
 		this.bufferSize = 0;
 	}
@@ -75,8 +83,6 @@ public final class BufferSizeLimitAction implements IOReadableWritable {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
-		this.jobID.write(out);
-		this.vertexID.write(out);
 		this.sourceChannelID.write(out);
 		out.writeInt(this.bufferSize);
 	}
@@ -87,9 +93,27 @@ public final class BufferSizeLimitAction implements IOReadableWritable {
 	@Override
 	public void read(final DataInput in) throws IOException {
 
-		this.jobID.read(in);
-		this.vertexID.read(in);
 		this.sourceChannelID.read(in);
 		this.bufferSize = in.readInt();
+	}
+
+	/**
+	 * Returns the ID of the output channel whose buffer size shall be limited.
+	 * 
+	 * @return the ID of the output channel whose buffer size shall be limited
+	 */
+	public ChannelID getSourceChannelID() {
+
+		return this.sourceChannelID;
+	}
+
+	/**
+	 * Returns the new buffer size in bytes.
+	 * 
+	 * @return the new buffer size in bytes
+	 */
+	public int getBufferSize() {
+
+		return this.bufferSize;
 	}
 }
