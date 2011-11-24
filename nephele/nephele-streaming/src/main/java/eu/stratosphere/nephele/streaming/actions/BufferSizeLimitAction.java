@@ -83,6 +83,8 @@ public final class BufferSizeLimitAction extends AbstractAction {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
+		super.write(out);
+
 		this.sourceChannelID.write(out);
 		out.writeInt(this.bufferSize);
 	}
@@ -92,6 +94,8 @@ public final class BufferSizeLimitAction extends AbstractAction {
 	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
+
+		super.read(in);
 
 		this.sourceChannelID.read(in);
 		this.bufferSize = in.readInt();
