@@ -28,6 +28,8 @@ public class ProfilingModel {
 
 	private long timeOfLastLogging;
 
+	private long timeBase;
+
 	public ProfilingModel(ExecutionGraph executionGraph) {
 		this.executionGraph = executionGraph;
 
@@ -35,7 +37,7 @@ public class ProfilingModel {
 		// subgraphStart and subgraphEnd should be derived from the annotations
 		ExecutionGroupVertex subgraphStart = this.executionGraph.getInputVertex(0).getGroupVertex();
 		ExecutionGroupVertex subgraphEnd = this.executionGraph.getOutputVertex(0).getGroupVertex();
-		
+
 		this.profilingSubgraph = new ProfilingSubgraph(executionGraph, subgraphStart, subgraphEnd, false, false);
 
 		try {
@@ -44,6 +46,7 @@ public class ProfilingModel {
 			LOG.error("Error when opening profiling logger file", e);
 		}
 		this.timeOfLastLogging = System.currentTimeMillis() + WAIT_INTERVAL_BEFORE_LOGGING;
+		this.timeBase = timeOfLastLogging;
 	}
 
 	public void refreshEdgeLatency(long timestamp, ChannelLatency channelLatency) {
@@ -69,7 +72,7 @@ public class ProfilingModel {
 	public void logProfilingSummaryIfNecessary(long now) {
 		if ((now - timeOfLastLogging) >= LOGGING_INTERVAL) {
 			try {
-				logger.logLatencies();
+				logger.logLatencies(now - timeBase);
 			} catch (IOException e) {
 				LOG.error("Error when writing to profiling logger file", e);
 			}

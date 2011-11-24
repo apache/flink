@@ -23,13 +23,15 @@ public class ProfilingLogger {
 		this.headersWritten = false;
 	}
 
-	public void logLatencies() throws IOException {
+	public void logLatencies(long timestamp) throws IOException {
 		ProfilingSummary summary = new ProfilingSummary(subgraph);
 		if (!headersWritten) {
 			writeHeaders(summary);
 		}
 
 		StringBuilder builder = new StringBuilder();
+		builder.append(timestamp);
+		builder.append(';');
 		builder.append(summary.noOfActivePaths);
 		builder.append(';');
 		builder.append(summary.noOfInactivePaths);
@@ -53,6 +55,7 @@ public class ProfilingLogger {
 
 	private void writeHeaders(ProfilingSummary summary) throws IOException {
 		StringBuilder builder = new StringBuilder();
+		builder.append("timestamp;");
 		builder.append("noOfActivePaths;");
 		builder.append("noOfInactivePaths;");
 		builder.append("avgTotalPathLatency;");
@@ -60,13 +63,15 @@ public class ProfilingLogger {
 		builder.append("minPathLatency;");
 		builder.append("maxPathLatency");
 
+		int nextEdgeIndex = 1;
 		for (ManagementAttachment element : summary.pathElements) {
 			builder.append(';');
 			if (element instanceof ManagementVertex) {
 				ManagementVertex vertex = (ManagementVertex) element;
 				builder.append(vertex.getGroupVertex().getName());
 			} else {
-				builder.append("edge");
+				builder.append("edge" + nextEdgeIndex);
+				nextEdgeIndex++;
 			}
 		}
 		builder.append('\n');
