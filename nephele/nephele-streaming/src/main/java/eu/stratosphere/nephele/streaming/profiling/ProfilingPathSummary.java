@@ -1,4 +1,4 @@
-package eu.stratosphere.nephele.streaming.latency;
+package eu.stratosphere.nephele.streaming.profiling;
 
 import java.util.ArrayList;
 import java.util.Iterator;

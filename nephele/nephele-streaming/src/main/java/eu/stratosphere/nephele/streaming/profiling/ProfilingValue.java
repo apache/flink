@@ -1,4 +1,4 @@
-package eu.stratosphere.nephele.streaming.latency;
+package eu.stratosphere.nephele.streaming.profiling;
 
 public class ProfilingValue implements Comparable<ProfilingValue> {
 
