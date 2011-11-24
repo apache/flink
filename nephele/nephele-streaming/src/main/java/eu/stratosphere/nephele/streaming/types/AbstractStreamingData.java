@@ -44,6 +44,14 @@ public abstract class AbstractStreamingData implements IOReadableWritable {
 	}
 
 	/**
+	 * Default constructor required for deserilization.
+	 */
+	public AbstractStreamingData() {
+
+		this.jobID = new JobID();
+	}
+
+	/**
 	 * Returns the ID of the job this path latency information refers to.
 	 * 
 	 * @return the ID of the job this path latency information refers to
