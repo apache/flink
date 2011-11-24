@@ -37,6 +37,7 @@ import eu.stratosphere.nephele.streaming.actions.AbstractAction;
 import eu.stratosphere.nephele.streaming.actions.BufferSizeLimitAction;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
+import eu.stratosphere.nephele.streaming.types.OutputBufferLatency;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
 import eu.stratosphere.nephele.streaming.wrappers.StreamingOutputGate;
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
@@ -198,6 +199,16 @@ public final class StreamListener {
 		try {
 			this.listenerContext.sendDataAsynchronously(new ChannelThroughput(this.listenerContext.getJobID(),
 				this.listenerContext.getVertexID(), sourceChannelID, throughput));
+		} catch (InterruptedException e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
+	}
+
+	public void reportBufferLatency(final ChannelID sourceChannelID, final int bufferLatency) {
+
+		try {
+			this.listenerContext.sendDataAsynchronously(new OutputBufferLatency(this.listenerContext.getJobID(),
+				this.listenerContext.getVertexID(), sourceChannelID, bufferLatency));
 		} catch (InterruptedException e) {
 			LOG.error(StringUtils.stringifyException(e));
 		}

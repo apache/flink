@@ -43,8 +43,9 @@ public final class OutputBufferLatency extends AbstractStreamingData {
 			throw new IllegalArgumentException("Argument sourceChannelID must not be null");
 		}
 
-		if (bufferLatency <= 0) {
-			throw new IllegalArgumentException("Argument bufferLatency must be greater than zero");
+		if (bufferLatency < 0) {
+			throw new IllegalArgumentException("Argument bufferLatency must be greater than or equal to zero but is "
+				+ bufferLatency);
 		}
 
 		this.vertexID = vertexID;
