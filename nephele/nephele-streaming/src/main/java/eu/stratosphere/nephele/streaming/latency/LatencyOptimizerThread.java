@@ -25,12 +25,12 @@ public class LatencyOptimizerThread extends Thread {
 
 	private final ExecutionGraph executionGraph;
 
-	private final LatencyModel latencyModel;
+	private final ProfilingModel profilingModel;
 
 	public LatencyOptimizerThread(StreamingJobManagerPlugin jobManagerPlugin, ExecutionGraph executionGraph) {
 		this.jobManagerPlugin = jobManagerPlugin;
 		this.executionGraph = executionGraph;
-		this.latencyModel = new LatencyModel(executionGraph);
+		this.profilingModel = new ProfilingModel(executionGraph);
 		this.streamingDataQueue = new LinkedBlockingQueue<AbstractStreamingData>();
 	}
 
@@ -41,13 +41,16 @@ public class LatencyOptimizerThread extends Thread {
 			while (!interrupted()) {
 				AbstractStreamingData streamingData = streamingDataQueue.take();
 
+				long now = System.currentTimeMillis();
 				if (streamingData instanceof ChannelLatency) {
-					latencyModel.refreshEdgeLatency((ChannelLatency) streamingData);
+					profilingModel.refreshEdgeLatency(now, (ChannelLatency) streamingData);
 				} else if (streamingData instanceof TaskLatency) {
-					latencyModel.refreshTaskLatency((TaskLatency) streamingData);
+					profilingModel.refreshTaskLatency(now, (TaskLatency) streamingData);
 				} else if (streamingData instanceof ChannelThroughput) {
-					latencyModel.refreshChannelThroughput((ChannelThroughput) streamingData);
+					profilingModel.refreshChannelThroughput(now, (ChannelThroughput) streamingData);
 				}
+
+				profilingModel.logProfilingSummaryIfNecessary(now);
 			}
 
 		} catch (InterruptedException e) {
@@ -61,7 +64,6 @@ public class LatencyOptimizerThread extends Thread {
 	}
 
 	public void limitBufferSize(ManagementEdgeID sourceEdgeID, int bufferSize) {
-
 		final ChannelID sourceChannelID = sourceEdgeID.toChannelID();
 		final ExecutionVertex vertex = this.executionGraph.getVertexByChannelID(sourceChannelID);
 		if (vertex == null) {

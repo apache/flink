@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  * 
  * @author Bjoern Lohrmann
  */
-public class LatencySubgraph {
+public class ProfilingSubgraph {
 
 	// private static Log LOG = LogFactory.getLog(LatencySubgraph.class);
 
@@ -33,7 +33,7 @@ public class LatencySubgraph {
 
 	private ManagementGroupVertex subgraphEnd;
 
-	private List<LatencyPath> latencyPaths;
+	private List<ProfilingPath> profilingPaths;
 
 	private HashMap<ManagementVertexID, VertexLatency> vertexLatencies = new HashMap<ManagementVertexID, VertexLatency>();
 
@@ -41,23 +41,24 @@ public class LatencySubgraph {
 
 	private HashMap<ManagementVertexID, ManagementEdgeID> receiverVertexToSourceEdgeIDMap = new HashMap<ManagementVertexID, ManagementEdgeID>();
 
-	public LatencySubgraph(ExecutionGraph executionGraph, ExecutionGroupVertex subgraphStart,
-			ExecutionGroupVertex subgraphEnd) {
+	public ProfilingSubgraph(ExecutionGraph executionGraph, ExecutionGroupVertex subgraphStart,
+			ExecutionGroupVertex subgraphEnd, boolean includeSubgraphStartInProfilingPaths,
+			boolean includeSubgraphEndInProfilingPaths) {
 
 		ManagementGraph managementGraph = ManagementGraphFactory.fromExecutionGraph(executionGraph);
 		determineAnchoringManagementGroupVertices(managementGraph, subgraphStart, subgraphEnd);
-		buildLatencyPaths();
-		initLatenciesOnPaths();
+		buildProfilingPaths(includeSubgraphStartInProfilingPaths, includeSubgraphEndInProfilingPaths);
+		initProfilingAttachmentsOnPaths();
 		initReceiverVertexToSourceEdgeIDMap(managementGraph);
 	}
 
-	private void initLatenciesOnPaths() {
-		for (LatencyPath path : latencyPaths) {
-			initLatenciesOnPath(path);
+	private void initProfilingAttachmentsOnPaths() {
+		for (ProfilingPath path : profilingPaths) {
+			initProfilingAttachmentOnPath(path);
 		}
 	}
 
-	private void initLatenciesOnPath(LatencyPath path) {
+	private void initProfilingAttachmentOnPath(ProfilingPath path) {
 
 		for (ManagementVertex vertex : path) {
 			if (vertex.getAttachment() == null) {
@@ -95,27 +96,34 @@ public class LatencySubgraph {
 		}
 	}
 
-	private void buildLatencyPaths() {
-		this.latencyPaths = new LinkedList<LatencyPath>();
+	private void buildProfilingPaths(boolean includeSubgraphStartInProfilingPaths,
+			boolean includeSubgraphEndInProfilingPaths) {
+		
+		this.profilingPaths = new LinkedList<ProfilingPath>();
 
 		for (int i = 0; i < subgraphStart.getNumberOfGroupMembers(); i++) {
 			ManagementVertex vertex = subgraphStart.getGroupMember(i);
-			LatencyPath initialPath = new LatencyPath(this, vertex);
-			depthFirstSearchLatencyPaths(initialPath, this.latencyPaths);
+			ProfilingPath initialPath = new ProfilingPath(this, vertex);
+			depthFirstSearchProfilingPaths(initialPath, this.profilingPaths);
+		}
+
+		for (ProfilingPath profilingPath : profilingPaths) {
+			profilingPath.setBeginVertexInProfilingPath(includeSubgraphStartInProfilingPaths);
+			profilingPath.setEndVertexInProfilingPath(includeSubgraphEndInProfilingPaths);
 		}
 	}
 
 	/**
 	 * Performs a recursive depth first search for {@link #subgraphEnd} starting at the end of the given path.
-	 * All paths found to end in {@link #subgraphEnd} are added to foundLatencyPaths.
+	 * All paths found to end in {@link #subgraphEnd} are added to foundProfilingPaths.
 	 * 
 	 * @param path
 	 *        Initial path with at least one element to start with (will be altered during recursive search).
-	 * @param foundLatencyPaths
+	 * @param foundProfilingPaths
 	 *        Accumulates the paths found to end at {@link #subgraphEnd}
 	 */
-	private void depthFirstSearchLatencyPaths(LatencyPath path, List<LatencyPath> foundLatencyPaths) {
-		ManagementVertex pathEnd = path.getEnd();
+	private void depthFirstSearchProfilingPaths(ProfilingPath path, List<ProfilingPath> foundProfilingPaths) {
+		ManagementVertex pathEnd = path.getEndVertex();
 
 		for (int i = 0; i < pathEnd.getNumberOfOutputGates(); i++) {
 			ManagementGate outputGate = pathEnd.getOutputGate(i);
@@ -128,9 +136,9 @@ public class LatencySubgraph {
 				path.appendVertex(extension, edge);
 
 				if (extension.getGroupVertex() == subgraphEnd) {
-					foundLatencyPaths.add(new LatencyPath(path));
+					foundProfilingPaths.add(new ProfilingPath(path));
 				} else {
-					depthFirstSearchLatencyPaths(path, foundLatencyPaths);
+					depthFirstSearchProfilingPaths(path, foundProfilingPaths);
 				}
 
 				path.removeLastVertex();
@@ -149,7 +157,7 @@ public class LatencySubgraph {
 		ManagementVertexID vertexInPathEndGroup = pathEndExecVertex.getGroupMember(0).getID().toManagementVertexID();
 		this.subgraphEnd = managementGraph.getVertexByID(vertexInPathEndGroup).getGroupVertex();
 	}
-	
+
 	public ManagementEdgeID getEdgeByReceiverVertexID(ManagementVertexID receiverVertexID) {
 		return receiverVertexToSourceEdgeIDMap.get(receiverVertexID);
 	}
@@ -162,8 +170,8 @@ public class LatencySubgraph {
 		return vertexLatencies.get(managementVertexID);
 	}
 
-	public List<LatencyPath> getLatencyPaths() {
-		return latencyPaths;
+	public List<ProfilingPath> getProfilingPaths() {
+		return profilingPaths;
 	}
 
 }
