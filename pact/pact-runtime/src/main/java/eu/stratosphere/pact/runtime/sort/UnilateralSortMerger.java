@@ -1782,25 +1782,26 @@ public class UnilateralSortMerger implements SortMerger
 		@Override
 		public void close()
 		{
-			this.running = false;
-			
-			if (this.currentBuffer.isEmpty()) {
-				this.queues.empty.add(this.currentElement);
-			}
-			else {
-				this.queues.sort.add(this.currentElement);
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Emitting last buffer from reader thread: " + this.currentElement.id + ".");
+			if (this.running) {
+				this.running = false;
+				
+				if (this.currentBuffer != null && this.currentElement != null) {
+					if (this.currentBuffer.isEmpty()) {
+						this.queues.empty.add(this.currentElement);
+					}
+					else {
+						this.queues.sort.add(this.currentElement);
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Emitting last buffer from input collector: " + this.currentElement.id + ".");
+						}
+					}
 				}
+				
+				this.currentBuffer = null;
+				this.currentElement = null;
+				
+				this.queues.sort.add(SENTINEL);
 			}
-			
-			this.currentBuffer = null;
-			this.currentElement = null;
-			
-			this.queues.sort.add(SENTINEL);
-			
-			if (LOG.isDebugEnabled())
-				LOG.debug("Reading thread done.");
 		}
 	}
 }
