@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.plugins.wrapper.AbstractOutputGateWrapper;
 import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.types.Record;
@@ -76,5 +77,14 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 		}
 
 		getWrappedOutputGate().writeRecord(record);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void outputBufferSent(final ChannelID channelID) {
+
+		getWrappedOutputGate().outputBufferSent(channelID);
 	}
 }

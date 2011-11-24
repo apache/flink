@@ -471,4 +471,13 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 			it.next().releaseResources();
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void outputBufferSent(final ChannelID channelID) {
+
+		// Nothing to do here
+	}
 }

@@ -324,4 +324,13 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 
 		this.wrappedOutputGate.registerOutputGateListener(outputGateListener);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void outputBufferSent(final ChannelID channelID) {
+
+		this.wrappedOutputGate.outputBufferSent(channelID);
+	}
 }
