@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
-import java.io.IOException;
 import java.util.Comparator;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -171,6 +170,8 @@ public class ChainedCombineTask implements ChainedTask
 			this.parent.userThreadFinished(this.combinerThread);
 		}
 		
+		this.sorter.close();
+		
 		if (this.canceled)
 			return;
 		
@@ -289,7 +290,7 @@ public class ChainedCombineTask implements ChainedTask
 				}
 			}
 			catch (Throwable t) {
-				ChainedCombineTask.this.exception = new IOException("The combiner thread failed due to an exception.", t);
+				ChainedCombineTask.this.exception = new Exception("The combiner failed due to an exception.", t);
 			}
 		}
 		

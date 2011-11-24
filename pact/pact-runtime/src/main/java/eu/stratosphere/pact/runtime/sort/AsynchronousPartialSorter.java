@@ -17,11 +17,13 @@ package eu.stratosphere.pact.runtime.sort;
 
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -200,6 +202,9 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 						}
 						
 						if (this.currentElement == SENTINEL) {
+							// signals the end, no more buffers will come
+							// release the memory first before returning
+							releaseSortBuffers();
 							return false;
 						}
 						if (this.currentElement == SPILLING_MARKER) {
@@ -234,6 +239,19 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 			}
 			if (this.currentIterator != null) {
 				this.currentIterator = null;
+			}
+		}
+		
+		private final void releaseSortBuffers()
+		{
+			while (!this.queues.empty.isEmpty()) {
+				final CircularElement elem = this.queues.empty.poll();
+				if (elem != null) {
+					final NormalizedKeySorter<?> sorter = elem.buffer;
+					final List<MemorySegment> segments = sorter.dispose();
+					AsynchronousPartialSorter.this.memoryManager.release(segments);
+					AsynchronousPartialSorter.this.sortBuffers.remove(sorter);
+				}
 			}
 		}
 
