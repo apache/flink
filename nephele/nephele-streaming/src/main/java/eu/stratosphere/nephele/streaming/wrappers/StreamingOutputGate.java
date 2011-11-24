@@ -38,6 +38,8 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 			throw new IllegalArgumentException("Argument streamListener must not be null");
 		}
 
+		streamListener.registerOutputGate(this);
+
 		this.streamListener = streamListener;
 	}
 

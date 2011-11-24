@@ -15,18 +15,30 @@
 
 package eu.stratosphere.nephele.streaming.listeners;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Queue;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.streaming.StreamingTag;
 import eu.stratosphere.nephele.streaming.StreamingTaskManagerPlugin;
+import eu.stratosphere.nephele.streaming.actions.AbstractAction;
+import eu.stratosphere.nephele.streaming.actions.BufferSizeLimitAction;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
+import eu.stratosphere.nephele.streaming.wrappers.StreamingOutputGate;
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -43,6 +55,10 @@ public final class StreamListener {
 	private StreamListenerContext listenerContext = null;
 
 	private int tagCounter = 0;
+
+	private Map<GateID, StreamingOutputGate<? extends Record>> outputGateMap = new HashMap<GateID, StreamingOutputGate<? extends Record>>();
+
+	private Map<ChannelID, AbstractOutputChannel<? extends Record>> outputChannelMap;
 
 	/**
 	 * Indicates the time of the last received tagged incoming record
@@ -71,6 +87,20 @@ public final class StreamListener {
 		}
 
 		this.listenerContext = StreamingTaskManagerPlugin.getStreamingListenerContext(listenerKey);
+
+		final Map<ChannelID, AbstractOutputChannel<? extends Record>> tmpMap = new HashMap<ChannelID, AbstractOutputChannel<? extends Record>>();
+
+		final Iterator<StreamingOutputGate<? extends Record>> it = this.outputGateMap.values().iterator();
+		while (it.hasNext()) {
+			final StreamingOutputGate<? extends Record> outputGate = it.next();
+			final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+			for (int i = 0; i < numberOfOutputChannels; ++i) {
+				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(i);
+				tmpMap.put(outputChannel.getID(), outputChannel);
+			}
+		}
+
+		this.outputChannelMap = Collections.unmodifiableMap(tmpMap);
 	}
 
 	public long recordEmitted(final Record record) {
@@ -98,6 +128,9 @@ public final class StreamListener {
 				}
 				this.lastTimestamp = timestamp;
 				this.tagCounter = 0;
+
+				// Finally, check for pending actions
+				checkForPendingActions();
 			} else {
 				taggableRecord.setTag(null);
 			}
@@ -105,14 +138,14 @@ public final class StreamListener {
 		} else {
 
 			final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
-			
-			if(this.lastTimestamp >= 0L) {
-				
+
+			if (this.lastTimestamp >= 0L) {
+
 				timestamp = System.currentTimeMillis();
 				taggableRecord.setTag(createTag(timestamp));
 				final JobID jobID = this.listenerContext.getJobID();
 				final ExecutionVertexID vertexID = this.listenerContext.getVertexID();
-			
+
 				// Calculate task latency
 				final TaskLatency tl = new TaskLatency(jobID, vertexID, timestamp - this.lastTimestamp);
 				try {
@@ -120,8 +153,11 @@ public final class StreamListener {
 				} catch (InterruptedException e) {
 					LOG.error(StringUtils.stringifyException(e));
 				}
-				
+
 				this.lastTimestamp = -1L;
+
+				// Finally, check for pending actions
+				checkForPendingActions();
 			} else {
 				taggableRecord.setTag(null);
 			}
@@ -137,14 +173,13 @@ public final class StreamListener {
 
 		final AbstractTaggableRecord taggableRecord = (AbstractTaggableRecord) record;
 		final StreamingTag tag = (StreamingTag) taggableRecord.getTag();
-		if(tag != null) {
-			
-			
+		if (tag != null) {
+
 			final long timestamp = System.currentTimeMillis();
 			final JobID jobID = this.listenerContext.getJobID();
-			
+
 			final ExecutionVertexID vertexID = this.listenerContext.getVertexID();
-			
+
 			// Calculate channel latency
 			final ChannelLatency cl = new ChannelLatency(jobID, tag.getSourceID(), vertexID, timestamp
 				- tag.getTimestamp());
@@ -153,7 +188,7 @@ public final class StreamListener {
 			} catch (InterruptedException e) {
 				LOG.warn(StringUtils.stringifyException(e));
 			}
-			
+
 			this.lastTimestamp = timestamp;
 		}
 	}
@@ -172,5 +207,52 @@ public final class StreamListener {
 		StreamingTag tag = new StreamingTag(this.listenerContext.getVertexID());
 		tag.setTimestamp(timestamp);
 		return tag;
+	}
+
+	private void checkForPendingActions() {
+
+		final Queue<AbstractAction> pendingActions = this.listenerContext.getPendingActionsQueue();
+
+		synchronized (pendingActions) {
+
+			while (!pendingActions.isEmpty()) {
+
+				final AbstractAction action = pendingActions.poll();
+
+				if (action instanceof BufferSizeLimitAction) {
+					limitBufferSize((BufferSizeLimitAction) action);
+				} else {
+					LOG.error("Ignoring unknown action of type " + action.getClass());
+				}
+			}
+		}
+	}
+
+	private void limitBufferSize(final BufferSizeLimitAction bsla) {
+
+		final ChannelID sourceChannelID = bsla.getSourceChannelID();
+		final int bufferSize = bsla.getBufferSize();
+
+		final AbstractOutputChannel<? extends Record> outputChannel = this.outputChannelMap.get(sourceChannelID);
+		if (outputChannel == null) {
+			LOG.error("Cannot find output channel with ID " + sourceChannelID);
+			return;
+		}
+
+		if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
+			LOG.error("Output channel with ID " + sourceChannelID + " is not a byte-buffered channel");
+			return;
+		}
+
+		final AbstractByteBufferedOutputChannel<? extends Record> byteBufferedOutputChannel =
+			(AbstractByteBufferedOutputChannel<? extends Record>) outputChannel;
+
+		LOG.info("Setting buffer size limit of output channel " + sourceChannelID + " to " + bufferSize + " bytes");
+		byteBufferedOutputChannel.limitBufferSize(bufferSize);
+	}
+
+	public void registerOutputGate(final StreamingOutputGate<? extends Record> outputGate) {
+
+		this.outputGateMap.put(outputGate.getGateID(), outputGate);
 	}
 }
