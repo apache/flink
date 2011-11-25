@@ -192,7 +192,7 @@ public class JsonToCsv {
 					path.pop();
 				}
 			} else
-				this.extractionExpressions.add(PathExpression.valueOf(path));
+				this.extractionExpressions.add(PathExpression.wrapIfNecessary(path));
 		}
 	}
 }

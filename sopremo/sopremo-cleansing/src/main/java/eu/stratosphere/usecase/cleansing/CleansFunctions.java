@@ -10,10 +10,14 @@ import eu.stratosphere.sopremo.ConstantRegistryCallback;
 import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.FunctionRegistryCallback;
+import eu.stratosphere.sopremo.cleansing.fusion.BeliefResolution;
 import eu.stratosphere.sopremo.cleansing.scrubbing.NonNullRule;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
+import eu.stratosphere.sopremo.expressions.MethodCall;
+import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
 import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.function.Callable;
 import eu.stratosphere.sopremo.function.MacroBase;
 import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -122,7 +126,11 @@ public class CleansFunctions implements BuiltinProvider, ConstantRegistryCallbac
 		 */
 		@Override
 		public EvaluationExpression call(EvaluationExpression[] params, EvaluationContext context) {
-			return new UnevaluableExpression("not implemented");
+			for (int index = 0; index < params.length; index++)
+				if (params[index] instanceof MethodPointerExpression)
+					params[index] = new MethodCall(((MethodPointerExpression) params[index]).getFunctionName(),
+						EvaluationExpression.VALUE);
+			return new BeliefResolution(params);
 		}
 
 	}

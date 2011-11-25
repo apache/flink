@@ -72,7 +72,7 @@ private EvaluationExpression makePath(Token inputVar, String... path) {
   accesses.add((EvaluationExpression) input);
   for (String fragment : path)
     accesses.add(new ObjectAccess(fragment));
-  return PathExpression.valueOf(accesses);
+  return PathExpression.wrapIfNecessary(accesses);
 }
 }
 
@@ -168,7 +168,7 @@ castExpression
 	-> $expr;
 	
 generalPathExpression
-	: value=valueExpression path=pathExpression[false] { ((PathExpression) path.getTree()).add(0, $value.tree); } -> $path
+	: value=valueExpression path=pathExpression -> { PathExpression.wrapIfNecessary($value.tree, $path.tree) } 
 	| valueExpression;//(({$contextAwareExpression::context != null}?=> contextAwarePathExpression) | pathExpression);
 	
 contextAwarePathExpression[EvaluationExpression context]
@@ -178,14 +178,13 @@ scope {  List<EvaluationExpression> fragments; }
     ( ('.' (field=ID { $contextAwarePathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
         | arrayAccess { $contextAwarePathExpression::fragments.add($arrayAccess.tree); } )* ->  ^(EXPRESSION["PathExpression"] { $contextAwarePathExpression::fragments } );
   
-pathExpression[boolean canonicalize]
+pathExpression
 scope {  List<EvaluationExpression> fragments; }
 @init { $pathExpression::fragments = new ArrayList<EvaluationExpression>(); }
   : // add .field or [index] to path
     ( ('.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
         | arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ 
-  -> {canonicalize}? { PathExpression.valueOf($pathExpression::fragments) }
-  -> ^(EXPRESSION["PathExpression"] { $pathExpression::fragments } );
+  -> { PathExpression.wrapIfNecessary($pathExpression::fragments) };
 
 valueExpression
 	:	methodCall[null]
@@ -217,13 +216,13 @@ fieldAssignment
     ( 
       '.' (ID { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($ID.text, makePath($VAR, $ID.text))); } ->
         | STAR { $objectCreation::mappings.add(new ObjectCreation.CopyFields(makePath($VAR))); } ->
-        | p=contextAwarePathExpression[makePath($VAR)] ':' e=expression
-          { $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>($p.tree, $e.tree)); } ->
+        | p=contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e=expression
+          { $objectCreation::mappings.add(new ObjectCreation.TagMapping($p.tree, $e.tree)); } ->
     )      
-    | ':' e2=expression { $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>(makePath($VAR), $e2.tree)); } ->
+    | ':' e2=expression { $objectCreation::mappings.add(new ObjectCreation.TagMapping(makePath($VAR), $e2.tree)); } ->
     | '=' op=operator {
       JsonStreamExpression output = new JsonStreamExpression($operator::result.getOutput($objectCreation::mappings.size()));
-      $objectCreation::mappings.add(new ObjectCreation.TagMapping<Object>($VAR.text, new JsonStreamExpression($op.op)));
+      $objectCreation::mappings.add(new ObjectCreation.TagMapping(getBinding($VAR, JsonStreamExpression.class), new JsonStreamExpression($op.op)));
       setBinding($VAR, output, 1); }
     | /* empty */ { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($VAR.text.substring(1), makePath($VAR))); } ->    
     );
@@ -247,7 +246,7 @@ literal
   | 'null' -> { EvaluationExpression.NULL };
 
 arrayAccess
-  : '[' STAR ']' path=pathExpression[true]
+  : '[' STAR ']' path=pathExpression
   -> ^(EXPRESSION["ArrayProjection"] $path)  
   | '[' (pos=INTEGER | pos=UINT) ']' 
   -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($pos.text) })
@@ -310,7 +309,10 @@ scope {
 	:	name=ID { $operatorOption::optionName = $name.text; }
 ({!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName)}? moreName=ID 
  { $operatorOption::optionName = $name.text + " " + $moreName.text;})?
-expr=contextAwareExpression[null] { $genericOperator::operatorInfo.setProperty($operatorOption::optionName, $operator::result, $expr.tree); } ->;
+expr=contextAwareExpression[null] { 
+  if(!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName))
+    throw new SimpleException(String.format("Unknown property %s for operator", $name.text), name);
+$genericOperator::operatorInfo.setProperty($operatorOption::optionName, $operator::result, $expr.tree); } ->;
 
 operatorFlag
 scope {

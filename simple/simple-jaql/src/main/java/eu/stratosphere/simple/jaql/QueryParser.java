@@ -22,7 +22,7 @@ import eu.stratosphere.simple.PlanCreator;
 import eu.stratosphere.simple.SimpleException;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.OperatorFactory.OperatorInfo;
+import eu.stratosphere.sopremo.OperatorInfo;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.util.StringUtil;
 

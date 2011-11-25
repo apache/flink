@@ -4,7 +4,7 @@ import eu.stratosphere.sopremo.cleansing.scrubbing.CleansingRule;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
-public abstract class FusionRule extends CleansingRule<FusionContext> {
+public abstract class ConflictResolution extends CleansingRule<FusionContext> {
 
 	/**
 	 * 

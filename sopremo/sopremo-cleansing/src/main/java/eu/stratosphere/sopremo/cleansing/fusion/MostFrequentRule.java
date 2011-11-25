@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.objects.ObjectSet;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
-public class MostFrequentRule extends FusionRule {
+public class MostFrequentRule extends ConflictResolution {
 	/**
 	 * 
 	 */

@@ -25,7 +25,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
 
-	public final static EvaluationExpression KEY = new SingletonExpression() {
+	public final static EvaluationExpression KEY = new SingletonExpression("<key>") {
 		/**
 		 * 
 		 */
@@ -39,14 +39,9 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		protected Object readResolve() {
 			return EvaluationExpression.KEY;
 		}
-
-		@Override
-		public void toString(final StringBuilder builder) {
-			builder.append("<key>");
-		};
 	};
 
-	public final static EvaluationExpression AS_KEY = new SingletonExpression() {
+	public final static EvaluationExpression AS_KEY = new SingletonExpression("-><key>") {
 		/**
 		 * 
 		 */
@@ -60,11 +55,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		protected Object readResolve() {
 			return EvaluationExpression.AS_KEY;
 		}
-
-		@Override
-		public void toString(final StringBuilder builder) {
-			builder.append("-><key>");
-		};
 	};
 
 	/**
@@ -98,10 +88,17 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		if (this.getClass() != obj.getClass())
 			return false;
 		EvaluationExpression other = (EvaluationExpression) obj;
-//		return this.tags.equals(other.tags);
-		return true;
+
+		// return this.tags.equals(other.tags);
+		return this.hasAllSemanticTags(other) && other.hasAllSemanticTags(this);
 	}
 
+	protected boolean hasAllSemanticTags(EvaluationExpression other) {
+		for (ExpressionTag tag : tags)
+			if (tag.isSemantic() && !other.tags.contains(tag))
+				return false;
+		return true;
+	}
 
 	@SuppressWarnings("unchecked")
 	public <T extends EvaluationExpression> T find(final Class<T> evaluableClass) {
@@ -145,7 +142,9 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-//		result = prime * result + this.tags.hashCode();
+		for (ExpressionTag tag : tags)
+			if (tag.isSemantic())
+				result = prime * result + tag.hashCode();
 		return result;
 	}
 
@@ -198,20 +197,21 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 *        the builder to append to
 	 */
 	@Override
-	public void toString(StringBuilder builder) {		
+	public void toString(StringBuilder builder) {
 		appendTags(builder);
 	}
 
 	protected void appendTags(StringBuilder builder) {
-		if (!this.tags.isEmpty())
-			builder.append(this.tags).append(" ");
+		for (ExpressionTag tag : this.tags)
+			if (tag.isSemantic())
+				builder.append(tag).append(" ");
 	}
 
 	public EvaluationExpression withTag(final ExpressionTag tag) {
 		this.addTag(tag);
 		return this;
 	}
-	
+
 	public Set<ExpressionTag> getTags() {
 		return tags;
 	}

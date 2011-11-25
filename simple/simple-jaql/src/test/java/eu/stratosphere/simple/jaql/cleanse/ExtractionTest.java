@@ -23,6 +23,7 @@ import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.Selection;
+import eu.stratosphere.sopremo.cleansing.scrubbing.EntityExtraction;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
@@ -32,7 +33,6 @@ import eu.stratosphere.sopremo.expressions.UnaryExpression;
 /**
  * @author Arvid Heise
  */
-@Ignore
 public class ExtractionTest extends SimpleTest {
 
 	@Test
@@ -63,16 +63,11 @@ public class ExtractionTest extends SimpleTest {
 				//"write $recipients to hdfs('Earmark_Recipients.json');");
 
 		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("input.json");
-		Selection selection = new Selection().
-			withCondition(
-				new OrExpression(
-					new UnaryExpression(JsonUtil.createPath("$", "mgr")),
-					new ComparativeExpression(JsonUtil.createPath("$", "income"), BinaryOperator.GREATER,
-						new ConstantExpression(30000)))).
-			withInputs(input);
-		Sink output = new Sink("output.json").withInputs(selection);
-		expectedPlan.setSinks(output);
+		Source scrubbedEarmarks = new Source("scrubbedEarmarks.json");
+		EntityExtraction extraction = new EntityExtraction().
+			withInputs(scrubbedEarmarks);
+		Sink funds = new Sink("Earmark_Funds.json").withInputs(extraction);
+		expectedPlan.setSinks(funds);
 
 		assertEquals(expectedPlan, actualPlan);
 	}

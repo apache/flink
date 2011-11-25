@@ -24,12 +24,14 @@ import eu.stratosphere.sopremo.cleansing.scrubbing.ExpressionRewriter;
 import eu.stratosphere.sopremo.cleansing.scrubbing.RewriteContext;
 import eu.stratosphere.sopremo.cleansing.scrubbing.RuleManager;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.function.SimpleMacro;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -37,6 +39,7 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * Input elements are either
@@ -54,7 +57,25 @@ public class Fusion extends CompositeOperator<Fusion> {
 	 */
 	private static final long serialVersionUID = 8429199636646276642L;
 
-	private static final DefaultRuleFactory FusionRuleFactory = new DefaultRuleFactory();
+	public static final EvaluationExpression CONTEXT_NODES = new SingletonExpression("<context>") {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3340948936846733311L;
+
+		@Override
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+			return ((FusionContext) context).getContextNodes();
+		}
+
+		@Override
+		protected Object readResolve() {
+			return CONTEXT_NODES;
+		}
+	};
+
+	private static final DefaultRuleFactory FusionRuleFactory = new DefaultRuleFactory(),
+			UpdateRuleFactory = new DefaultRuleFactory();
 
 	{
 		FusionRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(MethodPointerExpression.class),
@@ -68,11 +89,11 @@ public class Fusion extends CompositeOperator<Fusion> {
 				 */
 				@Override
 				public EvaluationExpression call(MethodPointerExpression inputExpr, EvaluationContext context) {
-					return new MethodCall(inputExpr.getFunctionName(), ((RewriteContext) context).getRewritePath());
+					return new MethodCall(inputExpr.getFunctionName(), EvaluationExpression.VALUE);
 				}
 			});
-		FusionRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(JsonStreamExpression.class),
-			new SimpleMacro<JsonStreamExpression>() {
+		FusionRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(InputSelection.class),
+			new SimpleMacro<InputSelection>() {
 				private static final long serialVersionUID = 111389216483477521L;
 
 				/*
@@ -81,26 +102,10 @@ public class Fusion extends CompositeOperator<Fusion> {
 				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
 				 */
 				@Override
-				public EvaluationExpression call(JsonStreamExpression inputExpr, EvaluationContext context) {
-					if (inputExpr.getStream() == context.getCurrentOperator())
-						return ((RewriteContext) context).getRewritePath();
-					return EvaluationExpression.VALUE;
-				}
-			});
-		FusionRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(CleansingRule.class),
-			new SimpleMacro<CleansingRule<?>>() {
-				private static final long serialVersionUID = 111389216483477521L;
-
-				/*
-				 * (non-Javadoc)
-				 * @see eu.stratosphere.sopremo.function.SimpleMacro#call(eu.stratosphere.sopremo.expressions.
-				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
-				 */
-				@Override
-				public EvaluationExpression call(CleansingRule<?> rule, EvaluationContext context) {
-					PathExpression path = ((RewriteContext) context).getRewritePath();
-					path.add(rule);
-					return path;
+				public EvaluationExpression call(InputSelection inputExpr, EvaluationContext context) {
+					if (inputExpr.hasTag(JsonStreamExpression.THIS_CONTEXT))
+						return EvaluationExpression.VALUE;
+					return CONTEXT_NODES;
 				}
 			});
 	}
@@ -111,9 +116,9 @@ public class Fusion extends CompositeOperator<Fusion> {
 
 	private boolean multipleRecordsPerSource = false;
 
-	private FusionRule defaultValueRule = MergeRule.INSTANCE;
+	private ConflictResolution defaultValueRule = MergeRule.INSTANCE;
 
-	public FusionRule getDefaultValueRule() {
+	public ConflictResolution getDefaultValueRule() {
 		return this.defaultValueRule;
 	}
 
@@ -152,7 +157,25 @@ public class Fusion extends CompositeOperator<Fusion> {
 		this.fusionRules.removeRule(rule, target);
 	}
 
-	public void setDefaultValueRule(final FusionRule defaultValueRule) {
+	public void addUpdateRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+		this.updateRules.addRule(rule, target);
+	}
+
+	public void addUpdateRule(EvaluationExpression rule, EvaluationExpression... target) {
+		this.updateRules.addRule(rule, target);
+	}
+
+	public void removeUpdateRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+		this.updateRules.removeRule(rule, target);
+	}
+
+	public void removeUpdateRule(EvaluationExpression rule, EvaluationExpression... target) {
+		this.updateRules.removeRule(rule, target);
+	}
+
+//	@Property
+//	@Name(noun = "default")
+	public void setDefaultValueRule(final ConflictResolution defaultValueRule) {
 		if (defaultValueRule == null)
 			throw new NullPointerException("defaultValueRule must not be null");
 
@@ -171,9 +194,6 @@ public class Fusion extends CompositeOperator<Fusion> {
 	@Name(preposition = "into")
 	public void setFusionExpression(ObjectCreation ruleExpression) {
 		this.fusionRules.parse(ruleExpression, this, FusionRuleFactory);
-		System.out.println(ruleExpression);
-		// this.rules.parse(ruleExpression, );
-		// extractRules(ruleExpression, EvaluationExpression.VALUE);
 	}
 
 	public ObjectCreation getFusionExpression() {
@@ -195,15 +215,13 @@ public class Fusion extends CompositeOperator<Fusion> {
 	@Property
 	@Name(verb = "update")
 	public void setUpdateExpression(ObjectCreation ruleExpression) {
-		System.out.println(ruleExpression);
+		this.updateRules.parse(ruleExpression, this, FusionRuleFactory);
 		// this.rules.clear();
 		// extractRules(ruleExpression, EvaluationExpression.VALUE);
 	}
 
-	@Property
-	@Name(verb = "update")
 	public ObjectCreation getUpdateExpression() {
-		return new ObjectCreation();
+		return (ObjectCreation) this.updateRules.getLastParsedExpression();
 	}
 
 	@Override
@@ -211,11 +229,53 @@ public class Fusion extends CompositeOperator<Fusion> {
 		return SopremoModule.valueOf("fusion", new ValueFusion().withFusionRules(this.fusionRules));
 	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + this.defaultValueRule.hashCode();
+		result = prime * result + this.fusionRules.hashCode();
+		result = prime * result + (this.multipleRecordsPerSource ? 1231 : 1237);
+		result = prime * result + this.updateRules.hashCode();
+		result = prime * result + this.weights.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		Fusion other = (Fusion) obj;
+		return this.defaultValueRule.equals(other.defaultValueRule)
+			&& this.fusionRules.equals(other.fusionRules)
+			&& this.multipleRecordsPerSource == other.multipleRecordsPerSource
+			&& this.updateRules.equals(other.updateRules)
+			&& this.weights.equals(other.weights);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.Operator#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		super.toString(builder);
+		builder.append(" ").append(this.fusionRules).
+			append(" default ").append(this.defaultValueRule).
+			append(" with weights ").append(this.weights).
+			append(" update ").append(this.updateRules);
+	}
+
 	public static class ValueFusion extends ElementaryOperator<ValueFusion> {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 1419963669395136640L;
+
 		private RuleManager fusionRules = new RuleManager();
 
 		public void setFusionRules(RuleManager fusionRules) {
@@ -244,7 +304,7 @@ public class Fusion extends CompositeOperator<Fusion> {
 
 			private boolean multipleRecordsPerSource;
 
-			private FusionRule defaultValueRule;
+			private ConflictResolution defaultValueRule;
 
 			private transient List<JsonNode> contextNodes = new ArrayList<JsonNode>();
 
@@ -357,11 +417,12 @@ public class Fusion extends CompositeOperator<Fusion> {
 						this.context.setSourceIndexes(sourceIndexes);
 					}
 
-					this.context.setContextNodes(this.contextNodes.toArray(new JsonNode[this.contextNodes.size()]));
+					JsonNode[] contextArray = this.contextNodes.toArray(new JsonNode[this.contextNodes.size()]);
+					this.context.setContextNodes(contextArray);
 					final double[] initialWeights = new double[this.contextNodes.size()];
 					for (int index = 0; index < initialWeights.length; index++)
 						initialWeights[index] = this.getWeight(index, new PathExpression());
-					out.collect(key, this.fuse(this.context.getContextNodes(), initialWeights, new PathExpression()));
+					out.collect(key, this.fuse(contextArray, initialWeights, new PathExpression()));
 				} catch (final UnresolvableEvaluationException e) {
 					// do not emit invalid record
 				}

@@ -3,10 +3,26 @@ package eu.stratosphere.sopremo;
 public class ExpressionTag {
 	private final String name;
 
-	public static final ExpressionTag RETAIN = new ExpressionTag("Retain");
+	private final boolean semantic;
+
+	public static final ExpressionTag RETAIN = new ExpressionTag("Retain", true);
 
 	public ExpressionTag(final String name) {
+		this(name, false);
+	}
+
+	public ExpressionTag(String name, boolean semantic) {
 		this.name = name;
+		this.semantic = semantic;
+	}
+
+	/**
+	 * Returns the annotation.
+	 * 
+	 * @return the annotation
+	 */
+	public boolean isSemantic() {
+		return this.semantic;
 	}
 
 	@Override

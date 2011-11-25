@@ -12,9 +12,9 @@ public abstract class ContainerExpression extends EvaluationExpression {
 	@Override
 	public abstract Iterator<EvaluationExpression> iterator();
 
-	public abstract List<EvaluationExpression> getChildren();
+	public abstract List<? extends EvaluationExpression> getChildren();
 	
-	public abstract void setChildren(List<EvaluationExpression> children);
+	public abstract void setChildren(List<? extends EvaluationExpression> children);
 
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
 		for (final EvaluationExpression element : this)

@@ -77,7 +77,7 @@ public class ArrayCreation extends ContainerExpression {
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
 	 */
 	@Override
-	public List<EvaluationExpression> getChildren() {
+	public List<? extends EvaluationExpression> getChildren() {
 		return Arrays.asList(this.elements);
 	}
 
@@ -86,7 +86,7 @@ public class ArrayCreation extends ContainerExpression {
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
 	 */
 	@Override
-	public void setChildren(List<EvaluationExpression> children) {
+	public void setChildren(List<? extends EvaluationExpression> children) {
 		this.elements = children.toArray(this.elements);
 	}
 

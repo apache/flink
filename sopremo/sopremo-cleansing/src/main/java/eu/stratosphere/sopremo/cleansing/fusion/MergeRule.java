@@ -4,7 +4,7 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
-public class MergeRule extends FusionRule {
+public class MergeRule extends ConflictResolution {
 	/**
 	 * 
 	 */

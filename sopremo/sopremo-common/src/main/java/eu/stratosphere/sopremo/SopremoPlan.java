@@ -109,7 +109,7 @@ public class SopremoPlan {
 		return this.module.equals(other.module);
 	}
 
-	public Operator<?> getUnmatchingOperator(SopremoPlan other) {
-		return this.module.getUnmatchingNode(other.module);
+	public List<Operator<?>> getUnmatchingOperators(SopremoPlan other) {
+		return this.module.getUnmatchingNodes(other.module);
 	}
 }

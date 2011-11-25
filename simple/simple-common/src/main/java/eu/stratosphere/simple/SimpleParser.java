@@ -37,7 +37,7 @@ import eu.stratosphere.sopremo.ExpressionTagFactory;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorFactory;
 import eu.stratosphere.sopremo.Bindings.BindingConstraint;
-import eu.stratosphere.sopremo.OperatorFactory.OperatorInfo;
+import eu.stratosphere.sopremo.OperatorInfo;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
@@ -56,7 +56,7 @@ import eu.stratosphere.util.reflect.ReflectUtil;
 public abstract class SimpleParser extends Parser {
 	protected OperatorFactory operatorFactory = new OperatorFactory();
 
-	private InputSuggestion<OperatorFactory.OperatorInfo<?>> operatorSuggestion;
+	private InputSuggestion<OperatorInfo<?>> operatorSuggestion;
 
 	protected ExpressionTagFactory expressionTagFactory = new ExpressionTagFactory();
 
@@ -212,10 +212,19 @@ public abstract class SimpleParser extends Parser {
 		}
 	}
 
-	public InputSuggestion<OperatorFactory.OperatorInfo<?>> getOperatorSuggestion() {
+	public InputSuggestion<OperatorInfo<?>> getOperatorSuggestion() {
 		if (this.operatorSuggestion == null)
-			this.operatorSuggestion = new InputSuggestion<OperatorFactory.OperatorInfo<?>>(
+			this.operatorSuggestion = new InputSuggestion<OperatorInfo<?>>(
 				this.operatorFactory.getOperatorInfos()).
+				withMaxSuggestions(3).
+				withMinSimilarity(0.5);
+		return this.operatorSuggestion;
+	}
+	
+	public InputSuggestion<OperatorInfo<?>> getPropertySuggestion(OperatorInfo<?> info) {
+		if (this.operatorSuggestion == null)
+			this.operatorSuggestion = new InputSuggestion<OperatorInfo<?>>(
+				info.getOperatorProperties()).
 				withMaxSuggestions(3).
 				withMinSimilarity(0.5);
 		return this.operatorSuggestion;
@@ -290,7 +299,7 @@ public abstract class SimpleParser extends Parser {
 		throw e;
 	}
 
-	public OperatorFactory.OperatorInfo<?> findOperatorGreedily(Token firstWord) throws FailedPredicateException {
+	public OperatorInfo<?> findOperatorGreedily(Token firstWord) throws FailedPredicateException {
 		StringBuilder name = new StringBuilder(firstWord.getText());
 		IntList wordBoundaries = new IntArrayList();
 		wordBoundaries.add(name.length());
@@ -303,7 +312,7 @@ public abstract class SimpleParser extends Parser {
 		}
 
 		int tokenCount = wordBoundaries.size();
-		OperatorFactory.OperatorInfo<?> info = null;
+		OperatorInfo<?> info = null;
 		for (; info == null && tokenCount > 0;)
 			info = this.operatorFactory.getOperatorInfo(name.substring(0, wordBoundaries.getInt(--tokenCount)));
 

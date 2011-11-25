@@ -2,7 +2,7 @@ package eu.stratosphere.sopremo.cleansing.fusion;
 
 import eu.stratosphere.sopremo.type.JsonNode;
 
-public class DefaultValueResolution extends FusionRule {
+public class DefaultValueResolution extends ConflictResolution {
 	/**
 	 * 
 	 */

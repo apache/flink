@@ -103,7 +103,7 @@ public class ObjectCreation extends ContainerExpression {
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
 	 */
 	@Override
-	public List<EvaluationExpression> getChildren() {
+	public List<? extends EvaluationExpression> getChildren() {
 		ArrayList<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
 		for (Mapping<?> mapping : this.mappings)
 			list.add(mapping.getExpression());
@@ -115,7 +115,7 @@ public class ObjectCreation extends ContainerExpression {
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
 	 */
 	@Override
-	public void setChildren(List<EvaluationExpression> children) {
+	public void setChildren(List<? extends EvaluationExpression> children) {
 		if (this.mappings.size() != children.size())
 			throw new IllegalArgumentException();
 
@@ -200,14 +200,14 @@ public class ObjectCreation extends ContainerExpression {
 		}
 	}
 
-	public static class TagMapping<Target> extends Mapping<Target> {
+	public static class TagMapping extends Mapping<EvaluationExpression> {
 		/**
 		 * Initializes TagMapping.
 		 * 
 		 * @param target
 		 * @param expression
 		 */
-		public TagMapping(Target target, EvaluationExpression expression) {
+		public TagMapping(EvaluationExpression target, EvaluationExpression expression) {
 			super(target, expression);
 		}
 

@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.simple.jaql;
 
+import java.util.List;
+
 import junit.framework.Assert;
 
 import org.junit.Ignore;
@@ -32,10 +34,14 @@ public class SimpleTest {
 	 * @param actualPlan
 	 */
 	protected static void assertEquals(SopremoPlan expectedPlan, SopremoPlan actualPlan) {
-		Operator<?> unmatchingOperator = actualPlan.getUnmatchingOperator(expectedPlan);
-		if (unmatchingOperator != null)
-			Assert.failNotEquals(String.format("plans are different at %s", unmatchingOperator), expectedPlan,
-				actualPlan);
+		List<Operator<?>> unmatchingOperators = actualPlan.getUnmatchingOperators(expectedPlan);
+		if (unmatchingOperators != null) {
+			if (unmatchingOperators.get(0).getClass() == unmatchingOperators.get(1).getClass())
+				Assert.failNotEquals("operators are different", "\n" + unmatchingOperators.get(1), "\n"
+					+ unmatchingOperators.get(0));
+			else
+				Assert.failNotEquals("plans are different", expectedPlan, actualPlan);
+		}
 	}
 
 	public SopremoPlan parseScript(String script) {

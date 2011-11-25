@@ -132,7 +132,7 @@ public class JsonUtil {
 				segment = new ObjectAccess(part);
 			fragments.add(segment);
 		}
-		return PathExpression.valueOf(fragments);
+		return PathExpression.wrapIfNecessary(fragments);
 	}
 
 	public static EvaluationExpression createPath(final String... parts) {

@@ -33,6 +33,7 @@ public class DefaultRuleFactory extends AbstractRuleFactory {
 	 * Initializes DefaultRuleFactory.
 	 */
 	public DefaultRuleFactory() {
+		this(null);
 	}
 
 	/*

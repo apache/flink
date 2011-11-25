@@ -30,6 +30,7 @@ import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.FieldAssignment;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
+import eu.stratosphere.sopremo.expressions.ObjectCreation.TagMapping;
 import eu.stratosphere.util.AbstractIterable;
 import eu.stratosphere.util.AbstractIterator;
 
@@ -96,14 +97,18 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 			PathExpression contextPath) {
 		if (expression instanceof ObjectCreation) {
 			for (Mapping<?> field : ((ObjectCreation) expression).getMappings()) {
-				contextPath.add(new ObjectAccess(((FieldAssignment) field).getTarget()));
-				this.parse(field.getExpression(), operator, ruleFactory, contextPath);
-				contextPath.removeLast();
+				if (field instanceof FieldAssignment) {
+					contextPath.add(new ObjectAccess(((FieldAssignment) field).getTarget()));
+					this.parse(field.getExpression(), operator, ruleFactory, contextPath);
+					contextPath.removeLast();
+				} else if (field instanceof TagMapping)
+					this.parse(field.getExpression(), operator, ruleFactory,
+						PathExpression.ensurePathExpression(((TagMapping) field).getTarget()));
 			}
 			return;
 		}
 		if (expression instanceof ArrayCreation) {
-			List<EvaluationExpression> children = ((ArrayCreation) expression).getChildren();
+			List<? extends EvaluationExpression> children = ((ArrayCreation) expression).getChildren();
 			for (int index = 0, size = children.size(); index < size; index++)
 				// context.push(new ArrayAccess(index));
 				this.parse(children.get(index), operator, ruleFactory, contextPath);

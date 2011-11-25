@@ -23,7 +23,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	 */
 	private static final long serialVersionUID = 8552367347318407324L;
 
-	public static final EvaluationExpression CONCATENATION = new SingletonExpression() {
+	public static final EvaluationExpression CONCATENATION = new SingletonExpression("String") {
 		/**
 		 * 
 		 */
@@ -40,7 +40,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		}
 	};
 
-	public static final EvaluationExpression LONG_COMBINATION = new SingletonExpression() {
+	public static final EvaluationExpression LONG_COMBINATION = new SingletonExpression("Long") {
 		/**
 		 * 
 		 */

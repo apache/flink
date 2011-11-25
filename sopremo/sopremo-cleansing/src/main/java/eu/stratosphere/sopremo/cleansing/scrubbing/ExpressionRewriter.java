@@ -144,7 +144,12 @@ public class ExpressionRewriter {
 						((ContainerExpression) expression).getChildren());
 					for (int index = 0; index < children.size(); index++)
 						children.set(index, this.rewrite(children.get(index)));
-					((ContainerExpression) expression).setChildren(children);
+					if (!((ContainerExpression) expression).getChildren().equals(children)) {
+						((ContainerExpression) expression).setChildren(children);
+						rewritten = this.process(expression);
+						if (rewritten != expression)
+							return rewritten;
+					}
 				}
 
 				for (DynamicProperty<EvaluationExpression> property : ReflectUtil.getDynamicClass(expression.getClass()).getProperties(

@@ -46,11 +46,6 @@ import eu.stratosphere.sopremo.type.TextNode;
  */
 public class ScrubTest extends SimpleTest {
 
-	/**
-	 * 
-	 */
-	private static final InputSelection CURRENT_VALUE = new InputSelection(0);
-
 	@Test
 	public void testSingleRule() {
 		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
@@ -65,7 +60,7 @@ public class ScrubTest extends SimpleTest {
 		Source dirty_earmarks = new Source("UsEarmark.json");
 		Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
-		scrubbing.addRawRule(new CoerceExpression(DecimalNode.class, CURRENT_VALUE), new ObjectAccess("amount"));
+		scrubbing.addRule(new CoerceExpression(DecimalNode.class), new ObjectAccess("amount"));
 		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
@@ -86,8 +81,8 @@ public class ScrubTest extends SimpleTest {
 		Source dirty_earmarks = new Source("UsEarmark.json");
 		Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
-		scrubbing.addRawRule(new CoerceExpression(DecimalNode.class, CURRENT_VALUE), new ObjectAccess("amount"));
-		scrubbing.addRawRule(new ArithmeticExpression(CURRENT_VALUE, ArithmeticOperator.MULTIPLICATION,
+		scrubbing.addRule(new CoerceExpression(DecimalNode.class), new ObjectAccess("amount"));
+		scrubbing.addRule(new ArithmeticExpression(EvaluationExpression.VALUE, ArithmeticOperator.MULTIPLICATION,
 			new ConstantExpression(1000)), new ObjectAccess("amount"));
 		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
@@ -128,9 +123,9 @@ public class ScrubTest extends SimpleTest {
 		Source dirty_earmarks = new Source("UsEarmark.json");
 		Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
-		scrubbing.addRawRule(new TernaryExpression(new ComparativeExpression(JsonUtil.createPath("1", "type"),
-			BinaryOperator.EQUAL, new ConstantExpression("s")),
-			new PathExpression(new InputSelection(0), new NonNullRule()),
+		scrubbing.addRule(new TernaryExpression(new ComparativeExpression(
+			new PathExpression(Scrubbing.CONTEXT_NODE, new ObjectAccess("type")),
+			BinaryOperator.EQUAL, new ConstantExpression("s")), new NonNullRule(),
 			EvaluationExpression.VALUE), new ObjectAccess("sponsorLastName"));
 		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
@@ -152,7 +147,7 @@ public class ScrubTest extends SimpleTest {
 		Source dirty_earmarks = new Source("UsEarmark.json");
 		Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
-		scrubbing.addRawRule(new MethodCall("NormalizeName", new InputSelection(0)),
+		scrubbing.addRule(new MethodCall("NormalizeName", new InputSelection(0)),
 			new ObjectAccess("sponsorLastName"));
 		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
@@ -179,7 +174,7 @@ public class ScrubTest extends SimpleTest {
 		Replace replace = new Replace().
 			withInputs(dirty_earmarks, nick_names).
 			withDefaultExpression(new InputSelection(0).withTag(JsonStreamExpression.THIS_CONTEXT));
-		scrubbing.addRawRule(new NestedOperatorExpression(replace), new ObjectAccess("sponsorFirstName"));
+		scrubbing.addRule(new NestedOperatorExpression(replace), new ObjectAccess("sponsorFirstName"));
 		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
@@ -206,24 +201,24 @@ public class ScrubTest extends SimpleTest {
 		Source nick_names = new Source("UsNickNames.json");
 		Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
-		scrubbing.addRawRule(new CoerceExpression(DecimalNode.class, CURRENT_VALUE), new ObjectAccess("amount"));
-		scrubbing.addRawRule(new ArithmeticExpression(CURRENT_VALUE, ArithmeticOperator.MULTIPLICATION,
+		scrubbing.addRule(new CoerceExpression(DecimalNode.class), new ObjectAccess("amount"));
+		scrubbing.addRule(new ArithmeticExpression(EvaluationExpression.VALUE, ArithmeticOperator.MULTIPLICATION,
 			new ConstantExpression(1000)), new ObjectAccess("amount"));
 
-		scrubbing.addRawRule(new TernaryExpression(new ComparativeExpression(JsonUtil.createPath("1", "type"),
-			BinaryOperator.EQUAL, new ConstantExpression("s")),
-			new PathExpression(new InputSelection(0), new NonNullRule()),
+		scrubbing.addRule(new TernaryExpression(new ComparativeExpression(
+			new PathExpression(Scrubbing.CONTEXT_NODE, new ObjectAccess("type")),
+			BinaryOperator.EQUAL, new ConstantExpression("s")), new NonNullRule(),
 			EvaluationExpression.VALUE), new ObjectAccess("sponsorLastName"));
-		scrubbing.addRawRule(new MethodCall("NormalizeName", new InputSelection(0)),
+		scrubbing.addRule(new MethodCall("NormalizeName", new InputSelection(0)),
 			new ObjectAccess("sponsorLastName"));
 
 		scrubbing.addRule(new NonNullRule(), new ObjectAccess("sponsorFirstName"));
-		scrubbing.addRawRule(new MethodCall("NormalizeName", new InputSelection(0)),
+		scrubbing.addRule(new MethodCall("NormalizeName", new InputSelection(0)),
 			new ObjectAccess("sponsorFirstName"));
 		Replace replace = new Replace().
 			withInputs(dirty_earmarks, nick_names).
 			withDefaultExpression(new InputSelection(0).withTag(JsonStreamExpression.THIS_CONTEXT));
-		scrubbing.addRawRule(new NestedOperatorExpression(replace), new ObjectAccess("sponsorFirstName"));
+		scrubbing.addRule(new NestedOperatorExpression(replace), new ObjectAccess("sponsorFirstName"));
 
 		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);

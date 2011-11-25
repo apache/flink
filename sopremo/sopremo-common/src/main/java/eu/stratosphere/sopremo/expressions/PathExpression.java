@@ -19,18 +19,18 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	 */
 	private static final long serialVersionUID = -4663949354781572815L;
 
-	private LinkedList<EvaluationExpression> fragments = new LinkedList<EvaluationExpression>();
+	private LinkedList<EvaluationExpression> fragments;
 
 	public PathExpression(final EvaluationExpression... fragments) {
 		this(Arrays.asList(fragments));
 	}
 
 	public PathExpression(final List<? extends EvaluationExpression> fragments) {
-		for (final EvaluationExpression evaluableExpression : fragments)
-			if (evaluableExpression instanceof PathExpression)
-				this.fragments.addAll(((PathExpression) evaluableExpression).fragments);
-			else
-				this.fragments.add(evaluableExpression);
+		this(normalize(fragments));
+	}
+
+	private PathExpression(LinkedList<EvaluationExpression> fragments) {
+		this.fragments = fragments;
 	}
 
 	public void add(final EvaluationExpression fragment) {
@@ -41,7 +41,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	public PathExpression clone() {
 		return new PathExpression(fragments);
 	}
-	
+
 	@Override
 	public boolean equals(final Object obj) {
 		if (!super.equals(obj))
@@ -88,30 +88,31 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	public Iterator<EvaluationExpression> iterator() {
 		return this.fragments.iterator();
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
 	 */
 	@Override
 	public List<EvaluationExpression> getChildren() {
 		return Collections.unmodifiableList(this.fragments);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
 	 */
 	@Override
-	public void setChildren(List<EvaluationExpression> children) {
-		this.fragments.clear();
-		this.fragments.addAll(children);
+	public void setChildren(List<? extends EvaluationExpression> children) {
+		this.fragments = normalize(children);
 	}
 
 	@Override
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
 		super.replace(toReplace, replaceFragment);
 
-		final PathExpression pathToFind = this.wrapAsPath(toReplace);
-		final PathExpression replacePath = this.wrapAsPath(replaceFragment);
+		final PathExpression pathToFind = this.ensurePathExpression(toReplace);
+		final PathExpression replacePath = this.ensurePathExpression(replaceFragment);
 		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
 		final int findSize = pathToFind.fragments.size();
 		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
@@ -134,14 +135,27 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		}
 	}
 
-	private PathExpression wrapAsPath(final EvaluationExpression expression) {
+	public static PathExpression ensurePathExpression(final EvaluationExpression expression) {
 		if (expression instanceof PathExpression)
 			return (PathExpression) expression;
 		return new PathExpression(expression);
 	}
 
-	public static EvaluationExpression valueOf(List<EvaluationExpression> expressions) {
-		switch (expressions.size()) {
+	private static LinkedList<EvaluationExpression> normalize(List<? extends EvaluationExpression> fragments) {
+		LinkedList<EvaluationExpression> linkedList = new LinkedList<EvaluationExpression>();
+
+		for (EvaluationExpression fragment : fragments)
+			if (fragment instanceof PathExpression)
+				linkedList.addAll(((PathExpression) fragment).fragments);
+			else if (!canIgnore(fragment))
+				linkedList.add(fragment);
+				
+		return linkedList;
+	}
+
+	public static EvaluationExpression wrapIfNecessary(List<EvaluationExpression> expressions) {
+		LinkedList<EvaluationExpression> normalized = normalize(expressions);
+		switch (normalized.size()) {
 		case 0:
 			return EvaluationExpression.VALUE;
 
@@ -149,12 +163,12 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 			return expressions.get(0);
 
 		default:
-			return new PathExpression(expressions);
+			return new PathExpression(normalized);
 		}
 	}
 
-	public static EvaluationExpression valueOf(EvaluationExpression... expressions) {
-		return valueOf(Arrays.asList(expressions));
+	public static EvaluationExpression wrapIfNecessary(EvaluationExpression... expressions) {
+		return wrapIfNecessary(Arrays.asList(expressions));
 	}
 
 	@Override
@@ -166,6 +180,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		fragments.get(fragments.size() - 1).set(node, value, context);
 		return node;
 	}
+
 	//
 	// public static class Writable extends PathExpression implements WritableEvaluable {
 	//
@@ -204,6 +219,11 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	}
 
 	public void add(int index, EvaluationExpression fragment) {
-		fragments.add(index, fragment);
+		if (!canIgnore(fragment))
+			fragments.add(index, fragment);
+	}
+
+	private static boolean canIgnore(EvaluationExpression fragment) {
+		return fragment == EvaluationExpression.VALUE;
 	}
 }

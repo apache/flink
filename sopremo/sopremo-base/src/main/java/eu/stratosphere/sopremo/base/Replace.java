@@ -38,7 +38,7 @@ public class Replace extends CompositeOperator<Replace> {
 
 	private EvaluationExpression replaceExpression = EvaluationExpression.VALUE;
 
-	public final static EvaluationExpression FILTER_RECORDS = new SingletonExpression() {
+	public final static EvaluationExpression FILTER_RECORDS = new SingletonExpression("<filter>") {
 		/**
 		 * 
 		 */
@@ -52,11 +52,6 @@ public class Replace extends CompositeOperator<Replace> {
 		protected Object readResolve() {
 			return FILTER_RECORDS;
 		}
-
-		@Override
-		public void toString(StringBuilder builder) {
-			builder.append("<filter>");
-		};
 	};
 
 	private EvaluationExpression dictionaryKeyExtraction = EvaluationExpression.KEY,

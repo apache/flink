@@ -9,8 +9,8 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
+import eu.stratosphere.sopremo.cleansing.fusion.FusionContext;
 import eu.stratosphere.sopremo.cleansing.fusion.UnresolvableEvaluationException;
-import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
@@ -18,6 +18,7 @@ import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.function.SimpleMacro;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -33,6 +34,23 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 	private static final long serialVersionUID = 3979039050900230817L;
 
 	private RuleManager ruleManager = new RuleManager();
+
+	public static final EvaluationExpression CONTEXT_NODE = new SingletonExpression("<context>") {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -3340948936846733311L;
+
+		@Override
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+			return ((ValidationContext) context).getContextNode();
+		}
+
+		@Override
+		protected Object readResolve() {
+			return CONTEXT_NODE;
+		}
+	};
 
 	private final static DefaultRuleFactory RuleFactory = new DefaultRuleFactory();
 
@@ -62,62 +80,27 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 				 */
 				@Override
 				public EvaluationExpression call(InputSelection inputExpr, EvaluationContext context) {
-					if(inputExpr.hasTag(JsonStreamExpression.THIS_CONTEXT))
-						return new InputSelection(0);
-					return new InputSelection(1);
-//					if (inputExpr.getStream() == context.getCurrentOperator()) {
-//						PathExpression path = ((RewriteContext) context).getRewritePath();
-//						path.add(0, new InputSelection(1));
-//						return path;
-//					}
-//					return new InputSelection(1);
-				}
-			});
-		RuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(CleansingRule.class),
-			new SimpleMacro<CleansingRule<?>>() {
-				private static final long serialVersionUID = 111389216483477521L;
-
-				/*
-				 * (non-Javadoc)
-				 * @see eu.stratosphere.sopremo.function.SimpleMacro#call(eu.stratosphere.sopremo.expressions.
-				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
-				 */
-				@Override
-				public EvaluationExpression call(CleansingRule<?> rule, EvaluationContext context) {
-//					PathExpression path = ((RewriteContext) context).getRewritePath();
-//					path.add(rule);
-//					return path;
-					 return new PathExpression(new InputSelection(0), rule);
+					if (inputExpr.hasTag(JsonStreamExpression.THIS_CONTEXT))
+						return EvaluationExpression.VALUE;
+					return CONTEXT_NODE;
 				}
 			});
 	}
 
 	public void addRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		this.ruleManager.addRule(this.wrapRuleForDirectAccess(rule), target);
+		this.ruleManager.addRule(rule, target);
 	}
 
 	public void addRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.ruleManager.addRule(this.wrapRuleForDirectAccess(rule), target);
-	}
-
-	public void addRawRule(EvaluationExpression rule, List<EvaluationExpression> target) {
 		this.ruleManager.addRule(rule, target);
-	}
-
-	public void addRawRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.ruleManager.addRule(rule, target);
-	}
-
-	protected PathExpression wrapRuleForDirectAccess(EvaluationExpression rule) {
-		return new PathExpression(new InputSelection(0), rule);
 	}
 
 	public void removeRule(EvaluationExpression rule, List<EvaluationExpression> target) {
-		this.ruleManager.removeRule(this.wrapRuleForDirectAccess(rule), target);
+		this.ruleManager.removeRule(rule, target);
 	}
 
 	public void removeRule(EvaluationExpression rule, EvaluationExpression... target) {
-		this.ruleManager.removeRule(this.wrapRuleForDirectAccess(rule), target);
+		this.ruleManager.removeRule(rule, target);
 	}
 
 	@Override
@@ -207,7 +190,7 @@ public class Scrubbing extends ElementaryOperator<Scrubbing> {
 						final EvaluationExpression lastSegment = targetPath.get(lastIndex);
 
 						final JsonNode validationValue = lastSegment.evaluate(value, this.context);
-						JsonNode newValue = rule.evaluate(new ArrayNode(validationValue, value), this.context);
+						JsonNode newValue = rule.evaluate(validationValue, this.context);
 						if (validationValue != newValue)
 							lastSegment.set(parent, newValue, this.context);
 					}

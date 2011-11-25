@@ -165,10 +165,10 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 
 		@SuppressWarnings({ "rawtypes", "unchecked" })
 		GraphModule<Node, InputNode, OutputNode> other = (GraphModule) obj;
-		return this.getUnmatchingNode(other) == null;
+		return this.getUnmatchingNodes(other) == null;
 	}
 
-	public Node getUnmatchingNode(GraphModule<Node, InputNode, OutputNode> other) {
+	public List<Node> getUnmatchingNodes(GraphModule<Node, InputNode, OutputNode> other) {
 		IdentitySet<Node> seen = new IdentitySet<Node>();
 
 		return this.getUnmatchingNode(Arrays.asList(this.getAllOutputs()), Arrays.asList(other.getAllOutputs()), seen);
@@ -180,7 +180,8 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	 * @param seen
 	 * @return
 	 */
-	private Node getUnmatchingNode(Iterable<? extends Node> nodes1, Iterable<? extends Node> nodes2,
+	@SuppressWarnings("unchecked")
+	private List<Node> getUnmatchingNode(Iterable<? extends Node> nodes1, Iterable<? extends Node> nodes2,
 			IdentitySet<Node> seen) {
 		Iterator<? extends Node> iterator1 = nodes1.iterator();
 		Iterator<? extends Node> iterator2 = nodes2.iterator();
@@ -190,9 +191,9 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 			Node node2 = iterator2.next();
 
 			if (!node1.equals(node2))
-				return node1;
+				return Arrays.asList(node1, node2);
 
-			Node unmatching = this.getUnmatchingNode(this.navigator.getConnectedNodes(node1),
+			List<Node> unmatching = this.getUnmatchingNode(this.navigator.getConnectedNodes(node1),
 				this.navigator.getConnectedNodes(node2), seen);
 			if (unmatching != null)
 				return unmatching;
