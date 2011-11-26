@@ -1,4 +1,4 @@
-package eu.stratosphere.nephele.streaming.latency;
+package eu.stratosphere.nephele.streaming.profiling;
 
 import eu.stratosphere.nephele.managementgraph.ManagementEdge;
 

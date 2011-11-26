@@ -5,6 +5,9 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.streaming.profiling.ProfilingValue;
+import eu.stratosphere.nephele.streaming.profiling.ProfilingValueStatistic;
+
 public class ProfilingValueStatisticTest {
 
 	private ProfilingValueStatistic valueStatistic;

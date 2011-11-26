@@ -43,7 +43,7 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 import eu.stratosphere.nephele.plugins.PluginID;
 import eu.stratosphere.nephele.streaming.actions.BufferSizeLimitAction;
-import eu.stratosphere.nephele.streaming.latency.LatencyOptimizerThread;
+import eu.stratosphere.nephele.streaming.profiling.LatencyOptimizerThread;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
 import eu.stratosphere.nephele.streaming.wrappers.StreamingFileInputWrapper;
 import eu.stratosphere.nephele.streaming.wrappers.StreamingFileOutputWrapper;
