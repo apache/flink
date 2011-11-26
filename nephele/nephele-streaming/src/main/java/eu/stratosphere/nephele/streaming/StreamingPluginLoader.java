@@ -71,7 +71,7 @@ public final class StreamingPluginLoader extends AbstractPluginLoader {
 	public synchronized JobManagerPlugin getJobManagerPlugin() {
 
 		if (this.jobManagerPlugin == null) {
-			this.jobManagerPlugin = new StreamingJobManagerPlugin(getPluginConfiguration());
+			this.jobManagerPlugin = new StreamingJobManagerPlugin(this.pluginID, getPluginConfiguration());
 		}
 
 		return this.jobManagerPlugin;

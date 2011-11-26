@@ -76,6 +76,11 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 */
 	private boolean spillingQueueAlreadyFlushed = false;
 
+	/**
+	 * The size of the buffer that is offered to the assigned output channel in bytes.
+	 */
+	private int bufferSize;
+
 	OutputChannelContext(final OutputGateContext outputGateContext,
 			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel, final boolean isReceiverRunning,
 			final boolean mergeSpilledBuffers) {
@@ -93,6 +98,9 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		if (!isReceiverRunning) {
 			this.outputGateContext.registerInactiveOutputChannel(this);
 		}
+
+		// Set the buffer size to the largest possible value by default
+		this.bufferSize = this.outputGateContext.getMaximumBufferSize();
 	}
 
 	/**
@@ -214,8 +222,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 */
 	private int calculateBufferSize() {
 
-		// TODO: Include latency considerations
-		return this.outputGateContext.getMaximumBufferSize();
+		return this.bufferSize;
 	}
 
 	/**
@@ -373,5 +380,19 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	long spillQueueWithOutgoingEnvelopes() throws IOException {
 
 		return this.queuedOutgoingEnvelopes.spillSynchronouslyIncludingHead();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void limitBufferSize(final int bufferSize) {
+
+		if (bufferSize > this.outputGateContext.getMaximumBufferSize()) {
+			throw new IllegalArgumentException("Buffer size limit must not be larger than "
+				+ this.outputGateContext.getMaximumBufferSize() + " bytes");
+		}
+
+		this.bufferSize = bufferSize;
 	}
 }

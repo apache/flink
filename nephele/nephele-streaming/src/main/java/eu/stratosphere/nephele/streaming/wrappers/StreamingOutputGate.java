@@ -1,0 +1,110 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.nephele.streaming.wrappers;
+
+import java.io.IOException;
+
+import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.plugins.wrapper.AbstractOutputGateWrapper;
+import eu.stratosphere.nephele.streaming.listeners.StreamListener;
+import eu.stratosphere.nephele.types.Record;
+
+public final class StreamingOutputGate<T extends Record> extends AbstractOutputGateWrapper<T> {
+
+	private static final int BUFFER_LATENCY_REPORT_INTERVAL = 10;
+
+	private final StreamListener streamListener;
+
+	private long lastThroughputTimestamp = -1L;
+
+	private long lastBufferLatencyTimestamp = -1L;
+
+	private long[] lastSentBytes = null;
+
+	private int bufferLatencyReportCounter = 0;
+
+	StreamingOutputGate(final OutputGate<T> wrappedOutputGate, final StreamListener streamListener) {
+		super(wrappedOutputGate);
+
+		if (streamListener == null) {
+			throw new IllegalArgumentException("Argument streamListener must not be null");
+		}
+
+		streamListener.registerOutputGate(this);
+
+		this.streamListener = streamListener;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void writeRecord(final T record) throws IOException, InterruptedException {
+
+		final long timestamp = this.streamListener.recordEmitted(record);
+		if (timestamp >= 0) {
+
+			final int numberOfOutputChannels = getNumberOfOutputChannels();
+
+			if (this.lastThroughputTimestamp < 0) {
+				// Initialize array and fill it
+				this.lastSentBytes = new long[numberOfOutputChannels];
+				for (int i = 0; i < numberOfOutputChannels; ++i) {
+					this.lastSentBytes[i] = getOutputChannel(i).getAmountOfDataTransmitted();
+				}
+			} else {
+				for (int i = 0; i < numberOfOutputChannels; ++i) {
+					final AbstractOutputChannel<? extends Record> outputChannel = getOutputChannel(i);
+					final long amountOfDataTransmitted = outputChannel.getAmountOfDataTransmitted();
+					final long dataDiff = amountOfDataTransmitted - this.lastSentBytes[i];
+					this.lastSentBytes[i] = amountOfDataTransmitted;
+					final long timeDiff = timestamp - this.lastThroughputTimestamp;
+					final double throughput = (double) (1000 * 8 * dataDiff) / (double) (1024 * 1024 * timeDiff);
+					this.streamListener.reportChannelThroughput(outputChannel.getID(), throughput);
+				}
+			}
+
+			this.lastThroughputTimestamp = timestamp;
+		}
+
+		getWrappedOutputGate().writeRecord(record);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void outputBufferSent(final ChannelID channelID) {
+
+		if (++this.bufferLatencyReportCounter == BUFFER_LATENCY_REPORT_INTERVAL) {
+
+			final long timestamp = System.currentTimeMillis();
+
+			if (this.lastBufferLatencyTimestamp >= 0) {
+
+				final int duration = (int) (timestamp - this.lastBufferLatencyTimestamp);
+				this.streamListener.reportBufferLatency(channelID, duration / BUFFER_LATENCY_REPORT_INTERVAL);
+			}
+
+			this.lastBufferLatencyTimestamp = timestamp;
+			this.bufferLatencyReportCounter = 0;
+		}
+
+		getWrappedOutputGate().outputBufferSent(channelID);
+	}
+}

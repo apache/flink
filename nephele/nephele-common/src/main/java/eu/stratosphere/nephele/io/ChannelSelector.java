@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        the type of record which is sent through the attached output gate
  */
-public interface ChannelSelector<T extends Record> extends IOReadableWritable {
+public interface ChannelSelector<T extends Record> {
 
 	/**
 	 * Called to determine to which attached {@link AbstractOutputChannel} objects the given record shall be forwarded.

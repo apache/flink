@@ -46,9 +46,9 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
@@ -445,19 +445,19 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	@Override
 	public TaskSubmissionResult submitTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment ee, final Set<ChannelID> activeOutputChannels)
+			final RuntimeEnvironment re, final Set<ChannelID> activeOutputChannels)
 			throws IOException {
 
 		// Register task manager components in environment
-		ee.setMemoryManager(this.memoryManager);
-		ee.setIOManager(this.ioManager);
+		re.setMemoryManager(this.memoryManager);
+		re.setIOManager(this.ioManager);
 
 		// Register a new task input split provider
-		ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
+		re.setInputSplitProvider(new TaskInputSplitProvider(re.getJobID(), id, this.globalInputSplitProvider));
 
 		// Create task object and register it with the environment
-		final Task task = new Task(id, ee, this);
-		ee.setExecutionObserver(task);
+		final Task task = new Task(id, re, this);
+		re.setExecutionObserver(task);
 
 		// Register the task
 		TaskSubmissionResult result = registerTask(id, jobConfiguration, task, activeOutputChannels);
@@ -486,21 +486,21 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Make sure all tasks are fully registered before they are started
 		for (final TaskSubmissionWrapper tsw : tasks) {
 
-			final Environment ee = tsw.getEnvironment();
+			final RuntimeEnvironment re = tsw.getEnvironment();
 			final ExecutionVertexID id = tsw.getVertexID();
 			final Configuration jobConfiguration = tsw.getConfiguration();
 			final Set<ChannelID> activeOutputChannels = tsw.getActiveOutputChannels();
 
 			// Register task manager components in environment
-			ee.setMemoryManager(this.memoryManager);
-			ee.setIOManager(this.ioManager);
+			re.setMemoryManager(this.memoryManager);
+			re.setIOManager(this.ioManager);
 
 			// Register a new task input split provider
-			ee.setInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
+			re.setInputSplitProvider(new TaskInputSplitProvider(re.getJobID(), id, this.globalInputSplitProvider));
 
 			// Create task object and register it with the environment
-			final Task task = new Task(id, ee, this);
-			ee.setExecutionObserver(task);
+			final Task task = new Task(id, re, this);
+			re.setExecutionObserver(task);
 
 			// Register the task
 			TaskSubmissionResult result = registerTask(id, jobConfiguration, task, activeOutputChannels);
@@ -556,15 +556,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			}
 		}
 
-		final Environment ee = task.getEnvironment();
-
-		// Check if the task has unbound input/output gates
-		if (ee.hasUnboundInputGates() || ee.hasUnboundOutputGates()) {
-			LOG.debug("Task with ID " + id + " has unbound gates");
-			TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription("Task with ID " + id + " has unbound gates");
-			return result;
-		}
+		final RuntimeEnvironment ee = task.getEnvironment();
 
 		// Register the task with the byte buffered channel manager
 		this.byteBufferedChannelManager.register(task, activeOutputChannels);

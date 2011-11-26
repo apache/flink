@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -43,7 +43,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	/**
 	 * The task's execution environment.
 	 */
-	Environment environment = null;
+	RuntimeEnvironment environment = null;
 
 	/**
 	 * The task's configuration object.
@@ -65,7 +65,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	 * @param configuration
 	 *        the task's configuration
 	 */
-	public TaskSubmissionWrapper(final ExecutionVertexID vertexID, final Environment environment,
+	public TaskSubmissionWrapper(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
 			final Configuration configuration, final SerializableHashSet<ChannelID> activeOutputChannels) {
 
 		if (vertexID == null) {
@@ -116,7 +116,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 
 		this.vertexID = new ExecutionVertexID();
 		this.vertexID.read(in);
-		this.environment = new Environment();
+		this.environment = new RuntimeEnvironment();
 		this.environment.read(in);
 		this.configuration = new Configuration();
 		this.configuration.read(in);
@@ -139,7 +139,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	 * 
 	 * @return the task's execution environment
 	 */
-	public Environment getEnvironment() {
+	public RuntimeEnvironment getEnvironment() {
 
 		return this.environment;
 	}

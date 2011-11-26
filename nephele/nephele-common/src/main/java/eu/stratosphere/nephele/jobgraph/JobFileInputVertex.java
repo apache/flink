@@ -173,7 +173,7 @@ public final class JobFileInputVertex extends AbstractJobInputVertex {
 		}
 
 		// register the path in the configuration
-		invokable.getRuntimeConfiguration()
+		invokable.getTaskConfiguration()
 			.setString(AbstractFileInputTask.INPUT_PATH_CONFIG_KEY, this.path.toString());
 
 		// Finally, see if the task itself has a valid configuration

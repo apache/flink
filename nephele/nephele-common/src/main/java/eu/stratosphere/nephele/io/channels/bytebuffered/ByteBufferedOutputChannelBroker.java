@@ -67,4 +67,12 @@ public interface ByteBufferedOutputChannelBroker {
 	 *         thrown if an I/O error occurs while transfering the event
 	 */
 	void transferEventToInputChannel(AbstractEvent event) throws IOException, InterruptedException;
+
+	/**
+	 * Limits the size of the buffer the output channel is allowed to write into.
+	 * 
+	 * @param bufferSize
+	 *        the new buffer size in bytes
+	 */
+	void limitBufferSize(int bufferSize);
 }

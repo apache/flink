@@ -200,6 +200,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		this.outputChannelBroker.releaseWriteBuffers();
 		this.compressedDataBuffer = null;
 		this.uncompressedDataBuffer = null;
+
+		// Notify the output gate to enable statistics collection by plugins
+		getOutputGate().outputBufferSent(getID());
 	}
 
 	/**
@@ -426,5 +429,17 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	public long getAmountOfDataTransmitted() {
 
 		return this.amountOfDataTransmitted;
+	}
+
+	/**
+	 * Limits the size of the buffer this channel will write its records to before passing them on to the framework.
+	 * 
+	 * @param bufferSize
+	 *        the new limit for the by
+	 */
+	public void limitBufferSize(final int bufferSize) {
+
+		// Delegate call to the assigned output channel broker
+		this.outputChannelBroker.limitBufferSize(bufferSize);
 	}
 }

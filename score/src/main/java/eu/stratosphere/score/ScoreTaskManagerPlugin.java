@@ -18,7 +18,7 @@ package eu.stratosphere.score;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
@@ -41,7 +41,7 @@ public final class ScoreTaskManagerPlugin implements TaskManagerPlugin {
 	 */
 	@Override
 	public void registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment environment) {
+			final RuntimeEnvironment environment) {
 		// TODO Auto-generated method stub
 
 	}
@@ -50,7 +50,7 @@ public final class ScoreTaskManagerPlugin implements TaskManagerPlugin {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void unregisterTask(final ExecutionVertexID id, final Environment environment) {
+	public void unregisterTask(final ExecutionVertexID id, final RuntimeEnvironment environment) {
 		// TODO Auto-generated method stub
 
 	}

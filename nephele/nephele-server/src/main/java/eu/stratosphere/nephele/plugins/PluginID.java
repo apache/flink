@@ -24,10 +24,29 @@ import eu.stratosphere.nephele.io.AbstractID;
  */
 public final class PluginID extends AbstractID {
 
+	/**
+	 * Constructs a new plugin ID from the given byte array.
+	 * 
+	 * @param byteArray
+	 *        the byte array to construct the plugin ID from
+	 */
 	private PluginID(final byte[] byteArray) {
 		super(byteArray);
 	}
 
+	/**
+	 * Default constructor required for the deserialization.
+	 */
+	public PluginID() {
+		super();
+	}
+
+	/**
+	 * Constructs a new plugin ID from the given byte array.
+	 * 
+	 * @param byteArray
+	 *        the byte array to construct the plugin ID from
+	 */
 	public static PluginID fromByteArray(final byte[] byteArray) {
 
 		if (byteArray == null) {

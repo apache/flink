@@ -28,12 +28,14 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
@@ -95,7 +97,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	public ByteBufferedChannelManager(final ChannelLookupProtocol channelLookupService,
 			final InstanceConnectionInfo localInstanceConnectionInfo)
-												throws IOException {
+			throws IOException {
 
 		this.channelLookupService = channelLookupService;
 
@@ -134,7 +136,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	public void register(final Task task, final Set<ChannelID> activeOutputChannels) {
 
-		final Environment environment = task.getEnvironment();
+		final RuntimeEnvironment environment = task.getEnvironment();
 
 		final TaskContext taskContext = new TaskContext(task, this, this.tasksWithUndecidedCheckpoints);
 
@@ -146,7 +148,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
 				if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
 					LOG.error("Output channel " + outputChannel.getID() + "of job " + environment.getJobID()
-							+ " is not a byte buffered output channel, skipping...");
+						+ " is not a byte buffered output channel, skipping...");
 					continue;
 				}
 
@@ -165,10 +167,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final boolean isActive = activeOutputChannels.contains(bboc.getID());
 
 				LOG.info("Registering byte buffered output channel " + bboc.getID() + " ("
-						+ (isActive ? "active" : "inactive") + ")");
+					+ (isActive ? "active" : "inactive") + ")");
 
 				final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc,
-						isActive, this.mergeSpilledBuffers);
+					isActive, this.mergeSpilledBuffers);
 				this.registeredChannels.put(bboc.getID(), outputChannelContext);
 			}
 		}
@@ -180,7 +182,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
 				if (!(inputChannel instanceof AbstractByteBufferedInputChannel)) {
 					LOG.error("Input channel " + inputChannel.getID() + "of job " + environment.getJobID()
-							+ " is not a byte buffered input channel, skipping...");
+						+ " is not a byte buffered input channel, skipping...");
 					continue;
 				}
 
@@ -199,7 +201,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				LOG.info("Registering byte buffered input channel " + bbic.getID());
 
 				final InputChannelContext inputChannelContext = new InputChannelContext(inputGateContext, this,
-						bbic);
+					bbic);
 				this.registeredChannels.put(bbic.getID(), inputChannelContext);
 			}
 
@@ -222,7 +224,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	public void unregister(final ExecutionVertexID vertexID, final Task task) {
 
-		final Environment environment = task.getEnvironment();
+		final RuntimeEnvironment environment = task.getEnvironment();
 
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
@@ -339,7 +341,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 			if (!cc.isInputChannel()) {
 				throw new IOException("Local receiver " + localReceiver
-						+ " is not an input channel, but is supposed to accept a buffer");
+					+ " is not an input channel, but is supposed to accept a buffer");
 			}
 
 			cc.queueTransferEnvelope(transferEnvelope);
@@ -363,7 +365,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				if (!cc.isInputChannel()) {
 					throw new IOException("Local receiver " + localReceiver
-							+ " is not an input channel, but is supposed to accept a buffer");
+						+ " is not an input channel, but is supposed to accept a buffer");
 				}
 
 				final InputChannelContext inputChannelContext = (InputChannelContext) cc;
@@ -439,11 +441,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			while (true) {
 
 				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
-							this.localConnectionInfo, jobID, sourceChannelID);
+					this.localConnectionInfo, jobID, sourceChannelID);
 
 				if (lookupResponse.receiverNotFound()) {
 					throw new IOException("Cannot find task(s) waiting for data from source channel with ID "
-							+ sourceChannelID);
+						+ sourceChannelID);
 				}
 
 				if (lookupResponse.receiverNotReady()) {
@@ -548,7 +550,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		System.out.println("\tIncoming connections:");
 
 		final Iterator<Map.Entry<ChannelID, ChannelContext>> it2 = this.registeredChannels.entrySet()
-				.iterator();
+			.iterator();
 
 		while (it2.hasNext()) {
 
@@ -561,7 +563,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final int numberOfQueuedMemoryBuffers = inputChannelContext.getNumberOfQueuedMemoryBuffers();
 
 				System.out.println("\t\t" + entry.getKey() + ": " + numberOfQueuedMemoryBuffers + " ("
-						+ numberOfQueuedEnvelopes + ")");
+					+ numberOfQueuedEnvelopes + ")");
 			}
 		}
 	}
@@ -586,7 +588,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				if (!cc.isInputChannel()) {
 					throw new IOException("Channel context for local receiver " + localReceiver
-							+ " is not an input channel context");
+						+ " is not an input channel context");
 				}
 
 				final InputChannelContext icc = (InputChannelContext) cc;

@@ -9,9 +9,7 @@
     <version>0.2</version>
   </parent>
 
-  <groupId>eu.stratosphere</groupId>
   <artifactId>score</artifactId>
-  <version>0.2</version>
   <name>score</name>
 
   <packaging>jar</packaging>

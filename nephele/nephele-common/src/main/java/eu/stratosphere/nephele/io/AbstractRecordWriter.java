@@ -79,19 +79,13 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	@SuppressWarnings("unchecked")
 	private void connectOutputGate(Class<T> outputClass, ChannelSelector<T> selector, boolean isBroadcast) {
 
-		// See if there are any unbound input gates left we can connect to
-		if (this.environment.hasUnboundOutputGates()) {
-			final OutputGate<T> eog = (OutputGate<T>) this.environment.getUnboundOutputGate(0);
-			if (!outputClass.equals(eog.getType())) {
-				throw new RuntimeException("Unbound input gate found, but types do not match!");
-			}
-
-			this.outputGate = eog;
-		} else {
-			this.outputGate = new OutputGate<T>(environment.getJobID(), new GateID(), outputClass,
-				this.environment.getNumberOfOutputGates(), selector, isBroadcast);
-			this.environment.registerOutputGate(this.outputGate);
+		GateID gateID = this.environment.getNextUnboundOutputGateID();
+		if (gateID == null) {
+			gateID = new GateID();
 		}
+
+		this.outputGate = (OutputGate<T>) this.environment.createOutputGate(gateID, outputClass, selector, isBroadcast);
+		this.environment.registerOutputGate(this.outputGate);
 	}
 
 	/**
@@ -103,7 +97,7 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 * @throws IOException
 	 *         Thrown on an error that may happen during the transfer of the given record or a previous record.
 	 */
-	public void emit(T record) throws IOException, InterruptedException {
+	public void emit(final T record) throws IOException, InterruptedException {
 
 		// Simply pass record through to the corresponding output gate
 		this.outputGate.writeRecord(record);
@@ -118,18 +112,8 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 		return this.outputGate.getOutputChannels();
 	}
 
-	/**
-	 * Registers a new listener object with the assigned output gate.
-	 * 
-	 * @param inputGateListener
-	 *        the listener object to register
-	 */
-	public void registerOutputGateListener(OutputGateListener outputGateListener) {
-
-		this.outputGate.registerOutputGateListener(outputGateListener);
-	}
-
 	// TODO (en)
+	@Deprecated
 	public OutputGate<T> getOutputGate() {
 		return outputGate;
 	}
