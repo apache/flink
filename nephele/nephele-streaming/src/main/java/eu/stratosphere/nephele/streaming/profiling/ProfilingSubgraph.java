@@ -39,7 +39,7 @@ public class ProfilingSubgraph {
 
 	private HashMap<ManagementEdgeID, EdgeCharacteristics> edgeCharacteristics = new HashMap<ManagementEdgeID, EdgeCharacteristics>();
 
-	private HashMap<ManagementVertexID, ManagementEdgeID> receiverVertexToSourceEdgeIDMap = new HashMap<ManagementVertexID, ManagementEdgeID>();
+	private HashMap<XoredVertexID, ManagementEdgeID> xoredVertexToSourceEdgeIDMap = new HashMap<XoredVertexID, ManagementEdgeID>();
 
 	public ProfilingSubgraph(ExecutionGraph executionGraph, ExecutionGroupVertex subgraphStart,
 			ExecutionGroupVertex subgraphEnd, boolean includeSubgraphStartInProfilingPaths,
@@ -49,6 +49,8 @@ public class ProfilingSubgraph {
 		determineAnchoringManagementGroupVertices(managementGraph, subgraphStart, subgraphEnd);
 		buildProfilingPaths(includeSubgraphStartInProfilingPaths, includeSubgraphEndInProfilingPaths);
 		initProfilingAttachmentsOnPaths();
+
+		// FIXME this is a workaround and not safe for multi-DAGs
 		initReceiverVertexToSourceEdgeIDMap(managementGraph);
 	}
 
@@ -79,6 +81,7 @@ public class ProfilingSubgraph {
 
 	private void initReceiverVertexToSourceEdgeIDMap(final ManagementGraph managementGraph) {
 
+		// FIXME this is a workaround and not safe for multi-DAGs
 		final Iterator<ManagementVertex> it = new ManagementGraphIterator(managementGraph, true);
 		while (it.hasNext()) {
 
@@ -90,15 +93,31 @@ public class ProfilingSubgraph {
 				for (int j = 0; j < numberOfOutgoingEdges; ++j) {
 					final ManagementEdge edge = outputGate.getForwardEdge(j);
 					final ManagementVertex receiver = edge.getTarget().getVertex();
-					this.receiverVertexToSourceEdgeIDMap.put(receiver.getID(), edge.getSourceEdgeID());
+
+					XoredVertexID xored = new XoredVertexID(source.getID(), receiver.getID());
+					System.out.println("putting edge " + getName(source) + "->" + getName(receiver) + " "
+						+ xored.toString());
+					this.xoredVertexToSourceEdgeIDMap.put(xored, edge.getSourceEdgeID());
 				}
 			}
 		}
 	}
 
+	private String getName(ManagementVertex source) {
+		String name = source.getName();
+		for (int i = 0; i < source.getGroupVertex().getNumberOfGroupMembers(); i++) {
+			if (source.getGroupVertex().getGroupMember(i) == source) {
+				name += i;
+				break;
+			}
+		}
+
+		return name;
+	}
+
 	private void buildProfilingPaths(boolean includeSubgraphStartInProfilingPaths,
 			boolean includeSubgraphEndInProfilingPaths) {
-		
+
 		this.profilingPaths = new LinkedList<ProfilingPath>();
 
 		for (int i = 0; i < subgraphStart.getNumberOfGroupMembers(); i++) {
@@ -158,8 +177,8 @@ public class ProfilingSubgraph {
 		this.subgraphEnd = managementGraph.getVertexByID(vertexInPathEndGroup).getGroupVertex();
 	}
 
-	public ManagementEdgeID getEdgeByReceiverVertexID(ManagementVertexID receiverVertexID) {
-		return receiverVertexToSourceEdgeIDMap.get(receiverVertexID);
+	public ManagementEdgeID getSourceEdgeIDByXoredVertexID(XoredVertexID xored) {
+		return xoredVertexToSourceEdgeIDMap.get(xored);
 	}
 
 	public EdgeCharacteristics getEdgeCharacteristicsBySourceEdgeID(ManagementEdgeID sourceEdgeID) {
@@ -173,5 +192,4 @@ public class ProfilingSubgraph {
 	public List<ProfilingPath> getProfilingPaths() {
 		return profilingPaths;
 	}
-
 }
