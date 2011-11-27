@@ -8,18 +8,18 @@ public class ProfilingValueStatistic {
 
 	private ArrayList<ProfilingValue> sortedByValue;
 
-	private LinkedList<ProfilingValue> sortedByTimestamp;
+	private LinkedList<ProfilingValue> sortedById;
 
-	private int valueArraySize;
+	private int statisticWindowSize;
 
 	private int noOfStoredValues;
 
 	private double sumOfValues;
 
-	public ProfilingValueStatistic(int valueSetSize) {
-		this.sortedByTimestamp = new LinkedList<ProfilingValue>();
+	public ProfilingValueStatistic(int statisticWindowSize) {
+		this.sortedById = new LinkedList<ProfilingValue>();
 		this.sortedByValue = new ArrayList<ProfilingValue>();
-		this.valueArraySize = valueSetSize;
+		this.statisticWindowSize = statisticWindowSize;
 		this.noOfStoredValues = 0;
 		this.sumOfValues = 0;
 	}
@@ -39,13 +39,13 @@ public class ProfilingValueStatistic {
 	}
 
 	private ProfilingValue insertIntoSortedByTimestamp(ProfilingValue value) {
-		if (!sortedByTimestamp.isEmpty() && sortedByTimestamp.getLast().getTimestamp() > value.getTimestamp()) {
+		if (!sortedById.isEmpty() && sortedById.getLast().getId() >= value.getId()) {
 			throw new IllegalArgumentException("Trying to add stale profiling values. This should not happen.");
 		}
-		sortedByTimestamp.add(value);
+		sortedById.add(value);
 
-		if (noOfStoredValues >= valueArraySize) {
-			return sortedByTimestamp.removeFirst();
+		if (noOfStoredValues >= statisticWindowSize) {
+			return sortedById.removeFirst();
 		} else {
 			return null;
 		}
