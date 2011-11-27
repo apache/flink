@@ -7,6 +7,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
@@ -50,20 +51,64 @@ public class ProfilingModel {
 	}
 
 	public void refreshEdgeLatency(long timestamp, ChannelLatency channelLatency) {
-		ManagementEdgeID sourceEdgeID = profilingSubgraph.getEdgeByReceiverVertexID(channelLatency.getSinkVertexID()
-			.toManagementVertexID());
+		// FIXME workaround for bug that causes NaNs
+		if (Double.isInfinite(channelLatency.getChannelLatency()) || Double.isNaN(channelLatency.getChannelLatency())) {
+			return;
+		}
 
-		EdgeCharacteristics edgeCharacteristics = profilingSubgraph.getEdgeCharacteristicsBySourceEdgeID(sourceEdgeID);
-		edgeCharacteristics.addLatencyMeasurement(timestamp, channelLatency.getChannelLatency());
+		// FIXME: workaround for bug caused by streaming plugin
+		if (!channelLatency.getSourceVertexID().equals(channelLatency.getSinkVertexID())) {
+
+			XoredVertexID xored = new XoredVertexID(channelLatency.getSourceVertexID().toManagementVertexID(),
+				channelLatency.getSinkVertexID().toManagementVertexID());
+
+			ManagementEdgeID sourceEdgeID = profilingSubgraph.getSourceEdgeIDByXoredVertexID(xored);
+
+			if (sourceEdgeID == null) {
+				ExecutionVertex source = executionGraph.getVertexByID(channelLatency.getSourceVertexID());
+				ExecutionVertex sink = executionGraph.getVertexByID(channelLatency.getSinkVertexID());
+
+				throw new RuntimeException("No source edge ID for " + getName(source) + "->" + getName(sink) + " "
+					+ xored.toString());
+			}
+
+			EdgeCharacteristics edgeCharacteristics = profilingSubgraph
+				.getEdgeCharacteristicsBySourceEdgeID(sourceEdgeID);
+
+			edgeCharacteristics.addLatencyMeasurement(timestamp, channelLatency.getChannelLatency());
+		}
+	}
+
+	private String getName(ExecutionVertex source) {
+		String name = source.getName();
+		for (int i = 0; i < source.getGroupVertex().getCurrentNumberOfGroupMembers(); i++) {
+			if (source.getGroupVertex().getGroupMember(i) == source) {
+				name += i;
+				break;
+			}
+		}
+
+		return name;
 	}
 
 	public void refreshTaskLatency(long timestamp, TaskLatency taskLatency) {
+		// FIXME workaround for bug that causes NaNs
+		if (Double.isInfinite(taskLatency.getTaskLatency()) || Double.isNaN(taskLatency.getTaskLatency())) {
+			return;
+		}
+		
 		VertexLatency vertexLatency = profilingSubgraph
 			.getVertexLatency(taskLatency.getVertexID().toManagementVertexID());
 		vertexLatency.addLatencyMeasurement(timestamp, taskLatency.getTaskLatency());
 	}
 
 	public void refreshChannelThroughput(long timestamp, ChannelThroughput channelThroughput) {
+
+		// FIXME workaround for bug that causes NaNs
+		if (Double.isInfinite(channelThroughput.getThroughput()) || Double.isNaN(channelThroughput.getThroughput())) {
+			return;
+		}
+
 		ManagementEdgeID edgeID = new ManagementEdgeID(channelThroughput.getSourceChannelID());
 		EdgeCharacteristics edgeCharaceristics = profilingSubgraph.getEdgeCharacteristicsBySourceEdgeID(edgeID);
 		edgeCharaceristics.addThroughputMeasurement(timestamp, channelThroughput.getThroughput());

@@ -9,6 +9,8 @@ import eu.stratosphere.nephele.managementgraph.ManagementEdge;
 import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 
 public class ProfilingPathSummary {
+	
+//	private static Log LOG = LogFactory.getLog(ProfilingPathSummary.class);
 
 	private double totalLatency;
 
@@ -98,6 +100,16 @@ public class ProfilingPathSummary {
 					.getLatencyInMillis() == -1)
 					|| (element instanceof ManagementEdge && ((EdgeCharacteristics) element.getAttachment())
 						.getLatencyInMillis() == -1)) {
+					
+//					if(element instanceof ManagementVertex) {
+//						ManagementVertex vertex = (ManagementVertex) element;
+//						LOG.info("no data for vertex " + vertex.getName() + vertex.getIndexInGroup());
+//					} else {
+//						ManagementEdge edge = (ManagementEdge) element;
+//						String sourceName = edge.getSource().getVertex().getName() + edge.getSource().getVertex().getIndexInGroup();
+//						String tgName = edge.getTarget().getVertex().getName() + edge.getTarget().getVertex().getIndexInGroup();
+//						LOG.info("no data for edge " + sourceName + "-> " + tgName);
+//					}
 					this.hasLatencies = false;
 					break;
 				}
