@@ -21,8 +21,8 @@
 		<class>eu.stratosphere.nephele.streaming.StreamingPluginLoader</class>
 		<configuration>
 			<property>
-				<key>testkey</key>
-				<value>testvalue</value>
+				<key>streaming.tagging.interval</key>
+				<value>1000</value>
 			</property>
 		</configuration>
 	</plugin>

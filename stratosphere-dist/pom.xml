@@ -72,6 +72,11 @@
     		<artifactId>nephele-visualization</artifactId>
     		<version>${version}</version>
     	</dependency>
+         <dependency>
+                <groupId>eu.stratosphere</groupId>
+                <artifactId>nephele-streaming</artifactId>
+                <version>${version}</version>
+        </dependency>
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>pact-common</artifactId>
