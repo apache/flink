@@ -2,6 +2,10 @@ package eu.stratosphere.nephele.streaming.profiling;
 
 public class ProfilingValue implements Comparable<ProfilingValue> {
 
+	private static long nextFreeId = 0;
+
+	private long id;
+
 	private double value;
 
 	private long timestamp;
@@ -9,6 +13,7 @@ public class ProfilingValue implements Comparable<ProfilingValue> {
 	public ProfilingValue(double value, long timestamp) {
 		this.value = value;
 		this.timestamp = timestamp;
+		this.id = nextFreeId++;
 	}
 
 	public double getValue() {
@@ -27,8 +32,12 @@ public class ProfilingValue implements Comparable<ProfilingValue> {
 		this.timestamp = timestamp;
 	}
 
+	public long getId() {
+		return id;
+	}
+
 	/**
-	 * Sorts first by value and then by timestamp.
+	 * Sorts first by value and then by id.
 	 */
 	@Override
 	public int compareTo(ProfilingValue other) {
@@ -37,13 +46,22 @@ public class ProfilingValue implements Comparable<ProfilingValue> {
 		} else if (this.value < other.value) {
 			return -1;
 		} else {
-			if (this.timestamp > other.timestamp) {
+			if (this.id > other.id) {
 				return 1;
-			} else if (this.timestamp < other.timestamp) {
+			} else if (this.id < other.id) {
 				return -1;
 			} else {
 				return 0;
 			}
+		}
+	}
+
+	public boolean equals(Object otherObj) {
+		if (otherObj instanceof ProfilingValue) {
+			ProfilingValue other = (ProfilingValue) otherObj;
+			return other.id == this.id;
+		} else {
+			return false;
 		}
 	}
 }
