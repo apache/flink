@@ -94,6 +94,8 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 		this.communicationThread = new StreamingCommunicationThread(jobManagerComponent);
 		this.communicationThread.start();
 
+		LOG.info("Configured tagging interval is " + this.taggingInterval);
+
 		INSTANCE = this;
 	}
 
