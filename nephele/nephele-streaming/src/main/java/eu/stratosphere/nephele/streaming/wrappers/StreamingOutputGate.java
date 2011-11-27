@@ -16,6 +16,8 @@
 package eu.stratosphere.nephele.streaming.wrappers;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
@@ -26,17 +28,48 @@ import eu.stratosphere.nephele.types.Record;
 
 public final class StreamingOutputGate<T extends Record> extends AbstractOutputGateWrapper<T> {
 
-	private static final int BUFFER_LATENCY_REPORT_INTERVAL = 10;
-
 	private final StreamListener streamListener;
 
 	private long lastThroughputTimestamp = -1L;
 
-	private long lastBufferLatencyTimestamp = -1L;
-
 	private long[] lastSentBytes = null;
 
-	private int bufferLatencyReportCounter = 0;
+	private Map<ChannelID, BufferLatency> bufferLatencyMap = new HashMap<ChannelID, BufferLatency>();
+
+	private static final class BufferLatency {
+
+		private static final int BUFFER_LATENCY_REPORT_INTERVAL = 1000;
+
+		private long lastBufferLatencyTimestamp = -1L;
+
+		private int accumulatedLatency = 0;
+
+		private int latencyCounter = 0;
+
+		private BufferLatency(final long initialTimestamp) {
+			this.lastBufferLatencyTimestamp = initialTimestamp;
+		}
+
+		private void addLatency(long timestamp) {
+
+			this.accumulatedLatency += (int) (timestamp - this.lastBufferLatencyTimestamp);
+			this.lastBufferLatencyTimestamp = timestamp;
+			++this.latencyCounter;
+		}
+
+		private int getLatency() {
+
+			if (this.accumulatedLatency < BUFFER_LATENCY_REPORT_INTERVAL) {
+				return -1;
+			}
+
+			final int latency = this.accumulatedLatency / this.latencyCounter;
+			this.accumulatedLatency = 0;
+			this.latencyCounter = 0;
+
+			return latency;
+		}
+	}
 
 	StreamingOutputGate(final OutputGate<T> wrappedOutputGate, final StreamListener streamListener) {
 		super(wrappedOutputGate);
@@ -91,18 +124,17 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 	@Override
 	public void outputBufferSent(final ChannelID channelID) {
 
-		if (++this.bufferLatencyReportCounter == BUFFER_LATENCY_REPORT_INTERVAL) {
+		final long timestamp = System.currentTimeMillis();
+		final BufferLatency bufferLatency = this.bufferLatencyMap.get(channelID);
+		if (bufferLatency == null) {
+			this.bufferLatencyMap.put(channelID, new BufferLatency(timestamp));
+			return;
+		}
 
-			final long timestamp = System.currentTimeMillis();
-
-			if (this.lastBufferLatencyTimestamp >= 0) {
-
-				final int duration = (int) (timestamp - this.lastBufferLatencyTimestamp);
-				this.streamListener.reportBufferLatency(channelID, duration / BUFFER_LATENCY_REPORT_INTERVAL);
-			}
-
-			this.lastBufferLatencyTimestamp = timestamp;
-			this.bufferLatencyReportCounter = 0;
+		bufferLatency.addLatency(timestamp);
+		final int latency = bufferLatency.getLatency();
+		if (latency >= 0) {
+			this.streamListener.reportBufferLatency(channelID, latency);
 		}
 
 		getWrappedOutputGate().outputBufferSent(channelID);
