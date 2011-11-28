@@ -116,7 +116,7 @@ public class ArrayAccess extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return (47 + this.startIndex) * 47 + this.endIndex;
+		return (47 * super.hashCode() + this.startIndex) * 47 + this.endIndex;
 	}
 
 	/**

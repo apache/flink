@@ -50,7 +50,7 @@ public class UnaryExpression extends BooleanExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.expr.hashCode();
 		result = prime * result + (this.negate ? 1231 : 1237);
 		return result;

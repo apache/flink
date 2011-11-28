@@ -61,7 +61,27 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for
 	 * {@link Operator}s that do not perform any transformation to the input, such as a filter operator.
 	 */
-	public static final SameValueExpression VALUE = new SameValueExpression();
+	public static final EvaluationExpression VALUE = new SingletonExpression("<value>") {
+		
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -6430819532311429108L;
+
+		@Override
+		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+			return node;
+		}
+		
+		public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+			return value;
+		};
+		
+		@Override
+		protected Object readResolve() {
+			return VALUE;
+		}
+	};
 
 	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
 
@@ -214,44 +234,5 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 
 	public Set<ExpressionTag> getTags() {
 		return tags;
-	}
-
-	private static final class SameValueExpression extends EvaluationExpression {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -6957283445639387461L;
-
-		@Override
-		public boolean equals(final Object obj) {
-			return this == obj;
-		}
-
-		/**
-		 * Returns the node without modifications.
-		 */
-		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return node;
-		}
-
-		@Override
-		public int hashCode() {
-			return System.identityHashCode(this);
-		}
-
-		private Object readResolve() {
-			return EvaluationExpression.VALUE;
-		}
-
-		@Override
-		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
-			return value;
-		}
-
-		@Override
-		public void toString(final StringBuilder builder) {
-			builder.append("<value>");
-		}
 	}
 }

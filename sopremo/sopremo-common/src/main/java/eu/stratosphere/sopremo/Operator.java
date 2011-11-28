@@ -297,7 +297,10 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 */
 	public JsonStream getOutput(final int index) {
 		checkSize(index, this.maxOutputs, this.outputs);
-		return this.outputs.get(index);
+		JsonStream output = this.outputs.get(index);
+		if(output == null)
+			this.outputs.set(index, output = new Output(index));
+		return output;
 	}
 
 	/**
@@ -582,6 +585,11 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @author Arvid Heise
 	 */
 	public class Output extends AbstractSopremoType implements JsonStream, Cloneable, SerializableSopremoType {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 602797343864078577L;
+		
 		private final int index;
 
 		private Output(final int index) {

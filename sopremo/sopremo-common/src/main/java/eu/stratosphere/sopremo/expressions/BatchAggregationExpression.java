@@ -88,7 +88,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + (this.partials == null ? 0 : this.partials.hashCode());
 		return result;
 	}

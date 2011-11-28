@@ -77,10 +77,10 @@ public class TernaryExpression extends EvaluationExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
-		result = prime * result + (this.ifClause == null ? 0 : this.ifClause.hashCode());
-		result = prime * result + (this.ifExpression == null ? 0 : this.ifExpression.hashCode());
-		result = prime * result + (this.thenExpression == null ? 0 : this.thenExpression.hashCode());
+		int result = super.hashCode();
+		result = prime * result + this.ifClause.hashCode();
+		result = prime * result + this.ifExpression.hashCode();
+		result = prime * result +  this.thenExpression.hashCode();
 		return result;
 	}
 

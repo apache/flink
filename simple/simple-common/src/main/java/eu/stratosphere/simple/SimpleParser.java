@@ -37,6 +37,8 @@ import eu.stratosphere.sopremo.ExpressionTagFactory;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OperatorFactory;
 import eu.stratosphere.sopremo.Bindings.BindingConstraint;
+import eu.stratosphere.sopremo.OperatorInfo.OperatorPropertyInfo;
+import eu.stratosphere.sopremo.OperatorInfo.PropertyInfo;
 import eu.stratosphere.sopremo.OperatorInfo;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
@@ -200,14 +202,15 @@ public abstract class SimpleParser extends Parser {
 	// return macro.call(params, getContext());
 	// }
 
-	public <Op extends Operator<Op>> void setPropertySafely(OperatorInfo<Op> info, Operator<Op> op, String property,
+	public <Op extends Operator<Op>> void setPropertySafely(OperatorInfo<Op> info, Operator<Op> op, String propertyName,
 			Object value, Token reference) {
-		if (!info.hasProperty(property))
+		OperatorPropertyInfo property = info.getOperatorProperty(propertyName);
+		if (property == null)
 			throw new SimpleException("Unknown property", reference);
 		try {
-			info.setProperty(property, op, value);
+			property.setValue(op, value);
 		} catch (Exception e) {
-			throw new SimpleException(String.format("Cannot set value of property %s to %s", property, value),
+			throw new SimpleException(String.format("Cannot set value of property %s to %s", propertyName, value),
 				reference);
 		}
 	}
@@ -221,13 +224,18 @@ public abstract class SimpleParser extends Parser {
 		return this.operatorSuggestion;
 	}
 	
-	public InputSuggestion<OperatorInfo<?>> getPropertySuggestion(OperatorInfo<?> info) {
-		if (this.operatorSuggestion == null)
-			this.operatorSuggestion = new InputSuggestion<OperatorInfo<?>>(
+	public InputSuggestion<OperatorInfo.InputPropertyInfo> getInputPropertySuggestion(OperatorInfo<?> info) {
+		return new InputSuggestion<OperatorInfo.InputPropertyInfo>(
+				info.getInputProperties()).
+				withMaxSuggestions(3).
+				withMinSimilarity(0.5);
+	}
+	
+	public InputSuggestion<OperatorInfo.OperatorPropertyInfo> getOperatorPropertySuggestion(OperatorInfo<?> info) {
+		return new InputSuggestion<OperatorInfo.OperatorPropertyInfo>(
 				info.getOperatorProperties()).
 				withMaxSuggestions(3).
 				withMinSimilarity(0.5);
-		return this.operatorSuggestion;
 	}
 
 	private Map<String, Class<? extends JsonNode>> typeNameToType = new HashMap<String, Class<? extends JsonNode>>();
@@ -328,6 +336,54 @@ public abstract class SimpleParser extends Parser {
 		return info;
 	}
 
+	public OperatorInfo.OperatorPropertyInfo findOperatorPropertyRelunctantly(OperatorInfo<?> info, Token firstWord) throws FailedPredicateException {
+		String name = firstWord.getText();
+		OperatorInfo.OperatorPropertyInfo property;
+		
+		int lookAhead = 1;
+		// relunctantly concatenate tokens
+		for (; (property = info.getOperatorProperty(name)) == null && this.input.LA(lookAhead) == firstWord.getType(); lookAhead++) {
+			Token matchedToken = this.input.LT(lookAhead);
+			name = String.format("%s %s", name, matchedToken.getText());
+		}
+
+		if (property == null)
+//			return null;
+//			throw new FailedPredicateException();
+			throw new SimpleException(String.format("Unknown property %s; possible alternatives %s", name,
+				this.getOperatorPropertySuggestion(info).suggest(name)), firstWord);
+
+		// consume additional tokens
+		for (; lookAhead > 1; lookAhead--)
+			this.input.consume();
+		
+		return property;
+	}
+
+	public OperatorInfo.InputPropertyInfo findInputPropertyRelunctantly(OperatorInfo<?> info, Token firstWord) throws FailedPredicateException {
+		String name = firstWord.getText();
+		OperatorInfo.InputPropertyInfo property;
+		
+		int lookAhead = 1;
+		// relunctantly concatenate tokens
+		for (; (property = info.getInputPropertyInfo(name)) == null && this.input.LA(lookAhead) == firstWord.getType(); lookAhead++) {
+			Token matchedToken = this.input.LT(lookAhead);
+			name = String.format("%s %s", name, matchedToken.getText());
+		}
+
+		if (property == null)
+			return null;
+//			throw new FailedPredicateException();
+//			throw new SimpleException(String.format("Unknown property %s; possible alternatives %s", name,
+//				this.getOperatorPropertySuggestion(info).suggest(name)), firstWord);
+
+		// consume additional tokens
+		for (; lookAhead > 1; lookAhead--)
+			this.input.consume();
+		
+		return property;
+	}
+	
 	@Override
 	protected Object recoverFromMismatchedToken(IntStream input, int ttype, BitSet follow)
 			throws RecognitionException {

@@ -6,6 +6,7 @@ import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.type.JsonNode;
 
+@OutputCardinality(min = 0, max = 0)
 public class Sink extends ElementaryOperator<Sink> {
 	/**
 	 * 

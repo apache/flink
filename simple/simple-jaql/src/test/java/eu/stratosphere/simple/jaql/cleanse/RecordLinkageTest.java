@@ -37,7 +37,7 @@ public class RecordLinkageTest extends SimpleTest {
 
 	@Test
 	public void testRecordLinkage() {
-		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+		final SopremoPlan actualPlan = this.parseScript("using cleansing;\n" +
 			"$sponsors = read hdfs('EarmarkSponsors.json');\n" +
 			"$members = read hdfs('CongressMembers.json');\n" +
 			"$linkedPersons = cluster records\n" +
@@ -51,16 +51,16 @@ public class RecordLinkageTest extends SimpleTest {
 			"	into { $sponsor, $member  };\n" +
 			"write $linkedPersons to hdfs('Links.json');");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("input.json");
-		Selection selection = new Selection().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("input.json");
+		final Selection selection = new Selection().
 			withCondition(
 				new OrExpression(
 					new UnaryExpression(JsonUtil.createPath("$", "mgr")),
 					new ComparativeExpression(JsonUtil.createPath("$", "income"), BinaryOperator.GREATER,
 						new ConstantExpression(30000)))).
 			withInputs(input);
-		Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);

@@ -32,7 +32,7 @@ public class UnevaluableExpression extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return 31 + this.message.hashCode();
+		return 31 * super.hashCode() + this.message.hashCode();
 	}
 
 	@Override

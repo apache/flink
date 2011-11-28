@@ -49,7 +49,7 @@ public class MongeElkanSimilarity extends EvaluationExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.baseMeasure.hashCode();
 		result = prime * result + this.leftExpression.hashCode();
 		result = prime * result + this.rightExpression.hashCode();

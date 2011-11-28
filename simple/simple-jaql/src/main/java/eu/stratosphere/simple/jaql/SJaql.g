@@ -54,6 +54,13 @@ public void parseSinks() throws RecognitionException {
     script();
 }
 
+private boolean setInnerOutput(Token VAR, Operator<?> op) {
+  JsonStreamExpression output = new JsonStreamExpression($operator::result.getOutput($objectCreation::mappings.size()));
+  $objectCreation::mappings.add(new ObjectCreation.TagMapping(output, new JsonStreamExpression(op)));
+  setBinding(VAR, output, 1);
+  return true;
+}
+
 private EvaluationExpression makePath(Token inputVar, String... path) {
   Object input = getRawBinding(inputVar, Object.class);
 //  if(input == null) {
@@ -190,9 +197,9 @@ valueExpression
 	:	methodCall[null]
 	| parenthesesExpression 
 	| literal 
-  | streamIndexAccess
 	| VAR -> { makePath($VAR) }
   | ID { hasBinding($ID, EvaluationExpression.class) }?=> -> { getBinding($ID, EvaluationExpression.class) }
+  | streamIndexAccess
 	| arrayCreation 
 	| objectCreation ;
 	
@@ -220,10 +227,7 @@ fieldAssignment
           { $objectCreation::mappings.add(new ObjectCreation.TagMapping($p.tree, $e.tree)); } ->
     )      
     | ':' e2=expression { $objectCreation::mappings.add(new ObjectCreation.TagMapping(makePath($VAR), $e2.tree)); } ->
-    | '=' op=operator {
-      JsonStreamExpression output = new JsonStreamExpression($operator::result.getOutput($objectCreation::mappings.size()));
-      $objectCreation::mappings.add(new ObjectCreation.TagMapping(getBinding($VAR, JsonStreamExpression.class), new JsonStreamExpression($op.op)));
-      setBinding($VAR, output, 1); }
+    | '=' op=operator { setInnerOutput($VAR, $op.op) }?=>
     | /* empty */ { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($VAR.text.substring(1), makePath($VAR))); } ->    
     );
 
@@ -254,9 +258,9 @@ arrayAccess
   -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($start.text) } { Integer.valueOf($end.text) });
   
 streamIndexAccess
-  : VAR { $operator::result != null && !$operator::result.getInputs().contains(getBinding($VAR, JsonStreamExpression.class).getStream().getSource()) }?=> 
-    '[' path=generalPathExpression ']' 
-  -> { new StreamIndexExpression(getBinding($VAR, JsonStreamExpression.class).getStream(), $path.tree) };
+  : op=VAR { getRawBinding($op, JsonStreamExpression.class) != null }?=>
+    '[' path=generalPathExpression ']' { !($path.tree instanceof ConstantExpression) }?
+  -> { new StreamIndexExpression(getBinding($op, JsonStreamExpression.class).getStream(), $path.tree) };
 	
 arrayCreation
 	:	 '[' elems+=expression (',' elems+=expression)* ','? ']' -> ^(EXPRESSION["ArrayCreation"] { $elems.toArray(new EvaluationExpression[$elems.size()]) });
@@ -293,7 +297,7 @@ writeOperator
 
 genericOperator
 scope { 
-  OperatorFactory.OperatorInfo operatorInfo;
+  OperatorInfo<?> operatorInfo;
 }	:	name=ID { ($genericOperator::operatorInfo = findOperatorGreedily($name)) != null }?=>
 { $operator::result = $genericOperator::operatorInfo.newInstance(); } 
 operatorFlag*
@@ -304,27 +308,24 @@ operatorOption* ->;
 	
 operatorOption
 scope {
- String optionName;
+ OperatorInfo.OperatorPropertyInfo property;
 }
-	:	name=ID { $operatorOption::optionName = $name.text; }
-({!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName)}? moreName=ID 
- { $operatorOption::optionName = $name.text + " " + $moreName.text;})?
-expr=contextAwareExpression[null] { 
-  if(!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName))
-    throw new SimpleException(String.format("Unknown property %s for operator", $name.text), name);
-$genericOperator::operatorInfo.setProperty($operatorOption::optionName, $operator::result, $expr.tree); } ->;
+	:	name=ID { ($operatorOption::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, $name)) != null }?
+expr=contextAwareExpression[null] { $operatorOption::property.setValue($operator::result, $expr.tree); } ->;
 
 operatorFlag
 scope {
- String flagName;
+ OperatorInfo.OperatorPropertyInfo property;
 }
-  : name=ID  { $operatorFlag::flagName = $name.text; }
-({!$genericOperator::operatorInfo.hasFlag($operatorFlag::flagName)}? moreName=ID 
- { $operatorFlag::flagName = $name.text + " " + $moreName.text;})?
-{ setPropertySafely($genericOperator::operatorInfo, $operator::result, $operatorFlag::flagName, true, name); } ->;
+  : name=ID  { ($operatorFlag::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, $name)) != null }?
+{ if(!$operatorFlag::property.isFlag())
+    throw new SimpleException(String.format("Property \%s is not a flag", $name.text), name);
+  $operatorFlag::property.setValue($operator::result, true); } ->;
 
 input	
-	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
+scope {
+ OperatorInfo.InputPropertyInfo inputProperty;
+}	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
 { 
   int inputIndex = $operator::numInputs++;
   JsonStreamExpression input = getBinding(from, JsonStreamExpression.class);
@@ -340,8 +341,8 @@ input
     getContext().getBindings().set("$", new JsonStreamExpression($operator::result).withTag(JsonStreamExpression.THIS_CONTEXT)); 
   }
 }
-(inputOption=ID {$genericOperator::operatorInfo.hasInputProperty($inputOption.text)}? 
-  expr=contextAwareExpression[new InputSelection($operator::numInputs - 1)] { $genericOperator::operatorInfo.setInputProperty($inputOption.text, $operator::result, $operator::numInputs-1, $expr.tree); })?
+(inputOption=ID { ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null }?
+  expr=contextAwareExpression[new InputSelection($operator::numInputs - 1)] { $input::inputProperty.setValue($operator::result, $operator::numInputs-1, $expr.tree); })?
 { if(state.backtracking == 0) 
     removeScope();
 }  

@@ -8,8 +8,10 @@ import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.CompositeOperator;
@@ -23,6 +25,9 @@ import eu.stratosphere.sopremo.cleansing.scrubbing.DefaultRuleFactory;
 import eu.stratosphere.sopremo.cleansing.scrubbing.ExpressionRewriter;
 import eu.stratosphere.sopremo.cleansing.scrubbing.RewriteContext;
 import eu.stratosphere.sopremo.cleansing.scrubbing.RuleManager;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
@@ -38,8 +43,10 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.NumericNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * Input elements are either
@@ -75,7 +82,8 @@ public class Fusion extends CompositeOperator<Fusion> {
 	};
 
 	private static final DefaultRuleFactory FusionRuleFactory = new DefaultRuleFactory(),
-			UpdateRuleFactory = new DefaultRuleFactory();
+			UpdateRuleFactory = new DefaultRuleFactory(),
+			WeightRuleFactory = new DefaultRuleFactory();
 
 	{
 		FusionRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(MethodPointerExpression.class),
@@ -108,21 +116,40 @@ public class Fusion extends CompositeOperator<Fusion> {
 					return CONTEXT_NODES;
 				}
 			});
+		WeightRuleFactory.addRewriteRule(new ExpressionRewriter.ExpressionType(ArithmeticExpression.class),
+			new SimpleMacro<ArithmeticExpression>() {
+				private static final long serialVersionUID = 111389216483477521L;
+
+				/*
+				 * (non-Javadoc)
+				 * @see eu.stratosphere.sopremo.function.SimpleMacro#call(eu.stratosphere.sopremo.expressions.
+				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
+				 */
+				@Override
+				public EvaluationExpression call(ArithmeticExpression arithExpr, EvaluationContext context) {
+					if(arithExpr.getOperator() != ArithmeticOperator.MULTIPLICATION)
+						throw new IllegalArgumentException("unsupported arithmetic expression");
+					
+					((RewriteContext)context).parse(arithExpr.getSecondOperand());
+					return arithExpr.getFirstOperand();
+				}
+			});
 	}
 
 	private final List<Object2DoubleMap<PathExpression>> weights = new ArrayList<Object2DoubleMap<PathExpression>>();
 
-	private RuleManager fusionRules = new RuleManager(), updateRules = new RuleManager();
+	private RuleManager fusionRules = new RuleManager(), updateRules = new RuleManager(), weightRules = new RuleManager();
 
 	private boolean multipleRecordsPerSource = false;
 
-	private ConflictResolution defaultValueRule = MergeRule.INSTANCE;
+	private EvaluationExpression defaultValueRule = MergeRule.INSTANCE;
 
-	public ConflictResolution getDefaultValueRule() {
+	public EvaluationExpression getDefaultValueRule() {
 		return this.defaultValueRule;
 	}
 
 	private Object2DoubleMap<PathExpression> getWeightMap(final int inputIndex) {
+		CollectionUtil.ensureSize(weights, inputIndex + 1);
 		Object2DoubleMap<PathExpression> weightMap = this.weights.get(inputIndex);
 		if (weightMap == null) {
 			while (this.weights.size() <= inputIndex)
@@ -133,8 +160,8 @@ public class Fusion extends CompositeOperator<Fusion> {
 		return weightMap;
 	}
 
-	public double getWeights(final int inputIndex, final String... path) {
-		return this.getWeightMap(inputIndex).getDouble(Arrays.asList(path));
+	public double getWeights(final int inputIndex, final PathExpression path) {
+		return this.getWeightMap(inputIndex).getDouble(path);
 	}
 
 	public boolean isMultipleRecordsPerSource() {
@@ -173,9 +200,9 @@ public class Fusion extends CompositeOperator<Fusion> {
 		this.updateRules.removeRule(rule, target);
 	}
 
-//	@Property
-//	@Name(noun = "default")
-	public void setDefaultValueRule(final ConflictResolution defaultValueRule) {
+	@Property
+	@Name(noun = "default")
+	public void setDefaultValueRule(final EvaluationExpression defaultValueRule) {
 		if (defaultValueRule == null)
 			throw new NullPointerException("defaultValueRule must not be null");
 
@@ -203,21 +230,30 @@ public class Fusion extends CompositeOperator<Fusion> {
 	@Property
 	@Name(preposition = "with weights")
 	public void setWeightExpression(ObjectCreation ruleExpression) {
-		System.out.println(ruleExpression);
-		// this.rules.clear();
-		// extractRules(ruleExpression, EvaluationExpression.VALUE);
+		this.weightRules.parse(ruleExpression, this, WeightRuleFactory);
+		
+		for(Entry<PathExpression, EvaluationExpression> rule : weightRules.getRules()) {
+			PathExpression path = rule.getKey();
+			parseWeightRule(rule.getValue(), ((InputSelection) path.getFragment(0)).getIndex(), path.subPath(1, -1));
+		}
+	}
+
+	private void parseWeightRule(EvaluationExpression value, int index, PathExpression path) {
+		if(value instanceof ArithmeticExpression) {
+			setWeight(((NumericNode) ((ConstantExpression) ((ArithmeticExpression) value).getFirstOperand()).getConstant()).getDoubleValue(), index, path);
+			parseWeightRule(((ArithmeticExpression) value).getSecondOperand(), index, new PathExpression(path));
+		} else
+			setWeight(((NumericNode) ((ConstantExpression) value).getConstant()).getDoubleValue(), index, path);
 	}
 
 	public ObjectCreation getWeightExpression() {
-		return new ObjectCreation();
+		return (ObjectCreation) this.weightRules.getLastParsedExpression();
 	}
 
 	@Property
 	@Name(verb = "update")
 	public void setUpdateExpression(ObjectCreation ruleExpression) {
-		this.updateRules.parse(ruleExpression, this, FusionRuleFactory);
-		// this.rules.clear();
-		// extractRules(ruleExpression, EvaluationExpression.VALUE);
+		this.updateRules.parse(ruleExpression, this, UpdateRuleFactory);
 	}
 
 	public ObjectCreation getUpdateExpression() {

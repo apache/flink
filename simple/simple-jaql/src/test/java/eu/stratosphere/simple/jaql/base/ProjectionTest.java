@@ -33,20 +33,20 @@ public class ProjectionTest extends SimpleTest {
 
 	@Test
 	public void testProjection1() {
-		SopremoPlan actualPlan = parseScript("$input = read 'input.json';\n" +
+		final SopremoPlan actualPlan = this.parseScript("$input = read 'input.json';\n" +
 			"$result = project $input into {sum: $.a + $.b};\n" +
 			"write $result to 'output.json'; ");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("input.json");
-		Projection projection = new Projection().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("input.json");
+		final Projection projection = new Projection().
 			withValueTransformation(
 				new ObjectCreation(
 					new ObjectCreation.FieldAssignment("sum",
 						new ArithmeticExpression(JsonUtil.createPath("$", "a"), ArithmeticOperator.ADDITION,
 							JsonUtil.createPath("$", "b"))))).
 			withInputs(input);
-		Sink output = new Sink("output.json").withInputs(projection);
+		final Sink output = new Sink("output.json").withInputs(projection);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -54,23 +54,23 @@ public class ProjectionTest extends SimpleTest {
 
 	@Test
 	public void testProjection2() {
-		SopremoPlan actualPlan = parseScript("$input = read 'input.json';\n" +
-				"$result = project $entry in $input into { sum: $entry.a + $entry.b };\n" +
-				"write $result to 'output.json'; ");
+		final SopremoPlan actualPlan = this.parseScript("$input = read 'input.json';\n" +
+			"$result = project $entry in $input into { sum: $entry.a + $entry.b };\n" +
+			"write $result to 'output.json'; ");
 
-			SopremoPlan expectedPlan = new SopremoPlan();
-			Source input = new Source("input.json");
-			Projection projection = new Projection().
-				withValueTransformation(
-					new ObjectCreation(
-						new ObjectCreation.FieldAssignment("sum",
-							new ArithmeticExpression(JsonUtil.createPath("$", "a"), ArithmeticOperator.ADDITION,
-								JsonUtil.createPath("$", "b"))))).
-				withInputs(input);
-			Sink output = new Sink("output.json").withInputs(projection);
-			expectedPlan.setSinks(output);
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("input.json");
+		final Projection projection = new Projection().
+			withValueTransformation(
+				new ObjectCreation(
+					new ObjectCreation.FieldAssignment("sum",
+						new ArithmeticExpression(JsonUtil.createPath("$", "a"), ArithmeticOperator.ADDITION,
+							JsonUtil.createPath("$", "b"))))).
+			withInputs(input);
+		final Sink output = new Sink("output.json").withInputs(projection);
+		expectedPlan.setSinks(output);
 
-			assertEquals(expectedPlan, actualPlan);
+		assertEquals(expectedPlan, actualPlan);
 	}
 
 }

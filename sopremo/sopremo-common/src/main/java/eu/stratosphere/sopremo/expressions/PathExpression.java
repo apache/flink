@@ -73,7 +73,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.fragments.hashCode();
 		return result;
 	}
@@ -225,5 +225,13 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 
 	private static boolean canIgnore(EvaluationExpression fragment) {
 		return fragment == EvaluationExpression.VALUE;
+	}
+
+	public PathExpression subPath(int start, int end) {
+		if(start < 0)
+			start = fragments.size() + 1 + start;
+		if(end < 0)
+			end = fragments.size() + 1 + end;
+		return new PathExpression(fragments.subList(start, end));
 	}
 }

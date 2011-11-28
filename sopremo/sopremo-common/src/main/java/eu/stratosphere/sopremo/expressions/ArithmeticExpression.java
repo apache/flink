@@ -67,6 +67,9 @@ public class ArithmeticExpression extends EvaluationExpression {
 		return this.secondOperand;
 	}
 
+	public ArithmeticExpression.ArithmeticOperator getOperator() {
+		return operator;
+	}
 	/**
 	 * Initializes Arithmetic with two {@link EvaluationExpression}s and an {@link ArithmeticOperator} in infix
 	 * notation.
@@ -103,7 +106,11 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return ((59 + this.firstOperand.hashCode()) * 59 + this.operator.hashCode()) * 59 + this.secondOperand.hashCode();
+		int result = super.hashCode();
+		result = 59 * result + this.firstOperand.hashCode();
+		result = 59 * result + this.operator.hashCode();
+		result = 59 * result + this.secondOperand.hashCode();
+		return result;
 	}
 
 	@Override

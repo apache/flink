@@ -27,14 +27,14 @@ public class StreamIndexExpression extends UnevaluableExpression {
 	 */
 	private static final long serialVersionUID = -1317711966846556055L;
 
-	private JsonStream stream;
+	private final JsonStream stream;
 
-	private EvaluationExpression indexExpression;
+	private final EvaluationExpression indexExpression;
 
 	/**
 	 * Initializes StreamIndexExpression.
 	 */
-	public StreamIndexExpression(JsonStream stream, EvaluationExpression indexExpression) {
+	public StreamIndexExpression(final JsonStream stream, final EvaluationExpression indexExpression) {
 		super("Stream index");
 		this.stream = stream;
 		this.indexExpression = indexExpression;
@@ -47,6 +47,29 @@ public class StreamIndexExpression extends UnevaluableExpression {
 	 */
 	public EvaluationExpression getIndexExpression() {
 		return this.indexExpression;
+	}
+	
+	
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result +  indexExpression.hashCode();
+		result = prime * result +  stream.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		StreamIndexExpression other = (StreamIndexExpression) obj;
+		return indexExpression.equals(other.indexExpression) ; // && stream.equals(other.stream)
 	}
 
 	/**

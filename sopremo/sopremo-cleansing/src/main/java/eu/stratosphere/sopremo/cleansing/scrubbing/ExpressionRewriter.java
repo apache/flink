@@ -20,10 +20,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
 import eu.stratosphere.sopremo.function.MacroBase;
 import eu.stratosphere.sopremo.function.ReplacingMacro;
@@ -100,8 +98,8 @@ public class ExpressionRewriter {
 		return null;
 	}
 
-	public EvaluationExpression rewrite(EvaluationExpression expression, Operator<?> operator, PathExpression context) {
-		return new Rewriter(operator, context).rewrite(expression);
+	public EvaluationExpression rewrite(EvaluationExpression expression, RuleFactory.RuleContext context) {
+		return new Rewriter(context).rewrite(expression);
 	}
 
 	/**
@@ -111,10 +109,9 @@ public class ExpressionRewriter {
 		private Map<EvaluationExpression, EvaluationExpression> rewritten = new IdentityHashMap<EvaluationExpression, EvaluationExpression>();
 
 		private RewriteContext context = new RewriteContext();
-
-		public Rewriter(Operator<?> operator, PathExpression rewritePath) {
-			this.context.pushOperator(operator);
-			this.context.setRewritePath(rewritePath);
+		
+		public Rewriter(RuleFactory.RuleContext ruleContext) {
+			this.context.setRuleContext(ruleContext);
 		}
 
 		private EvaluationExpression process(EvaluationExpression expression) {

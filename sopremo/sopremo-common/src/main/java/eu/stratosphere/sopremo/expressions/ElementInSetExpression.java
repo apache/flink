@@ -99,10 +99,10 @@ public class ElementInSetExpression extends BooleanExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
-		result = prime * result + (this.elementExpr == null ? 0 : this.elementExpr.hashCode());
-		result = prime * result + (this.quantor == null ? 0 : this.quantor.hashCode());
-		result = prime * result + (this.setExpr == null ? 0 : this.setExpr.hashCode());
+		int result = super.hashCode();
+		result = prime * result +  this.elementExpr.hashCode();
+		result = prime * result +  this.quantor.hashCode();
+		result = prime * result +  this.setExpr.hashCode();
 		return result;
 	}
 

@@ -33,16 +33,16 @@ public class GroupingTest extends SimpleTest {
 
 	@Test
 	public void testGrouping1() {
-		SopremoPlan actualPlan = parseScript("$employees = read 'employees.json';\n" +
+		final SopremoPlan actualPlan = this.parseScript("$employees = read 'employees.json';\n" +
 			"$result = group $employees into count($);\n" +
 			"write $result to 'output.json'; ");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("employees.json");
-		Grouping selection = new Grouping().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("employees.json");
+		final Grouping selection = new Grouping().
 			withResultProjection(new MethodCall("count", new InputSelection(0))).
 			withInputs(input);
-		Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -50,69 +50,69 @@ public class GroupingTest extends SimpleTest {
 
 	@Test
 	public void testGrouping2() {
-		SopremoPlan actualPlan = parseScript("$employees = read 'employees.json';\n" +
+		final SopremoPlan actualPlan = this.parseScript("$employees = read 'employees.json';\n" +
 			"$result = group $employees by $.dept into {\n" +
 			"	$.dept,\n" +
 			"	total: sum($[*].income)\n" +
 			"};\n" +
 			"write $result to 'output.json'; ");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("employees.json");
-		Grouping selection = new Grouping().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("employees.json");
+		final Grouping selection = new Grouping().
 			withInputs(input).
 			withGroupingKey(JsonUtil.createPath("0", "dept")).
 			withResultProjection(new ObjectCreation(
 				new ObjectCreation.FieldAssignment("dept", JsonUtil.createPath("0", "dept")),
 				new ObjectCreation.FieldAssignment("total",
 					new MethodCall("sum", JsonUtil.createPath("0", "[*]", "income")))));
-		Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
 	}
-	
+
 	@Test
 	public void testGrouping3() {
-		SopremoPlan actualPlan = parseScript("$employees = read 'employees.json';\n" +
+		final SopremoPlan actualPlan = this.parseScript("$employees = read 'employees.json';\n" +
 			"$result = group $employee in $employees by $employee.dept into {\n" +
 			"	$employee.dept, \n" +
 			"	total: sum($employee[*].income) \n" +
 			"};\n" +
 			"write $result to 'output.json'; ");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("employees.json");
-		Grouping selection = new Grouping().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("employees.json");
+		final Grouping selection = new Grouping().
 			withInputs(input).
 			withGroupingKey(JsonUtil.createPath("0", "dept")).
 			withResultProjection(new ObjectCreation(
 				new ObjectCreation.FieldAssignment("dept", JsonUtil.createPath("0", "dept")),
 				new ObjectCreation.FieldAssignment("total",
 					new MethodCall("sum", JsonUtil.createPath("0", "[*]", "income")))));
-		Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
 	}
-	
+
 	@Test
 	public void testCoGrouping1() {
-		SopremoPlan actualPlan = parseScript("$employees = read 'employees.json';\n" +
-				"$depts = read 'departments.json';\n" +
-				"$result = group $es in $employees by $es.dept,\n" +
-				"	$ds in $depts by $ds.did into {\n" +
-				"	dept: $ds.did,\n" +
-				"	deptName: $ds[0].name,\n" +
-				"	emps: $es[*].id,\n" +
-				"	numEmps: count($es) \n" +
-				"};\n" +
-				"write $result to 'output.json'; ");
+		final SopremoPlan actualPlan = this.parseScript("$employees = read 'employees.json';\n" +
+			"$depts = read 'departments.json';\n" +
+			"$result = group $es in $employees by $es.dept,\n" +
+			"	$ds in $depts by $ds.did into {\n" +
+			"	dept: $ds.did,\n" +
+			"	deptName: $ds[0].name,\n" +
+			"	emps: $es[*].id,\n" +
+			"	numEmps: count($es) \n" +
+			"};\n" +
+			"write $result to 'output.json'; ");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source employees = new Source("employees.json");
-		Source depts = new Source("departments.json");
-		Grouping selection = new Grouping().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source employees = new Source("employees.json");
+		final Source depts = new Source("departments.json");
+		final Grouping selection = new Grouping().
 			withInputs(employees, depts).
 			withGroupingKey(0, JsonUtil.createPath("0", "dept")).
 			withGroupingKey(1, JsonUtil.createPath("1", "did")).
@@ -122,29 +122,29 @@ public class GroupingTest extends SimpleTest {
 				new ObjectCreation.FieldAssignment("emps", JsonUtil.createPath("0", "[*]", "id")),
 				new ObjectCreation.FieldAssignment("numEmps",
 					new MethodCall("count", JsonUtil.createPath("0")))));
-		Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
 	}
-	
+
 	@Test
 	public void testCoGrouping2() {
-		SopremoPlan actualPlan = parseScript("$employees = read 'employees.json';\n" +
-				"$depts = read 'departments.json';\n" +
-				"$result = group $employees by $employees.dept,\n" +
-				"	$depts by $depts.did into {\n" +
-				"	dept: $depts.did,\n" +
-				"	deptName: $depts[0].name,\n" +
-				"	emps: $employees[*].id,\n" +
-				"	numEmps: count($employees) \n" +
-				"};\n" +
-				"write $result to 'output.json';");
+		final SopremoPlan actualPlan = this.parseScript("$employees = read 'employees.json';\n" +
+			"$depts = read 'departments.json';\n" +
+			"$result = group $employees by $employees.dept,\n" +
+			"	$depts by $depts.did into {\n" +
+			"	dept: $depts.did,\n" +
+			"	deptName: $depts[0].name,\n" +
+			"	emps: $employees[*].id,\n" +
+			"	numEmps: count($employees) \n" +
+			"};\n" +
+			"write $result to 'output.json';");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source employees = new Source("employees.json");
-		Source depts = new Source("departments.json");
-		Grouping selection = new Grouping().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source employees = new Source("employees.json");
+		final Source depts = new Source("departments.json");
+		final Grouping selection = new Grouping().
 			withInputs(employees, depts).
 			withGroupingKey(0, JsonUtil.createPath("0", "dept")).
 			withGroupingKey(1, JsonUtil.createPath("1", "did")).
@@ -154,7 +154,7 @@ public class GroupingTest extends SimpleTest {
 				new ObjectCreation.FieldAssignment("emps", JsonUtil.createPath("0", "[*]", "id")),
 				new ObjectCreation.FieldAssignment("numEmps",
 					new MethodCall("count", JsonUtil.createPath("0")))));
-		Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);

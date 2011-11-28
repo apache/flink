@@ -2,6 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import junit.framework.Assert;
 
+import nl.jqno.equalsverifier.EqualsVerifier;
+import nl.jqno.equalsverifier.Warning;
+
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -16,6 +19,12 @@ public abstract class EvaluableExpressionTest<T extends EvaluationExpression> ex
 	@Before
 	public void initContext() {
 		this.context = new EvaluationContext();
+	}
+	
+	@Override
+	protected void initVerifier(EqualsVerifier<T> equalVerifier) {
+		super.initVerifier(equalVerifier);
+		equalVerifier.suppress(Warning.TRANSIENT_FIELDS);
 	}
 
 	@Test

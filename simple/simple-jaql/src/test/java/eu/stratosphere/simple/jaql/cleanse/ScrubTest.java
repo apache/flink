@@ -17,7 +17,6 @@ package eu.stratosphere.simple.jaql.cleanse;
 import org.junit.Test;
 
 import eu.stratosphere.simple.jaql.SimpleTest;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
@@ -48,7 +47,7 @@ public class ScrubTest extends SimpleTest {
 
 	@Test
 	public void testSingleRule() {
-		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+		final SopremoPlan actualPlan = this.parseScript("using cleansing;\n" +
 			"$dirty_earmarks = read hdfs('UsEarmark.json');\n" +
 			"$scrubbed_earmarks = scrub $dirty_earmark in $dirty_earmarks with {\n" +
 			"	// normalization with built-in expressions\n" +
@@ -56,12 +55,12 @@ public class ScrubTest extends SimpleTest {
 			"};\n" +
 			"write $scrubbed_earmarks to hdfs('scrubbed_earmarks.json');");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source dirty_earmarks = new Source("UsEarmark.json");
-		Scrubbing scrubbing = new Scrubbing().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source dirty_earmarks = new Source("UsEarmark.json");
+		final Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
 		scrubbing.addRule(new CoerceExpression(DecimalNode.class), new ObjectAccess("amount"));
-		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
+		final Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -69,7 +68,7 @@ public class ScrubTest extends SimpleTest {
 
 	@Test
 	public void testDoubleRule() {
-		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+		final SopremoPlan actualPlan = this.parseScript("using cleansing;\n" +
 			"$dirty_earmarks = read hdfs('UsEarmark.json');\n" +
 			"$scrubbed_earmarks = scrub $dirty_earmark in $dirty_earmarks with {\n" +
 			"	// normalization with built-in expressions\n" +
@@ -77,14 +76,14 @@ public class ScrubTest extends SimpleTest {
 			"};\n" +
 			"write $scrubbed_earmarks to hdfs('scrubbed_earmarks.json');");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source dirty_earmarks = new Source("UsEarmark.json");
-		Scrubbing scrubbing = new Scrubbing().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source dirty_earmarks = new Source("UsEarmark.json");
+		final Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
 		scrubbing.addRule(new CoerceExpression(DecimalNode.class), new ObjectAccess("amount"));
 		scrubbing.addRule(new ArithmeticExpression(EvaluationExpression.VALUE, ArithmeticOperator.MULTIPLICATION,
 			new ConstantExpression(1000)), new ObjectAccess("amount"));
-		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
+		final Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -92,19 +91,19 @@ public class ScrubTest extends SimpleTest {
 
 	@Test
 	public void testRequired() {
-		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+		final SopremoPlan actualPlan = this.parseScript("using cleansing;\n" +
 			"$dirty_earmarks = read hdfs('UsEarmark.json');\n" +
 			"$scrubbed_earmarks = scrub $dirty_earmark in $dirty_earmarks with {\n" +
 			"	sponsorLastName: required,\n" +
 			"};\n" +
 			"write $scrubbed_earmarks to hdfs('scrubbed_earmarks.json');");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source dirty_earmarks = new Source("UsEarmark.json");
-		Scrubbing scrubbing = new Scrubbing().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source dirty_earmarks = new Source("UsEarmark.json");
+		final Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
 		scrubbing.addRule(new NonNullRule(), new ObjectAccess("sponsorLastName"));
-		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
+		final Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -112,22 +111,22 @@ public class ScrubTest extends SimpleTest {
 
 	@Test
 	public void testConditionalRequired() {
-		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+		final SopremoPlan actualPlan = this.parseScript("using cleansing;\n" +
 			"$dirty_earmarks = read hdfs('UsEarmark.json');\n" +
 			"$scrubbed_earmarks = scrub $dirty_earmark in $dirty_earmarks with {\n" +
 			"	sponsorLastName: required if $dirty_earmark.type == 's',\n" +
 			"};\n" +
 			"write $scrubbed_earmarks to hdfs('scrubbed_earmarks.json');");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source dirty_earmarks = new Source("UsEarmark.json");
-		Scrubbing scrubbing = new Scrubbing().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source dirty_earmarks = new Source("UsEarmark.json");
+		final Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
 		scrubbing.addRule(new TernaryExpression(new ComparativeExpression(
 			new PathExpression(Scrubbing.CONTEXT_NODE, new ObjectAccess("type")),
 			BinaryOperator.EQUAL, new ConstantExpression("s")), new NonNullRule(),
 			EvaluationExpression.VALUE), new ObjectAccess("sponsorLastName"));
-		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
+		final Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -135,7 +134,7 @@ public class ScrubTest extends SimpleTest {
 
 	@Test
 	public void testMethodCall() {
-		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+		final SopremoPlan actualPlan = this.parseScript("using cleansing;\n" +
 			"$dirty_earmarks = read hdfs('UsEarmark.json');\n" +
 			"NormalizeName = javaudf('eu.stratosphere.simple.jaql.cleanse.ScrubTest.normalizeName');\n" +
 			"$scrubbed_earmarks = scrub $dirty_earmark in $dirty_earmarks with {\n" +
@@ -143,13 +142,13 @@ public class ScrubTest extends SimpleTest {
 			"};\n" +
 			"write $scrubbed_earmarks to hdfs('scrubbed_earmarks.json');");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source dirty_earmarks = new Source("UsEarmark.json");
-		Scrubbing scrubbing = new Scrubbing().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source dirty_earmarks = new Source("UsEarmark.json");
+		final Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
 		scrubbing.addRule(new MethodCall("NormalizeName", new InputSelection(0)),
 			new ObjectAccess("sponsorLastName"));
-		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
+		final Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -157,7 +156,7 @@ public class ScrubTest extends SimpleTest {
 
 	@Test
 	public void testInlineOperator() {
-		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+		final SopremoPlan actualPlan = this.parseScript("using cleansing;\n" +
 			"$dirty_earmarks = read hdfs('UsEarmark.json');\n" +
 			"$nick_names = read hdfs('UsNickNames.json');\n" +
 			"NormalizeName = javaudf('eu.stratosphere.simple.jaql.cleanse.ScrubTest.normalizeName');\n" +
@@ -166,16 +165,16 @@ public class ScrubTest extends SimpleTest {
 			"};\n" +
 			"write $scrubbed_earmarks to hdfs('scrubbed_earmarks.json');");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source dirty_earmarks = new Source("UsEarmark.json");
-		Source nick_names = new Source("UsNickNames.json");
-		Scrubbing scrubbing = new Scrubbing().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source dirty_earmarks = new Source("UsEarmark.json");
+		final Source nick_names = new Source("UsNickNames.json");
+		final Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
-		Replace replace = new Replace().
+		final Replace replace = new Replace().
 			withInputs(dirty_earmarks, nick_names).
 			withDefaultExpression(new InputSelection(0).withTag(JsonStreamExpression.THIS_CONTEXT));
 		scrubbing.addRule(new NestedOperatorExpression(replace), new ObjectAccess("sponsorFirstName"));
-		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
+		final Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -183,7 +182,7 @@ public class ScrubTest extends SimpleTest {
 
 	@Test
 	public void testBigScrub() {
-		SopremoPlan actualPlan = parseScript("using cleansing;\n" +
+		final SopremoPlan actualPlan = this.parseScript("using cleansing;\n" +
 			"$dirty_earmarks = read hdfs('UsEarmark.json');\n" +
 			"$nick_names = read hdfs('UsNickNames.json');\n" +
 			"NormalizeName = javaudf('eu.stratosphere.simple.jaql.cleanse.ScrubTest.normalizeName');\n" +
@@ -196,10 +195,10 @@ public class ScrubTest extends SimpleTest {
 			"};\n" +
 			"write $scrubbed_earmarks to hdfs('scrubbed_earmarks.json');");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source dirty_earmarks = new Source("UsEarmark.json");
-		Source nick_names = new Source("UsNickNames.json");
-		Scrubbing scrubbing = new Scrubbing().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source dirty_earmarks = new Source("UsEarmark.json");
+		final Source nick_names = new Source("UsNickNames.json");
+		final Scrubbing scrubbing = new Scrubbing().
 			withInputs(dirty_earmarks);
 		scrubbing.addRule(new CoerceExpression(DecimalNode.class), new ObjectAccess("amount"));
 		scrubbing.addRule(new ArithmeticExpression(EvaluationExpression.VALUE, ArithmeticOperator.MULTIPLICATION,
@@ -215,18 +214,18 @@ public class ScrubTest extends SimpleTest {
 		scrubbing.addRule(new NonNullRule(), new ObjectAccess("sponsorFirstName"));
 		scrubbing.addRule(new MethodCall("NormalizeName", new InputSelection(0)),
 			new ObjectAccess("sponsorFirstName"));
-		Replace replace = new Replace().
+		final Replace replace = new Replace().
 			withInputs(dirty_earmarks, nick_names).
 			withDefaultExpression(new InputSelection(0).withTag(JsonStreamExpression.THIS_CONTEXT));
 		scrubbing.addRule(new NestedOperatorExpression(replace), new ObjectAccess("sponsorFirstName"));
 
-		Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
+		final Sink output = new Sink("scrubbed_earmarks.json").withInputs(scrubbing);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
 	}
 
-	public static TextNode normalizeName(TextNode node) {
+	public static TextNode normalizeName(final TextNode node) {
 		return node;
 	}
 }

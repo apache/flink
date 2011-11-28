@@ -58,7 +58,7 @@ public class ComparativeExpression extends BooleanExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 47;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.binaryOperator.hashCode();
 		result = prime * result + this.expr1.hashCode();
 		result = prime * result + this.expr2.hashCode();

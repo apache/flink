@@ -43,7 +43,7 @@ public class AggregationExpression extends EvaluationExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + (this.function == null ? 0 : this.function.hashCode());
 		result = prime * result + (this.preprocessing == null ? 0 : this.preprocessing.hashCode());
 		return result;

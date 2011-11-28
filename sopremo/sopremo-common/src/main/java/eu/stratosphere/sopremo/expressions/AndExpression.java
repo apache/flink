@@ -47,7 +47,7 @@ public class AndExpression extends BooleanExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 41;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + Arrays.hashCode(this.expressions);
 		return result;
 	}

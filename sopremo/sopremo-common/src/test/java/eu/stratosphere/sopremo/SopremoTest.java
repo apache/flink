@@ -70,7 +70,7 @@ public abstract class SopremoTest<T> {
 		equalVerifier.suppress(Warning.NULL_FIELDS)
 			.suppress(Warning.NONFINAL_FIELDS)
 			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet)
-			.withPrefabValues(Set.class, new HashSet<Object>(), new HashSet<Object>(Arrays.asList(42)))
+			.withPrefabValues(Set.class, new HashSet<Object>(), new HashSet<Object>(Arrays.asList( ExpressionTag.RETAIN)))
 			.withPrefabValues(List.class, redList, blackList)
 			.withPrefabValues(Map.class, new HashMap<Object, Object>(), blackMap)
 			.usingGetClass();

@@ -14,10 +14,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.function.MacroBase;
+import eu.stratosphere.sopremo.function.SimpleMacro;
 
 /**
  * @author Arvid Heise
@@ -27,6 +29,18 @@ public class DefaultRuleFactory extends AbstractRuleFactory {
 
 	public DefaultRuleFactory(Class<?> ruleType) {
 		super(ruleType);
+		
+		addRewriteRule(new PathExpression(ExpressionRewriter.ANY), new SimpleMacro<PathExpression>() {
+			/**
+			 * 
+			 */
+			private static final long serialVersionUID = 2289613753252059804L;
+
+			@Override
+			public EvaluationExpression call(PathExpression inputExpr, EvaluationContext context) {
+				return inputExpr.getFragment(0);
+			}
+		}); 
 	}
 
 	/**
@@ -36,16 +50,9 @@ public class DefaultRuleFactory extends AbstractRuleFactory {
 		this(null);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.cleansing.scrubbing.AbstractRuleFactory#transform(eu.stratosphere.sopremo.expressions
-	 * .EvaluationExpression, eu.stratosphere.sopremo.Operator, java.util.Deque)
-	 */
 	@Override
-	protected EvaluationExpression transform(EvaluationExpression expression, Operator<?> operator,
-			PathExpression contextPath) {
-		return this.rewriter.rewrite(expression, operator, contextPath);
+	protected EvaluationExpression transform(EvaluationExpression expression, RuleContext context) {
+		return this.rewriter.rewrite(expression, context);
 	}
 
 	public void addRewriteRule(EvaluationExpression expression, MacroBase resolveExpression) {

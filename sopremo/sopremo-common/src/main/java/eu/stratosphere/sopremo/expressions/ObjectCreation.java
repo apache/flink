@@ -93,7 +93,7 @@ public class ObjectCreation extends ContainerExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.mappings.hashCode();
 		return result;
 	}

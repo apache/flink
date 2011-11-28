@@ -2,6 +2,7 @@ package eu.stratosphere.simple.jaql;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.antlr.runtime.Token;
 import org.antlr.runtime.tree.BaseTreeAdaptor;
 import org.antlr.runtime.tree.TreeAdaptor;
@@ -11,78 +12,78 @@ import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
-	private ExpressionFactory expressionFactory = new ExpressionFactory();
+	private final ExpressionFactory expressionFactory = new ExpressionFactory();
 
 	@Override
-	public void addChild(Object t, Object child) {
+	public void addChild(final Object t, final Object child) {
 		if (child != null)
 			((PlaceholderExpression) t).getParams().add(child);
 	}
 
 	@Override
-	public Object becomeRoot(Object newRoot, Object oldRoot) {
+	public Object becomeRoot(final Object newRoot, final Object oldRoot) {
 		return newRoot;
 	}
 
 	@Override
-	public Object becomeRoot(Token newRoot, Object oldRoot) {
+	public Object becomeRoot(final Token newRoot, final Object oldRoot) {
 		return super.becomeRoot(newRoot, oldRoot);
 	}
 
 	@Override
-	public Object create(int tokenType, String text) {
+	public Object create(final int tokenType, final String text) {
 		assert tokenType == SJaqlLexer.EXPRESSION : "token type not supported";
 		return new PlaceholderExpression(this.expressionFactory.getExpressionType(text));
 	}
 
 	@Override
-	public Object create(int tokenType, Token fromToken) {
+	public Object create(final int tokenType, final Token fromToken) {
 		assert tokenType == SJaqlLexer.EXPRESSION : "token type not supported";
 		return new PlaceholderExpression();
 	}
 
 	@Override
-	public Object create(Token payload) {
+	public Object create(final Token payload) {
 		return this.create(payload.getType(), payload.getText());
 	}
 
 	@Override
-	public Token createToken(int tokenType, String text) {
+	public Token createToken(final int tokenType, final String text) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public Token createToken(Token fromToken) {
+	public Token createToken(final Token fromToken) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public Object dupNode(Object treeNode) {
+	public Object dupNode(final Object treeNode) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public int getChildIndex(Object t) {
+	public int getChildIndex(final Object t) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public Object getParent(Object t) {
+	public Object getParent(final Object t) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public Token getToken(Object t) {
+	public Token getToken(final Object t) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public int getTokenStartIndex(Object t) {
+	public int getTokenStartIndex(final Object t) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public int getTokenStopIndex(Object t) {
+	public int getTokenStopIndex(final Object t) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -92,12 +93,12 @@ public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
 	}
 
 	@Override
-	public void replaceChildren(Object parent, int startChildIndex, int stopChildIndex, Object t) {
+	public void replaceChildren(final Object parent, final int startChildIndex, final int stopChildIndex, final Object t) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public Object rulePostProcessing(Object root) {
+	public Object rulePostProcessing(final Object root) {
 		if (root == null)
 			return null;
 
@@ -110,31 +111,31 @@ public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
 			return placeholder.params.get(0);
 
 		placeholder = (PlaceholderExpression) placeholder.params.get(0);
-		Class<?> expressionClass = placeholder.getExpressionClass();
+		final Class<?> expressionClass = placeholder.getExpressionClass();
 		if (expressionClass == null)
 			return null;
 		assert expressionClass != null : "could not determine expression class";
 
-		Object[] params = placeholder.params.toArray(new Object[0]);
-		return instantiate(expressionClass, params);
+		final Object[] params = placeholder.params.toArray(new Object[0]);
+		return this.instantiate(expressionClass, params);
 	}
 
-	protected Object instantiate(Class<?> expressionClass, Object[] params) {
+	protected Object instantiate(final Class<?> expressionClass, final Object[] params) {
 		return ReflectUtil.newInstance(expressionClass, params);
 	}
 
 	@Override
-	public void setChildIndex(Object t, int index) {
+	public void setChildIndex(final Object t, final int index) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void setParent(Object t, Object parent) {
+	public void setParent(final Object t, final Object parent) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void setTokenBoundaries(Object t, Token startToken, Token stopToken) {
+	public void setTokenBoundaries(final Object t, final Token startToken, final Token stopToken) {
 	}
 
 	public class PlaceholderExpression extends UnevaluableExpression {
@@ -143,7 +144,7 @@ public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
 		 */
 		private static final long serialVersionUID = 8956295880318403461L;
 
-		private List<Object> params = new ArrayList<Object>();
+		private final List<Object> params = new ArrayList<Object>();
 
 		private Class<?> expressionClass;
 
@@ -151,7 +152,7 @@ public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
 			super("<empty>");
 		}
 
-		public PlaceholderExpression(Class<?> clazz) {
+		public PlaceholderExpression(final Class<?> clazz) {
 			super("<empty>");
 			this.expressionClass = clazz;
 		}
@@ -165,7 +166,7 @@ public class SopremoTreeAdaptor extends BaseTreeAdaptor implements TreeAdaptor {
 		}
 
 		@Override
-		public void toString(StringBuilder builder) {
+		public void toString(final StringBuilder builder) {
 			if (this.expressionClass != null)
 				builder.append(this.expressionClass.getSimpleName());
 			else

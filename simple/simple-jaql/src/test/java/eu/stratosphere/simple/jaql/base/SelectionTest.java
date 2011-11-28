@@ -35,20 +35,20 @@ public class SelectionTest extends SimpleTest {
 
 	@Test
 	public void testSelection1() {
-		SopremoPlan actualPlan = parseScript("$input = read 'input.json';\n" +
+		final SopremoPlan actualPlan = this.parseScript("$input = read 'input.json';\n" +
 			"$result = select $input where $.mgr or $.income > 30000;\n" +
 			"write $result to 'output.json';");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("input.json");
-		Selection selection = new Selection().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("input.json");
+		final Selection selection = new Selection().
 			withCondition(
 				new OrExpression(
 					new UnaryExpression(JsonUtil.createPath("$", "mgr")),
 					new ComparativeExpression(JsonUtil.createPath("$", "income"), BinaryOperator.GREATER,
 						new ConstantExpression(30000)))).
 			withInputs(input);
-		Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
 		assertEquals(expectedPlan, actualPlan);
@@ -56,23 +56,23 @@ public class SelectionTest extends SimpleTest {
 
 	@Test
 	public void testSelection2() {
-		SopremoPlan actualPlan = parseScript("$input = read 'input.json';\n" +
+		final SopremoPlan actualPlan = this.parseScript("$input = read 'input.json';\n" +
 			"$result = select $emp in $input where $emp.mgr or $emp.income > 30000;\n" +
 			"write $result to 'output.json';");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("input.json");
-		Selection selection = new Selection().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("input.json");
+		final Selection selection = new Selection().
 			withCondition(
 				new OrExpression(
 					new UnaryExpression(JsonUtil.createPath("$", "mgr")),
 					new ComparativeExpression(JsonUtil.createPath("$", "income"), BinaryOperator.GREATER,
 						new ConstantExpression(30000)))).
 			withInputs(input);
-		Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
-		
-//		System.out.println(Sop);
+
+		// System.out.println(Sop);
 
 		assertEquals(expectedPlan, actualPlan);
 	}

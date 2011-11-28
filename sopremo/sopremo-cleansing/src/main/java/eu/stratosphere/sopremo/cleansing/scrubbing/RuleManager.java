@@ -19,12 +19,16 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.Callable;
 
 import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.cleansing.scrubbing.RuleFactory.RuleContext;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
@@ -85,25 +89,20 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 	}
 
 	public void parse(EvaluationExpression expression, Operator<?> operator, RuleFactory ruleFactory) {
-		this.parse(expression, operator, ruleFactory, new PathExpression());
+		this.parse(expression, new RuleContext( operator, new PathExpression(), this, ruleFactory));
 		this.parsedExpression = expression;
 	}
 
-	public EvaluationExpression getLastParsedExpression() {
-		return this.parsedExpression;
-	}
-
-	private void parse(EvaluationExpression expression, Operator<?> operator, RuleFactory ruleFactory,
-			PathExpression contextPath) {
+	public void parse(EvaluationExpression expression, RuleContext ruleContext) {
 		if (expression instanceof ObjectCreation) {
 			for (Mapping<?> field : ((ObjectCreation) expression).getMappings()) {
 				if (field instanceof FieldAssignment) {
-					contextPath.add(new ObjectAccess(((FieldAssignment) field).getTarget()));
-					this.parse(field.getExpression(), operator, ruleFactory, contextPath);
-					contextPath.removeLast();
-				} else if (field instanceof TagMapping)
-					this.parse(field.getExpression(), operator, ruleFactory,
-						PathExpression.ensurePathExpression(((TagMapping) field).getTarget()));
+					ruleContext.getContextPath().add(new ObjectAccess(((FieldAssignment) field).getTarget()));
+					this.parse(field.getExpression(), ruleContext);
+					ruleContext.getContextPath().removeLast();
+				} else if (field instanceof TagMapping) 
+					this.parse(field.getExpression(),
+						ruleContext.withPath(PathExpression.ensurePathExpression(((TagMapping) field).getTarget())));
 			}
 			return;
 		}
@@ -111,13 +110,17 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 			List<? extends EvaluationExpression> children = ((ArrayCreation) expression).getChildren();
 			for (int index = 0, size = children.size(); index < size; index++)
 				// context.push(new ArrayAccess(index));
-				this.parse(children.get(index), operator, ruleFactory, contextPath);
+				this.parse(children.get(index), ruleContext);
 			// context.pop();
 			return;
 		}
 
-		this.addRule(ruleFactory.createRule(expression, operator, contextPath), new ArrayList<EvaluationExpression>(
-			contextPath.getFragments()));
+		this.addRule(ruleContext.getRuleFactory().createRule(expression, ruleContext), new ArrayList<EvaluationExpression>(
+			ruleContext.getContextPath().getFragments()));
+	}
+
+	public EvaluationExpression getLastParsedExpression() {
+		return this.parsedExpression;
 	}
 
 	/*
@@ -166,9 +169,26 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 		if (this.getClass() != obj.getClass())
 			return false;
 		RuleManager other = (RuleManager) obj;
-		System.out.println("this " + this.rules);
-		System.out.println("that " + this.rules);
 		return this.rules.equals(other.rules);
+	}
+
+	public static interface Equaler<Type> {
+		boolean isEqual(Type value1, Type value2);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public boolean customEquals(RuleManager other, Equaler<?> keyEqualer, Equaler<?> valueEqualer) {
+		List<Entry<PathExpression, EvaluationExpression>> thisRules = this.getRules();
+		List<Entry<PathExpression, EvaluationExpression>> otherRules = other.getRules();
+		if (thisRules.size() != otherRules.size())
+			return false;
+		for (int index = 0; index < thisRules.size(); index++) {
+			if(keyEqualer != null && !((Equaler) keyEqualer).isEqual(thisRules.get(index).getKey(), otherRules.get(index).getKey()))
+				return false;
+			if(valueEqualer != null && !((Equaler) valueEqualer).isEqual(thisRules.get(index).getValue(), otherRules.get(index).getValue()))
+				return false;
+		}
+		return true;
 	}
 
 }

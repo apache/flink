@@ -33,23 +33,23 @@ public class SimpleTest {
 	 * @param expectedPlan
 	 * @param actualPlan
 	 */
-	protected static void assertEquals(SopremoPlan expectedPlan, SopremoPlan actualPlan) {
-		List<Operator<?>> unmatchingOperators = actualPlan.getUnmatchingOperators(expectedPlan);
-		if (unmatchingOperators != null) {
+	protected static void assertEquals(final SopremoPlan expectedPlan, final SopremoPlan actualPlan) {
+		final List<Operator<?>> unmatchingOperators = actualPlan.getUnmatchingOperators(expectedPlan);
+		if (unmatchingOperators != null)
 			if (unmatchingOperators.get(0).getClass() == unmatchingOperators.get(1).getClass())
 				Assert.failNotEquals("operators are different", "\n" + unmatchingOperators.get(1), "\n"
 					+ unmatchingOperators.get(0));
 			else
 				Assert.failNotEquals("plans are different", expectedPlan, actualPlan);
-		}
 	}
 
-	public SopremoPlan parseScript(String script) {
+	public SopremoPlan parseScript(final String script) {
+		System.out.println(script);
 		SopremoPlan plan = null;
 		try {
 			plan = new QueryParser().tryParse(script);
 			System.out.println(new QueryParser().toJavaString(script));
-		} catch (SimpleException e) {
+		} catch (final SimpleException e) {
 			Assert.fail(String.format("could not parse script: %s", e.getMessage()));
 		}
 

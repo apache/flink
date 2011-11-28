@@ -55,7 +55,7 @@ public class InputSelection extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return 37 + this.index;
+		return 37 * super.hashCode() + this.index;
 	}
 
 	@Override

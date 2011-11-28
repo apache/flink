@@ -15,6 +15,7 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 
 /**
@@ -26,18 +27,24 @@ public class RewriteContext extends EvaluationContext {
 	 * 
 	 */
 	private static final long serialVersionUID = 3751142957269653244L;
-
-	private PathExpression rewritePath;
+	
+	private RuleFactory.RuleContext ruleContext;
 
 	public PathExpression getRewritePath() {
-		return this.rewritePath.clone();
+		return this.ruleContext.getContextPath().clone();
+	}
+	
+	public void setRuleContext(RuleFactory.RuleContext ruleContext) {
+		if (ruleContext == null)
+			throw new NullPointerException("ruleContext must not be null");
+
+		this.ruleContext = ruleContext;
+
+		pushOperator(ruleContext.getOperator());
 	}
 
-	public void setRewritePath(PathExpression rewritePath) {
-		if (rewritePath == null)
-			throw new NullPointerException("rewriteContext must not be null");
-
-		this.rewritePath = rewritePath;
+	public void parse(EvaluationExpression expression) {
+		this.ruleContext.getManager().parse(expression, this.ruleContext);
 	}
 
 }

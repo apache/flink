@@ -14,9 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 
 /**
  * @author Arvid Heise
@@ -38,19 +36,12 @@ public abstract class AbstractRuleFactory implements RuleFactory {
 		this(null);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.cleansing.scrubbing.RuleFactory#createRule(eu.stratosphere.sopremo.expressions.
-	 * EvaluationExpression, eu.stratosphere.sopremo.Operator, java.util.Deque)
-	 */
 	@Override
-	public EvaluationExpression createRule(EvaluationExpression expression, Operator<?> operator,
-			PathExpression contextPath) {
+	public EvaluationExpression createRule(EvaluationExpression expression, RuleContext context) {
 		if (this.ruleType != null && this.ruleType.isInstance(expression))
 			return expression;
-		return this.transform(expression, operator, contextPath);
+		return this.transform(expression, context);
 	}
 
-	protected abstract EvaluationExpression transform(EvaluationExpression expression, Operator<?> operator,
-			PathExpression contextPath);
+	protected abstract EvaluationExpression transform(EvaluationExpression expression, RuleContext context );
 }

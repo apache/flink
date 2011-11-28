@@ -66,7 +66,7 @@ public class ObjectAccess extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return 43 + this.field.hashCode();
+		return 43 * super.hashCode() + this.field.hashCode();
 	}
 
 	@Override

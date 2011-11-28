@@ -1,4 +1,4 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-11-25 15:31:09
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g 2011-11-27 22:41:01
  
 package eu.stratosphere.simple.jaql; 
 
@@ -106,7 +106,7 @@ public class SJaqlParser extends SimpleParser {
         }
         public SJaqlParser(TokenStream input, RecognizerSharedState state) {
             super(input, state);
-            this.state.ruleMemo = new HashMap[124+1];
+            this.state.ruleMemo = new HashMap[122+1];
              
              
         }
@@ -121,7 +121,7 @@ public class SJaqlParser extends SimpleParser {
     }
 
     public String[] getTokenNames() { return SJaqlParser.tokenNames; }
-    public String getGrammarFileName() { return "/home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g"; }
+    public String getGrammarFileName() { return "/Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g"; }
 
 
     {
@@ -137,6 +137,13 @@ public class SJaqlParser extends SimpleParser {
 
     public void parseSinks() throws RecognitionException {  
         script();
+    }
+
+    private boolean setInnerOutput(Token VAR, Operator<?> op) {
+      JsonStreamExpression output = new JsonStreamExpression(((operator_scope)operator_stack.peek()).result.getOutput(((objectCreation_scope)objectCreation_stack.peek()).mappings.size()));
+      ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.TagMapping(output, new JsonStreamExpression(op)));
+      setBinding(VAR, output, 1);
+      return true;
     }
 
     private EvaluationExpression makePath(Token inputVar, String... path) {
@@ -167,7 +174,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "script"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:79:1: script : statement ( ';' statement )* ';' ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:86:1: script : statement ( ';' statement )* ';' ->;
     public final SJaqlParser.script_return script() throws RecognitionException {
         SJaqlParser.script_return retval = new SJaqlParser.script_return();
         retval.start = input.LT(1);
@@ -187,8 +194,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_statement=new RewriteRuleSubtreeStream(adaptor,"rule statement");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 1) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:80:2: ( statement ( ';' statement )* ';' ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:80:5: statement ( ';' statement )* ';'
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:87:2: ( statement ( ';' statement )* ';' ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:87:5: statement ( ';' statement )* ';'
             {
             pushFollow(FOLLOW_statement_in_script124);
             statement1=statement();
@@ -196,7 +203,7 @@ public class SJaqlParser extends SimpleParser {
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_statement.add(statement1.getTree());
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:80:15: ( ';' statement )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:87:15: ( ';' statement )*
             loop1:
             do {
                 int alt1=2;
@@ -215,7 +222,7 @@ public class SJaqlParser extends SimpleParser {
 
                 switch (alt1) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:80:16: ';' statement
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:87:16: ';' statement
             	    {
             	    char_literal2=(Token)match(input,26,FOLLOW_26_in_script127); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_26.add(char_literal2);
@@ -252,7 +259,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 80:36: ->
+            // 87:36: ->
             {
                 root_0 = null;
             }
@@ -281,7 +288,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "statement"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:82:1: statement : ( assignment | operator | packageImport | functionDefinition | javaudf ) ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:89:1: statement : ( assignment | operator | packageImport | functionDefinition | javaudf ) ->;
     public final SJaqlParser.statement_return statement() throws RecognitionException {
         SJaqlParser.statement_return retval = new SJaqlParser.statement_return();
         retval.start = input.LT(1);
@@ -306,10 +313,10 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_packageImport=new RewriteRuleSubtreeStream(adaptor,"rule packageImport");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 2) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:83:2: ( ( assignment | operator | packageImport | functionDefinition | javaudf ) ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:83:4: ( assignment | operator | packageImport | functionDefinition | javaudf )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:90:2: ( ( assignment | operator | packageImport | functionDefinition | javaudf ) ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:90:4: ( assignment | operator | packageImport | functionDefinition | javaudf )
             {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:83:4: ( assignment | operator | packageImport | functionDefinition | javaudf )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:90:4: ( assignment | operator | packageImport | functionDefinition | javaudf )
             int alt2=5;
             switch ( input.LA(1) ) {
             case VAR:
@@ -371,7 +378,7 @@ public class SJaqlParser extends SimpleParser {
 
             switch (alt2) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:83:5: assignment
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:90:5: assignment
                     {
                     pushFollow(FOLLOW_assignment_in_statement145);
                     assignment5=assignment();
@@ -383,7 +390,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:83:18: operator
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:90:18: operator
                     {
                     pushFollow(FOLLOW_operator_in_statement149);
                     operator6=operator();
@@ -395,7 +402,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:83:29: packageImport
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:90:29: packageImport
                     {
                     pushFollow(FOLLOW_packageImport_in_statement153);
                     packageImport7=packageImport();
@@ -407,7 +414,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 4 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:83:45: functionDefinition
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:90:45: functionDefinition
                     {
                     pushFollow(FOLLOW_functionDefinition_in_statement157);
                     functionDefinition8=functionDefinition();
@@ -419,7 +426,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 5 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:83:66: javaudf
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:90:66: javaudf
                     {
                     pushFollow(FOLLOW_javaudf_in_statement161);
                     javaudf9=javaudf();
@@ -447,7 +454,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 83:75: ->
+            // 90:75: ->
             {
                 root_0 = null;
             }
@@ -476,7 +483,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "packageImport"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:85:1: packageImport : 'using' packageName= ID ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:92:1: packageImport : 'using' packageName= ID ->;
     public final SJaqlParser.packageImport_return packageImport() throws RecognitionException {
         SJaqlParser.packageImport_return retval = new SJaqlParser.packageImport_return();
         retval.start = input.LT(1);
@@ -493,8 +500,8 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 3) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:86:3: ( 'using' packageName= ID ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:86:6: 'using' packageName= ID
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:93:3: ( 'using' packageName= ID ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:93:6: 'using' packageName= ID
             {
             string_literal10=(Token)match(input,27,FOLLOW_27_in_packageImport176); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_27.add(string_literal10);
@@ -519,7 +526,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 86:66: ->
+            // 93:66: ->
             {
                 root_0 = null;
             }
@@ -548,7 +555,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "assignment"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:88:1: assignment : target= VAR '=' source= operator ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:95:1: assignment : target= VAR '=' source= operator ->;
     public final SJaqlParser.assignment_return assignment() throws RecognitionException {
         SJaqlParser.assignment_return retval = new SJaqlParser.assignment_return();
         retval.start = input.LT(1);
@@ -567,8 +574,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_operator=new RewriteRuleSubtreeStream(adaptor,"rule operator");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 4) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:89:2: (target= VAR '=' source= operator ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:89:4: target= VAR '=' source= operator
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:96:2: (target= VAR '=' source= operator ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:96:4: target= VAR '=' source= operator
             {
             target=(Token)match(input,VAR,FOLLOW_VAR_in_assignment195); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(target);
@@ -599,7 +606,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 89:98: ->
+            // 96:98: ->
             {
                 root_0 = null;
             }
@@ -628,7 +635,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "functionDefinition"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:91:1: functionDefinition : name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null] ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:98:1: functionDefinition : name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null] ->;
     public final SJaqlParser.functionDefinition_return functionDefinition() throws RecognitionException {
         SJaqlParser.functionDefinition_return retval = new SJaqlParser.functionDefinition_return();
         retval.start = input.LT(1);
@@ -662,8 +669,8 @@ public class SJaqlParser extends SimpleParser {
          List<Token> params = new ArrayList(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 5) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:93:3: (name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null] ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:93:5: name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null]
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:100:3: (name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null] ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:100:5: name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null]
             {
             name=(Token)match(input,ID,FOLLOW_ID_in_functionDefinition223); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
@@ -677,7 +684,7 @@ public class SJaqlParser extends SimpleParser {
             char_literal14=(Token)match(input,30,FOLLOW_30_in_functionDefinition229); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_30.add(char_literal14);
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:94:3: (param= ID ( ',' param= ID )* )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:101:3: (param= ID ( ',' param= ID )* )?
             int alt4=2;
             int LA4_0 = input.LA(1);
 
@@ -686,7 +693,7 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt4) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:94:4: param= ID ( ',' param= ID )*
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:101:4: param= ID ( ',' param= ID )*
                     {
                     param=(Token)match(input,ID,FOLLOW_ID_in_functionDefinition238); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(param);
@@ -694,7 +701,7 @@ public class SJaqlParser extends SimpleParser {
                     if ( state.backtracking==0 ) {
                        params.add(param); 
                     }
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:95:3: ( ',' param= ID )*
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:102:3: ( ',' param= ID )*
                     loop3:
                     do {
                         int alt3=2;
@@ -707,7 +714,7 @@ public class SJaqlParser extends SimpleParser {
 
                         switch (alt3) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:95:4: ',' param= ID
+                    	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:102:4: ',' param= ID
                     	    {
                     	    char_literal15=(Token)match(input,31,FOLLOW_31_in_functionDefinition245); if (state.failed) return retval; 
                     	    if ( state.backtracking==0 ) stream_31.add(char_literal15);
@@ -762,7 +769,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 98:100: ->
+            // 105:100: ->
             {
                 root_0 = null;
             }
@@ -791,7 +798,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "javaudf"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:100:1: javaudf : name= ID '=' 'javaudf' '(' path= STRING ')' ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:107:1: javaudf : name= ID '=' 'javaudf' '(' path= STRING ')' ->;
     public final SJaqlParser.javaudf_return javaudf() throws RecognitionException {
         SJaqlParser.javaudf_return retval = new SJaqlParser.javaudf_return();
         retval.start = input.LT(1);
@@ -820,8 +827,8 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 6) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:101:3: (name= ID '=' 'javaudf' '(' path= STRING ')' ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:101:5: name= ID '=' 'javaudf' '(' path= STRING ')'
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:108:3: (name= ID '=' 'javaudf' '(' path= STRING ')' ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:108:5: name= ID '=' 'javaudf' '(' path= STRING ')'
             {
             name=(Token)match(input,ID,FOLLOW_ID_in_javaudf290); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
@@ -858,7 +865,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 102:53: ->
+            // 109:53: ->
             {
                 root_0 = null;
             }
@@ -892,7 +899,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "contextAwareExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:104:1: contextAwareExpression[EvaluationExpression contextExpression] : expression ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:111:1: contextAwareExpression[EvaluationExpression contextExpression] : expression ;
     public final SJaqlParser.contextAwareExpression_return contextAwareExpression(EvaluationExpression contextExpression) throws RecognitionException {
         contextAwareExpression_stack.push(new contextAwareExpression_scope());
         SJaqlParser.contextAwareExpression_return retval = new SJaqlParser.contextAwareExpression_return();
@@ -907,8 +914,8 @@ public class SJaqlParser extends SimpleParser {
          ((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context = contextExpression; 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 7) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:107:3: ( expression )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:107:5: expression
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:3: ( expression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:5: expression
             {
             root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -943,7 +950,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "expression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:109:1: expression : ( ternaryExpression | operatorExpression );
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:116:1: expression : ( ternaryExpression | operatorExpression );
     public final SJaqlParser.expression_return expression() throws RecognitionException {
         SJaqlParser.expression_return retval = new SJaqlParser.expression_return();
         retval.start = input.LT(1);
@@ -958,12 +965,12 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 8) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:110:3: ( ternaryExpression | operatorExpression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:117:3: ( ternaryExpression | operatorExpression )
             int alt5=2;
             alt5 = dfa5.predict(input);
             switch (alt5) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:110:5: ternaryExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:117:5: ternaryExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -977,7 +984,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:111:5: operatorExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:118:5: operatorExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -1013,7 +1020,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "ternaryExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:113:1: ternaryExpression : (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression );
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:120:1: ternaryExpression : (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression );
     public final SJaqlParser.ternaryExpression_return ternaryExpression() throws RecognitionException {
         SJaqlParser.ternaryExpression_return retval = new SJaqlParser.ternaryExpression_return();
         retval.start = input.LT(1);
@@ -1046,12 +1053,12 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_orExpression=new RewriteRuleSubtreeStream(adaptor,"rule orExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 9) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:2: (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:2: (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression )
             int alt7=3;
             alt7 = dfa7.predict(input);
             switch (alt7) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:4: ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression )
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:4: ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression )
                     {
                     pushFollow(FOLLOW_orExpression_in_ternaryExpression357);
                     ifClause=orExpression();
@@ -1059,13 +1066,13 @@ public class SJaqlParser extends SimpleParser {
                     state._fsp--;
                     if (state.failed) return retval;
                     if ( state.backtracking==0 ) stream_orExpression.add(ifClause.getTree());
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:26: ( '?' (ifExpr= expression )? ':' elseExpr= expression )
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:27: '?' (ifExpr= expression )? ':' elseExpr= expression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:26: ( '?' (ifExpr= expression )? ':' elseExpr= expression )
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:27: '?' (ifExpr= expression )? ':' elseExpr= expression
                     {
                     char_literal24=(Token)match(input,34,FOLLOW_34_in_ternaryExpression360); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_34.add(char_literal24);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:37: (ifExpr= expression )?
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:37: (ifExpr= expression )?
                     int alt6=2;
                     int LA6_0 = input.LA(1);
 
@@ -1074,7 +1081,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt6) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: ifExpr= expression
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: ifExpr= expression
                             {
                             pushFollow(FOLLOW_expression_in_ternaryExpression364);
                             ifExpr=expression();
@@ -1115,9 +1122,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_ifClause=new RewriteRuleSubtreeStream(adaptor,"rule ifClause",ifClause!=null?ifClause.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 115:2: -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause)
+                    // 122:2: -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause)
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:115:5: ^( EXPRESSION[\"TernaryExpression\"] $ifClause)
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:122:5: ^( EXPRESSION[\"TernaryExpression\"] $ifClause)
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "TernaryExpression"), root_1);
@@ -1135,7 +1142,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:116:4: ifExpr2= orExpression 'if' ifClause2= expression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:123:4: ifExpr2= orExpression 'if' ifClause2= expression
                     {
                     pushFollow(FOLLOW_orExpression_in_ternaryExpression394);
                     ifExpr2=orExpression();
@@ -1155,7 +1162,7 @@ public class SJaqlParser extends SimpleParser {
 
 
                     // AST REWRITE
-                    // elements: ifClause2, ifExpr2
+                    // elements: ifExpr2, ifClause2
                     // token labels: 
                     // rule labels: retval, ifExpr2, ifClause2
                     // token list labels: 
@@ -1168,9 +1175,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_ifClause2=new RewriteRuleSubtreeStream(adaptor,"rule ifClause2",ifClause2!=null?ifClause2.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 117:2: -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2)
+                    // 124:2: -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2)
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:117:5: ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2)
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:124:5: ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2)
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "TernaryExpression"), root_1);
@@ -1188,7 +1195,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:118:5: orExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:125:5: orExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -1224,7 +1231,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "orExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:120:1: orExpression : exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )* -> { $exprs.size() == 1 }? -> ^( EXPRESSION[\"OrExpression\"] ) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:127:1: orExpression : exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )* -> { $exprs.size() == 1 }? -> ^( EXPRESSION[\"OrExpression\"] ) ;
     public final SJaqlParser.orExpression_return orExpression() throws RecognitionException {
         SJaqlParser.orExpression_return retval = new SJaqlParser.orExpression_return();
         retval.start = input.LT(1);
@@ -1242,8 +1249,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_andExpression=new RewriteRuleSubtreeStream(adaptor,"rule andExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 10) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:3: (exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )* -> { $exprs.size() == 1 }? -> ^( EXPRESSION[\"OrExpression\"] ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:5: exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:128:3: (exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )* -> { $exprs.size() == 1 }? -> ^( EXPRESSION[\"OrExpression\"] ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:128:5: exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )*
             {
             pushFollow(FOLLOW_andExpression_in_orExpression435);
             exprs=andExpression();
@@ -1254,7 +1261,7 @@ public class SJaqlParser extends SimpleParser {
             if (list_exprs==null) list_exprs=new ArrayList();
             list_exprs.add(exprs.getTree());
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:26: ( ( 'or' | '||' ) exprs+= andExpression )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:128:26: ( ( 'or' | '||' ) exprs+= andExpression )*
             loop9:
             do {
                 int alt9=2;
@@ -1267,9 +1274,9 @@ public class SJaqlParser extends SimpleParser {
 
                 switch (alt9) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:27: ( 'or' | '||' ) exprs+= andExpression
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:128:27: ( 'or' | '||' ) exprs+= andExpression
             	    {
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:27: ( 'or' | '||' )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:128:27: ( 'or' | '||' )
             	    int alt8=2;
             	    int LA8_0 = input.LA(1);
 
@@ -1288,7 +1295,7 @@ public class SJaqlParser extends SimpleParser {
             	    }
             	    switch (alt8) {
             	        case 1 :
-            	            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:28: 'or'
+            	            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:128:28: 'or'
             	            {
             	            string_literal28=(Token)match(input,37,FOLLOW_37_in_orExpression439); if (state.failed) return retval; 
             	            if ( state.backtracking==0 ) stream_37.add(string_literal28);
@@ -1297,7 +1304,7 @@ public class SJaqlParser extends SimpleParser {
             	            }
             	            break;
             	        case 2 :
-            	            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:35: '||'
+            	            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:128:35: '||'
             	            {
             	            string_literal29=(Token)match(input,38,FOLLOW_38_in_orExpression443); if (state.failed) return retval; 
             	            if ( state.backtracking==0 ) stream_38.add(string_literal29);
@@ -1340,14 +1347,14 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 122:3: -> { $exprs.size() == 1 }?
+            // 129:3: -> { $exprs.size() == 1 }?
             if ( list_exprs.size() == 1 ) {
                 adaptor.addChild(root_0,  list_exprs.get(0) );
 
             }
-            else // 123:3: -> ^( EXPRESSION[\"OrExpression\"] )
+            else // 130:3: -> ^( EXPRESSION[\"OrExpression\"] )
             {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:123:6: ^( EXPRESSION[\"OrExpression\"] )
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:130:6: ^( EXPRESSION[\"OrExpression\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "OrExpression"), root_1);
@@ -1383,7 +1390,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "andExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:125:1: andExpression : exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )* -> { $exprs.size() == 1 }? -> ^( EXPRESSION[\"AndExpression\"] ) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:132:1: andExpression : exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )* -> { $exprs.size() == 1 }? -> ^( EXPRESSION[\"AndExpression\"] ) ;
     public final SJaqlParser.andExpression_return andExpression() throws RecognitionException {
         SJaqlParser.andExpression_return retval = new SJaqlParser.andExpression_return();
         retval.start = input.LT(1);
@@ -1401,8 +1408,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_elementExpression=new RewriteRuleSubtreeStream(adaptor,"rule elementExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 11) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:126:3: (exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )* -> { $exprs.size() == 1 }? -> ^( EXPRESSION[\"AndExpression\"] ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:126:5: exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:133:3: (exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )* -> { $exprs.size() == 1 }? -> ^( EXPRESSION[\"AndExpression\"] ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:133:5: exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )*
             {
             pushFollow(FOLLOW_elementExpression_in_andExpression482);
             exprs=elementExpression();
@@ -1413,7 +1420,7 @@ public class SJaqlParser extends SimpleParser {
             if (list_exprs==null) list_exprs=new ArrayList();
             list_exprs.add(exprs.getTree());
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:126:30: ( ( 'and' | '&&' ) exprs+= elementExpression )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:133:30: ( ( 'and' | '&&' ) exprs+= elementExpression )*
             loop11:
             do {
                 int alt11=2;
@@ -1426,9 +1433,9 @@ public class SJaqlParser extends SimpleParser {
 
                 switch (alt11) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:126:31: ( 'and' | '&&' ) exprs+= elementExpression
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:133:31: ( 'and' | '&&' ) exprs+= elementExpression
             	    {
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:126:31: ( 'and' | '&&' )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:133:31: ( 'and' | '&&' )
             	    int alt10=2;
             	    int LA10_0 = input.LA(1);
 
@@ -1447,7 +1454,7 @@ public class SJaqlParser extends SimpleParser {
             	    }
             	    switch (alt10) {
             	        case 1 :
-            	            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:126:32: 'and'
+            	            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:133:32: 'and'
             	            {
             	            string_literal30=(Token)match(input,39,FOLLOW_39_in_andExpression486); if (state.failed) return retval; 
             	            if ( state.backtracking==0 ) stream_39.add(string_literal30);
@@ -1456,7 +1463,7 @@ public class SJaqlParser extends SimpleParser {
             	            }
             	            break;
             	        case 2 :
-            	            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:126:40: '&&'
+            	            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:133:40: '&&'
             	            {
             	            string_literal31=(Token)match(input,40,FOLLOW_40_in_andExpression490); if (state.failed) return retval; 
             	            if ( state.backtracking==0 ) stream_40.add(string_literal31);
@@ -1499,14 +1506,14 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 127:3: -> { $exprs.size() == 1 }?
+            // 134:3: -> { $exprs.size() == 1 }?
             if ( list_exprs.size() == 1 ) {
                 adaptor.addChild(root_0,  list_exprs.get(0) );
 
             }
-            else // 128:3: -> ^( EXPRESSION[\"AndExpression\"] )
+            else // 135:3: -> ^( EXPRESSION[\"AndExpression\"] )
             {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:128:6: ^( EXPRESSION[\"AndExpression\"] )
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:135:6: ^( EXPRESSION[\"AndExpression\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "AndExpression"), root_1);
@@ -1542,7 +1549,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "elementExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:130:1: elementExpression : elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )? -> { set == null }? $elem -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:1: elementExpression : elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )? -> { set == null }? $elem -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set) ;
     public final SJaqlParser.elementExpression_return elementExpression() throws RecognitionException {
         SJaqlParser.elementExpression_return retval = new SJaqlParser.elementExpression_return();
         retval.start = input.LT(1);
@@ -1563,8 +1570,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_comparisonExpression=new RewriteRuleSubtreeStream(adaptor,"rule comparisonExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 12) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:131:2: (elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )? -> { set == null }? $elem -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:131:4: elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:138:2: (elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )? -> { set == null }? $elem -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:138:4: elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )?
             {
             pushFollow(FOLLOW_comparisonExpression_in_elementExpression529);
             elem=comparisonExpression();
@@ -1572,7 +1579,7 @@ public class SJaqlParser extends SimpleParser {
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_comparisonExpression.add(elem.getTree());
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:131:30: ( (not= 'not' )? 'in' set= comparisonExpression )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:138:30: ( (not= 'not' )? 'in' set= comparisonExpression )?
             int alt13=2;
             int LA13_0 = input.LA(1);
 
@@ -1581,9 +1588,9 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt13) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:131:31: (not= 'not' )? 'in' set= comparisonExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:138:31: (not= 'not' )? 'in' set= comparisonExpression
                     {
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:131:34: (not= 'not' )?
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:138:34: (not= 'not' )?
                     int alt12=2;
                     int LA12_0 = input.LA(1);
 
@@ -1592,7 +1599,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt12) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: not= 'not'
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: not= 'not'
                             {
                             not=(Token)match(input,41,FOLLOW_41_in_elementExpression534); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_41.add(not);
@@ -1634,14 +1641,14 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_set=new RewriteRuleSubtreeStream(adaptor,"rule set",set!=null?set.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 132:2: -> { set == null }? $elem
+            // 139:2: -> { set == null }? $elem
             if ( set == null ) {
                 adaptor.addChild(root_0, stream_elem.nextTree());
 
             }
-            else // 133:2: -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set)
+            else // 140:2: -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set)
             {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:133:5: ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set)
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:140:5: ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ElementInSetExpression"), root_1);
@@ -1679,7 +1686,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "comparisonExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:136:1: comparisonExpression : e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )? -> { $s == null }? $e1 -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:143:1: comparisonExpression : e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )? -> { $s == null }? $e1 -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) ;
     public final SJaqlParser.comparisonExpression_return comparisonExpression() throws RecognitionException {
         SJaqlParser.comparisonExpression_return retval = new SJaqlParser.comparisonExpression_return();
         retval.start = input.LT(1);
@@ -1702,8 +1709,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_arithmeticExpression=new RewriteRuleSubtreeStream(adaptor,"rule arithmeticExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 13) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:2: (e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )? -> { $s == null }? $e1 -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:4: e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:2: (e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )? -> { $s == null }? $e1 -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:4: e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )?
             {
             pushFollow(FOLLOW_arithmeticExpression_in_comparisonExpression582);
             e1=arithmeticExpression();
@@ -1711,7 +1718,7 @@ public class SJaqlParser extends SimpleParser {
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_arithmeticExpression.add(e1.getTree());
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:28: ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:28: ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )?
             int alt15=2;
             int LA15_0 = input.LA(1);
 
@@ -1720,9 +1727,9 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt15) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:29: (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:29: (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression
                     {
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:29: (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' )
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:29: (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' )
                     int alt14=6;
                     switch ( input.LA(1) ) {
                     case 43:
@@ -1765,7 +1772,7 @@ public class SJaqlParser extends SimpleParser {
 
                     switch (alt14) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:30: s= '<='
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:30: s= '<='
                             {
                             s=(Token)match(input,43,FOLLOW_43_in_comparisonExpression588); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_43.add(s);
@@ -1774,7 +1781,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 2 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:39: s= '>='
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:39: s= '>='
                             {
                             s=(Token)match(input,44,FOLLOW_44_in_comparisonExpression594); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_44.add(s);
@@ -1783,7 +1790,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 3 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:48: s= '<'
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:48: s= '<'
                             {
                             s=(Token)match(input,45,FOLLOW_45_in_comparisonExpression600); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_45.add(s);
@@ -1792,7 +1799,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 4 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:56: s= '>'
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:56: s= '>'
                             {
                             s=(Token)match(input,46,FOLLOW_46_in_comparisonExpression606); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_46.add(s);
@@ -1801,7 +1808,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 5 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:64: s= '=='
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:64: s= '=='
                             {
                             s=(Token)match(input,47,FOLLOW_47_in_comparisonExpression612); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_47.add(s);
@@ -1810,7 +1817,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 6 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:137:73: s= '!='
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:73: s= '!='
                             {
                             s=(Token)match(input,48,FOLLOW_48_in_comparisonExpression618); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_48.add(s);
@@ -1849,14 +1856,14 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_e2=new RewriteRuleSubtreeStream(adaptor,"rule e2",e2!=null?e2.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 138:2: -> { $s == null }? $e1
+            // 145:2: -> { $s == null }? $e1
             if ( s == null ) {
                 adaptor.addChild(root_0, stream_e1.nextTree());
 
             }
-            else // 139:3: -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+            else // 146:3: -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
             if ( s.getText().equals("!=") ) {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:139:38: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:146:38: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ComparativeExpression"), root_1);
@@ -1869,9 +1876,9 @@ public class SJaqlParser extends SimpleParser {
                 }
 
             }
-            else // 140:3: -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+            else // 147:3: -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
             if ( s.getText().equals("==") ) {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:140:38: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:147:38: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ComparativeExpression"), root_1);
@@ -1884,9 +1891,9 @@ public class SJaqlParser extends SimpleParser {
                 }
 
             }
-            else // 141:2: -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+            else // 148:2: -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
             {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:141:6: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:148:6: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ComparativeExpression"), root_1);
@@ -1924,7 +1931,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "arithmeticExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:143:1: arithmeticExpression : e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:150:1: arithmeticExpression : e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1;
     public final SJaqlParser.arithmeticExpression_return arithmeticExpression() throws RecognitionException {
         SJaqlParser.arithmeticExpression_return retval = new SJaqlParser.arithmeticExpression_return();
         retval.start = input.LT(1);
@@ -1943,8 +1950,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_multiplicationExpression=new RewriteRuleSubtreeStream(adaptor,"rule multiplicationExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 14) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:2: (e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:4: e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:151:2: (e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:151:4: e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )?
             {
             pushFollow(FOLLOW_multiplicationExpression_in_arithmeticExpression703);
             e1=multiplicationExpression();
@@ -1952,7 +1959,7 @@ public class SJaqlParser extends SimpleParser {
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_multiplicationExpression.add(e1.getTree());
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:32: ( (s= '+' | s= '-' ) e2= multiplicationExpression )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:151:32: ( (s= '+' | s= '-' ) e2= multiplicationExpression )?
             int alt17=2;
             int LA17_0 = input.LA(1);
 
@@ -1961,9 +1968,9 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt17) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:33: (s= '+' | s= '-' ) e2= multiplicationExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:151:33: (s= '+' | s= '-' ) e2= multiplicationExpression
                     {
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:33: (s= '+' | s= '-' )
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:151:33: (s= '+' | s= '-' )
                     int alt16=2;
                     int LA16_0 = input.LA(1);
 
@@ -1982,7 +1989,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt16) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:34: s= '+'
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:151:34: s= '+'
                             {
                             s=(Token)match(input,49,FOLLOW_49_in_arithmeticExpression709); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_49.add(s);
@@ -1991,7 +1998,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 2 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:144:42: s= '-'
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:151:42: s= '-'
                             {
                             s=(Token)match(input,50,FOLLOW_50_in_arithmeticExpression715); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_50.add(s);
@@ -2030,9 +2037,9 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_e2=new RewriteRuleSubtreeStream(adaptor,"rule e2",e2!=null?e2.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 145:2: -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
+            // 152:2: -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
             if ( s != null ) {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:145:21: ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:152:21: ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArithmeticExpression"), root_1);
@@ -2045,7 +2052,7 @@ public class SJaqlParser extends SimpleParser {
                 }
 
             }
-            else // 147:2: -> $e1
+            else // 154:2: -> $e1
             {
                 adaptor.addChild(root_0, stream_e1.nextTree());
 
@@ -2075,7 +2082,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "multiplicationExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:149:1: multiplicationExpression : e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:156:1: multiplicationExpression : e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1;
     public final SJaqlParser.multiplicationExpression_return multiplicationExpression() throws RecognitionException {
         SJaqlParser.multiplicationExpression_return retval = new SJaqlParser.multiplicationExpression_return();
         retval.start = input.LT(1);
@@ -2094,8 +2101,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_preincrementExpression=new RewriteRuleSubtreeStream(adaptor,"rule preincrementExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 15) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:150:2: (e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:150:4: e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:157:2: (e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:157:4: e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )?
             {
             pushFollow(FOLLOW_preincrementExpression_in_multiplicationExpression763);
             e1=preincrementExpression();
@@ -2103,7 +2110,7 @@ public class SJaqlParser extends SimpleParser {
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_preincrementExpression.add(e1.getTree());
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:150:30: ( (s= '*' | s= '/' ) e2= preincrementExpression )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:157:30: ( (s= '*' | s= '/' ) e2= preincrementExpression )?
             int alt19=2;
             int LA19_0 = input.LA(1);
 
@@ -2112,9 +2119,9 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt19) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:150:31: (s= '*' | s= '/' ) e2= preincrementExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:157:31: (s= '*' | s= '/' ) e2= preincrementExpression
                     {
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:150:31: (s= '*' | s= '/' )
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:157:31: (s= '*' | s= '/' )
                     int alt18=2;
                     int LA18_0 = input.LA(1);
 
@@ -2133,7 +2140,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt18) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:150:32: s= '*'
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:157:32: s= '*'
                             {
                             s=(Token)match(input,STAR,FOLLOW_STAR_in_multiplicationExpression769); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_STAR.add(s);
@@ -2142,7 +2149,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 2 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:150:40: s= '/'
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:157:40: s= '/'
                             {
                             s=(Token)match(input,51,FOLLOW_51_in_multiplicationExpression775); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_51.add(s);
@@ -2168,7 +2175,7 @@ public class SJaqlParser extends SimpleParser {
 
 
             // AST REWRITE
-            // elements: e1, e2, e1
+            // elements: e2, e1, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -2181,9 +2188,9 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_e2=new RewriteRuleSubtreeStream(adaptor,"rule e2",e2!=null?e2.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 151:2: -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
+            // 158:2: -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
             if ( s != null ) {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:151:21: ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:158:21: ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArithmeticExpression"), root_1);
@@ -2196,7 +2203,7 @@ public class SJaqlParser extends SimpleParser {
                 }
 
             }
-            else // 153:2: -> $e1
+            else // 160:2: -> $e1
             {
                 adaptor.addChild(root_0, stream_e1.nextTree());
 
@@ -2226,7 +2233,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "preincrementExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:155:1: preincrementExpression : ( '++' preincrementExpression | '--' preincrementExpression | unaryExpression );
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:162:1: preincrementExpression : ( '++' preincrementExpression | '--' preincrementExpression | unaryExpression );
     public final SJaqlParser.preincrementExpression_return preincrementExpression() throws RecognitionException {
         SJaqlParser.preincrementExpression_return retval = new SJaqlParser.preincrementExpression_return();
         retval.start = input.LT(1);
@@ -2247,7 +2254,7 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 16) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:156:2: ( '++' preincrementExpression | '--' preincrementExpression | unaryExpression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:163:2: ( '++' preincrementExpression | '--' preincrementExpression | unaryExpression )
             int alt20=3;
             switch ( input.LA(1) ) {
             case 52:
@@ -2288,7 +2295,7 @@ public class SJaqlParser extends SimpleParser {
 
             switch (alt20) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:156:4: '++' preincrementExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:163:4: '++' preincrementExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -2307,7 +2314,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:157:4: '--' preincrementExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:164:4: '--' preincrementExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -2326,7 +2333,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:158:4: unaryExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:165:4: unaryExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -2362,7 +2369,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "unaryExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:160:1: unaryExpression : ( '!' | '~' )? castExpression ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:167:1: unaryExpression : ( '!' | '~' )? castExpression ;
     public final SJaqlParser.unaryExpression_return unaryExpression() throws RecognitionException {
         SJaqlParser.unaryExpression_return retval = new SJaqlParser.unaryExpression_return();
         retval.start = input.LT(1);
@@ -2377,12 +2384,12 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 17) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:161:2: ( ( '!' | '~' )? castExpression )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:161:4: ( '!' | '~' )? castExpression
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:168:2: ( ( '!' | '~' )? castExpression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:168:4: ( '!' | '~' )? castExpression
             {
             root_0 = (EvaluationExpression)adaptor.nil();
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:161:4: ( '!' | '~' )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:168:4: ( '!' | '~' )?
             int alt21=2;
             int LA21_0 = input.LA(1);
 
@@ -2391,7 +2398,7 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt21) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:
                     {
                     set38=(Token)input.LT(1);
                     if ( (input.LA(1)>=54 && input.LA(1)<=55) ) {
@@ -2441,7 +2448,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "castExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:163:1: castExpression : ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression ) -> { type != null }? -> $expr;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:170:1: castExpression : ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression ) -> { type != null }? -> $expr;
     public final SJaqlParser.castExpression_return castExpression() throws RecognitionException {
         SJaqlParser.castExpression_return retval = new SJaqlParser.castExpression_return();
         retval.start = input.LT(1);
@@ -2466,15 +2473,15 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_generalPathExpression=new RewriteRuleSubtreeStream(adaptor,"rule generalPathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 18) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:164:2: ( ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression ) -> { type != null }? -> $expr)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:164:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:2: ( ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression ) -> { type != null }? -> $expr)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )
             {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:164:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )
             int alt22=3;
             alt22 = dfa22.predict(input);
             switch (alt22) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:164:5: '(' type= ID ')' expr= generalPathExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:5: '(' type= ID ')' expr= generalPathExpression
                     {
                     char_literal40=(Token)match(input,30,FOLLOW_30_in_castExpression864); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_30.add(char_literal40);
@@ -2495,7 +2502,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:165:4: expr= generalPathExpression 'as' type= ID
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:172:4: expr= generalPathExpression 'as' type= ID
                     {
                     pushFollow(FOLLOW_generalPathExpression_in_castExpression881);
                     expr=generalPathExpression();
@@ -2513,7 +2520,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:166:4: expr= generalPathExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:173:4: expr= generalPathExpression
                     {
                     pushFollow(FOLLOW_generalPathExpression_in_castExpression894);
                     expr=generalPathExpression();
@@ -2542,12 +2549,12 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_expr=new RewriteRuleSubtreeStream(adaptor,"rule expr",expr!=null?expr.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 167:2: -> { type != null }?
+            // 174:2: -> { type != null }?
             if ( type != null ) {
                 adaptor.addChild(root_0,  coerce((type!=null?type.getText():null), (expr!=null?((EvaluationExpression)expr.tree):null)) );
 
             }
-            else // 168:2: -> $expr
+            else // 175:2: -> $expr
             {
                 adaptor.addChild(root_0, stream_expr.nextTree());
 
@@ -2577,7 +2584,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "generalPathExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:170:1: generalPathExpression : (value= valueExpression path= pathExpression -> | valueExpression );
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:177:1: generalPathExpression : (value= valueExpression path= pathExpression -> | valueExpression );
     public final SJaqlParser.generalPathExpression_return generalPathExpression() throws RecognitionException {
         SJaqlParser.generalPathExpression_return retval = new SJaqlParser.generalPathExpression_return();
         retval.start = input.LT(1);
@@ -2595,12 +2602,12 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_pathExpression=new RewriteRuleSubtreeStream(adaptor,"rule pathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 19) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:2: (value= valueExpression path= pathExpression -> | valueExpression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:2: (value= valueExpression path= pathExpression -> | valueExpression )
             int alt23=2;
             alt23 = dfa23.predict(input);
             switch (alt23) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:4: value= valueExpression path= pathExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:4: value= valueExpression path= pathExpression
                     {
                     pushFollow(FOLLOW_valueExpression_in_generalPathExpression921);
                     value=valueExpression();
@@ -2628,7 +2635,7 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 171:46: ->
+                    // 178:46: ->
                     {
                         adaptor.addChild(root_0,  PathExpression.wrapIfNecessary((value!=null?((EvaluationExpression)value.tree):null), (path!=null?((EvaluationExpression)path.tree):null)) );
 
@@ -2638,7 +2645,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:172:4: valueExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:179:4: valueExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -2679,7 +2686,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "contextAwarePathExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:174:1: contextAwarePathExpression[EvaluationExpression context] : start= ID ( ( '.' (field= ID ) ) | arrayAccess )* -> ^( EXPRESSION[\"PathExpression\"] ) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:181:1: contextAwarePathExpression[EvaluationExpression context] : start= ID ( ( '.' (field= ID ) ) | arrayAccess )* -> ^( EXPRESSION[\"PathExpression\"] ) ;
     public final SJaqlParser.contextAwarePathExpression_return contextAwarePathExpression(EvaluationExpression context) throws RecognitionException {
         contextAwarePathExpression_stack.push(new contextAwarePathExpression_scope());
         SJaqlParser.contextAwarePathExpression_return retval = new SJaqlParser.contextAwarePathExpression_return();
@@ -2702,8 +2709,8 @@ public class SJaqlParser extends SimpleParser {
          ((contextAwarePathExpression_scope)contextAwarePathExpression_stack.peek()).fragments = new ArrayList<EvaluationExpression>(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 20) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:177:3: (start= ID ( ( '.' (field= ID ) ) | arrayAccess )* -> ^( EXPRESSION[\"PathExpression\"] ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:177:5: start= ID ( ( '.' (field= ID ) ) | arrayAccess )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:184:3: (start= ID ( ( '.' (field= ID ) ) | arrayAccess )* -> ^( EXPRESSION[\"PathExpression\"] ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:184:5: start= ID ( ( '.' (field= ID ) ) | arrayAccess )*
             {
             start=(Token)match(input,ID,FOLLOW_ID_in_contextAwarePathExpression958); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(start);
@@ -2711,7 +2718,7 @@ public class SJaqlParser extends SimpleParser {
             if ( state.backtracking==0 ) {
                if(context != null) ((contextAwarePathExpression_scope)contextAwarePathExpression_stack.peek()).fragments.add(context); ((contextAwarePathExpression_scope)contextAwarePathExpression_stack.peek()).fragments.add(new ObjectAccess((start!=null?start.getText():null)));
             }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:5: ( ( '.' (field= ID ) ) | arrayAccess )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:5: ( ( '.' (field= ID ) ) | arrayAccess )*
             loop24:
             do {
                 int alt24=3;
@@ -2727,16 +2734,16 @@ public class SJaqlParser extends SimpleParser {
 
                 switch (alt24) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:7: ( '.' (field= ID ) )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:7: ( '.' (field= ID ) )
             	    {
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:7: ( '.' (field= ID ) )
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:8: '.' (field= ID )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:7: ( '.' (field= ID ) )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:8: '.' (field= ID )
             	    {
             	    char_literal44=(Token)match(input,57,FOLLOW_57_in_contextAwarePathExpression969); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_57.add(char_literal44);
 
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:12: (field= ID )
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:13: field= ID
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:12: (field= ID )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:13: field= ID
             	    {
             	    field=(Token)match(input,ID,FOLLOW_ID_in_contextAwarePathExpression974); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_ID.add(field);
@@ -2754,7 +2761,7 @@ public class SJaqlParser extends SimpleParser {
             	    }
             	    break;
             	case 2 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:179:11: arrayAccess
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:186:11: arrayAccess
             	    {
             	    pushFollow(FOLLOW_arrayAccess_in_contextAwarePathExpression992);
             	    arrayAccess45=arrayAccess();
@@ -2788,9 +2795,9 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 179:93: -> ^( EXPRESSION[\"PathExpression\"] )
+            // 186:93: -> ^( EXPRESSION[\"PathExpression\"] )
             {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:179:97: ^( EXPRESSION[\"PathExpression\"] )
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:186:97: ^( EXPRESSION[\"PathExpression\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "PathExpression"), root_1);
@@ -2832,7 +2839,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "pathExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:181:1: pathExpression : ( ( '.' (field= ID ) ) | arrayAccess )+ ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:188:1: pathExpression : ( ( '.' (field= ID ) ) | arrayAccess )+ ->;
     public final SJaqlParser.pathExpression_return pathExpression() throws RecognitionException {
         pathExpression_stack.push(new pathExpression_scope());
         SJaqlParser.pathExpression_return retval = new SJaqlParser.pathExpression_return();
@@ -2853,10 +2860,10 @@ public class SJaqlParser extends SimpleParser {
          ((pathExpression_scope)pathExpression_stack.peek()).fragments = new ArrayList<EvaluationExpression>(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 21) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:184:3: ( ( ( '.' (field= ID ) ) | arrayAccess )+ ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:5: ( ( '.' (field= ID ) ) | arrayAccess )+
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:191:3: ( ( ( '.' (field= ID ) ) | arrayAccess )+ ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:5: ( ( '.' (field= ID ) ) | arrayAccess )+
             {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:5: ( ( '.' (field= ID ) ) | arrayAccess )+
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:5: ( ( '.' (field= ID ) ) | arrayAccess )+
             int cnt25=0;
             loop25:
             do {
@@ -2885,16 +2892,16 @@ public class SJaqlParser extends SimpleParser {
 
                 switch (alt25) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:7: ( '.' (field= ID ) )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:7: ( '.' (field= ID ) )
             	    {
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:7: ( '.' (field= ID ) )
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:8: '.' (field= ID )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:7: ( '.' (field= ID ) )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:8: '.' (field= ID )
             	    {
             	    char_literal46=(Token)match(input,57,FOLLOW_57_in_pathExpression1037); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_57.add(char_literal46);
 
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:12: (field= ID )
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:13: field= ID
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:12: (field= ID )
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:13: field= ID
             	    {
             	    field=(Token)match(input,ID,FOLLOW_ID_in_pathExpression1042); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_ID.add(field);
@@ -2912,7 +2919,7 @@ public class SJaqlParser extends SimpleParser {
             	    }
             	    break;
             	case 2 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:186:11: arrayAccess
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:193:11: arrayAccess
             	    {
             	    pushFollow(FOLLOW_arrayAccess_in_pathExpression1060);
             	    arrayAccess47=arrayAccess();
@@ -2951,7 +2958,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 187:3: ->
+            // 194:3: ->
             {
                 adaptor.addChild(root_0,  PathExpression.wrapIfNecessary(((pathExpression_scope)pathExpression_stack.peek()).fragments) );
 
@@ -2982,41 +2989,41 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "valueExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:189:1: valueExpression : ( methodCall[null] | parenthesesExpression | literal | streamIndexAccess | VAR -> | ID {...}? => -> | arrayCreation | objectCreation );
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:196:1: valueExpression : ( methodCall[null] | parenthesesExpression | literal | VAR -> | ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation );
     public final SJaqlParser.valueExpression_return valueExpression() throws RecognitionException {
         SJaqlParser.valueExpression_return retval = new SJaqlParser.valueExpression_return();
         retval.start = input.LT(1);
         int valueExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token VAR52=null;
-        Token ID53=null;
+        Token VAR51=null;
+        Token ID52=null;
         SJaqlParser.methodCall_return methodCall48 = null;
 
         SJaqlParser.parenthesesExpression_return parenthesesExpression49 = null;
 
         SJaqlParser.literal_return literal50 = null;
 
-        SJaqlParser.streamIndexAccess_return streamIndexAccess51 = null;
+        SJaqlParser.streamIndexAccess_return streamIndexAccess53 = null;
 
         SJaqlParser.arrayCreation_return arrayCreation54 = null;
 
         SJaqlParser.objectCreation_return objectCreation55 = null;
 
 
-        EvaluationExpression VAR52_tree=null;
-        EvaluationExpression ID53_tree=null;
+        EvaluationExpression VAR51_tree=null;
+        EvaluationExpression ID52_tree=null;
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 22) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:190:2: ( methodCall[null] | parenthesesExpression | literal | streamIndexAccess | VAR -> | ID {...}? => -> | arrayCreation | objectCreation )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:197:2: ( methodCall[null] | parenthesesExpression | literal | VAR -> | ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation )
             int alt26=8;
             alt26 = dfa26.predict(input);
             switch (alt26) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:190:4: methodCall[null]
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:197:4: methodCall[null]
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -3030,7 +3037,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:191:4: parenthesesExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:198:4: parenthesesExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -3044,7 +3051,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:4: literal
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:199:4: literal
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -3058,24 +3065,10 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 4 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:193:5: streamIndexAccess
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:200:4: VAR
                     {
-                    root_0 = (EvaluationExpression)adaptor.nil();
-
-                    pushFollow(FOLLOW_streamIndexAccess_in_valueExpression1100);
-                    streamIndexAccess51=streamIndexAccess();
-
-                    state._fsp--;
-                    if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, streamIndexAccess51.getTree());
-
-                    }
-                    break;
-                case 5 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:194:4: VAR
-                    {
-                    VAR52=(Token)match(input,VAR,FOLLOW_VAR_in_valueExpression1105); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_VAR.add(VAR52);
+                    VAR51=(Token)match(input,VAR,FOLLOW_VAR_in_valueExpression1099); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_VAR.add(VAR51);
 
 
 
@@ -3091,22 +3084,22 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 194:8: ->
+                    // 200:8: ->
                     {
-                        adaptor.addChild(root_0,  makePath(VAR52) );
+                        adaptor.addChild(root_0,  makePath(VAR51) );
 
                     }
 
                     retval.tree = root_0;}
                     }
                     break;
-                case 6 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:195:5: ID {...}? =>
+                case 5 :
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:201:5: ID {...}? =>
                     {
-                    ID53=(Token)match(input,ID,FOLLOW_ID_in_valueExpression1115); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_ID.add(ID53);
+                    ID52=(Token)match(input,ID,FOLLOW_ID_in_valueExpression1109); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_ID.add(ID52);
 
-                    if ( !(( hasBinding(ID53, EvaluationExpression.class) )) ) {
+                    if ( !(( hasBinding(ID52, EvaluationExpression.class) )) ) {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         throw new FailedPredicateException(input, "valueExpression", " hasBinding($ID, EvaluationExpression.class) ");
                     }
@@ -3124,17 +3117,31 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 195:59: ->
+                    // 201:59: ->
                     {
-                        adaptor.addChild(root_0,  getBinding(ID53, EvaluationExpression.class) );
+                        adaptor.addChild(root_0,  getBinding(ID52, EvaluationExpression.class) );
 
                     }
 
                     retval.tree = root_0;}
                     }
                     break;
+                case 6 :
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:202:5: streamIndexAccess
+                    {
+                    root_0 = (EvaluationExpression)adaptor.nil();
+
+                    pushFollow(FOLLOW_streamIndexAccess_in_valueExpression1122);
+                    streamIndexAccess53=streamIndexAccess();
+
+                    state._fsp--;
+                    if (state.failed) return retval;
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, streamIndexAccess53.getTree());
+
+                    }
+                    break;
                 case 7 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:196:4: arrayCreation
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:203:4: arrayCreation
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -3148,7 +3155,7 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 8 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:197:4: objectCreation
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:204:4: objectCreation
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
@@ -3184,7 +3191,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "operatorExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:199:1: operatorExpression : op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:206:1: operatorExpression : op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) ;
     public final SJaqlParser.operatorExpression_return operatorExpression() throws RecognitionException {
         SJaqlParser.operatorExpression_return retval = new SJaqlParser.operatorExpression_return();
         retval.start = input.LT(1);
@@ -3197,8 +3204,8 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_operator=new RewriteRuleSubtreeStream(adaptor,"rule operator");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 23) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:200:2: (op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:200:4: op= operator
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:207:2: (op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:207:4: op= operator
             {
             pushFollow(FOLLOW_operator_in_operatorExpression1146);
             op=operator();
@@ -3220,9 +3227,9 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 200:16: -> ^( EXPRESSION[\"NestedOperatorExpression\"] )
+            // 207:16: -> ^( EXPRESSION[\"NestedOperatorExpression\"] )
             {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:200:19: ^( EXPRESSION[\"NestedOperatorExpression\"] )
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:207:19: ^( EXPRESSION[\"NestedOperatorExpression\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "NestedOperatorExpression"), root_1);
@@ -3258,7 +3265,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "parenthesesExpression"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:202:1: parenthesesExpression : ( '(' expression ')' ) -> expression ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:209:1: parenthesesExpression : ( '(' expression ')' ) -> expression ;
     public final SJaqlParser.parenthesesExpression_return parenthesesExpression() throws RecognitionException {
         SJaqlParser.parenthesesExpression_return retval = new SJaqlParser.parenthesesExpression_return();
         retval.start = input.LT(1);
@@ -3277,11 +3284,11 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_expression=new RewriteRuleSubtreeStream(adaptor,"rule expression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 24) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:203:2: ( ( '(' expression ')' ) -> expression )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:203:4: ( '(' expression ')' )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:210:2: ( ( '(' expression ')' ) -> expression )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:210:4: ( '(' expression ')' )
             {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:203:4: ( '(' expression ')' )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:203:5: '(' expression ')'
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:210:4: ( '(' expression ')' )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:210:5: '(' expression ')'
             {
             char_literal56=(Token)match(input,30,FOLLOW_30_in_parenthesesExpression1167); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_30.add(char_literal56);
@@ -3312,7 +3319,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 203:25: -> expression
+            // 210:25: -> expression
             {
                 adaptor.addChild(root_0, stream_expression.nextTree());
 
@@ -3342,7 +3349,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "methodCall"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:205:1: methodCall[EvaluationExpression targetExpr] : name= ID '(' (param= expression ( ',' param= expression )* )? ')' ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:212:1: methodCall[EvaluationExpression targetExpr] : name= ID '(' (param= expression ( ',' param= expression )* )? ')' ->;
     public final SJaqlParser.methodCall_return methodCall(EvaluationExpression targetExpr) throws RecognitionException {
         SJaqlParser.methodCall_return retval = new SJaqlParser.methodCall_return();
         retval.start = input.LT(1);
@@ -3368,8 +3375,8 @@ public class SJaqlParser extends SimpleParser {
          List<EvaluationExpression> params = new ArrayList(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 25) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:207:2: (name= ID '(' (param= expression ( ',' param= expression )* )? ')' ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:207:4: name= ID '(' (param= expression ( ',' param= expression )* )? ')'
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:214:2: (name= ID '(' (param= expression ( ',' param= expression )* )? ')' ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:214:4: name= ID '(' (param= expression ( ',' param= expression )* )? ')'
             {
             name=(Token)match(input,ID,FOLLOW_ID_in_methodCall1194); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
@@ -3377,7 +3384,7 @@ public class SJaqlParser extends SimpleParser {
             char_literal59=(Token)match(input,30,FOLLOW_30_in_methodCall1196); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_30.add(char_literal59);
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:208:2: (param= expression ( ',' param= expression )* )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:215:2: (param= expression ( ',' param= expression )* )?
             int alt28=2;
             int LA28_0 = input.LA(1);
 
@@ -3386,7 +3393,7 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt28) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:208:3: param= expression ( ',' param= expression )*
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:215:3: param= expression ( ',' param= expression )*
                     {
                     pushFollow(FOLLOW_expression_in_methodCall1203);
                     param=expression();
@@ -3397,7 +3404,7 @@ public class SJaqlParser extends SimpleParser {
                     if ( state.backtracking==0 ) {
                        params.add((param!=null?((EvaluationExpression)param.tree):null)); 
                     }
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:209:2: ( ',' param= expression )*
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:216:2: ( ',' param= expression )*
                     loop27:
                     do {
                         int alt27=2;
@@ -3410,7 +3417,7 @@ public class SJaqlParser extends SimpleParser {
 
                         switch (alt27) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:209:3: ',' param= expression
+                    	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:216:3: ',' param= expression
                     	    {
                     	    char_literal60=(Token)match(input,31,FOLLOW_31_in_methodCall1209); if (state.failed) return retval; 
                     	    if ( state.backtracking==0 ) stream_31.add(char_literal60);
@@ -3456,7 +3463,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 210:6: ->
+            // 217:6: ->
             {
                 adaptor.addChild(root_0,  createCheckedMethodCall(name, targetExpr, params.toArray(new EvaluationExpression[params.size()])) );
 
@@ -3486,7 +3493,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "fieldAssignment"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:212:1: fieldAssignment : ( ID ':' expression -> | VAR ( '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->) | ':' e2= expression -> | '=' op= operator | ->) );
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:219:1: fieldAssignment : ( ID ':' expression -> | VAR ( '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->) | ':' e2= expression -> | '=' op= operator {...}? => | ->) );
     public final SJaqlParser.fieldAssignment_return fieldAssignment() throws RecognitionException {
         SJaqlParser.fieldAssignment_return retval = new SJaqlParser.fieldAssignment_return();
         retval.start = input.LT(1);
@@ -3533,7 +3540,7 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_operator=new RewriteRuleSubtreeStream(adaptor,"rule operator");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 26) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:213:2: ( ID ':' expression -> | VAR ( '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->) | ':' e2= expression -> | '=' op= operator | ->) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:220:2: ( ID ':' expression -> | VAR ( '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->) | ':' e2= expression -> | '=' op= operator {...}? => | ->) )
             int alt31=2;
             int LA31_0 = input.LA(1);
 
@@ -3552,7 +3559,7 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt31) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:213:4: ID ':' expression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:220:4: ID ':' expression
                     {
                     ID62=(Token)match(input,ID,FOLLOW_ID_in_fieldAssignment1237); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(ID62);
@@ -3583,7 +3590,7 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 214:104: ->
+                    // 221:104: ->
                     {
                         root_0 = null;
                     }
@@ -3592,12 +3599,12 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:215:5: VAR ( '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->) | ':' e2= expression -> | '=' op= operator | ->)
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:222:5: VAR ( '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->) | ':' e2= expression -> | '=' op= operator {...}? => | ->)
                     {
                     VAR65=(Token)match(input,VAR,FOLLOW_VAR_in_fieldAssignment1256); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(VAR65);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:216:5: ( '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->) | ':' e2= expression -> | '=' op= operator | ->)
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:223:5: ( '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->) | ':' e2= expression -> | '=' op= operator {...}? => | ->)
                     int alt30=4;
                     switch ( input.LA(1) ) {
                     case 57:
@@ -3632,12 +3639,12 @@ public class SJaqlParser extends SimpleParser {
 
                     switch (alt30) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:217:7: '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->)
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:224:7: '.' ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->)
                             {
                             char_literal66=(Token)match(input,57,FOLLOW_57_in_fieldAssignment1272); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_57.add(char_literal66);
 
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:217:11: ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->)
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:224:11: ( ID -> | STAR -> | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression ->)
                             int alt29=3;
                             int LA29_0 = input.LA(1);
 
@@ -3670,7 +3677,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             switch (alt29) {
                                 case 1 :
-                                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:217:12: ID
+                                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:224:12: ID
                                     {
                                     ID67=(Token)match(input,ID,FOLLOW_ID_in_fieldAssignment1275); if (state.failed) return retval; 
                                     if ( state.backtracking==0 ) stream_ID.add(ID67);
@@ -3692,7 +3699,7 @@ public class SJaqlParser extends SimpleParser {
                                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                                     root_0 = (EvaluationExpression)adaptor.nil();
-                                    // 217:122: ->
+                                    // 224:122: ->
                                     {
                                         root_0 = null;
                                     }
@@ -3701,7 +3708,7 @@ public class SJaqlParser extends SimpleParser {
                                     }
                                     break;
                                 case 2 :
-                                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:218:11: STAR
+                                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:225:11: STAR
                                     {
                                     STAR68=(Token)match(input,STAR,FOLLOW_STAR_in_fieldAssignment1291); if (state.failed) return retval; 
                                     if ( state.backtracking==0 ) stream_STAR.add(STAR68);
@@ -3723,7 +3730,7 @@ public class SJaqlParser extends SimpleParser {
                                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                                     root_0 = (EvaluationExpression)adaptor.nil();
-                                    // 218:98: ->
+                                    // 225:98: ->
                                     {
                                         root_0 = null;
                                     }
@@ -3732,7 +3739,7 @@ public class SJaqlParser extends SimpleParser {
                                     }
                                     break;
                                 case 3 :
-                                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:219:11: p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression
+                                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:226:11: p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class)] ':' e= expression
                                     {
                                     pushFollow(FOLLOW_contextAwarePathExpression_in_fieldAssignment1309);
                                     p=contextAwarePathExpression(getBinding(VAR65, JsonStreamExpression.class));
@@ -3766,7 +3773,7 @@ public class SJaqlParser extends SimpleParser {
                                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                                     root_0 = (EvaluationExpression)adaptor.nil();
-                                    // 220:95: ->
+                                    // 227:95: ->
                                     {
                                         root_0 = null;
                                     }
@@ -3781,7 +3788,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 2 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:222:7: ':' e2= expression
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:229:7: ':' e2= expression
                             {
                             char_literal70=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1350); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_35.add(char_literal70);
@@ -3809,7 +3816,7 @@ public class SJaqlParser extends SimpleParser {
                             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                             root_0 = (EvaluationExpression)adaptor.nil();
-                            // 222:117: ->
+                            // 229:117: ->
                             {
                                 root_0 = null;
                             }
@@ -3818,7 +3825,7 @@ public class SJaqlParser extends SimpleParser {
                             }
                             break;
                         case 3 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:223:7: '=' op= operator
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:230:7: '=' op= operator {...}? =>
                             {
                             char_literal71=(Token)match(input,28,FOLLOW_28_in_fieldAssignment1366); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_28.add(char_literal71);
@@ -3829,17 +3836,15 @@ public class SJaqlParser extends SimpleParser {
                             state._fsp--;
                             if (state.failed) return retval;
                             if ( state.backtracking==0 ) stream_operator.add(op.getTree());
-                            if ( state.backtracking==0 ) {
-
-                                    JsonStreamExpression output = new JsonStreamExpression(((operator_scope)operator_stack.peek()).result.getOutput(((objectCreation_scope)objectCreation_stack.peek()).mappings.size()));
-                                    ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.TagMapping(getBinding(VAR65, JsonStreamExpression.class), new JsonStreamExpression((op!=null?op.op:null))));
-                                    setBinding(VAR65, output, 1); 
+                            if ( !(( setInnerOutput(VAR65, (op!=null?op.op:null)) )) ) {
+                                if (state.backtracking>0) {state.failed=true; return retval;}
+                                throw new FailedPredicateException(input, "fieldAssignment", " setInnerOutput($VAR, $op.op) ");
                             }
 
                             }
                             break;
                         case 4 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:227:19: 
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:231:19: 
                             {
                             if ( state.backtracking==0 ) {
                                ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.FieldAssignment((VAR65!=null?VAR65.getText():null).substring(1), makePath(VAR65))); 
@@ -3858,7 +3863,7 @@ public class SJaqlParser extends SimpleParser {
                             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                             root_0 = (EvaluationExpression)adaptor.nil();
-                            // 227:130: ->
+                            // 231:130: ->
                             {
                                 root_0 = null;
                             }
@@ -3900,7 +3905,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "objectCreation"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:230:1: objectCreation : '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:234:1: objectCreation : '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) ;
     public final SJaqlParser.objectCreation_return objectCreation() throws RecognitionException {
         objectCreation_stack.push(new objectCreation_scope());
         SJaqlParser.objectCreation_return retval = new SJaqlParser.objectCreation_return();
@@ -3928,13 +3933,13 @@ public class SJaqlParser extends SimpleParser {
          ((objectCreation_scope)objectCreation_stack.peek()).mappings = new ArrayList<ObjectCreation.Mapping>(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 27) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:233:2: ( '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:233:4: '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}'
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:237:2: ( '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:237:4: '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}'
             {
-            char_literal72=(Token)match(input,58,FOLLOW_58_in_objectCreation1412); if (state.failed) return retval; 
+            char_literal72=(Token)match(input,58,FOLLOW_58_in_objectCreation1413); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_58.add(char_literal72);
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:233:8: ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:237:8: ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )?
             int alt34=2;
             int LA34_0 = input.LA(1);
 
@@ -3943,15 +3948,15 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt34) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:233:9: fieldAssignment ( ',' fieldAssignment )* ( ',' )?
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:237:9: fieldAssignment ( ',' fieldAssignment )* ( ',' )?
                     {
-                    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1415);
+                    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1416);
                     fieldAssignment73=fieldAssignment();
 
                     state._fsp--;
                     if (state.failed) return retval;
                     if ( state.backtracking==0 ) stream_fieldAssignment.add(fieldAssignment73.getTree());
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:233:25: ( ',' fieldAssignment )*
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:237:25: ( ',' fieldAssignment )*
                     loop32:
                     do {
                         int alt32=2;
@@ -3970,12 +3975,12 @@ public class SJaqlParser extends SimpleParser {
 
                         switch (alt32) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:233:26: ',' fieldAssignment
+                    	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:237:26: ',' fieldAssignment
                     	    {
-                    	    char_literal74=(Token)match(input,31,FOLLOW_31_in_objectCreation1418); if (state.failed) return retval; 
+                    	    char_literal74=(Token)match(input,31,FOLLOW_31_in_objectCreation1419); if (state.failed) return retval; 
                     	    if ( state.backtracking==0 ) stream_31.add(char_literal74);
 
-                    	    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1420);
+                    	    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1421);
                     	    fieldAssignment75=fieldAssignment();
 
                     	    state._fsp--;
@@ -3990,7 +3995,7 @@ public class SJaqlParser extends SimpleParser {
                         }
                     } while (true);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:233:48: ( ',' )?
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:237:48: ( ',' )?
                     int alt33=2;
                     int LA33_0 = input.LA(1);
 
@@ -3999,9 +4004,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt33) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: ','
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: ','
                             {
-                            char_literal76=(Token)match(input,31,FOLLOW_31_in_objectCreation1424); if (state.failed) return retval; 
+                            char_literal76=(Token)match(input,31,FOLLOW_31_in_objectCreation1425); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_31.add(char_literal76);
 
 
@@ -4016,7 +4021,7 @@ public class SJaqlParser extends SimpleParser {
 
             }
 
-            char_literal77=(Token)match(input,59,FOLLOW_59_in_objectCreation1429); if (state.failed) return retval; 
+            char_literal77=(Token)match(input,59,FOLLOW_59_in_objectCreation1430); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_59.add(char_literal77);
 
 
@@ -4033,9 +4038,9 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 233:59: -> ^( EXPRESSION[\"ObjectCreation\"] )
+            // 237:59: -> ^( EXPRESSION[\"ObjectCreation\"] )
             {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:233:62: ^( EXPRESSION[\"ObjectCreation\"] )
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:237:62: ^( EXPRESSION[\"ObjectCreation\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ObjectCreation"), root_1);
@@ -4072,7 +4077,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "literal"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:239:1: literal : (val= 'true' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= 'false' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= DECIMAL -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= STRING -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= INTEGER -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= UINT -> ^( EXPRESSION[\"ConstantExpression\"] ) | 'null' ->);
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:243:1: literal : (val= 'true' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= 'false' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= DECIMAL -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= STRING -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= INTEGER -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= UINT -> ^( EXPRESSION[\"ConstantExpression\"] ) | 'null' ->);
     public final SJaqlParser.literal_return literal() throws RecognitionException {
         SJaqlParser.literal_return retval = new SJaqlParser.literal_return();
         retval.start = input.LT(1);
@@ -4094,7 +4099,7 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 28) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:240:2: (val= 'true' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= 'false' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= DECIMAL -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= STRING -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= INTEGER -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= UINT -> ^( EXPRESSION[\"ConstantExpression\"] ) | 'null' ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:244:2: (val= 'true' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= 'false' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= DECIMAL -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= STRING -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= INTEGER -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= UINT -> ^( EXPRESSION[\"ConstantExpression\"] ) | 'null' ->)
             int alt35=7;
             switch ( input.LA(1) ) {
             case 60:
@@ -4142,9 +4147,9 @@ public class SJaqlParser extends SimpleParser {
 
             switch (alt35) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:240:4: val= 'true'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:244:4: val= 'true'
                     {
-                    val=(Token)match(input,60,FOLLOW_60_in_literal1453); if (state.failed) return retval; 
+                    val=(Token)match(input,60,FOLLOW_60_in_literal1454); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_60.add(val);
 
 
@@ -4161,9 +4166,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 240:15: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 244:15: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:240:18: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:244:18: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4179,9 +4184,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:241:4: val= 'false'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:245:4: val= 'false'
                     {
-                    val=(Token)match(input,61,FOLLOW_61_in_literal1469); if (state.failed) return retval; 
+                    val=(Token)match(input,61,FOLLOW_61_in_literal1470); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_61.add(val);
 
 
@@ -4198,9 +4203,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 241:16: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 245:16: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:241:19: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:245:19: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4216,9 +4221,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:242:4: val= DECIMAL
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:246:4: val= DECIMAL
                     {
-                    val=(Token)match(input,DECIMAL,FOLLOW_DECIMAL_in_literal1485); if (state.failed) return retval; 
+                    val=(Token)match(input,DECIMAL,FOLLOW_DECIMAL_in_literal1486); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_DECIMAL.add(val);
 
 
@@ -4235,9 +4240,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 242:16: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 246:16: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:242:19: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:246:19: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4253,9 +4258,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 4 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:243:4: val= STRING
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:247:4: val= STRING
                     {
-                    val=(Token)match(input,STRING,FOLLOW_STRING_in_literal1501); if (state.failed) return retval; 
+                    val=(Token)match(input,STRING,FOLLOW_STRING_in_literal1502); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(val);
 
 
@@ -4272,9 +4277,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 243:15: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 247:15: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:243:18: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:247:18: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4290,9 +4295,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 5 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:244:5: val= INTEGER
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:248:5: val= INTEGER
                     {
-                    val=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_literal1518); if (state.failed) return retval; 
+                    val=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_literal1519); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_INTEGER.add(val);
 
 
@@ -4309,9 +4314,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 244:17: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 248:17: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:244:20: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:248:20: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4327,9 +4332,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 6 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:245:5: val= UINT
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:249:5: val= UINT
                     {
-                    val=(Token)match(input,UINT,FOLLOW_UINT_in_literal1535); if (state.failed) return retval; 
+                    val=(Token)match(input,UINT,FOLLOW_UINT_in_literal1536); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_UINT.add(val);
 
 
@@ -4346,9 +4351,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 245:14: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 249:14: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:245:17: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:249:17: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4364,9 +4369,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 7 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:246:5: 'null'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:250:5: 'null'
                     {
-                    string_literal78=(Token)match(input,62,FOLLOW_62_in_literal1550); if (state.failed) return retval; 
+                    string_literal78=(Token)match(input,62,FOLLOW_62_in_literal1551); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_62.add(string_literal78);
 
 
@@ -4383,7 +4388,7 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 246:12: ->
+                    // 250:12: ->
                     {
                         adaptor.addChild(root_0,  EvaluationExpression.NULL );
 
@@ -4415,7 +4420,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "arrayAccess"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:248:1: arrayAccess : ( '[' STAR ']' path= pathExpression -> ^( EXPRESSION[\"ArrayProjection\"] $path) | '[' (pos= INTEGER | pos= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) | '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) );
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:252:1: arrayAccess : ( '[' STAR ']' path= pathExpression -> ^( EXPRESSION[\"ArrayProjection\"] $path) | '[' (pos= INTEGER | pos= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) | '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) );
     public final SJaqlParser.arrayAccess_return arrayAccess() throws RecognitionException {
         SJaqlParser.arrayAccess_return retval = new SJaqlParser.arrayAccess_return();
         retval.start = input.LT(1);
@@ -4456,7 +4461,7 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_pathExpression=new RewriteRuleSubtreeStream(adaptor,"rule pathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 29) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:249:3: ( '[' STAR ']' path= pathExpression -> ^( EXPRESSION[\"ArrayProjection\"] $path) | '[' (pos= INTEGER | pos= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) | '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:3: ( '[' STAR ']' path= pathExpression -> ^( EXPRESSION[\"ArrayProjection\"] $path) | '[' (pos= INTEGER | pos= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) | '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) )
             int alt39=3;
             int LA39_0 = input.LA(1);
 
@@ -4523,18 +4528,18 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt39) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:249:5: '[' STAR ']' path= pathExpression
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:5: '[' STAR ']' path= pathExpression
                     {
-                    char_literal79=(Token)match(input,63,FOLLOW_63_in_arrayAccess1564); if (state.failed) return retval; 
+                    char_literal79=(Token)match(input,63,FOLLOW_63_in_arrayAccess1565); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_63.add(char_literal79);
 
-                    STAR80=(Token)match(input,STAR,FOLLOW_STAR_in_arrayAccess1566); if (state.failed) return retval; 
+                    STAR80=(Token)match(input,STAR,FOLLOW_STAR_in_arrayAccess1567); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STAR.add(STAR80);
 
-                    char_literal81=(Token)match(input,64,FOLLOW_64_in_arrayAccess1568); if (state.failed) return retval; 
+                    char_literal81=(Token)match(input,64,FOLLOW_64_in_arrayAccess1569); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_64.add(char_literal81);
 
-                    pushFollow(FOLLOW_pathExpression_in_arrayAccess1572);
+                    pushFollow(FOLLOW_pathExpression_in_arrayAccess1573);
                     path=pathExpression();
 
                     state._fsp--;
@@ -4555,9 +4560,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_path=new RewriteRuleSubtreeStream(adaptor,"rule path",path!=null?path.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 250:3: -> ^( EXPRESSION[\"ArrayProjection\"] $path)
+                    // 254:3: -> ^( EXPRESSION[\"ArrayProjection\"] $path)
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:250:6: ^( EXPRESSION[\"ArrayProjection\"] $path)
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:254:6: ^( EXPRESSION[\"ArrayProjection\"] $path)
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArrayProjection"), root_1);
@@ -4573,12 +4578,12 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:251:5: '[' (pos= INTEGER | pos= UINT ) ']'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:255:5: '[' (pos= INTEGER | pos= UINT ) ']'
                     {
-                    char_literal82=(Token)match(input,63,FOLLOW_63_in_arrayAccess1592); if (state.failed) return retval; 
+                    char_literal82=(Token)match(input,63,FOLLOW_63_in_arrayAccess1593); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_63.add(char_literal82);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:251:9: (pos= INTEGER | pos= UINT )
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:255:9: (pos= INTEGER | pos= UINT )
                     int alt36=2;
                     int LA36_0 = input.LA(1);
 
@@ -4597,18 +4602,18 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt36) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:251:10: pos= INTEGER
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:255:10: pos= INTEGER
                             {
-                            pos=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1597); if (state.failed) return retval; 
+                            pos=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1598); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(pos);
 
 
                             }
                             break;
                         case 2 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:251:24: pos= UINT
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:255:24: pos= UINT
                             {
-                            pos=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1603); if (state.failed) return retval; 
+                            pos=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1604); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(pos);
 
 
@@ -4617,7 +4622,7 @@ public class SJaqlParser extends SimpleParser {
 
                     }
 
-                    char_literal83=(Token)match(input,64,FOLLOW_64_in_arrayAccess1606); if (state.failed) return retval; 
+                    char_literal83=(Token)match(input,64,FOLLOW_64_in_arrayAccess1607); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_64.add(char_literal83);
 
 
@@ -4634,9 +4639,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 252:3: -> ^( EXPRESSION[\"ArrayAccess\"] )
+                    // 256:3: -> ^( EXPRESSION[\"ArrayAccess\"] )
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:252:6: ^( EXPRESSION[\"ArrayAccess\"] )
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:256:6: ^( EXPRESSION[\"ArrayAccess\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArrayAccess"), root_1);
@@ -4652,12 +4657,12 @@ public class SJaqlParser extends SimpleParser {
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:5: '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:5: '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']'
                     {
-                    char_literal84=(Token)match(input,63,FOLLOW_63_in_arrayAccess1624); if (state.failed) return retval; 
+                    char_literal84=(Token)match(input,63,FOLLOW_63_in_arrayAccess1625); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_63.add(char_literal84);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:9: (start= INTEGER | start= UINT )
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:9: (start= INTEGER | start= UINT )
                     int alt37=2;
                     int LA37_0 = input.LA(1);
 
@@ -4676,18 +4681,18 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt37) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:10: start= INTEGER
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:10: start= INTEGER
                             {
-                            start=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1629); if (state.failed) return retval; 
+                            start=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1630); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(start);
 
 
                             }
                             break;
                         case 2 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:26: start= UINT
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:26: start= UINT
                             {
-                            start=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1635); if (state.failed) return retval; 
+                            start=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1636); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(start);
 
 
@@ -4696,10 +4701,10 @@ public class SJaqlParser extends SimpleParser {
 
                     }
 
-                    char_literal85=(Token)match(input,35,FOLLOW_35_in_arrayAccess1638); if (state.failed) return retval; 
+                    char_literal85=(Token)match(input,35,FOLLOW_35_in_arrayAccess1639); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_35.add(char_literal85);
 
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:42: (end= INTEGER | end= UINT )
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:42: (end= INTEGER | end= UINT )
                     int alt38=2;
                     int LA38_0 = input.LA(1);
 
@@ -4718,18 +4723,18 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt38) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:43: end= INTEGER
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:43: end= INTEGER
                             {
-                            end=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1643); if (state.failed) return retval; 
+                            end=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1644); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(end);
 
 
                             }
                             break;
                         case 2 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:253:57: end= UINT
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:57: end= UINT
                             {
-                            end=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1649); if (state.failed) return retval; 
+                            end=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1650); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(end);
 
 
@@ -4738,7 +4743,7 @@ public class SJaqlParser extends SimpleParser {
 
                     }
 
-                    char_literal86=(Token)match(input,64,FOLLOW_64_in_arrayAccess1652); if (state.failed) return retval; 
+                    char_literal86=(Token)match(input,64,FOLLOW_64_in_arrayAccess1653); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_64.add(char_literal86);
 
 
@@ -4755,9 +4760,9 @@ public class SJaqlParser extends SimpleParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 254:3: -> ^( EXPRESSION[\"ArrayAccess\"] )
+                    // 258:3: -> ^( EXPRESSION[\"ArrayAccess\"] )
                     {
-                        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:254:6: ^( EXPRESSION[\"ArrayAccess\"] )
+                        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:258:6: ^( EXPRESSION[\"ArrayAccess\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArrayAccess"), root_1);
@@ -4796,50 +4801,54 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "streamIndexAccess"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:256:1: streamIndexAccess : VAR {...}? => '[' path= generalPathExpression ']' ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:260:1: streamIndexAccess : op= VAR {...}? => '[' path= generalPathExpression ']' {...}? ->;
     public final SJaqlParser.streamIndexAccess_return streamIndexAccess() throws RecognitionException {
         SJaqlParser.streamIndexAccess_return retval = new SJaqlParser.streamIndexAccess_return();
         retval.start = input.LT(1);
         int streamIndexAccess_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token VAR87=null;
+        Token op=null;
+        Token char_literal87=null;
         Token char_literal88=null;
-        Token char_literal89=null;
         SJaqlParser.generalPathExpression_return path = null;
 
 
-        EvaluationExpression VAR87_tree=null;
+        EvaluationExpression op_tree=null;
+        EvaluationExpression char_literal87_tree=null;
         EvaluationExpression char_literal88_tree=null;
-        EvaluationExpression char_literal89_tree=null;
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_64=new RewriteRuleTokenStream(adaptor,"token 64");
         RewriteRuleTokenStream stream_63=new RewriteRuleTokenStream(adaptor,"token 63");
         RewriteRuleSubtreeStream stream_generalPathExpression=new RewriteRuleSubtreeStream(adaptor,"rule generalPathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 30) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:3: ( VAR {...}? => '[' path= generalPathExpression ']' ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:257:5: VAR {...}? => '[' path= generalPathExpression ']'
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:261:3: (op= VAR {...}? => '[' path= generalPathExpression ']' {...}? ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:261:5: op= VAR {...}? => '[' path= generalPathExpression ']' {...}?
             {
-            VAR87=(Token)match(input,VAR,FOLLOW_VAR_in_streamIndexAccess1678); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_VAR.add(VAR87);
+            op=(Token)match(input,VAR,FOLLOW_VAR_in_streamIndexAccess1681); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_VAR.add(op);
 
-            if ( !(( ((operator_scope)operator_stack.peek()).result != null && !((operator_scope)operator_stack.peek()).result.getInputs().contains(getBinding(VAR87, JsonStreamExpression.class).getStream().getSource()) )) ) {
+            if ( !(( getRawBinding(op, JsonStreamExpression.class) != null )) ) {
                 if (state.backtracking>0) {state.failed=true; return retval;}
-                throw new FailedPredicateException(input, "streamIndexAccess", " $operator::result != null && !$operator::result.getInputs().contains(getBinding($VAR, JsonStreamExpression.class).getStream().getSource()) ");
+                throw new FailedPredicateException(input, "streamIndexAccess", " getRawBinding($op, JsonStreamExpression.class) != null ");
             }
-            char_literal88=(Token)match(input,63,FOLLOW_63_in_streamIndexAccess1688); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_63.add(char_literal88);
+            char_literal87=(Token)match(input,63,FOLLOW_63_in_streamIndexAccess1690); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_63.add(char_literal87);
 
-            pushFollow(FOLLOW_generalPathExpression_in_streamIndexAccess1692);
+            pushFollow(FOLLOW_generalPathExpression_in_streamIndexAccess1694);
             path=generalPathExpression();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_generalPathExpression.add(path.getTree());
-            char_literal89=(Token)match(input,64,FOLLOW_64_in_streamIndexAccess1694); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_64.add(char_literal89);
+            char_literal88=(Token)match(input,64,FOLLOW_64_in_streamIndexAccess1696); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_64.add(char_literal88);
 
+            if ( !(( !((path!=null?((EvaluationExpression)path.tree):null) instanceof ConstantExpression) )) ) {
+                if (state.backtracking>0) {state.failed=true; return retval;}
+                throw new FailedPredicateException(input, "streamIndexAccess", " !($path.tree instanceof ConstantExpression) ");
+            }
 
 
             // AST REWRITE
@@ -4854,9 +4863,9 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 259:3: ->
+            // 263:3: ->
             {
-                adaptor.addChild(root_0,  new StreamIndexExpression(getBinding(VAR87, JsonStreamExpression.class).getStream(), (path!=null?((EvaluationExpression)path.tree):null)) );
+                adaptor.addChild(root_0,  new StreamIndexExpression(getBinding(op, JsonStreamExpression.class).getStream(), (path!=null?((EvaluationExpression)path.tree):null)) );
 
             }
 
@@ -4884,36 +4893,36 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "arrayCreation"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:261:1: arrayCreation : '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:265:1: arrayCreation : '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) ;
     public final SJaqlParser.arrayCreation_return arrayCreation() throws RecognitionException {
         SJaqlParser.arrayCreation_return retval = new SJaqlParser.arrayCreation_return();
         retval.start = input.LT(1);
         int arrayCreation_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
+        Token char_literal89=null;
         Token char_literal90=null;
         Token char_literal91=null;
         Token char_literal92=null;
-        Token char_literal93=null;
         List list_elems=null;
         RuleReturnScope elems = null;
+        EvaluationExpression char_literal89_tree=null;
         EvaluationExpression char_literal90_tree=null;
         EvaluationExpression char_literal91_tree=null;
         EvaluationExpression char_literal92_tree=null;
-        EvaluationExpression char_literal93_tree=null;
         RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleTokenStream stream_64=new RewriteRuleTokenStream(adaptor,"token 64");
         RewriteRuleTokenStream stream_63=new RewriteRuleTokenStream(adaptor,"token 63");
         RewriteRuleSubtreeStream stream_expression=new RewriteRuleSubtreeStream(adaptor,"rule expression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 31) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:262:2: ( '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:262:5: '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']'
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:266:2: ( '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:266:5: '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']'
             {
-            char_literal90=(Token)match(input,63,FOLLOW_63_in_arrayCreation1712); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_63.add(char_literal90);
+            char_literal89=(Token)match(input,63,FOLLOW_63_in_arrayCreation1715); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_63.add(char_literal89);
 
-            pushFollow(FOLLOW_expression_in_arrayCreation1716);
+            pushFollow(FOLLOW_expression_in_arrayCreation1719);
             elems=expression();
 
             state._fsp--;
@@ -4922,7 +4931,7 @@ public class SJaqlParser extends SimpleParser {
             if (list_elems==null) list_elems=new ArrayList();
             list_elems.add(elems.getTree());
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:262:27: ( ',' elems+= expression )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:266:27: ( ',' elems+= expression )*
             loop40:
             do {
                 int alt40=2;
@@ -4941,12 +4950,12 @@ public class SJaqlParser extends SimpleParser {
 
                 switch (alt40) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:262:28: ',' elems+= expression
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:266:28: ',' elems+= expression
             	    {
-            	    char_literal91=(Token)match(input,31,FOLLOW_31_in_arrayCreation1719); if (state.failed) return retval; 
-            	    if ( state.backtracking==0 ) stream_31.add(char_literal91);
+            	    char_literal90=(Token)match(input,31,FOLLOW_31_in_arrayCreation1722); if (state.failed) return retval; 
+            	    if ( state.backtracking==0 ) stream_31.add(char_literal90);
 
-            	    pushFollow(FOLLOW_expression_in_arrayCreation1723);
+            	    pushFollow(FOLLOW_expression_in_arrayCreation1726);
             	    elems=expression();
 
             	    state._fsp--;
@@ -4964,7 +4973,7 @@ public class SJaqlParser extends SimpleParser {
                 }
             } while (true);
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:262:52: ( ',' )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:266:52: ( ',' )?
             int alt41=2;
             int LA41_0 = input.LA(1);
 
@@ -4973,10 +4982,10 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt41) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: ','
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: ','
                     {
-                    char_literal92=(Token)match(input,31,FOLLOW_31_in_arrayCreation1727); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_31.add(char_literal92);
+                    char_literal91=(Token)match(input,31,FOLLOW_31_in_arrayCreation1730); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_31.add(char_literal91);
 
 
                     }
@@ -4984,8 +4993,8 @@ public class SJaqlParser extends SimpleParser {
 
             }
 
-            char_literal93=(Token)match(input,64,FOLLOW_64_in_arrayCreation1730); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_64.add(char_literal93);
+            char_literal92=(Token)match(input,64,FOLLOW_64_in_arrayCreation1733); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_64.add(char_literal92);
 
 
 
@@ -5001,9 +5010,9 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 262:61: -> ^( EXPRESSION[\"ArrayCreation\"] )
+            // 266:61: -> ^( EXPRESSION[\"ArrayCreation\"] )
             {
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:262:64: ^( EXPRESSION[\"ArrayCreation\"] )
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:266:64: ^( EXPRESSION[\"ArrayCreation\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArrayCreation"), root_1);
@@ -5047,7 +5056,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "operator"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:264:1: operator returns [Operator<?> op=null] : opRule= ( readOperator | writeOperator | genericOperator ) ;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:268:1: operator returns [Operator<?> op=null] : opRule= ( readOperator | writeOperator | genericOperator ) ;
     public final SJaqlParser.operator_return operator() throws RecognitionException {
         operator_stack.push(new operator_scope());
         SJaqlParser.operator_return retval = new SJaqlParser.operator_return();
@@ -5056,11 +5065,11 @@ public class SJaqlParser extends SimpleParser {
         EvaluationExpression root_0 = null;
 
         Token opRule=null;
-        SJaqlParser.readOperator_return readOperator94 = null;
+        SJaqlParser.readOperator_return readOperator93 = null;
 
-        SJaqlParser.writeOperator_return writeOperator95 = null;
+        SJaqlParser.writeOperator_return writeOperator94 = null;
 
-        SJaqlParser.genericOperator_return genericOperator96 = null;
+        SJaqlParser.genericOperator_return genericOperator95 = null;
 
 
         EvaluationExpression opRule_tree=null;
@@ -5072,12 +5081,12 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 32) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:277:2: (opRule= ( readOperator | writeOperator | genericOperator ) )
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:277:4: opRule= ( readOperator | writeOperator | genericOperator )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:281:2: (opRule= ( readOperator | writeOperator | genericOperator ) )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:281:4: opRule= ( readOperator | writeOperator | genericOperator )
             {
             root_0 = (EvaluationExpression)adaptor.nil();
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:277:11: ( readOperator | writeOperator | genericOperator )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:281:11: ( readOperator | writeOperator | genericOperator )
             int alt42=3;
             switch ( input.LA(1) ) {
             case 65:
@@ -5105,38 +5114,38 @@ public class SJaqlParser extends SimpleParser {
 
             switch (alt42) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:277:12: readOperator
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:281:12: readOperator
                     {
-                    pushFollow(FOLLOW_readOperator_in_operator1767);
-                    readOperator94=readOperator();
+                    pushFollow(FOLLOW_readOperator_in_operator1770);
+                    readOperator93=readOperator();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, readOperator94.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, readOperator93.getTree());
 
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:277:27: writeOperator
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:281:27: writeOperator
                     {
-                    pushFollow(FOLLOW_writeOperator_in_operator1771);
-                    writeOperator95=writeOperator();
+                    pushFollow(FOLLOW_writeOperator_in_operator1774);
+                    writeOperator94=writeOperator();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, writeOperator95.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, writeOperator94.getTree());
 
                     }
                     break;
                 case 3 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:277:43: genericOperator
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:281:43: genericOperator
                     {
-                    pushFollow(FOLLOW_genericOperator_in_operator1775);
-                    genericOperator96=genericOperator();
+                    pushFollow(FOLLOW_genericOperator_in_operator1778);
+                    genericOperator95=genericOperator();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, genericOperator96.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, genericOperator95.getTree());
 
                     }
                     break;
@@ -5178,7 +5187,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "readOperator"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:282:1: readOperator : 'read' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:286:1: readOperator : 'read' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->;
     public final SJaqlParser.readOperator_return readOperator() throws RecognitionException {
         SJaqlParser.readOperator_return retval = new SJaqlParser.readOperator_return();
         retval.start = input.LT(1);
@@ -5187,15 +5196,15 @@ public class SJaqlParser extends SimpleParser {
 
         Token loc=null;
         Token file=null;
-        Token string_literal97=null;
+        Token string_literal96=null;
+        Token char_literal97=null;
         Token char_literal98=null;
-        Token char_literal99=null;
 
         EvaluationExpression loc_tree=null;
         EvaluationExpression file_tree=null;
-        EvaluationExpression string_literal97_tree=null;
+        EvaluationExpression string_literal96_tree=null;
+        EvaluationExpression char_literal97_tree=null;
         EvaluationExpression char_literal98_tree=null;
-        EvaluationExpression char_literal99_tree=null;
         RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
         RewriteRuleTokenStream stream_32=new RewriteRuleTokenStream(adaptor,"token 32");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
@@ -5204,13 +5213,13 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 33) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:283:2: ( 'read' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:283:4: 'read' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:287:2: ( 'read' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:287:4: 'read' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
             {
-            string_literal97=(Token)match(input,65,FOLLOW_65_in_readOperator1789); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_65.add(string_literal97);
+            string_literal96=(Token)match(input,65,FOLLOW_65_in_readOperator1792); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_65.add(string_literal96);
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:283:11: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:287:11: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
             int alt44=2;
             int LA44_0 = input.LA(1);
 
@@ -5243,9 +5252,9 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt44) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:283:12: (loc= ID )? file= STRING
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:287:12: (loc= ID )? file= STRING
                     {
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:283:15: (loc= ID )?
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:287:15: (loc= ID )?
                     int alt43=2;
                     int LA43_0 = input.LA(1);
 
@@ -5254,9 +5263,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt43) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: loc= ID
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: loc= ID
                             {
-                            loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1794); if (state.failed) return retval; 
+                            loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1797); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_ID.add(loc);
 
 
@@ -5265,26 +5274,26 @@ public class SJaqlParser extends SimpleParser {
 
                     }
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1799); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1802); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
 
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:283:34: loc= ID '(' file= STRING ')'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:287:34: loc= ID '(' file= STRING ')'
                     {
-                    loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1805); if (state.failed) return retval; 
+                    loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1808); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(loc);
 
-                    char_literal98=(Token)match(input,30,FOLLOW_30_in_readOperator1807); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_30.add(char_literal98);
+                    char_literal97=(Token)match(input,30,FOLLOW_30_in_readOperator1810); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_30.add(char_literal97);
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1811); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1814); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
-                    char_literal99=(Token)match(input,32,FOLLOW_32_in_readOperator1813); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_32.add(char_literal99);
+                    char_literal98=(Token)match(input,32,FOLLOW_32_in_readOperator1816); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_32.add(char_literal98);
 
 
                     }
@@ -5309,7 +5318,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 283:133: ->
+            // 287:133: ->
             {
                 root_0 = null;
             }
@@ -5338,7 +5347,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "writeOperator"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:285:1: writeOperator : 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:289:1: writeOperator : 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->;
     public final SJaqlParser.writeOperator_return writeOperator() throws RecognitionException {
         SJaqlParser.writeOperator_return retval = new SJaqlParser.writeOperator_return();
         retval.start = input.LT(1);
@@ -5348,18 +5357,18 @@ public class SJaqlParser extends SimpleParser {
         Token from=null;
         Token loc=null;
         Token file=null;
+        Token string_literal99=null;
         Token string_literal100=null;
-        Token string_literal101=null;
+        Token char_literal101=null;
         Token char_literal102=null;
-        Token char_literal103=null;
 
         EvaluationExpression from_tree=null;
         EvaluationExpression loc_tree=null;
         EvaluationExpression file_tree=null;
+        EvaluationExpression string_literal99_tree=null;
         EvaluationExpression string_literal100_tree=null;
-        EvaluationExpression string_literal101_tree=null;
+        EvaluationExpression char_literal101_tree=null;
         EvaluationExpression char_literal102_tree=null;
-        EvaluationExpression char_literal103_tree=null;
         RewriteRuleTokenStream stream_67=new RewriteRuleTokenStream(adaptor,"token 67");
         RewriteRuleTokenStream stream_66=new RewriteRuleTokenStream(adaptor,"token 66");
         RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
@@ -5370,19 +5379,19 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 34) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:286:2: ( 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:286:4: 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:290:2: ( 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:290:4: 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
             {
-            string_literal100=(Token)match(input,66,FOLLOW_66_in_writeOperator1827); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_66.add(string_literal100);
+            string_literal99=(Token)match(input,66,FOLLOW_66_in_writeOperator1830); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_66.add(string_literal99);
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_writeOperator1831); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_writeOperator1834); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
-            string_literal101=(Token)match(input,67,FOLLOW_67_in_writeOperator1833); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_67.add(string_literal101);
+            string_literal100=(Token)match(input,67,FOLLOW_67_in_writeOperator1836); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_67.add(string_literal100);
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:286:26: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:290:26: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
             int alt46=2;
             int LA46_0 = input.LA(1);
 
@@ -5415,9 +5424,9 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt46) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:286:27: (loc= ID )? file= STRING
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:290:27: (loc= ID )? file= STRING
                     {
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:286:30: (loc= ID )?
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:290:30: (loc= ID )?
                     int alt45=2;
                     int LA45_0 = input.LA(1);
 
@@ -5426,9 +5435,9 @@ public class SJaqlParser extends SimpleParser {
                     }
                     switch (alt45) {
                         case 1 :
-                            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: loc= ID
+                            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: loc= ID
                             {
-                            loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1838); if (state.failed) return retval; 
+                            loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1841); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_ID.add(loc);
 
 
@@ -5437,26 +5446,26 @@ public class SJaqlParser extends SimpleParser {
 
                     }
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1843); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1846); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
 
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:286:49: loc= ID '(' file= STRING ')'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:290:49: loc= ID '(' file= STRING ')'
                     {
-                    loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1849); if (state.failed) return retval; 
+                    loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1852); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(loc);
 
-                    char_literal102=(Token)match(input,30,FOLLOW_30_in_writeOperator1851); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_30.add(char_literal102);
+                    char_literal101=(Token)match(input,30,FOLLOW_30_in_writeOperator1854); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_30.add(char_literal101);
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1855); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1858); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
-                    char_literal103=(Token)match(input,32,FOLLOW_32_in_writeOperator1857); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_32.add(char_literal103);
+                    char_literal102=(Token)match(input,32,FOLLOW_32_in_writeOperator1860); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_32.add(char_literal102);
 
 
                     }
@@ -5486,7 +5495,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 292:3: ->
+            // 296:3: ->
             {
                 root_0 = null;
             }
@@ -5510,7 +5519,7 @@ public class SJaqlParser extends SimpleParser {
     // $ANTLR end "writeOperator"
 
     protected static class genericOperator_scope {
-        OperatorFactory.OperatorInfo operatorInfo;
+        OperatorInfo<?> operatorInfo;
     }
     protected Stack genericOperator_stack = new Stack();
 
@@ -5520,7 +5529,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "genericOperator"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:294:1: genericOperator : name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )* ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:298:1: genericOperator : name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )* ->;
     public final SJaqlParser.genericOperator_return genericOperator() throws RecognitionException {
         genericOperator_stack.push(new genericOperator_scope());
         SJaqlParser.genericOperator_return retval = new SJaqlParser.genericOperator_return();
@@ -5529,20 +5538,20 @@ public class SJaqlParser extends SimpleParser {
         EvaluationExpression root_0 = null;
 
         Token name=null;
-        Token char_literal107=null;
-        SJaqlParser.operatorFlag_return operatorFlag104 = null;
+        Token char_literal106=null;
+        SJaqlParser.operatorFlag_return operatorFlag103 = null;
 
-        SJaqlParser.arrayInput_return arrayInput105 = null;
+        SJaqlParser.arrayInput_return arrayInput104 = null;
 
-        SJaqlParser.input_return input106 = null;
+        SJaqlParser.input_return input105 = null;
 
-        SJaqlParser.input_return input108 = null;
+        SJaqlParser.input_return input107 = null;
 
-        SJaqlParser.operatorOption_return operatorOption109 = null;
+        SJaqlParser.operatorOption_return operatorOption108 = null;
 
 
         EvaluationExpression name_tree=null;
-        EvaluationExpression char_literal107_tree=null;
+        EvaluationExpression char_literal106_tree=null;
         RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleSubtreeStream stream_operatorOption=new RewriteRuleSubtreeStream(adaptor,"rule operatorOption");
@@ -5551,10 +5560,10 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_arrayInput=new RewriteRuleSubtreeStream(adaptor,"rule arrayInput");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 35) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:297:3: (name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )* ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:297:5: name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:301:3: (name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )* ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:301:5: name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )*
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1877); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1880); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
             if ( !(( (((genericOperator_scope)genericOperator_stack.peek()).operatorInfo = findOperatorGreedily(name)) != null )) ) {
@@ -5564,7 +5573,7 @@ public class SJaqlParser extends SimpleParser {
             if ( state.backtracking==0 ) {
                ((operator_scope)operator_stack.peek()).result = ((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.newInstance(); 
             }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:299:1: ( operatorFlag )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:303:1: ( operatorFlag )*
             loop47:
             do {
                 int alt47=2;
@@ -5577,14 +5586,14 @@ public class SJaqlParser extends SimpleParser {
 
                 switch (alt47) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: operatorFlag
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: operatorFlag
             	    {
-            	    pushFollow(FOLLOW_operatorFlag_in_genericOperator1885);
-            	    operatorFlag104=operatorFlag();
+            	    pushFollow(FOLLOW_operatorFlag_in_genericOperator1888);
+            	    operatorFlag103=operatorFlag();
 
             	    state._fsp--;
             	    if (state.failed) return retval;
-            	    if ( state.backtracking==0 ) stream_operatorFlag.add(operatorFlag104.getTree());
+            	    if ( state.backtracking==0 ) stream_operatorFlag.add(operatorFlag103.getTree());
 
             	    }
             	    break;
@@ -5594,7 +5603,7 @@ public class SJaqlParser extends SimpleParser {
                 }
             } while (true);
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:1: ( arrayInput | input ( ',' input )* )
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:304:1: ( arrayInput | input ( ',' input )* )
             int alt49=2;
             int LA49_0 = input.LA(1);
 
@@ -5613,27 +5622,27 @@ public class SJaqlParser extends SimpleParser {
             }
             switch (alt49) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:2: arrayInput
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:304:2: arrayInput
                     {
-                    pushFollow(FOLLOW_arrayInput_in_genericOperator1889);
-                    arrayInput105=arrayInput();
+                    pushFollow(FOLLOW_arrayInput_in_genericOperator1892);
+                    arrayInput104=arrayInput();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) stream_arrayInput.add(arrayInput105.getTree());
+                    if ( state.backtracking==0 ) stream_arrayInput.add(arrayInput104.getTree());
 
                     }
                     break;
                 case 2 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:15: input ( ',' input )*
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:304:15: input ( ',' input )*
                     {
-                    pushFollow(FOLLOW_input_in_genericOperator1893);
-                    input106=input();
+                    pushFollow(FOLLOW_input_in_genericOperator1896);
+                    input105=input();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) stream_input.add(input106.getTree());
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:21: ( ',' input )*
+                    if ( state.backtracking==0 ) stream_input.add(input105.getTree());
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:304:21: ( ',' input )*
                     loop48:
                     do {
                         int alt48=2;
@@ -5652,17 +5661,17 @@ public class SJaqlParser extends SimpleParser {
 
                         switch (alt48) {
                     	case 1 :
-                    	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:22: ',' input
+                    	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:304:22: ',' input
                     	    {
-                    	    char_literal107=(Token)match(input,31,FOLLOW_31_in_genericOperator1896); if (state.failed) return retval; 
-                    	    if ( state.backtracking==0 ) stream_31.add(char_literal107);
+                    	    char_literal106=(Token)match(input,31,FOLLOW_31_in_genericOperator1899); if (state.failed) return retval; 
+                    	    if ( state.backtracking==0 ) stream_31.add(char_literal106);
 
-                    	    pushFollow(FOLLOW_input_in_genericOperator1898);
-                    	    input108=input();
+                    	    pushFollow(FOLLOW_input_in_genericOperator1901);
+                    	    input107=input();
 
                     	    state._fsp--;
                     	    if (state.failed) return retval;
-                    	    if ( state.backtracking==0 ) stream_input.add(input108.getTree());
+                    	    if ( state.backtracking==0 ) stream_input.add(input107.getTree());
 
                     	    }
                     	    break;
@@ -5682,7 +5691,7 @@ public class SJaqlParser extends SimpleParser {
                if(state.backtracking == 0) 
                   getContext().getBindings().set("$", new JsonStreamExpression(((operator_scope)operator_stack.peek()).result).withTag(JsonStreamExpression.THIS_CONTEXT)); 
             }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:303:1: ( operatorOption )*
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:307:1: ( operatorOption )*
             loop50:
             do {
                 int alt50=2;
@@ -5701,14 +5710,14 @@ public class SJaqlParser extends SimpleParser {
 
                 switch (alt50) {
             	case 1 :
-            	    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: operatorOption
+            	    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: operatorOption
             	    {
-            	    pushFollow(FOLLOW_operatorOption_in_genericOperator1906);
-            	    operatorOption109=operatorOption();
+            	    pushFollow(FOLLOW_operatorOption_in_genericOperator1909);
+            	    operatorOption108=operatorOption();
 
             	    state._fsp--;
             	    if (state.failed) return retval;
-            	    if ( state.backtracking==0 ) stream_operatorOption.add(operatorOption109.getTree());
+            	    if ( state.backtracking==0 ) stream_operatorOption.add(operatorOption108.getTree());
 
             	    }
             	    break;
@@ -5732,7 +5741,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 303:17: ->
+            // 307:17: ->
             {
                 root_0 = null;
             }
@@ -5757,7 +5766,7 @@ public class SJaqlParser extends SimpleParser {
     // $ANTLR end "genericOperator"
 
     protected static class operatorOption_scope {
-        String optionName;
+        OperatorInfo.OperatorPropertyInfo property;
     }
     protected Stack operatorOption_stack = new Stack();
 
@@ -5767,7 +5776,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "operatorOption"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:305:1: operatorOption : name= ID ({...}?moreName= ID )? expr= contextAwareExpression[null] ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:309:1: operatorOption : name= ID {...}?expr= contextAwareExpression[null] ->;
     public final SJaqlParser.operatorOption_return operatorOption() throws RecognitionException {
         operatorOption_stack.push(new operatorOption_scope());
         SJaqlParser.operatorOption_return retval = new SJaqlParser.operatorOption_return();
@@ -5776,59 +5785,32 @@ public class SJaqlParser extends SimpleParser {
         EvaluationExpression root_0 = null;
 
         Token name=null;
-        Token moreName=null;
         SJaqlParser.contextAwareExpression_return expr = null;
 
 
         EvaluationExpression name_tree=null;
-        EvaluationExpression moreName_tree=null;
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleSubtreeStream stream_contextAwareExpression=new RewriteRuleSubtreeStream(adaptor,"rule contextAwareExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 36) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:309:2: (name= ID ({...}?moreName= ID )? expr= contextAwareExpression[null] ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:309:4: name= ID ({...}?moreName= ID )? expr= contextAwareExpression[null]
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:313:2: (name= ID {...}?expr= contextAwareExpression[null] ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:313:4: name= ID {...}?expr= contextAwareExpression[null]
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1926); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1929); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
-            if ( state.backtracking==0 ) {
-               ((operatorOption_scope)operatorOption_stack.peek()).optionName = (name!=null?name.getText():null); 
+            if ( !(( (((operatorOption_scope)operatorOption_stack.peek()).property = findOperatorPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, name)) != null )) ) {
+                if (state.backtracking>0) {state.failed=true; return retval;}
+                throw new FailedPredicateException(input, "operatorOption", " ($operatorOption::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, $name)) != null ");
             }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:310:1: ({...}?moreName= ID )?
-            int alt51=2;
-            alt51 = dfa51.predict(input);
-            switch (alt51) {
-                case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:310:2: {...}?moreName= ID
-                    {
-                    if ( !((!((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasProperty(((operatorOption_scope)operatorOption_stack.peek()).optionName))) ) {
-                        if (state.backtracking>0) {state.failed=true; return retval;}
-                        throw new FailedPredicateException(input, "operatorOption", "!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName)");
-                    }
-                    moreName=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1935); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_ID.add(moreName);
-
-                    if ( state.backtracking==0 ) {
-                       ((operatorOption_scope)operatorOption_stack.peek()).optionName = (name!=null?name.getText():null) + " " + (moreName!=null?moreName.getText():null);
-                    }
-
-                    }
-                    break;
-
-            }
-
-            pushFollow(FOLLOW_contextAwareExpression_in_operatorOption1945);
+            pushFollow(FOLLOW_contextAwareExpression_in_operatorOption1935);
             expr=contextAwareExpression(null);
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_contextAwareExpression.add(expr.getTree());
             if ( state.backtracking==0 ) {
-               
-                if(!((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasProperty(((operatorOption_scope)operatorOption_stack.peek()).optionName))
-                  throw new SimpleException(String.format("Unknown property %s for operator", (name!=null?name.getText():null)), name);
-              ((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.setProperty(((operatorOption_scope)operatorOption_stack.peek()).optionName, ((operator_scope)operator_stack.peek()).result, (expr!=null?((EvaluationExpression)expr.tree):null)); 
+               ((operatorOption_scope)operatorOption_stack.peek()).property.setValue(((operator_scope)operator_stack.peek()).result, (expr!=null?((EvaluationExpression)expr.tree):null)); 
             }
 
 
@@ -5844,7 +5826,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 315:107: ->
+            // 314:106: ->
             {
                 root_0 = null;
             }
@@ -5869,7 +5851,7 @@ public class SJaqlParser extends SimpleParser {
     // $ANTLR end "operatorOption"
 
     protected static class operatorFlag_scope {
-        String flagName;
+        OperatorInfo.OperatorPropertyInfo property;
     }
     protected Stack operatorFlag_stack = new Stack();
 
@@ -5879,7 +5861,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "operatorFlag"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:317:1: operatorFlag : name= ID ({...}?moreName= ID )? ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:316:1: operatorFlag : name= ID {...}? ->;
     public final SJaqlParser.operatorFlag_return operatorFlag() throws RecognitionException {
         operatorFlag_stack.push(new operatorFlag_scope());
         SJaqlParser.operatorFlag_return retval = new SJaqlParser.operatorFlag_return();
@@ -5888,56 +5870,26 @@ public class SJaqlParser extends SimpleParser {
         EvaluationExpression root_0 = null;
 
         Token name=null;
-        Token moreName=null;
 
         EvaluationExpression name_tree=null;
-        EvaluationExpression moreName_tree=null;
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 37) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:321:3: (name= ID ({...}?moreName= ID )? ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:321:5: name= ID ({...}?moreName= ID )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:320:3: (name= ID {...}? ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:320:5: name= ID {...}?
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1966); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1956); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
+            if ( !(( (((operatorFlag_scope)operatorFlag_stack.peek()).property = findOperatorPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, name)) != null )) ) {
+                if (state.backtracking>0) {state.failed=true; return retval;}
+                throw new FailedPredicateException(input, "operatorFlag", " ($operatorFlag::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, $name)) != null ");
+            }
             if ( state.backtracking==0 ) {
-               ((operatorFlag_scope)operatorFlag_stack.peek()).flagName = (name!=null?name.getText():null); 
-            }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:322:1: ({...}?moreName= ID )?
-            int alt52=2;
-            int LA52_0 = input.LA(1);
-
-            if ( (LA52_0==ID) ) {
-                int LA52_1 = input.LA(2);
-
-                if ( ((synpred81_SJaql()&&(!((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasFlag(((operatorFlag_scope)operatorFlag_stack.peek()).flagName)))) ) {
-                    alt52=1;
-                }
-            }
-            switch (alt52) {
-                case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:322:2: {...}?moreName= ID
-                    {
-                    if ( !((!((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasFlag(((operatorFlag_scope)operatorFlag_stack.peek()).flagName))) ) {
-                        if (state.backtracking>0) {state.failed=true; return retval;}
-                        throw new FailedPredicateException(input, "operatorFlag", "!$genericOperator::operatorInfo.hasFlag($operatorFlag::flagName)");
-                    }
-                    moreName=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1976); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_ID.add(moreName);
-
-                    if ( state.backtracking==0 ) {
-                       ((operatorFlag_scope)operatorFlag_stack.peek()).flagName = (name!=null?name.getText():null) + " " + (moreName!=null?moreName.getText():null);
-                    }
-
-                    }
-                    break;
-
-            }
-
-            if ( state.backtracking==0 ) {
-               setPropertySafely(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, ((operator_scope)operator_stack.peek()).result, ((operatorFlag_scope)operatorFlag_stack.peek()).flagName, true, name); 
+               if(!((operatorFlag_scope)operatorFlag_stack.peek()).property.isFlag())
+                  throw new SimpleException(String.format("Property %s is not a flag", (name!=null?name.getText():null)), name);
+                ((operatorFlag_scope)operatorFlag_stack.peek()).property.setValue(((operator_scope)operator_stack.peek()).result, true); 
             }
 
 
@@ -5953,7 +5905,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 324:112: ->
+            // 323:64: ->
             {
                 root_0 = null;
             }
@@ -5977,14 +5929,20 @@ public class SJaqlParser extends SimpleParser {
     }
     // $ANTLR end "operatorFlag"
 
+    protected static class input_scope {
+        OperatorInfo.InputPropertyInfo inputProperty;
+    }
+    protected Stack input_stack = new Stack();
+
     public static class input_return extends ParserRuleReturnScope {
         EvaluationExpression tree;
         public Object getTree() { return tree; }
     };
 
     // $ANTLR start "input"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:326:1: input : (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )? ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:325:1: input : (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )? ->;
     public final SJaqlParser.input_return input() throws RecognitionException {
+        input_stack.push(new input_scope());
         SJaqlParser.input_return retval = new SJaqlParser.input_return();
         retval.start = input.LT(1);
         int input_StartIndex = input.index();
@@ -5994,7 +5952,7 @@ public class SJaqlParser extends SimpleParser {
         Token name=null;
         Token from=null;
         Token inputOption=null;
-        Token string_literal110=null;
+        Token string_literal109=null;
         SJaqlParser.contextAwareExpression_return expr = null;
 
 
@@ -6002,7 +5960,7 @@ public class SJaqlParser extends SimpleParser {
         EvaluationExpression name_tree=null;
         EvaluationExpression from_tree=null;
         EvaluationExpression inputOption_tree=null;
-        EvaluationExpression string_literal110_tree=null;
+        EvaluationExpression string_literal109_tree=null;
         RewriteRuleTokenStream stream_68=new RewriteRuleTokenStream(adaptor,"token 68");
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_42=new RewriteRuleTokenStream(adaptor,"token 42");
@@ -6010,21 +5968,21 @@ public class SJaqlParser extends SimpleParser {
         RewriteRuleSubtreeStream stream_contextAwareExpression=new RewriteRuleSubtreeStream(adaptor,"rule contextAwareExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 38) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:327:2: ( (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )? ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:327:4: (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:3: ( (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )? ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:5: (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?
             {
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:327:16: (preserveFlag= 'preserve' )?
-            int alt53=2;
-            int LA53_0 = input.LA(1);
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:17: (preserveFlag= 'preserve' )?
+            int alt51=2;
+            int LA51_0 = input.LA(1);
 
-            if ( (LA53_0==68) ) {
-                alt53=1;
+            if ( (LA51_0==68) ) {
+                alt51=1;
             }
-            switch (alt53) {
+            switch (alt51) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: preserveFlag= 'preserve'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: preserveFlag= 'preserve'
                     {
-                    preserveFlag=(Token)match(input,68,FOLLOW_68_in_input1998); if (state.failed) return retval; 
+                    preserveFlag=(Token)match(input,68,FOLLOW_68_in_input1978); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_68.add(preserveFlag);
 
 
@@ -6035,26 +5993,26 @@ public class SJaqlParser extends SimpleParser {
 
             if ( state.backtracking==0 ) {
             }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:327:32: (name= VAR 'in' )?
-            int alt54=2;
-            int LA54_0 = input.LA(1);
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:33: (name= VAR 'in' )?
+            int alt52=2;
+            int LA52_0 = input.LA(1);
 
-            if ( (LA54_0==VAR) ) {
-                int LA54_1 = input.LA(2);
+            if ( (LA52_0==VAR) ) {
+                int LA52_1 = input.LA(2);
 
-                if ( (LA54_1==42) ) {
-                    alt54=1;
+                if ( (LA52_1==42) ) {
+                    alt52=1;
                 }
             }
-            switch (alt54) {
+            switch (alt52) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:327:33: name= VAR 'in'
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:328:34: name= VAR 'in'
                     {
-                    name=(Token)match(input,VAR,FOLLOW_VAR_in_input2006); if (state.failed) return retval; 
+                    name=(Token)match(input,VAR,FOLLOW_VAR_in_input1986); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(name);
 
-                    string_literal110=(Token)match(input,42,FOLLOW_42_in_input2008); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_42.add(string_literal110);
+                    string_literal109=(Token)match(input,42,FOLLOW_42_in_input1988); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_42.add(string_literal109);
 
 
                     }
@@ -6062,7 +6020,7 @@ public class SJaqlParser extends SimpleParser {
 
             }
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_input2014); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_input1994); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
             if ( state.backtracking==0 ) {
@@ -6084,28 +6042,28 @@ public class SJaqlParser extends SimpleParser {
                 }
 
             }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:343:1: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?
-            int alt55=2;
-            alt55 = dfa55.predict(input);
-            switch (alt55) {
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:344:1: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?
+            int alt53=2;
+            alt53 = dfa53.predict(input);
+            switch (alt53) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:343:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:344:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
                     {
-                    inputOption=(Token)match(input,ID,FOLLOW_ID_in_input2024); if (state.failed) return retval; 
+                    inputOption=(Token)match(input,ID,FOLLOW_ID_in_input2004); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(inputOption);
 
-                    if ( !((((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasInputProperty((inputOption!=null?inputOption.getText():null)))) ) {
+                    if ( !(( (((input_scope)input_stack.peek()).inputProperty = findInputPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, inputOption)) != null )) ) {
                         if (state.backtracking>0) {state.failed=true; return retval;}
-                        throw new FailedPredicateException(input, "input", "$genericOperator::operatorInfo.hasInputProperty($inputOption.text)");
+                        throw new FailedPredicateException(input, "input", " ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null ");
                     }
-                    pushFollow(FOLLOW_contextAwareExpression_in_input2033);
+                    pushFollow(FOLLOW_contextAwareExpression_in_input2012);
                     expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).numInputs - 1));
 
                     state._fsp--;
                     if (state.failed) return retval;
                     if ( state.backtracking==0 ) stream_contextAwareExpression.add(expr.getTree());
                     if ( state.backtracking==0 ) {
-                       ((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.setInputProperty((inputOption!=null?inputOption.getText():null), ((operator_scope)operator_stack.peek()).result, ((operator_scope)operator_stack.peek()).numInputs-1, (expr!=null?((EvaluationExpression)expr.tree):null)); 
+                       ((input_scope)input_stack.peek()).inputProperty.setValue(((operator_scope)operator_stack.peek()).result, ((operator_scope)operator_stack.peek()).numInputs-1, (expr!=null?((EvaluationExpression)expr.tree):null)); 
                     }
 
                     }
@@ -6132,7 +6090,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 348:1: ->
+            // 349:1: ->
             {
                 root_0 = null;
             }
@@ -6150,6 +6108,7 @@ public class SJaqlParser extends SimpleParser {
         }
              finally {
             if ( state.backtracking>0 ) { memoize(input, 38, input_StartIndex); }
+            input_stack.pop();
         }
         return retval;
     }
@@ -6161,7 +6120,7 @@ public class SJaqlParser extends SimpleParser {
     };
 
     // $ANTLR start "arrayInput"
-    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:350:1: arrayInput : '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->;
+    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:1: arrayInput : '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->;
     public final SJaqlParser.arrayInput_return arrayInput() throws RecognitionException {
         SJaqlParser.arrayInput_return retval = new SJaqlParser.arrayInput_return();
         retval.start = input.LT(1);
@@ -6169,18 +6128,18 @@ public class SJaqlParser extends SimpleParser {
         EvaluationExpression root_0 = null;
 
         Token from=null;
+        Token char_literal110=null;
         Token char_literal111=null;
         Token char_literal112=null;
-        Token char_literal113=null;
-        Token string_literal114=null;
+        Token string_literal113=null;
         Token names=null;
         List list_names=null;
 
         EvaluationExpression from_tree=null;
+        EvaluationExpression char_literal110_tree=null;
         EvaluationExpression char_literal111_tree=null;
         EvaluationExpression char_literal112_tree=null;
-        EvaluationExpression char_literal113_tree=null;
-        EvaluationExpression string_literal114_tree=null;
+        EvaluationExpression string_literal113_tree=null;
         EvaluationExpression names_tree=null;
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_42=new RewriteRuleTokenStream(adaptor,"token 42");
@@ -6190,33 +6149,33 @@ public class SJaqlParser extends SimpleParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 39) ) { return retval; }
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:3: ( '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->)
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:5: '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:3: ( '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->)
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:5: '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR
             {
-            char_literal111=(Token)match(input,63,FOLLOW_63_in_arrayInput2055); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_63.add(char_literal111);
+            char_literal110=(Token)match(input,63,FOLLOW_63_in_arrayInput2034); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_63.add(char_literal110);
 
-            names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput2059); if (state.failed) return retval; 
+            names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput2038); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(names);
 
             if (list_names==null) list_names=new ArrayList();
             list_names.add(names);
 
-            // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:20: ( ',' names+= VAR )?
-            int alt56=2;
-            int LA56_0 = input.LA(1);
+            // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:20: ( ',' names+= VAR )?
+            int alt54=2;
+            int LA54_0 = input.LA(1);
 
-            if ( (LA56_0==31) ) {
-                alt56=1;
+            if ( (LA54_0==31) ) {
+                alt54=1;
             }
-            switch (alt56) {
+            switch (alt54) {
                 case 1 :
-                    // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:351:21: ',' names+= VAR
+                    // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:352:21: ',' names+= VAR
                     {
-                    char_literal112=(Token)match(input,31,FOLLOW_31_in_arrayInput2062); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_31.add(char_literal112);
+                    char_literal111=(Token)match(input,31,FOLLOW_31_in_arrayInput2041); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_31.add(char_literal111);
 
-                    names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput2066); if (state.failed) return retval; 
+                    names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput2045); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(names);
 
                     if (list_names==null) list_names=new ArrayList();
@@ -6228,13 +6187,13 @@ public class SJaqlParser extends SimpleParser {
 
             }
 
-            char_literal113=(Token)match(input,64,FOLLOW_64_in_arrayInput2070); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_64.add(char_literal113);
+            char_literal112=(Token)match(input,64,FOLLOW_64_in_arrayInput2049); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_64.add(char_literal112);
 
-            string_literal114=(Token)match(input,42,FOLLOW_42_in_arrayInput2072); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_42.add(string_literal114);
+            string_literal113=(Token)match(input,42,FOLLOW_42_in_arrayInput2051); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_42.add(string_literal113);
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput2076); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput2055); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
             if ( state.backtracking==0 ) {
@@ -6259,7 +6218,7 @@ public class SJaqlParser extends SimpleParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 357:3: ->
+            // 358:3: ->
             {
                 root_0 = null;
             }
@@ -6284,8 +6243,8 @@ public class SJaqlParser extends SimpleParser {
 
     // $ANTLR start synpred8_SJaql
     public final void synpred8_SJaql_fragment() throws RecognitionException {   
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:110:5: ( ternaryExpression )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:110:5: ternaryExpression
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:117:5: ( ternaryExpression )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:117:5: ternaryExpression
         {
         pushFollow(FOLLOW_ternaryExpression_in_synpred8_SJaql340);
         ternaryExpression();
@@ -6306,28 +6265,28 @@ public class SJaqlParser extends SimpleParser {
         SJaqlParser.expression_return elseExpr = null;
 
 
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:4: (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:4: ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:4: (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:4: ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression )
         {
         pushFollow(FOLLOW_orExpression_in_synpred10_SJaql357);
         ifClause=orExpression();
 
         state._fsp--;
         if (state.failed) return ;
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:26: ( '?' (ifExpr= expression )? ':' elseExpr= expression )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:27: '?' (ifExpr= expression )? ':' elseExpr= expression
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:26: ( '?' (ifExpr= expression )? ':' elseExpr= expression )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:27: '?' (ifExpr= expression )? ':' elseExpr= expression
         {
         match(input,34,FOLLOW_34_in_synpred10_SJaql360); if (state.failed) return ;
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:114:37: (ifExpr= expression )?
-        int alt58=2;
-        int LA58_0 = input.LA(1);
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:121:37: (ifExpr= expression )?
+        int alt56=2;
+        int LA56_0 = input.LA(1);
 
-        if ( ((LA58_0>=ID && LA58_0<=STRING)||(LA58_0>=DECIMAL && LA58_0<=UINT)||LA58_0==30||(LA58_0>=52 && LA58_0<=55)||LA58_0==58||(LA58_0>=60 && LA58_0<=63)||(LA58_0>=65 && LA58_0<=66)) ) {
-            alt58=1;
+        if ( ((LA56_0>=ID && LA56_0<=STRING)||(LA56_0>=DECIMAL && LA56_0<=UINT)||LA56_0==30||(LA56_0>=52 && LA56_0<=55)||LA56_0==58||(LA56_0>=60 && LA56_0<=63)||(LA56_0>=65 && LA56_0<=66)) ) {
+            alt56=1;
         }
-        switch (alt58) {
+        switch (alt56) {
             case 1 :
-                // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: ifExpr= expression
+                // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:0:0: ifExpr= expression
                 {
                 pushFollow(FOLLOW_expression_in_synpred10_SJaql364);
                 ifExpr=expression();
@@ -6361,8 +6320,8 @@ public class SJaqlParser extends SimpleParser {
         SJaqlParser.expression_return ifClause2 = null;
 
 
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:116:4: (ifExpr2= orExpression 'if' ifClause2= expression )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:116:4: ifExpr2= orExpression 'if' ifClause2= expression
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:123:4: (ifExpr2= orExpression 'if' ifClause2= expression )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:123:4: ifExpr2= orExpression 'if' ifClause2= expression
         {
         pushFollow(FOLLOW_orExpression_in_synpred11_SJaql394);
         ifExpr2=orExpression();
@@ -6386,8 +6345,8 @@ public class SJaqlParser extends SimpleParser {
         SJaqlParser.generalPathExpression_return expr = null;
 
 
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:164:5: ( '(' type= ID ')' expr= generalPathExpression )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:164:5: '(' type= ID ')' expr= generalPathExpression
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:5: ( '(' type= ID ')' expr= generalPathExpression )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:5: '(' type= ID ')' expr= generalPathExpression
         {
         match(input,30,FOLLOW_30_in_synpred32_SJaql864); if (state.failed) return ;
         type=(Token)match(input,ID,FOLLOW_ID_in_synpred32_SJaql868); if (state.failed) return ;
@@ -6408,8 +6367,8 @@ public class SJaqlParser extends SimpleParser {
         SJaqlParser.generalPathExpression_return expr = null;
 
 
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:165:4: (expr= generalPathExpression 'as' type= ID )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:165:4: expr= generalPathExpression 'as' type= ID
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:172:4: (expr= generalPathExpression 'as' type= ID )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:172:4: expr= generalPathExpression 'as' type= ID
         {
         pushFollow(FOLLOW_generalPathExpression_in_synpred33_SJaql881);
         expr=generalPathExpression();
@@ -6430,8 +6389,8 @@ public class SJaqlParser extends SimpleParser {
         SJaqlParser.pathExpression_return path = null;
 
 
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:4: (value= valueExpression path= pathExpression )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:171:4: value= valueExpression path= pathExpression
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:4: (value= valueExpression path= pathExpression )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:178:4: value= valueExpression path= pathExpression
         {
         pushFollow(FOLLOW_valueExpression_in_synpred34_SJaql921);
         value=valueExpression();
@@ -6452,15 +6411,15 @@ public class SJaqlParser extends SimpleParser {
     public final void synpred37_SJaql_fragment() throws RecognitionException {   
         Token field=null;
 
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:7: ( ( '.' (field= ID ) ) )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:7: ( '.' (field= ID ) )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:7: ( ( '.' (field= ID ) ) )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:7: ( '.' (field= ID ) )
         {
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:7: ( '.' (field= ID ) )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:8: '.' (field= ID )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:7: ( '.' (field= ID ) )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:8: '.' (field= ID )
         {
         match(input,57,FOLLOW_57_in_synpred37_SJaql1037); if (state.failed) return ;
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:12: (field= ID )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:185:13: field= ID
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:12: (field= ID )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:192:13: field= ID
         {
         field=(Token)match(input,ID,FOLLOW_ID_in_synpred37_SJaql1042); if (state.failed) return ;
 
@@ -6476,8 +6435,8 @@ public class SJaqlParser extends SimpleParser {
 
     // $ANTLR start synpred38_SJaql
     public final void synpred38_SJaql_fragment() throws RecognitionException {   
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:186:11: ( arrayAccess )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:186:11: arrayAccess
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:193:11: ( arrayAccess )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:193:11: arrayAccess
         {
         pushFollow(FOLLOW_arrayAccess_in_synpred38_SJaql1060);
         arrayAccess();
@@ -6491,10 +6450,21 @@ public class SJaqlParser extends SimpleParser {
 
     // $ANTLR start synpred42_SJaql
     public final void synpred42_SJaql_fragment() throws RecognitionException {   
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:193:5: ( streamIndexAccess )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:193:5: streamIndexAccess
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:200:4: ( VAR )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:200:4: VAR
         {
-        pushFollow(FOLLOW_streamIndexAccess_in_synpred42_SJaql1100);
+        match(input,VAR,FOLLOW_VAR_in_synpred42_SJaql1099); if (state.failed) return ;
+
+        }
+    }
+    // $ANTLR end synpred42_SJaql
+
+    // $ANTLR start synpred44_SJaql
+    public final void synpred44_SJaql_fragment() throws RecognitionException {   
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:202:5: ( streamIndexAccess )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:202:5: streamIndexAccess
+        {
+        pushFollow(FOLLOW_streamIndexAccess_in_synpred44_SJaql1122);
         streamIndexAccess();
 
         state._fsp--;
@@ -6502,26 +6472,15 @@ public class SJaqlParser extends SimpleParser {
 
         }
     }
-    // $ANTLR end synpred42_SJaql
-
-    // $ANTLR start synpred43_SJaql
-    public final void synpred43_SJaql_fragment() throws RecognitionException {   
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:194:4: ( VAR )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:194:4: VAR
-        {
-        match(input,VAR,FOLLOW_VAR_in_synpred43_SJaql1105); if (state.failed) return ;
-
-        }
-    }
-    // $ANTLR end synpred43_SJaql
+    // $ANTLR end synpred44_SJaql
 
     // $ANTLR start synpred78_SJaql
     public final void synpred78_SJaql_fragment() throws RecognitionException {   
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:22: ( ',' input )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:300:22: ',' input
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:304:22: ( ',' input )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:304:22: ',' input
         {
-        match(input,31,FOLLOW_31_in_synpred78_SJaql1896); if (state.failed) return ;
-        pushFollow(FOLLOW_input_in_synpred78_SJaql1898);
+        match(input,31,FOLLOW_31_in_synpred78_SJaql1899); if (state.failed) return ;
+        pushFollow(FOLLOW_input_in_synpred78_SJaql1901);
         input();
 
         state._fsp--;
@@ -6533,10 +6492,10 @@ public class SJaqlParser extends SimpleParser {
 
     // $ANTLR start synpred79_SJaql
     public final void synpred79_SJaql_fragment() throws RecognitionException {   
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:303:1: ( operatorOption )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:303:1: operatorOption
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:307:1: ( operatorOption )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:307:1: operatorOption
         {
-        pushFollow(FOLLOW_operatorOption_in_synpred79_SJaql1906);
+        pushFollow(FOLLOW_operatorOption_in_synpred79_SJaql1909);
         operatorOption();
 
         state._fsp--;
@@ -6546,55 +6505,21 @@ public class SJaqlParser extends SimpleParser {
     }
     // $ANTLR end synpred79_SJaql
 
-    // $ANTLR start synpred80_SJaql
-    public final void synpred80_SJaql_fragment() throws RecognitionException {   
-        Token moreName=null;
-
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:310:2: ({...}?moreName= ID )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:310:2: {...}?moreName= ID
-        {
-        if ( !((!((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasProperty(((operatorOption_scope)operatorOption_stack.peek()).optionName))) ) {
-            if (state.backtracking>0) {state.failed=true; return ;}
-            throw new FailedPredicateException(input, "synpred80_SJaql", "!$genericOperator::operatorInfo.hasProperty($operatorOption::optionName)");
-        }
-        moreName=(Token)match(input,ID,FOLLOW_ID_in_synpred80_SJaql1935); if (state.failed) return ;
-
-        }
-    }
-    // $ANTLR end synpred80_SJaql
-
-    // $ANTLR start synpred81_SJaql
-    public final void synpred81_SJaql_fragment() throws RecognitionException {   
-        Token moreName=null;
-
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:322:2: ({...}?moreName= ID )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:322:2: {...}?moreName= ID
-        {
-        if ( !((!((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasFlag(((operatorFlag_scope)operatorFlag_stack.peek()).flagName))) ) {
-            if (state.backtracking>0) {state.failed=true; return ;}
-            throw new FailedPredicateException(input, "synpred81_SJaql", "!$genericOperator::operatorInfo.hasFlag($operatorFlag::flagName)");
-        }
-        moreName=(Token)match(input,ID,FOLLOW_ID_in_synpred81_SJaql1976); if (state.failed) return ;
-
-        }
-    }
-    // $ANTLR end synpred81_SJaql
-
-    // $ANTLR start synpred84_SJaql
-    public final void synpred84_SJaql_fragment() throws RecognitionException {   
+    // $ANTLR start synpred82_SJaql
+    public final void synpred82_SJaql_fragment() throws RecognitionException {   
         Token inputOption=null;
         SJaqlParser.contextAwareExpression_return expr = null;
 
 
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:343:2: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )
-        // /home/arv/workspace/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:343:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:344:2: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )
+        // /Users/arv/Proggn/Uni/PhD/private/simple/simple-jaql/src/main/java/eu/stratosphere/simple/jaql/SJaql.g:344:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
         {
-        inputOption=(Token)match(input,ID,FOLLOW_ID_in_synpred84_SJaql2024); if (state.failed) return ;
-        if ( !((((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasInputProperty((inputOption!=null?inputOption.getText():null)))) ) {
+        inputOption=(Token)match(input,ID,FOLLOW_ID_in_synpred82_SJaql2004); if (state.failed) return ;
+        if ( !(( (((input_scope)input_stack.peek()).inputProperty = findInputPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, inputOption)) != null )) ) {
             if (state.backtracking>0) {state.failed=true; return ;}
-            throw new FailedPredicateException(input, "synpred84_SJaql", "$genericOperator::operatorInfo.hasInputProperty($inputOption.text)");
+            throw new FailedPredicateException(input, "synpred82_SJaql", " ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null ");
         }
-        pushFollow(FOLLOW_contextAwareExpression_in_synpred84_SJaql2033);
+        pushFollow(FOLLOW_contextAwareExpression_in_synpred82_SJaql2012);
         expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).numInputs - 1));
 
         state._fsp--;
@@ -6602,7 +6527,7 @@ public class SJaqlParser extends SimpleParser {
 
         }
     }
-    // $ANTLR end synpred84_SJaql
+    // $ANTLR end synpred82_SJaql
 
     // Delegated rules
 
@@ -6620,25 +6545,11 @@ public class SJaqlParser extends SimpleParser {
         state.failed=false;
         return success;
     }
-    public final boolean synpred43_SJaql() {
+    public final boolean synpred44_SJaql() {
         state.backtracking++;
         int start = input.mark();
         try {
-            synpred43_SJaql_fragment(); // can never throw exception
-        } catch (RecognitionException re) {
-            System.err.println("impossible: "+re);
-        }
-        boolean success = !state.failed;
-        input.rewind(start);
-        state.backtracking--;
-        state.failed=false;
-        return success;
-    }
-    public final boolean synpred81_SJaql() {
-        state.backtracking++;
-        int start = input.mark();
-        try {
-            synpred81_SJaql_fragment(); // can never throw exception
+            synpred44_SJaql_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6653,20 +6564,6 @@ public class SJaqlParser extends SimpleParser {
         int start = input.mark();
         try {
             synpred79_SJaql_fragment(); // can never throw exception
-        } catch (RecognitionException re) {
-            System.err.println("impossible: "+re);
-        }
-        boolean success = !state.failed;
-        input.rewind(start);
-        state.backtracking--;
-        state.failed=false;
-        return success;
-    }
-    public final boolean synpred84_SJaql() {
-        state.backtracking++;
-        int start = input.mark();
-        try {
-            synpred84_SJaql_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6774,20 +6671,6 @@ public class SJaqlParser extends SimpleParser {
         state.failed=false;
         return success;
     }
-    public final boolean synpred80_SJaql() {
-        state.backtracking++;
-        int start = input.mark();
-        try {
-            synpred80_SJaql_fragment(); // can never throw exception
-        } catch (RecognitionException re) {
-            System.err.println("impossible: "+re);
-        }
-        boolean success = !state.failed;
-        input.rewind(start);
-        state.backtracking--;
-        state.failed=false;
-        return success;
-    }
     public final boolean synpred38_SJaql() {
         state.backtracking++;
         int start = input.mark();
@@ -6816,6 +6699,20 @@ public class SJaqlParser extends SimpleParser {
         state.failed=false;
         return success;
     }
+    public final boolean synpred82_SJaql() {
+        state.backtracking++;
+        int start = input.mark();
+        try {
+            synpred82_SJaql_fragment(); // can never throw exception
+        } catch (RecognitionException re) {
+            System.err.println("impossible: "+re);
+        }
+        boolean success = !state.failed;
+        input.rewind(start);
+        state.backtracking--;
+        state.failed=false;
+        return success;
+    }
 
 
     protected DFA5 dfa5 = new DFA5(this);
@@ -6823,8 +6720,7 @@ public class SJaqlParser extends SimpleParser {
     protected DFA22 dfa22 = new DFA22(this);
     protected DFA23 dfa23 = new DFA23(this);
     protected DFA26 dfa26 = new DFA26(this);
-    protected DFA51 dfa51 = new DFA51(this);
-    protected DFA55 dfa55 = new DFA55(this);
+    protected DFA53 dfa53 = new DFA53(this);
     static final String DFA5_eotS =
         "\17\uffff";
     static final String DFA5_eofS =
@@ -6837,7 +6733,7 @@ public class SJaqlParser extends SimpleParser {
     static final String DFA5_acceptS =
         "\1\uffff\1\1\1\uffff\1\2\13\uffff";
     static final String DFA5_specialS =
-        "\6\uffff\1\1\1\0\6\uffff\1\2}>";
+        "\6\uffff\1\0\1\1\6\uffff\1\2}>";
     static final String[] DFA5_transitionS = {
             "\1\2\2\1\1\uffff\3\1\21\uffff\1\1\25\uffff\4\1\2\uffff\1\1\1"+
             "\uffff\4\1\1\uffff\2\3",
@@ -6895,28 +6791,13 @@ public class SJaqlParser extends SimpleParser {
             this.transition = DFA5_transition;
         }
         public String getDescription() {
-            return "109:1: expression : ( ternaryExpression | operatorExpression );";
+            return "116:1: expression : ( ternaryExpression | operatorExpression );";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
         	int _s = s;
             switch ( s ) {
                     case 0 : 
-                        int LA5_7 = input.LA(1);
-
-                         
-                        int index5_7 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred8_SJaql()) ) {s = 1;}
-
-                        else if ( (true) ) {s = 3;}
-
-                         
-                        input.seek(index5_7);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 1 : 
                         int LA5_6 = input.LA(1);
 
                          
@@ -6929,6 +6810,21 @@ public class SJaqlParser extends SimpleParser {
 
                          
                         input.seek(index5_6);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 1 : 
+                        int LA5_7 = input.LA(1);
+
+                         
+                        int index5_7 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred8_SJaql()) ) {s = 1;}
+
+                        else if ( (true) ) {s = 3;}
+
+                         
+                        input.seek(index5_7);
                         if ( s>=0 ) return s;
                         break;
                     case 2 : 
@@ -7020,7 +6916,7 @@ public class SJaqlParser extends SimpleParser {
             this.transition = DFA7_transition;
         }
         public String getDescription() {
-            return "113:1: ternaryExpression : (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression );";
+            return "120:1: ternaryExpression : (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression );";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
@@ -7351,7 +7247,7 @@ public class SJaqlParser extends SimpleParser {
             this.transition = DFA22_transition;
         }
         public String getDescription() {
-            return "164:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )";
+            return "171:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
@@ -7608,7 +7504,7 @@ public class SJaqlParser extends SimpleParser {
             this.transition = DFA23_transition;
         }
         public String getDescription() {
-            return "170:1: generalPathExpression : (value= valueExpression path= pathExpression -> | valueExpression );";
+            return "177:1: generalPathExpression : (value= valueExpression path= pathExpression -> | valueExpression );";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
@@ -7805,13 +7701,13 @@ public class SJaqlParser extends SimpleParser {
     static final String DFA26_eotS =
         "\17\uffff";
     static final String DFA26_eofS =
-        "\1\uffff\1\10\2\uffff\1\12\12\uffff";
+        "\1\uffff\1\10\2\uffff\1\11\12\uffff";
     static final String DFA26_minS =
-        "\2\6\2\uffff\1\6\4\uffff\1\6\2\uffff\2\43\1\0";
+        "\2\6\2\uffff\1\6\5\uffff\1\6\2\43\1\uffff\1\0";
     static final String DFA26_maxS =
-        "\1\77\1\100\2\uffff\1\100\4\uffff\1\77\2\uffff\2\100\1\0";
+        "\1\77\1\100\2\uffff\1\100\5\uffff\1\77\2\100\1\uffff\1\0";
     static final String DFA26_acceptS =
-        "\2\uffff\1\2\1\3\1\uffff\1\7\1\10\1\1\1\6\1\uffff\1\5\1\4\3\uffff";
+        "\2\uffff\1\2\1\3\1\uffff\1\7\1\10\1\1\1\5\1\4\3\uffff\1\6\1\uffff";
     static final String DFA26_specialS =
         "\16\uffff\1\0}>";
     static final String[] DFA26_transitionS = {
@@ -7821,18 +7717,18 @@ public class SJaqlParser extends SimpleParser {
             "\10\4\uffff\2\10\1\uffff\1\10\3\uffff\2\10",
             "",
             "",
-            "\1\12\2\uffff\1\12\20\uffff\1\12\4\uffff\2\12\1\uffff\22\12"+
-            "\4\uffff\2\12\1\uffff\1\12\3\uffff\1\11\1\12",
+            "\1\11\2\uffff\1\11\20\uffff\1\11\4\uffff\2\11\1\uffff\22\11"+
+            "\4\uffff\2\11\1\uffff\1\11\3\uffff\1\12\1\11",
             "",
             "",
             "",
             "",
-            "\3\13\1\12\1\13\1\14\1\15\21\uffff\1\13\33\uffff\1\13\1\uffff"+
-            "\4\13",
             "",
+            "\3\15\1\11\1\15\1\13\1\14\21\uffff\1\15\33\uffff\1\15\1\uffff"+
+            "\4\15",
+            "\1\11\25\uffff\1\15\5\uffff\1\15\1\16",
+            "\1\11\25\uffff\1\15\5\uffff\1\15\1\16",
             "",
-            "\1\12\25\uffff\1\13\5\uffff\1\13\1\16",
-            "\1\12\25\uffff\1\13\5\uffff\1\13\1\16",
             "\1\uffff"
     };
 
@@ -7866,7 +7762,7 @@ public class SJaqlParser extends SimpleParser {
             this.transition = DFA26_transition;
         }
         public String getDescription() {
-            return "189:1: valueExpression : ( methodCall[null] | parenthesesExpression | literal | streamIndexAccess | VAR -> | ID {...}? => -> | arrayCreation | objectCreation );";
+            return "196:1: valueExpression : ( methodCall[null] | parenthesesExpression | literal | VAR -> | ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation );";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
@@ -7879,9 +7775,9 @@ public class SJaqlParser extends SimpleParser {
                         int index26_14 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred42_SJaql()) ) {s = 11;}
+                        if ( (synpred42_SJaql()) ) {s = 9;}
 
-                        else if ( (synpred43_SJaql()) ) {s = 10;}
+                        else if ( (synpred44_SJaql()) ) {s = 13;}
 
                          
                         input.seek(index26_14);
@@ -7895,113 +7791,19 @@ public class SJaqlParser extends SimpleParser {
             throw nvae;
         }
     }
-    static final String DFA51_eotS =
-        "\23\uffff";
-    static final String DFA51_eofS =
-        "\23\uffff";
-    static final String DFA51_minS =
-        "\1\6\1\0\21\uffff";
-    static final String DFA51_maxS =
-        "\1\102\1\0\21\uffff";
-    static final String DFA51_acceptS =
-        "\2\uffff\1\2\17\uffff\1\1";
-    static final String DFA51_specialS =
-        "\1\uffff\1\0\21\uffff}>";
-    static final String[] DFA51_transitionS = {
-            "\1\1\2\2\1\uffff\3\2\21\uffff\1\2\25\uffff\4\2\2\uffff\1\2\1"+
-            "\uffff\4\2\1\uffff\2\2",
-            "\1\uffff",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-    };
-
-    static final short[] DFA51_eot = DFA.unpackEncodedString(DFA51_eotS);
-    static final short[] DFA51_eof = DFA.unpackEncodedString(DFA51_eofS);
-    static final char[] DFA51_min = DFA.unpackEncodedStringToUnsignedChars(DFA51_minS);
-    static final char[] DFA51_max = DFA.unpackEncodedStringToUnsignedChars(DFA51_maxS);
-    static final short[] DFA51_accept = DFA.unpackEncodedString(DFA51_acceptS);
-    static final short[] DFA51_special = DFA.unpackEncodedString(DFA51_specialS);
-    static final short[][] DFA51_transition;
-
-    static {
-        int numStates = DFA51_transitionS.length;
-        DFA51_transition = new short[numStates][];
-        for (int i=0; i<numStates; i++) {
-            DFA51_transition[i] = DFA.unpackEncodedString(DFA51_transitionS[i]);
-        }
-    }
-
-    class DFA51 extends DFA {
-
-        public DFA51(BaseRecognizer recognizer) {
-            this.recognizer = recognizer;
-            this.decisionNumber = 51;
-            this.eot = DFA51_eot;
-            this.eof = DFA51_eof;
-            this.min = DFA51_min;
-            this.max = DFA51_max;
-            this.accept = DFA51_accept;
-            this.special = DFA51_special;
-            this.transition = DFA51_transition;
-        }
-        public String getDescription() {
-            return "310:1: ({...}?moreName= ID )?";
-        }
-        public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
-            TokenStream input = (TokenStream)_input;
-        	int _s = s;
-            switch ( s ) {
-                    case 0 : 
-                        int LA51_1 = input.LA(1);
-
-                         
-                        int index51_1 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( ((synpred80_SJaql()&&(!((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.hasProperty(((operatorOption_scope)operatorOption_stack.peek()).optionName)))) ) {s = 18;}
-
-                        else if ( (true) ) {s = 2;}
-
-                         
-                        input.seek(index51_1);
-                        if ( s>=0 ) return s;
-                        break;
-            }
-            if (state.backtracking>0) {state.failed=true; return -1;}
-            NoViableAltException nvae =
-                new NoViableAltException(getDescription(), 51, _s, input);
-            error(nvae);
-            throw nvae;
-        }
-    }
-    static final String DFA55_eotS =
+    static final String DFA53_eotS =
         "\12\uffff";
-    static final String DFA55_eofS =
+    static final String DFA53_eofS =
         "\1\2\11\uffff";
-    static final String DFA55_minS =
+    static final String DFA53_minS =
         "\1\6\1\0\10\uffff";
-    static final String DFA55_maxS =
+    static final String DFA53_maxS =
         "\1\100\1\0\10\uffff";
-    static final String DFA55_acceptS =
+    static final String DFA53_acceptS =
         "\2\uffff\1\2\6\uffff\1\1";
-    static final String DFA55_specialS =
+    static final String DFA53_specialS =
         "\1\uffff\1\0\10\uffff}>";
-    static final String[] DFA55_transitionS = {
+    static final String[] DFA53_transitionS = {
             "\1\1\23\uffff\1\2\4\uffff\2\2\2\uffff\1\2\27\uffff\1\2\4\uffff"+
             "\1\2",
             "\1\uffff",
@@ -8015,61 +7817,61 @@ public class SJaqlParser extends SimpleParser {
             ""
     };
 
-    static final short[] DFA55_eot = DFA.unpackEncodedString(DFA55_eotS);
-    static final short[] DFA55_eof = DFA.unpackEncodedString(DFA55_eofS);
-    static final char[] DFA55_min = DFA.unpackEncodedStringToUnsignedChars(DFA55_minS);
-    static final char[] DFA55_max = DFA.unpackEncodedStringToUnsignedChars(DFA55_maxS);
-    static final short[] DFA55_accept = DFA.unpackEncodedString(DFA55_acceptS);
-    static final short[] DFA55_special = DFA.unpackEncodedString(DFA55_specialS);
-    static final short[][] DFA55_transition;
+    static final short[] DFA53_eot = DFA.unpackEncodedString(DFA53_eotS);
+    static final short[] DFA53_eof = DFA.unpackEncodedString(DFA53_eofS);
+    static final char[] DFA53_min = DFA.unpackEncodedStringToUnsignedChars(DFA53_minS);
+    static final char[] DFA53_max = DFA.unpackEncodedStringToUnsignedChars(DFA53_maxS);
+    static final short[] DFA53_accept = DFA.unpackEncodedString(DFA53_acceptS);
+    static final short[] DFA53_special = DFA.unpackEncodedString(DFA53_specialS);
+    static final short[][] DFA53_transition;
 
     static {
-        int numStates = DFA55_transitionS.length;
-        DFA55_transition = new short[numStates][];
+        int numStates = DFA53_transitionS.length;
+        DFA53_transition = new short[numStates][];
         for (int i=0; i<numStates; i++) {
-            DFA55_transition[i] = DFA.unpackEncodedString(DFA55_transitionS[i]);
+            DFA53_transition[i] = DFA.unpackEncodedString(DFA53_transitionS[i]);
         }
     }
 
-    class DFA55 extends DFA {
+    class DFA53 extends DFA {
 
-        public DFA55(BaseRecognizer recognizer) {
+        public DFA53(BaseRecognizer recognizer) {
             this.recognizer = recognizer;
-            this.decisionNumber = 55;
-            this.eot = DFA55_eot;
-            this.eof = DFA55_eof;
-            this.min = DFA55_min;
-            this.max = DFA55_max;
-            this.accept = DFA55_accept;
-            this.special = DFA55_special;
-            this.transition = DFA55_transition;
+            this.decisionNumber = 53;
+            this.eot = DFA53_eot;
+            this.eof = DFA53_eof;
+            this.min = DFA53_min;
+            this.max = DFA53_max;
+            this.accept = DFA53_accept;
+            this.special = DFA53_special;
+            this.transition = DFA53_transition;
         }
         public String getDescription() {
-            return "343:1: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?";
+            return "344:1: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
         	int _s = s;
             switch ( s ) {
                     case 0 : 
-                        int LA55_1 = input.LA(1);
+                        int LA53_1 = input.LA(1);
 
                          
-                        int index55_1 = input.index();
+                        int index53_1 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred84_SJaql()) ) {s = 9;}
+                        if ( (synpred82_SJaql()) ) {s = 9;}
 
                         else if ( (true) ) {s = 2;}
 
                          
-                        input.seek(index55_1);
+                        input.seek(index53_1);
                         if ( s>=0 ) return s;
                         break;
             }
             if (state.backtracking>0) {state.failed=true; return -1;}
             NoViableAltException nvae =
-                new NoViableAltException(getDescription(), 55, _s, input);
+                new NoViableAltException(getDescription(), 53, _s, input);
             error(nvae);
             throw nvae;
         }
@@ -8173,9 +7975,9 @@ public class SJaqlParser extends SimpleParser {
     public static final BitSet FOLLOW_methodCall_in_valueExpression1081 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_parenthesesExpression_in_valueExpression1087 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_literal_in_valueExpression1093 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_streamIndexAccess_in_valueExpression1100 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_valueExpression1105 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_valueExpression1115 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_valueExpression1099 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_valueExpression1109 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_streamIndexAccess_in_valueExpression1122 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_arrayCreation_in_valueExpression1127 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_objectCreation_in_valueExpression1133 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_operator_in_operatorExpression1146 = new BitSet(new long[]{0x0000000000000002L});
@@ -8202,88 +8004,86 @@ public class SJaqlParser extends SimpleParser {
     public static final BitSet FOLLOW_expression_in_fieldAssignment1354 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_28_in_fieldAssignment1366 = new BitSet(new long[]{0x0000000000000040L,0x0000000000000006L});
     public static final BitSet FOLLOW_operator_in_fieldAssignment1370 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_58_in_objectCreation1412 = new BitSet(new long[]{0x08000000000000C0L});
-    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1415 = new BitSet(new long[]{0x0800000080000000L});
-    public static final BitSet FOLLOW_31_in_objectCreation1418 = new BitSet(new long[]{0x00000000000000C0L});
-    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1420 = new BitSet(new long[]{0x0800000080000000L});
-    public static final BitSet FOLLOW_31_in_objectCreation1424 = new BitSet(new long[]{0x0800000000000000L});
-    public static final BitSet FOLLOW_59_in_objectCreation1429 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_60_in_literal1453 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_61_in_literal1469 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_DECIMAL_in_literal1485 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_STRING_in_literal1501 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_INTEGER_in_literal1518 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_UINT_in_literal1535 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_62_in_literal1550 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1564 = new BitSet(new long[]{0x0000000000000200L});
-    public static final BitSet FOLLOW_STAR_in_arrayAccess1566 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayAccess1568 = new BitSet(new long[]{0x8200000000000000L});
-    public static final BitSet FOLLOW_pathExpression_in_arrayAccess1572 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1592 = new BitSet(new long[]{0x0000000000001800L});
-    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1597 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_UINT_in_arrayAccess1603 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayAccess1606 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1624 = new BitSet(new long[]{0x0000000000001800L});
-    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1629 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_UINT_in_arrayAccess1635 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_arrayAccess1638 = new BitSet(new long[]{0x0000000000001800L});
-    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1643 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_UINT_in_arrayAccess1649 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayAccess1652 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_streamIndexAccess1678 = new BitSet(new long[]{0x8000000000000000L});
-    public static final BitSet FOLLOW_63_in_streamIndexAccess1688 = new BitSet(new long[]{0xF400000040001DC0L});
-    public static final BitSet FOLLOW_generalPathExpression_in_streamIndexAccess1692 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_streamIndexAccess1694 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayCreation1712 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_expression_in_arrayCreation1716 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_31_in_arrayCreation1719 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_expression_in_arrayCreation1723 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_31_in_arrayCreation1727 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayCreation1730 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_readOperator_in_operator1767 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_writeOperator_in_operator1771 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_genericOperator_in_operator1775 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_65_in_readOperator1789 = new BitSet(new long[]{0x0000000000000140L});
-    public static final BitSet FOLLOW_ID_in_readOperator1794 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_readOperator1799 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_readOperator1805 = new BitSet(new long[]{0x0000000040000000L});
-    public static final BitSet FOLLOW_30_in_readOperator1807 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_readOperator1811 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_readOperator1813 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_66_in_writeOperator1827 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_writeOperator1831 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000008L});
-    public static final BitSet FOLLOW_67_in_writeOperator1833 = new BitSet(new long[]{0x0000000000000140L});
-    public static final BitSet FOLLOW_ID_in_writeOperator1838 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_writeOperator1843 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_writeOperator1849 = new BitSet(new long[]{0x0000000040000000L});
-    public static final BitSet FOLLOW_30_in_writeOperator1851 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_writeOperator1855 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_writeOperator1857 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_genericOperator1877 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000010L});
-    public static final BitSet FOLLOW_operatorFlag_in_genericOperator1885 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000010L});
-    public static final BitSet FOLLOW_arrayInput_in_genericOperator1889 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_input_in_genericOperator1893 = new BitSet(new long[]{0x0000000080000042L});
-    public static final BitSet FOLLOW_31_in_genericOperator1896 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000010L});
-    public static final BitSet FOLLOW_input_in_genericOperator1898 = new BitSet(new long[]{0x0000000080000042L});
-    public static final BitSet FOLLOW_operatorOption_in_genericOperator1906 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_operatorOption1926 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_ID_in_operatorOption1935 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_contextAwareExpression_in_operatorOption1945 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_operatorFlag1966 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_operatorFlag1976 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_68_in_input1998 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_input2006 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_input2008 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_input2014 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_input2024 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_contextAwareExpression_in_input2033 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayInput2055 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput2059 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_31_in_arrayInput2062 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput2066 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayInput2070 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_arrayInput2072 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput2076 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_58_in_objectCreation1413 = new BitSet(new long[]{0x08000000000000C0L});
+    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1416 = new BitSet(new long[]{0x0800000080000000L});
+    public static final BitSet FOLLOW_31_in_objectCreation1419 = new BitSet(new long[]{0x00000000000000C0L});
+    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1421 = new BitSet(new long[]{0x0800000080000000L});
+    public static final BitSet FOLLOW_31_in_objectCreation1425 = new BitSet(new long[]{0x0800000000000000L});
+    public static final BitSet FOLLOW_59_in_objectCreation1430 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_60_in_literal1454 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_61_in_literal1470 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_DECIMAL_in_literal1486 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_STRING_in_literal1502 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_INTEGER_in_literal1519 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_UINT_in_literal1536 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_62_in_literal1551 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1565 = new BitSet(new long[]{0x0000000000000200L});
+    public static final BitSet FOLLOW_STAR_in_arrayAccess1567 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayAccess1569 = new BitSet(new long[]{0x8200000000000000L});
+    public static final BitSet FOLLOW_pathExpression_in_arrayAccess1573 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1593 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1598 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_UINT_in_arrayAccess1604 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayAccess1607 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1625 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1630 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_UINT_in_arrayAccess1636 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_arrayAccess1639 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1644 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_UINT_in_arrayAccess1650 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayAccess1653 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_streamIndexAccess1681 = new BitSet(new long[]{0x8000000000000000L});
+    public static final BitSet FOLLOW_63_in_streamIndexAccess1690 = new BitSet(new long[]{0xF400000040001DC0L});
+    public static final BitSet FOLLOW_generalPathExpression_in_streamIndexAccess1694 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_streamIndexAccess1696 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayCreation1715 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_expression_in_arrayCreation1719 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_31_in_arrayCreation1722 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_expression_in_arrayCreation1726 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_31_in_arrayCreation1730 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayCreation1733 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_readOperator_in_operator1770 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_writeOperator_in_operator1774 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_genericOperator_in_operator1778 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_65_in_readOperator1792 = new BitSet(new long[]{0x0000000000000140L});
+    public static final BitSet FOLLOW_ID_in_readOperator1797 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_readOperator1802 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_readOperator1808 = new BitSet(new long[]{0x0000000040000000L});
+    public static final BitSet FOLLOW_30_in_readOperator1810 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_readOperator1814 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_readOperator1816 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_66_in_writeOperator1830 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_writeOperator1834 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000008L});
+    public static final BitSet FOLLOW_67_in_writeOperator1836 = new BitSet(new long[]{0x0000000000000140L});
+    public static final BitSet FOLLOW_ID_in_writeOperator1841 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_writeOperator1846 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_writeOperator1852 = new BitSet(new long[]{0x0000000040000000L});
+    public static final BitSet FOLLOW_30_in_writeOperator1854 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_writeOperator1858 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_writeOperator1860 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_genericOperator1880 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000010L});
+    public static final BitSet FOLLOW_operatorFlag_in_genericOperator1888 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000010L});
+    public static final BitSet FOLLOW_arrayInput_in_genericOperator1892 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_input_in_genericOperator1896 = new BitSet(new long[]{0x0000000080000042L});
+    public static final BitSet FOLLOW_31_in_genericOperator1899 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000010L});
+    public static final BitSet FOLLOW_input_in_genericOperator1901 = new BitSet(new long[]{0x0000000080000042L});
+    public static final BitSet FOLLOW_operatorOption_in_genericOperator1909 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_operatorOption1929 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_contextAwareExpression_in_operatorOption1935 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_operatorFlag1956 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_68_in_input1978 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_input1986 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_input1988 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_input1994 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_input2004 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_contextAwareExpression_in_input2012 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayInput2034 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput2038 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_31_in_arrayInput2041 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput2045 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayInput2049 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_arrayInput2051 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput2055 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_ternaryExpression_in_synpred8_SJaql340 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_orExpression_in_synpred10_SJaql357 = new BitSet(new long[]{0x0000000400000000L});
     public static final BitSet FOLLOW_34_in_synpred10_SJaql360 = new BitSet(new long[]{0xF4F0000840001DC0L,0x0000000000000006L});
@@ -8305,14 +8105,12 @@ public class SJaqlParser extends SimpleParser {
     public static final BitSet FOLLOW_57_in_synpred37_SJaql1037 = new BitSet(new long[]{0x0000000000000040L});
     public static final BitSet FOLLOW_ID_in_synpred37_SJaql1042 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_arrayAccess_in_synpred38_SJaql1060 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_streamIndexAccess_in_synpred42_SJaql1100 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_synpred43_SJaql1105 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_31_in_synpred78_SJaql1896 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000010L});
-    public static final BitSet FOLLOW_input_in_synpred78_SJaql1898 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_operatorOption_in_synpred79_SJaql1906 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_synpred80_SJaql1935 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_synpred81_SJaql1976 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_synpred84_SJaql2024 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
-    public static final BitSet FOLLOW_contextAwareExpression_in_synpred84_SJaql2033 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_synpred42_SJaql1099 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_streamIndexAccess_in_synpred44_SJaql1122 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_31_in_synpred78_SJaql1899 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000010L});
+    public static final BitSet FOLLOW_input_in_synpred78_SJaql1901 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_operatorOption_in_synpred79_SJaql1909 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_synpred82_SJaql2004 = new BitSet(new long[]{0xF4F0000040001DC0L,0x0000000000000006L});
+    public static final BitSet FOLLOW_contextAwareExpression_in_synpred82_SJaql2012 = new BitSet(new long[]{0x0000000000000002L});
 
 }

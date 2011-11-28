@@ -99,7 +99,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		projection.setInputs(source);
 
 		final Sink sink = new Sink(File.createTempFile("output", null).toURI().toString());
-		projection.setInputs(projection);
+		sink.setInputs(projection);
 
 		final SopremoTestPlan testPlan = new SopremoTestPlan(sink);
 		testPlan.run();

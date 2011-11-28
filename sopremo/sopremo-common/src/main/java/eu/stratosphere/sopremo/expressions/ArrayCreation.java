@@ -64,7 +64,7 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public int hashCode() {
-		return 53 + Arrays.hashCode(this.elements);
+		return 53 * super.hashCode() + Arrays.hashCode(this.elements);
 	}
 
 	@Override

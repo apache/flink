@@ -21,17 +21,17 @@ public class JoinTest extends SimpleTest {
 
 	@Test
 	public void testJoin1() {
-		SopremoPlan actualPlan = parseScript("$users = read 'users.json';\n" +
+		final SopremoPlan actualPlan = this.parseScript("$users = read 'users.json';\n" +
 			"$pages = read 'pages.json';\n" +
 			"$result = join $users, $pages\n" +
 			"  where $users.id == $pages.userid\n" +
 			"  into { $users.name, $pages.* };\n" +
 			"write $result to 'result.json';");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source users = new Source("users.json");
-		Source pages = new Source("pages.json");
-		Join join = new Join().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source users = new Source("users.json");
+		final Source pages = new Source("pages.json");
+		final Join join = new Join().
 			withInputs(users, pages).
 			withJoinCondition(new ComparativeExpression(JsonUtil.createPath("0", "id"),
 				BinaryOperator.EQUAL, JsonUtil.createPath("1", "userid"))).
@@ -39,25 +39,25 @@ public class JoinTest extends SimpleTest {
 				new ObjectCreation.FieldAssignment("name", JsonUtil.createPath("0", "name")),
 				new ObjectCreation.CopyFields(JsonUtil.createPath("1"))
 				));
-		Sink result = new Sink("result.json").withInputs(join);
+		final Sink result = new Sink("result.json").withInputs(join);
 		expectedPlan.setSinks(result);
 
 		assertEquals(expectedPlan, actualPlan);
 	}
-	
+
 	@Test
 	public void testJoin2() {
-		SopremoPlan actualPlan = parseScript("$users = read 'users.json';\n" +
-				"$pages = read 'pages.json';\n" +
-				"$result = join $u in $users, $p in $pages\n" +
-				"  where $u.id == $p.userid\n" +
-				"  into { $u.name, $p.* };\n" +
-				"write $result to 'result.json';");
+		final SopremoPlan actualPlan = this.parseScript("$users = read 'users.json';\n" +
+			"$pages = read 'pages.json';\n" +
+			"$result = join $u in $users, $p in $pages\n" +
+			"  where $u.id == $p.userid\n" +
+			"  into { $u.name, $p.* };\n" +
+			"write $result to 'result.json';");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source users = new Source("users.json");
-		Source pages = new Source("pages.json");
-		Join join = new Join().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source users = new Source("users.json");
+		final Source pages = new Source("pages.json");
+		final Join join = new Join().
 			withInputs(users, pages).
 			withJoinCondition(new ComparativeExpression(JsonUtil.createPath("0", "id"),
 				BinaryOperator.EQUAL, JsonUtil.createPath("1", "userid"))).
@@ -65,26 +65,26 @@ public class JoinTest extends SimpleTest {
 				new ObjectCreation.FieldAssignment("name", JsonUtil.createPath("0", "name")),
 				new ObjectCreation.CopyFields(JsonUtil.createPath("1"))
 				));
-		Sink result = new Sink("result.json").withInputs(join);
+		final Sink result = new Sink("result.json").withInputs(join);
 		expectedPlan.setSinks(result);
 
 		assertEquals(expectedPlan, actualPlan);
 	}
-	
+
 	@Test
 	public void testOuterJoin() {
-		SopremoPlan actualPlan = parseScript("$users = read 'users.json';\n" +
-				"$pages = read 'pages.json';\n" +
-				"$result = join preserve $u in $users, $p in $pages\n" +
-				"  where $u.id == $p.userid\n" +
-				"  into { $u.name, $p.* };\n" +
-				"write $result to 'result.json';");
+		final SopremoPlan actualPlan = this.parseScript("$users = read 'users.json';\n" +
+			"$pages = read 'pages.json';\n" +
+			"$result = join preserve $u in $users, $p in $pages\n" +
+			"  where $u.id == $p.userid\n" +
+			"  into { $u.name, $p.* };\n" +
+			"write $result to 'result.json';");
 
-		EvaluationExpression retainFirst = new InputSelection(0).withTag(ExpressionTag.RETAIN);
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source users = new Source("users.json");
-		Source pages = new Source("pages.json");
-		Join join = new Join().
+		final EvaluationExpression retainFirst = new InputSelection(0).withTag(ExpressionTag.RETAIN);
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source users = new Source("users.json");
+		final Source pages = new Source("pages.json");
+		final Join join = new Join().
 			withInputs(users, pages).
 			withJoinCondition(new ComparativeExpression(new PathExpression(retainFirst, new ObjectAccess("id")),
 				BinaryOperator.EQUAL, JsonUtil.createPath("1", "userid"))).
@@ -92,7 +92,7 @@ public class JoinTest extends SimpleTest {
 				new ObjectCreation.FieldAssignment("name", new PathExpression(retainFirst, new ObjectAccess("name"))),
 				new ObjectCreation.CopyFields(JsonUtil.createPath("1"))
 				));
-		Sink result = new Sink("result.json").withInputs(join);
+		final Sink result = new Sink("result.json").withInputs(join);
 		expectedPlan.setSinks(result);
 
 		assertEquals(expectedPlan, actualPlan);

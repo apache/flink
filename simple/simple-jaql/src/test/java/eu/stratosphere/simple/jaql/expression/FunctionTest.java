@@ -37,20 +37,20 @@ public class FunctionTest extends SimpleTest {
 
 	@Test
 	public void testFunctionDefinition() {
-		SopremoPlan actualPlan = parseScript("square = fn(x) x * x;\n" +
+		final SopremoPlan actualPlan = this.parseScript("square = fn(x) x * x;\n" +
 			"$input = read 'input.json';\n" +
 			"$result = project $input into { squared: square($input) };\n" +
 			"write $result to 'output.json'; ");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("input.json");
-		Projection projection = new Projection().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("input.json");
+		final Projection projection = new Projection().
 			withInputs(input).
 			withValueTransformation(new ObjectCreation(
 				new ObjectCreation.FieldAssignment("squared",
 					new ArithmeticExpression(new InputSelection(0), ArithmeticOperator.MULTIPLICATION,
 						new InputSelection(0)))));
-		Sink sink = new Sink("output.json").withInputs(projection);
+		final Sink sink = new Sink("output.json").withInputs(projection);
 		expectedPlan.setSinks(sink);
 
 		Assert.assertEquals("unexpectedPlan", expectedPlan, actualPlan);
@@ -58,24 +58,25 @@ public class FunctionTest extends SimpleTest {
 
 	@Test
 	public void testFunctionImport() {
-		SopremoPlan actualPlan = parseScript("testudf = javaudf('eu.stratosphere.simple.jaql.expression.FunctionTest.udfTest');\n" +
-			"$input = read 'input.json';\n" +
-			"$result = project $input into { squared: testudf($input) };\n" +
-			"write $result to 'output.json'; ");
+		final SopremoPlan actualPlan = this
+			.parseScript("testudf = javaudf('eu.stratosphere.simple.jaql.expression.FunctionTest.udfTest');\n" +
+				"$input = read 'input.json';\n" +
+				"$result = project $input into { squared: testudf($input) };\n" +
+				"write $result to 'output.json'; ");
 
-		SopremoPlan expectedPlan = new SopremoPlan();
-		Source input = new Source("input.json");
-		Projection projection = new Projection().
+		final SopremoPlan expectedPlan = new SopremoPlan();
+		final Source input = new Source("input.json");
+		final Projection projection = new Projection().
 			withInputs(input).
 			withValueTransformation(new ObjectCreation(
 				new ObjectCreation.FieldAssignment("squared", new MethodCall("testudf", new InputSelection(0)))));
-		Sink sink = new Sink("output.json").withInputs(projection);
+		final Sink sink = new Sink("output.json").withInputs(projection);
 		expectedPlan.setSinks(sink);
 
 		Assert.assertEquals("unexpectedPlan", expectedPlan, actualPlan);
 	}
 
-	public static JsonNode udfTest(JsonNode... nodes) {
+	public static JsonNode udfTest(final JsonNode... nodes) {
 		return nodes[0];
 	}
 }

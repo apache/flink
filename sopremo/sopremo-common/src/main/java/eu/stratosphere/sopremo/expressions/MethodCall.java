@@ -36,7 +36,7 @@ public class MethodCall extends ContainerExpression {
 
 	@Override
 	public int hashCode() {
-		int hash = 1;
+		int hash = super.hashCode();
 		hash = hash * 53 + this.function.hashCode();
 		hash = hash * 53 + Arrays.hashCode(this.paramExprs);
 		return hash;

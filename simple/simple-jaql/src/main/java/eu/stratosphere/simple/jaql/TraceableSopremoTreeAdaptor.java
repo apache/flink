@@ -4,10 +4,10 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 public class TraceableSopremoTreeAdaptor extends SopremoTreeAdaptor {
-	private Map<Object, Object[]> instantiationInfos = new IdentityHashMap<Object, Object[]>();
+	private final Map<Object, Object[]> instantiationInfos = new IdentityHashMap<Object, Object[]>();
 
-	public void addJavaFragment(Object result, StringBuilder builder) {
-		Object[] params = this.instantiationInfos.get(result);
+	public void addJavaFragment(final Object result, final StringBuilder builder) {
+		final Object[] params = this.instantiationInfos.get(result);
 
 		builder.append("new ").append(result.getClass().getSimpleName()).append("(");
 		if (params == null)
@@ -24,8 +24,8 @@ public class TraceableSopremoTreeAdaptor extends SopremoTreeAdaptor {
 	}
 
 	@Override
-	protected Object instantiate(Class<?> expressionClass, Object[] params) {
-		Object result = super.instantiate(expressionClass, params);
+	protected Object instantiate(final Class<?> expressionClass, final Object[] params) {
+		final Object result = super.instantiate(expressionClass, params);
 		this.instantiationInfos.put(result, params);
 		return result;
 	}
