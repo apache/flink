@@ -95,24 +95,11 @@ public class ProfilingSubgraph {
 					final ManagementVertex receiver = edge.getTarget().getVertex();
 
 					XoredVertexID xored = new XoredVertexID(source.getID(), receiver.getID());
-					System.out.println("putting edge " + getName(source) + "->" + getName(receiver) + " "
-						+ xored.toString());
+//					System.out.println("putting edge " + ProfilingUtils.formatName(edge) + " " + xored.toString());
 					this.xoredVertexToSourceEdgeIDMap.put(xored, edge.getSourceEdgeID());
 				}
 			}
 		}
-	}
-
-	private String getName(ManagementVertex source) {
-		String name = source.getName();
-		for (int i = 0; i < source.getGroupVertex().getNumberOfGroupMembers(); i++) {
-			if (source.getGroupVertex().getGroupMember(i) == source) {
-				name += i;
-				break;
-			}
-		}
-
-		return name;
 	}
 
 	private void buildProfilingPaths(boolean includeSubgraphStartInProfilingPaths,

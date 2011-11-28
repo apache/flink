@@ -70,6 +70,8 @@ public class ProfilingLogger {
 				ManagementVertex vertex = (ManagementVertex) element;
 				builder.append(vertex.getGroupVertex().getName());
 			} else {
+				builder.append("edge" + nextEdgeIndex + "obl");
+				builder.append(';');
 				builder.append("edge" + nextEdgeIndex);
 				nextEdgeIndex++;
 			}

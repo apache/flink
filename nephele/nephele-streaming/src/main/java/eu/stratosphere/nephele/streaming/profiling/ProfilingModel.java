@@ -11,6 +11,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
+import eu.stratosphere.nephele.streaming.types.OutputBufferLatency;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
 
 public class ProfilingModel {
@@ -68,7 +69,7 @@ public class ProfilingModel {
 				ExecutionVertex source = executionGraph.getVertexByID(channelLatency.getSourceVertexID());
 				ExecutionVertex sink = executionGraph.getVertexByID(channelLatency.getSinkVertexID());
 
-				throw new RuntimeException("No source edge ID for " + getName(source) + "->" + getName(sink) + " "
+				throw new RuntimeException("No source edge ID for " + ProfilingUtils.formatName(source) + "->" + ProfilingUtils.formatName(sink) + " "
 					+ xored.toString());
 			}
 
@@ -77,18 +78,6 @@ public class ProfilingModel {
 
 			edgeCharacteristics.addLatencyMeasurement(timestamp, channelLatency.getChannelLatency());
 		}
-	}
-
-	private String getName(ExecutionVertex source) {
-		String name = source.getName();
-		for (int i = 0; i < source.getGroupVertex().getCurrentNumberOfGroupMembers(); i++) {
-			if (source.getGroupVertex().getGroupMember(i) == source) {
-				name += i;
-				break;
-			}
-		}
-
-		return name;
 	}
 
 	public void refreshTaskLatency(long timestamp, TaskLatency taskLatency) {
@@ -112,6 +101,12 @@ public class ProfilingModel {
 		ManagementEdgeID edgeID = new ManagementEdgeID(channelThroughput.getSourceChannelID());
 		EdgeCharacteristics edgeCharaceristics = profilingSubgraph.getEdgeCharacteristicsBySourceEdgeID(edgeID);
 		edgeCharaceristics.addThroughputMeasurement(timestamp, channelThroughput.getThroughput());
+	}
+	
+	public void refreshChannelOutputBufferLatency(long timestamp, OutputBufferLatency latency) {
+		ManagementEdgeID sourceEdgeID = new ManagementEdgeID(latency.getSourceChannelID());
+		EdgeCharacteristics edgeCharaceristics = profilingSubgraph.getEdgeCharacteristicsBySourceEdgeID(sourceEdgeID);
+		edgeCharaceristics.addOutputBufferLatencyMeasurement(timestamp, latency.getBufferLatency());
 	}
 
 	public void logProfilingSummaryIfNecessary(long now) {

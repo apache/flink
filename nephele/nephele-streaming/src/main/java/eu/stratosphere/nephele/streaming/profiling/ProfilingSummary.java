@@ -10,7 +10,7 @@ public class ProfilingSummary {
 	ArrayList<ManagementAttachment> pathElements;
 
 	int noOfActivePaths;
-	
+
 	int noOfInactivePaths;
 
 	double avgTotalPathLatency;
@@ -26,13 +26,15 @@ public class ProfilingSummary {
 	public ProfilingSummary(ProfilingSubgraph profilingSubgraph) {
 		noOfActivePaths = 0;
 		noOfInactivePaths = 0;
-		maxPathLatency = Long.MIN_VALUE;
-		minPathLatency = Long.MAX_VALUE;
+		avgTotalPathLatency = 0;
+		minPathLatency = 0;
+		maxPathLatency = 0;
+		medianPathLatency = 0;
+		
 		pathElements = null;
 		avgPathElementLatencies = null;
-		avgTotalPathLatency = 0;
-
-		// will be sorted later on to determine the median
+		
+		// will be sorted later on to determine min, max and median
 		ArrayList<Double> totalLatencies = new ArrayList<Double>();
 
 		for (ProfilingPath path : profilingSubgraph.getProfilingPaths()) {
@@ -40,7 +42,7 @@ public class ProfilingSummary {
 
 			if (pathElements == null) {
 				pathElements = pathSummary.getPathElements();
-				avgPathElementLatencies = new double[pathElements.size()];
+				avgPathElementLatencies = new double[pathSummary.getNoOfPathElementLatencies()];
 			}
 
 			if (pathSummary.hasLatencies()) {
@@ -51,17 +53,15 @@ public class ProfilingSummary {
 				totalLatencies.add(pathSummary.getTotalLatency());
 
 				// add the vertex/edge specific latency values to avgPathLatencies array
-				addValues(pathSummary.getLatencies(), avgPathElementLatencies);
+				addValues(pathSummary.getPathElementLatencies(), avgPathElementLatencies);
 
 				noOfActivePaths++;
-				maxPathLatency = Math.max(maxPathLatency, pathSummary.getTotalLatency());
-				minPathLatency = Math.min(minPathLatency, pathSummary.getTotalLatency());
 			} else {
 				noOfInactivePaths++;
 			}
 		}
 
-		if (noOfActivePaths > 0) {
+		if (noOfActivePaths > 0) {		
 			for (int i = 0; i < avgPathElementLatencies.length; i++) {
 				avgPathElementLatencies[i] = avgPathElementLatencies[i] / noOfActivePaths;
 			}
@@ -69,12 +69,9 @@ public class ProfilingSummary {
 			avgTotalPathLatency = avgTotalPathLatency / noOfActivePaths;
 
 			Collections.sort(totalLatencies);
+			minPathLatency = totalLatencies.get(0);
 			medianPathLatency = totalLatencies.get(totalLatencies.size() / 2);
-		} else {
-			// set these back to zero because they have been set to very low/high values
-			// initially
-			maxPathLatency = 0;
-			minPathLatency = 0;
+			maxPathLatency = totalLatencies.get(totalLatencies.size() -1);
 		}
 	}
 
@@ -83,5 +80,4 @@ public class ProfilingSummary {
 			to[i] += from[i];
 		}
 	}
-
 }

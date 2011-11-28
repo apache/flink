@@ -13,6 +13,7 @@ import eu.stratosphere.nephele.streaming.StreamingJobManagerPlugin;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
+import eu.stratosphere.nephele.streaming.types.OutputBufferLatency;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
 
 public class LatencyOptimizerThread extends Thread {
@@ -48,6 +49,8 @@ public class LatencyOptimizerThread extends Thread {
 					profilingModel.refreshTaskLatency(now, (TaskLatency) streamingData);
 				} else if (streamingData instanceof ChannelThroughput) {
 					profilingModel.refreshChannelThroughput(now, (ChannelThroughput) streamingData);
+				} else if (streamingData instanceof OutputBufferLatency) {
+					profilingModel.refreshChannelOutputBufferLatency(now, (OutputBufferLatency) streamingData);
 				}
 
 				profilingModel.logProfilingSummaryIfNecessary(now);

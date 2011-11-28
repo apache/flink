@@ -1,16 +1,13 @@
 package eu.stratosphere.nephele.streaming.profiling;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.Map.Entry;
 
 import eu.stratosphere.nephele.managementgraph.ManagementAttachment;
-import eu.stratosphere.nephele.managementgraph.ManagementEdge;
 import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 
 public class ProfilingPathSummary {
-	
-//	private static Log LOG = LogFactory.getLog(ProfilingPathSummary.class);
+
+	// private static Log LOG = LogFactory.getLog(ProfilingPathSummary.class);
 
 	private double totalLatency;
 
@@ -20,6 +17,8 @@ public class ProfilingPathSummary {
 
 	private ArrayList<ManagementAttachment> pathElements;
 
+	private int noOfPathElementLatencies;
+
 	/**
 	 * Initializes ProfilingPathLatency.
 	 * 
@@ -28,60 +27,22 @@ public class ProfilingPathSummary {
 	 */
 	public ProfilingPathSummary(ArrayList<ManagementAttachment> pathElements) {
 		this.pathElements = pathElements;
-		this.latencies = new double[pathElements.size()];
+		this.noOfPathElementLatencies = countLatencyValuesOnPath(); 
+		this.latencies = new double[noOfPathElementLatencies];
 		this.hasLatencies = false;
 		this.totalLatency = -1;
 	}
 
-	private class LatencyPathEntry implements Entry<ManagementAttachment, Double> {
-		ManagementAttachment key;
-
-		double value;
-
-		@Override
-		public ManagementAttachment getKey() {
-			return key;
-		}
-
-		@Override
-		public Double getValue() {
-			return value;
-		}
-
-		@Override
-		public Double setValue(Double value) {
-			throw new UnsupportedOperationException();
-		}
-	}
-
-	public Iterable<Entry<ManagementAttachment, Double>> getLatencyIterable() {
-		return new Iterable<Entry<ManagementAttachment, Double>>() {
-			@Override
-			public Iterator<Entry<ManagementAttachment, Double>> iterator() {
-				return new Iterator<Entry<ManagementAttachment, Double>>() {
-					int index = 0;
-
-					LatencyPathEntry entry = new LatencyPathEntry();
-
-					@Override
-					public boolean hasNext() {
-						return index < latencies.length;
-					}
-
-					@Override
-					public Entry<ManagementAttachment, Double> next() {
-						entry.key = pathElements.get(index);
-						entry.value = latencies[index];
-						return entry;
-					}
-
-					@Override
-					public void remove() {
-						throw new UnsupportedOperationException();
-					}
-				};
+	private int countLatencyValuesOnPath() {
+		int valuesOnPath = 0;
+		for (ManagementAttachment element : pathElements) {
+			if (element instanceof ManagementVertex) {
+				valuesOnPath++;
+			} else {
+				valuesOnPath += 2;
 			}
-		};
+		}
+		return valuesOnPath;
 	}
 
 	/**
@@ -96,52 +57,66 @@ public class ProfilingPathSummary {
 			this.hasLatencies = true;
 			for (ManagementAttachment element : pathElements) {
 
-				if ((element instanceof ManagementVertex && ((VertexLatency) element.getAttachment())
-					.getLatencyInMillis() == -1)
-					|| (element instanceof ManagementEdge && ((EdgeCharacteristics) element.getAttachment())
-						.getLatencyInMillis() == -1)) {
-					
-//					if(element instanceof ManagementVertex) {
-//						ManagementVertex vertex = (ManagementVertex) element;
-//						LOG.info("no data for vertex " + vertex.getName() + vertex.getIndexInGroup());
-//					} else {
-//						ManagementEdge edge = (ManagementEdge) element;
-//						String sourceName = edge.getSource().getVertex().getName() + edge.getSource().getVertex().getIndexInGroup();
-//						String tgName = edge.getTarget().getVertex().getName() + edge.getTarget().getVertex().getIndexInGroup();
-//						LOG.info("no data for edge " + sourceName + "-> " + tgName);
-//					}
-					this.hasLatencies = false;
-					break;
+				if (element instanceof ManagementVertex) {
+					VertexLatency vertexLatency = (VertexLatency) element.getAttachment();
+					if (vertexLatency.getLatencyInMillis() == -1) {
+						// ManagementEdge edge = (ManagementEdge) element;
+						// String sourceName = edge.getSource().getVertex().getName() +
+						// edge.getSource().getVertex().getIndexInGroup();
+						// String tgName = edge.getTarget().getVertex().getName() +
+						// edge.getTarget().getVertex().getIndexInGroup();
+						// LOG.info("no data for edge " + sourceName + "-> " + tgName);
+						this.hasLatencies = false;
+						break;
+					}
+				} else {
+					EdgeCharacteristics edgeChar = (EdgeCharacteristics) element.getAttachment();
+					if (edgeChar.getChannelLatencyInMillis() == -1 ||
+						edgeChar.getOutputBufferLatencyInMillis() == -1) {
+						// ManagementVertex vertex = (ManagementVertex) element;
+						// LOG.info("no data for vertex " + vertex.getName() + vertex.getIndexInGroup());
+						this.hasLatencies = false;
+						break;
+					}
 				}
 			}
 		}
-
 		return hasLatencies;
 	}
 
 	public void refreshLatencies() {
 		if (!hasLatencies()) {
 			throw new UnsupportedOperationException(
-				"Elements of profiling path does not have all do not have the necessary latency values yet");
+				"Elements of profiling path do not have the necessary latency values yet");
 		}
 
 		this.totalLatency = 0;
 		int index = 0;
-		for (ManagementAttachment managementAttachment : pathElements) {
-			double latency;
+		for (ManagementAttachment element : pathElements) {
 
-			if (managementAttachment instanceof ManagementVertex) {
-				latency = ((VertexLatency) managementAttachment.getAttachment()).getLatencyInMillis();
+			if (element instanceof ManagementVertex) {
+				latencies[index] = ((VertexLatency) element.getAttachment()).getLatencyInMillis();
+				this.totalLatency += latencies[index];
 			} else {
-				latency = ((EdgeCharacteristics) managementAttachment.getAttachment()).getLatencyInMillis();
-			}
+				EdgeCharacteristics edgeCharacteristics = (EdgeCharacteristics) element.getAttachment();
+				latencies[index] = edgeCharacteristics.getOutputBufferLatencyInMillis() / 2;
 
-			latencies[index] = latency;
-			this.totalLatency += latency;
+				if (latencies[index] < 0) {
+					throw new RuntimeException(ProfilingUtils.formatName(element)
+						+ " has invalid negative output buffer latency: " + latencies[index]);
+				}
+
+				index++;
+				// channel latency includes output buffer latency, hence we subtract the output buffer latency
+				// in order not to count it twice
+				latencies[index] = Math.max(0, edgeCharacteristics.getChannelLatencyInMillis() - latencies[index - 1]);
+
+				this.totalLatency += latencies[index] + latencies[index - 1];
+			}
 			index++;
 		}
 	}
-	
+
 	public double getTotalLatency() {
 		return this.totalLatency;
 	}
@@ -150,7 +125,11 @@ public class ProfilingPathSummary {
 		return pathElements;
 	}
 
-	public double[] getLatencies() {
+	public int getNoOfPathElementLatencies() {
+		return noOfPathElementLatencies;
+	}
+
+	public double[] getPathElementLatencies() {
 		return latencies;
 	}
 
