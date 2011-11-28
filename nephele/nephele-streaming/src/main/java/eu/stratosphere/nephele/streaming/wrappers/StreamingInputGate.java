@@ -74,6 +74,8 @@ public final class StreamingInputGate<T extends Record> extends AbstractInputGat
 			throw new InterruptedException();
 		}
 
+		final int numberOfInputChannels = getNumberOfInputChannels();
+
 		while (true) {
 
 			if (this.channelToReadFrom == -1) {
@@ -90,16 +92,17 @@ public final class StreamingInputGate<T extends Record> extends AbstractInputGat
 				}
 			}
 
-			if (++this.channelToReadFrom == getNumberOfInputChannels()) {
+			if (record == null && this.channelToReadFrom == this.availableChannelRetVal) {
+				this.channelToReadFrom = -1;
+				continue;
+			}
+
+			if (++this.channelToReadFrom == numberOfInputChannels) {
 				this.channelToReadFrom = 0;
 			}
 
 			if (record != null) {
 				break;
-			} else {
-				if (this.channelToReadFrom == this.availableChannelRetVal) {
-					this.channelToReadFrom = -1;
-				}
 			}
 		}
 
@@ -120,7 +123,6 @@ public final class StreamingInputGate<T extends Record> extends AbstractInputGat
 		synchronized (this.availableChannels) {
 
 			while (this.availableChannels.isEmpty()) {
-
 				this.availableChannels.wait();
 			}
 
