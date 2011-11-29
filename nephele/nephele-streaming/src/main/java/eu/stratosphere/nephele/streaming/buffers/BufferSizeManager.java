@@ -43,6 +43,8 @@ public class BufferSizeManager {
 
 	private long timeOfNextAdjustment;
 
+	private int maximumBufferSize;
+
 	public BufferSizeManager(long latencyGoal, ProfilingModel profilingModel,
 			StreamingJobManagerPlugin jobManagerPlugin,
 			ExecutionGraph executionGraph) {
@@ -59,6 +61,8 @@ public class BufferSizeManager {
 	private void initBufferSizes() {
 		int bufferSize = GlobalConfiguration.getInteger("channel.network.bufferSizeInBytes",
 			GlobalBufferPool.DEFAULT_BUFFER_SIZE_IN_BYTES);
+
+		this.maximumBufferSize = bufferSize;
 
 		long now = System.currentTimeMillis();
 		for (ProfilingPath path : profilingModel.getProfilingSubgraph().getProfilingPaths()) {
@@ -146,7 +150,7 @@ public class BufferSizeManager {
 			EdgeCharacteristics edgeChar = (EdgeCharacteristics) edge.getAttachment();
 
 			if (!hasFreshValues(edge)) {
-//				LOG.info("Rejecting edge due to stale values: " + ProfilingUtils.formatName(edge));
+				// LOG.info("Rejecting edge due to stale values: " + ProfilingUtils.formatName(edge));
 				continue;
 			}
 
@@ -165,9 +169,15 @@ public class BufferSizeManager {
 
 	private void increaseBufferSize(ManagementEdge edge, HashMap<ManagementEdge, Integer> edgesToAdjust) {
 		int oldBufferSize = bufferSizes.get(edge).getLastEntry().getBufferSize();
-		int newBufferSize = proposedIncreasedBufferSize(oldBufferSize);
+		int newBufferSize = Math.min(proposedIncreasedBufferSize(oldBufferSize), this.maximumBufferSize);
 
-		edgesToAdjust.put(edge, newBufferSize);
+		if (isRelevantIncrease(oldBufferSize, newBufferSize)) {
+			edgesToAdjust.put(edge, newBufferSize);
+		}
+	}
+
+	private boolean isRelevantIncrease(int oldBufferSize, int newBufferSize) {
+		return newBufferSize >= oldBufferSize + 100;
 	}
 
 	private int proposedIncreasedBufferSize(int oldBufferSize) {
@@ -182,11 +192,11 @@ public class BufferSizeManager {
 		if (isRelevantReduction(newBufferSize, oldBufferSize)) {
 			edgesToAdjust.put(edge, newBufferSize);
 		}
-		
-//		else {
-//			LOG.info(String.format("Filtering reduction due to insignificance: %s (old:%d new:%d)",
-//				ProfilingUtils.formatName(edge), oldBufferSize, newBufferSize));
-//		}
+
+		// else {
+		// LOG.info(String.format("Filtering reduction due to insignificance: %s (old:%d new:%d)",
+		// ProfilingUtils.formatName(edge), oldBufferSize, newBufferSize));
+		// }
 	}
 
 	private boolean isRelevantReduction(int newBufferSize, int oldBufferSize) {
