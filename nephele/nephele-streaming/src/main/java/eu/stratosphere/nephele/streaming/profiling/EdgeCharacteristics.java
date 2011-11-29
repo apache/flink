@@ -14,9 +14,9 @@ public class EdgeCharacteristics {
 
 	public EdgeCharacteristics(ManagementEdge edge) {
 		this.edge = edge;
-		this.latencyInMillisStatistic = new ProfilingValueStatistic(20);
-		this.throughputInMbitStatistic = new ProfilingValueStatistic(20);
-		this.outputBufferLatencyStatistic = new ProfilingValueStatistic(20);
+		this.latencyInMillisStatistic = new ProfilingValueStatistic(10);
+		this.throughputInMbitStatistic = new ProfilingValueStatistic(10);
+		this.outputBufferLatencyStatistic = new ProfilingValueStatistic(10);
 	}
 
 	public ManagementEdge getEdge() {
@@ -25,7 +25,7 @@ public class EdgeCharacteristics {
 
 	public double getChannelLatencyInMillis() {
 		if (latencyInMillisStatistic.hasValues()) {
-			return latencyInMillisStatistic.getMedianValue();
+			return latencyInMillisStatistic.getArithmeticMean();
 		} else {
 			return -1;
 		}
@@ -33,7 +33,7 @@ public class EdgeCharacteristics {
 
 	public double getChannelThroughputInMbit() {
 		if (throughputInMbitStatistic.hasValues()) {
-			return throughputInMbitStatistic.getMedianValue();
+			return throughputInMbitStatistic.getArithmeticMean();
 		} else {
 			return -1;
 		}
@@ -41,15 +41,7 @@ public class EdgeCharacteristics {
 
 	public double getOutputBufferLatencyInMillis() {
 		if (outputBufferLatencyStatistic.hasValues()) {
-			return outputBufferLatencyStatistic.getMedianValue();
-		} else {
-			return -1;
-		}
-	}
-
-	public double getThroughputInMbit() {
-		if (throughputInMbitStatistic.hasValues()) {
-			return throughputInMbitStatistic.getMedianValue();
+			return outputBufferLatencyStatistic.getArithmeticMean();
 		} else {
 			return -1;
 		}
@@ -68,5 +60,13 @@ public class EdgeCharacteristics {
 	public void addOutputBufferLatencyMeasurement(long timestamp, double latencyInMillis) {
 		ProfilingValue value = new ProfilingValue(latencyInMillis, timestamp);
 		this.outputBufferLatencyStatistic.addValue(value);
+	}
+
+	public boolean isChannelLatencyFresherThan(long freshnessThreshold) {
+		return latencyInMillisStatistic.getOldestValue().getTimestamp() >= freshnessThreshold;
+	}
+
+	public boolean isOutputBufferLatencyFresherThan(long freshnessThreshold) {
+		return outputBufferLatencyStatistic.getOldestValue().getTimestamp() >= freshnessThreshold;
 	}
 }

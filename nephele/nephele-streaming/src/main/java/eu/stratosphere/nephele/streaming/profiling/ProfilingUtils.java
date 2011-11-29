@@ -41,4 +41,12 @@ public class ProfilingUtils {
 		return name;
 	}
 
+	public static long alignToNextFullSecond(long timestampInMillis) {
+		long remainder = timestampInMillis % 1000;
+
+		if (remainder > 0) {
+			return timestampInMillis - remainder + 1000;
+		}
+		return timestampInMillis;
+	}
 }

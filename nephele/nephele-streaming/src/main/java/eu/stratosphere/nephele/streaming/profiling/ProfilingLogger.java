@@ -9,22 +9,35 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 
 public class ProfilingLogger {
 
-	private ProfilingSubgraph subgraph;
+	private final static long WAIT_BEFORE_FIRST_LOGGING = 10 * 1000;
+
+	private final static long LOGGING_INTERVAL = 1000;
 
 	private BufferedWriter writer;
 
 	private boolean headersWritten;
 
-	public ProfilingLogger(ProfilingSubgraph subgraph)
+	private long timeOfNextLogging;
+
+	private long timeBase;
+
+	public ProfilingLogger()
 			throws IOException {
 
-		this.subgraph = subgraph;
 		this.writer = new BufferedWriter(new FileWriter("profiling.txt"));
 		this.headersWritten = false;
+		this.timeOfNextLogging = ProfilingUtils.alignToNextFullSecond(System.currentTimeMillis() + WAIT_BEFORE_FIRST_LOGGING);
+		this.timeBase = timeOfNextLogging;
 	}
 
-	public void logLatencies(long timestamp) throws IOException {
-		ProfilingSummary summary = new ProfilingSummary(subgraph);
+	public boolean isLoggingNecessary(long now) {
+		return now >= timeOfNextLogging;
+	}
+
+	public void logLatencies(ProfilingSummary summary) throws IOException {
+		long now = System.currentTimeMillis();
+		long timestamp = now - timeBase;
+
 		if (!headersWritten) {
 			writeHeaders(summary);
 		}
@@ -32,25 +45,34 @@ public class ProfilingLogger {
 		StringBuilder builder = new StringBuilder();
 		builder.append(timestamp);
 		builder.append(';');
-		builder.append(summary.noOfActivePaths);
+		builder.append(summary.getNoOfActivePaths());
 		builder.append(';');
-		builder.append(summary.noOfInactivePaths);
+		builder.append(summary.getNoOfInactivePaths());
 		builder.append(';');
-		builder.append(summary.avgTotalPathLatency);
+		builder.append(summary.getAvgTotalPathLatency());
 		builder.append(';');
-		builder.append(summary.medianPathLatency);
+		builder.append(summary.getMedianPathLatency());
 		builder.append(';');
-		builder.append(summary.minPathLatency);
+		builder.append(summary.getMinPathLatency());
 		builder.append(';');
-		builder.append(summary.maxPathLatency);
+		builder.append(summary.getMaxPathLatency());
 
-		for (double avgElementLatency : summary.avgPathElementLatencies) {
+		for (double avgElementLatency : summary.getAvgPathElementLatencies()) {
 			builder.append(';');
 			builder.append(avgElementLatency);
 		}
 		builder.append('\n');
 		writer.write(builder.toString());
-		writer.flush(); //FIXME
+		writer.flush(); // FIXME
+
+		refreshTimeOfNextLogging();
+	}
+
+	private void refreshTimeOfNextLogging() {
+		long now = System.currentTimeMillis();
+		while(timeOfNextLogging <= now) {
+			timeOfNextLogging += LOGGING_INTERVAL;
+		}
 	}
 
 	private void writeHeaders(ProfilingSummary summary) throws IOException {
@@ -64,7 +86,7 @@ public class ProfilingLogger {
 		builder.append("maxPathLatency");
 
 		int nextEdgeIndex = 1;
-		for (ManagementAttachment element : summary.pathElements) {
+		for (ManagementAttachment element : summary.getPathElements()) {
 			builder.append(';');
 			if (element instanceof ManagementVertex) {
 				ManagementVertex vertex = (ManagementVertex) element;

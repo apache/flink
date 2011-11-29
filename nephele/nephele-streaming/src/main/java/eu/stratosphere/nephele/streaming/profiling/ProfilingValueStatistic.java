@@ -23,7 +23,7 @@ public class ProfilingValueStatistic {
 		this.noOfStoredValues = 0;
 		this.sumOfValues = 0;
 	}
-	
+
 	public void addValue(ProfilingValue value) {
 		ProfilingValue droppedValue = insertIntoSortedByTimestamp(value);
 
@@ -56,7 +56,7 @@ public class ProfilingValueStatistic {
 		if (insertionIndex < 0) {
 			insertionIndex = -(insertionIndex + 1);
 		}
-		
+
 		sortedByValue.add(insertionIndex, value);
 	}
 
@@ -91,6 +91,20 @@ public class ProfilingValueStatistic {
 		return sortedByValue.get(0).getValue();
 	}
 
+	public ProfilingValue getOldestValue() {
+		if (noOfStoredValues == 0) {
+			throw new RuntimeException("Cannot get the oldest value of empty value set");
+		}
+		return sortedById.getFirst();
+	}
+
+	public ProfilingValue getNewestValue() {
+		if (noOfStoredValues == 0) {
+			throw new RuntimeException("Cannot get the newest value of empty value set");
+		}
+		return sortedById.getLast();
+	}
+
 	public double getArithmeticMean() {
 		if (noOfStoredValues == 0) {
 			throw new RuntimeException("Cannot calculate the arithmetic mean of empty value set");
@@ -98,7 +112,7 @@ public class ProfilingValueStatistic {
 
 		return sumOfValues / noOfStoredValues;
 	}
-	
+
 	public boolean hasValues() {
 		return noOfStoredValues > 0;
 	}
