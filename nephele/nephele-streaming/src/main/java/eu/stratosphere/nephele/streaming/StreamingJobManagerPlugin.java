@@ -16,7 +16,9 @@
 package eu.stratosphere.nephele.streaming;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
@@ -42,6 +45,7 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 import eu.stratosphere.nephele.plugins.PluginID;
+import eu.stratosphere.nephele.streaming.actions.ConstructStreamChainAction;
 import eu.stratosphere.nephele.streaming.actions.LimitBufferSizeAction;
 import eu.stratosphere.nephele.streaming.profiling.LatencyOptimizerThread;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
@@ -141,6 +145,44 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 		LatencyOptimizerThread optimizerThread = new LatencyOptimizerThread(this, executionGraph);
 		latencyOptimizerThreads.put(jobId, optimizerThread);
 		optimizerThread.start();
+
+		// Temporary code start
+		final Runnable run = new Runnable() {
+
+			@Override
+			public void run() {
+
+				try {
+					Thread.sleep(30000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+					return;
+				}
+
+				int count = 0;
+				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
+				final List<ExecutionVertexID> vertexIDs = new ArrayList<ExecutionVertexID>();
+				AbstractInstance instance = null;
+				while (it.hasNext()) {
+					++count;
+					final ExecutionVertex vertex = it.next();
+
+					if (count > 1 && count < 6) {
+						if (instance == null) {
+							instance = vertex.getAllocatedResource().getInstance();
+						}
+						vertexIDs.add(vertex.getID());
+					}
+				}
+
+				constructStreamChain(executionGraph.getJobID(), instance, vertexIDs);
+			}
+
+		};
+
+		new Thread(run).start();
+		// Temporary code end
+
 		return executionGraph;
 	}
 
@@ -223,6 +265,17 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 		final LimitBufferSizeAction bsla = new LimitBufferSizeAction(jobID, vertexID, sourceChannelID, bufferSize);
 		try {
 			instance.sendData(this.pluginID, bsla);
+		} catch (IOException e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
+	}
+
+	public void constructStreamChain(final JobID jobID, final AbstractInstance instance,
+			final List<ExecutionVertexID> vertexIDs) {
+
+		final ConstructStreamChainAction csca = new ConstructStreamChainAction(jobID, vertexIDs);
+		try {
+			instance.sendData(this.pluginID, csca);
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 		}
