@@ -18,11 +18,16 @@ package eu.stratosphere.nephele.streaming.listeners;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
+import eu.stratosphere.nephele.execution.Mapper;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.streaming.StreamingCommunicationThread;
 import eu.stratosphere.nephele.streaming.actions.AbstractAction;
+import eu.stratosphere.nephele.streaming.chaining.StreamChainCoordinator;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
+import eu.stratosphere.nephele.types.Record;
 
 public final class StreamListenerContext {
 
@@ -40,6 +45,8 @@ public final class StreamListenerContext {
 
 	private final StreamingCommunicationThread communicationThread;
 
+	private final StreamChainCoordinator chainCoordinator;
+
 	private final TaskType taskType;
 
 	private final int aggregationInterval;
@@ -47,8 +54,8 @@ public final class StreamListenerContext {
 	private final int taggingInterval;
 
 	private StreamListenerContext(final JobID jobID, final ExecutionVertexID vertexID,
-			final StreamingCommunicationThread communicationThread, final TaskType taskType,
-			final int aggregationInterval, final int taggingInterval) {
+			final StreamingCommunicationThread communicationThread, final StreamChainCoordinator chainCoordinator,
+			final TaskType taskType, final int aggregationInterval, final int taggingInterval) {
 
 		if (jobID == null) {
 			throw new IllegalArgumentException("Parameter jobID must not be null");
@@ -77,31 +84,34 @@ public final class StreamListenerContext {
 		this.jobID = jobID;
 		this.vertexID = vertexID;
 		this.communicationThread = communicationThread;
+		this.chainCoordinator = chainCoordinator;
 		this.taskType = taskType;
 		this.aggregationInterval = aggregationInterval;
 		this.taggingInterval = taggingInterval;
 	}
 
 	public static StreamListenerContext createForInputTask(final JobID jobID, final ExecutionVertexID vertexID,
-			final StreamingCommunicationThread communicationThread, final int aggregationInterval,
-			final int taggingInterval) {
+			final StreamingCommunicationThread communicationThread, final StreamChainCoordinator chainCoordinator,
+			final int aggregationInterval, final int taggingInterval) {
 
-		return new StreamListenerContext(jobID, vertexID, communicationThread, TaskType.INPUT, aggregationInterval,
-			taggingInterval);
+		return new StreamListenerContext(jobID, vertexID, communicationThread, chainCoordinator, TaskType.INPUT,
+			aggregationInterval, taggingInterval);
 	}
 
 	public static StreamListenerContext createForRegularTask(final JobID jobID, final ExecutionVertexID vertexID,
-			final StreamingCommunicationThread communicationThread, final int aggregationInterval) {
+			final StreamingCommunicationThread communicationThread, final StreamChainCoordinator chainCoordinator,
+			final int aggregationInterval) {
 
-		return new StreamListenerContext(jobID, vertexID, communicationThread, TaskType.REGULAR, aggregationInterval,
-			-1);
+		return new StreamListenerContext(jobID, vertexID, communicationThread, chainCoordinator, TaskType.REGULAR,
+			aggregationInterval, -1);
 	}
 
 	public static StreamListenerContext createForOutputTask(final JobID jobID, final ExecutionVertexID vertexID,
-			final StreamingCommunicationThread communicationThread, final int aggregationInterval) {
+			final StreamingCommunicationThread communicationThread, final StreamChainCoordinator chainCoordinator,
+			final int aggregationInterval) {
 
-		return new StreamListenerContext(jobID, vertexID, communicationThread, TaskType.OUTPUT, aggregationInterval,
-			-1);
+		return new StreamListenerContext(jobID, vertexID, communicationThread, chainCoordinator, TaskType.OUTPUT,
+			aggregationInterval, -1);
 	}
 
 	boolean isInputVertex() {
@@ -154,5 +164,11 @@ public final class StreamListenerContext {
 	Queue<AbstractAction> getPendingActionsQueue() {
 
 		return this.pendingActions;
+	}
+
+	void registerMapper(final Mapper<? extends Record, ? extends Record> mapper,
+			final RecordReader<? extends Record> reader, final RecordWriter<? extends Record> writer) {
+
+		this.chainCoordinator.registerMapper(this.vertexID, mapper, reader, writer);
 	}
 }

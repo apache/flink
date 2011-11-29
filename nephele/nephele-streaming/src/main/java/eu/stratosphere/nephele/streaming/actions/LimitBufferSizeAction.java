@@ -28,7 +28,12 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public final class BufferSizeLimitAction extends AbstractAction {
+public final class LimitBufferSizeAction extends AbstractAction {
+
+	/**
+	 * The ID of the vertex the initiated action applies to.
+	 */
+	private final ExecutionVertexID vertexID;
 
 	/**
 	 * The ID of the output channel whose buffer size shall be limited.
@@ -52,9 +57,13 @@ public final class BufferSizeLimitAction extends AbstractAction {
 	 * @param bufferSize
 	 *        the new buffer size in bytes
 	 */
-	public BufferSizeLimitAction(final JobID jobID, final ExecutionVertexID vertexID, final ChannelID sourceChannelID,
+	public LimitBufferSizeAction(final JobID jobID, final ExecutionVertexID vertexID, final ChannelID sourceChannelID,
 			final int bufferSize) {
-		super(jobID, vertexID);
+		super(jobID);
+
+		if (vertexID == null) {
+			throw new IllegalArgumentException("Argument vertexID must not be null");
+		}
 
 		if (sourceChannelID == null) {
 			throw new IllegalArgumentException("Argument sourceChannelID must not be null");
@@ -64,6 +73,7 @@ public final class BufferSizeLimitAction extends AbstractAction {
 			throw new IllegalArgumentException("Argument bufferSize must be greather than zero");
 		}
 
+		this.vertexID = vertexID;
 		this.sourceChannelID = sourceChannelID;
 		this.bufferSize = bufferSize;
 	}
@@ -71,8 +81,9 @@ public final class BufferSizeLimitAction extends AbstractAction {
 	/**
 	 * Default constructor for deserialization.
 	 */
-	public BufferSizeLimitAction() {
+	public LimitBufferSizeAction() {
 		super();
+		this.vertexID = new ExecutionVertexID();
 		this.sourceChannelID = new ChannelID();
 		this.bufferSize = 0;
 	}
@@ -85,6 +96,7 @@ public final class BufferSizeLimitAction extends AbstractAction {
 
 		super.write(out);
 
+		this.vertexID.write(out);
 		this.sourceChannelID.write(out);
 		out.writeInt(this.bufferSize);
 	}
@@ -97,6 +109,7 @@ public final class BufferSizeLimitAction extends AbstractAction {
 
 		super.read(in);
 
+		this.vertexID.read(in);
 		this.sourceChannelID.read(in);
 		this.bufferSize = in.readInt();
 	}
@@ -119,5 +132,16 @@ public final class BufferSizeLimitAction extends AbstractAction {
 	public int getBufferSize() {
 
 		return this.bufferSize;
+	}
+
+	/**
+	 * Returns the ID of the vertex the initiated action applies to.
+	 * 
+	 * @return the ID of the vertex the initiated action applies to
+	 */
+	@Override
+	public ExecutionVertexID getVertexID() {
+
+		return this.vertexID;
 	}
 }

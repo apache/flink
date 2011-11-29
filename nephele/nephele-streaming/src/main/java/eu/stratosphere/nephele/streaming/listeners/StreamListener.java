@@ -25,8 +25,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.Mapper;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
@@ -34,7 +37,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.streaming.StreamingTag;
 import eu.stratosphere.nephele.streaming.StreamingTaskManagerPlugin;
 import eu.stratosphere.nephele.streaming.actions.AbstractAction;
-import eu.stratosphere.nephele.streaming.actions.BufferSizeLimitAction;
+import eu.stratosphere.nephele.streaming.actions.LimitBufferSizeAction;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
 import eu.stratosphere.nephele.streaming.types.OutputBufferLatency;
@@ -230,8 +233,8 @@ public final class StreamListener {
 
 				final AbstractAction action = pendingActions.poll();
 
-				if (action instanceof BufferSizeLimitAction) {
-					limitBufferSize((BufferSizeLimitAction) action);
+				if (action instanceof LimitBufferSizeAction) {
+					limitBufferSize((LimitBufferSizeAction) action);
 				} else {
 					LOG.error("Ignoring unknown action of type " + action.getClass());
 				}
@@ -239,7 +242,7 @@ public final class StreamListener {
 		}
 	}
 
-	private void limitBufferSize(final BufferSizeLimitAction bsla) {
+	private void limitBufferSize(final LimitBufferSizeAction bsla) {
 
 		final ChannelID sourceChannelID = bsla.getSourceChannelID();
 		final int bufferSize = bsla.getBufferSize();
@@ -265,5 +268,11 @@ public final class StreamListener {
 	public void registerOutputGate(final StreamingOutputGate<? extends Record> outputGate) {
 
 		this.outputGateMap.put(outputGate.getGateID(), outputGate);
+	}
+
+	public void registerMapper(final Mapper<? extends Record, ? extends Record> mapper,
+			final RecordReader<? extends Record> reader, final RecordWriter<? extends Record> writer) {
+
+		this.listenerContext.registerMapper(mapper, reader, writer);
 	}
 }

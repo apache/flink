@@ -42,7 +42,7 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 import eu.stratosphere.nephele.plugins.PluginID;
-import eu.stratosphere.nephele.streaming.actions.BufferSizeLimitAction;
+import eu.stratosphere.nephele.streaming.actions.LimitBufferSizeAction;
 import eu.stratosphere.nephele.streaming.profiling.LatencyOptimizerThread;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
 import eu.stratosphere.nephele.streaming.wrappers.StreamingFileInputWrapper;
@@ -220,7 +220,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 			return;
 		}
 
-		final BufferSizeLimitAction bsla = new BufferSizeLimitAction(jobID, vertexID, sourceChannelID, bufferSize);
+		final LimitBufferSizeAction bsla = new LimitBufferSizeAction(jobID, vertexID, sourceChannelID, bufferSize);
 		try {
 			instance.sendData(this.pluginID, bsla);
 		} catch (IOException e) {

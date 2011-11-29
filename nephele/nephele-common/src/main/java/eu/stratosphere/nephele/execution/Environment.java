@@ -22,6 +22,8 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -184,4 +186,7 @@ public interface Environment {
 	 *        the input gate to be registered
 	 */
 	void registerInputGate(InputGate<? extends Record> inputGate);
+
+	void registerMapper(Mapper<? extends Record, ? extends Record> mapper, RecordReader<? extends Record> reader,
+			RecordWriter<? extends Record> writer);
 }

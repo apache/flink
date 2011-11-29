@@ -18,44 +18,38 @@ package eu.stratosphere.nephele.streaming.actions;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
- * This class implements an abstract base class for actions the job manager component of the Nephele streaming plugin
- * can initiate to achieve particular latency or throughput goals.
+ * This class implements an action to construct a stream chain for a particular sub-path of the graph.
  * 
  * @author warneke
  */
-public abstract class AbstractAction implements IOReadableWritable {
+public final class ConstructStreamChainAction extends AbstractAction {
 
-	/**
-	 * The ID of the job the initiated action applies to.
-	 */
-	private final JobID jobID;
+	private final SerializableArrayList<ExecutionVertexID> vertexIDs = new SerializableArrayList<ExecutionVertexID>();
 
-	/**
-	 * Constructs a new abstract action object.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the initiated action applies to
-	 */
-	AbstractAction(final JobID jobID) {
+	public ConstructStreamChainAction(final JobID jobID, final List<ExecutionVertexID> vertexIDs) {
+		super(jobID);
 
-		if (jobID == null) {
-			throw new IllegalArgumentException("Argument jobID must not be null");
+		if (vertexIDs == null) {
+			throw new IllegalArgumentException("Argument vertexIDs must not be null");
 		}
 
-		this.jobID = jobID;
+		if (vertexIDs.size() < 2) {
+			throw new IllegalArgumentException("Argument vertexIDs must be a list with at least two elements");
+		}
+
+		this.vertexIDs.addAll(vertexIDs);
 	}
 
-	/**
-	 * Default constructor required for deserialization.
-	 */
-	AbstractAction() {
-		this.jobID = new JobID();
+	public ConstructStreamChainAction() {
+		super();
 	}
 
 	/**
@@ -64,7 +58,9 @@ public abstract class AbstractAction implements IOReadableWritable {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
-		this.jobID.write(out);
+		super.write(out);
+
+		this.vertexIDs.write(out);
 	}
 
 	/**
@@ -73,23 +69,22 @@ public abstract class AbstractAction implements IOReadableWritable {
 	@Override
 	public void read(final DataInput in) throws IOException {
 
-		this.jobID.read(in);
+		super.read(in);
+
+		this.vertexIDs.read(in);
+	}
+
+	public List<ExecutionVertexID> getVertexIDs() {
+
+		return Collections.unmodifiableList(this.vertexIDs);
 	}
 
 	/**
-	 * Returns the ID of the job the initiated action applies to.
-	 * 
-	 * @return the ID of the job the initiated action applies to
+	 * {@inheritDoc}
 	 */
-	public JobID getJobID() {
+	@Override
+	public ExecutionVertexID getVertexID() {
 
-		return this.jobID;
+		return this.vertexIDs.get(0);
 	}
-	
-	/**
-	 * Returns the ID of the vertex the initiated action applies to.
-	 * 
-	 * @return the ID of the vertex the initiated action applies to
-	 */
-	public abstract ExecutionVertexID getVertexID();
 }

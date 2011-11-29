@@ -16,12 +16,15 @@
 package eu.stratosphere.nephele.streaming.wrappers;
 
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.Mapper;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.plugins.wrapper.AbstractEnvironmentWrapper;
 import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.types.Record;
@@ -79,5 +82,15 @@ public final class StreamingEnvironment extends AbstractEnvironmentWrapper {
 			distributionPattern);
 
 		return new StreamingInputGate(inputGate, this.streamListener);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerMapper(final Mapper<? extends Record, ? extends Record> mapper,
+			final RecordReader<? extends Record> reader, final RecordWriter<? extends Record> writer) {
+
+		this.streamListener.registerMapper(mapper, reader, writer);
 	}
 }

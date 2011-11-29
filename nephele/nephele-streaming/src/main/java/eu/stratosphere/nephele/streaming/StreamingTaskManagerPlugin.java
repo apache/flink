@@ -30,6 +30,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.PluginCommunication;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
 import eu.stratosphere.nephele.streaming.actions.AbstractAction;
+import eu.stratosphere.nephele.streaming.chaining.StreamChainCoordinator;
 import eu.stratosphere.nephele.streaming.listeners.StreamListenerContext;
 
 public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
@@ -85,6 +86,8 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 	 */
 	private final StreamingCommunicationThread communicationThread;
 
+	private final StreamChainCoordinator chainCoordinator;
+
 	StreamingTaskManagerPlugin(final Configuration pluginConfiguration, final PluginCommunication jobManagerComponent) {
 
 		this.taggingInterval = pluginConfiguration.getInteger(TAGGING_INTERVAL_KEY, DEFAULT_TAGGING_INTERVAL);
@@ -93,6 +96,8 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 
 		this.communicationThread = new StreamingCommunicationThread(jobManagerComponent);
 		this.communicationThread.start();
+
+		this.chainCoordinator = new StreamChainCoordinator();
 
 		LOG.info("Configured tagging interval is " + this.taggingInterval);
 
@@ -138,13 +143,13 @@ public class StreamingTaskManagerPlugin implements TaskManagerPlugin {
 		StreamListenerContext listenerContext = null;
 		if (environment.getNumberOfInputGates() == 0) {
 			listenerContext = StreamListenerContext.createForInputTask(jobID, id, this.communicationThread,
-				aggregationInterval, taggingInterval);
+				this.chainCoordinator, aggregationInterval, taggingInterval);
 		} else if (environment.getNumberOfOutputGates() == 0) {
 			listenerContext = StreamListenerContext.createForOutputTask(jobID, id, this.communicationThread,
-				aggregationInterval);
+				this.chainCoordinator, aggregationInterval);
 		} else {
 			listenerContext = StreamListenerContext.createForRegularTask(jobID, id, this.communicationThread,
-				aggregationInterval);
+				this.chainCoordinator, aggregationInterval);
 		}
 
 		this.listenerContexts.putIfAbsent(idAsString, listenerContext);
