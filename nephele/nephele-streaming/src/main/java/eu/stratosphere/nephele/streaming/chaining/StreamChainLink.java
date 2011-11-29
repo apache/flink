@@ -16,38 +16,39 @@
 package eu.stratosphere.nephele.streaming.chaining;
 
 import eu.stratosphere.nephele.execution.Mapper;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.streaming.wrappers.StreamingInputGate;
+import eu.stratosphere.nephele.streaming.wrappers.StreamingOutputGate;
 import eu.stratosphere.nephele.types.Record;
 
-public final class StreamChainLink {
+public final class StreamChainLink<I extends Record, O extends Record> {
 
-	private final Mapper<? extends Record, ? extends Record> mapper;
+	private final Mapper<I, O> mapper;
 
-	private final RecordReader<? extends Record> reader;
+	private final StreamingInputGate<I> inputGate;
 
-	private final RecordWriter<? extends Record> writer;
+	private final StreamingOutputGate<O> outputGate;
 
-	StreamChainLink(final Mapper<? extends Record, ? extends Record> mapper, RecordReader<? extends Record> reader,
-			RecordWriter<? extends Record> writer) {
+	StreamChainLink(final Mapper<I, O> mapper,
+			final StreamingInputGate<I> inputGate,
+			final StreamingOutputGate<O> outputGate) {
 
 		this.mapper = mapper;
-		this.reader = reader;
-		this.writer = writer;
+		this.inputGate = inputGate;
+		this.outputGate = outputGate;
 	}
 
-	Mapper<? extends Record, ? extends Record> getMapper() {
+	Mapper<I, O> getMapper() {
 
 		return this.mapper;
 	}
 
-	RecordReader<? extends Record> getReader() {
+	StreamingInputGate<I> getInputGate() {
 
-		return this.reader;
+		return this.inputGate;
 	}
 
-	RecordWriter<? extends Record> getWriter() {
+	StreamingOutputGate<O> getOutputGate() {
 
-		return this.writer;
+		return this.outputGate;
 	}
 }

@@ -16,17 +16,19 @@
 package eu.stratosphere.nephele.streaming.listeners;
 
 import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Queue;
 
 import eu.stratosphere.nephele.execution.Mapper;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.streaming.StreamingCommunicationThread;
 import eu.stratosphere.nephele.streaming.actions.AbstractAction;
+import eu.stratosphere.nephele.streaming.chaining.StreamChain;
 import eu.stratosphere.nephele.streaming.chaining.StreamChainCoordinator;
 import eu.stratosphere.nephele.streaming.types.AbstractStreamingData;
+import eu.stratosphere.nephele.streaming.wrappers.StreamingInputGate;
+import eu.stratosphere.nephele.streaming.wrappers.StreamingOutputGate;
 import eu.stratosphere.nephele.types.Record;
 
 public final class StreamListenerContext {
@@ -167,8 +169,13 @@ public final class StreamListenerContext {
 	}
 
 	void registerMapper(final Mapper<? extends Record, ? extends Record> mapper,
-			final RecordReader<? extends Record> reader, final RecordWriter<? extends Record> writer) {
+			final StreamingInputGate<? extends Record> inputGate, final StreamingOutputGate<? extends Record> outputGate) {
 
-		this.chainCoordinator.registerMapper(this.vertexID, mapper, reader, writer);
+		this.chainCoordinator.registerMapper(this.vertexID, mapper, inputGate, outputGate);
+	}
+
+	StreamChain constructStreamChain(final List<ExecutionVertexID> vertexIDs) {
+
+		return this.chainCoordinator.constructStreamChain(vertexIDs);
 	}
 }

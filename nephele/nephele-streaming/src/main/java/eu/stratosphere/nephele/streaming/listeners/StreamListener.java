@@ -28,8 +28,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Mapper;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
@@ -37,11 +35,14 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.streaming.StreamingTag;
 import eu.stratosphere.nephele.streaming.StreamingTaskManagerPlugin;
 import eu.stratosphere.nephele.streaming.actions.AbstractAction;
+import eu.stratosphere.nephele.streaming.actions.ConstructStreamChainAction;
 import eu.stratosphere.nephele.streaming.actions.LimitBufferSizeAction;
+import eu.stratosphere.nephele.streaming.chaining.StreamChain;
 import eu.stratosphere.nephele.streaming.types.ChannelLatency;
 import eu.stratosphere.nephele.streaming.types.ChannelThroughput;
 import eu.stratosphere.nephele.streaming.types.OutputBufferLatency;
 import eu.stratosphere.nephele.streaming.types.TaskLatency;
+import eu.stratosphere.nephele.streaming.wrappers.StreamingInputGate;
 import eu.stratosphere.nephele.streaming.wrappers.StreamingOutputGate;
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
 import eu.stratosphere.nephele.types.Record;
@@ -235,10 +236,27 @@ public final class StreamListener {
 
 				if (action instanceof LimitBufferSizeAction) {
 					limitBufferSize((LimitBufferSizeAction) action);
+				} else if (action instanceof ConstructStreamChainAction) {
+					constructStreamChain((ConstructStreamChainAction) action);
 				} else {
 					LOG.error("Ignoring unknown action of type " + action.getClass());
 				}
 			}
+		}
+	}
+
+	private void constructStreamChain(final ConstructStreamChainAction csca) {
+
+		final StreamChain streamChain = this.listenerContext.constructStreamChain(csca.getVertexIDs());
+		if (streamChain == null) {
+			return;
+		}
+
+		final StreamingOutputGate<? extends Record> outputGate = streamChain.getFirstOutputGate();
+		try {
+			outputGate.redirectToStreamChain(streamChain);
+		} catch(Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
 		}
 	}
 
@@ -271,8 +289,8 @@ public final class StreamListener {
 	}
 
 	public void registerMapper(final Mapper<? extends Record, ? extends Record> mapper,
-			final RecordReader<? extends Record> reader, final RecordWriter<? extends Record> writer) {
+			final StreamingInputGate<? extends Record> input, final StreamingOutputGate<? extends Record> output) {
 
-		this.listenerContext.registerMapper(mapper, reader, writer);
+		this.listenerContext.registerMapper(mapper, input, output);
 	}
 }

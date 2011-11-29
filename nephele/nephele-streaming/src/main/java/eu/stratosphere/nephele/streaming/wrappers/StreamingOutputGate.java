@@ -23,6 +23,7 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.plugins.wrapper.AbstractOutputGateWrapper;
+import eu.stratosphere.nephele.streaming.chaining.StreamChain;
 import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.types.Record;
 
@@ -33,6 +34,8 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 	private long lastThroughputTimestamp = -1L;
 
 	private long[] lastSentBytes = null;
+
+	private StreamChain streamChain = null;
 
 	private Map<ChannelID, BufferLatency> bufferLatencyMap = new HashMap<ChannelID, BufferLatency>();
 
@@ -115,7 +118,11 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 			this.lastThroughputTimestamp = timestamp;
 		}
 
-		getWrappedOutputGate().writeRecord(record);
+		if (this.streamChain == null) {
+			getWrappedOutputGate().writeRecord(record);
+		} else {
+			this.streamChain.writeRecord(record);
+		}
 	}
 
 	/**
@@ -138,5 +145,12 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 		}
 
 		getWrappedOutputGate().outputBufferSent(channelID);
+	}
+
+	public void redirectToStreamChain(final StreamChain streamChain) throws IOException, InterruptedException {
+
+		getWrappedOutputGate().flush();
+
+		this.streamChain = streamChain;
 	}
 }

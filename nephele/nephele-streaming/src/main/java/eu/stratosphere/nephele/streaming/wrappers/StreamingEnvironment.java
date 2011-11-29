@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.streaming.wrappers;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.Mapper;
 import eu.stratosphere.nephele.io.ChannelSelector;
@@ -23,8 +26,6 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.plugins.wrapper.AbstractEnvironmentWrapper;
 import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.types.Record;
@@ -40,6 +41,10 @@ import eu.stratosphere.nephele.types.Record;
 public final class StreamingEnvironment extends AbstractEnvironmentWrapper {
 
 	private final StreamListener streamListener;
+
+	private final List<StreamingInputGate<? extends Record>> streamingInputGates = new ArrayList<StreamingInputGate<? extends Record>>();
+
+	private final List<StreamingOutputGate<? extends Record>> streamingOutputGates = new ArrayList<StreamingOutputGate<? extends Record>>();
 
 	/**
 	 * Constructs a new streaming environment
@@ -67,7 +72,10 @@ public final class StreamingEnvironment extends AbstractEnvironmentWrapper {
 		final OutputGate<? extends Record> outputGate = getWrappedEnvironment().createOutputGate(gateID, outputClass,
 			selector, isBroadcast);
 
-		return new StreamingOutputGate(outputGate, this.streamListener);
+		final StreamingOutputGate sog = new StreamingOutputGate(outputGate, this.streamListener);
+		this.streamingOutputGates.add(sog);
+
+		return sog;
 	}
 
 	/**
@@ -81,16 +89,26 @@ public final class StreamingEnvironment extends AbstractEnvironmentWrapper {
 		final InputGate<? extends Record> inputGate = getWrappedEnvironment().createInputGate(gateID, deserializer,
 			distributionPattern);
 
-		return new StreamingInputGate(inputGate, this.streamListener);
+		final StreamingInputGate sig = new StreamingInputGate(inputGate, this.streamListener);
+		this.streamingInputGates.add(sig);
+
+		return sig;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerMapper(final Mapper<? extends Record, ? extends Record> mapper,
-			final RecordReader<? extends Record> reader, final RecordWriter<? extends Record> writer) {
+	public void registerMapper(final Mapper<? extends Record, ? extends Record> mapper) {
 
-		this.streamListener.registerMapper(mapper, reader, writer);
+		if (this.streamingInputGates.size() != 1) {
+			return;
+		}
+
+		if (this.streamingOutputGates.size() != 1) {
+			return;
+		}
+
+		this.streamListener.registerMapper(mapper, this.streamingInputGates.get(0), this.streamingOutputGates.get(0));
 	}
 }

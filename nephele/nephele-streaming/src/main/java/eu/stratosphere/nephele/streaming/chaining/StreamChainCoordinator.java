@@ -15,6 +15,10 @@
 
 package eu.stratosphere.nephele.streaming.chaining;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -23,8 +27,8 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.Mapper;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.streaming.wrappers.StreamingInputGate;
+import eu.stratosphere.nephele.streaming.wrappers.StreamingOutputGate;
 import eu.stratosphere.nephele.types.Record;
 
 public final class StreamChainCoordinator {
@@ -38,12 +42,32 @@ public final class StreamChainCoordinator {
 
 	public void registerMapper(final ExecutionVertexID vertexID,
 			final Mapper<? extends Record, ? extends Record> mapper,
-			final RecordReader<? extends Record> reader, final RecordWriter<? extends Record> writer) {
+			final StreamingInputGate<? extends Record> inputGate, final StreamingOutputGate<? extends Record> outputGate) {
 
-		final StreamChainLink chainLink = new StreamChainLink(mapper, reader, writer);
+		final StreamChainLink chainLink = new StreamChainLink(mapper, inputGate, outputGate);
 
 		if (this.chainLinks.putIfAbsent(vertexID, chainLink) == null) {
 			LOG.info("Registering stream chain link for vertex ID " + vertexID);
 		}
+	}
+
+	public StreamChain constructStreamChain(final List<ExecutionVertexID> vertexIDs) {
+
+		final Iterator<ExecutionVertexID> it = vertexIDs.iterator();
+		final List<StreamChainLink> chainLinkList = new ArrayList<StreamChainLink>();
+		while (it.hasNext()) {
+
+			final ExecutionVertexID vertexID = it.next();
+			final StreamChainLink chainLink = this.chainLinks.get(vertexID);
+			if (chainLink == null) {
+				LOG.error("Cannot construct stream chain from " + vertexIDs.get(0) + " to "
+					+ vertexIDs.get(vertexIDs.size() - 1) + ": No chain link for vertex ID " + vertexID);
+				return null;
+			}
+
+			chainLinkList.add(chainLink);
+		}
+
+		return new StreamChain(Collections.unmodifiableList(chainLinkList));
 	}
 }

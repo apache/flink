@@ -35,8 +35,6 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
@@ -1007,8 +1005,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	}
 
 	@Override
-	public void registerMapper(final Mapper<? extends Record, ? extends Record> mapper,
-			final RecordReader<? extends Record> reader, final RecordWriter<? extends Record> writer) {
+	public void registerMapper(final Mapper<? extends Record, ? extends Record> mapper) {
 
 		// Nothing to do here
 
