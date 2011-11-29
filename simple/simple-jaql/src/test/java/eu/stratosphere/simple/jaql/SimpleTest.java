@@ -15,6 +15,9 @@
 package eu.stratosphere.simple.jaql;
 
 import java.util.List;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import junit.framework.Assert;
 
@@ -23,6 +26,7 @@ import org.junit.Ignore;
 import eu.stratosphere.simple.SimpleException;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * @author Arvid Heise
@@ -44,18 +48,45 @@ public class SimpleTest {
 	}
 
 	public SopremoPlan parseScript(final String script) {
-		System.out.println(script);
+		printBeamerSlide(script);
 		SopremoPlan plan = null;
 		try {
 			plan = new QueryParser().tryParse(script);
-			System.out.println(new QueryParser().toJavaString(script));
+			// System.out.println(new QueryParser().toJavaString(script));
 		} catch (final SimpleException e) {
 			Assert.fail(String.format("could not parse script: %s", e.getMessage()));
 		}
 
 		Assert.assertNotNull("could not parse script", plan);
 
-		System.out.println(plan);
+		// System.out.println(plan);
 		return plan;
+	}
+
+	protected void printBeamerSlide(final String script) {
+		StackTraceElement[] stackTrace = new Throwable().getStackTrace();
+		System.out.println("\\begin{frame}[fragile]{" +
+			stackTrace[2].getClassName().replaceAll(".*\\.(.*)Test", "$1") +
+			"}");
+		System.out.println("\\lstset{");
+		System.out.println("\tkeywords=[5]{} % operators");
+		System.out.println("\tkeywords=[6]{} % properties");
+		System.out.println("\tkeywords=[7]{} % functions");
+		System.out.println("\tkeywords=[8]{" + findVars(script) + "}");
+		System.out.println("}");
+		System.out.println("\\begin{lstlisting}");
+		System.out.println(script);
+		System.out.println("\\end{lstlisting}");
+		System.out.println("\\end{frame}");
+		System.out.println();
+	}
+
+	protected String findVars(final String script) {
+		TreeSet<String> vars = new TreeSet<String>();
+		Matcher matcher = Pattern.compile("\\$\\w+").matcher(script);
+		while(matcher.find())
+			vars.add(matcher.group());
+		String varString = vars.toString();
+		return varString.substring(1, varString.length() - 1);
 	}
 }
