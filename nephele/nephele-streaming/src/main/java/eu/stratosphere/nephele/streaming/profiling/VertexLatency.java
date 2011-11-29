@@ -10,7 +10,7 @@ public class VertexLatency {
 
 	public VertexLatency(ManagementVertex vertex) {
 		this.vertex = vertex;
-		this.latencyStatistics = new ProfilingValueStatistic(20);
+		this.latencyStatistics = new ProfilingValueStatistic(10);
 	}
 
 	public ManagementVertex getVertex() {
@@ -19,7 +19,7 @@ public class VertexLatency {
 
 	public double getLatencyInMillis() {
 		if (latencyStatistics.hasValues()) {
-			return latencyStatistics.getMedianValue();
+			return latencyStatistics.getArithmeticMean();
 		} else {
 			return -1;
 		}

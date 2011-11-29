@@ -1,10 +1,5 @@
 package eu.stratosphere.nephele.streaming.profiling;
 
-import java.io.IOException;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -16,21 +11,11 @@ import eu.stratosphere.nephele.streaming.types.TaskLatency;
 
 public class ProfilingModel {
 
-	private static Log LOG = LogFactory.getLog(ProfilingModel.class);
-
-	private final static long WAIT_INTERVAL_BEFORE_LOGGING = 10 * 1000;
-
-	private final static long LOGGING_INTERVAL = 1000;
+//	private static Log LOG = LogFactory.getLog(ProfilingModel.class);
 
 	private ExecutionGraph executionGraph;
 
 	private ProfilingSubgraph profilingSubgraph;
-
-	private ProfilingLogger logger;
-
-	private long timeOfLastLogging;
-
-	private long timeBase;
 
 	public ProfilingModel(ExecutionGraph executionGraph) {
 		this.executionGraph = executionGraph;
@@ -41,14 +26,6 @@ public class ProfilingModel {
 		ExecutionGroupVertex subgraphEnd = this.executionGraph.getOutputVertex(0).getGroupVertex();
 
 		this.profilingSubgraph = new ProfilingSubgraph(executionGraph, subgraphStart, subgraphEnd, false, false);
-
-		try {
-			this.logger = new ProfilingLogger(profilingSubgraph);
-		} catch (IOException e) {
-			LOG.error("Error when opening profiling logger file", e);
-		}
-		this.timeOfLastLogging = System.currentTimeMillis() + WAIT_INTERVAL_BEFORE_LOGGING;
-		this.timeBase = timeOfLastLogging;
 	}
 
 	public void refreshEdgeLatency(long timestamp, ChannelLatency channelLatency) {
@@ -109,15 +86,11 @@ public class ProfilingModel {
 		edgeCharaceristics.addOutputBufferLatencyMeasurement(timestamp, latency.getBufferLatency());
 	}
 
-	public void logProfilingSummaryIfNecessary(long now) {
-		if ((now - timeOfLastLogging) >= LOGGING_INTERVAL) {
-			try {
-				logger.logLatencies(now - timeBase);
-			} catch (IOException e) {
-				LOG.error("Error when writing to profiling logger file", e);
-			}
-			timeOfLastLogging = now;
-		}
+	public ProfilingSummary computeProfilingSummary() {
+		return new ProfilingSummary(profilingSubgraph);
 	}
 
+	public ProfilingSubgraph getProfilingSubgraph() {
+		return profilingSubgraph;
+	}
 }

@@ -7,21 +7,23 @@ import eu.stratosphere.nephele.managementgraph.ManagementAttachment;
 
 public class ProfilingSummary {
 
-	ArrayList<ManagementAttachment> pathElements;
+	private ArrayList<ManagementAttachment> pathElements;
 
-	int noOfActivePaths;
+	private int noOfActivePaths;
 
-	int noOfInactivePaths;
+	private int noOfInactivePaths;
 
-	double avgTotalPathLatency;
+	private double avgTotalPathLatency;
 
-	double medianPathLatency;
+	private double medianPathLatency;
 
-	double minPathLatency;
+	private double minPathLatency;
 
-	double maxPathLatency;
+	private double maxPathLatency;
 
-	double[] avgPathElementLatencies;
+	private double[] avgPathElementLatencies;
+	
+	private ArrayList<ProfilingPath> activePaths;
 
 	public ProfilingSummary(ProfilingSubgraph profilingSubgraph) {
 		noOfActivePaths = 0;
@@ -30,6 +32,7 @@ public class ProfilingSummary {
 		minPathLatency = 0;
 		maxPathLatency = 0;
 		medianPathLatency = 0;
+		activePaths = new ArrayList<ProfilingPath>();
 		
 		pathElements = null;
 		avgPathElementLatencies = null;
@@ -46,6 +49,8 @@ public class ProfilingSummary {
 			}
 
 			if (pathSummary.hasLatencies()) {
+				activePaths.add(path);
+				
 				// refresh the latency values in the summary
 				pathSummary.refreshLatencies();
 
@@ -79,5 +84,41 @@ public class ProfilingSummary {
 		for (int i = 0; i < from.length; i++) {
 			to[i] += from[i];
 		}
+	}
+
+	public ArrayList<ManagementAttachment> getPathElements() {
+		return pathElements;
+	}
+
+	public int getNoOfActivePaths() {
+		return noOfActivePaths;
+	}
+
+	public int getNoOfInactivePaths() {
+		return noOfInactivePaths;
+	}
+
+	public double getAvgTotalPathLatency() {
+		return avgTotalPathLatency;
+	}
+
+	public double getMedianPathLatency() {
+		return medianPathLatency;
+	}
+
+	public double getMinPathLatency() {
+		return minPathLatency;
+	}
+
+	public double getMaxPathLatency() {
+		return maxPathLatency;
+	}
+
+	public double[] getAvgPathElementLatencies() {
+		return avgPathElementLatencies;
+	}
+
+	public ArrayList<ProfilingPath> getActivePaths() {
+		return activePaths;
 	}
 }

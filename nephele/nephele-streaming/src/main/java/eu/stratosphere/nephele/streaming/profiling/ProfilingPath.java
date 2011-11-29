@@ -21,11 +21,13 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  */
 public class ProfilingPath implements Iterable<ManagementVertex> {
 
+	private ProfilingSubgraph graph;
+
 	private LinkedList<ManagementVertex> pathVertices;
 
 	private HashMap<ManagementVertexID, ManagementEdge> ingoingEdges;
 
-	private ProfilingSubgraph graph;
+	private ArrayList<ManagementAttachment> pathElements;
 
 	private ProfilingPathSummary summary;
 
@@ -42,13 +44,14 @@ public class ProfilingPath implements Iterable<ManagementVertex> {
 		this.endVertexInProfilingPath = toClone.endVertexInProfilingPath;
 	}
 
-	public ProfilingPath(ProfilingSubgraph graph, ManagementVertex firstVertex) {
+	public ProfilingPath(ProfilingSubgraph graph, ManagementVertex firstVertex, boolean beginVertexInProfilingPath,
+			boolean endVertexInProfilingPath) {
 		this.graph = graph;
 		this.pathVertices = new LinkedList<ManagementVertex>();
 		this.ingoingEdges = new HashMap<ManagementVertexID, ManagementEdge>();
 		this.pathVertices.add(firstVertex);
-		this.beginVertexInProfilingPath = true;
-		this.endVertexInProfilingPath = true;
+		this.beginVertexInProfilingPath = beginVertexInProfilingPath;
+		this.endVertexInProfilingPath = endVertexInProfilingPath;
 	}
 
 	public void appendVertex(ManagementVertex vertex, ManagementEdge ingoingEdge) {
@@ -65,6 +68,13 @@ public class ProfilingPath implements Iterable<ManagementVertex> {
 	}
 
 	public void setBeginVertexInProfilingPath(boolean beginVertexInProfilingPath) {
+		// changing this on the fly will invalidate any already computed list of path elements
+		// and the summary
+		if (beginVertexInProfilingPath != this.beginVertexInProfilingPath) {
+			this.pathElements = null;
+			this.summary = null;
+		}
+
 		this.beginVertexInProfilingPath = beginVertexInProfilingPath;
 	}
 
@@ -73,6 +83,13 @@ public class ProfilingPath implements Iterable<ManagementVertex> {
 	}
 
 	public void setEndVertexInProfilingPath(boolean endVertexInProfilingPath) {
+		// changing this on the fly will invalidate any already computed list of path elements
+		// and the summary
+		if (endVertexInProfilingPath != this.endVertexInProfilingPath) {
+			this.pathElements = null;
+			this.summary = null;
+		}
+
 		this.endVertexInProfilingPath = endVertexInProfilingPath;
 	}
 
@@ -95,33 +112,44 @@ public class ProfilingPath implements Iterable<ManagementVertex> {
 	}
 
 	public ProfilingPathSummary getSummary() {
-		if (this.summary == null) {
-			this.summary = new ProfilingPathSummary(walkProfilingPath());
-		}
+		ensurePathSummaryInitialized();
 		return this.summary;
 	}
 
+	private void ensurePathSummaryInitialized() {
+		if (this.summary == null) {
+			ensurePathElementsInitialized();
+			this.summary = new ProfilingPathSummary(this.pathElements);
+		}
+	}
+
+	private void ensurePathElementsInitialized() {
+		if (this.pathElements == null) {
+			this.pathElements = walkProfilingPath();
+		}
+	}
+
 	private ArrayList<ManagementAttachment> walkProfilingPath() {
-		ArrayList<ManagementAttachment> profilingPathElements = new ArrayList<ManagementAttachment>();
+		ArrayList<ManagementAttachment> pathElements = new ArrayList<ManagementAttachment>();
 
 		for (ManagementVertex vertex : pathVertices) {
 
 			ManagementEdge ingoingEdge = ingoingEdges.get(vertex.getID());
 			if (ingoingEdge != null) {
-				profilingPathElements.add(ingoingEdge);
+				pathElements.add(ingoingEdge);
 			}
-			profilingPathElements.add(vertex);
+			pathElements.add(vertex);
 		}
 
 		if (!isBeginVertexOnProfilingPath()) {
-			profilingPathElements.remove(0);
+			pathElements.remove(0);
 		}
 
 		if (!isEndVertexOnProfilingPath()) {
-			profilingPathElements.remove(profilingPathElements.size() - 1);
+			pathElements.remove(pathElements.size() - 1);
 		}
 
-		return profilingPathElements;
+		return pathElements;
 	}
 
 	@Override
@@ -139,6 +167,11 @@ public class ProfilingPath implements Iterable<ManagementVertex> {
 		builder.append("]");
 
 		return builder.toString();
+	}
+
+	public ArrayList<ManagementAttachment> getPathElements() {
+		ensurePathElementsInitialized();
+		return this.pathElements;
 	}
 
 	// public void dumpLatencies() {
