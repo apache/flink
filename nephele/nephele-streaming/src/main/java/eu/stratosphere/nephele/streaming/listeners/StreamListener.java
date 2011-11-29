@@ -254,6 +254,9 @@ public final class StreamListener {
 
 		final StreamingOutputGate<? extends Record> outputGate = streamChain.getFirstOutputGate();
 		try {
+			
+			outputGate.flush();
+			
 			outputGate.redirectToStreamChain(streamChain);
 		} catch(Exception e) {
 			LOG.error(StringUtils.stringifyException(e));

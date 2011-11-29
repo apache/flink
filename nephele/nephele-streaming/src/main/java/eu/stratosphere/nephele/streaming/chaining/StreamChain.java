@@ -60,20 +60,24 @@ public final class StreamChain {
 		final StreamChainLink chainLink = this.chainLinks.get(chainIndex);
 		final Queue output = new ArrayDeque();
 
+		
+		chainLink.getInputGate().reportRecordReceived(record);
 		chainLink.getMapper().map(record, output);
 
+		final StreamingOutputGate outputGate = chainLink.getOutputGate();
+		
 		if (chainIndex == this.chainLinks.size() - 1) {
 
-			final StreamingOutputGate outputGate = chainLink.getOutputGate();
-			
 			while (!output.isEmpty()) {
-				outputGate.writeRecord((Record)output.poll());
+				outputGate.writeRecord((Record) output.poll());
 			}
-			
+
 		} else {
 
 			while (!output.isEmpty()) {
-				executeMapper((Record)output.poll(), chainIndex+1);
+				final Record outputRecord = (Record) output.poll();
+				outputGate.reportRecordEmitted(outputRecord);
+				executeMapper(outputRecord, chainIndex + 1);
 			}
 		}
 	}

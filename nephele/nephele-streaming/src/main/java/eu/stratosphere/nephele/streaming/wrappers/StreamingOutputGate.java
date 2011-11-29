@@ -92,6 +92,17 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 	@Override
 	public void writeRecord(final T record) throws IOException, InterruptedException {
 
+		reportRecordEmitted(record);
+
+		if (this.streamChain == null) {
+			getWrappedOutputGate().writeRecord(record);
+		} else {
+			this.streamChain.writeRecord(record);
+		}
+	}
+	
+	public void reportRecordEmitted(final Record record) {
+		
 		final long timestamp = this.streamListener.recordEmitted(record);
 		if (timestamp >= 0) {
 
@@ -116,12 +127,6 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 			}
 
 			this.lastThroughputTimestamp = timestamp;
-		}
-
-		if (this.streamChain == null) {
-			getWrappedOutputGate().writeRecord(record);
-		} else {
-			this.streamChain.writeRecord(record);
 		}
 	}
 
@@ -148,8 +153,6 @@ public final class StreamingOutputGate<T extends Record> extends AbstractOutputG
 	}
 
 	public void redirectToStreamChain(final StreamChain streamChain) throws IOException, InterruptedException {
-
-		getWrappedOutputGate().flush();
 
 		this.streamChain = streamChain;
 	}

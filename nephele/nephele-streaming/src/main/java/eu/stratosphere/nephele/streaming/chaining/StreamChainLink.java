@@ -28,8 +28,7 @@ public final class StreamChainLink<I extends Record, O extends Record> {
 
 	private final StreamingOutputGate<O> outputGate;
 
-	StreamChainLink(final Mapper<I, O> mapper,
-			final StreamingInputGate<I> inputGate,
+	StreamChainLink(final Mapper<I, O> mapper, final StreamingInputGate<I> inputGate,
 			final StreamingOutputGate<O> outputGate) {
 
 		this.mapper = mapper;

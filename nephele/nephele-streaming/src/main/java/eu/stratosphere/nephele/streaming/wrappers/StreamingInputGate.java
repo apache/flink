@@ -106,11 +106,16 @@ public final class StreamingInputGate<T extends Record> extends AbstractInputGat
 			}
 		}
 
-		this.streamListener.recordReceived(record);
+		reportRecordReceived(record);
 
 		return record;
 	}
 
+	public void reportRecordReceived(final Record record) {
+		
+		this.streamListener.recordReceived(record);
+	}
+	
 	/**
 	 * This method returns the index of a channel which has at least
 	 * one record available. The method may block until at least one
