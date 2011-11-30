@@ -84,4 +84,13 @@ public final class ScoreJobManagerPlugin implements JobManagerPlugin {
 		// TODO Auto-generated method stub
 		return null;
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean requiresProfiling() {
+
+		return false;
+	}
 }

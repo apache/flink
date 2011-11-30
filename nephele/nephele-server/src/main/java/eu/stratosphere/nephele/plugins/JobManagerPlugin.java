@@ -26,6 +26,13 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 public interface JobManagerPlugin extends PluginCommunication {
 
 	/**
+	 * Checks whether the plugin requires a job to be executed with profiling enabled in order to work properly.
+	 * 
+	 * @return <code>true</code> if the job requires profiling to be enabled for a job, <code>false</code> otherwise
+	 */
+	boolean requiresProfiling();
+
+	/**
 	 * This method is called upon the reception of a new job graph. It gives the plugin the possibility to to rewrite
 	 * the job graph before it is processed further.
 	 * 

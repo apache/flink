@@ -147,7 +147,7 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 		optimizerThread.start();
 
 		// Temporary code start
-		final Runnable run = new Runnable() {
+		/*final Runnable run = new Runnable() {
 
 			@Override
 			public void run() {
@@ -158,29 +158,28 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 					e.printStackTrace();
 					return;
 				}
-
-				int count = 0;
 				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
-				final List<ExecutionVertexID> vertexIDs = new ArrayList<ExecutionVertexID>();
-				AbstractInstance instance = null;
-				while (it.hasNext()) {
-					++count;
-					final ExecutionVertex vertex = it.next();
 
-					if (count > 1 && count < 6) {
-						if (instance == null) {
-							instance = vertex.getAllocatedResource().getInstance();
-						}
+				while (it.hasNext()) {
+
+					final ExecutionVertex vertex = it.next();
+					if (vertex.getName().contains("Decoder")) {
+
+						final List<ExecutionVertexID> vertexIDs = new ArrayList<ExecutionVertexID>();
+						final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+
 						vertexIDs.add(vertex.getID());
+						vertexIDs.add(it.next().getID());
+						vertexIDs.add(it.next().getID());
+						vertexIDs.add(it.next().getID());
+
+						constructStreamChain(executionGraph.getJobID(), instance, vertexIDs);
 					}
 				}
-
-				constructStreamChain(executionGraph.getJobID(), instance, vertexIDs);
 			}
-
 		};
 
-		new Thread(run).start();
+		new Thread(run).start();*/
 		// Temporary code end
 
 		return executionGraph;
@@ -279,5 +278,14 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean requiresProfiling() {
+
+		return true;
 	}
 }
