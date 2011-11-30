@@ -7,8 +7,6 @@ import it.unimi.dsi.fastutil.objects.Object2DoubleMaps;
 import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
@@ -18,9 +16,9 @@ import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.cleansing.scrubbing.CleansingRule;
 import eu.stratosphere.sopremo.cleansing.scrubbing.DefaultRuleFactory;
 import eu.stratosphere.sopremo.cleansing.scrubbing.ExpressionRewriter;
 import eu.stratosphere.sopremo.cleansing.scrubbing.RewriteContext;
@@ -45,8 +43,10 @@ import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.NumericNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.CollectionUtil;
+import eu.stratosphere.util.Equals;
+import eu.stratosphere.util.Equals.Equaler;
+import eu.stratosphere.util.Equals.SafeEqualer;
 
 /**
  * Input elements are either
@@ -96,7 +96,8 @@ public class Fusion extends CompositeOperator<Fusion> {
 				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
 				 */
 				@Override
-				public EvaluationExpression call(MethodPointerExpression inputExpr, EvaluationContext context) {
+				public EvaluationExpression call(final MethodPointerExpression inputExpr,
+						final EvaluationContext context) {
 					return new MethodCall(inputExpr.getFunctionName(), EvaluationExpression.VALUE);
 				}
 			});
@@ -110,7 +111,7 @@ public class Fusion extends CompositeOperator<Fusion> {
 				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
 				 */
 				@Override
-				public EvaluationExpression call(InputSelection inputExpr, EvaluationContext context) {
+				public EvaluationExpression call(final InputSelection inputExpr, final EvaluationContext context) {
 					if (inputExpr.hasTag(JsonStreamExpression.THIS_CONTEXT))
 						return EvaluationExpression.VALUE;
 					return CONTEXT_NODES;
@@ -126,11 +127,11 @@ public class Fusion extends CompositeOperator<Fusion> {
 				 * EvaluationExpression, eu.stratosphere.sopremo.EvaluationContext)
 				 */
 				@Override
-				public EvaluationExpression call(ArithmeticExpression arithExpr, EvaluationContext context) {
-					if(arithExpr.getOperator() != ArithmeticOperator.MULTIPLICATION)
+				public EvaluationExpression call(final ArithmeticExpression arithExpr, final EvaluationContext context) {
+					if (arithExpr.getOperator() != ArithmeticOperator.MULTIPLICATION)
 						throw new IllegalArgumentException("unsupported arithmetic expression");
-					
-					((RewriteContext)context).parse(arithExpr.getSecondOperand());
+
+					((RewriteContext) context).parse(arithExpr.getSecondOperand());
 					return arithExpr.getFirstOperand();
 				}
 			});
@@ -138,7 +139,8 @@ public class Fusion extends CompositeOperator<Fusion> {
 
 	private final List<Object2DoubleMap<PathExpression>> weights = new ArrayList<Object2DoubleMap<PathExpression>>();
 
-	private RuleManager fusionRules = new RuleManager(), updateRules = new RuleManager(), weightRules = new RuleManager();
+	private final RuleManager fusionRules = new RuleManager(), updateRules = new RuleManager(),
+			weightRules = new RuleManager();
 
 	private boolean multipleRecordsPerSource = false;
 
@@ -149,7 +151,7 @@ public class Fusion extends CompositeOperator<Fusion> {
 	}
 
 	private Object2DoubleMap<PathExpression> getWeightMap(final int inputIndex) {
-		CollectionUtil.ensureSize(weights, inputIndex + 1);
+		CollectionUtil.ensureSize(this.weights, inputIndex + 1);
 		Object2DoubleMap<PathExpression> weightMap = this.weights.get(inputIndex);
 		if (weightMap == null) {
 			while (this.weights.size() <= inputIndex)
@@ -168,35 +170,35 @@ public class Fusion extends CompositeOperator<Fusion> {
 		return this.multipleRecordsPerSource;
 	}
 
-	public void addFusionRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+	public void addFusionRule(final EvaluationExpression rule, final List<EvaluationExpression> target) {
 		this.fusionRules.addRule(rule, target);
 	}
 
-	public void addFusionRule(EvaluationExpression rule, EvaluationExpression... target) {
+	public void addFusionRule(final EvaluationExpression rule, final EvaluationExpression... target) {
 		this.fusionRules.addRule(rule, target);
 	}
 
-	public void removeFusionRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+	public void removeFusionRule(final EvaluationExpression rule, final List<EvaluationExpression> target) {
 		this.fusionRules.removeRule(rule, target);
 	}
 
-	public void removeFusionRule(EvaluationExpression rule, EvaluationExpression... target) {
+	public void removeFusionRule(final EvaluationExpression rule, final EvaluationExpression... target) {
 		this.fusionRules.removeRule(rule, target);
 	}
 
-	public void addUpdateRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+	public void addUpdateRule(final EvaluationExpression rule, final List<EvaluationExpression> target) {
 		this.updateRules.addRule(rule, target);
 	}
 
-	public void addUpdateRule(EvaluationExpression rule, EvaluationExpression... target) {
+	public void addUpdateRule(final EvaluationExpression rule, final EvaluationExpression... target) {
 		this.updateRules.addRule(rule, target);
 	}
 
-	public void removeUpdateRule(EvaluationExpression rule, List<EvaluationExpression> target) {
+	public void removeUpdateRule(final EvaluationExpression rule, final List<EvaluationExpression> target) {
 		this.updateRules.removeRule(rule, target);
 	}
 
-	public void removeUpdateRule(EvaluationExpression rule, EvaluationExpression... target) {
+	public void removeUpdateRule(final EvaluationExpression rule, final EvaluationExpression... target) {
 		this.updateRules.removeRule(rule, target);
 	}
 
@@ -219,7 +221,7 @@ public class Fusion extends CompositeOperator<Fusion> {
 
 	@Property
 	@Name(preposition = "into")
-	public void setFusionExpression(ObjectCreation ruleExpression) {
+	public void setFusionExpression(final ObjectCreation ruleExpression) {
 		this.fusionRules.parse(ruleExpression, this, FusionRuleFactory);
 	}
 
@@ -229,21 +231,23 @@ public class Fusion extends CompositeOperator<Fusion> {
 
 	@Property
 	@Name(preposition = "with weights")
-	public void setWeightExpression(ObjectCreation ruleExpression) {
+	public void setWeightExpression(final ObjectCreation ruleExpression) {
 		this.weightRules.parse(ruleExpression, this, WeightRuleFactory);
-		
-		for(Entry<PathExpression, EvaluationExpression> rule : weightRules.getRules()) {
-			PathExpression path = rule.getKey();
-			parseWeightRule(rule.getValue(), ((InputSelection) path.getFragment(0)).getIndex(), path.subPath(1, -1));
+
+		for (final Entry<PathExpression, EvaluationExpression> rule : this.weightRules.getRules()) {
+			final PathExpression path = rule.getKey();
+			this.parseWeightRule(rule.getValue(), ((InputSelection) path.getFragment(0)).getIndex(),
+				path.subPath(1, -1));
 		}
 	}
 
-	private void parseWeightRule(EvaluationExpression value, int index, PathExpression path) {
-		if(value instanceof ArithmeticExpression) {
-			setWeight(((NumericNode) ((ConstantExpression) ((ArithmeticExpression) value).getFirstOperand()).getConstant()).getDoubleValue(), index, path);
-			parseWeightRule(((ArithmeticExpression) value).getSecondOperand(), index, new PathExpression(path));
+	private void parseWeightRule(final EvaluationExpression value, final int index, final PathExpression path) {
+		if (value instanceof ArithmeticExpression) {
+			this.setWeight(((NumericNode) ((ConstantExpression) ((ArithmeticExpression) value).getFirstOperand())
+				.getConstant()).getDoubleValue(), index, path);
+			this.parseWeightRule(((ArithmeticExpression) value).getSecondOperand(), index, new PathExpression(path));
 		} else
-			setWeight(((NumericNode) ((ConstantExpression) value).getConstant()).getDoubleValue(), index, path);
+			this.setWeight(((NumericNode) ((ConstantExpression) value).getConstant()).getDoubleValue(), index, path);
 	}
 
 	public ObjectCreation getWeightExpression() {
@@ -252,7 +256,7 @@ public class Fusion extends CompositeOperator<Fusion> {
 
 	@Property
 	@Name(verb = "update")
-	public void setUpdateExpression(ObjectCreation ruleExpression) {
+	public void setUpdateExpression(final ObjectCreation ruleExpression) {
 		this.updateRules.parse(ruleExpression, this, UpdateRuleFactory);
 	}
 
@@ -278,19 +282,30 @@ public class Fusion extends CompositeOperator<Fusion> {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		Fusion other = (Fusion) obj;
+		final Fusion other = (Fusion) obj;
 		return this.defaultValueRule.equals(other.defaultValueRule)
 			&& this.fusionRules.equals(other.fusionRules)
 			&& this.multipleRecordsPerSource == other.multipleRecordsPerSource
-			&& this.updateRules.equals(other.updateRules)
-			&& this.weights.equals(other.weights);
+			// && this.updateRules.equals(other.updateRules)
+			&& this.weights.equals(other.weights)
+			&& this.updateRules.customEquals(other.updateRules, new Equaler<PathExpression>() {
+				@Override
+				public boolean isEqual(final PathExpression value1, final PathExpression value2) {
+					final Operator<?>.Output thisSource = ((JsonStreamExpression) value1.getFragment(0)).getStream()
+						.getSource();
+					final Operator<?>.Output otherSource = ((JsonStreamExpression) value2.getFragment(0)).getStream()
+						.getSource();
+					return thisSource.getIndex() == otherSource.getIndex()
+						&& Equals.nonRecursiveEquals(thisSource.getOperator(), otherSource.getOperator(), Fusion.this, other);
+				}
+			}, Equals.SafeEquals);
 	}
 
 	/*
@@ -298,7 +313,7 @@ public class Fusion extends CompositeOperator<Fusion> {
 	 * @see eu.stratosphere.sopremo.Operator#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		super.toString(builder);
 		builder.append(" ").append(this.fusionRules).
 			append(" default ").append(this.defaultValueRule).
@@ -314,7 +329,7 @@ public class Fusion extends CompositeOperator<Fusion> {
 
 		private RuleManager fusionRules = new RuleManager();
 
-		public void setFusionRules(RuleManager fusionRules) {
+		public void setFusionRules(final RuleManager fusionRules) {
 			if (fusionRules == null)
 				throw new NullPointerException("fusionRules must not be null");
 
@@ -325,14 +340,14 @@ public class Fusion extends CompositeOperator<Fusion> {
 			return this.fusionRules;
 		}
 
-		public ValueFusion withFusionRules(RuleManager fusionRules) {
+		public ValueFusion withFusionRules(final RuleManager fusionRules) {
 			this.setFusionRules(fusionRules);
 			return this;
 		}
 
 		public static class Implementation extends
 				SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
-			private RuleManager fusionRules = new RuleManager();
+			private final RuleManager fusionRules = new RuleManager();
 
 			private List<Object2DoubleMap<PathExpression>> weights;
 
@@ -369,9 +384,9 @@ public class Fusion extends CompositeOperator<Fusion> {
 
 			private JsonNode fuse(final JsonNode[] values, final double[] weights, final PathExpression currentPath) {
 				UnresolvedNodes unresolved = new UnresolvedNodes(values);
-				for (EvaluationExpression fusionRule : this.fusionRules.get(currentPath)) {
+				for (final EvaluationExpression fusionRule : this.fusionRules.get(currentPath)) {
 					this.context.setWeights(weights);
-					JsonNode resolvedNode = fusionRule.evaluate(unresolved, this.context);
+					final JsonNode resolvedNode = fusionRule.evaluate(unresolved, this.context);
 					if (resolvedNode instanceof UnresolvedNodes)
 						unresolved = (UnresolvedNodes) resolvedNode;
 					else
@@ -453,7 +468,7 @@ public class Fusion extends CompositeOperator<Fusion> {
 						this.context.setSourceIndexes(sourceIndexes);
 					}
 
-					JsonNode[] contextArray = this.contextNodes.toArray(new JsonNode[this.contextNodes.size()]);
+					final JsonNode[] contextArray = this.contextNodes.toArray(new JsonNode[this.contextNodes.size()]);
 					this.context.setContextNodes(contextArray);
 					final double[] initialWeights = new double[this.contextNodes.size()];
 					for (int index = 0; index < initialWeights.length; index++)

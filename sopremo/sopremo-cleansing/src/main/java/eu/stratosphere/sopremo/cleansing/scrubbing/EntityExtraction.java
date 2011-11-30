@@ -1,9 +1,5 @@
 package eu.stratosphere.sopremo.cleansing.scrubbing;
 
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.concurrent.Callable;
-
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.InputCardinality;
@@ -20,6 +16,7 @@ import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.function.SimpleMacro;
+import eu.stratosphere.util.Equals.Equaler;
 
 @Name(verb = "extract from")
 @InputCardinality(min = 1, max = 1)
@@ -97,7 +94,7 @@ public class EntityExtraction extends CompositeOperator<EntityExtraction> {
 			return false;
 		EntityExtraction other = (EntityExtraction) obj;
 
-		return this.extractionRules.customEquals(other.extractionRules, null, new RuleManager.Equaler<JsonStreamExpression>() {
+		return this.extractionRules.customEquals(other.extractionRules, null, new Equaler<JsonStreamExpression>() {
 			@Override
 			public boolean isEqual(JsonStreamExpression value1, JsonStreamExpression value2) {
 				Operator<?>.Output thisSource = value1.getStream().getSource();
@@ -105,7 +102,7 @@ public class EntityExtraction extends CompositeOperator<EntityExtraction> {
 				if (thisSource.getIndex() != otherSource.getIndex()
 					|| !thisSource.getOperator().equals(otherSource.getOperator()))
 					return false;
-				return false;
+				return true;
 			}
 		});
 	}
