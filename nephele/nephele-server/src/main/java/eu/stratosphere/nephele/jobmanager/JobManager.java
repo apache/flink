@@ -465,11 +465,22 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		LOG.debug("The dependency chain for instance sharing is acyclic");
 
+		// Check if the job will be executed with profiling enabled
+		boolean jobRunsWithProfiling = false;
+		if (this.profiler != null && job.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
+			jobRunsWithProfiling = true;
+		}
+
 		// Allow plugins to rewrite the job graph
 		Iterator<JobManagerPlugin> it = this.jobManagerPlugins.values().iterator();
 		while (it.hasNext()) {
 
 			final JobManagerPlugin plugin = it.next();
+			if (plugin.requiresProfiling() && !jobRunsWithProfiling) {
+				LOG.debug("Skipping job graph rewrite by plugin " + plugin + " because job " + job.getJobID()
+					+ " will not be executed with profiling");
+				continue;
+			}
 
 			final JobGraph inputJob = job;
 			job = plugin.rewriteJobGraph(inputJob);
@@ -498,6 +509,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		while (it.hasNext()) {
 
 			final JobManagerPlugin plugin = it.next();
+			if (plugin.requiresProfiling() && !jobRunsWithProfiling) {
+				LOG.debug("Skipping execution graph rewrite by plugin " + plugin + " because job " + job.getJobID()
+					+ " will not be executed with profiling");
+				continue;
+			}
 
 			final ExecutionGraph inputGraph = eg;
 			eg = plugin.rewriteExecutionGraph(inputGraph);
@@ -510,19 +526,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		}
 
-		// Check if profiling should be enabled for this job
-		boolean profilingEnabled = false;
-		if (this.profiler != null && job.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
-			profilingEnabled = true;
-		}
-
 		// Register job with the progress collector
 		if (this.eventCollector != null) {
-			this.eventCollector.registerJob(eg, profilingEnabled);
+			this.eventCollector.registerJob(eg, jobRunsWithProfiling);
 		}
 
 		// Check if profiling should be enabled for this job
-		if (profilingEnabled) {
+		if (jobRunsWithProfiling) {
 			this.profiler.registerProfilingJob(eg);
 
 			if (this.eventCollector != null) {
