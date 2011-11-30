@@ -17,6 +17,8 @@ package eu.stratosphere.nephele.plugins;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.profiling.ProfilingListener;
 
 /**
  * This interface must be implemented by every plugin component which is supposed to run inside Nephele's job manager.
@@ -52,6 +54,18 @@ public interface JobManagerPlugin extends PluginCommunication {
 	 * @return the rewritten execution graph
 	 */
 	ExecutionGraph rewriteExecutionGraph(ExecutionGraph executionGraph);
+
+	/**
+	 * This method is called before the deployment of the execution graph. It provides the plugin with the possibility
+	 * to return a custom {@link ProfilingListener} which is then registered with the profiling component. As a result,
+	 * the plugin will receive profiling events during the job execution.
+	 * 
+	 * @param jobID
+	 *        the ID of the job to return a profiling listener for
+	 * @return the profiling listener for the job or <code>null</code> if the plugin does not want to receive profiling
+	 *         data for the job
+	 */
+	ProfilingListener getProfilingListener(JobID jobID);
 
 	/**
 	 * Called by the job manager to indicate that Nephele is about to shut down.

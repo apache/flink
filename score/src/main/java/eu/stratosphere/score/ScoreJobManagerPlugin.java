@@ -23,7 +23,9 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.JobManagerPlugin;
+import eu.stratosphere.nephele.profiling.ProfilingListener;
 
 public final class ScoreJobManagerPlugin implements JobManagerPlugin {
 
@@ -92,5 +94,14 @@ public final class ScoreJobManagerPlugin implements JobManagerPlugin {
 	public boolean requiresProfiling() {
 
 		return false;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public ProfilingListener getProfilingListener(final JobID jobID) {
+
+		return null;
 	}
 }

@@ -110,6 +110,7 @@ import eu.stratosphere.nephele.plugins.JobManagerPlugin;
 import eu.stratosphere.nephele.plugins.PluginID;
 import eu.stratosphere.nephele.plugins.PluginManager;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
+import eu.stratosphere.nephele.profiling.ProfilingListener;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
@@ -537,6 +538,16 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			if (this.eventCollector != null) {
 				this.profiler.registerForProfilingData(eg.getJobID(), this.eventCollector);
+			}
+
+			// Allow plugins to register their own profiling listeners for the job
+			it = this.jobManagerPlugins.values().iterator();
+			while (it.hasNext()) {
+
+				final ProfilingListener listener = it.next().getProfilingListener(eg.getJobID());
+				if (listener != null) {
+					this.profiler.registerForProfilingData(eg.getJobID(), listener);
+				}
 			}
 		}
 
