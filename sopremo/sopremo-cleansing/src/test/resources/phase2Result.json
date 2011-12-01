@@ -12,5 +12,7 @@
 	
 	[{ "node":  20, "partition": 2 },{ "node":  21,"partition": 2 }],
 	[{ "node":  20, "partition": 2 },{ "node":  22,"partition": 2 }],
-	[{ "node":  21, "partition": 2 },{ "node":  22,"partition": 2 }]
+	[{ "node":  21, "partition": 2 },{ "node":  22,"partition": 2 }],
+	
+	[{ "node":  31, "partition": 3 },{ "node":  32,"partition": 3 }]
 ]

@@ -8,6 +8,7 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
+import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 
@@ -36,7 +37,10 @@ public class Phase2 extends CompositeOperator<Phase2> {
 //		final GenerateColumns columns = new GenerateColumns().withInputs(computeRows);
 //		final ComputeBlockTuples computeTuples = new ComputeBlockTuples().withInputs(transDia, columns);
 
-		sopremoModule.getOutput(0).setInput(0, computeRows);
+		final ExtractMirroredMatrix mirroredMatrix = new ExtractMirroredMatrix().withInputs(computeRows);
+		final FillMatrix fillMatrix = new FillMatrix().withInputs(computeRows, mirroredMatrix);
+		
+		sopremoModule.getOutput(0).setInput(0, fillMatrix);
 
 		return sopremoModule;
 	}
@@ -141,5 +145,68 @@ public class Phase2 extends CompositeOperator<Phase2> {
 
 		}
 	}
+	
+	private static class ExtractMirroredMatrix extends ElementaryOperator<ExtractMirroredMatrix> {
 
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 8542903311559435638L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				if(((ArrayNode) key).get(0).compareTo(((ArrayNode) key).get(1)) > 0){
+					out.collect(new ArrayNode(((ArrayNode) key).get(1), ((ArrayNode) key).get(0)), value);
+				}
+			}
+		}
+	}
+
+	@InputCardinality(min = 2, max = 2)
+	private static class FillMatrix extends ElementaryOperator<FillMatrix> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 7978217716893352313L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.ArrayNode, eu.stratosphere.sopremo.jsondatamodel.ArrayNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
+				if(values2.isEmpty()){
+					out.collect(key, values1.get(0));
+				} else {
+					BinarySparseMatrix correctMatrix;
+					BinarySparseMatrix wrongMatrix = (BinarySparseMatrix) values2.get(0);
+					if(values1.isEmpty()){
+						correctMatrix = new BinarySparseMatrix();
+					} else {
+						correctMatrix = (BinarySparseMatrix) values1.get(0);
+					}
+					for(JsonNode row : wrongMatrix.getRows()){
+						for(JsonNode column : wrongMatrix.get(row)){
+							correctMatrix.set(column, row);
+						}
+					}
+					out.collect(key, correctMatrix);
+				}
+			}
+		}
+	}
 }

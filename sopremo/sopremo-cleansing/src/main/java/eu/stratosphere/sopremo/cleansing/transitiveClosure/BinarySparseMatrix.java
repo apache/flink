@@ -94,7 +94,7 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 	public StringBuilder toString(StringBuilder sb) {
 		for (final JsonNode row : this.getRows())
 			sb.append("[").append(row).append(": ").append(this.get(row)).append("]\n");
-		return sb.append("]");
+		return sb;
 	}
 
 	public void clear() {

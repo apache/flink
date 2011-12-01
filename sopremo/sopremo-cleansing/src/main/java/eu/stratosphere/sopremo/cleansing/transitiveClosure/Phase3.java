@@ -43,7 +43,7 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 1, 1);
 		JsonStream input = sopremoModule.getInput(0);
 
-		int itCount = 2;// TODO number of N
+		int itCount = 3;// TODO number of N
 		TransformAKey[] a = new TransformAKey[itCount];
 		TransformBKey[] b = new TransformBKey[itCount];
 		TransformXKey[] x = new TransformXKey[itCount];
@@ -229,30 +229,38 @@ public class Phase3 extends CompositeOperator<Phase3> {
 			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
 				if (!key.isArray()) {
 					// was not joined in BAndXCoGroup
-					//we don't want to loose these values for next iteration
+					// we don't want to loose these values for next iteration
 					for (JsonNode array : values2) {
 						out.collect(((ArrayNode) array).get(0), ((ArrayNode) array).get(1));
 					}
 				} else {
-					for (JsonNode value2 : values2) {
-						BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0)))
-							.get(1);
-						BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1)))
-							.get(1);
-						JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
-						// JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
-						if (!values1.isEmpty()) {
-							// 3-input warshall
-						} else {
-							//A is not present
-							//we don't want to loose B, too
-							JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
-							out.collect(oldKeyB, matrixB);
-						}
-						//in both cases we want to collect X
-						out.collect(oldKeyX, matrixX);
-					}
+					if (values2.isEmpty()) {
 
+						// A could not find any join partners -> emit
+						out.collect(key, values1.get(0));
+					} else {
+						for (JsonNode value2 : values2) {
+							BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0)))
+								.get(1);
+							BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1)))
+								.get(1);
+							JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
+							// JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
+							if (!values1.isEmpty()) {
+								// 3-input warshall
+							}
+
+							// else {
+							// TODO Why don't we need to collect B now?????
+							// // A is not present
+							// // we don't want to loose B, too
+							// JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
+							// out.collect(oldKeyB, matrixB);
+							// }
+							// in both cases we want to collect X
+							out.collect(oldKeyX, matrixX);
+						}
+					}
 				}
 
 			}

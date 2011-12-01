@@ -50,6 +50,25 @@ public class ParallelTransitiveClosureTest {
 		sopremoTestPlan.trace();
 		sopremoTestPlan.run();
 	}
+	
+	@Test
+	public void shouldFindTransitiveClosureInWholeMatrix() {
+		final TransitiveClosure transitiveClosure = new TransitiveClosure();
+		// transitiveClosure.setClosureMode(ClosureMode.LINKS);
+		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
+		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
+
+		String input = SopremoTest.getResourcePath("phase3.json");
+
+		sopremoTestPlan
+			.getInput(0).load(input);
+
+		String output = SopremoTest.getResourcePath("phase3Result.json");
+		sopremoTestPlan.getExpectedOutput(0).load(output);
+
+		sopremoTestPlan.trace();
+		sopremoTestPlan.run();
+	}
 
 	/**
 	 * Tests the algorithm only

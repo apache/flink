@@ -1,0 +1,9 @@
+[
+	[{ "node":  11, "partition": 1 },{ "node":  11,"partition": 1 }],
+	[{ "node":  24, "partition": 2 },{ "node":  24,"partition": 2 }],
+	[{ "node":  35, "partition": 3 },{ "node":  35,"partition": 3 }],
+	
+	[{ "node":  12, "partition": 1 },{ "node":  24,"partition": 2 }],
+	[{ "node":  24, "partition": 2 },{ "node":  35,"partition": 3 }],
+	[{ "node":  35, "partition": 3 },{ "node":  36,"partition": 3 }]
+]
