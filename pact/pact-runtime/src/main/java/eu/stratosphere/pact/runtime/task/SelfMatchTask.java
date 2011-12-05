@@ -51,6 +51,14 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 @SuppressWarnings({"unchecked"})
 public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 
+	public static final String SELFMATCH_CROSS_MODE_KEY = "selfMatch.crossMode";
+	
+	public static enum CrossMode {
+		FULL_CROSS,
+		TRIANGLE_CROSS_INCL_DIAG,
+		TRIANGLE_CROSS_EXCL_DIAG
+	}
+	
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
 	
@@ -58,7 +66,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	private static final double MEMORY_SHARE_RATIO = 0.10;
 	
 	// size of value buffer in elements
-	private static final int VALUE_BUFFER_SIZE = 10;
+	private static final int VALUE_BUFFER_SIZE = 32;
 	
 	private long availableMemory;
 	
@@ -76,7 +84,9 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	private CloseableInputProvider<PactRecord> closeableInput;
 	private SpillingResettableMutableObjectIterator outerValResettableIterator = null;
 	private SpillingResettableMutableObjectIterator innerValResettableIterator = null;
-
+	
+	private CrossMode crossMode;
+	
 	// ------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
@@ -110,6 +120,19 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		// test minimum memory requirements
 		final LocalStrategy ls = this.config.getLocalStrategy();
 		long strategyMinMem = 0;
+		
+		String crossModeS = this.config.getStubParameter(SELFMATCH_CROSS_MODE_KEY, null);
+		if(crossModeS == null) {
+			this.crossMode = CrossMode.FULL_CROSS;
+		} else if(crossModeS.equals(CrossMode.FULL_CROSS.toString())) {
+			this.crossMode = CrossMode.FULL_CROSS;
+		} else if(crossModeS.equals(CrossMode.TRIANGLE_CROSS_INCL_DIAG.toString())) {
+			this.crossMode = CrossMode.TRIANGLE_CROSS_INCL_DIAG;
+		} else if(crossModeS.equals(CrossMode.TRIANGLE_CROSS_EXCL_DIAG.toString())) {
+			this.crossMode = CrossMode.TRIANGLE_CROSS_EXCL_DIAG;
+		} else {
+			throw new IllegalArgumentException("Invalid Cross Mode: "+crossModeS);
+		}
 		
 		switch (ls) {
 			case SORT_SELF_NESTEDLOOP:
@@ -185,7 +208,19 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		
 		while(this.running && it.nextKey()) {
 			// cross all value of a certain key
-			crossValues(it.getValues(), output);
+			switch(this.crossMode) {
+			case FULL_CROSS:
+				fullCross(it.getValues(), output);
+				break;
+			case TRIANGLE_CROSS_INCL_DIAG:
+				diagInclTriangleCross(it.getValues(), output);
+				break;
+			case TRIANGLE_CROSS_EXCL_DIAG:
+				diagExclTriangleCross(it.getValues(), output);
+				break;
+			default:
+				throw new IllegalArgumentException("Invalid Cross Mode");
+			}
 		}
 		
 	}
@@ -230,7 +265,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	 *        The collector to write the results to.
 	 * @throws Exception 
 	 */
-	private final void crossValues(final Iterator<PactRecord> values, final Collector out) throws Exception
+	private final void fullCross(final Iterator<PactRecord> values, final Collector out) throws Exception
 	{
 		// allocate buffer
 		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];
@@ -333,6 +368,288 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 								if(i < bufferValCnt - 1)
 									innerValResettableIterator.repeatLast(innerRecord);
 							}
+						}
+						innerValResettableIterator.reset();
+					}
+				}
+				
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			} finally {
+				if(innerValResettableIterator != null) {
+					innerValResettableIterator.close();
+				}
+				if(outerValResettableIterator != null) {
+					outerValResettableIterator.close();
+				}
+			}
+			
+		}
+	}
+	
+	/**
+	 * Enumerates an triangle of the Carthesian product including its diagonal.
+	 * The {@link MatchStub#match(Key, Iterator, Collector)} method is called for each element of the 
+	 * triangle. 
+	 * 
+	 * @param values 
+	 *        An iterator over values that share the same key.
+	 * @param out
+	 *        The collector to write the results to.
+	 * @throws Exception 
+	 */
+	private final void diagInclTriangleCross(final Iterator<PactRecord> values, final Collector out) throws Exception
+	{
+		
+		// allocate buffer
+		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];
+		
+		// fill value buffer for the first time
+		int bufferValCnt;
+		for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
+			if(values.hasNext()) {
+				// read value into buffer
+				valBuffer[bufferValCnt] = values.next().createCopy();
+			} else {
+				break;
+			}
+		}
+		
+		// enumerate triangle of values in buffer
+		for (int i = 0;i < bufferValCnt; i++) {
+			
+			// check if task was canceled
+			if (!this.running) return;
+			
+			for (int j = i; j < bufferValCnt; j++) {
+				// check if task was canceled
+				if (!this.running) return;
+				
+				// match
+				stub.match(valBuffer[i].createCopy(), valBuffer[j].createCopy(), out);
+			}
+			
+		}
+		
+		if(this.running && values.hasNext()) {
+			// there are still value in the reader
+
+			// wrap value iterator in a reader
+			MutableObjectIterator<PactRecord> valReader = new MutableObjectIterator<PactRecord>() {
+				@Override
+				public boolean next(PactRecord target) throws IOException {
+					if (!running || !values.hasNext()) {
+						return false;
+					}
+					values.next().copyTo(target);
+					
+					for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
+						try {
+							stub.match(valBuffer[i].createCopy(),target.createCopy(),out);
+						} catch (Exception e) {
+							exceptionInMatchForValReader = e;
+							return false;
+						}
+					}
+					
+					return true; 
+				}
+			};
+			
+			outerValResettableIterator = null;
+			innerValResettableIterator = null;
+			
+			try {
+				// read values into outer resettable iterator
+				outerValResettableIterator =
+						new SpillingResettableMutableObjectIterator(memoryManager, ioManager, valReader,  (long) (availableMemory * (MEMORY_SHARE_RATIO/2)), this);
+				outerValResettableIterator.open();
+				if (exceptionInMatchForValReader != null) {
+					throw exceptionInMatchForValReader;
+				}
+
+				PactRecord outerRecord = new PactRecord();
+				PactRecord innerRecord = new PactRecord();
+				// read remaining values into inner resettable iterator
+				if(this.running) {
+					innerValResettableIterator =
+						new SpillingResettableMutableObjectIterator(memoryManager, ioManager, outerValResettableIterator, (long) (availableMemory * (MEMORY_SHARE_RATIO/2)), this);							
+					innerValResettableIterator.open();
+					
+					// reset outer iterator
+					outerValResettableIterator.reset();
+					
+					int outerConsumedRecordCnt = 0;
+					bufferValCnt = 0;
+					// enumerate triangle of remaining values
+					while(this.running && outerValResettableIterator.next(outerRecord)) {
+						
+						// fill buffer with next elements from outer resettable iterator
+						outerConsumedRecordCnt += bufferValCnt;
+						bufferValCnt = 0;
+						do {
+							outerRecord.copyTo(valBuffer[bufferValCnt++]);
+						} while(this.running && bufferValCnt < VALUE_BUFFER_SIZE && outerValResettableIterator.next(outerRecord));
+						if(bufferValCnt == 0) break;
+						
+						int innerConsumedRecordCnt = 0;
+						
+						// enumerate triangle of buffer and inner iterator
+						while(this.running && innerValResettableIterator.next(innerRecord)) {
+							
+							for(int i=0;i<bufferValCnt;i++) {
+								
+								if(outerConsumedRecordCnt+i <= innerConsumedRecordCnt) {
+									
+									stub.match(valBuffer[i].createCopy(), innerRecord, out);
+									
+									if(i < bufferValCnt - 1)
+										innerValResettableIterator.repeatLast(innerRecord);
+								}
+							}
+							
+							innerConsumedRecordCnt++;
+						}
+						innerValResettableIterator.reset();
+					}
+				}
+				
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			} finally {
+				if(innerValResettableIterator != null) {
+					innerValResettableIterator.close();
+				}
+				if(outerValResettableIterator != null) {
+					outerValResettableIterator.close();
+				}
+			}
+			
+		}
+	}
+	
+	/**
+	 * Enumerates an triangle of the Carthesian product excluding its diagonal.
+	 * The {@link MatchStub#match(Key, Iterator, Collector)} method is called for each element of the 
+	 * triangle. 
+	 * 
+	 * @param values 
+	 *        An iterator over values that share the same key.
+	 * @param out
+	 *        The collector to write the results to.
+	 * @throws Exception 
+	 */
+	private final void diagExclTriangleCross(final Iterator<PactRecord> values, final Collector out) throws Exception
+	{
+		
+		// allocate buffer
+		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];
+		
+		// fill value buffer for the first time
+		int bufferValCnt;
+		for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
+			if(values.hasNext()) {
+				// read value into buffer
+				valBuffer[bufferValCnt] = values.next().createCopy();
+			} else {
+				break;
+			}
+		}
+		
+		// enumerate the triangle of the values in buffer
+		for (int i = 0;i < bufferValCnt; i++) {
+			
+			// check if task was canceled
+			if (!this.running) return;
+			
+			for (int j = i+1; j < bufferValCnt; j++) {
+				// check if task was canceled
+				if (!this.running) return;
+				
+				// match
+				stub.match(valBuffer[i].createCopy(), valBuffer[j].createCopy(), out);
+			}
+			
+		}
+		
+		if(this.running && values.hasNext()) {
+			// there are still value in the reader
+
+			// wrap value iterator in a reader
+			MutableObjectIterator<PactRecord> valReader = new MutableObjectIterator<PactRecord>() {
+				@Override
+				public boolean next(PactRecord target) throws IOException {
+					if (!running || !values.hasNext()) {
+						return false;
+					}
+					values.next().copyTo(target);
+					
+					for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
+						try {
+							stub.match(valBuffer[i].createCopy(),target.createCopy(),out);
+						} catch (Exception e) {
+							exceptionInMatchForValReader = e;
+							return false;
+						}
+					}
+					
+					return true; 
+				}
+			};
+			
+			outerValResettableIterator = null;
+			innerValResettableIterator = null;
+			
+			try {
+				// read values into outer resettable iterator
+				outerValResettableIterator =
+						new SpillingResettableMutableObjectIterator(memoryManager, ioManager, valReader,  (long) (availableMemory * (MEMORY_SHARE_RATIO/2)), this);
+				outerValResettableIterator.open();
+				if (exceptionInMatchForValReader != null) {
+					throw exceptionInMatchForValReader;
+				}
+
+				PactRecord outerRecord = new PactRecord();
+				PactRecord innerRecord = new PactRecord();
+				// read remaining values into inner resettable iterator
+				if(this.running) {
+					innerValResettableIterator =
+						new SpillingResettableMutableObjectIterator(memoryManager, ioManager, outerValResettableIterator, (long) (availableMemory * (MEMORY_SHARE_RATIO/2)), this);							
+					innerValResettableIterator.open();
+					
+					// reset outer iterator
+					outerValResettableIterator.reset();
+					
+					int outerConsumedRecordCnt = 0;
+					bufferValCnt = 0;
+					// build triangle over remaining values
+					while(this.running && outerValResettableIterator.next(outerRecord)) {
+						
+						// fill buffer with next elements from outer resettable iterator
+						outerConsumedRecordCnt += bufferValCnt;
+						bufferValCnt = 0;
+						do {
+							outerRecord.copyTo(valBuffer[bufferValCnt++]);
+						} while(this.running && bufferValCnt < VALUE_BUFFER_SIZE && outerValResettableIterator.next(outerRecord));
+						if(bufferValCnt == 0) break;
+						
+						int innerConsumedRecordCnt = 0;
+						
+						// enumerate triangle of buffer and inner iterator
+						while(this.running && innerValResettableIterator.next(innerRecord)) {
+							
+							for(int i=0;i<bufferValCnt;i++) {
+								
+								if(outerConsumedRecordCnt+i < innerConsumedRecordCnt) {
+									
+									stub.match(valBuffer[i].createCopy(), innerRecord, out);
+									
+									if(i < bufferValCnt - 1)
+										innerValResettableIterator.repeatLast(innerRecord);
+								}
+							}
+							
+							innerConsumedRecordCnt++;
 						}
 						innerValResettableIterator.reset();
 					}

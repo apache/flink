@@ -44,10 +44,10 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
-	public void testSortSelfMatchTask() {
+	public void testSortFullSelfMatchTask() {
 
 		int keyCnt = 10;
-		int valCnt = 35;
+		int valCnt = 40;
 				
 		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
@@ -60,7 +60,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setNumFilehandles(4);
 		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
 		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
-		
+				
 		super.registerTask(testTask, MockMatchStub.class);
 		
 		try {
@@ -92,7 +92,112 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		}
 		
 		outList.clear();
+	}
+	
+	@Test
+	public void testSortInclSelfMatchTask() {
+
+		int keyCnt = 10;
+		int valCnt = 40;
+				
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addOutput(outList);
 		
+		SelfMatchTask testTask = new SelfMatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
+		
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		super.getTaskConfig().getStubParameters().setString(SelfMatchTask.SELFMATCH_CROSS_MODE_KEY, SelfMatchTask.CrossMode.TRIANGLE_CROSS_INCL_DIAG.toString());
+				
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expValCnt = (int)((valCnt+1) * ((float)valCnt/2.0f));
+		int expTotCnt = (int)(keyCnt*expValCnt);
+				
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expTotCnt, outList.size() == expTotCnt);
+		
+		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
+		for(PactRecord record : outList) {
+			
+			Integer key = record.getField(0, PactInteger.class).getValue();
+			if(!keyValCntMap.containsKey(key)) {
+				keyValCntMap.put(key,1);
+			} else {
+				keyValCntMap.put(key, keyValCntMap.get(key)+1);
+			}
+		}
+		
+		for(Integer key : keyValCntMap.keySet()) {
+			Assert.assertTrue("Invalid value count for key: "+key+". Value count was: "+keyValCntMap.get(key)+
+				" Expected was: "+expValCnt, keyValCntMap.get(key).intValue() == expValCnt);
+		}
+		
+		outList.clear();
+	}
+	
+	@Test
+	public void testSortExclSelfMatchTask() {
+
+		int keyCnt = 10;
+		int valCnt = 40;
+				
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addOutput(outList);
+		
+		SelfMatchTask testTask = new SelfMatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
+		
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		super.getTaskConfig().getStubParameters().setString(SelfMatchTask.SELFMATCH_CROSS_MODE_KEY, SelfMatchTask.CrossMode.TRIANGLE_CROSS_EXCL_DIAG.toString());
+				
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expValCnt = (int)((valCnt) * ((float)(valCnt-1.0f)/2.0f));
+		int expTotCnt = (int)(keyCnt*expValCnt);
+				
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expTotCnt, outList.size() == expTotCnt);
+		
+		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
+		for(PactRecord record : outList) {
+			
+			Integer key = record.getField(0, PactInteger.class).getValue();
+			if(!keyValCntMap.containsKey(key)) {
+				keyValCntMap.put(key,1);
+			} else {
+				keyValCntMap.put(key, keyValCntMap.get(key)+1);
+			}
+		}
+		
+		for(Integer key : keyValCntMap.keySet()) {
+			Assert.assertTrue("Invalid value count for key: "+key+". Value count was: "+keyValCntMap.get(key)+
+				" Expected was: "+(expValCnt), keyValCntMap.get(key).intValue() == expValCnt);
+		}
+		
+		outList.clear();
 	}
 	
 	
