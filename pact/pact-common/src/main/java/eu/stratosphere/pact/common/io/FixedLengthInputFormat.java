@@ -171,7 +171,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 		this.streamEnd += this.streamEnd % this.recordLength;
 		
 		// adjust readBufferSize
-		this.readBufferSize += this.readBufferSize % this.recordLength;
+		this.readBufferSize += (this.recordLength - (this.readBufferSize % this.recordLength));
 		
 		if (this.readBuffer == null || this.readBuffer.length != this.readBufferSize) {
 			this.readBuffer = new byte[this.readBufferSize];
@@ -291,6 +291,17 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException
 	{
+		// check if read buffer contains another full record
+		if((this.readBufferLimit - this.readBufferPos) == 0) {
+			// get another buffer
+			fillReadBuffer();
+			// check if source is exhausted
+			if(this.exhausted)
+				return false;
+		} else if((this.readBufferLimit - this.readBufferPos) < this.recordLength) {
+			throw new IOException("Unable to read full record");
+		}
+		
 		boolean val = readBytes(record, this.readBuffer, this.readBufferPos);
 		
 		this.readBufferPos += this.recordLength;
@@ -307,19 +318,15 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	 */
 	private void fillReadBuffer() throws IOException
 	{
-		int bytesRemaining = this.readBufferLimit - this.readBufferPos;
-		if (bytesRemaining > 0) {
-			System.arraycopy(this.readBuffer, this.readBufferPos, this.readBuffer, 0, bytesRemaining);
-		}
-		 
-		int toRead = (int) Math.min(this.streamEnd - this.streamPos, this.readBufferSize - bytesRemaining);
+		
+		int toRead = (int) Math.min(this.streamEnd - this.streamPos, this.readBufferSize);
 		if (toRead <= 0) {
 			this.exhausted = true;
 			return;
 		}
 		
 		// fill read buffer
-		int read = this.stream.read(this.readBuffer, bytesRemaining, toRead);
+		int read = this.stream.read(this.readBuffer, 0, toRead);
 		
 		if (read <= 0) {
 			this.exhausted = true;
@@ -327,7 +334,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 		else {
 			this.streamPos += read;
 			this.readBufferPos = 0;
-			this.readBufferLimit = bytesRemaining + read;
+			this.readBufferLimit = read;
 		}
 	}
 	
