@@ -52,6 +52,7 @@ import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
+import eu.stratosphere.nephele.event.job.CheckpointStateChangeEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
@@ -383,7 +384,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		}
 	}
 
-	public void killInstance(String instanceName) {
+	public void killInstance(final String instanceName) {
 
 		final MessageBox messageBox = new MessageBox(getShell(), SWT.YES | SWT.NO | SWT.ICON_QUESTION);
 		messageBox.setText("Confirmation");
@@ -613,6 +614,13 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			final ManagementVertex vertex = graph.getVertexByID(vertexAssignmentEvent.getVertexID());
 			vertex.setInstanceName(vertexAssignmentEvent.getInstanceName());
 			vertex.setInstanceType(vertexAssignmentEvent.getInstanceType());
+		} else if (event instanceof CheckpointStateChangeEvent) {
+
+			final CheckpointStateChangeEvent checkpointStateChangeEvent = (CheckpointStateChangeEvent) event;
+			final ManagementGraph graph = graphVisualizationData.getManagementGraph();
+			final ManagementVertex vertex = graph.getVertexByID(checkpointStateChangeEvent.getVertexID());
+			vertex.setCheckpointState(checkpointStateChangeEvent.getNewCheckpointState());
+
 		} else if (event instanceof JobEvent) {
 			// Ignore this type of event
 		} else if (event instanceof VertexEvent) {

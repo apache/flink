@@ -79,7 +79,7 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 * @throws IOException
 	 *         thrown if the input channel is already closed {@link EOFException} or a transmission error has occurred
 	 */
-	public abstract T readRecord() throws IOException;
+	public abstract T readRecord(T target) throws IOException;
 
 	@Override
 	public void read(DataInput in) throws IOException {
@@ -99,9 +99,9 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 * irrelevant and is discarded.
 	 * 
 	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the channel to be closed
+	 *         thrown if the thread is interrupted while waiting for the channel to close
 	 * @throws IOException
-	 *         thrown if an I/O error while closing the channel
+	 *         thrown if an I/O error occurs while closing the channel
 	 */
 	public abstract void close() throws IOException, InterruptedException;
 
@@ -175,4 +175,14 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	public JobID getJobID() {
 		return this.inputGate.getJobID();
 	}
+
+	/**
+	 * Activates the input channel.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transmitting the activation event to the connected output channel
+	 * @throws InterruptedException
+	 *         thrown if the calling thread is interrupted while completing the activation request
+	 */
+	public abstract void activate() throws IOException, InterruptedException;
 }

@@ -21,7 +21,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
 public class FileBuffer implements InternalBuffer {
@@ -30,22 +30,37 @@ public class FileBuffer implements InternalBuffer {
 
 	private final FileBufferManager fileBufferManager;
 
-	private final ChannelID channelID;
+	private final AbstractID ownerID;
+
+	private FileID fileID;
 
 	private FileChannel fileChannel;
 
-	private volatile boolean writeMode = true;
+	private volatile boolean writeMode;
 
 	private long totalBytesWritten = 0;
 
 	private long totalBytesRead = 0;
 
-	private long offset = 0;
+	private long offset;
 
-	FileBuffer(int bufferSize, ChannelID channelID, FileBufferManager fileBufferManager) {
+	FileBuffer(final int bufferSize, final FileID fileID, final long offset, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
 		this.bufferSize = bufferSize;
-		this.channelID = channelID;
+		this.fileID = fileID;
+		this.offset = offset;
+		this.ownerID = ownerID;
 		this.fileBufferManager = fileBufferManager;
+		this.writeMode = false;
+	}
+	
+	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
+		
+		this.bufferSize = bufferSize;
+		this.fileID = null;
+		this.offset = 0L;
+		this.ownerID = ownerID;
+		this.fileBufferManager = fileBufferManager;
+		this.writeMode = true;
 	}
 
 	@Override
@@ -57,14 +72,15 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.ownerID, this.fileID);
+				if (this.fileChannel == null) {
+					return 0;
+				}
 			} catch (InterruptedException e) {
 				return -1;
 			}
-			if (this.fileChannel.position() != this.offset) {
-				System.out.println("Expected offset " + this.offset + ", but channel position is "
-					+ this.fileChannel.position());
-				this.fileChannel.position(this.offset);
+			if (this.fileChannel.position() != (this.offset + this.totalBytesRead)) {
+				this.fileChannel.position(this.offset + this.totalBytesRead);
 			}
 		}
 
@@ -88,14 +104,15 @@ public class FileBuffer implements InternalBuffer {
 
 		if (this.fileChannel == null) {
 			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.channelID);
+				this.fileChannel = this.fileBufferManager.getFileChannelForReading(this.ownerID, this.fileID);
+				if (this.fileChannel == null) {
+					return 0;
+				}
 			} catch (InterruptedException e) {
 				return -1;
 			}
-			if (this.fileChannel.position() != this.offset) {
-				System.out.println("Expected offset " + this.offset + ", but channel position is "
-					+ this.fileChannel.position());
-				this.fileChannel.position(this.offset);
+			if (this.fileChannel.position() != (this.offset + this.totalBytesRead)) {
+				this.fileChannel.position(this.offset + this.totalBytesRead);
 			}
 		}
 
@@ -124,18 +141,14 @@ public class FileBuffer implements InternalBuffer {
 	}
 
 	@Override
-	public int write(ReadableByteChannel readableByteChannel) throws IOException {
+	public int write(final ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.writeMode) {
 			throw new IOException("Cannot write to buffer, buffer already switched to read mode");
 		}
 
 		if (this.fileChannel == null) {
-			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
-			} catch (ChannelCanceledException cce) {
-				return writeContentForCanceledChannel(readableByteChannel);
-			}
+			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.ownerID);
 			if (this.fileChannel == null) {
 				return 0;
 			}
@@ -153,56 +166,15 @@ public class FileBuffer implements InternalBuffer {
 		return (int) bytesWritten;
 	}
 
-	private int writeContentForCanceledChannel(final ReadableByteChannel readableByteChannel) throws IOException {
-
-		final ByteBuffer tmpBuffer = ByteBuffer.allocate(128);
-		long bytesWritten = 0;
-
-		long diff = this.bufferSize - this.totalBytesWritten;
-		if (diff <= 0) {
-			return 0;
-		}
-
-		while (diff > 0) {
-
-			// Make sure we don't read too much data from the stream
-			if (diff < tmpBuffer.remaining()) {
-				tmpBuffer.limit(tmpBuffer.position() + (int) diff);
-			}
-
-			final long b = readableByteChannel.read(tmpBuffer);
-			if (b == 0) {
-				break;
-			}
-			if (b == -1) {
-				throw new IOException("Read unexception -1 from stream");
-			}
-
-			if (!tmpBuffer.hasRemaining()) {
-				tmpBuffer.clear();
-			}
-
-			bytesWritten += b;
-			this.totalBytesWritten += b;
-			diff = this.bufferSize - this.totalBytesWritten;
-		}
-
-		return (int) bytesWritten;
-	}
-
 	@Override
-	public int write(ByteBuffer src) throws IOException {
+	public int write(final ByteBuffer src) throws IOException {
 
 		if (!this.writeMode) {
 			throw new IOException("Cannot write to buffer, buffer already switched to read mode");
 		}
 
 		if (this.fileChannel == null) {
-			try {
-				this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.channelID);
-			} catch (ChannelCanceledException e) {
-				throw new IOException("Received unexpected ChannelCanceledException");
-			}
+			this.fileChannel = this.fileBufferManager.getFileChannelForWriting(this.ownerID);
 			if (this.fileChannel == null) {
 				return 0;
 			}
@@ -212,7 +184,18 @@ public class FileBuffer implements InternalBuffer {
 			return 0;
 		}
 
-		final long bytesWritten = this.fileChannel.write(src);
+		// Make sure we do not exceed the buffer limit
+		long bytesWritten;
+		final int rem = (int) (this.bufferSize - this.totalBytesWritten);
+		if (src.remaining() > rem) {
+			final int excess = src.remaining() - rem;
+			src.limit(src.limit() - excess);
+			bytesWritten = this.fileChannel.write(src);
+			src.limit(src.limit() + excess);
+		} else {
+			bytesWritten = this.fileChannel.write(src);
+		}
+
 		this.totalBytesWritten += bytesWritten;
 
 		return (int) bytesWritten;
@@ -249,7 +232,16 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public void recycleBuffer() {
 
-		this.fileBufferManager.reportFileBufferAsConsumed(this.channelID);
+		try {
+			if (this.fileChannel != null) {
+				this.fileBufferManager.releaseFileChannelForReading(this.ownerID, this.fileID);
+				this.fileChannel = null;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		this.fileBufferManager.decreaseBufferCounter(this.ownerID, this.fileID);
 	}
 
 	@Override
@@ -267,7 +259,7 @@ public class FileBuffer implements InternalBuffer {
 			// System.out.println("Buffer size: " + this.bufferSize);
 			// TODO: Check synchronization
 			this.writeMode = false;
-			this.fileBufferManager.reportEndOfWritePhase(this.channelID, currentFileSize);
+			this.fileID = this.fileBufferManager.reportEndOfWritePhase(this.ownerID, currentFileSize);
 		}
 
 	}
@@ -279,9 +271,70 @@ public class FileBuffer implements InternalBuffer {
 	}
 
 	@Override
-	public InternalBuffer duplicate() {
+	public InternalBuffer duplicate() throws IOException, InterruptedException {
 
-		throw new RuntimeException("Not yet implemented");
+		this.fileBufferManager.increaseBufferCounter(this.ownerID, this.fileID);
+
+		final FileBuffer dup = new FileBuffer((int) this.bufferSize, this.ownerID, this.fileBufferManager);
+		dup.writeMode = this.writeMode;
+		dup.fileID = this.fileID;
+		dup.offset = this.offset;
+
+		return dup;
 	}
 
+	@Override
+	public void copyToBuffer(final Buffer destinationBuffer) throws IOException {
+
+		if (destinationBuffer.isBackedByMemory()) {
+
+			final long tbr = this.totalBytesRead;
+			if (this.fileChannel != null) {
+				this.fileBufferManager.releaseFileChannelForReading(this.ownerID, this.fileID);
+			}
+			this.totalBytesRead = 0;
+			while (remaining() > 0) {
+				destinationBuffer.write(this);
+			}
+			destinationBuffer.finishWritePhase();
+			if (this.fileChannel != null) {
+				this.fileBufferManager.releaseFileChannelForReading(this.ownerID, this.fileID);
+			}
+			this.fileChannel = null;
+			this.totalBytesRead = tbr;
+
+			return;
+		}
+
+		throw new UnsupportedOperationException("FileBuffer-to-FileBuffer copy is not yet implemented");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isInWriteMode() {
+
+		return this.writeMode;
+	}
+
+	/**
+	 * Returns the ID of the file which backs this buffers.
+	 * 
+	 * @return the ID of the file which backs this buffer
+	 */
+	public FileID getFileID() {
+
+		return this.fileID;
+	}
+
+	/**
+	 * Returns the offset in bytes which marks the begin of the buffer's data in the underlying file.
+	 * 
+	 * @return the buffer's offset in bytes
+	 */
+	public long getOffset() {
+
+		return this.offset;
+	}
 }

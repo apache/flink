@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import eu.stratosphere.nephele.io.Gate;
+import eu.stratosphere.nephele.io.AbstractGate;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
@@ -118,7 +118,7 @@ public class ManagementGraphFactory {
 
 		ExecutionGraphIterator iterator = new ExecutionGraphIterator(executionGraph, true);
 		final Map<ExecutionVertex, ManagementVertex> vertexMap = new HashMap<ExecutionVertex, ManagementVertex>();
-		final Map<Gate<? extends Record>, ManagementGate> gateMap = new HashMap<Gate<? extends Record>, ManagementGate>();
+		final Map<AbstractGate<? extends Record>, ManagementGate> gateMap = new HashMap<AbstractGate<? extends Record>, ManagementGate>();
 
 		while (iterator.hasNext()) {
 
@@ -129,7 +129,7 @@ public class ManagementGraphFactory {
 				(ev.getAllocatedResource().getInstance().getInstanceConnectionInfo() != null) ? ev
 					.getAllocatedResource().getInstance().getInstanceConnectionInfo().toString() : ev
 					.getAllocatedResource().getInstance().toString(), ev.getAllocatedResource().getInstance().getType()
-					.toString(), ev.getEnvironment().getIndexInSubtaskGroup());
+					.toString(), ev.getCheckpointState().toString(), ev.getEnvironment().getIndexInSubtaskGroup());
 			managementVertex.setExecutionState(ev.getExecutionState());
 			vertexMap.put(ev, managementVertex);
 
@@ -142,8 +142,7 @@ public class ManagementGraphFactory {
 
 			for (int i = 0; i < ev.getEnvironment().getNumberOfInputGates(); i++) {
 				final InputGate<? extends Record> inputGate = ev.getEnvironment().getInputGate(i);
-				final ManagementGate managementGate = new ManagementGate(managementVertex, i, true, inputGate.getType()
-					.toString());
+				final ManagementGate managementGate = new ManagementGate(managementVertex, i, true, "");
 				gateMap.put(inputGate, managementGate);
 			}
 		}

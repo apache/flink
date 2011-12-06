@@ -18,22 +18,29 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.util.Arrays;
 
 import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 public class HistogramPartitionFunction implements PartitionFunction {
-	private final Key[] splitBorders;
+	private final PactRecord[] splitBorders;
 	private final Order partitionOrder;
 	private final int[] channels = new int[1];
 	
-	public HistogramPartitionFunction(Key[] splitBorders, Order partitionOrder) {
+	public HistogramPartitionFunction(PactRecord[] splitBorders, Order partitionOrder) {
 		this.splitBorders = splitBorders;
 		this.partitionOrder = partitionOrder;
 	}
 
 	@Override
-	public int[] selectChannels(Key data, int numChannels) {
+	public int[] selectChannels(PactRecord data, int numChannels) {
 		//TODO: Check partition borders match number of channels
 		int pos = Arrays.binarySearch(splitBorders, data);
+
+		/*
+		 * 
+		 * TODO CHECK ONLY FOR KEYS NOT FOR WHOLE RECORD
+		 * 
+		 */
+		
 		if(pos < 0) {
 			pos++;
 			pos = -pos;

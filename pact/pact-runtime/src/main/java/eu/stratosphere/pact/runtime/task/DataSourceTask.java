@@ -16,48 +16,49 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.pact.common.io.input.InputFormat;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
- * DataSourceTask which is executed by a Nephele task manager.
- * The task reads data and uses an InputFormat to create records from the input.
+ * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
+ * {@link InputFormat} to create records from the input.
  * 
- * @see eu.stratosphere.pact.common.io.input.InputFormat
+ * @see eu.stratosphere.pact.common.io.InputFormat
  * 
- * @author Moritz Kaufmann
- * @author Fabian Hueske
  * @author Stephan Ewen
+ * @author Fabian Hueske
+ * @author Moritz Kaufmann
  */
 
-@SuppressWarnings({ "unchecked", "rawtypes" })
 public class DataSourceTask extends AbstractInputTask<InputSplit>
 {
 	// Obtain DataSourceTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
 
 	// Output collector
-	private OutputCollector<Key, Value> output;
+	private Collector output;
 
 	// InputFormat instance
-	private InputFormat<InputSplit, Key, Value> format;
+	private InputFormat<InputSplit> format;
 
 	// Task configuration
 	private TaskConfig config;
+	
+	private ArrayList<ChainedTask> chainedTasks;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -71,11 +72,17 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Start registering input and output"));
 
-		// Initialize InputFormat
-		initInputFormat();
-
-		// Initialize OutputCollector
-		initOutputCollector();
+		ClassLoader cl;
+		try {
+			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+		}
+		catch (IOException ioe) {
+			throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
+						getEnvironment().getJobID(), ioe);
+		}
+		
+		initInputFormat(cl);
+		initOutputs(cl);
 
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Finished registering input and output"));
@@ -86,44 +93,71 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 */
 	@Override
 	public void invoke() throws Exception
-	{	
-		KeyValuePair<Key, Value> pair = null;
-
+	{
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code"));
-
-		// get file splits to read
-		final Iterator<InputSplit> splitIterator = getInputSplits();
-
-		// for each assigned input split
-		while (!this.taskCanceled && splitIterator.hasNext())
-		{
-			// get start and end
-			final InputSplit split = splitIterator.next();
-
-			if (LOG.isDebugEnabled())
-				LOG.debug(getLogString("Opening input split " + split.toString()));
-
+		
+		try {
+			// start all chained tasks
+			AbstractPactTask.openChainedTasks(this.chainedTasks, this);
 			
-			if (this.taskCanceled) {
-				return;
-			}
+			// get input splits to read
+			final Iterator<InputSplit> splitIterator = getInputSplits();
+	
+			// for each assigned input split
+			while (!this.taskCanceled && splitIterator.hasNext())
+			{
+				// get start and end
+				final InputSplit split = splitIterator.next();
+	
+				if (LOG.isDebugEnabled())
+					LOG.debug(getLogString("Opening input split " + split.toString()));
+				
+				final InputFormat<InputSplit> format = this.format;
 			
-			final InputFormat format = this.format;
-			
-			try {
 				// open input format
 				format.open(split);
 	
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
 	
-				// as long as there is data to read
-				while (!this.taskCanceled && !format.reachedEnd()) {
-					pair = format.createPair();
-					// build next pair and ship pair if it is valid
-					if (format.nextRecord(pair)) {
-						this.output.collect(pair.getKey(), pair.getValue());
+				final PactRecord record = new PactRecord();
+				
+				// we make a case distinction here for the common cases, in order to help
+				// JIT method inlining
+				if (this.output instanceof OutputCollector)
+				{
+					final OutputCollector output = (OutputCollector) this.output;
+					
+					// as long as there is data to read
+					while (!this.taskCanceled && !format.reachedEnd()) {
+						// build next pair and ship pair if it is valid
+						if (format.nextRecord(record)) {
+							output.collect(record);
+						}
+					}
+				}
+				else if (this.output instanceof ChainedMapTask)
+				{
+					final ChainedMapTask output = (ChainedMapTask) this.output;
+					
+					// as long as there is data to read
+					while (!this.taskCanceled && !format.reachedEnd()) {
+						// build next pair and ship pair if it is valid
+						if (format.nextRecord(record)) {
+							output.collect(record);
+						}
+					}
+				}
+				else {
+					final Collector output = this.output;
+					
+					// as long as there is data to read
+					while (!this.taskCanceled && !format.reachedEnd()) {
+						// build next pair and ship pair if it is valid
+						if (format.nextRecord(record)) {
+							output.collect(record);
+						}
 					}
 				}
 
@@ -134,20 +168,25 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 					
 					format.close();
 				}
-			}
-			catch (Exception ex) {
-				// close the input, but do not report any exceptions, since we already have another root cause
-				try {
-					format.close();
-				}
-				catch (Throwable t) {}
-				
-				// drop exception, if the task was canceled
-				if (!this.taskCanceled) {
-					if (LOG.isErrorEnabled())
-						LOG.error(getLogString("Unexpected ERROR in PACT code"));
-					throw ex;
-				}	
+			} // end for all input splits
+			
+			// close the collector. if it is a chaining task collector, it will close its chained tasks
+			this.output.close();
+			
+			// close all chained tasks letting them report failure
+			AbstractPactTask.closeChainedTasks(this.chainedTasks, this);
+		}
+		catch (Exception ex) {
+			// close the input, but do not report any exceptions, since we already have another root cause
+			try {
+				this.format.close();
+			} catch (Throwable t) {}
+			
+			AbstractPactTask.cancelChainedTasks(this.chainedTasks);
+			
+			// drop exception, if the task was canceled
+			if (!this.taskCanceled) {
+				AbstractPactTask.logAndThrowException(ex, this);
 			}
 		}
 
@@ -180,33 +219,14 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 *         Throws if instance of InputFormat implementation can not be
 	 *         obtained.
 	 */
-	private void initInputFormat()
+	private void initInputFormat(ClassLoader cl)
 	{
 		// obtain task configuration (including stub parameters)
 		this.config = new TaskConfig(getRuntimeConfiguration());
 
-		// obtain stub implementation class
-		try {
-			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends InputFormat> formatClass = this.config.getStubClass(InputFormat.class, cl);
-			// obtain instance of stub implementation
-			this.format = formatClass.newInstance();
-			// configure stub implementation
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-		}
-		catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException("InputFormat implementation class was not found.", cnfe);
-		}
-		catch (InstantiationException ie) {
-			throw new RuntimeException("InputFormat implementation could not be instanciated. " +
-					"Likely reasons are either a missing nullary constructor, or that the class is abstract.", ie);
-		}
-		catch (IllegalAccessException iae) {
-			throw new RuntimeException("InputFormat implementation class or its nullary constructor are " +
-					"not accessible (private or protected).", iae);
-		}
+		@SuppressWarnings("unchecked")
+		Class<InputFormat<InputSplit>> superClass = (Class<InputFormat<InputSplit>>) (Class<?>) InputFormat.class;
+		this.format = AbstractPactTask.instantiateUserCode(this.config, cl, superClass);
 		
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
 		try {
@@ -218,32 +238,13 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	}
 
 	/**
-	 * Creates a writer for each output. Creates an OutputCollector which
-	 * forwards its input to all writers.
+	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
+	 * The output collector applies the configured shipping strategy.
 	 */
-	private void initOutputCollector()
+	private void initOutputs(ClassLoader cl)
 	{
-		boolean fwdCopyFlag = false;
-
-		// create output collector
-		this.output = new OutputCollector<Key, Value>();
-
-		// create a writer for each output
-		for (int i = 0; i < config.getNumOutputs(); i++) {
-			// obtain OutputEmitter from output ship strategy
-			OutputEmitter oe = new OutputEmitter(config.getOutputShipStrategy(i));
-			// create writer
-			RecordWriter<KeyValuePair<Key, Value>> writer;
-			writer = new RecordWriter<KeyValuePair<Key, Value>>(this,
-				(Class<KeyValuePair<Key, Value>>) (Class<?>) KeyValuePair.class, oe);
-
-			// add writer to output collector
-			// the first writer does not need to send a copy
-			// all following must send copies
-			// TODO smarter decision are possible here, e.g. decide which channel may not need to copy, ...
-			output.addWriter(writer, fwdCopyFlag);
-			fwdCopyFlag = true;
-		}
+		this.chainedTasks = new ArrayList<ChainedTask>();
+		this.output = AbstractPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -279,7 +280,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	}
 	
 	// ------------------------------------------------------------------------
-	//                             
+	//                       Control of Parallelism
 	// ------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
@@ -314,15 +315,19 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 */
 	private String getLogString(String message)
 	{
-		StringBuilder bld = new StringBuilder(128);	
-		bld.append(message);
-		bld.append(':').append(' ');
-		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('(');
-		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
-		bld.append('/');
-		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
-		bld.append(')');
-		return bld.toString();
+		return getLogString(message, this.getEnvironment().getTaskName());
+	}
+	
+	/**
+	 * Utility function that composes a string for logging purposes. The string includes the given message and
+	 * the index of the task in its task group together with the number of tasks in the task group.
+	 *  
+	 * @param message The main message for the log.
+	 * @param taskName The name of the task.
+	 * @return The string ready for logging.
+	 */
+	private String getLogString(String message, String taskName)
+	{
+		return AbstractPactTask.constructLogString(message, taskName, this);
 	}
 }

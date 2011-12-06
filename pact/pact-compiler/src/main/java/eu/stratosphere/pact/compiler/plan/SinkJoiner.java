@@ -19,9 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.stub.DualInputStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -161,21 +159,15 @@ public class SinkJoiner extends TwoInputNode
 	}
 
 	// ------------------------------------------------------------------------
+	//  Mock classes that represents a contract without behavior.
+	// ------------------------------------------------------------------------
 	
-	/**
-	 * Mock class that represents a contract object without behavior.
-	 */
-	private static final class NoContract extends DualInputContract<Key, Value, Key, Value, Key, Value>
+	private static final class MockStub extends Stub {}
+	
+	private static final class NoContract extends DualInputContract<MockStub>
 	{
 		private NoContract() {
 			super(MockStub.class, "NoContract");
-		}
-		
-		private static final class MockStub extends DualInputStub<Key, Value, Key, Value, Key, Value>
-		{
-			@Override
-			protected void initTypes() {}
-			
 		}
 	}
 }

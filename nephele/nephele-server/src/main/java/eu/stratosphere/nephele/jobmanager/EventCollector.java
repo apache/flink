@@ -24,6 +24,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
+import eu.stratosphere.nephele.event.job.CheckpointStateChangeEvent;
 import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.event.job.ManagementEvent;
@@ -33,6 +34,9 @@ import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
+import eu.stratosphere.nephele.executiongraph.CheckpointStateListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -57,10 +61,12 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
  * The event collector collects events which occurred during the execution of a job and prepares them
  * for being fetched by a client. The collected events have an expiration time. In a configurable interval
  * the event collector removes all intervals which are older than the interval.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public final class EventCollector extends TimerTask implements ProfilingListener {
+public final class EventCollector extends TimerTask implements ProfilingListener, CheckpointStateListener {
 
 	/**
 	 * The execution listener wrapper is an auxiliary class. It is required
@@ -84,9 +90,19 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		private final JobVertexID jobVertexID;
 
 		/**
-		 * The ID of the management vertex this wrapper object belongs to.
+		 * The name of task represented by the associated vertex.
 		 */
-		private final ManagementVertexID managementVertexID;
+		private final String taskName;
+
+		/**
+		 * The index of the vertex in the subtask group.
+		 */
+		private final int indexInSubtaskGroup;
+
+		/**
+		 * The total number of vertices in the vertex's subtask group.
+		 */
+		private final int totalNumberOfSubtasks;
 
 		/**
 		 * Constructs a new execution listener object.
@@ -95,42 +111,45 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 *        the event collector to forward the created event to
 		 * @param jobVertexID
 		 *        the ID of the job vertex this wrapper object belongs to
-		 * @param executionVertexID
-		 *        the ID of the execution vertex this wrapper object belongs to
+		 * @param environment
+		 *        the environment of the vertex this listener is created for
 		 */
-		public ExecutionListenerWrapper(EventCollector eventCollector, JobVertexID jobVertexID,
-				ExecutionVertexID executionVertexID) {
+		public ExecutionListenerWrapper(final EventCollector eventCollector, final JobVertexID jobVertexID,
+				final Environment environment) {
 			this.eventCollector = eventCollector;
 			this.jobVertexID = jobVertexID;
-			this.managementVertexID = executionVertexID.toManagementVertexID();
+			this.taskName = environment.getTaskName();
+			this.indexInSubtaskGroup = environment.getIndexInSubtaskGroup();
+			this.totalNumberOfSubtasks = environment.getCurrentNumberOfSubtasks();
 		}
 
 		/**
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void executionStateChanged(Environment ee, ExecutionState newExecutionState, String optionalMessage) {
+		public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
+				final ExecutionState newExecutionState, final String optionalMessage) {
 
 			final long timestamp = System.currentTimeMillis();
 
 			// Create a new vertex event
-			final VertexEvent vertexEvent = new VertexEvent(timestamp, this.jobVertexID, ee.getTaskName(), ee
-				.getCurrentNumberOfSubtasks(), ee.getIndexInSubtaskGroup(), newExecutionState, optionalMessage);
+			final VertexEvent vertexEvent = new VertexEvent(timestamp, this.jobVertexID, this.taskName,
+				this.totalNumberOfSubtasks, this.indexInSubtaskGroup, newExecutionState, optionalMessage);
 
-			this.eventCollector.addEvent(ee.getJobID(), vertexEvent);
+			this.eventCollector.addEvent(jobID, vertexEvent);
 
 			final ExecutionStateChangeEvent executionStateChangeEvent = new ExecutionStateChangeEvent(timestamp,
-				this.managementVertexID, newExecutionState);
+				vertexID.toManagementVertexID(), newExecutionState);
 
-			this.eventCollector.updateManagementGraph(ee.getJobID(), executionStateChangeEvent);
-			this.eventCollector.addEvent(ee.getJobID(), executionStateChangeEvent);
+			this.eventCollector.updateManagementGraph(jobID, executionStateChangeEvent);
+			this.eventCollector.addEvent(jobID, executionStateChangeEvent);
 		}
 
 		/**
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void userThreadFinished(Environment ee, Thread userThread) {
+		public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 			// Nothing to do here
 		}
 
@@ -138,9 +157,19 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void userThreadStarted(Environment ee, Thread userThread) {
+		public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 			// Nothing to do here
 		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
+				final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+			// Nothing to do here
+		}
+
 	}
 
 	/**
@@ -178,7 +207,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * @param isProfilingAvailable
 		 *        <code>true</code> if profiling events are collected for the job, <code>false</code> otherwise
 		 */
-		public JobStatusListenerWrapper(EventCollector eventCollector, String jobName, boolean isProfilingAvailable) {
+		public JobStatusListenerWrapper(final EventCollector eventCollector, final String jobName,
+				final boolean isProfilingAvailable) {
 			this.eventCollector = eventCollector;
 			this.jobName = jobName;
 			this.isProfilingAvailable = isProfilingAvailable;
@@ -188,8 +218,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
-				String optionalMessage) {
+		public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
+				final String optionalMessage) {
 
 			final JobID jobID = executionGraph.getJobID();
 
@@ -237,7 +267,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * @param jobID
 		 *        the ID of the job
 		 */
-		public VertexAssignmentListenerWrapper(EventCollector eventCollector, JobID jobID) {
+		public VertexAssignmentListenerWrapper(final EventCollector eventCollector, final JobID jobID) {
 			this.eventCollector = eventCollector;
 			this.jobID = jobID;
 		}
@@ -246,7 +276,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void vertexAssignmentChanged(ExecutionVertexID id, AllocatedResource newAllocatedResource) {
+		public void vertexAssignmentChanged(final ExecutionVertexID id, final AllocatedResource newAllocatedResource) {
 
 			// Create a new vertex assignment event
 			final ManagementVertexID managementVertexID = id.toManagementVertexID();
@@ -279,8 +309,14 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 */
 	private final Map<JobID, RecentJobEvent> recentJobs = new HashMap<JobID, RecentJobEvent>();
 
+	/**
+	 * Map of management graphs belonging to recently started jobs with the time stamp of the last received job event.
+	 */
 	private final Map<JobID, ManagementGraph> recentManagementGraphs = new HashMap<JobID, ManagementGraph>();
 
+	/**
+	 * Map of network topologies belonging to recently started jobs with the time stamp of the last received job event.
+	 */
 	private final Map<JobID, NetworkTopology> recentNetworkTopologies = new HashMap<JobID, NetworkTopology>();
 
 	/**
@@ -433,12 +469,14 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			final ExecutionVertex vertex = it.next();
 
 			// Register the listener object which will pass state changes on to the collector
-			vertex.getEnvironment().registerExecutionListener(
-				new ExecutionListenerWrapper(this, vertex.getGroupVertex().getJobVertexID(), vertex.getID()));
+			vertex.registerExecutionListener(new ExecutionListenerWrapper(this, vertex.getGroupVertex()
+				.getJobVertexID(), vertex.getEnvironment()));
 
 			// Register the listener object which will pass assignment changes on to the collector
 			vertex
 				.registerVertexAssignmentListener(new VertexAssignmentListenerWrapper(this, executionGraph.getJobID()));
+
+			vertex.registerCheckpointStateListener(this);
 		}
 
 		// Register one job status listener wrapper for the entire job
@@ -515,7 +553,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processProfilingEvents(ProfilingEvent profilingEvent) {
+	public void processProfilingEvents(final ProfilingEvent profilingEvent) {
 
 		// Simply add profiling events to the job's event queue
 		addEvent(profilingEvent.getJobID(), profilingEvent);
@@ -600,5 +638,16 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
+			final CheckpointState newCheckpointState) {
+
+		addEvent(jobID, new CheckpointStateChangeEvent(System.currentTimeMillis(), vertexID.toManagementVertexID(),
+			newCheckpointState.toString()));
 	}
 }

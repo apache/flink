@@ -329,20 +329,19 @@ public class SWTGraphCanvas extends Canvas implements PaintListener, Listener, M
 		runAnimation = false;
 	}
 
-	public void cancelTask(VertexVisualizationData visualizationData) {
-
-	}
-
 	@Override
-	public void cancelTask(ManagementVertexID id, String taskName) {
+	public void cancelTask(final ManagementVertexID id, final String taskName) {
 
 		// Delegate call to the job tab item
 		this.jobTabItem.cancelTask(id, taskName);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void killInstance(String instanceName) {
-		// TODO Auto-generated method stub
+	public void killInstance(final String instanceName) {
 
+		// Nothing to do here
 	}
 }

@@ -62,6 +62,11 @@ public class StringRecord implements Record {
 		}
 	};
 
+	/**
+	 * Cache the hash code for the encapsulated string.
+	 **/
+	private int hash = 0;
+
 	private static final byte[] EMPTY_BYTES = new byte[0];
 
 	private byte[] bytes;
@@ -70,6 +75,7 @@ public class StringRecord implements Record {
 
 	public StringRecord() {
 		this.bytes = EMPTY_BYTES;
+		this.hash = 0;
 	}
 
 	/**
@@ -180,6 +186,7 @@ public class StringRecord implements Record {
 			final ByteBuffer bb = encode(string, true);
 			this.bytes = bb.array();
 			this.length = bb.limit();
+			this.hash = 0;
 		} catch (CharacterCodingException e) {
 			throw new RuntimeException("Should not have happened " + e.toString());
 		}
@@ -216,6 +223,7 @@ public class StringRecord implements Record {
 		setCapacity(len, false);
 		System.arraycopy(utf8, start, bytes, 0, len);
 		this.length = len;
+		this.hash = 0;
 	}
 
 	/**
@@ -232,6 +240,7 @@ public class StringRecord implements Record {
 		setCapacity(length + len, true);
 		System.arraycopy(utf8, start, bytes, length, len);
 		this.length += len;
+		this.hash = 0;
 	}
 
 	/**
@@ -239,6 +248,7 @@ public class StringRecord implements Record {
 	 */
 	public void clear() {
 		this.length = 0;
+		this.hash = 0;
 	}
 
 	/*
@@ -281,6 +291,7 @@ public class StringRecord implements Record {
 		setCapacity(newLength, false);
 		in.readFully(this.bytes, 0, newLength);
 		this.length = newLength;
+		this.hash = 0;
 	}
 
 	/** Skips over one Text in the input. */
@@ -349,7 +360,19 @@ public class StringRecord implements Record {
 	@Override
 	public int hashCode() {
 
-		return (int) ((17L * this.length) % Integer.MAX_VALUE);
+		int h = this.hash;
+		if (h == 0 && this.length > 0) {
+			int off = 0;
+			byte val[] = this.bytes;
+			int len = this.length;
+
+			for (int i = 0; i < len; i++) {
+				h = 31 * h + val[off++];
+			}
+			this.hash = h;
+		}
+		return h;
+
 	}
 
 	// / STATIC UTILITIES FROM HERE DOWN

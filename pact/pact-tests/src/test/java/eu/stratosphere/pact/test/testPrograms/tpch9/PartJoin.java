@@ -15,16 +15,16 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import org.apache.log4j.Logger;
-
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class PartJoin extends MatchStub<PactInteger, PactNull, Tuple, IntPair, PactString> {
-
-	private static Logger LOGGER = Logger.getLogger(PartJoin.class);
+public class PartJoin extends MatchStub {
+	
+	private final Tuple partSuppValue = new Tuple();
+	private final PactInteger partKey = new PactInteger();
 	
 	/**
 	 * Join "part" and "partsupp" by "partkey".
@@ -35,17 +35,19 @@ public class PartJoin extends MatchStub<PactInteger, PactNull, Tuple, IntPair, P
 	 *
 	 */
 	@Override
-	public void match(PactInteger partKey, PactNull dummy, Tuple partSuppValue,
-			Collector<IntPair, PactString> output) {
+	public void match(PactRecord value1, PactRecord value2, Collector out)
+			throws Exception {
+
+		PactInteger partKey = value1.getField(0, this.partKey);
+		Tuple partSuppValue = value2.getField(1, this.partSuppValue);
 		
-		try {
-			IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(0))));
-			String supplyCost = partSuppValue.getStringValueAt(1);
+		IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(0))));
+		String supplyCost = partSuppValue.getStringValueAt(1);
 		
-			output.collect(newKey, new PactString(supplyCost));
-		} catch(Exception e) {
-			LOGGER.error(e);
-		}
+		value1.setField(0, newKey);
+		value1.setField(1, new PactString(supplyCost));
+		out.collect(value1);
+		
 	}
 
 }

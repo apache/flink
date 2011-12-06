@@ -16,55 +16,42 @@
 package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
-import java.util.Iterator;
 
-import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+
 
 /**
- * Wraps a Nephele reader into a Java Iterator.
- * 
- * @see Reader
- * @see Iterator
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * A {@link MutableObjectIterator} that wraps a Nephele Reader producing {@link PactRecord}s.
+ *
+ * @author Stephan Ewen
  */
-public class NepheleReaderIterator<T extends Record> implements Iterator<T> {
+public final class NepheleReaderIterator implements MutableObjectIterator<PactRecord>
+{
+	private final MutableRecordReader<PactRecord> reader;		// the source
 
-	private final Reader<T> reader;		// the reader who's input is encapsulated in the iterator
-	
-	public NepheleReaderIterator(Reader<T> reader) {
+	/**
+	 * Creates a new iterator, wrapping the given reader.
+	 * 
+	 * @param reader The reader to wrap.
+	 */
+	public NepheleReaderIterator(MutableRecordReader<PactRecord> reader)
+	{
 		this.reader = reader;
 	}
-	
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#hasNext()
-	 */
-	@Override
-	public boolean hasNext() {
-		return reader.hasNext();
-	}
 
 	/* (non-Javadoc)
-	 * @see java.util.Iterator#next()
+	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
-	public T next() {
+	public boolean next(PactRecord target) throws IOException
+	{
 		try {
-			return reader.next();
-		} catch (IOException ioe) {
-			throw new RuntimeException(ioe);
-		} catch (InterruptedException ie) {
-			throw new RuntimeException(ie);
+			return this.reader.next(target);
+		}
+		catch (InterruptedException iex) {
+			throw new IOException("Reader was interrupted.");
 		}
 	}
-
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#remove()
-	 */
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
-
 }

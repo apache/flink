@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.jobmanager;
 import java.util.List;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
@@ -42,4 +43,16 @@ public interface DeploymentManager {
 	 *        the list of vertices to be deployed
 	 */
 	void deploy(JobID jobID, AbstractInstance instance, List<ExecutionVertex> verticesToBeDeployed);
+
+	/**
+	 * Initializes a list of checkpoints to be replayed on a given {@link AbstractInstance}.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the checkpoints to be replayed belongs to
+	 * @param instance
+	 *        the instance on which the checkpoints shall be replayed
+	 * @param checkpointsToBeReplayed
+	 *        the list of vertexIDs referencing the checkpoints to be replayed
+	 */
+	void replayCheckpoints(JobID jobID, AbstractInstance instance, List<ExecutionVertexID> vertexIDs);
 }

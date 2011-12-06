@@ -89,9 +89,8 @@ public class FileInputChannelTest {
 	 */
 	@Test
 	@PrepareForTest(CompressionLoader.class)
-	public void deserializeNextRecordTest() throws IOException {
-
-		final StringRecord record = new StringRecord("abc");
+	public void deserializeNextRecordTest() throws IOException, InterruptedException {
+		StringRecord record = new StringRecord("abc");
 		Decompressor decompressorMock = mock(Decompressor.class);
 		this.uncompressedDataBuffer = mock(Buffer.class);
 		BufferPairResponse bufferPair = new BufferPairResponse(this.uncompressedDataBuffer, this.uncompressedDataBuffer);
@@ -110,7 +109,9 @@ public class FileInputChannelTest {
 		final ByteBufferedInputChannelBroker inputBroker = mock(ByteBufferedInputChannelBroker.class);
 		when(inputBroker.getReadBufferToConsume()).thenReturn(bufferPair);
 		try {
-			when(this.deserializationBuffer.readData(Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
+			when(
+				this.deserializationBuffer.readData(Matchers.any(StringRecord.class),
+					Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
 		} catch (IOException e) {
 
 		}
@@ -126,7 +127,7 @@ public class FileInputChannelTest {
 
 		// correct run
 		try {
-			fileInputChannel.readRecord();
+			fileInputChannel.readRecord(null);
 		} catch (IOException e) {
 			fail(StringUtils.stringifyException(e));
 		}
@@ -145,7 +146,7 @@ public class FileInputChannelTest {
 		// Received acknowledgment the channel should be closed now
 		assertEquals(true, fileInputChannel.isClosed());
 		try {
-			fileInputChannel.readRecord();
+			fileInputChannel.readRecord(null);
 			fail();
 		} catch (EOFException e) {
 			// expected a EOFException

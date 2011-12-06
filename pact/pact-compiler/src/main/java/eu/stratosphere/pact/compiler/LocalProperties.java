@@ -110,41 +110,41 @@ public final class LocalProperties implements Cloneable {
 		this.keysGrouped = false;
 	}
 
-	/**
-	 * Filters these properties by what can be preserved through the given output contract.
-	 * 
-	 * @param contract
-	 *        The output contract.
-	 * @return True, if any non-default value is preserved, false otherwise.
-	 */
-	public boolean filterByOutputContract(OutputContract contract) {
-		boolean nonTrivial = false;
-
-		// check, whether the local order is preserved
-		if (keyOrder != Order.NONE) {
-			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
-				|| contract == OutputContract.SameKeySecond) {
-				nonTrivial = true;
-			} else {
-				keyOrder = Order.NONE;
-			}
-		}
-
-		// check, whether the local key grouping is preserved
-		if (keysGrouped) {
-			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
-				|| contract == OutputContract.SameKeySecond) {
-				nonTrivial = true;
-			} else {
-				keysGrouped = false;
-			}
-		}
-
-		// check, whether we have key uniqueness
-		nonTrivial |= (keyUnique = (contract == OutputContract.UniqueKey));
-
-		return nonTrivial;
-	}
+//	/**
+//	 * Filters these properties by what can be preserved through the given output contract.
+//	 * 
+//	 * @param contract
+//	 *        The output contract.
+//	 * @return True, if any non-default value is preserved, false otherwise.
+//	 */
+//	public boolean filterByOutputContract(OutputContract contract) {
+//		boolean nonTrivial = false;
+//
+//		// check, whether the local order is preserved
+//		if (keyOrder != Order.NONE) {
+//			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
+//				|| contract == OutputContract.SameKeySecond) {
+//				nonTrivial = true;
+//			} else {
+//				keyOrder = Order.NONE;
+//			}
+//		}
+//
+//		// check, whether the local key grouping is preserved
+//		if (keysGrouped) {
+//			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
+//				|| contract == OutputContract.SameKeySecond) {
+//				nonTrivial = true;
+//			} else {
+//				keysGrouped = false;
+//			}
+//		}
+//
+//		// check, whether we have key uniqueness
+//		nonTrivial |= (keyUnique = (contract == OutputContract.UniqueKey));
+//
+//		return nonTrivial;
+//	}
 
 	/**
 	 * Checks, if this set of properties, as interesting properties, is met by the given

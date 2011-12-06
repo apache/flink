@@ -15,18 +15,21 @@
 
 package eu.stratosphere.pact.compiler.util;
 
-import eu.stratosphere.pact.common.io.input.TextInputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
-public final class DummyInputFormat extends TextInputFormat<PactInteger, PactInteger>
+public final class DummyInputFormat extends DelimitedInputFormat
 {
 	private final PactInteger integer = new PactInteger(1);
-	
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
+	 */
 	@Override
-	public boolean readLine(KeyValuePair<PactInteger, PactInteger> pair, byte[] record) {
-		pair.setKey(integer);
-		pair.setValue(integer);
+	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+		target.setField(0, this.integer);
+		target.setField(1, this.integer);
 		return true;
 	}
 }
