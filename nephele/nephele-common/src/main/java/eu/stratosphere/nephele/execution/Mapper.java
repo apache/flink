@@ -6,7 +6,9 @@ import eu.stratosphere.nephele.types.Record;
 
 public interface Mapper<I extends Record, O extends Record> {
 
-	void map(I input, Queue<O> output) throws Exception;
+	void map(I input) throws Exception;
+
+	Queue<O> getOutputCollector();
 	
-	void close(Queue<O> output);
+	void close();
 }

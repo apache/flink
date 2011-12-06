@@ -16,10 +16,10 @@
 package eu.stratosphere.nephele.streaming.chaining;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
 
+import eu.stratosphere.nephele.execution.Mapper;
 import eu.stratosphere.nephele.streaming.wrappers.StreamingOutputGate;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -58,26 +58,28 @@ public final class StreamChain {
 	void executeMapper(final Record record, final int chainIndex) throws Exception {
 
 		final StreamChainLink chainLink = this.chainLinks.get(chainIndex);
-		final Queue output = new ArrayDeque();
+		final Mapper mapper = chainLink.getMapper();
 
-		
 		chainLink.getInputGate().reportRecordReceived(record);
-		chainLink.getMapper().map(record, output);
+		mapper.map(record);
 
 		final StreamingOutputGate outputGate = chainLink.getOutputGate();
-		
+
+		final Queue outputCollector = mapper.getOutputCollector();
+
 		if (chainIndex == this.chainLinks.size() - 1) {
 
-			while (!output.isEmpty()) {
-				outputGate.writeRecord((Record) output.poll());
+			while (!outputCollector.isEmpty()) {
+				
+				outputGate.writeRecord((Record)outputCollector.poll());
 			}
 
 		} else {
 
-			while (!output.isEmpty()) {
-				final Record outputRecord = (Record) output.poll();
+			while (!outputCollector.isEmpty()) {
+				final Record outputRecord = (Record) outputCollector.poll();
 				outputGate.reportRecordEmitted(outputRecord);
-				executeMapper(outputRecord, chainIndex + 1);
+				executeMapper(RecordUtils.createCopy(outputRecord), chainIndex + 1);
 			}
 		}
 	}

@@ -148,33 +148,31 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 		optimizerThread.start();
 
 		// Temporary code start
-		/*
-		 * final Runnable run = new Runnable() {
-		 * @Override
-		 * public void run() {
-		 * try {
-		 * Thread.sleep(30000);
-		 * } catch (InterruptedException e) {
-		 * e.printStackTrace();
-		 * return;
-		 * }
-		 * final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
-		 * while (it.hasNext()) {
-		 * final ExecutionVertex vertex = it.next();
-		 * if (vertex.getName().contains("Decoder")) {
-		 * final List<ExecutionVertexID> vertexIDs = new ArrayList<ExecutionVertexID>();
-		 * final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-		 * vertexIDs.add(vertex.getID());
-		 * vertexIDs.add(it.next().getID());
-		 * vertexIDs.add(it.next().getID());
-		 * vertexIDs.add(it.next().getID());
-		 * constructStreamChain(executionGraph.getJobID(), instance, vertexIDs);
-		 * }
-		 * }
-		 * }
-		 * };
-		 * new Thread(run).start();
-		 */
+		final Runnable run = new Runnable() {
+			@Override
+			public void run() {
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+					return;
+				}
+				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
+				while (it.hasNext()) {
+					final ExecutionVertex vertex = it.next();
+					if (vertex.getName().contains("Decoder")) {
+						final List<ExecutionVertexID> vertexIDs = new ArrayList<ExecutionVertexID>();
+						final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+						vertexIDs.add(vertex.getID());
+						vertexIDs.add(it.next().getID());
+						vertexIDs.add(it.next().getID());
+						vertexIDs.add(it.next().getID());
+						constructStreamChain(executionGraph.getJobID(), instance, vertexIDs);
+					}
+				}
+			}
+		};
+		//new Thread(run).start();
 		// Temporary code end
 
 		return executionGraph;
@@ -289,9 +287,9 @@ public class StreamingJobManagerPlugin implements JobManagerPlugin, JobStatusLis
 	 */
 	@Override
 	public ProfilingListener getProfilingListener(final JobID jobID) {
-		
+
 		System.out.println("REGISTERED PROFILING LISTENER");
-		
+
 		return null;
 	}
 }
