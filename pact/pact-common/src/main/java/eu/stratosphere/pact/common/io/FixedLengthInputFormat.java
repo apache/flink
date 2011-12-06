@@ -102,7 +102,7 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 	{}
 	
 	/**
-	 * Reads a record out of the given buffer. This operation is always consumes the standard number of
+	 * Reads a record out of the given buffer. This operation always consumes the standard number of
 	 * bytes, regardless of whether the produced record was valid.
 	 * 
 	 * @param target The target PactRecord
