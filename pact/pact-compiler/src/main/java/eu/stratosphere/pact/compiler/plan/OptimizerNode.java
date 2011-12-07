@@ -103,7 +103,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		public static PactType getType(Class<? extends Contract> pactClass) {
 			PactType[] values = PactType.values();
 			for (int i = 0; i < values.length; i++) {
-				if (pactClass == values[i].clazz) {
+				if (values[i].clazz.isAssignableFrom(pactClass)) {
 					return values[i];
 				}
 			}
