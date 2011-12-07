@@ -322,6 +322,19 @@ public final class PactRecord implements Value
 	}
 	
 	/**
+	 * @param positions
+	 * @param targets
+	 * @return
+	 */
+	public void getFieldsIntoCheckingNull(int[] positions, Value[] targets)
+	{
+		for (int i = 0; i < positions.length; i++) {
+			if (!getFieldInto(positions[i], targets[i]))
+				throw new NullKeyFieldException(i);
+		}
+	}
+	
+	/**
 	 * Deserializes the given object from the binary string, starting at the given position.
 	 * If the deserialization asks for more that <code>limit - offset</code> bytes, than 
 	 * an exception is thrown.

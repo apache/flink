@@ -74,7 +74,18 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	/**
 	 * The config parameter which defines the input file path.
 	 */
-	public static final String FILE_PARAMETER_KEY = "pact.input.file";
+	public static final String FILE_PARAMETER_KEY = "pact.input.file.path";
+	
+	/**
+	 * The config parameter which defines the number of desired splits.
+	 */
+	public static final String DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY = "pact.input.file.numsplits";
+	
+	/**
+	 * The config parameter for the minimal split size.
+	 */
+	public static final String MINIMAL_SPLIT_SIZE_PARAMETER_KEY = "pact.input.file.minsplitsize";
+	
 	
 	/**
 	 * The LOG for logging messages in this class.
@@ -112,6 +123,11 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	 * The length of the split that this parallel instance must consume.
 	 */
 	protected long length;
+	
+	
+	private long minSplitSize;				// the minimal split size
+	
+	private int numSplits;					// the desired number of splits
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -123,6 +139,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	@Override
 	public void configure(Configuration parameters)
 	{
+		// get the file path
 		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
 		if (filePath == null) {
 			throw new IllegalArgumentException("Configuration file FileOutputFormat does not contain the file path.");
@@ -133,6 +150,22 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 		}
 		catch (RuntimeException rex) {
 			throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
+		}
+		
+		// get the number of splits
+		this.numSplits = parameters.getInteger(DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY, -1);
+		if (this.numSplits == 0 || this.numSplits < -1) {
+			this.numSplits = -1;
+			if (LOG.isWarnEnabled())
+				LOG.warn("Ignoring invalid parameter for number of splits: " + this.numSplits);
+		}
+		
+		// get the minimal split size
+		this.minSplitSize = parameters.getLong(MINIMAL_SPLIT_SIZE_PARAMETER_KEY, 1);
+		if (this.minSplitSize < 1) {
+			this.minSplitSize = 1;
+			if (LOG.isWarnEnabled())
+				LOG.warn("Ignoring invalid parameter for minimal split size (requires a positive value): " + this.numSplits);
 		}
 	}
 	
@@ -157,8 +190,11 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException
 	{
+		// take the desired number of splits into account
+		minNumSplits = Math.max(minNumSplits, this.numSplits);
+		
 		final Path path = this.filePath;
-		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>();
+		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
 
 		// get all the files that are involved in the splits
 		List<FileStatus> files = new ArrayList<FileStatus>();
@@ -176,13 +212,11 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 					totalLength += dir[i].getLen();
 				}
 			}
-
 		} else {
 			files.add(pathFile);
 			totalLength += pathFile.getLen();
 		}
 
-		final long minSplitSize = 1;
 		final long maxSplitSize = (minNumSplits < 1) ? Long.MAX_VALUE : (totalLength / minNumSplits +
 					(totalLength % minNumSplits == 0 ? 0 : 1));
 
@@ -192,6 +226,17 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 
 			final long len = file.getLen();
 			final long blockSize = file.getBlockSize();
+			
+			final long minSplitSize;
+			if (this.minSplitSize <= blockSize) {
+				minSplitSize = this.minSplitSize;
+			}
+			else {
+				if (LOG.isWarnEnabled())
+					LOG.warn("Minimal split size of " + this.minSplitSize + " is larger than the block size of " + 
+						blockSize + ". Decreasing minimal split size to block size.");
+				minSplitSize = blockSize;
+			}
 
 			final long splitSize = Math.max(minSplitSize, Math.min(maxSplitSize, blockSize));
 			final long halfSplit = splitSize >>> 1;
@@ -433,9 +478,9 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 		
 		private final long timeout;
 
-		private FSDataInputStream fdis = null;
+		private volatile FSDataInputStream fdis = null;
 
-		private Throwable error = null;
+		private volatile Throwable error = null;
 
 		public InputSplitOpenThread(FileInputSplit split, long timeout)
 		{
@@ -482,7 +527,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 			}
 			
 			// try to forcefully shut this thread down
-			throw new IOException("OPening request timed out.");
+			throw new IOException("Opening request timed out.");
 		}
 
 		public FSDataInputStream getFSDataInputStream() {

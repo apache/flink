@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -233,7 +233,7 @@ public class UnilateralSortMerger implements SortMerger
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, int maxNumFileHandles,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			MutableObjectIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
+			MutableObjectIterator<PactRecord> input, AbstractInvokable parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		this(memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles, keyComparators, keyPositions, keyClasses, 
@@ -270,7 +270,7 @@ public class UnilateralSortMerger implements SortMerger
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, long maxWriteMem, int numSortBuffers, int maxNumFileHandles,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			MutableObjectIterator<PactRecord> input, AbstractTask parentTask, float startSpillingFraction)
+			MutableObjectIterator<PactRecord> input, AbstractInvokable parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		// sanity checks
@@ -629,7 +629,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
 	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
-			MutableObjectIterator<PactRecord> reader, CircularQueues queues, AbstractTask parentTask,
+			MutableObjectIterator<PactRecord> reader, CircularQueues queues, AbstractInvokable parentTask,
 			long startSpillingBytes)
 	{
 		return new ReadingThread(exceptionHandler, reader, queues, parentTask, startSpillingBytes);
@@ -1129,7 +1129,7 @@ public class UnilateralSortMerger implements SortMerger
 		 */
 		public ReadingThread(ExceptionHandler<IOException> exceptionHandler,
 				MutableObjectIterator<PactRecord> reader, CircularQueues queues,
-				AbstractTask parentTask, long startSpillingBytes)
+				AbstractInvokable parentTask, long startSpillingBytes)
 		{
 			super(exceptionHandler, "SortMerger Reading Thread", queues, parentTask);
 
@@ -1642,6 +1642,165 @@ public class UnilateralSortMerger implements SortMerger
 			}
 			catch (EOFException eofex) {
 				return false;
+			}
+		}
+	}
+	
+
+	
+	public static final class InputDataCollector implements Collector
+	{
+		private final CircularQueues queues;		// the queues used to pass buffers
+		
+		private NormalizedKeySorter<PactRecord> currentBuffer;
+		
+		private CircularElement currentElement;
+		
+		private long bytesUntilSpilling;			// number of bytes left before we signal to spill
+		
+		private boolean spillingInThisBuffer;
+		
+		private volatile boolean running;
+		
+
+		public InputDataCollector(CircularQueues queues, long startSpillingBytes)
+		{
+			this.queues = queues;
+			this.bytesUntilSpilling = startSpillingBytes;
+			this.running = true;
+			
+			grabBuffer();
+		}
+		
+		private void grabBuffer()
+		{
+			while (this.currentElement == null) {
+				try {
+					this.currentElement = this.queues.empty.take();
+				}
+				catch (InterruptedException iex) {
+					if (this.running) {
+						LOG.error("Reading thread was interrupted (without being shut down) while grabbing a buffer. " +
+								"Retrying to grab buffer...");
+					} else {
+						return;
+					}
+				}
+			}
+			
+			this.currentBuffer = this.currentElement.buffer;
+			if (!this.currentBuffer.isEmpty()) {
+				throw new RuntimeException("New sort-buffer is not empty.");
+			}
+			
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Retrieved empty read buffer " + this.currentElement.id + ".");
+			}
+			
+			this.spillingInThisBuffer = this.currentBuffer.getCapacity() <= this.bytesUntilSpilling;
+		}
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
+		 */
+		@Override
+		public void collect(PactRecord record)
+		{
+			try {
+				if (this.spillingInThisBuffer) {
+					if (this.currentBuffer.write(record)) {
+						if (this.bytesUntilSpilling - this.currentBuffer.getOccupancy() <= 0) {
+							this.bytesUntilSpilling = 0;
+							// send the sentinel
+							this.queues.sort.add(SPILLING_MARKER);
+						}
+						return;
+					}
+				}
+				else {
+					// no spilling in this buffer
+					if (this.currentBuffer.write(record))
+						return;
+				}
+				
+				if (this.bytesUntilSpilling > 0) {
+					this.bytesUntilSpilling -= this.currentBuffer.getCapacity();
+					if (this.bytesUntilSpilling <= 0) {
+						this.bytesUntilSpilling = 0;
+						// send the sentinel
+						this.queues.sort.add(SPILLING_MARKER);
+					}
+				}
+				
+				// we came here when the buffer could not be written. send it to the sorter
+				// send the buffer
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Emitting full buffer from reader thread: " + this.currentElement.id + ".");
+				}
+				this.queues.sort.add(this.currentElement);
+				this.currentElement = null;
+				
+				// we need a new buffer. grab the next one
+				while (this.running && this.currentElement == null) {
+					try {
+						this.currentElement = this.queues.empty.take();
+					}
+					catch (InterruptedException iex) {
+						if (this.running) {
+							LOG.error("Reading thread was interrupted (without being shut down) while grabbing a buffer. " +
+									"Retrying to grab buffer...");
+						} else {
+							return;
+						}
+					}
+				}
+				if (!this.running)
+					return;
+				
+				this.currentBuffer = this.currentElement.buffer;
+				if (!this.currentBuffer.isEmpty()) {
+					throw new RuntimeException("BUG: New sort-buffer is not empty.");
+				}
+				
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Retrieved empty read buffer " + this.currentElement.id + ".");
+				}
+				// write the record
+				if (!this.currentBuffer.write(record)) {
+					throw new RuntimeException("Record could not be written to empty sort-buffer: Serialized record exceeds buffer capacity.");
+				}
+			}
+			catch (IOException ioex) {
+				throw new RuntimeException("BUG: An error occurred while writing a record to the sort buffer: " + 
+						ioex.getMessage(), ioex);
+			}
+		}
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.Collector#close()
+		 */
+		@Override
+		public void close()
+		{
+			if (this.running) {
+				this.running = false;
+				
+				if (this.currentBuffer != null && this.currentElement != null) {
+					if (this.currentBuffer.isEmpty()) {
+						this.queues.empty.add(this.currentElement);
+					}
+					else {
+						this.queues.sort.add(this.currentElement);
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Emitting last buffer from input collector: " + this.currentElement.id + ".");
+						}
+					}
+				}
+				
+				this.currentBuffer = null;
+				this.currentElement = null;
+				
+				this.queues.sort.add(SENTINEL);
 			}
 		}
 	}

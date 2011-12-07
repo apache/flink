@@ -13,39 +13,41 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.stubs;
+package eu.stratosphere.pact.runtime.task.chaining;
 
-import eu.stratosphere.pact.common.util.ReflectionUtil;
-
-import eu.stratosphere.pact.common.type.Key;
 
 /**
- * Abstract stub class for all PACT stubs with a single input.
- * PACT stubs must be overwritten to provide user implementations for PACT programs.
- * 
- * @author Fabian Hueske
- * @param <K> Type of the input key.
+ * A special exception to indicate that an exception occurred in the nested call of a chained stub.
+ * The exception's only purpose is to be  identifiable as such and to carry the cause exception.
+ *
+ * @author Stephan Ewen
  */
-abstract class SingleInputKeyStub<K extends Key> extends Stub
+public class ExceptionInChainedStubException extends RuntimeException
 {
-	/**
-	 * Input key type.
-	 */
-	protected Class<K> keyClass;
+	private static final long serialVersionUID = -7966910518892776903L;
 
+	private String taskName;
+	
+	private Exception exception;
+	
 	/**
-	 * {@inheritDoc}
+	 * Creates a new ExceptionInChainedStubException with the given cause.
+	 * 
+	 * @param cause The causing exception.
 	 */
-	protected void initTypes() {
-		this.keyClass = ReflectionUtil.getTemplateType(getClass(), 0);
+	public ExceptionInChainedStubException(String taskName, Exception wrappedException) {
+		super();
+		this.taskName = taskName;
+		this.exception = wrappedException;
 	}
 
-	/**
-	 * Returns the type of the input key.
-	 * 
-	 * @return Type of the input key.
-	 */
-	public Class<K> getKeyType() {
-		return this.keyClass;
+	
+	public String getTaskName() {
+		return taskName;
+	}
+
+	
+	public Exception getWrappedException() {
+		return exception;
 	}
 }

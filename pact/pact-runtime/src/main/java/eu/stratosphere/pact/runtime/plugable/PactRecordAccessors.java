@@ -270,8 +270,9 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	@Override
 	public void putNormalizedKey(PactRecord record, byte[] target, int offset, int numBytes)
 	{
+		int i = 0;
 		try {
-			for (int i = 0; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
+			for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
 			{
 				int len = this.normalizedKeyLengths[i]; 
 				len = numBytes >= len ? len : numBytes;
@@ -281,7 +282,7 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 			}
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException();
+			throw new NullKeyFieldException(i);
 		}
 	}
 	

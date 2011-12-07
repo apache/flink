@@ -20,13 +20,13 @@ import java.util.Comparator;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
 
@@ -139,7 +139,7 @@ public class HistogramTask extends AbstractPactTask<Stub> {
 	{
 		// cache references on the stack
 		final MutableObjectIterator<PactRecord> input = this.inputs[0];
-		final OutputCollector output = this.output;
+		final Collector output = this.output;
 		
 		final PactRecord record = new PactRecord();
 		

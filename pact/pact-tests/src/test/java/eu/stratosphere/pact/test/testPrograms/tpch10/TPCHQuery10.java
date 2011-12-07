@@ -54,12 +54,12 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 
 		private static final int YEAR_FILTER = 1990;
 
-		private final Tuple tuple = new Tuple(); 
+		private Tuple tuple = new Tuple(); 
 		
 		@Override
 		public void map(PactRecord record, Collector out) throws Exception {
 			
-			record.getField(1, tuple);
+			tuple = record.getField(1, tuple);
 			if (Integer.parseInt(tuple.getStringValueAt(4).substring(0, 4)) > FilterO.YEAR_FILTER) {
 				
 				// project
@@ -77,11 +77,11 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 	//<PactInteger, Tuple, PactInteger, Tuple
 	public static class FilterLI extends MapStub {
 
-		private final Tuple tuple = new Tuple();
+		private Tuple tuple = new Tuple();
 		
 		@Override
 		public void map(PactRecord record, Collector out) throws Exception {
-			record.getField(1, tuple);
+			tuple = record.getField(1, tuple);
 			if (tuple.getStringValueAt(8).equals("R")) {
 				tuple.project(96); // l_extendedprice, l_discount
 
@@ -94,12 +94,12 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 
 	public static class JoinOL extends MatchStub {
 
-		private final Tuple tuple = new Tuple();
+		private Tuple tuple = new Tuple();
 		
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector out)
 				throws Exception {
-			value1.getField(1, tuple);
+			tuple = value1.getField(1, tuple);
 			int newKey = Integer.parseInt(tuple.getStringValueAt(0));
 			value2.setField(0, new PactInteger(newKey));
 			out.collect(value2);
@@ -109,11 +109,11 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 
 	public static class ProjectC extends MapStub {
 
-		private final Tuple tuple = new Tuple();
+		private Tuple tuple = new Tuple();
 
 		@Override
 		public void map(PactRecord record, Collector out) throws Exception {
-			record.getField(1, tuple);
+			tuple = record.getField(1, tuple);
 			tuple.project(190); // C_*: name,address,nationkey,phone,acctbal,comment
 			record.setField(1, tuple);
 			out.collect(record);
@@ -123,11 +123,11 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 
 	public static class ProjectN extends MapStub {
 
-		private final Tuple tuple = new Tuple();
+		private Tuple tuple = new Tuple();
 		
 		@Override
 		public void map(PactRecord record, Collector out) throws Exception {
-			record.getField(1, tuple);
+			tuple = record.getField(1, tuple);
 			tuple.project(2);// n_name
 			record.setField(1, tuple);
 			out.collect(record);
@@ -137,17 +137,17 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 
 	public static class JoinCOL extends MatchStub {
 
-		private final Tuple cValue = new Tuple();
-		private final Tuple oValue = new Tuple();
-		private final PactInteger key = new PactInteger();
+		private Tuple cValue = new Tuple();
+		private Tuple oValue = new Tuple();
+		private PactInteger key = new PactInteger();
 
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector out)
 				throws Exception {
 			
-			value1.getField(0, key);
-			value1.getField(1, cValue);
-			value2.getField(1, oValue);
+			key = value1.getField(0, key);
+			cValue = value1.getField(1, cValue);
+			oValue = value2.getField(1, oValue);
 			
 			int newKey = Integer.parseInt(cValue.getStringValueAt(2));
 			cValue.project(59);
@@ -201,8 +201,8 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 
 	public static class JoinNCOL extends MatchStub {
 
-		private final Tuple cValue = new Tuple();
-		private final Tuple nValue = new Tuple();
+		private Tuple cValue = new Tuple();
+		private Tuple nValue = new Tuple();
 
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector out)
@@ -256,8 +256,8 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 		}
 		
 
-		private final Tuple v = new Tuple();
-		private final GroupKey key = new GroupKey();
+		private Tuple v = new Tuple();
+		private GroupKey key = new GroupKey();
 		private PactRecord record = new PactRecord();
 
 		@Override
@@ -266,8 +266,8 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription {
 			double sum = 0;
 			while (records.hasNext()) {
 				record = records.next();
-				record.getField(0, key);
-				record.getField(1, v);
+				key = record.getField(0, key);
+				v = record.getField(1, v);
 				if (v.getNumberOfColumns() > 1) {
 					long val = Math.round(Double.parseDouble(v.getStringValueAt(0))
 						* (1 - Double.parseDouble(v.getStringValueAt(1))) * 10000);

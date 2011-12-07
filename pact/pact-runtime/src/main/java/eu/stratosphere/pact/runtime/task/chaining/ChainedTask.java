@@ -13,33 +13,32 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.testPrograms.tpch9;
+package eu.stratosphere.pact.runtime.task.chaining;
 
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.*;
-import eu.stratosphere.pact.example.relational.util.Tuple;
+import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public class OrderMap extends MapStub {
-	
-	private final Tuple inputTuple = new Tuple();
-	
-	/**
-	 * Project "orders"
-	 * 
-	 * Output Schema:
-	 *  Key: orderkey
-	 *  Value: year (from date)
-	 *
-	 */
-	@Override
-	public void map(PactRecord record, Collector out) throws Exception {
-		Tuple inputTuple = record.getField(1, this.inputTuple);
-		
-		int year = Integer.parseInt(inputTuple.getStringValueAt(4).substring(0, 4));
-		record.setField(1, new PactInteger(year));
-		out.collect(record);
-	}
 
+/**
+ *
+ *
+ * @author Stephan Ewen
+ */
+public interface ChainedTask extends Collector
+{
+	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, ClassLoader userCodeClassLoader, Collector output);
+	
+	
+	public void openTask() throws Exception;
+	
+	public void closeTask() throws Exception;
+	
+	public void cancelTask();
+	
+	
+	public Stub getStub();
+	
+	public String getTaskName();
 }

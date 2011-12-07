@@ -164,8 +164,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				final boolean isActive = activeOutputChannels.contains(bboc.getID());
 
-				LOG.info("Registering byte buffered output channel " + bboc.getID() + " ("
-						+ (isActive ? "active" : "inactive") + ")");
+				if (LOG.isDebugEnabled())
+					LOG.debug("Registering byte buffered output channel " + bboc.getID() + " ("
+							+ (isActive ? "active" : "inactive") + ")");
 
 				final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc,
 						isActive, this.mergeSpilledBuffers);
@@ -196,7 +197,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					addReceiverListHint(bbic);
 				}
 
-				LOG.info("Registering byte buffered input channel " + bbic.getID());
+				if (LOG.isDebugEnabled())
+					LOG.debug("Registering byte buffered input channel " + bbic.getID());
 
 				final InputChannelContext inputChannelContext = new InputChannelContext(inputGateContext, this,
 						bbic);

@@ -22,7 +22,7 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
 
 public class PartsuppMap extends MapStub {
 	
-	private final Tuple inputTuple = new Tuple();
+	private Tuple inputTuple = new Tuple();
 	
 	/**
 	 * Project "partsupp".
@@ -34,7 +34,7 @@ public class PartsuppMap extends MapStub {
 	 */
 	@Override
 	public void map(PactRecord record, Collector out) throws Exception {
-		record.getField(1, inputTuple);
+		inputTuple = record.getField(1, inputTuple);
 		inputTuple.project((0 << 0) | (1 << 1) | (0 << 2) | (1 << 3) | (0 << 4));
 		record.setField(1, inputTuple);
 		out.collect(record);

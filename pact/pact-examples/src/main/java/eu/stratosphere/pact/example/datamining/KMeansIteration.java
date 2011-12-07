@@ -293,13 +293,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	public static class PointOutFormat extends DelimitedOutputFormat {
-
-		private final PactInteger centerId = new PactInteger();
-		
-		private final CoordVector centerPos = new CoordVector();
-		
+	public static class PointOutFormat extends DelimitedOutputFormat
+	{
 		private final DecimalFormat df = new DecimalFormat("####0.00");
+		private final StringBuilder line = new StringBuilder();
 		
 		
 		public PointOutFormat() {
@@ -311,13 +308,15 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public int serializeRecord(PactRecord record, byte[] target)
 		{
-			record.getField(0, this.centerId);
-			record.getField(1, this.centerPos);
+			line.setLength(0);
 			
-			StringBuilder line = new StringBuilder();			
-			line.append(this.centerId.getValue());
+			PactInteger centerId = record.getField(0, PactInteger.class);
+			CoordVector centerPos = record.getField(1, CoordVector.class);
+			
+			
+			line.append(centerId.getValue());
 
-			for (double coord : this.centerPos.getCoordinates()) {
+			for (double coord : centerPos.getCoordinates()) {
 				line.append('|');
 				line.append(df.format(coord));
 			}
@@ -330,7 +329,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				return byteString.length;
 			}
 			else {
-				return -1 * byteString.length;
+				return -byteString.length;
 			}
 		}
 	}
@@ -348,9 +347,6 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	public static class ComputeDistance extends	CrossStub
 	{
 		private final PactDouble distance = new PactDouble();
-		private final PactInteger clusterCenterId = new PactInteger();
-		private final CoordVector clusterPoint = new CoordVector();
-		private final CoordVector dataPoint = new CoordVector();
 		
 		/**
 		 * Computes the distance of one data point to one cluster center and
@@ -360,10 +356,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public void cross(PactRecord dataPointRecord, PactRecord clusterCenterRecord, Collector out)
 		{
-			dataPointRecord.getField(1, dataPoint);
+			CoordVector dataPoint = dataPointRecord.getField(1, CoordVector.class);
 			
-			clusterCenterRecord.getField(0, clusterCenterId);
-			clusterCenterRecord.getField(1, clusterPoint);
+			PactInteger clusterCenterId = clusterCenterRecord.getField(0, PactInteger.class);
+			CoordVector clusterPoint = clusterCenterRecord.getField(1, CoordVector.class);
 		
 			this.distance.setValue(dataPoint.computeEuclidianDistance(clusterPoint));
 			
@@ -400,9 +396,6 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public void reduce(Iterator<PactRecord> pointsWithDistance, Collector out)
 		{
-			// initialize nearest cluster with the first distance
-			CoordVector nearestPoint = null;
-			
 			double nearestDistance = Double.MAX_VALUE;
 			int nearestClusterId = 0;
 
@@ -419,21 +412,18 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 					// if distance is smaller than smallest till now, update nearest cluster
 					nearestDistance = distance;
 					nearestClusterId = currentId;
-					if (nearestPoint == null) {
-						nearestPoint = this.position;
-						res.getField(1, nearestPoint);
-					}
+					res.getFieldInto(1, this.position);
 				}
 			}
 
 			// emit a new record with the center id and the data point. add a one to ease the
 			// implementation of the average function with a combiner
 			this.centerId.setValue(nearestClusterId);
-			result.setField(0, this.centerId);
-			result.setField(1, nearestPoint);
-			result.setField(2, this.one);
+			this.result.setField(0, this.centerId);
+			this.result.setField(1, this.position);
+			this.result.setField(2, this.one);
 				
-			out.collect(result);
+			out.collect(this.result);
 		}
 
 		// ----------------------------------------------------------------------------------------
@@ -478,11 +468,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	@Combinable
 	public static class RecomputeClusterCenter extends ReduceStub
 	{
-		private final CoordVector coordinates = new CoordVector();
 		private final PactInteger count = new PactInteger();
-	
-		private final PactRecord result = new PactRecord(2);
-		private final PactInteger cid = new PactInteger();
 		
 		/**
 		 * Compute the new position (coordinate vector) of a cluster center.
@@ -490,26 +476,25 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public void reduce(Iterator<PactRecord> dataPoints, Collector out)
 		{
+			PactRecord next = null;
+				
 			// initialize coordinate vector sum and count
-			this.coordinates.setCoordinates(null);
+			CoordVector coordinates = new CoordVector();
 			double[] coordinateSum = null;
 			int count = 0;	
 
 			// compute coordinate vector sum and count
 			while (dataPoints.hasNext())
 			{
-				PactRecord next = dataPoints.next();
-				
-				// get the center id
-				next.getField(0, cid); 
+				next = dataPoints.next();
 				
 				// get the coordinates and the count from the record
 				double[] thisCoords = next.getField(1, CoordVector.class).getCoordinates();
 				int thisCount = next.getField(2, PactInteger.class).getValue();
 				
 				if (coordinateSum == null) {
-					if (this.coordinates.getCoordinates() != null) {
-						coordinateSum = this.coordinates.getCoordinates();
+					if (coordinates.getCoordinates() != null) {
+						coordinateSum = coordinates.getCoordinates();
 					}
 					else {
 						coordinateSum = new double[thisCoords.length];
@@ -525,12 +510,11 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				coordinateSum[i] /= count;
 			}
 			
-			this.coordinates.setCoordinates(coordinateSum);
-			result.setField(0, cid);
-			result.setField(1, this.coordinates);
+			coordinates.setCoordinates(coordinateSum);
+			next.setField(1, coordinates);
 
 			// emit new position of cluster center
-			out.collect(result);
+			out.collect(next);
 		}
 
 		/**
@@ -539,26 +523,25 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public void combine(Iterator<PactRecord> dataPoints, Collector out)
 		{
+			PactRecord next = null;
+			
 			// initialize coordinate vector sum and count
-			this.coordinates.setCoordinates(null);
+			CoordVector coordinates = new CoordVector();
 			double[] coordinateSum = null;
 			int count = 0;	
 
 			// compute coordinate vector sum and count
 			while (dataPoints.hasNext())
 			{
-				PactRecord next = dataPoints.next();
-				
-				// get the center id
-				next.getField(0, cid); 
+				next = dataPoints.next();
 				
 				// get the coordinates and the count from the record
 				double[] thisCoords = next.getField(1, CoordVector.class).getCoordinates();
 				int thisCount = next.getField(2, PactInteger.class).getValue();
 				
 				if (coordinateSum == null) {
-					if (this.coordinates.getCoordinates() != null) {
-						coordinateSum = this.coordinates.getCoordinates();
+					if (coordinates.getCoordinates() != null) {
+						coordinateSum = coordinates.getCoordinates();
 					}
 					else {
 						coordinateSum = new double[thisCoords.length];
@@ -569,14 +552,13 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				count += thisCount;
 			}
 			
-			this.coordinates.setCoordinates(coordinateSum);
+			coordinates.setCoordinates(coordinateSum);
 			this.count.setValue(count);
-			result.setField(0, cid);
-			result.setField(1, this.coordinates);
-			result.setField(2, this.count);
+			next.setField(1, coordinates);
+			next.setField(2, this.count);
 			
 			// emit partial sum and partial count for average computation
-			out.collect(result);
+			out.collect(next);
 		}
 
 		/**
@@ -616,12 +598,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		String output = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for data point input
-		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Read Data Points");
+		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
 		dataPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		//dataPoints.addOutputContract(OutputContract.Unique.class);
 
 		// create DataSourceContract for cluster center input
-		FileDataSource clusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Read Centers");
+		FileDataSource clusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Centers");
 		clusterPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		clusterPoints.setDegreeOfParallelism(1);
 		//clusterPoints.addOutputContract(OutputContract.Unique.class);
@@ -639,7 +621,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		recomputeClusterCenter.getCompilerHints().setAvgBytesPerRecord(36);
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink newClusterPoints = new FileDataSink(PointOutFormat.class, output, recomputeClusterCenter, "Write new Center Positions");
+		FileDataSink newClusterPoints = new FileDataSink(PointOutFormat.class, output, recomputeClusterCenter, "New Center Positions");
 
 		// return the PACT plan
 		Plan plan = new Plan(newClusterPoints, "KMeans Iteration");

@@ -23,8 +23,8 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
 
 public class SupplierMap extends MapStub {
 	
-	private final PactInteger suppKey = new PactInteger();
-	private final Tuple inputTuple = new Tuple();
+	private PactInteger suppKey = new PactInteger();
+	private Tuple inputTuple = new Tuple();
 	
 	/**
 	 * Project "supplier".
@@ -36,8 +36,8 @@ public class SupplierMap extends MapStub {
 	 */
 	@Override
 	public void map(PactRecord record, Collector out) throws Exception {
-		record.getField(0, suppKey);
-		record.getField(1, inputTuple);
+		suppKey = record.getField(0, suppKey);
+		inputTuple = record.getField(1, inputTuple);
 		
 		/* Project (suppkey | name, address, nationkey, phone, acctbal, comment): */
 		PactInteger nationKey = new PactInteger(Integer.parseInt(inputTuple.getStringValueAt(3)));

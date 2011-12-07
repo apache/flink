@@ -82,13 +82,13 @@ public class MapITCase extends TestBase
 
 	public static class TestMapper extends MapStub {
 
-		private final PactString keyString = new PactString();
-		private final PactString valueString = new PactString();
+		private PactString keyString = new PactString();
+		private PactString valueString = new PactString();
 		
 		@Override
 		public void map(PactRecord record, Collector out) throws Exception {
-			record.getField(0, keyString);
-			record.getField(1, valueString);
+			keyString = record.getField(0, keyString);
+			valueString = record.getField(1, valueString);
 			
 			LOG.debug("Processed: [" + keyString.toString() + "," + valueString.getValue() + "]");
 			

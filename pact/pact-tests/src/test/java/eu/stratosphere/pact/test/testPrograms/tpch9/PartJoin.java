@@ -38,8 +38,8 @@ public class PartJoin extends MatchStub {
 	public void match(PactRecord value1, PactRecord value2, Collector out)
 			throws Exception {
 
-		value1.getField(0, partKey);
-		value2.getField(1, partSuppValue);
+		PactInteger partKey = value1.getField(0, this.partKey);
+		Tuple partSuppValue = value2.getField(1, this.partSuppValue);
 		
 		IntPair newKey = new IntPair(partKey, new PactInteger(Integer.parseInt(partSuppValue.getStringValueAt(0))));
 		String supplyCost = partSuppValue.getStringValueAt(1);

@@ -45,7 +45,7 @@ import static org.junit.Assert.fail;
  *
  * @author Stephan Ewen
  */
-public class HashJoinTest
+public class HashJoinITCase
 {
 	
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();

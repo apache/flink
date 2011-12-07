@@ -25,13 +25,13 @@ import eu.stratosphere.pact.common.type.base.PactString;
 public class StringIntPairStringDataOutFormat extends FileOutputFormat {
 
 	private final StringBuilder buffer = new StringBuilder();
-	private final StringIntPair key = new StringIntPair();
-	private final PactString value = new PactString();
+	private StringIntPair key = new StringIntPair();
+	private PactString value = new PactString();
 	
 	@Override
 	public void writeRecord(PactRecord record) throws IOException {
-		record.getField(0, key);
-		record.getField(1, value);
+		key = record.getField(0, key);
+		value = record.getField(1, value);
 		
 		this.buffer.setLength(0);
 		this.buffer.append(key.getFirst().toString());

@@ -45,15 +45,13 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
 
-	// the iterator that does the actual matching
-	//private CrossT matchIterator;
 	private boolean runBlocked = true;
 	
 	private long availableMemory;
 	
 	// spilling iterator for inner side
 	private SpillingResettableMutableObjectIterator innerInput;
-			// blocked iterator for outer side
+	// blocked iterator for outer side
 	private BlockResettableMutableObjectIterator outerInput;
 
 	
@@ -118,7 +116,6 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 			throw new RuntimeException("Invalid local strategy for CROSS: " + config.getLocalStrategy());
 		}
 
-		// create and return MatchTaskIterator according to provided local strategy.
 		switch (ls)
 		{
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
@@ -131,10 +128,6 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 			runBlocked = false;
 		}
 		
-		// open MatchTaskIterator - this triggers the sorting or hash-table building
-		// and blocks until the iterator is ready
-		//this.matchIterator.open();
-		
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Match task iterator ready."));
 	}
@@ -145,11 +138,6 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 	@Override
 	public void run() throws Exception
 	{
-		/*final MatchStub matchStub = this.stub;
-		final OutputCollector collector = this.output;
-		final MatchTaskIterator matchIterator = this.matchIterator;
-		
-		while (this.running && matchIterator.callWithNextKey(matchStub, collector));*/
 		if (runBlocked == true) {
 			runBlocked();
 		}
@@ -187,18 +175,6 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 		}
 	}
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-
-
 	/**
 	 * Runs a blocked nested loop strategy to build the Cartesian product and
 	 * call the <code>cross()</code> method of the CrossStub implementation. The
@@ -295,37 +271,6 @@ public class CrossTask extends AbstractPactTask<CrossStub>
 					// reset the memory block iterator to the beginning of the
 					// current memory block (outer side)
 					outerInput.reset();
-//					// reset the spilling resettable iterator (inner side)
-//					moreOuterBlocks = outerInput.nextBlock();
-//					if(moreOuterBlocks) {
-//						innerInput.reset();
-//					}
-//				} while (!this.taskCanceled && moreOuterBlocks);
-//			} else {
-//				// inner input is empty, clear outer input to close channel
-//				LOG.debug("Inner input is empty, we must clear the outer input as well to close the channel");
-//				do {
-//					while(outerInput.hasNext()) {
-//						outerInput.next();
-//					}
-//				} while(outerInput.nextBlock());
-//			}
-//				
-//			// close stub implementation
-//			this.stub.close();
-//		}
-//		catch (Exception ex) {
-//			// drop, if the task was canceled
-//			if (!this.taskCanceled) {
-//				LOG.error(getLogString("Unexpected ERROR in PACT code"));
-//				throw ex;
-//			}
-//		}
-//		finally {
-//			Throwable t1 = null, t2 = null;
-//			try {
-//				if(innerInput != null) {
-//					innerInput.close();
 				}
 				// reset the spilling resettable iterator (inner side)
 				moreOuterBlocks = outerInput.nextBlock();

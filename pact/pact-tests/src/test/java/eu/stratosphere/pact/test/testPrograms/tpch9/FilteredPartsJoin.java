@@ -40,9 +40,9 @@ public class FilteredPartsJoin extends MatchStub {
 	@Override
 	public void match(PactRecord value1, PactRecord value2, Collector out)
 			throws Exception {
-		value1.getField(0, partAndSupplierKey);
-		value1.getField(1, supplyCostStr);
-		value2.getField(1, ordersValue);
+		IntPair partAndSupplierKey = value1.getField(0, this.partAndSupplierKey);
+		PactString supplyCostStr = value1.getField(1, this.supplyCostStr);
+		Tuple ordersValue = value2.getField(1, this.ordersValue);
 		
 		PactInteger year = new PactInteger(Integer.parseInt(ordersValue.getStringValueAt(0)));
 		float quantity = Float.parseFloat(ordersValue.getStringValueAt(1));

@@ -319,9 +319,10 @@ public class InstanceProfiler {
 		}
 
 	}
+
 	/**
 	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
-	 * @throws ProfilingException 
+	 * @throws ProfilingException
 	 */
 	public InternalInstanceProfilingData generateCheckpointProfilingData() throws ProfilingException {
 		final long profilingInterval = System.currentTimeMillis() - this.firstTimestamp;
@@ -332,7 +333,6 @@ public class InstanceProfiler {
 		updateCPUUtilization(profilingData);
 		updateMemoryUtilization(profilingData);
 		updateNetworkUtilization(profilingData);
-
 
 		return profilingData;
 	}

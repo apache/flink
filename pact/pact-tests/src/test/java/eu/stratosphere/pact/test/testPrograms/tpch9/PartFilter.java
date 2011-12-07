@@ -37,12 +37,12 @@ public class PartFilter extends MapStub {
 	 *
 	 */
 	@Override
-	public void map(PactRecord record, Collector out) throws Exception {
-		record.getField(1, inputTuple);
-		if(inputTuple.getStringValueAt(1).indexOf(COLOR) != -1) {
+	public void map(PactRecord record, Collector out) throws Exception
+	{
+		Tuple inputTuple = record.getField(1, this.inputTuple);
+		if (inputTuple.getStringValueAt(1).indexOf(COLOR) != -1) {
 			record.setField(1, PactNull.getInstance());
-			out.collect(record);	
+			out.collect(record);
 		}
 	}
-
 }
