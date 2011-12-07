@@ -90,6 +90,18 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 */
 	private InputGateListener[] inputGateListeners = null;
 
+
+	 * The listener object to be notified when a channel has at least one record available.
+	 */
+	private RecordAvailabilityListener<T> recordAvailabilityListener = null;
+
+	/**
+	 * If the value of this variable is set to <code>true</code>, the input gate is closed.
+	 */
+	private boolean isClosed = false;
+
+	private final EventNotificationManager eventNotificationManager = new EventNotificationManager();
+
 	/**
 	 * The channel to read from next.
 	 */
@@ -333,6 +345,11 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 		while (true) {
 
 			if (this.channelToReadFrom == -1) {
+
+				if (this.isClosed()) {
+					return null;
+				}
+
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
 			try {
@@ -341,6 +358,7 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
 				// this.getInputChannel(channelToReadFrom).getType().toString() + ")");
 				if (this.isClosed()) {
+					this.channelToReadFrom = -1;
 					return null;
 				}
 			}
@@ -365,6 +383,10 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 
 			this.availableChannels.add(Integer.valueOf(channelIndex));
 			this.availableChannels.notify();
+
+			if (this.recordAvailabilityListener != null) {
+				this.recordAvailabilityListener.reportRecordAvailability(this);
+			}
 		}
 	}
 
@@ -481,12 +503,18 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	@Override
 	public boolean isClosed() throws IOException, InterruptedException {
 
+		if (this.isClosed) {
+			return true;
+		}
+
 		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
 			if (!inputChannel.isClosed()) {
 				return false;
 			}
 		}
+
+		this.isClosed = true;
 
 		return true;
 	}
@@ -578,6 +606,36 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
 		while (it.hasNext()) {
 			it.next().releaseResources();
+		}
+	}
+
+	boolean hasRecordAvailable() throws IOException {
+
+		if (this.channelToReadFrom == -1) {
+
+			if (this.isClosed()) {
+				return true;
+			}
+
+			synchronized (this.availableChannels) {
+
+				return !(this.availableChannels.isEmpty());
+			}
+		}
+
+		return true;
+	}
+
+	void registerRecordAvailabilityListener(final RecordAvailabilityListener<T> listener) {
+
+		synchronized (this.availableChannels) {
+
+			if (this.recordAvailabilityListener != null) {
+				throw new IllegalStateException(this.recordAvailabilityListener
+					+ " is already registered as a record availability listener");
+			}
+
+			this.recordAvailabilityListener = listener;
 		}
 	}
 }
