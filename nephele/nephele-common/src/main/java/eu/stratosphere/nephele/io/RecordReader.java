@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be read from this record reader
  */
 
-public final class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T> {
+public class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T> {
 
 	/**
 	 * Temporarily stores an exception which may have occurred while reading data from the input gate.
