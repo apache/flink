@@ -53,12 +53,12 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * the TPC-H benchmark including one join, some filtering and an
  * aggregation.
  * SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
- * FROM orders, lineitem
- * WHERE l_orderkey = o_orderkey
- * AND o_orderstatus = "X"
- * AND YEAR(o_orderdate) > Y
- * AND o_orderpriority LIKE "Z%"
- * GROUP BY l_orderkey, o_shippriority;
+ *   FROM orders, lineitem
+ *   WHERE l_orderkey = o_orderkey
+ *     AND o_orderstatus = "X"
+ *     AND YEAR(o_orderdate) > Y
+ *     AND o_orderpriority LIKE "Z%"
+ *   GROUP BY l_orderkey, o_shippriority;
  */
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
@@ -110,12 +110,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		/**
 		 * Filters the orders table by year, orderstatus and orderpriority
+		 * 
 		 * o_orderstatus = "X"
-		 * AND YEAR(o_orderdate) > Y
-		 * AND o_orderpriority LIKE "Z"
+		 *   AND YEAR(o_orderdate) > Y
+		 *   AND o_orderpriority LIKE "Z"
+		 * 
 		 * Output Schema:
-		 * Key: ORDERKEY
-		 * Value: 0:ORDERKEY, 1:SHIPPRIORITY
+		 *   Key: ORDERKEY
+		 *   Value: 0:ORDERKEY, 1:SHIPPRIORITY
 		 */
 		@Override
 		public void map(final PactInteger oKey, final Tuple value, final Collector<PactInteger, Tuple> out) {
@@ -152,9 +154,10 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		/**
 		 * Does the projection on the LineItem table
+		 * 
 		 * Output Schema:
-		 * Key: ORDERKEY
-		 * Value: 0:ORDERKEY, 1:EXTENDEDPRICE
+		 *   Key: ORDERKEY
+		 *   Value: 0:ORDERKEY, 1:EXTENDEDPRICE
 		 */
 		@Override
 		public void map(PactInteger oKey, Tuple value, Collector<PactInteger, Tuple> out) {
@@ -174,10 +177,12 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		/**
 		 * Implements the join between LineItem and Order table on the
 		 * order key.
+		 * 
 		 * WHERE l_orderkey = o_orderkey
+		 * 
 		 * Output Schema:
-		 * Key: ORDERKEY, SHIPPRIORITY
-		 * Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
+		 *   Key: ORDERKEY, SHIPPRIORITY
+		 *   Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
 		 */
 		@Override
 		public void match(PactInteger oKey, Tuple oVal, Tuple liVal, Collector<N_IntStringPair, Tuple> out) {
@@ -201,11 +206,13 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		/**
 		 * Does the aggregation of the query.
+		 * 
 		 * sum(l_extendedprice) as revenue
 		 * GROUP BY l_orderkey, o_shippriority;
+		 * 
 		 * Output Schema:
-		 * Key: ORDERKEY
-		 * Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICESUM
+		 *   Key: ORDERKEY
+		 *   Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICESUM
 		 */
 		@Override
 		public void reduce(N_IntStringPair oKeyShipPrio, Iterator<Tuple> values, Collector<PactInteger, Tuple> out) {
@@ -262,12 +269,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		String ordersPath = (args.length > 1 ? args[1] : "");
 		String lineitemsPath = (args.length > 2 ? args[2] : "");
 		String output = (args.length > 3 ? args[3] : "");
-
-		// optional parameters to run this job on Amazon EC2
-		String awsAccessID = (args.length > 4 ? args[4] : null);
-		String awsSecretKey = (args.length > 5 ? args[5] : null);
-		String awsImageID = (args.length > 6 ? args[6] : null);
-		String sshKeyPair = (args.length > 7 ? args[7] : null);
 
 		// create DataSourceContract for Orders input
 		FileDataSourceContract<PactInteger, Tuple> orders = new FileDataSourceContract<PactInteger, Tuple>(
@@ -338,18 +339,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		projectLi.setInput(lineitems);
 
 		Plan plan = new Plan(result, "TPCH Q3");
-		if (awsAccessID != null) {
-			plan.getPlanConfiguration().setNepheleString("job.ec2.awsaccessid", awsAccessID);
-		}
-		if (awsSecretKey != null) {
-			plan.getPlanConfiguration().setNepheleString("job.ec2.awssecretkey", awsSecretKey);
-		}
-		if (awsImageID != null) {
-			plan.getPlanConfiguration().setNepheleString("job.ec2.ami", awsImageID);
-		}
-		if (sshKeyPair != null) {
-			plan.getPlanConfiguration().setNepheleString("job.ec2.sshkeypair", sshKeyPair);
-		}
 
 		// return the PACT plan
 		return plan;
