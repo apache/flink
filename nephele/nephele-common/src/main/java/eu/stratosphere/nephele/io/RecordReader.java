@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be read from this record reader
  */
 
-public class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T> {
+public final class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T> {
 
 	/**
 	 * Temporarily stores an exception which may have occurred while reading data from the input gate.
@@ -230,71 +230,5 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 		}
 
 		return retVal;
-	}
-
-	/**
-	 * Registers a new listener object with the assigned input gate.
-	 * 
-	 * @param inputGateListener
-	 *        the listener object to register
-	 */
-	public void registerInputGateListener(InputGateListener inputGateListener) {
-
-		this.inputGate.registerInputGateListener(inputGateListener);
-	}
-
-	/**
-	 * Subscribes the listener object to receive events of the given type.
-	 * 
-	 * @param eventListener
-	 *        the listener object to register
-	 * @param eventType
-	 *        the type of event to register the listener for
-	 */
-	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		// Delegate call to input gate
-		this.inputGate.subscribeToEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Removes the subscription for events of the given type for the listener object.
-	 * 
-	 * @param eventListener
-	 *        the listener object to cancel the subscription for
-	 * @param eventType
-	 *        the type of the event to cancel the subscription for
-	 */
-	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		// Delegate call to input gate
-		this.inputGate.unsubscribeFromEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Publishes an event.
-	 * 
-	 * @param event
-	 *        the event to be published
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the event
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the event to be published
-	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-
-		// Delegate call to input gate
-		this.inputGate.publishEvent(event);
-	}
-
-	/**
-	 * Exposes the input gate which is used by this record reader. This method should have
-	 * package visibility only.
-	 * 
-	 * @return the input gate used by this record reader
-	 */
-	InputGate<T> getInputGate() {
-
-		return this.inputGate;
 	}
 }

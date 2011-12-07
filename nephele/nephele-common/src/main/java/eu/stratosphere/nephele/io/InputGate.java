@@ -90,7 +90,7 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 */
 	private InputGateListener[] inputGateListeners = null;
 
-
+	/**
 	 * The listener object to be notified when a channel has at least one record available.
 	 */
 	private RecordAvailabilityListener<T> recordAvailabilityListener = null;
@@ -99,8 +99,6 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * If the value of this variable is set to <code>true</code>, the input gate is closed.
 	 */
 	private boolean isClosed = false;
-
-	private final EventNotificationManager eventNotificationManager = new EventNotificationManager();
 
 	/**
 	 * The channel to read from next.
@@ -609,7 +607,7 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 		}
 	}
 
-	boolean hasRecordAvailable() throws IOException {
+	boolean hasRecordAvailable() throws IOException, InterruptedException {
 
 		if (this.channelToReadFrom == -1) {
 
