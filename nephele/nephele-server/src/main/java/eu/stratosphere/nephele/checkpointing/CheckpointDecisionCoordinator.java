@@ -91,40 +91,9 @@ public final class CheckpointDecisionCoordinator {
 	 *        the current resource utilization of the vertex
 	 */
 	void checkpointDecisionRequired(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
-		boolean checkpointDecision = false;
 		LOG.info("Checkpoint decision for vertex " + vertex + " required");
-		// This implementation always creates the checkpoint
-		
-		// TODO: Provide sensible implementation here
 
-		if(rus.getForced() == null){
-			if(rus.getTotalInputAmount() != 0 && (rus.getTotalOutputAmount() * 1.0 /  rus.getTotalInputAmount() > 2.0)){
-				//estimated size of checkpoint
-				//TODO progress estimation would make sense here
-				checkpointDecision = false;
-				LOG.info("Chechpoint to large");
-				}
-			else if (rus.getUserCPU() >= 90) { 
-				LOG.info("CPU-Bottleneck");
-				//CPU bottleneck 
-				checkpointDecision = true;
-			} else {
-
-				if ( vertex.getNumberOfSuccessors() != 0 
-						&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) { 
-					LOG.info("vertex.getNumberOfPredecessors()/ vertex.getNumberOfSuccessors() > 1.5");
-					//less output-channels than input-channels 
-					//checkpoint at this position probably saves network-traffic 
-					checkpointDecision = true;
-				} else if (true) {
-					//always create checkpoint for testing
-					checkpointDecision = true;
-				}
-			}
-		}else{
-			//checkpoint decision was forced by the user
-			checkpointDecision = rus.getForced();
-		}
+		boolean checkpointDecision = getDecision(vertex, rus);
 		final ExecutionGraph graph = vertex.getExecutionGraph();
 		final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
 		final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
@@ -137,6 +106,38 @@ public final class CheckpointDecisionCoordinator {
 		// Propagate checkpoint decisions
 		this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
 	}
+
+	private boolean getDecision(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
+		// This implementation always creates the checkpoint
+		if(rus.getForced() == null){
+			if(rus.getTotalInputAmount() != 0 && (rus.getTotalOutputAmount() * 1.0 /  rus.getTotalInputAmount() > 2.0)){
+				//estimated size of checkpoint
+				//TODO progress estimation would make sense here
+				LOG.info("Chechpoint to large selektivity " + (rus.getTotalOutputAmount() * 1.0 /  rus.getTotalInputAmount() > 2.0));
+				return false;
+				
+			}
+			if (rus.getUserCPU() >= 90) { 
+				LOG.info("CPU-Bottleneck");
+				//CPU bottleneck 
+				return true;
+			} 
+
+			if ( vertex.getNumberOfSuccessors() != 0 
+					&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) { 
+				LOG.info("vertex.getNumberOfPredecessors()/ vertex.getNumberOfSuccessors() > 1.5");
+				//less output-channels than input-channels 
+				//checkpoint at this position probably saves network-traffic 
+				return true;
+			} 
 	
+		}else{
+			//checkpoint decision was forced by the user
+			return rus.getForced();
+		}
+		//FIXME always create checkpoint for testing
+		return true;
+	}
+
 }
 
