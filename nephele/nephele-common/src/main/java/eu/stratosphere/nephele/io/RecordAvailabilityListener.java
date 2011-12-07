@@ -15,20 +15,24 @@
 
 package eu.stratosphere.nephele.io;
 
-import java.io.IOException;
-
 import eu.stratosphere.nephele.types.Record;
 
 /**
- * A reader interface which is implemented by record reader.
+ * This interface can be implemented by a class which shall be notified by an input gate when one of the its connected
+ * input channels has at least one record available for reading.
  * 
- * @author nijkamp
+ * @author warneke
  * @param <T>
- *        the type of the record that can be emitted with this record writer
+ *        the type of record transported through the corresponding input gate
  */
-public interface Reader<T extends Record> {
+public interface RecordAvailabilityListener<T extends Record> {
 
-	boolean hasNext();
-
-	T next() throws IOException, InterruptedException;
+	/**
+	 * This method is called by an input gate when one of its connected input channels has at least one record available
+	 * for reading.
+	 * 
+	 * @param inputGate
+	 *        the input gate which has at least one record available
+	 */
+	void reportRecordAvailability(InputGate<T> inputGate);
 }

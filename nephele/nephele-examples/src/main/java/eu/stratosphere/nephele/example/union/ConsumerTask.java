@@ -13,22 +13,35 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.example.union;
 
-import java.io.IOException;
+import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.nephele.types.StringRecord;
 
-import eu.stratosphere.nephele.types.Record;
+public class ConsumerTask extends AbstractFileOutputTask {
 
-/**
- * A reader interface which is implemented by record reader.
- * 
- * @author nijkamp
- * @param <T>
- *        the type of the record that can be emitted with this record writer
- */
-public interface Reader<T extends Record> {
+	private RecordReader<StringRecord> input;
 
-	boolean hasNext();
+	@Override
+	public void registerInputOutput() {
 
-	T next() throws IOException, InterruptedException;
+		this.input = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
+
+	}
+
+	@Override
+	public void invoke() throws Exception {
+
+		int count = 0;
+
+		while (this.input.hasNext()) {
+			this.input.next();
+			++count;
+		}
+
+		System.out.println("Consumer receiver " + count + " records in total");
+	}
+
 }

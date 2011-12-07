@@ -13,22 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.example.union;
 
-import java.io.IOException;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.template.AbstractFileInputTask;
+import eu.stratosphere.nephele.types.StringRecord;
 
-import eu.stratosphere.nephele.types.Record;
+public class ProducerTask extends AbstractFileInputTask {
 
-/**
- * A reader interface which is implemented by record reader.
- * 
- * @author nijkamp
- * @param <T>
- *        the type of the record that can be emitted with this record writer
- */
-public interface Reader<T extends Record> {
+	private static final int NUMBER_OF_RECORDS_TO_PRODUCE = 1000000;
 
-	boolean hasNext();
+	private RecordWriter<StringRecord> output;
 
-	T next() throws IOException, InterruptedException;
+	@Override
+	public void registerInputOutput() {
+
+		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
+	}
+
+	@Override
+	public void invoke() throws Exception {
+
+		for (int i = 0; i < NUMBER_OF_RECORDS_TO_PRODUCE; ++i) {
+
+			final StringRecord record = new StringRecord("Record " + i + " of " + this);
+			this.output.emit(record);
+		}
+
+	}
+
 }
