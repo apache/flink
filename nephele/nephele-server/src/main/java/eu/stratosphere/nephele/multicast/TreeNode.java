@@ -39,6 +39,8 @@ public class TreeNode implements Comparable<TreeNode>{
 	
 	private final LinkedList<InstanceConnectionInfo> remoteTargets = new LinkedList<InstanceConnectionInfo>();
 	
+	private int penalty = 0;
+	
 	public TreeNode(AbstractInstance instance, InstanceConnectionInfo nodeConnectionInfo, LinkedList<ChannelID> localTargets){
 		this.instance = instance;
 		this.nodeConnectionInfo = nodeConnectionInfo;
@@ -82,6 +84,14 @@ public class TreeNode implements Comparable<TreeNode>{
 	
 	public String toString(){
 		return this.nodeConnectionInfo.toString();
+	}
+	
+	public int getPenalty(){
+		return this.penalty;
+	}
+	
+	public void setPenalty(int penalty){
+		this.penalty = penalty;
 	}
 	
 }
