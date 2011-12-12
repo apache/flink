@@ -40,6 +40,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.example.relational.util.TupleInFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
@@ -264,13 +265,13 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSource orders = new FileDataSource(TupleInFormat.class, ordersPath, "Orders");
 		orders.setDegreeOfParallelism(noSubtasks);
 		orders.setParameter(TupleInFormat.RECORD_DELIMITER, "\n");
-		orders.getCompilerHints().setAvgNumValuesPerKey(1);
+		orders.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 1);
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(TupleInFormat.class, lineitemsPath, "LineItems");
 		lineitems.setDegreeOfParallelism(noSubtasks);
 		lineitems.setParameter(TupleInFormat.RECORD_DELIMITER, "\n");
-		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
+		lineitems.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 4);
 
 		// create MapContract for filtering Orders tuples
 		MapContract filterO = new MapContract(FilterO.class, orders, "FilterO");
@@ -279,20 +280,20 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		filterO.setParameter(PRIO_FILTER, "5");
 		filterO.getCompilerHints().setAvgBytesPerRecord(16);
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
-		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
+		filterO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 1);
 
 		// create MapContract for projecting LineItems tuples
 		MapContract projectLi = new MapContract(ProjectLi.class, lineitems, "ProjectLi");
 		projectLi.setDegreeOfParallelism(noSubtasks);
 		projectLi.getCompilerHints().setAvgBytesPerRecord(20);
 		projectLi.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
-		projectLi.getCompilerHints().setAvgNumValuesPerKey(4);
+		projectLi.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 4);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinLiO = new MatchContract(JoinLiO.class, PactLong.class, 0, 0, filterO, projectLi, "JoinLiO");
 		joinLiO.setDegreeOfParallelism(noSubtasks * waves);
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
-		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
+		joinLiO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0, 1}), 4);
 		joinLiO.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_BROADCAST");
 		joinLiO.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_FIRST");
 
@@ -303,7 +304,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		aggLiO.setDegreeOfParallelism(noSubtasks);
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
 		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
-		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);
+		aggLiO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0, 1}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");

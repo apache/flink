@@ -169,17 +169,16 @@ public class DataSinkNode extends OptimizerNode
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 //		// we copy the output estimates from the input
-//		OptimizerNode pred = input == null ? null : input.getSourcePact();
-//
-//		if (pred != null) {
-//			this.estimatedKeyCardinality = pred.estimatedKeyCardinality;
-//			this.estimatedNumRecords = pred.estimatedNumRecords;
-//			this.estimatedOutputSize = pred.estimatedOutputSize;
-//		} else {
-//			this.estimatedKeyCardinality = -1;
-//			this.estimatedNumRecords = -1;
-//			this.estimatedOutputSize = -1;
-//		}
+		OptimizerNode pred = input == null ? null : input.getSourcePact();
+
+		if (pred != null) {
+			this.estimatedCardinality.putAll(pred.estimatedCardinality);
+			this.estimatedNumRecords = pred.estimatedNumRecords;
+			this.estimatedOutputSize = pred.estimatedOutputSize;
+		} else {
+			this.estimatedNumRecords = -1;
+			this.estimatedOutputSize = -1;
+		}
 	}
 
 	/*

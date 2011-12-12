@@ -15,6 +15,11 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import eu.stratosphere.pact.common.util.FieldSet;
+
 /**
  * A class encapsulating compiler hints describing the behavior of the user function behind the contract.
  * If set, the optimizer will use them to estimate the sizes of the intermediate results that are processed
@@ -44,11 +49,11 @@ package eu.stratosphere.pact.common.contract;
  */
 public class CompilerHints {
 
-	private long keyCardinality = -1;
+	private Map<FieldSet, Long> cardinalities = new HashMap<FieldSet, Long>();
 
-	private float avgRecordsEmittedPerStubCall = 1.0f;
+	private float avgRecordsEmittedPerStubCall = -1.0f;
 
-	private float avgValuesPerKey = -1.0f;
+	private Map<FieldSet, Float> avgValuesPerDistinctValues = new HashMap<FieldSet, Float>();
 
 	private float avgBytesPerRecord = -1.0f;
 
@@ -66,8 +71,12 @@ public class CompilerHints {
 	 * 
 	 * @return The key cardinality, or -1, if unknown.
 	 */
-	public long getKeyCardinality() {
-		return keyCardinality;
+	public long getCardinality(FieldSet fieldSet) {
+		Long estimate;
+		if ((estimate = cardinalities.get(fieldSet)) == null) {
+			estimate = -1L;
+		}
+		return estimate;
 	}
 
 	/**
@@ -76,13 +85,17 @@ public class CompilerHints {
 	 * @param keyCardinality
 	 *        The key cardinality to set.
 	 */
-	public void setKeyCardinality(long keyCardinality) {
-		if(keyCardinality < 0) {
-			throw new IllegalArgumentException("Key Cardinality must be >= 0!");
+	public void setCardinality(FieldSet fieldSet, long cardinality) {
+		if(cardinality < 0) {
+			throw new IllegalArgumentException("Cardinality must be >= 0!");
 		}
-		this.keyCardinality = keyCardinality;
+		this.cardinalities.put(fieldSet, cardinality);
 	}
 
+	
+	public Map<FieldSet, Long> getCardinalities() {
+		return cardinalities;
+	}
 	/**
 	 * Gets the class that models the distribution of input data
 	 *
@@ -105,8 +118,16 @@ public class CompilerHints {
 	 * 
 	 * @return The average number of values per key, or -1.0, if not set.
 	 */
-	public float getAvgNumValuesPerKey() {
-		return avgValuesPerKey;
+	public float getAvgNumValuesPerDistinctValue(FieldSet columnSet) {
+		Float avg;
+		if ((avg = avgValuesPerDistinctValues.get(columnSet)) == null) {
+			avg = -1.0F;
+		}
+		return avg;
+	}
+	
+	public Map<FieldSet, Float> getAvgNumValuesPerDistinctValues() {
+		return avgValuesPerDistinctValues;
 	}
 
 	/**
@@ -115,11 +136,11 @@ public class CompilerHints {
 	 * @param avgNumValues
 	 *        The average number of values per key to set.
 	 */
-	public void setAvgNumValuesPerKey(float avgNumValues) {
+	public void setAvgNumValuesPerDistinctValue(FieldSet fieldSet, float avgNumValues) {
 		if(avgNumValues < 0) {
-			throw new IllegalArgumentException("Average Number of Values per Key must be >= 0");
+			throw new IllegalArgumentException("Average Number of Values per distinct Values must be >= 0");
 		}
-		this.avgValuesPerKey = avgNumValues;
+		this.avgValuesPerDistinctValues.put(fieldSet, avgNumValues);
 	}
 
 	/**

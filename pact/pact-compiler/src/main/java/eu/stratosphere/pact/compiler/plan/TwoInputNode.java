@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
@@ -133,7 +134,21 @@ public abstract class TwoInputNode extends OptimizerNode
 	}
 
 	// ------------------------------------------------------------------------
-
+	
+//	/**
+//	 * Computes the number of keys that are processed by the PACT.
+//	 * 
+//	 * @return the number of keys processed by the PACT.
+//	 */
+//	protected abstract long computeNumberOfProcessedKeys();
+//	
+//	/**
+//	 * Computes the number of stub calls for one processed key. 
+//	 * 
+//	 * @return the number of stub calls for one processed key.
+//	 */
+//	protected abstract double computeStubCallsPerProcessedKey();
+	
 	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its <i>first</i> input.
 	 * 
@@ -417,5 +432,42 @@ public abstract class TwoInputNode extends OptimizerNode
 		OptimizerNode lastCommonChild = child1.branchPlan.get(this.lastJoinedBranchNode);
 		Costs douleCounted = lastCommonChild.getCumulativeCosts();
 		getCumulativeCosts().subtractCosts(douleCounted);
+	}
+	
+	
+	/**
+	 * Computes the width of output records
+	 * 
+	 * @return width of output records
+	 */
+	protected double computeAverageRecordWidth() {
+		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
+		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
+		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		if(hints.getAvgBytesPerRecord() != -1) {
+			// use hint if available
+			return hints.getAvgBytesPerRecord();
+		
+		} else if (pred1 != null && pred2 != null) {
+			// sum up known record widths of preceding nodes
+			
+			double avgWidth = 0.0;
+			
+			if(pred1.getEstimatedOutputSize() != -1 && pred1.getEstimatedNumRecords() != -1) {
+				avgWidth += (pred1.getEstimatedOutputSize() / (float)pred1.getEstimatedNumRecords()) >= 1 ? 
+						(pred1.getEstimatedOutputSize() / (float)pred1.getEstimatedNumRecords()) : 1;
+			}
+			if(pred2.getEstimatedOutputSize() != -1 && pred2.getEstimatedNumRecords() != -1) {
+				avgWidth += (pred2.getEstimatedOutputSize() / (float)pred2.getEstimatedNumRecords()) >= 1 ?
+						(pred2.getEstimatedOutputSize() / (float)pred2.getEstimatedNumRecords()) : 1;
+			}
+
+			return avgWidth;
+			
+		} else {
+			// we have no estimate for the width... 
+			return -1.0;
+		}
 	}
 }

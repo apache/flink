@@ -174,4 +174,5 @@ public abstract class SingleInputNode extends OptimizerNode {
 			visitor.postVisit(this);
 		}
 	}
+
 }

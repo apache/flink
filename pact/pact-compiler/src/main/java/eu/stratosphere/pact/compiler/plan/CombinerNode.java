@@ -22,6 +22,7 @@ import java.util.Map;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -46,9 +47,11 @@ public class CombinerNode extends OptimizerNode {
 		this.setInstancesPerMachine(predecessor.getInstancesPerMachine());
 
 		// set the estimates
-		this.estimatedKeyCardinality = predecessor.estimatedKeyCardinality;
+		this.estimatedCardinality.putAll(predecessor.estimatedCardinality);
+		
+		long estKeyCard = getEstimatedCardinality(new FieldSet(getPactContract().getKeyColumnNumbers(0)));
 
-		if (predecessor.estimatedNumRecords >= 1 && predecessor.estimatedKeyCardinality >= 1
+		if (predecessor.estimatedNumRecords >= 1 && estKeyCard >= 1
 			&& predecessor.estimatedOutputSize >= -1) {
 			this.estimatedNumRecords = (long) (predecessor.estimatedNumRecords * reducingFactor);
 			this.estimatedOutputSize = (long) (predecessor.estimatedOutputSize * reducingFactor);

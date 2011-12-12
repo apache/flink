@@ -19,9 +19,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -224,166 +224,48 @@ public class MapNode extends SingleInputNode
 //		}
 //	}
 	
-//	/**
-//	 * Computes the number of stub calls.
-//	 * 
-//	 * @return the number of stub calls.
-//	 */
-//	private long computeNumberOfStubCalls() {
-//		OptimizerNode pred = input == null ? null : input.getSourcePact();
-//		
-//		if(pred != null) {
-//			// Map is called once per record
-//			return pred.getEstimatedNumRecords();
-//		} else {
-//			return -1;
-//		}
-//	}
-	
-//	/**
-//	 * Computes the width of output records
-//	 * 
-//	 * @return width of output records
-//	 */
-//	private double computeAverageRecordWidth() {
-//		OptimizerNode pred = input == null ? null : input.getSourcePact();
-//		CompilerHints hints = getPactContract().getCompilerHints();
-//		
-//		if(hints.getAvgBytesPerRecord() != -1) {
-//			// use hint if available
-//			return hints.getAvgBytesPerRecord();
-//		
-//		} else if (pred != null) {
-//			// use record width of previous node
-//			
-//			if(pred.estimatedOutputSize != -1 && pred.estimatedNumRecords != -1) {
-//				return (pred.getEstimatedOutputSize() / pred.getEstimatedNumRecords()) >= 1 ? 
-//						(long) (pred.getEstimatedOutputSize() / pred.getEstimatedNumRecords()) : 1;
-//			} else {
-//				return -1.0;
-//			}
-//			
-//		} else {
-//			return -1.0;
-//		}
-//	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
+	/**
+	 * Computes the number of stub calls.
+	 * 
+	 * @return the number of stub calls.
 	 */
-	@Override
-	public void computeOutputEstimates(DataStatistics statistics) {
-//		OptimizerNode pred = input == null ? null : input.getSourcePact();
-//		CompilerHints hints = getPactContract().getCompilerHints();
-//
-//		// check if preceding node is available
-//		if (pred == null) {
-//			// Preceding node is not available, we take hints as given
-//			this.estimatedKeyCardinality = hints.getKeyCardinality();
-//			
-//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
-//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) >= 1 ? 
-//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
-//			}
-//			
-//			if(this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
-//				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
-//						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
-//			}
-//			
-//		} else {
-//			// We have a preceding node
-//		
-//			// ############# set default estimates
-//			
-//			// default output cardinality is equal to number of stub calls
-//			this.estimatedNumRecords = this.computeNumberOfStubCalls();
-//			// default key cardinality is -1
-//			this.estimatedKeyCardinality = -1;
-//			// default output size is equal to output size of previous node
-//			this.estimatedOutputSize = pred.estimatedOutputSize;
-//						
-//			
-//			// ############# output cardinality estimation ##############
-//			
-//			boolean outputCardEstimated = true;
-//				
-//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
-//				// we have precise hints
-//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey() >= 1) ?
-//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
-//			} else if(hints.getAvgRecordsEmittedPerStubCall() != 1.0) {
-//				// we know how many records are in average emitted per stub call
-//				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
-//						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
-//			} else {
-//				outputCardEstimated = false;
-//			}
-//						
-//			// ############# output key cardinality estimation ##########
-//
-//			if(hints.getKeyCardinality() != -1) {
-//				// number of keys is explicitly given by user hint
-//				this.estimatedKeyCardinality = hints.getKeyCardinality();
-//				
-//			} else if(!this.getOutputContract().equals(OutputContract.None)) {
-//				// we have an output contract which might help to estimate the number of output keys
-//				
-//				if(this.getOutputContract().equals(OutputContract.UniqueKey)) {
-//					// each output key is unique. Every record has a unique key.
-//					this.estimatedKeyCardinality = this.estimatedNumRecords;
-//					
-//				} else if(this.getOutputContract().equals(OutputContract.SameKey) || 
-//						this.getOutputContract().equals(OutputContract.SameKeyFirst) || 
-//						this.getOutputContract().equals(OutputContract.SameKeySecond)) {
-//					// we have a samekey output contract
-//					
-//					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
-//						// in average less than one record is emitted per stub call
-//						
-//						// compute the probability that at least one stub call emits a record for a given key 
-//						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
-//
-//						this.estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
-//								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
-//					} else {
-//						// in average more than one record is emitted per stub call. We assume all keys are kept.
-//						this.estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
-//					}
-//				}
-//			} else if(hints.getAvgNumValuesPerKey() != -1 && this.estimatedNumRecords != -1) {
-//				// we have a hint for the average number of records per key
-//				this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey() >= 1) ? 
-//						(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
-//			}
-//			 
-//			// try to reversely estimate output cardinality from key cardinality
-//			if(this.estimatedKeyCardinality != -1 && !outputCardEstimated) {
-//				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
-//				if(hints.getAvgNumValuesPerKey() != -1) {
-//					// we have a hint for average values per key
-//					this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey() >= 1) ?
-//							(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
-//				}
-//			}
-//			
-//				
-//			// ############# output size estimation #####################
-//
-//			double estAvgRecordWidth = this.computeAverageRecordWidth();
-//			
-//			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
-//				// we have a cardinality estimate and width estimate
-//
-//				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
-//						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
-//			}
-//			
-//			// check that the key-card is maximally as large as the number of rows
-//			if (this.estimatedKeyCardinality > this.estimatedNumRecords) {
-//				this.estimatedKeyCardinality = this.estimatedNumRecords;
-//			}
-//		}
+	protected long computeNumberOfStubCalls() {
+		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		
+		if(pred != null) {
+			// Map is called once per record
+			return pred.getEstimatedNumRecords();
+		} else {
+			return -1;
+		}
 	}
+	
+	/**
+	 * Computes the width of output records
+	 * 
+	 * @return width of output records
+	 */
+	protected double computeAverageRecordWidth() {
+		OptimizerNode pred = input == null ? null : input.getSourcePact();
+		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		if(hints.getAvgBytesPerRecord() != -1) {
+			// use hint if available
+			return hints.getAvgBytesPerRecord();
+		
+		} else if (pred != null) {
+			// use record width of previous node
+			
+			if(pred.estimatedOutputSize != -1 && pred.estimatedNumRecords != -1) {
+				return (pred.getEstimatedOutputSize() / pred.getEstimatedNumRecords()) >= 1 ? 
+						(long) (pred.getEstimatedOutputSize() / pred.getEstimatedNumRecords()) : 1;
+			} else {
+				return -1.0;
+			}
+			
+		} else {
+			return -1.0;
+		}
+	}
+	
 }

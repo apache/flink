@@ -37,6 +37,7 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
@@ -223,7 +224,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		orders.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		orders.setDegreeOfParallelism(noSubtasks);
 		//orders.setOutputContract(UniqueKey.class);
-		orders.getCompilerHints().setAvgNumValuesPerKey(1);
+		orders.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0}), 1);
 
 		// create DataSourceContract for LineItems input
 		FileDataSource customers = new FileDataSource(
@@ -236,13 +237,13 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		MapContract projectO = new MapContract(ProjectOrder.class, "ProjectO");
 		projectO.setDegreeOfParallelism(noSubtasks);
 		projectO.getCompilerHints().setAvgBytesPerRecord(5);
-		projectO.getCompilerHints().setAvgNumValuesPerKey(10);
+		projectO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0}), 10);
 
 		// create MapContract for projecting LineItems tuples
 		MapContract projectC = new MapContract(ProjectCust.class, "ProjectC");
 		projectC.setDegreeOfParallelism(noSubtasks);
-		projectC.getCompilerHints().setAvgNumValuesPerKey(1);
 		projectC.getCompilerHints().setAvgBytesPerRecord(20);
+		projectC.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0}), 1);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinCO = new MatchContract(JoinCO.class, PactInteger.class, 0, 0, "JoinCO");
@@ -253,7 +254,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		ReduceContract aggCO = new ReduceContract(AggCO.class, PactString.class, 0, "AggCo");
 		aggCO.setDegreeOfParallelism(noSubtasks);
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
-		aggCO.getCompilerHints().setAvgNumValuesPerKey(1);
+		aggCO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(StringIntOutFormat.class, output, "Output");
