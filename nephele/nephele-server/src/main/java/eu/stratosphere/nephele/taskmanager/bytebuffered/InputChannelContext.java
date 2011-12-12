@@ -95,18 +95,8 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		// TODO: Fix implementation breaks compression, fix it later on
 		final BufferPairResponse response = new BufferPairResponse(null, transferEnvelope.getBuffer()); // No need to
-																										// copy anything
 
-		// Process events
-		final EventList eventList = transferEnvelope.getEventList();
-		if (eventList != null) {
-			if (!eventList.isEmpty()) {
-				final Iterator<AbstractEvent> it = eventList.iterator();
-				while (it.hasNext()) {
-					this.byteBufferedInputChannel.processEvent(it.next());
-				}
-			}
-		}
+		// Moved event processing to releaseConsumedReadBuffer method																										// copy anything
 
 		return response;
 	}
@@ -123,6 +113,17 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 			}
 
 			transferEnvelope = this.queuedEnvelopes.poll();
+		}
+
+		// Process events
+		final EventList eventList = transferEnvelope.getEventList();
+		if (eventList != null) {
+			if (!eventList.isEmpty()) {
+				final Iterator<AbstractEvent> it = eventList.iterator();
+				while (it.hasNext()) {
+					this.byteBufferedInputChannel.processEvent(it.next());
+				}
+			}
 		}
 
 		final Buffer consumedBuffer = transferEnvelope.getBuffer();
