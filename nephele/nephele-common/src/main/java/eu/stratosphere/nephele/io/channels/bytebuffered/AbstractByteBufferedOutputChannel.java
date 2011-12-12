@@ -151,6 +151,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 			if (!isBroadcastChannel() || getChannelIndex() == 0) {
 				transferEvent(new ByteBufferedChannelCloseEvent());
+				flush();
 			}
 		}
 	}
@@ -322,8 +323,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	@Override
 	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
-		this.outputChannelBroker.transferEventToInputChannel(event);
 		flush();
+		this.outputChannelBroker.transferEventToInputChannel(event);
 	}
 
 	/**
