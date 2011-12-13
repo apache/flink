@@ -27,8 +27,11 @@ import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 
 final class SpillingQueueElement {
+
+	private static final int SIZE_LIMIT = 16;
 
 	private static final Object NULL_OBJECT = new Object();
 
@@ -137,6 +140,10 @@ final class SpillingQueueElement {
 			return false;
 		}
 
+		if (this.size() >= SIZE_LIMIT) {
+			return false;
+		}
+
 		return true;
 	}
 
@@ -155,11 +162,11 @@ final class SpillingQueueElement {
 			this.tailSequenceNumber = transferEnvelope.getSequenceNumber();
 			if (this.tailSequenceNumber == (this.headSequenceNumber + 1)) {
 				final Buffer buf = (Buffer) this.bufferRef;
-				final Queue<Object> bufferQueue = new ArrayDeque<Object>();
+				final Queue<Object> bufferQueue = new CapacityConstrainedArrayQueue<Object>(SIZE_LIMIT);
 				if (buf == null) {
-					bufferQueue.add(NULL_OBJECT);
+					bufferQueue.offer(NULL_OBJECT);
 				} else {
-					bufferQueue.add(buf);
+					bufferQueue.offer(buf);
 				}
 
 				this.bufferRef = bufferQueue;
@@ -169,9 +176,9 @@ final class SpillingQueueElement {
 			final Queue<Object> bufferQueue = (Queue<Object>) this.bufferRef;
 			final Buffer buf = transferEnvelope.getBuffer();
 			if (buf == null) {
-				bufferQueue.add(NULL_OBJECT);
+				bufferQueue.offer(NULL_OBJECT);
 			} else {
-				bufferQueue.add(buf);
+				bufferQueue.offer(buf);
 			}
 		}
 	}
@@ -313,9 +320,9 @@ final class SpillingQueueElement {
 			bufferQueue = new ArrayDeque<Object>();
 
 			if (this.bufferRef == null) {
-				bufferQueue.add(NULL_OBJECT);
+				bufferQueue.offer(NULL_OBJECT);
 			} else {
-				bufferQueue.add(this.bufferRef);
+				bufferQueue.offer(this.bufferRef);
 			}
 
 		} else {
@@ -371,24 +378,91 @@ final class SpillingQueueElement {
 
 			final Object obj = bufferQueue.poll();
 			if (obj == NULL_OBJECT) {
-				bufferQueue.add(obj);
+				bufferQueue.offer(obj);
 				continue;
 			}
 
 			final Buffer buffer = (Buffer) obj;
 			if (!buffer.isBackedByMemory()) {
-				bufferQueue.add(buffer);
+				bufferQueue.offer(buffer);
 				continue;
 			}
 
 			final int size = buffer.size();
 			final Buffer fileBuffer = BufferFactory.createFromFile(size, ownerID, fileBufferManager);
 			buffer.copyToBuffer(fileBuffer);
-			bufferQueue.add(fileBuffer);
+			bufferQueue.offer(fileBuffer);
 			buffer.recycleBuffer();
 			reclaimedMemory += size;
 		}
 
 		return reclaimedMemory;
+	}
+
+	int unspill(final BufferProvider bufferProvider) throws IOException {
+
+		if (this.headSequenceNumber == -1) {
+			return 0;
+		}
+
+		if (this.headSequenceNumber == this.tailSequenceNumber) {
+
+			final Buffer buffer = (Buffer) this.bufferRef;
+			if (buffer == null) {
+				return 0;
+			}
+
+			if (buffer.isBackedByMemory()) {
+				return 0;
+			}
+
+			final int size = buffer.size();
+			final Buffer memBuffer = bufferProvider.requestEmptyBuffer(size);
+			if (memBuffer == null) {
+				return 0;
+			}
+
+			buffer.copyToBuffer(memBuffer);
+			this.bufferRef = memBuffer;
+			buffer.recycleBuffer();
+
+			return size;
+		}
+
+		@SuppressWarnings("unchecked")
+		final Queue<Object> bufferQueue = (Queue<Object>) this.bufferRef;
+		final int queueSize = bufferQueue.size();
+		int usedMemory = 0;
+		int count = 0;
+
+		while (count++ < queueSize) {
+
+			final Object obj = bufferQueue.poll();
+			if (obj == NULL_OBJECT) {
+				bufferQueue.offer(obj);
+				continue;
+			}
+
+			final Buffer buffer = (Buffer) obj;
+			if (buffer.isBackedByMemory()) {
+				bufferQueue.offer(buffer);
+				continue;
+			}
+
+			final int size = buffer.size();
+			final Buffer memBuffer = bufferProvider.requestEmptyBuffer(size);
+			if (memBuffer != null) {
+				buffer.copyToBuffer(memBuffer);
+				bufferQueue.offer(memBuffer);
+				buffer.recycleBuffer();
+			} else {
+				bufferQueue.offer(buffer);
+				continue;
+			}
+
+			usedMemory += size;
+		}
+
+		return usedMemory;
 	}
 }

@@ -16,9 +16,9 @@
 package eu.stratosphere.nephele.executiongraph;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -43,6 +43,7 @@ import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.AtomicEnum;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
@@ -51,7 +52,7 @@ import eu.stratosphere.nephele.util.SerializableHashSet;
  * It is possible to duplicate execution vertices in order to distribute a task to several different
  * task managers and process the task in parallel.
  * <p>
- * This class is not thread-safe.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -75,7 +76,7 @@ public final class ExecutionVertex {
 	/**
 	 * The environment created to execute the vertex's task.
 	 */
-	private Environment environment = null;
+	private final Environment environment;
 
 	/**
 	 * The group vertex this vertex belongs to.
@@ -90,45 +91,51 @@ public final class ExecutionVertex {
 	/**
 	 * The allocated resources assigned to this vertex.
 	 */
-	private AllocatedResource allocatedResource = null;
+	private volatile AllocatedResource allocatedResource = null;
 
 	/**
 	 * The allocation ID identifying the allocated resources used by this vertex
 	 * within the instance.
 	 */
-	private AllocationID allocationID = null;
+	private volatile AllocationID allocationID = null;
 
 	/**
 	 * A list of {@link VertexAssignmentListener} objects to be notified about changes in the instance assignment.
 	 */
-	private List<VertexAssignmentListener> vertexAssignmentListeners = new ArrayList<VertexAssignmentListener>();
+	private final CopyOnWriteArrayList<VertexAssignmentListener> vertexAssignmentListeners = new CopyOnWriteArrayList<VertexAssignmentListener>();
 
 	/**
 	 * A list of {@link CheckpointStateListener} objects to be notified about state changes of the vertex's
 	 * checkpoint.
 	 */
-	private List<CheckpointStateListener> checkpointStateListeners = new ArrayList<CheckpointStateListener>();
+	private final CopyOnWriteArrayList<CheckpointStateListener> checkpointStateListeners = new CopyOnWriteArrayList<CheckpointStateListener>();
 
 	/**
 	 * A list of {@link ExecutionListener} objects to be notified about state changes of the vertex's
 	 * checkpoint.
 	 */
-	private List<ExecutionListener> executionListeners = new ArrayList<ExecutionListener>();
+	private final CopyOnWriteArrayList<ExecutionListener> executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
 
 	/**
 	 * The current execution state of the task represented by this vertex
 	 */
-	private ExecutionState executionState = ExecutionState.CREATED;
+	private final AtomicEnum<ExecutionState> executionState = new AtomicEnum<ExecutionState>(ExecutionState.CREATED);
 
 	/**
 	 * The current checkpoint state of this vertex.
 	 */
-	private CheckpointState checkpointState = CheckpointState.NONE;
-	
+
 	/**
 	 * Number of times this vertex may be restarted
 	 */
-	private int retries = 3; //TODO make this configurable
+	private int retries = 3; // TODO make this configurable
+
+	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(CheckpointState.NONE);
+
+	/**
+	 * The execution pipeline this vertex is part of.
+	 */
+	private final AtomicReference<ExecutionPipeline> executionPipeline = new AtomicReference<ExecutionPipeline>(null);
 
 	/**
 	 * Create a new execution vertex and instantiates its environment.
@@ -147,15 +154,14 @@ public final class ExecutionVertex {
 	 */
 	public ExecutionVertex(final JobID jobID, final Class<? extends AbstractInvokable> invokableClass,
 			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex) throws Exception {
-		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex);
+		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex, new Environment(jobID,
+			groupVertex.getName(), invokableClass, groupVertex.getConfiguration()));
 
 		this.groupVertex.addInitialSubtask(this);
 
 		if (invokableClass == null) {
 			LOG.error("Vertex " + groupVertex.getName() + " does not specify a task");
 		}
-
-		this.environment = new Environment(jobID, groupVertex.getName(), invokableClass, groupVertex.getConfiguration());
 
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
@@ -173,13 +179,16 @@ public final class ExecutionVertex {
 	 *        the execution graph the new vertex belongs to
 	 * @param groupVertex
 	 *        the group vertex the new vertex belongs to
+	 * @param environment
+	 *        the environment for the newly created vertex
 	 */
 	private ExecutionVertex(final ExecutionVertexID vertexID, final Class<? extends AbstractInvokable> invokableClass,
-			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex) {
+			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex, final Environment environment) {
 		this.vertexID = vertexID;
 		this.invokableClass = invokableClass;
 		this.executionGraph = executionGraph;
 		this.groupVertex = groupVertex;
+		this.environment = environment;
 
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
@@ -233,13 +242,13 @@ public final class ExecutionVertex {
 			newVertexID = new ExecutionVertexID();
 		}
 
-		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.invokableClass,
-			this.executionGraph, this.groupVertex);
+		final Environment duplicatedEnvironment = this.environment.duplicateEnvironment();
 
-		duplicatedVertex.environment = this.environment.duplicateEnvironment();
+		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.invokableClass,
+			this.executionGraph, this.groupVertex, duplicatedEnvironment);
 
 		// TODO set new profiling record with new vertex id
-		duplicatedVertex.allocatedResource = this.allocatedResource;
+		duplicatedVertex.setAllocatedResource(this.allocatedResource);
 
 		return duplicatedVertex;
 	}
@@ -264,7 +273,7 @@ public final class ExecutionVertex {
 	 * @return this execution vertex's current execution status
 	 */
 	public ExecutionState getExecutionState() {
-		return this.executionState;
+		return this.executionState.get();
 	}
 
 	/**
@@ -291,19 +300,14 @@ public final class ExecutionVertex {
 			throw new IllegalArgumentException("Argument newExecutionState must not be null");
 		}
 
-		if (this.executionState == newExecutionState) {
+		// Check the transition
+		ExecutionStateTransition.checkTransition(getName(), this.executionState.get(), newExecutionState);
+
+		// Check and save the new execution state
+		if (this.executionState.getAndSet(newExecutionState) == newExecutionState) {
 			return;
 		}
 
-		// Check the transition
-		ExecutionStateTransition.checkTransition(getName(), this.executionState, newExecutionState);
-
-		// Save the new execution state
-		this.executionState = newExecutionState;
-
-		if(this.executionState == ExecutionState.FAILED){
-			this.retries--;
-		}
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
 		while (it.hasNext()) {
@@ -312,17 +316,43 @@ public final class ExecutionVertex {
 		}
 	}
 
+	public boolean compareAndUpdateExecutionState(final ExecutionState expected, final ExecutionState update) {
+
+		if (update == null) {
+			throw new IllegalArgumentException("Argument update must not be null");
+		}
+
+		// Check the transition
+		ExecutionStateTransition.checkTransition(getName(), this.executionState.get(), update);
+
+		if (!this.executionState.compareAndSet(expected, update)) {
+			return false;
+		}
+
+		// TODO: Improve thread-safety here
+		if (this.executionState.get() == ExecutionState.FAILED) {
+			this.retries--;
+		}
+		// Notify the listener objects
+		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		while (it.hasNext()) {
+			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, update,
+				null);
+		}
+
+		return true;
+	}
+
 	public void updateCheckpointState(final CheckpointState newCheckpointState) {
 
 		if (newCheckpointState == null) {
 			throw new IllegalArgumentException("Argument newCheckpointState must not be null");
 		}
 
-		if (this.checkpointState == newCheckpointState) {
+		// Check and save the new checkpoint state
+		if (this.checkpointState.getAndSet(newCheckpointState) == newCheckpointState) {
 			return;
 		}
-
-		this.checkpointState = newCheckpointState;
 
 		// Notify the listener objects
 		final Iterator<CheckpointStateListener> it = this.checkpointStateListeners.iterator();
@@ -359,7 +389,7 @@ public final class ExecutionVertex {
 		// Notify all listener objects
 		final Iterator<VertexAssignmentListener> it = this.vertexAssignmentListeners.iterator();
 		while (it.hasNext()) {
-			it.next().vertexAssignmentChanged(this.vertexID, this.allocatedResource);
+			it.next().vertexAssignmentChanged(this.vertexID, allocatedResource);
 		}
 	}
 
@@ -569,19 +599,21 @@ public final class ExecutionVertex {
 	 */
 	public TaskCancelResult cancelTask() {
 
+		final ExecutionState state = this.executionState.get();
+
 		if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
 			// Set to canceled directly
 			updateExecutionState(ExecutionState.CANCELED, null);
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 		}
 
-		if (this.executionState == ExecutionState.FINISHED || this.executionState == ExecutionState.FAILED) {
+		if (state == ExecutionState.FINISHED || state == ExecutionState.FAILED) {
 			// Ignore this call
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 		}
 
-		if (this.executionState != ExecutionState.RUNNING && this.executionState != ExecutionState.STARTING
-			&& this.executionState != ExecutionState.FINISHING) {
+		if (state != ExecutionState.RUNNING && state != ExecutionState.STARTING
+			&& state != ExecutionState.FINISHING) {
 			// Set to canceled directly
 			updateExecutionState(ExecutionState.CANCELED, null);
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
@@ -630,7 +662,7 @@ public final class ExecutionVertex {
 	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
 	 */
 	public boolean hasRetriesLeft() {
-		if(this.retries < 0){
+		if (this.retries < 0) {
 			return false;
 		}
 		return true;
@@ -645,9 +677,7 @@ public final class ExecutionVertex {
 	 */
 	public void registerVertexAssignmentListener(final VertexAssignmentListener vertexAssignmentListener) {
 
-		if (!this.vertexAssignmentListeners.contains(vertexAssignmentListener)) {
-			this.vertexAssignmentListeners.add(vertexAssignmentListener);
-		}
+		this.vertexAssignmentListeners.addIfAbsent(vertexAssignmentListener);
 	}
 
 	/**
@@ -671,9 +701,7 @@ public final class ExecutionVertex {
 	 */
 	public void registerCheckpointStateListener(final CheckpointStateListener checkpointStateListener) {
 
-		if (!this.checkpointStateListeners.contains(checkpointStateListener)) {
-			this.checkpointStateListeners.add(checkpointStateListener);
-		}
+		this.checkpointStateListeners.addIfAbsent(checkpointStateListener);
 	}
 
 	/**
@@ -697,9 +725,7 @@ public final class ExecutionVertex {
 	 */
 	public void registerExecutionListener(final ExecutionListener executionListener) {
 
-		if (!this.executionListeners.contains(executionListener)) {
-			this.executionListeners.add(executionListener);
-		}
+		this.executionListeners.addIfAbsent(executionListener);
 	}
 
 	/**
@@ -721,6 +747,32 @@ public final class ExecutionVertex {
 	 */
 	public CheckpointState getCheckpointState() {
 
-		return this.checkpointState;
+		return this.checkpointState.get();
+	}
+
+	/**
+	 * Sets the {@link ExecutionPipeline} this vertex shall be part of.
+	 * 
+	 * @param executionPipeline
+	 *        the execution pipeline this vertex shall be part of
+	 */
+	void setExecutionPipeline(final ExecutionPipeline executionPipeline) {
+
+		final ExecutionPipeline oldPipeline = this.executionPipeline.getAndSet(executionPipeline);
+		if (oldPipeline != null) {
+			oldPipeline.removeFromPipeline(this);
+		}
+
+		executionPipeline.addToPipeline(this);
+	}
+
+	/**
+	 * Returns the {@link ExecutionPipeline} this vertex is part of.
+	 * 
+	 * @return the execution pipeline this vertex is part of
+	 */
+	public ExecutionPipeline getExecutionPipeline() {
+
+		return this.executionPipeline.get();
 	}
 }

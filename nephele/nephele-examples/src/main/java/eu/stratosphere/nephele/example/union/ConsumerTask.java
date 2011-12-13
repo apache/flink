@@ -13,31 +13,35 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager.scheduler.queue;
+package eu.stratosphere.nephele.example.union;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
+import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.template.AbstractFileOutputTask;
+import eu.stratosphere.nephele.types.StringRecord;
 
-/**
- * This is a wrapper class for the {@link QueueScheduler} to receive
- * notifications about state changes of vertices belonging
- * to scheduled jobs.
- * <p>
- * This class is thread-safe.
- * 
- * @author warneke
- */
-public final class QueueExecutionListener extends AbstractExecutionListener {
+public class ConsumerTask extends AbstractFileOutputTask {
 
-	/**
-	 * Constructs a new queue execution listener.
-	 * 
-	 * @param scheduler
-	 *        the scheduler this listener is connected with
-	 * @param executionVertex
-	 *        the execution vertex this listener is created for
-	 */
-	public QueueExecutionListener(final QueueScheduler scheduler, final ExecutionVertex executionVertex) {
-		super(scheduler, executionVertex);
+	private RecordReader<StringRecord> input;
+
+	@Override
+	public void registerInputOutput() {
+
+		this.input = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
+
 	}
+
+	@Override
+	public void invoke() throws Exception {
+
+		int count = 0;
+
+		while (this.input.hasNext()) {
+			this.input.next();
+			++count;
+		}
+
+		System.out.println("Consumer receiver " + count + " records in total");
+	}
+
 }

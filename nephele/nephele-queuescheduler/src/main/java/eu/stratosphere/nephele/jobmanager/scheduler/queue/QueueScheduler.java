@@ -103,53 +103,51 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	@Override
 	public void schedulJob(final ExecutionGraph executionGraph) throws SchedulingException {
 
-		synchronized (executionGraph) {
-
-			// Get Map of all available Instance types
-			final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
+		// Get Map of all available Instance types
+		final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
 				.getMapOfAvailableInstanceTypes();
 
-			for (int i = 0; i < executionGraph.getNumberOfStages(); i++) {
+		final Iterator<ExecutionStage> stageIt = executionGraph.iterator();
+		while (stageIt.hasNext()) {
 
-				final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
-				final ExecutionStage stage = executionGraph.getStage(i);
-				stage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+			final ExecutionStage stage = stageIt.next();
+			stage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
-				// Iterator over required Instances
-				final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
-				while (it.hasNext()) {
+			// Iterator over required Instances
+			final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
+			while (it.hasNext()) {
 
-					final Map.Entry<InstanceType, Integer> entry = it.next();
+				final Map.Entry<InstanceType, Integer> entry = it.next();
 
-					final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
-					if (descr == null) {
-						throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
+				final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
+				if (descr == null) {
+					throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
 							+ " available");
-					}
+				}
 
-					if (descr.getMaximumNumberOfAvailableInstances() != -1
+				if (descr.getMaximumNumberOfAvailableInstances() != -1
 						&& descr.getMaximumNumberOfAvailableInstances() < entry.getValue().intValue()) {
-						throw new SchedulingException("Unable to schedule job: " + entry.getValue().intValue()
+					throw new SchedulingException("Unable to schedule job: " + entry.getValue().intValue()
 							+ " instances of type " + entry.getKey() + " required, but only "
 							+ descr.getMaximumNumberOfAvailableInstances() + " are available");
-					}
 				}
 			}
-
-			// Subscribe to job status notifications
-			executionGraph.registerJobStatusListener(this);
-
-			// Register execution listener for each vertex
-			final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
-			while (it2.hasNext()) {
-
-				final ExecutionVertex vertex = it2.next();
-				vertex.registerExecutionListener(new QueueExecutionListener(this, vertex));
-			}
-
-			// Register the scheduler as an execution stage listener
-			executionGraph.registerExecutionStageListener(this);
 		}
+
+		// Subscribe to job status notifications
+		executionGraph.registerJobStatusListener(this);
+
+		// Register execution listener for each vertex
+		final ExecutionGraphIterator it2 = new ExecutionGraphIterator(executionGraph, true);
+		while (it2.hasNext()) {
+
+			final ExecutionVertex vertex = it2.next();
+			vertex.registerExecutionListener(new QueueExecutionListener(this, vertex));
+		}
+
+		// Register the scheduler as an execution stage listener
+		executionGraph.registerExecutionStageListener(this);
 
 		// Add job to the job queue (important to add job to queue before requesting instances)
 		synchronized (this.jobQueue) {
@@ -157,16 +155,15 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		}
 
 		// Request resources for the first stage of the job
-		synchronized (executionGraph) {
-			final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
-			try {
-				requestInstances(executionStage);
-			} catch (InstanceException e) {
-				final String exceptionMessage = StringUtils.stringifyException(e);
-				LOG.error(exceptionMessage);
-				this.jobQueue.remove(executionGraph);
-				throw new SchedulingException(exceptionMessage);
-			}
+
+		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
+		try {
+			requestInstances(executionStage);
+		} catch (InstanceException e) {
+			final String exceptionMessage = StringUtils.stringifyException(e);
+			LOG.error(exceptionMessage);
+			this.jobQueue.remove(executionGraph);
+			throw new SchedulingException(exceptionMessage);
 		}
 	}
 
@@ -253,7 +250,6 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override
 	public void shutdown() {
 
 		synchronized (this.jobQueue) {

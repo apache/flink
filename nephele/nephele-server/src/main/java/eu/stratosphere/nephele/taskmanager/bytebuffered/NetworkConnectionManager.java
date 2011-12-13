@@ -30,6 +30,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**
@@ -155,34 +156,30 @@ public final class NetworkConnectionManager {
 	 */
 	public void queueEnvelopeForTransfer(final InetSocketAddress targetAddress, final TransferEnvelope transferEnvelope) {
 
-		// Check if there is already an existing connection to that address
-		OutgoingConnection outgoingConnection = null;
-		synchronized (this.outgoingConnections) {
-			outgoingConnection = this.outgoingConnections.get(targetAddress);
-			if (outgoingConnection == null) {
-				System.out.println("Creating outgoing connection for" + targetAddress);
-				outgoingConnection = createOutgoingConnection(targetAddress);
-			}
-
-			this.outgoingConnections.put(targetAddress, outgoingConnection);
-		}
-
-		outgoingConnection.queueEnvelope(transferEnvelope);
+		getOutgoingConnection(targetAddress).queueEnvelope(transferEnvelope);
 	}
 
 	/**
-	 * Creates a new outgoing connection for the given target address.
+	 * Returns (and possibly creates) the outgoing connection for the given target address.
 	 * 
 	 * @param targetAddress
 	 *        the address of the connection target
-	 * @return the new outgoing connection object
+	 * @return the outgoing connection object
 	 */
-	private OutgoingConnection createOutgoingConnection(InetSocketAddress connectionAddress) {
+	private OutgoingConnection getOutgoingConnection(final InetSocketAddress connectionAddress) {
 
-		OutgoingConnection connection = new OutgoingConnection(this, connectionAddress, getOutgoingConnectionThread(),
-			this.numberOfConnectionRetries);
+		synchronized (this.outgoingConnections) {
 
-		return connection;
+			OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
+			if (outgoingConnection == null) {
+				outgoingConnection = new OutgoingConnection(this, connectionAddress, getOutgoingConnectionThread(),
+					this.numberOfConnectionRetries);
+				System.out.println("Creating outgoing connection for" + connectionAddress);
+				this.outgoingConnections.put(connectionAddress, outgoingConnection);
+			}
+
+			return outgoingConnection;
+		}
 	}
 
 	public void reportIOExceptionForOutputChannel(ChannelID sourceChannelID, IOException ioe) {
@@ -223,5 +220,20 @@ public final class NetworkConnectionManager {
 					.println("\t\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
 			}
 		}
+	}
+
+	/**
+	 * Registers the given spilling queue with the network connection identified by the target address. The network
+	 * connection is in charge of polling the remaining elements from the queue.
+	 * 
+	 * @param targetAddress
+	 *        the address of the target host
+	 * @param spillingQueue
+	 *        the spilling queue to register
+	 */
+	void registerSpillingQueueWithNetworkConnection(final InetSocketAddress targetAddress,
+			final SpillingQueue spillingQueue) {
+
+		getOutgoingConnection(targetAddress).registerSpillingQueue(spillingQueue);
 	}
 }

@@ -13,31 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager.scheduler.queue;
+package eu.stratosphere.nephele.example.union;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.template.AbstractFileInputTask;
+import eu.stratosphere.nephele.types.StringRecord;
 
-/**
- * This is a wrapper class for the {@link QueueScheduler} to receive
- * notifications about state changes of vertices belonging
- * to scheduled jobs.
- * <p>
- * This class is thread-safe.
- * 
- * @author warneke
- */
-public final class QueueExecutionListener extends AbstractExecutionListener {
+public class ProducerTask extends AbstractFileInputTask {
 
-	/**
-	 * Constructs a new queue execution listener.
-	 * 
-	 * @param scheduler
-	 *        the scheduler this listener is connected with
-	 * @param executionVertex
-	 *        the execution vertex this listener is created for
-	 */
-	public QueueExecutionListener(final QueueScheduler scheduler, final ExecutionVertex executionVertex) {
-		super(scheduler, executionVertex);
+	private static final int NUMBER_OF_RECORDS_TO_PRODUCE = 1000000;
+
+	private RecordWriter<StringRecord> output;
+
+	@Override
+	public void registerInputOutput() {
+
+		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
+
+	@Override
+	public void invoke() throws Exception {
+
+		for (int i = 0; i < NUMBER_OF_RECORDS_TO_PRODUCE; ++i) {
+
+			final StringRecord record = new StringRecord("Record " + i + " of " + this);
+			this.output.emit(record);
+		}
+
+	}
+
 }

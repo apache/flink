@@ -15,6 +15,11 @@
 
 package eu.stratosphere.nephele.instance;
 
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocationID;
 
@@ -30,7 +35,7 @@ import eu.stratosphere.nephele.instance.AllocationID;
  * 
  * @author warneke
  */
-public class AllocatedResource {
+public final class AllocatedResource {
 
 	/**
 	 * The instance a task is scheduled to run on.
@@ -47,6 +52,12 @@ public class AllocatedResource {
 	 * which the task is expected to run on.
 	 */
 	private final AllocationID allocationID;
+
+	/**
+	 * The set stores the execution vertices which are currently scheduled to run this resource.
+	 */
+	private final Set<ExecutionVertex> assignedVertices = Collections
+		.newSetFromMap(new ConcurrentHashMap<ExecutionVertex, Boolean>());
 
 	/**
 	 * Constructs a new allocated resource object.
@@ -142,5 +153,31 @@ public class AllocatedResource {
 		}
 
 		return this.allocationID.hashCode();
+	}
+
+	/**
+	 * Assigns the given execution vertex to this allocated resource.
+	 * 
+	 * @param vertex
+	 *        the vertex to assign to this resource
+	 */
+	public void assignVertexToResource(final ExecutionVertex vertex) {
+
+		if (!this.assignedVertices.add(vertex)) {
+			throw new IllegalStateException("The vertex " + vertex + " has already been assigned to resource " + this);
+		}
+	}
+
+	/**
+	 * Removes the given execution vertex from this allocated resource.
+	 * 
+	 * @param vertex
+	 *        the execution to be removed
+	 */
+	public void removeVertexFromResource(final ExecutionVertex vertex) {
+
+		if (!this.assignedVertices.remove(vertex)) {
+			throw new IllegalStateException("The vertex " + vertex + " has not been assigned to resource " + this);
+		}
 	}
 }

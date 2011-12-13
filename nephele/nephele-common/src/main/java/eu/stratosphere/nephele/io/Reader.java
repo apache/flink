@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be emitted with this record writer
  */
 public interface Reader<T extends Record> {
+
 	boolean hasNext();
 
 	T next() throws IOException, InterruptedException;

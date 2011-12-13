@@ -530,5 +530,4 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends Fi
 			return true;
 		}
 	}
-	
 }

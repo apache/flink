@@ -13,31 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager.scheduler.queue;
+package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * This is a wrapper class for the {@link QueueScheduler} to receive
- * notifications about state changes of vertices belonging
- * to scheduled jobs.
- * <p>
- * This class is thread-safe.
+ * This interface can be implemented by a class which shall be notified by an input gate when one of the its connected
+ * input channels has at least one record available for reading.
  * 
  * @author warneke
+ * @param <T>
+ *        the type of record transported through the corresponding input gate
  */
-public final class QueueExecutionListener extends AbstractExecutionListener {
+public interface RecordAvailabilityListener<T extends Record> {
 
 	/**
-	 * Constructs a new queue execution listener.
+	 * This method is called by an input gate when one of its connected input channels has at least one record available
+	 * for reading.
 	 * 
-	 * @param scheduler
-	 *        the scheduler this listener is connected with
-	 * @param executionVertex
-	 *        the execution vertex this listener is created for
+	 * @param inputGate
+	 *        the input gate which has at least one record available
 	 */
-	public QueueExecutionListener(final QueueScheduler scheduler, final ExecutionVertex executionVertex) {
-		super(scheduler, executionVertex);
-	}
+	void reportRecordAvailability(InputGate<T> inputGate);
 }
