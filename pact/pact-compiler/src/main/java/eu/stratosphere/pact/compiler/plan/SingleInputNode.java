@@ -50,7 +50,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The PACT that the node represents.
 	 */
-	public SingleInputNode(SingleInputContract<?, ?, ?, ?> pactContract) {
+	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
 	}
 
@@ -126,7 +126,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) throws CompilerException {
 		// get the predecessor node
-		List<Contract> children = ((SingleInputContract<?, ?, ?, ?>) getPactContract()).getInputs();
+		List<Contract> children = ((SingleInputContract<?>) getPactContract()).getInputs();
 		
 		for(Contract child : children) {
 			OptimizerNode pred = contractToNode.get(child);

@@ -16,21 +16,17 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.OutputContract;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -50,7 +46,7 @@ public class MatchNode extends TwoInputNode {
 	 * @param pactContract
 	 *        The match contract object.
 	 */
-	public MatchNode(MatchContract<?, ?, ?, ?, ?> pactContract) {
+	public MatchNode(MatchContract pactContract) {
 		super(pactContract);
 
 		// see if an internal hint dictates the strategy to use
@@ -119,8 +115,8 @@ public class MatchNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public MatchContract<?, ?, ?, ?, ?> getPactContract() {
-		return (MatchContract<?, ?, ?, ?, ?>) super.getPactContract();
+	public MatchContract getPactContract() {
+		return (MatchContract) super.getPactContract();
 	}
 
 	/*
@@ -162,71 +158,146 @@ public class MatchNode extends TwoInputNode {
 		super.setInputs(contractToNode);
 	}
 
+// union version my mjsax 
+//	/*
+//	 * (non-Javadoc)
+//	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
+//	 */
+//	@Override
+//	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+//		// first, get all incoming interesting properties and see, how they can be propagated to the
+//		// children, depending on the output contract.
+//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+//
+//		List<InterestingProperties> props1 = null;
+//		List<InterestingProperties> props2 = new ArrayList<InterestingProperties>();
+//
+//		OutputContract oc = getOutputContract();
+//		if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
+//			props1 = InterestingProperties.filterByOutputContract(thisNodesIntProps, oc);
+//			props2.addAll(props1);
+//		} else {
+//			props1 = new ArrayList<InterestingProperties>();
+//		}
+//
+//		// a match is always interested in the following properties from both inputs:
+//		// 1) any-partition and order
+//		// 2) partition only
+//		for(PactConnection c : this.input1) {
+//			createInterestingProperties(c, props1, estimator);
+//			c.addAllInterestingProperties(props1);
+//		}
+//		for(PactConnection c : this.input2) {
+//			createInterestingProperties(c, props2, estimator);
+//			c.addAllInterestingProperties(props2);
+//		}
+//	}
+// end union version
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-		// first, get all incoming interesting properties and see, how they can be propagated to the
-		// children, depending on the output contract.
-		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-
-		List<InterestingProperties> props1 = null;
-		List<InterestingProperties> props2 = new ArrayList<InterestingProperties>();
-
-		OutputContract oc = getOutputContract();
-		if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
-			props1 = InterestingProperties.filterByOutputContract(thisNodesIntProps, oc);
-			props2.addAll(props1);
-		} else {
-			props1 = new ArrayList<InterestingProperties>();
-		}
-
-		// a match is always interested in the following properties from both inputs:
-		// 1) any-partition and order
-		// 2) partition only
-		for(PactConnection c : this.input1) {
-			createInterestingProperties(c, props1, estimator);
-			c.addAllInterestingProperties(props1);
-		}
-		for(PactConnection c : this.input2) {
-			createInterestingProperties(c, props2, estimator);
-			c.addAllInterestingProperties(props2);
-		}
+//		// first, get all incoming interesting properties and see, how they can be propagated to the
+//		// children, depending on the output contract.
+//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+//
+//		List<InterestingProperties> props1 = null;
+//		List<InterestingProperties> props2 = new ArrayList<InterestingProperties>();
+//
+//		OutputContract oc = getOutputContract();
+//		if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
+//			props1 = InterestingProperties.filterByOutputContract(thisNodesIntProps, oc);
+//			props2.addAll(props1);
+//		} else {
+//			props1 = new ArrayList<InterestingProperties>();
+//		}
+//
+//		// a match is always interested in the following properties from both inputs:
+//		// 1) any-partition and order
+//		// 2) partition only
+//		createInterestingProperties(input1, props1, estimator);
+//		createInterestingProperties(input2, props2, estimator);
+//
+//		input1.addAllInterestingProperties(props1);
+//		input2.addAllInterestingProperties(props2);
+		
+		// my mjsax: union
+//		this.input1.setNoInterestingProperties();
+//		this.input2.setNoInterestingProperties();
+		for(PactConnection c: this.input1)
+			c.setNoInterestingProperties();
+		for(PactConnection c: this.input2)
+			c.setNoInterestingProperties();
 	}
+	
+// union version by mjsax
+//	/**
+//	 * Utility method that generates for the given input interesting properties about partitioning and
+//	 * order.
+//	 * 
+//	 * @param input
+//	 *        The input to generate the interesting properties for.
+//	 * @param target
+//	 *        The list to add the interesting properties to.
+//	 * @param estimator
+//	 *        The cost estimator to estimate the maximal costs for the interesting properties.
+//	 */
+//	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
+//			CostEstimator estimator) {
+//		InterestingProperties p = new InterestingProperties();
+//
+//		// partition and any order
+//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
+//		p.getLocalProperties().setKeyOrder(Order.ANY);
+//
+//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+//		Costs c = new Costs();
+//		estimator.getLocalSortCost(this, Collections.<PactConnection>singletonList(input), c);
+//		p.getMaximalCosts().addCosts(c);
+//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+//
+//		// partition only
+//		p = new InterestingProperties();
+//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
+//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+//	}
+// union version
 
-	/**
-	 * Utility method that generates for the given input interesting properties about partitioning and
-	 * order.
-	 * 
-	 * @param input
-	 *        The input to generate the interesting properties for.
-	 * @param target
-	 *        The list to add the interesting properties to.
-	 * @param estimator
-	 *        The cost estimator to estimate the maximal costs for the interesting properties.
-	 */
-	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
-			CostEstimator estimator) {
-		InterestingProperties p = new InterestingProperties();
-
-		// partition and any order
-		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-		p.getLocalProperties().setKeyOrder(Order.ANY);
-
-		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
-		Costs c = new Costs();
-		estimator.getLocalSortCost(this, Collections.<PactConnection>singletonList(input), c);
-		p.getMaximalCosts().addCosts(c);
-		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
-
-		// partition only
-		p = new InterestingProperties();
-		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
-		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
-	}
+//	/**
+//	 * Utility method that generates for the given input interesting properties about partitioning and
+//	 * order.
+//	 * 
+//	 * @param input
+//	 *        The input to generate the interesting properties for.
+//	 * @param target
+//	 *        The list to add the interesting properties to.
+//	 * @param estimator
+//	 *        The cost estimator to estimate the maximal costs for the interesting properties.
+//	 */
+//	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
+//			CostEstimator estimator) {
+//		InterestingProperties p = new InterestingProperties();
+//
+//		// partition and any order
+//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
+//		p.getLocalProperties().setKeyOrder(Order.ANY);
+//
+//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+//		Costs c = new Costs();
+//		estimator.getLocalSortCost(this, input, c);
+//		p.getMaximalCosts().addCosts(c);
+//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+//
+//		// partition only
+//		p = new InterestingProperties();
+//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
+//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+//	}
 
 	@Override
 	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
@@ -801,8 +872,10 @@ public class MatchNode extends TwoInputNode {
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByOutputContract(getOutputContract());
-		n.getLocalProperties().filterByOutputContract(getOutputContract());
+//		n.getGlobalProperties().filterByOutputContract(getOutputContract());
+//		n.getLocalProperties().filterByOutputContract(getOutputContract());
+		n.getGlobalProperties().reset();
+		n.getLocalProperties().reset();
 
 		// compute the costs
 		estimator.costOperator(n);
@@ -810,318 +883,549 @@ public class MatchNode extends TwoInputNode {
 		target.add(n);
 	}
 	
-	/**
-	 * Computes the number of keys that are processed by the PACT.
-	 * 
-	 * @return the number of keys processed by the PACT.
-	 */
-	private long computeNumberOfProcessedKeys() {
-		long numKey1 = 0;
-		long numKey2 = 0;
-		
-		for(PactConnection c : this.input1) {
-			long keys = c.getSourcePact().estimatedKeyCardinality;
-			
-			if(keys == -1) {
-				numKey1 = -1;
-				break;
-			}
-			
-			numKey1 += keys;
-		}
+// union version by mjsax
+//	/**
+//	 * Computes the number of keys that are processed by the PACT.
+//	 * 
+//	 * @return the number of keys processed by the PACT.
+//	 */
+//	private long computeNumberOfProcessedKeys() {
+//		long numKey1 = 0;
+//		long numKey2 = 0;
+//		
+//		for(PactConnection c : this.input1) {
+//			long keys = c.getSourcePact().estimatedKeyCardinality;
+//			
+//			if(keys == -1) {
+//				numKey1 = -1;
+//				break;
+//			}
+//			
+//			numKey1 += keys;
+//		}
+//
+//		for(PactConnection c : this.input2) {
+//			long keys = c.getSourcePact().estimatedKeyCardinality;
+//			
+//			if(keys == -1) {
+//				numKey2 = -1;
+//				break;
+//			}
+//			
+//			numKey2 += keys;
+//		}<<<<<<< HEAD
 
-		for(PactConnection c : this.input2) {
-			long keys = c.getSourcePact().estimatedKeyCardinality;
-			
-			if(keys == -1) {
-				numKey2 = -1;
-				break;
-			}
-			
-			numKey2 += keys;
-		}
-		
-		if(numKey1 == -1)
-			// key card of 1st input unknown. Use key card of 2nd input as upper bound
-			return numKey2;
-		
-		
-		if(numKey2 == -1)
-			// key card of 2nd input unknown. Use key card of 1st input as upper bound
-			return numKey1;
+//		
+//		if(numKey1 == -1)
+//			// key card of 1st input unknown. Use key card of 2nd input as upper bound
+//			return numKey2;
+//		
+//		
+//		if(numKey2 == -1)
+//			// key card of 2nd input unknown. Use key card of 1st input as upper bound
+//			return numKey1;
+//
+//		// key card of both inputs known. Use minimum as upper bound
+//		return Math.min(numKey1, numKey2);
+//	}
+//	
+//	/**
+//	 * Computes the number of stub calls for one processed key. 
+//	 * 
+//	 * @return the number of stub calls for one processed key.
+//	 */
+//	private double computeStubCallsPerProcessedKey() {
+//		long numKey1 = 0;
+//		long numRecords1 = 0;
+//		long numKey2 = 0;
+//		long numRecords2 = 0;
+//		
+//		for(PactConnection c : this.input1) {
+//			OptimizerNode n = c.getSourcePact();
+//			
+//			if(n.estimatedKeyCardinality == -1 || n.estimatedNumRecords == -1) {
+//				numKey1 = -1;
+//				break;
+//			}
+//			
+//			numKey1 += n.estimatedKeyCardinality;
+//			numRecords1 += n.estimatedNumRecords;
+//		}
+//
+//		for(PactConnection c : this.input2) {
+//			OptimizerNode n = c.getSourcePact();
+//			
+//			if(n.estimatedKeyCardinality == -1 || n.estimatedNumRecords == -1) {
+//				numKey2 = -1;
+//				break;
+//			}
+//			
+//			numKey2 += n.estimatedKeyCardinality;
+//			numRecords2 += n.estimatedNumRecords;
+//		}
+//
+//		if(numKey1 == -1 && numKey2 == -1)
+//			return -1;
+//		
+//		
+//		double callsPerKey = 1;
+//		
+//		if(numKey1 != -1) {
+//			callsPerKey *= numKey1 / (double)numRecords1;
+//		}
+//		
+//		if(numKey2 != -1) {
+//			callsPerKey *= numKey2 / (double)numRecords2;
+//		}
+//
+//		return callsPerKey;
+//	}
+//	
+//	/**
+//	 * Computes the number of stub calls.
+//	 * 
+//	 * @return the number of stub calls.
+//	 */
+//	private long computeNumberOfStubCalls() {
+//		long processedKeys = computeNumberOfProcessedKeys();
+//		if(processedKeys == -1)
+//			return -1;
+//		
+//		double stubCallsPerKey = computeStubCallsPerProcessedKey();
+//		if(stubCallsPerKey == -1)
+//			return -1;
+//		
+//		return (long)(processedKeys * stubCallsPerKey);
+//	}
+//	
+//	/**
+//	 * Computes the width of output records
+//	 * 
+//	 * @return width of output records
+//	 */
+//	private double computeAverageRecordWidth() {
+//		CompilerHints hints = getPactContract().getCompilerHints();
+//
+//		if(hints.getAvgBytesPerRecord() != -1) {
+//			// use hint if available
+//			return hints.getAvgBytesPerRecord();
+//		}
+//	
+//		long outputSize = 0;
+//		long numRecords = 0;
+//		for(PactConnection c : this.input1) {
+//			OptimizerNode pred = c.getSourcePact();
+//			
+//			if(pred != null) {
+//				// if one input (all of them are unioned) does not know
+//				// its output size or number of records, we a pessimistic and return "unknown" as well
+//				if(pred.estimatedOutputSize == -1 || pred.estimatedNumRecords == -1) {
+//					outputSize = -1;
+//					break;
+//				}
+//				
+//				outputSize += pred.estimatedOutputSize;
+//				numRecords += pred.estimatedNumRecords;
+//			}
+//		}
+//
+//		double avgWidth = -1;
+//
+//		if(outputSize != -1) {
+//			avgWidth = outputSize / (double)numRecords;
+//			if(avgWidth < 1)
+//				avgWidth = 1;
+//		}
+//		
+//
+//		for(PactConnection c : this.input2) {
+//			OptimizerNode pred = c.getSourcePact();
+//			
+//			if(pred != null) {
+//				// if one input (all of them are unioned) does not know
+//				// its output size or number of records, we a pessimistic and return "unknown" as well
+//				if(pred.estimatedOutputSize == -1) {
+//					return avgWidth;
+//				}
+//				
+//				outputSize += pred.estimatedOutputSize;
+//				numRecords += pred.estimatedNumRecords;
+//			}
+//		}
+//		
+//		if(outputSize != -1) {
+//			avgWidth += outputSize / (double)numRecords;
+//			if(avgWidth < 2)
+//				avgWidth = 2;
+//		}
+//
+//		return avgWidth;
+//	}
+// end union version
 
-		// key card of both inputs known. Use minimum as upper bound
-		return Math.min(numKey1, numKey2);
-	}
+//	/**
+//	 * Computes the number of keys that are processed by the PACT.
+//	 * 
+//	 * @return the number of keys processed by the PACT.
+//	 */
+//	private long computeNumberOfProcessedKeys() {
+//		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
+//		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
+//
+//		if(pred1 != null && pred2 != null) {
+//			// Match processes only keys that appear in both input sets
+//			
+//			if(pred1.getEstimatedKeyCardinality() == -1) {
+//				// key card of 1st input unknown. Use key card of 2nd input as upper bound
+//				return pred2.getEstimatedKeyCardinality();
+//			} else if(pred2.getEstimatedKeyCardinality() == -1) {
+//				// key card of 2nd input unknown. Use key card of 1st input as upper bound
+//				return pred1.getEstimatedKeyCardinality();
+//			} else {
+//				// key card of both inputs known. Use minimum as upper bound
+//				return Math.min(pred1.getEstimatedKeyCardinality(), pred2.getEstimatedKeyCardinality());
+//			}
+//		} else {
+//			return -1;
+//		}
+//	}
 	
-	/**
-	 * Computes the number of stub calls for one processed key. 
-	 * 
-	 * @return the number of stub calls for one processed key.
-	 */
-	private double computeStubCallsPerProcessedKey() {
-		long numKey1 = 0;
-		long numRecords1 = 0;
-		long numKey2 = 0;
-		long numRecords2 = 0;
-		
-		for(PactConnection c : this.input1) {
-			OptimizerNode n = c.getSourcePact();
-			
-			if(n.estimatedKeyCardinality == -1 || n.estimatedNumRecords == -1) {
-				numKey1 = -1;
-				break;
-			}
-			
-			numKey1 += n.estimatedKeyCardinality;
-			numRecords1 += n.estimatedNumRecords;
-		}
-
-		for(PactConnection c : this.input2) {
-			OptimizerNode n = c.getSourcePact();
-			
-			if(n.estimatedKeyCardinality == -1 || n.estimatedNumRecords == -1) {
-				numKey2 = -1;
-				break;
-			}
-			
-			numKey2 += n.estimatedKeyCardinality;
-			numRecords2 += n.estimatedNumRecords;
-		}
-
-		if(numKey1 == -1 && numKey2 == -1)
-			return -1;
-		
-		
-		double callsPerKey = 1;
-		
-		if(numKey1 != -1) {
-			callsPerKey *= numKey1 / (double)numRecords1;
-		}
-		
-		if(numKey2 != -1) {
-			callsPerKey *= numKey2 / (double)numRecords2;
-		}
-
-		return callsPerKey;
-	}
+//	/**
+//	 * Computes the number of stub calls for one processed key. 
+//	 * 
+//	 * @return the number of stub calls for one processed key.
+//	 */
+//	private double computeStubCallsPerProcessedKey() {
+//		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
+//		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
+//
+//		if(pred1 != null && pred2 != null) {
+//
+//			double callsPerKey = 1;
+//			
+//			if(pred1.getEstimatedKeyCardinality() != -1 && pred2.getEstimatedNumRecords() != -1) {
+//				callsPerKey *= pred1.getEstimatedNumRecords() / pred1.getEstimatedKeyCardinality();
+//			}
+//			if(pred2.getEstimatedKeyCardinality() != -1 && pred2.getEstimatedNumRecords() != -1) {
+//				callsPerKey *= pred2.getEstimatedNumRecords() / pred2.getEstimatedKeyCardinality();
+//			}
+//			
+//			return callsPerKey;
+//		} else {
+//			return -1;
+//		}
+//
+//	}
 	
-	/**
-	 * Computes the number of stub calls.
-	 * 
-	 * @return the number of stub calls.
-	 */
-	private long computeNumberOfStubCalls() {
-		long processedKeys = computeNumberOfProcessedKeys();
-		if(processedKeys == -1)
-			return -1;
-		
-		double stubCallsPerKey = computeStubCallsPerProcessedKey();
-		if(stubCallsPerKey == -1)
-			return -1;
-		
-		return (long)(processedKeys * stubCallsPerKey);
-	}
+//	/**
+//	 * Computes the number of stub calls.
+//	 * 
+//	 * @return the number of stub calls.
+//	 */
+//	private long computeNumberOfStubCalls() {
+//
+//		long processedKeys = this.computeNumberOfProcessedKeys();
+//		double stubCallsPerKey = this.computeStubCallsPerProcessedKey();
+//		
+//		if(processedKeys != -1 && stubCallsPerKey != -1) {
+//			return (long) (processedKeys * stubCallsPerKey);
+//		} else {
+//			return -1;
+//		}
+//	}
 	
-	/**
-	 * Computes the width of output records
-	 * 
-	 * @return width of output records
-	 */
-	private double computeAverageRecordWidth() {
-		CompilerHints hints = getPactContract().getCompilerHints();
-
-		if(hints.getAvgBytesPerRecord() != -1) {
-			// use hint if available
-			return hints.getAvgBytesPerRecord();
-		}
+//	/**
+//	 * Computes the width of output records
+//	 * 
+//	 * @return width of output records
+//	 */
+//	private double computeAverageRecordWidth() {
+//		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
+//		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
+//		CompilerHints hints = getPactContract().getCompilerHints();
+//		
+//		if(hints.getAvgBytesPerRecord() != -1) {
+//			// use hint if available
+//			return hints.getAvgBytesPerRecord();
+//		
+//		} else if (pred1 != null && pred2 != null) {
+//			// sum up known record widths of preceding nodes
+//			
+//			double avgWidth = 0.0;
+//			
+//			if(pred1.getEstimatedOutputSize() != -1 && pred1.getEstimatedNumRecords() != -1) {
+//				avgWidth += (pred1.getEstimatedOutputSize() / (float)pred1.getEstimatedNumRecords()) >= 1 ? 
+//						(pred1.getEstimatedOutputSize() / (float)pred1.getEstimatedNumRecords()) : 1;
+//			}
+//			if(pred2.getEstimatedOutputSize() != -1 && pred2.getEstimatedNumRecords() != -1) {
+//				avgWidth += (pred2.getEstimatedOutputSize() / (float)pred2.getEstimatedNumRecords()) >= 1 ?
+//						(pred2.getEstimatedOutputSize() / (float)pred2.getEstimatedNumRecords()) : 1;
+//			}
+//
+//			return avgWidth;
+//			
+//		} else {
+//			// we have no estimate for the width... 
+//			return -1.0;
+//		}
+//	}
 	
-		long outputSize = 0;
-		long numRecords = 0;
-		for(PactConnection c : this.input1) {
-			OptimizerNode pred = c.getSourcePact();
-			
-			if(pred != null) {
-				// if one input (all of them are unioned) does not know
-				// its output size or number of records, we a pessimistic and return "unknown" as well
-				if(pred.estimatedOutputSize == -1 || pred.estimatedNumRecords == -1) {
-					outputSize = -1;
-					break;
-				}
-				
-				outputSize += pred.estimatedOutputSize;
-				numRecords += pred.estimatedNumRecords;
-			}
-		}
+// union version by mjsax
+//	/*
+//	 * (non-Javadoc)
+//	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
+//	 */
+//	@Override
+//	public void computeOutputEstimates(DataStatistics statistics) {
+//		boolean allPredsAvailable = false;
+//		
+//		if(this.input1 != null && this.input2 != null) {
+//			for(PactConnection c : this.input1) {
+//				if(c.getSourcePact() == null) {
+//					allPredsAvailable = false;
+//					break;
+//				}
+//			}
+//			
+//			if(allPredsAvailable) {
+//				for(PactConnection c : this.input2) {
+//					if(c.getSourcePact() == null) {
+//						allPredsAvailable = false;
+//						break;
+//					}
+//				}				
+//			}
+//		}
+//
+//		CompilerHints hints = getPactContract().getCompilerHints();
+//
+//		if (!allPredsAvailable) {
+//			// Preceding node is not available, we take hints as given
+//			this.estimatedKeyCardinality = hints.getKeyCardinality();
+//			
+//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) >= 1 ? 
+//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+//			}
+//			
+//			if(this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
+//				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
+//						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
+//			}
+//			
+//		} else {
+//			// We have a preceding node
+//			
+//			// ############# set default estimates
+//			
+//			// default output cardinality is equal to number of stub calls
+//			this.estimatedNumRecords = this.computeNumberOfStubCalls();
+//			// default key cardinality is -1
+//			this.estimatedKeyCardinality = -1;
+//			// default output size is equal to output size of previous node
+//			this.estimatedOutputSize = -1;
+//						
+//			
+//			// ############# output cardinality estimation ##############
+//			
+//			boolean outputCardEstimated = true;
+//				
+//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+//				// we have precise hints
+//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey() >= 1) ?
+//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+//			} else if(hints.getAvgRecordsEmittedPerStubCall() != 1.0) {
+//				// we know how many records are in average emitted per stub call
+//				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
+//						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
+//			} else {
+//				outputCardEstimated = false;
+//			}
+//						
+//			// ############# output key cardinality estimation ##########
+//
+//			if(hints.getKeyCardinality() != -1) {
+//				// number of keys is explicitly given by user hint
+//				this.estimatedKeyCardinality = hints.getKeyCardinality();
+//				
+//			} else if(!this.getOutputContract().equals(OutputContract.None)) {
+//				// we have an output contract which might help to estimate the number of output keys
+//				
+//				if(this.getOutputContract().equals(OutputContract.UniqueKey)) {
+//					// each output key is unique. Every record has a unique key.
+//					this.estimatedKeyCardinality = this.estimatedNumRecords;
+//					
+//				} else if(this.getOutputContract().equals(OutputContract.SameKey) || 
+//						this.getOutputContract().equals(OutputContract.SameKeyFirst) || 
+//						this.getOutputContract().equals(OutputContract.SameKeySecond)) {
+//					// we have a samekey output contract
+//					
+//					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
+//						// in average less than one record is emitted per stub call
+//						
+//						// compute the probability that at least one stub call emits a record for a given key 
+//						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
+//
+//						this.estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
+//								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
+//					} else {
+//						// in average more than one record is emitted per stub call. We assume all keys are kept.
+//						this.estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
+//					}
+//				}
+//			} else if(hints.getAvgNumValuesPerKey() != -1 && this.estimatedNumRecords != -1) {
+//				// we have a hint for the average number of records per key
+//				this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey() >= 1) ? 
+//						(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
+//			}
+//			 
+//			// try to reversely estimate output cardinality from key cardinality
+//			if(this.estimatedKeyCardinality != -1 && !outputCardEstimated) {
+//				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
+//				if(hints.getAvgNumValuesPerKey() != -1) {
+//					// we have a hint for average values per key
+//					this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey() >= 1) ?
+//							(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
+//				}
+//			}
+//			
+//				
+//			// ############# output size estimation #####################
+//
+//			double estAvgRecordWidth = this.computeAverageRecordWidth();
+//			
+//			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
+//				// we have a cardinality estimate and width estimate
+//
+//				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
+//						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
+//			}
+//			
+//			// check that the key-card is maximally as large as the number of rows
+//			if (this.estimatedKeyCardinality > this.estimatedNumRecords) {
+//				this.estimatedKeyCardinality = this.estimatedNumRecords;
+//			}
+//		}
+//	}
+// end union version
 
-		double avgWidth = -1;
-
-		if(outputSize != -1) {
-			avgWidth = outputSize / (double)numRecords;
-			if(avgWidth < 1)
-				avgWidth = 1;
-		}
-		
-
-		for(PactConnection c : this.input2) {
-			OptimizerNode pred = c.getSourcePact();
-			
-			if(pred != null) {
-				// if one input (all of them are unioned) does not know
-				// its output size or number of records, we a pessimistic and return "unknown" as well
-				if(pred.estimatedOutputSize == -1) {
-					return avgWidth;
-				}
-				
-				outputSize += pred.estimatedOutputSize;
-				numRecords += pred.estimatedNumRecords;
-			}
-		}
-		
-		if(outputSize != -1) {
-			avgWidth += outputSize / (double)numRecords;
-			if(avgWidth < 2)
-				avgWidth = 2;
-		}
-
-		return avgWidth;
-	}
-	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-		boolean allPredsAvailable = false;
-		
-		if(this.input1 != null && this.input2 != null) {
-			for(PactConnection c : this.input1) {
-				if(c.getSourcePact() == null) {
-					allPredsAvailable = false;
-					break;
-				}
-			}
-			
-			if(allPredsAvailable) {
-				for(PactConnection c : this.input2) {
-					if(c.getSourcePact() == null) {
-						allPredsAvailable = false;
-						break;
-					}
-				}				
-			}
-		}
-
-		CompilerHints hints = getPactContract().getCompilerHints();
-
-		if (!allPredsAvailable) {
-			// Preceding node is not available, we take hints as given
-			this.estimatedKeyCardinality = hints.getKeyCardinality();
-			
-			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
-				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) >= 1 ? 
-						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
-			}
-			
-			if(this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
-				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
-						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
-			}
-			
-		} else {
-			// We have a preceding node
-			
-			// ############# set default estimates
-			
-			// default output cardinality is equal to number of stub calls
-			this.estimatedNumRecords = this.computeNumberOfStubCalls();
-			// default key cardinality is -1
-			this.estimatedKeyCardinality = -1;
-			// default output size is equal to output size of previous node
-			this.estimatedOutputSize = -1;
-						
-			
-			// ############# output cardinality estimation ##############
-			
-			boolean outputCardEstimated = true;
-				
-			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
-				// we have precise hints
-				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey() >= 1) ?
-						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
-			} else if(hints.getAvgRecordsEmittedPerStubCall() != 1.0) {
-				// we know how many records are in average emitted per stub call
-				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
-						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
-			} else {
-				outputCardEstimated = false;
-			}
-						
-			// ############# output key cardinality estimation ##########
-
-			if(hints.getKeyCardinality() != -1) {
-				// number of keys is explicitly given by user hint
-				this.estimatedKeyCardinality = hints.getKeyCardinality();
-				
-			} else if(!this.getOutputContract().equals(OutputContract.None)) {
-				// we have an output contract which might help to estimate the number of output keys
-				
-				if(this.getOutputContract().equals(OutputContract.UniqueKey)) {
-					// each output key is unique. Every record has a unique key.
-					this.estimatedKeyCardinality = this.estimatedNumRecords;
-					
-				} else if(this.getOutputContract().equals(OutputContract.SameKey) || 
-						this.getOutputContract().equals(OutputContract.SameKeyFirst) || 
-						this.getOutputContract().equals(OutputContract.SameKeySecond)) {
-					// we have a samekey output contract
-					
-					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
-						// in average less than one record is emitted per stub call
-						
-						// compute the probability that at least one stub call emits a record for a given key 
-						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
-
-						this.estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
-								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
-					} else {
-						// in average more than one record is emitted per stub call. We assume all keys are kept.
-						this.estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
-					}
-				}
-			} else if(hints.getAvgNumValuesPerKey() != -1 && this.estimatedNumRecords != -1) {
-				// we have a hint for the average number of records per key
-				this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey() >= 1) ? 
-						(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
-			}
-			 
-			// try to reversely estimate output cardinality from key cardinality
-			if(this.estimatedKeyCardinality != -1 && !outputCardEstimated) {
-				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
-				if(hints.getAvgNumValuesPerKey() != -1) {
-					// we have a hint for average values per key
-					this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey() >= 1) ?
-							(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
-				}
-			}
-			
-				
-			// ############# output size estimation #####################
-
-			double estAvgRecordWidth = this.computeAverageRecordWidth();
-			
-			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
-				// we have a cardinality estimate and width estimate
-
-				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
-						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
-			}
-			
-			// check that the key-card is maximally as large as the number of rows
-			if (this.estimatedKeyCardinality > this.estimatedNumRecords) {
-				this.estimatedKeyCardinality = this.estimatedNumRecords;
-			}
-		}
+//		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
+//		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
+//		CompilerHints hints = getPactContract().getCompilerHints();
+//
+//		// check if preceding node is available
+//		if (pred1 == null || pred2 == null) {
+//			// Preceding node is not available, we take hints as given
+//			this.estimatedKeyCardinality = hints.getKeyCardinality();
+//			
+//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) >= 1 ? 
+//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+//			}
+//			
+//			if(this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
+//				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
+//						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
+//			}
+//			
+//		} else {
+//			// We have a preceding node
+//			
+//			// ############# set default estimates
+//			
+//			// default output cardinality is equal to number of stub calls
+//			this.estimatedNumRecords = this.computeNumberOfStubCalls();
+//			// default key cardinality is -1
+//			this.estimatedKeyCardinality = -1;
+//			// default output size is equal to output size of previous node
+//			this.estimatedOutputSize = -1;
+//						
+//			
+//			// ############# output cardinality estimation ##############
+//			
+//			boolean outputCardEstimated = true;
+//				
+//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+//				// we have precise hints
+//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey() >= 1) ?
+//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+//			} else if(hints.getAvgRecordsEmittedPerStubCall() != 1.0) {
+//				// we know how many records are in average emitted per stub call
+//				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
+//						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
+//			} else {
+//				outputCardEstimated = false;
+//			}
+//						
+//			// ############# output key cardinality estimation ##########
+//
+//			if(hints.getKeyCardinality() != -1) {
+//				// number of keys is explicitly given by user hint
+//				this.estimatedKeyCardinality = hints.getKeyCardinality();
+//				
+//			} else if(!this.getOutputContract().equals(OutputContract.None)) {
+//				// we have an output contract which might help to estimate the number of output keys
+//				
+//				if(this.getOutputContract().equals(OutputContract.UniqueKey)) {
+//					// each output key is unique. Every record has a unique key.
+//					this.estimatedKeyCardinality = this.estimatedNumRecords;
+//					
+//				} else if(this.getOutputContract().equals(OutputContract.SameKey) || 
+//						this.getOutputContract().equals(OutputContract.SameKeyFirst) || 
+//						this.getOutputContract().equals(OutputContract.SameKeySecond)) {
+//					// we have a samekey output contract
+//					
+//					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
+//						// in average less than one record is emitted per stub call
+//						
+//						// compute the probability that at least one stub call emits a record for a given key 
+//						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
+//
+//						this.estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
+//								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
+//					} else {
+//						// in average more than one record is emitted per stub call. We assume all keys are kept.
+//						this.estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
+//					}
+//				}
+//			} else if(hints.getAvgNumValuesPerKey() != -1 && this.estimatedNumRecords != -1) {
+//				// we have a hint for the average number of records per key
+//				this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey() >= 1) ? 
+//						(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
+//			}
+//			 
+//			// try to reversely estimate output cardinality from key cardinality
+//			if(this.estimatedKeyCardinality != -1 && !outputCardEstimated) {
+//				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
+//				if(hints.getAvgNumValuesPerKey() != -1) {
+//					// we have a hint for average values per key
+//					this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey() >= 1) ?
+//							(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
+//				}
+//			}
+//			
+//				
+//			// ############# output size estimation #####################
+//
+//			double estAvgRecordWidth = this.computeAverageRecordWidth();
+//			
+//			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
+//				// we have a cardinality estimate and width estimate
+//
+//				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
+//						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
+//			}
+//			
+//			// check that the key-card is maximally as large as the number of rows
+//			if (this.estimatedKeyCardinality > this.estimatedNumRecords) {
+//				this.estimatedKeyCardinality = this.estimatedNumRecords;
+//			}
+//		}
 	}
-
 }

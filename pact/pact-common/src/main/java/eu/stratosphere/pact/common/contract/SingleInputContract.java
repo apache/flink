@@ -19,80 +19,56 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stub.SingleInputStub;
+import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
- * Contract for all tasks that have one input like "map".
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- * @author mjsax@informatik.hu-berlin.de
- * 
- * @param <IK> type of key of input key/value-pair
- * @param <IV> type of value of input key/value-pair
- * @param <OK> type of key of output key/value-pair
- * @param <OV> type of value of output key/value-pair
+ * Abstract contract superclass for for all contracts that have one input like "map" or "reduce".
  */
-public abstract class SingleInputContract<IK extends Key, IV extends Value, OK extends Key, OV extends Value> extends
-		AbstractPact<OK, OV, SingleInputStub<IK, IV, OK, OV>>
+public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T>
 {
-	// input contract of this contract
+	/**
+	 * The input which produces the data consumed by this Pact.
+	 */
 	final protected List<Contract> input = new ArrayList<Contract>();
+	
+	/**
+	 * The positions of the keys in the tuple.
+	 */
+	private final int[] keyFields;
+
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a new contract using the given stub and the given name
+	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
 	 * 
-	 * @param clazz
-	 *        the stub class that is represented by this contract
-	 * @param name
-	 *        name for the task represented by this contract
+	 * @param stubClass The class containing the user function.
+	 * @param keyTypes The classes of the data types that act as keys in this stub.
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public SingleInputContract(Class<? extends SingleInputStub<IK, IV, OK, OV>> clazz, String name) {
-		super(clazz, name);
+	protected SingleInputContract(Class<? extends T> stubClass, Class<? extends Key>[] keyTypes, int[] keyPositions, String name)
+	{
+		super(stubClass, keyTypes, name);
+		this.keyFields = keyPositions;
+	}
+	
+	/**
+	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
+	 * This constructor is specialized only for Pacts that require no keys for their processing.
+	 * 
+	 * @param stubClass The class containing the user function.
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 */
+	protected SingleInputContract(Class<? extends T> stubClass, String name)
+	{
+		super(stubClass, name);
+		this.keyFields = new int[0];
 	}
 
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns the class type of the input key
-	 * 
-	 * @return The class of the input key.
-	 */
-	public Class<? extends Key> getInputKeyClass() {
-		return ReflectionUtil.getTemplateType1(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the input value
-	 * 
-	 * @return The class of the input value.
-	 */
-	public Class<? extends Value> getInputValueClass() {
-		return ReflectionUtil.getTemplateType2(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the output key
-	 * 
-	 * @return The class of the output key.
-	 */
-	public Class<? extends Key> getOutputKeyClass() {
-		return ReflectionUtil.getTemplateType3(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the output value
-	 * 
-	 * @return The class of the output value.
-	 */
-	public Class<? extends Value> getOutputValueClass() {
-		return ReflectionUtil.getTemplateType4(this.getClass());
-	}
-
-	/**
-	 * Returns the input or null if none is set
+	 * Returns the input, or null, if none is set.
 	 * 
 	 * @return The contract's input contract.
 	 */
@@ -139,12 +115,43 @@ public abstract class SingleInputContract<IK extends Key, IV extends Value, OK e
 		this.input.clear();
 		this.input.addAll(inputs);
 	}
-
-
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getNumberOfInputs()
+	 */
 	@Override
-	public void accept(Visitor<Contract> visitor) {
-		boolean descend = visitor.preVisit(this);
-		
+	public int getNumberOfInputs() {
+		return 1;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getKeyColumnNumbers(int)
+	 */
+	@Override
+	public int[] getKeyColumnNumbers(int inputNum) {
+		if (inputNum == 0) {
+			return this.keyFields;
+		}
+		else throw new IndexOutOfBoundsException();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Accepts the visitor and applies it this instance. The visitors pre-visit method is called and, if returning 
+	 * <tt>true</tt>, the visitor is recursively applied on the single input. After the recursion returned,
+	 * the post-visit method is called.
+	 * 
+	 * @param visitor The visitor.
+	 *  
+	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 */
+	@Override
+	public void accept(Visitor<Contract> visitor)
+	{
+		boolean descend = visitor.preVisit(this);	
 		if (descend) {
 			for(Contract c : this.input) {
 				c.accept(visitor);

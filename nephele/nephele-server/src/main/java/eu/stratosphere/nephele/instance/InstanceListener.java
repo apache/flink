@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.instance;
 
+import java.util.List;
+
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
@@ -26,23 +28,23 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 public interface InstanceListener {
 
 	/**
-	 * Called if a requested resource has become available.
+	 * Called if one or more requested resources have become available.
 	 * 
 	 * @param jobID
 	 *        the ID of the job the initial request has been triggered for
-	 * @param allocatedResource
-	 *        the resource which have been allocated as a response to the initial request
+	 * @param allocatedResources
+	 *        the resources which have been allocated as a response to the initial request
 	 */
-	void resourceAllocated(JobID jobID, AllocatedResource allocatedResource);
+	void resourcesAllocated(JobID jobID, List<AllocatedResource> allocatedResources);
 
 	/**
-	 * Called if an allocated resource assigned to at least one job has died unexpectedly.
+	 * Called if one or more allocated resources assigned to at least one job have died unexpectedly.
 	 * 
 	 * @param jobID
 	 *        the ID of the job the instance is used for
 	 * @param allocatedResource
-	 *        the allocated resource which is affected by the instance death
+	 *        the allocated resources which are affected by the instance death
 	 */
-	void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource);
+	void allocatedResourcesDied(JobID jobID, List<AllocatedResource> allocatedResource);
 
 }

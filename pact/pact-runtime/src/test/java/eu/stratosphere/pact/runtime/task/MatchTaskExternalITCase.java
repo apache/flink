@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -25,20 +24,20 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("javadoc")
+@SuppressWarnings( {"javadoc", "unchecked"} )
 public class MatchTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(MatchTaskExternalITCase.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+	List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testExternalSort1MatchTask() {
@@ -58,6 +57,9 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -144,24 +146,12 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 //		
 //	}
 	
-	public static class MockMatchStub extends MatchStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockMatchStub extends MatchStub {
 
-		HashSet<Integer> hashSet = new HashSet<Integer>(1000);
-		
+
 		@Override
-		public void match(PactInteger key, PactInteger value1, PactInteger value2,
-				Collector<PactInteger, PactInteger> out) {
-			
-			Assert.assertTrue("Key was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(key)));
-			Assert.assertTrue("Value was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(value1)));
-			Assert.assertTrue("Value was given multiple times into user code",!this.hashSet.contains(System.identityHashCode(value2)));
-			
-			this.hashSet.add(System.identityHashCode(key));
-			this.hashSet.add(System.identityHashCode(value1));
-			this.hashSet.add(System.identityHashCode(value2));
-			
-			out.collect(key, value1);
-			
+		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception {
+			out.collect(value1);
 		}
 		
 	}

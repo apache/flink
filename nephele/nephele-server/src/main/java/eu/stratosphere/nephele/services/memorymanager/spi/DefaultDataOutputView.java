@@ -88,6 +88,14 @@ public final class DefaultDataOutputView extends DefaultMemorySegmentView implem
 		this.position = this.offset;
 		return this;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.DataOutputView#getRemainingBytes()
+	 */
+	@Override
+	public int getRemainingBytes() {
+		return this.end - this.position;
+	}
 
 	// ------------------------------------------------------------------------
 	// DataOutput

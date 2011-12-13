@@ -22,15 +22,17 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
 
 /**
- * 
+ * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
+ * file streams.
  */
-public abstract class FileOutputFormat<K extends Key, V extends Value> extends OutputFormat<K, V>
+public abstract class FileOutputFormat extends OutputFormat
 {
+	/**
+	 * The key under which the name of the target path is stored in the configuration. 
+	 */
 	public static final String FILE_PARAMETER_KEY = "pact.output.file";
 	
 	/**
@@ -143,21 +145,25 @@ public abstract class FileOutputFormat<K extends Key, V extends Value> extends O
 
 				// create output file
 				synchronized (this.lock) {
-					this.lock.notifyAll();
-					
-					if (!this.canceled) {
-						this.fdos = stream;
+					if (canceled) {
+						try {stream.close(); } catch (Throwable t) {}
 					}
 					else {
-						this.fdos = null;
-						stream.close();
+						this.fdos = stream;				
 					}
+					this.lock.notifyAll();
 				}
 			}
 			catch (Exception t) {
 				synchronized (this.lock) {
-					this.canceled = true;
 					this.exception = t;
+					this.lock.notifyAll();
+				}
+			}
+			catch (Throwable t) {
+				synchronized (this.lock) {
+					this.exception = new Exception(t);
+					this.lock.notifyAll();
 				}
 			}
 		}
@@ -168,42 +174,28 @@ public abstract class FileOutputFormat<K extends Key, V extends Value> extends O
 			long start = System.currentTimeMillis();
 			long remaining = this.timeoutMillies;
 			
-			if (this.exception != null) {
-				throw this.exception;
-			}
-			if (this.fdos != null) {
-				return this.fdos;
-			}
-			
 			synchronized (this.lock) {
-				do {
-					try {
+				boolean success = false;
+				try {
+					while (this.exception == null && this.fdos == null &&
+							(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0)
+					{
 						this.lock.wait(remaining);
 					}
-					catch (InterruptedException iex) {
-						this.canceled = true;
-						if (this.fdos != null) {
-							try  {
-								this.fdos.close();
-							} catch (Throwable t) {}
-						}
-						throw new Exception("Output Path Opener was interrupted.");
-					}
-				}
-				while (this.exception == null && this.fdos == null &&
-						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
-			
-				if (this.exception != null) {
-					if (this.fdos != null) {
-						try  {
-							this.fdos.close();
-						} catch (Throwable t) {}
-					}
-					throw this.exception;
-				}
 				
-				if (this.fdos != null) {
-					return this.fdos;
+					if (this.exception != null) {
+						throw this.exception;
+					}
+						
+					if (this.fdos != null) {
+						success = true;
+						return this.fdos;
+					}
+				}
+				finally {
+					if (!success) {
+						this.canceled = true;
+					}
 				}
 			}
 			

@@ -58,15 +58,15 @@ public class DefaultChannelSelector<T extends Record> implements ChannelSelector
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
-
+	public void write(DataOutput out) throws IOException {
+		// Nothing to do here
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
-
+	public void read(DataInput in) throws IOException {
+		// Nothing to do here
 	}
 }

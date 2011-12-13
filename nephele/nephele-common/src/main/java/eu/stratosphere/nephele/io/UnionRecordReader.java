@@ -146,7 +146,7 @@ public final class UnionRecordReader<T extends Record> implements Reader<T>, Rec
 
 			if (this.nextInputGateToReadFrom.hasRecordAvailable()) {
 
-				final T record = this.nextInputGateToReadFrom.readRecord();
+				final T record = this.nextInputGateToReadFrom.readRecord(null);
 				if (record == null) { // Gate is closed
 					this.inputGates.remove(this.nextInputGateToReadFrom);
 					this.nextInputGateToReadFrom = null;
@@ -156,9 +156,7 @@ public final class UnionRecordReader<T extends Record> implements Reader<T>, Rec
 			} else {
 				this.nextInputGateToReadFrom = null;
 			}
-
 		}
-
 	}
 
 	/**
@@ -170,7 +168,7 @@ public final class UnionRecordReader<T extends Record> implements Reader<T>, Rec
 		synchronized (this.availableInputGates) {
 			this.availableInputGates.add(inputGate);
 			this.availableInputGates.notify();
-			
+
 		}
 	}
 }

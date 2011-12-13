@@ -27,22 +27,21 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stub.CoGroupStub;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 
@@ -60,6 +59,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * The RDF input format is used if the 4th parameter of the getPlan() method is set to "true". If set to "false" the path input format is used. 
  *  
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
  *
  */
 public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
@@ -70,13 +70,13 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
-	public static class NodePair extends PactPair<PactString, PactString> {
+	public static class Edge extends PactPair<PactString, PactString> {
 		
-		public NodePair() {
+		public Edge() {
 			super();
 		}
 
-		public NodePair(PactString s1, PactString s2) {
+		public Edge(PactString s1, PactString s2) {
 			super(s1, s2);
 		}
 
@@ -304,16 +304,17 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * The key is set to a NodePair, where the first node is the RDF subject and the second node is the RDF object. 
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 *
 	 */
-	public static class RDFTripleInFormat extends TextInputFormat<NodePair, Path> {
+	public static class RDFTripleInFormat extends DelimitedInputFormat {
 
 		private static final Log LOG = LogFactory.getLog(RDFTripleInFormat.class);
 		
 		@Override
-		public boolean readLine(KeyValuePair<NodePair, Path> pair, byte[] line) {
+		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
 			
-			String lineStr = new String(line);
+			String lineStr = new String(bytes);
 			// replace reduce whitespaces and trim
 			lineStr = lineStr.replaceAll("\\s+", " ").trim();
 			// build whitespace tokenizer
@@ -332,19 +333,18 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 				return false;
 
 			// build node pair from subject and object
-			NodePair edge = new NodePair(new PactString(rdfSubj), new PactString(rdfObj)); 
+			Edge edge = new Edge(new PactString(rdfSubj), new PactString(rdfObj)); 
 			// create initial path from subject node to object node with length 1 and no hops
 			Path initPath = new Path(rdfSubj, rdfObj, 1);
 			
-			pair.setKey(edge);
-			pair.setValue(initPath);
+			target.setField(0, edge);
+			target.setField(1, initPath);
 
-			LOG.debug("Read in: " + pair.getKey() + " :: " + pair.getValue());
+			LOG.debug("Read in: " + edge + " :: " + initPath);
 			
 			return true;
 			
 		}
-		
 	}
 	
 	
@@ -356,15 +356,16 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * The first element of the NodePair is the from-node of the path and the second element is the to-node of the path.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class PathInFormat extends TextInputFormat<NodePair, Path> {
+	public static class PathInFormat extends DelimitedInputFormat{
 
 		private static final Log LOG = LogFactory.getLog(PathInFormat.class);
 
 		@Override
-		public boolean readLine(KeyValuePair<NodePair, Path> pair, byte[] line) {
+		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
 
-			String lineStr = new String(line);
+			String lineStr = new String(bytes);
 			StringTokenizer st = new StringTokenizer(lineStr, "|");
 			
 			// path must have at least 4 tokens (fromNode, toNode, length, hopCnt)
@@ -384,13 +385,13 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 				hops[i] = st.nextToken();
 			}
 			
-			NodePair nodePair = new NodePair(new PactString(fromNode), new PactString(toNode));
-			Path path = new Path(fromNode,toNode,length,hops,hopCnt);
+			Edge edge = new Edge(new PactString(fromNode), new PactString(toNode));
+			Path initPath = new Path(fromNode,toNode,length,hops,hopCnt);
 
-			pair.setKey(nodePair);
-			pair.setValue(path);
+			target.setField(0, edge);
+			target.setField(1, initPath);
 
-			LOG.debug("Read in: " + pair.getKey() + " :: " + pair.getValue());
+			LOG.debug("Read in: " + edge + " :: " + initPath);
 			
 			return true;
 		}
@@ -404,14 +405,14 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
-	public static class PathOutFormat extends TextOutputFormat<PactNull, Path> {
+	public static class PathOutFormat extends FileOutputFormat {
 
 		private static final Log LOG = LogFactory.getLog(PathInFormat.class);
 
 		@Override
-		public byte[] writeLine(KeyValuePair<PactNull, Path> pair) {
+		public void writeRecord(PactRecord record) throws IOException {
 			StringBuilder line = new StringBuilder();
-			Path path = pair.getValue();
+			Path path = record.getField(0, Path.class);
 			
 			line.append(path.getFromNode()+"|");
 			line.append(path.getToNode()+"|");
@@ -424,7 +425,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			
 			LOG.debug("Writing out: [" + path + "]");
 
-			return line.toString().getBytes();
+			stream.write(line.toString().getBytes());
 		}
 
 	}
@@ -433,18 +434,20 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * Sets the key of the emitted key-value-pairs to the from-node of the input path.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 *
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
+	 * 
 	 */
-	public static class ProjectPathStart extends MapStub<NodePair, Path, PactString, Path> {
+	public static class ProjectPathStart extends MapStub {
 
 		private static final Log LOG = LogFactory.getLog(ProjectPathStart.class);
 
 		@Override
-		public void map(NodePair key, Path value, Collector<PactString, Path> out) {
-
-			LOG.debug("Emit: [" + key.getFirst() + "," + value + "]");
+		public void map(PactRecord record, Collector out) throws Exception {
+			Edge e = record.getField(0, Edge.class);
+			LOG.debug("Emit: [" + e.getFirst() + "," + record.getField(1, Path.class) + "]");
 			
-			out.collect(key.getFirst(), value);
+			record.setField(0, e.getFirst());
+			out.collect(record);
 		}
 	}
 
@@ -452,18 +455,20 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * Sets the key of the emitted key-value-pair to the to-node of the input path.
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 *
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
+	 * 
 	 */
-	public static class ProjectPathEnd extends MapStub<NodePair, Path, PactString, Path> {
+	public static class ProjectPathEnd extends MapStub {
 
 		private static final Log LOG = LogFactory.getLog(ProjectPathEnd.class);
 
 		@Override
-		public void map(NodePair key, Path value, Collector<PactString, Path> out) {
+		public void map(PactRecord record, Collector out) throws Exception {
+			Edge e = record.getField(0, Edge.class);
+			LOG.debug("Emit: [" + e.getSecond() + "," + record.getField(1, Path.class) + "]");
 			
-			LOG.debug("Emit: [" + key.getSecond() + "," + value + "]");
-			
-			out.collect(key.getSecond(), value);
+			record.setField(0, e.getSecond());
+			out.collect(record);
 		}
 	}
 
@@ -474,15 +479,20 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * The output path's hops list is built from both path's hops lists and the common node.  
 	 * 
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 *
 	 */
-	public static class ConcatPaths extends MatchStub<PactString, Path, Path, NodePair, Path> {
+	public static class ConcatPaths extends MatchStub {
 
 		private static final Log LOG = LogFactory.getLog(ConcatPaths.class);
-
+		private final PactRecord outputRecord = new PactRecord();
+		
 		@Override
-		public void match(PactString matchNode, Path path1, Path path2, Collector<NodePair, Path> out) {
-
+		public void match(PactRecord rec1, PactRecord rec2, Collector out) throws Exception {
+			PactString matchNode = rec1.getField(0, PactString.class);
+			Path path1 = rec1.getField(1, Path.class);
+			Path path2 = rec2.getField(1, Path.class);
+			
 			LOG.debug("Process: [" + matchNode + "," + path1 + "] + [" + matchNode + "," + path2 + "]");
 
 			// path1 was projected to path start, path2 was projected to path end.
@@ -513,8 +523,10 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 
 			LOG.debug("Emit: [" + fromNode + "|" + toNode + " , " + value + "]");
 			
-			out.collect(new NodePair(new PactString(fromNode), new PactString(toNode)), value);
+			outputRecord.setField(0, new Edge(new PactString(fromNode), new PactString(toNode)));
+			outputRecord.setField(1, value);
 			
+			out.collect(outputRecord);
 		}
 	}
 
@@ -525,20 +537,25 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 *
 	 */
-	public static class FindShortestPath extends CoGroupStub<NodePair, Path, Path, PactNull, Path> {
+	public static class FindShortestPath extends CoGroupStub {
 
 		private static final Log LOG = LogFactory.getLog(FindShortestPath.class);
-
+		private final PactRecord outputRecord = new PactRecord();
+		
 		@Override
-		public void coGroup(NodePair key, Iterator<Path> inputPaths, Iterator<Path> concatPaths, Collector<PactNull, Path> out) {
-
+		public void coGroup(Iterator<PactRecord> inputRecords, Iterator<PactRecord> concatRecords, Collector out) {
 			// init minimum length and minimum path
 			int minLength = Integer.MAX_VALUE;
 			List<Path> shortestPaths = new ArrayList<Path>();
+			Edge key = null;
 
 			// find shortest path of all input paths
-			while (inputPaths.hasNext()) {
-				Path value = inputPaths.next();
+			while (inputRecords.hasNext()) {
+				PactRecord inputRecord = inputRecords.next();
+				if(key == null) {
+					key = inputRecord.getField(0, Edge.class);
+				}
+				Path value = inputRecord.getField(1, Path.class);
 				LOG.debug("Process: [" + key + "," + value + "]");
 
 				if (value.getLength() == minLength) {
@@ -554,8 +571,12 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			}
 
 			// find shortest path of all input and concatenated paths
-			while (concatPaths.hasNext()) {
-				Path value = concatPaths.next();
+			while (concatRecords.hasNext()) {
+				PactRecord concatRecord = concatRecords.next();
+				if(key == null) {
+					key = concatRecord.getField(0, Edge.class);
+				}
+				Path value = concatRecord.getField(1, Path.class);
 				LOG.debug("Process: [" + key + "," + value + "]");
 				
 				if (value.getLength() == minLength) {
@@ -573,7 +594,8 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			// emit all shortest paths
 			for(Path shortestPath : shortestPaths) {
 				LOG.debug("Emit: [" + key + "," + shortestPath + "]");
-				out.collect(new PactNull(), shortestPath);
+				outputRecord.setField(0, shortestPath);
+				out.collect(outputRecord);
 			}
 		}
 	}
@@ -598,34 +620,30 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		String output    = (args.length > 2 ? args[2] : "");
 		boolean rdfInput = (args.length > 3 ? Boolean.parseBoolean(args[3]) : false);
 
-		FileDataSourceContract<NodePair, Path> pathsInput;
+		FileDataSource pathsInput;
 		
 		if(rdfInput) {
-			pathsInput = new FileDataSourceContract<NodePair, Path>(RDFTripleInFormat.class, paths, "Input RDF Triples");
+			pathsInput = new FileDataSource(RDFTripleInFormat.class, paths, "RDF Triples");
 		} else {
-			pathsInput = new FileDataSourceContract<NodePair, Path>(PathInFormat.class, paths, "Input Paths");
+			pathsInput = new FileDataSource(PathInFormat.class, paths, "Paths");
 		}
-		pathsInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		pathsInput.setDegreeOfParallelism(noSubTasks);
 
-		MapContract<NodePair, Path, PactString, Path> pathStarts = new MapContract<NodePair, Path, PactString, Path>(
-			ProjectPathStart.class, "Project Starts");
+		MapContract pathStarts = new MapContract(ProjectPathStart.class, "Project Starts");
 		pathStarts.setDegreeOfParallelism(noSubTasks);
 
-		MapContract<NodePair, Path, PactString, Path> pathEnds = new MapContract<NodePair, Path, PactString, Path>(
-			ProjectPathEnd.class, "Project Ends");
+		MapContract pathEnds = new MapContract(ProjectPathEnd.class, "Project Ends");
 		pathEnds.setDegreeOfParallelism(noSubTasks);
 
-		MatchContract<PactString, Path, Path, NodePair, Path> concatPaths = new MatchContract<PactString, Path, Path, NodePair, Path>(
-			ConcatPaths.class, "Concat Paths");
+		MatchContract concatPaths = 
+				new MatchContract(ConcatPaths.class, PactString.class, 0, 0, "Concat Paths");
 		concatPaths.setDegreeOfParallelism(noSubTasks);
 
-		CoGroupContract<NodePair, Path, Path, PactNull, Path> findShortestPaths = new CoGroupContract<NodePair, Path, Path, PactNull, Path>(
-			FindShortestPath.class, "Find Shortest Paths");
+		CoGroupContract findShortestPaths = 
+				new CoGroupContract(FindShortestPath.class, Edge.class, 0, 0, "Find Shortest Paths");
 		findShortestPaths.setDegreeOfParallelism(noSubTasks);
 
-		FileDataSinkContract<PactNull, Path> result = new FileDataSinkContract<PactNull, Path>(PathOutFormat.class,
-			output, "Output Paths");
+		FileDataSink result = new FileDataSink(PathOutFormat.class,output, "New Paths");
 		result.setDegreeOfParallelism(noSubTasks);
 
 		result.addInput(findShortestPaths);

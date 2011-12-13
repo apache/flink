@@ -28,8 +28,10 @@ public interface ByteBufferedOutputChannelBroker {
 	 * @return one or possibly two byte buffers to write in, depending on whether compression is enabled or not
 	 * @throws InterruptedException
 	 *         thrown if the connected task is interrupted while waiting for the buffers
+	 * @throws IOException
+	 *         thrown if an error occurs while requesting the empty write buffers.
 	 */
-	BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException;
+	BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException, IOException;
 
 	/**
 	 * Returns a filled write buffers to the broker. The broker will take care
@@ -41,6 +43,18 @@ public interface ByteBufferedOutputChannelBroker {
 	 *         thrown if an I/O error occurs while releasing the buffers
 	 */
 	void releaseWriteBuffers() throws IOException, InterruptedException;
+
+	/**
+	 * Checks if there is still data created by this output channel that must be transfered to the corresponding input
+	 * channel.
+	 * 
+	 * @return <code>true</code> if the channel has data left to transmit, <code>false</code> otherwise
+	 * @throws InterruptedException
+	 *         thrown if the connected task is interrupted while waiting for the remaining data to be transmitted
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the remaining data
+	 */
+	boolean hasDataLeftToTransmit() throws IOException, InterruptedException;
 
 	/**
 	 * Forwards the given event to the connected network input channel on a best effort basis.

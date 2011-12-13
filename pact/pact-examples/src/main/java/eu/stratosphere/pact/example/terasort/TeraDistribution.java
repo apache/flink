@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.example.terasort;
 
 import eu.stratosphere.pact.common.contract.DataDistribution;
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * This class implements a uniform data distribution for the TeraSort benchmark.
@@ -28,7 +28,7 @@ public class TeraDistribution implements DataDistribution {
 	private static final int ALPHABETH_SIZE = 95;
 
 	@Override
-	public Key getSplit(int splitId, int totalSplits) {
+	public PactRecord getSplit(int splitId, int totalSplits) {
 
 		byte[] buf = new byte[TeraKey.KEY_SIZE];
 
@@ -43,8 +43,10 @@ public class TeraDistribution implements DataDistribution {
 		}
 
 		final TeraKey split = new TeraKey(buf);
+		PactRecord splitRec = new PactRecord();
+		splitRec.setField(0, split);
 		// System.out.println("Split for " + splitId + " is " + split);
 
-		return split;
+		return splitRec;
 	}
 }

@@ -26,20 +26,20 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("javadoc")
+@SuppressWarnings( {"javadoc", "unchecked"} )
 public class ReduceTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+	List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testSingleLevelMergeReduceTask() {
@@ -55,6 +55,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -67,8 +69,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == valCnt-pair.getKey().getValue());
+		for(PactRecord record : this.outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == valCnt-record.getField(0, PactInteger.class).getValue());
 		}
 		
 		this.outList.clear();
@@ -89,6 +91,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -101,8 +105,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == valCnt-pair.getKey().getValue());
+		for(PactRecord record : this.outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == valCnt-record.getField(0, PactInteger.class).getValue());
 		}
 		
 		this.outList.clear();
@@ -123,6 +127,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -140,8 +146,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum-pair.getKey().getValue());
+		for(PactRecord record : this.outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum-record.getField(0, PactInteger.class).getValue());
 		}
 		
 		this.outList.clear();
@@ -163,6 +169,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -180,56 +188,74 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : this.outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum-pair.getKey().getValue());
+		for(PactRecord record : this.outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum-record.getField(0, PactInteger.class).getValue());
 		}
 		
 		this.outList.clear();
 		
 	}
 	
-	private static final class MockReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockReduceStub extends ReduceStub {
+
+		private final PactInteger key = new PactInteger();
+		private final PactInteger value = new PactInteger();
 
 		@Override
-		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+		public void reduce(Iterator<PactRecord> records, Collector out)
+				throws Exception {
+			PactRecord element = null;
 			int cnt = 0;
-			while(values.hasNext()) {
-				values.next();
+			while (records.hasNext()) {
+				element = records.next();
 				cnt++;
 			}
-			out.collect(key, new PactInteger(cnt-key.getValue()));
+			element.getField(0, this.key);
+			this.value.setValue(cnt - this.key.getValue());
+			element.setField(1, this.value);
+			out.collect(element);
 		}
 	}
 	
 	@Combinable
-	private static final class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockCombiningReduceStub extends ReduceStub {
+
+		private final PactInteger key = new PactInteger();
+		private final PactInteger value = new PactInteger();
+		private final PactInteger combineValue = new PactInteger();
 
 		@Override
-		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
-			PactInteger pi = null;
+		public void reduce(Iterator<PactRecord> records, Collector out)
+				throws Exception {
+			PactRecord element = null;
 			int sum = 0;
-			
-			while(values.hasNext()) {
-				pi = values.next();
-				sum += pi.getValue();
+			while (records.hasNext()) {
+				element = records.next();
+				element.getField(1, this.value);
+				
+				sum += this.value.getValue();
 			}
-			
-			pi.setValue(sum-key.getValue());
-			out.collect(key, pi);
+			element.getField(0, this.key);
+			this.value.setValue(sum - this.key.getValue());
+			element.setField(1, this.value);
+			out.collect(element);
 		}
 		
 		@Override
-		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
-			PactInteger pi = null;
+		public void combine(Iterator<PactRecord> records, Collector out)
+				throws Exception {
+			PactRecord element = null;
 			int sum = 0;
-			
-			while(values.hasNext()) {
-				pi = values.next();
-				sum += pi.getValue();
+			while (records.hasNext()) {
+				element = records.next();
+				element.getField(1, this.combineValue);
+				
+				sum += this.combineValue.getValue();
 			}
 			
-			pi.setValue(sum);
-			out.collect(key, pi);
+			this.combineValue.setValue(sum);
+			element.setField(1, this.combineValue);
+			out.collect(element);
 		}
 		
 	}

@@ -22,13 +22,11 @@ import java.util.Hashtable;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.OutputContract;
+//import eu.stratosphere.pact.compiler.OutputContract;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
@@ -135,31 +133,27 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 		}
 		this.jsonString.append(",\n\t\t\"type\": \"" + type + "\"");
 
-		// output node pact type
-		if (type.equals("pact")) {
-			this.jsonString.append(",\n\t\t\"pact\": \"" + visitable.getName() + "\"");
-		}
-
 		// output node contents
 		String contents;
 		switch (visitable.getPactType()) {
 		case DataSink:
-			contents = ((FileDataSinkContract<?, ?>) visitable.getPactContract()).getFilePath();
+			contents = visitable.getPactContract().toString();
 			break;
 		case DataSource:
-			contents = ((FileDataSourceContract<?, ?>) visitable.getPactContract()).getFilePath();
+			contents = visitable.getPactContract().toString();
 			break;
 		default:
+			jsonString.append(",\n\t\t\"pact\": \"" + visitable.getName() + "\"");
 			contents = visitable.getPactContract().getName();
 			break;
 		}
 		this.jsonString.append(",\n\t\t\"contents\": \"" + contents + "\"");
 
 		// output contract
-		OutputContract outContr = visitable.getOutputContract();
-		if (outContr != null && outContr != OutputContract.None) {
-			this.jsonString.append(",\n\t\t\"outputcontract\": \"" + outContr.name() + "\"");
-		}
+//		OutputContract outContr = visitable.getOutputContract();
+//		if (outContr != null && outContr != OutputContract.None) {
+//			jsonString.append(",\n\t\t\"outputcontract\": \"" + outContr.name() + "\"");
+//		}
 
 		// degree of parallelism
 		this.jsonString.append(",\n\t\t\"parallelism\": \""

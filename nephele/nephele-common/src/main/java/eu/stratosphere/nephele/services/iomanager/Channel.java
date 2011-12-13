@@ -26,7 +26,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author Alexander Alexandrov
  */
-public final class Channel {
+public final class Channel
+{
 	private static final int RANDOM_BYTES_LENGTH = 16;
 
 	/**
@@ -34,15 +35,21 @@ public final class Channel {
 	 * 
 	 * @author Alexander Alexandrov
 	 */
-	public static class ID {
+	public static class ID
+	{
 		private final String path;
+		
+		private final int threadNum;
 
-		protected ID(final String path) {
+		protected ID(final String path, final int threadNum) {
 			this.path = path;
+			this.threadNum = threadNum;
 		}
 
-		protected ID(final String basePath, final Random random) {
+		protected ID(final String basePath, final int threadNum, final Random random)
+		{
 			this.path = basePath + File.separator + randomString(random) + ".channel";
+			this.threadNum = threadNum;
 		}
 
 		/**
@@ -50,8 +57,12 @@ public final class Channel {
 		 * 
 		 * @return
 		 */
-		protected String getPath() {
+		public String getPath() {
 			return path;
+		}
+		
+		int getThreadNum() {
+			return this.threadNum;
 		}
 
 		public String toString() {
@@ -59,20 +70,27 @@ public final class Channel {
 		}
 	}
 
-	public static final class Enumerator {
-		private static final String FORMAT = "%s.%06d.channel";
+	public static final class Enumerator
+	{
+		private static final String FORMAT = "%s%s%s.%06d.channel";
 
-		private final String pathPrefix;
+		private final String[] paths;
+		
+		private final String namePrefix;
 
 		private int counter;
 
-		protected Enumerator(final String basePath, final Random random) {
-			this.pathPrefix = basePath + File.separator + randomString(random);
+		protected Enumerator(final String[] basePaths, final Random random)
+		{
+			this.paths = basePaths;
+			this.namePrefix = randomString(random);
 			this.counter = 0;
 		}
 
-		public ID next() {
-			return new ID(String.format(FORMAT, pathPrefix, ++counter));
+		public ID next()
+		{
+			final int threadNum = counter % paths.length;
+			return new ID(String.format(FORMAT, this.paths[threadNum], File.separator, namePrefix, (counter++)), threadNum);
 		}
 	}
 

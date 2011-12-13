@@ -17,18 +17,16 @@ package eu.stratosphere.pact.test.testPrograms.tpch1;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
-import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
@@ -62,20 +60,20 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 			this.outputPath = args[2];
 		}
 		
-		FileDataSourceContract<PactInteger, Tuple> lineItems =
-			new FileDataSourceContract<PactInteger, Tuple>(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
+		FileDataSource lineItems =
+			new FileDataSource(IntTupleDataInFormat.class, this.lineItemInputPath, "LineItems");
 		lineItems.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		FileDataSinkContract<PactString, Tuple> result = new FileDataSinkContract<PactString, Tuple>(
-				StringTupleDataOutFormat.class, this.outputPath, "Output");
+		FileDataSink result = 
+			new FileDataSink(StringTupleDataOutFormat.class, this.outputPath, "Output");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		MapContract<PactInteger , Tuple, PactString, Tuple> lineItemFilter = 
-			new MapContract<PactInteger, Tuple, PactString, Tuple>(LineItemFilter.class, "LineItem Filter");
+		MapContract lineItemFilter = 
+			new MapContract(LineItemFilter.class, "LineItem Filter");
 		lineItemFilter.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		ReduceContract<PactString, Tuple, PactString, Tuple> groupByReturnFlag = 
-			new ReduceContract<PactString, Tuple, PactString, Tuple>(GroupByReturnFlag.class, "groupyBy");
+		ReduceContract groupByReturnFlag = 
+			new ReduceContract(GroupByReturnFlag.class, PactString.class, 0, "groupyBy");
 		
 		lineItemFilter.addInput(lineItems);
 		groupByReturnFlag.addInput(lineItemFilter);

@@ -15,10 +15,6 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType1;
-import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType2;
-
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,10 +24,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.stub.Stub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
@@ -40,15 +34,13 @@ public class TempTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(TempTaskExternalITCase.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList;
+	List<PactRecord> outList = new ArrayList<PactRecord>();
 		
 	@Test
 	public void testTempTask() {
 
 		int keyCnt = 16384;
 		int valCnt = 32;
-		
-		this.outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
 		
 		super.initEnvironment(1024*1024*1);
 		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
@@ -70,27 +62,6 @@ public class TempTaskExternalITCase extends TaskTestBase {
 		
 	}
 	
-	public static class PrevStub extends Stub<PactInteger,PactInteger> {
-
-		@Override
-		public void close() throws IOException {
-		}
-
-		@Override
-		public void configure(Configuration parameters) {
-		}
-
-		@Override
-		protected void initTypes() {
-			super.ok = getTemplateType1(getClass());
-			super.ov = getTemplateType2(getClass());
-		}
-
-		@Override
-		public void open() throws IOException {
-		}
-
-				
-	}
+	public static class PrevStub extends Stub {}
 		
 }

@@ -77,6 +77,8 @@ public class PactDouble implements Key {
 		return String.valueOf(this.value);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
@@ -94,13 +96,16 @@ public class PactDouble implements Key {
 	public void write(final DataOutput out) throws IOException {
 		out.writeDouble(this.value);
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */
 	@Override
-	public int compareTo(final Key o) {
+	public int compareTo(final Key o)
+	{
 		if (!(o instanceof PactDouble))
 			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to N_Double!");
 
@@ -114,13 +119,10 @@ public class PactDouble implements Key {
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		long temp;
-		temp = Double.doubleToLongBits(this.value);
-		result = prime * result + (int) (temp ^ temp >>> 32);
-		return result;
+	public int hashCode()
+	{
+		long temp = Double.doubleToLongBits(this.value);
+		return 31 + (int) (temp ^ temp >>> 32);
 	}
 
 	/*
@@ -128,17 +130,13 @@ public class PactDouble implements Key {
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@Override
-	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		final PactDouble other = (PactDouble) obj;
-		if (Double.doubleToLongBits(this.value) != Double.doubleToLongBits(other.value))
-			return false;
-		return true;
+	public boolean equals(final Object obj)
+	{
+		if (obj.getClass() == PactDouble.class) {
+			final PactDouble other = (PactDouble) obj;
+			return Double.doubleToLongBits(this.value) == Double.doubleToLongBits(other.value);
+		}
+		return false;
 	}
 
 }

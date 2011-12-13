@@ -30,8 +30,7 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 
 
 /**
@@ -69,16 +68,24 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @author Moritz Kaufmann
  * @author Stephan Ewen
- * 
- * @param <K> The type of the key in the produced key/value pair.
- * @param <V> The type of the value in the produced key/value pair.
  */
-public abstract class FileInputFormat<K extends Key, V extends Value> implements InputFormat<FileInputSplit, K, V>
+public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 {
 	/**
 	 * The config parameter which defines the input file path.
 	 */
-	public static final String FILE_PARAMETER_KEY = "pact.input.file";
+	public static final String FILE_PARAMETER_KEY = "pact.input.file.path";
+	
+	/**
+	 * The config parameter which defines the number of desired splits.
+	 */
+	public static final String DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY = "pact.input.file.numsplits";
+	
+	/**
+	 * The config parameter for the minimal split size.
+	 */
+	public static final String MINIMAL_SPLIT_SIZE_PARAMETER_KEY = "pact.input.file.minsplitsize";
+	
 	
 	/**
 	 * The LOG for logging messages in this class.
@@ -116,17 +123,23 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 	 * The length of the split that this parallel instance must consume.
 	 */
 	protected long length;
+	
+	
+	private long minSplitSize;				// the minimal split size
+	
+	private int numSplits;					// the desired number of splits
 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Configures the file input format by reading the file path from the configuration.
 	 * 
-	 * @see eu.stratosphere.pact.common.recordio.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
 	public void configure(Configuration parameters)
 	{
+		// get the file path
 		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
 		if (filePath == null) {
 			throw new IllegalArgumentException("Configuration file FileOutputFormat does not contain the file path.");
@@ -137,6 +150,22 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 		}
 		catch (RuntimeException rex) {
 			throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
+		}
+		
+		// get the number of splits
+		this.numSplits = parameters.getInteger(DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY, -1);
+		if (this.numSplits == 0 || this.numSplits < -1) {
+			this.numSplits = -1;
+			if (LOG.isWarnEnabled())
+				LOG.warn("Ignoring invalid parameter for number of splits: " + this.numSplits);
+		}
+		
+		// get the minimal split size
+		this.minSplitSize = parameters.getLong(MINIMAL_SPLIT_SIZE_PARAMETER_KEY, 1);
+		if (this.minSplitSize < 1) {
+			this.minSplitSize = 1;
+			if (LOG.isWarnEnabled())
+				LOG.warn("Ignoring invalid parameter for minimal split size (requires a positive value): " + this.numSplits);
 		}
 	}
 	
@@ -161,8 +190,11 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException
 	{
+		// take the desired number of splits into account
+		minNumSplits = Math.max(minNumSplits, this.numSplits);
+		
 		final Path path = this.filePath;
-		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>();
+		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
 
 		// get all the files that are involved in the splits
 		List<FileStatus> files = new ArrayList<FileStatus>();
@@ -180,13 +212,11 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 					totalLength += dir[i].getLen();
 				}
 			}
-
 		} else {
 			files.add(pathFile);
 			totalLength += pathFile.getLen();
 		}
 
-		final long minSplitSize = 1;
 		final long maxSplitSize = (minNumSplits < 1) ? Long.MAX_VALUE : (totalLength / minNumSplits +
 					(totalLength % minNumSplits == 0 ? 0 : 1));
 
@@ -196,6 +226,17 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 
 			final long len = file.getLen();
 			final long blockSize = file.getBlockSize();
+			
+			final long minSplitSize;
+			if (this.minSplitSize <= blockSize) {
+				minSplitSize = this.minSplitSize;
+			}
+			else {
+				if (LOG.isWarnEnabled())
+					LOG.warn("Minimal split size of " + this.minSplitSize + " is larger than the block size of " + 
+						blockSize + ". Decreasing minimal split size to block size.");
+				minSplitSize = blockSize;
+			}
 
 			final long splitSize = Math.max(minSplitSize, Math.min(maxSplitSize, blockSize));
 			final long halfSplit = splitSize >>> 1;
@@ -345,7 +386,87 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 			"File Input (" + this.filePath.toString() + ')';
 	}
 	
-	// --------------------------------------------------------------------------------------------
+// ============================================================================================
+	
+	/**
+	 * Encapsulation of the basic statistics the optimizer obtains about a file. Contained are the size of the file
+	 * and the average bytes of a single record. The statistics also have a time-stamp that records the modification
+	 * time of the file and indicates as such for which time the statistics were valid.
+	 *
+	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+	 */
+	public static final class FileBaseStatistics implements BaseStatistics
+	{
+		protected long fileModTime; // timestamp of the last modification
+
+		protected long fileSize; // size of the file(s) in bytes
+
+		protected float avgBytesPerRecord; // the average number of bytes for a record
+
+		/**
+		 * Creates a new statistics object.
+		 * 
+		 * @param fileModTime
+		 *        The timestamp of the latest modification of any of the involved files.
+		 * @param fileSize
+		 *        The size of the file, in bytes. <code>-1</code>, if unknown.
+		 * @param avgBytesPerRecord
+		 *        The average number of byte in a record, or <code>-1.0f</code>, if unknown.
+		 */
+		public FileBaseStatistics(long fileModTime, long fileSize, float avgBytesPerRecord) {
+			this.fileModTime = fileModTime;
+			this.fileSize = fileSize;
+			this.avgBytesPerRecord = avgBytesPerRecord;
+		}
+
+		/**
+		 * Gets the timestamp of the last modification.
+		 * 
+		 * @return The timestamp of the last modification.
+		 */
+		public long getLastModificationTime() {
+			return fileModTime;
+		}
+
+		/**
+		 * Gets the file size.
+		 * 
+		 * @return The fileSize.
+		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getTotalInputSize()
+		 */
+		@Override
+		public long getTotalInputSize()
+		{
+			return this.fileSize;
+		}
+
+		/**
+		 * Gets the estimates number of records in the file, computed as the file size divided by the
+		 * average record width, rounded up.
+		 * 
+		 * @return The estimated number of records in the file.
+		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getNumberOfRecords()
+		 */
+		@Override
+		public long getNumberOfRecords()
+		{
+			return (long) Math.ceil(this.fileSize / this.avgBytesPerRecord);
+		}
+
+		/**
+		 * Gets the estimated average number of bytes per record.
+		 * 
+		 * @return The average number of bytes per record.
+		 * @see eu.stratosphere.pact.common.io.statistics.BaseStatistics#getAverageRecordWidth()
+		 */
+		@Override
+		public float getAverageRecordWidth()
+		{
+			return this.avgBytesPerRecord;
+		}
+	}
+	
+	// ============================================================================================
 	
 	/**
 	 * Obtains a DataInputStream in an thread that is not interrupted.
@@ -357,9 +478,9 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 		
 		private final long timeout;
 
-		private FSDataInputStream fdis = null;
+		private volatile FSDataInputStream fdis = null;
 
-		private Throwable error = null;
+		private volatile Throwable error = null;
 
 		public InputSplitOpenThread(FileInputSplit split, long timeout)
 		{
@@ -406,7 +527,7 @@ public abstract class FileInputFormat<K extends Key, V extends Value> implements
 			}
 			
 			// try to forcefully shut this thread down
-			throw new IOException("OPening request timed out.");
+			throw new IOException("Opening request timed out.");
 		}
 
 		public FSDataInputStream getFSDataInputStream() {

@@ -24,6 +24,9 @@ import java.nio.channels.SocketChannel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultDeserializer;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -46,10 +49,10 @@ public class IncomingConnection {
 	private final ReadableByteChannel readableByteChannel;
 
 	/**
-	 * The {@link TransferEnvelopeDeserializer} used to transform the read bytes into transfer envelopes which can be
+	 * The {@link DefaultDeserializer} used to transform the read bytes into transfer envelopes which can be
 	 * passed on to the respective channels.
 	 */
-	private final TransferEnvelopeDeserializer deserializer;
+	private final DefaultDeserializer deserializer;
 
 	/**
 	 * The byte buffered channel manager which handles and dispatches the received transfer envelopes.
@@ -65,7 +68,7 @@ public class IncomingConnection {
 			ReadableByteChannel readableByteChannel) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 		this.readsFromCheckpoint = (this.readableByteChannel instanceof FileChannel);
-		this.deserializer = new TransferEnvelopeDeserializer(byteBufferedChannelManager, readsFromCheckpoint);
+		this.deserializer = new DefaultDeserializer(byteBufferedChannelManager);
 		this.readableByteChannel = readableByteChannel;
 	}
 
@@ -104,7 +107,13 @@ public class IncomingConnection {
 
 		final TransferEnvelope transferEnvelope = this.deserializer.getFullyDeserializedTransferEnvelope();
 		if (transferEnvelope != null) {
-			this.byteBufferedChannelManager.queueIncomingTransferEnvelope(transferEnvelope);
+
+			final BufferProvider bufferProvider = this.deserializer.getBufferProvider();
+			if (bufferProvider == null) {
+				this.byteBufferedChannelManager.processEnvelopeFromNetwork(transferEnvelope, false);
+			} else {
+				this.byteBufferedChannelManager.processEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
+			}
 		}
 
 	}

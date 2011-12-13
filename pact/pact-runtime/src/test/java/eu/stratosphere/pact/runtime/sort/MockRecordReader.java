@@ -15,76 +15,27 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import eu.stratosphere.nephele.io.Reader;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */
-public class MockRecordReader<T extends Record> implements Reader<T> {
-	private static final Record SENTINEL = new Record() {
-		@Override
-		public void write(DataOutput out) throws IOException {
-		}
+public class MockRecordReader implements MutableObjectIterator<PactRecord>
+{
+	private final PactRecord SENTINEL = new PactRecord();
 
-		@Override
-		public void read(DataInput in) throws IOException {
-		}
-	};
+	private final BlockingQueue<PactRecord> queue = new ArrayBlockingQueue<PactRecord>(32, false);
+	
 
-	private final BlockingQueue<Record> queue = new ArrayBlockingQueue<Record>(64, false);
-
-	private T next;
-
-	@SuppressWarnings("unchecked")
 	@Override
-	public boolean hasNext() {
-		if (next == null) {
-			Record r = null;
-			while (r == null) {
-				try {
-					r = queue.take();
-				} catch (InterruptedException iex) {
-					throw new RuntimeException("Reader was interrupted.");
-				}
-			}
-
-			if (r == SENTINEL) {
-				// put the sentinel back, to ensure that repeated calls do not block
-				try {
-					queue.put(r);
-				} catch (InterruptedException e) {
-					throw new RuntimeException("Reader was interrupted.");
-				}
-				return false;
-			} else {
-				next = (T) r;
-				return true;
-			}
-		} else {
-			return true;
-		}
-
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public T next() throws IOException, InterruptedException {
-		if (next != null) {
-			T elem = next;
-			next = null;
-			return elem;
-		}
-
-		Record r = null;
+	public boolean next(PactRecord target)
+	{
+		PactRecord r = null;
 		while (r == null) {
 			try {
 				r = queue.take();
@@ -94,23 +45,28 @@ public class MockRecordReader<T extends Record> implements Reader<T> {
 		}
 
 		if (r == SENTINEL) {
+			// put the sentinel back, to ensure that repeated calls do not block
 			try {
-				// put the sentinel back, to ensure that repeated calls do not block
 				queue.put(r);
-			} catch (InterruptedException iex) {
+			} catch (InterruptedException e) {
 				throw new RuntimeException("Reader was interrupted.");
 			}
-			throw new NoSuchElementException();
+			return false;
 		} else {
-			return (T) r;
+			r.copyTo(target);
+			return true;
 		}
 	}
 
-	public void emit(T element) throws InterruptedException {
-		queue.put(element);
+	public void emit(PactRecord element) throws InterruptedException {
+		queue.put(element.createCopy());
 	}
-
-	public void close() throws InterruptedException {
-		queue.put(SENTINEL);
+	
+	public void close() {
+		try {
+			queue.put(SENTINEL);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

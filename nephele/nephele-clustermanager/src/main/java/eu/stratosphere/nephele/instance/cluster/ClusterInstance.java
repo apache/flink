@@ -41,20 +41,22 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
 class ClusterInstance extends AbstractInstance {
 
 	/**
-	 * A map of slices allocated on this host
+	 * A map of slices allocated on this host.
 	 */
 	private final Map<AllocationID, AllocatedSlice> allocatedSlices = new HashMap<AllocationID, AllocatedSlice>();
 
 	/**
-	 * The remaining capacity of this host that can be used by instances
+	 * The remaining capacity of this host that can be used by instances.
 	 */
 	private InstanceType remainingCapacity;
 
-	/** Time when last heat beat has been received from the task manager running on this instance */
+	/**
+	 * Time when last heat beat has been received from the task manager running on this instance.
+	 */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
 
 	/**
-	 * Constructor.
+	 * Constructs a new cluster instance.
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the instance connection info identifying the host
@@ -67,8 +69,10 @@ class ClusterInstance extends AbstractInstance {
 	 * @param hardwareDescription
 	 *        the hardware description reported by the instance itself
 	 */
-	public ClusterInstance(InstanceConnectionInfo instanceConnectionInfo, InstanceType capacity,
-			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
+	public ClusterInstance(final InstanceConnectionInfo instanceConnectionInfo, final InstanceType capacity,
+			final NetworkNode parentNode, final NetworkTopology networkTopology,
+			final HardwareDescription hardwareDescription) {
+
 		super(capacity, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
 
 		this.remainingCapacity = capacity;
@@ -87,9 +91,10 @@ class ClusterInstance extends AbstractInstance {
 	 * @param cleanUpInterval
 	 *        duration (in milliseconds) after which a host is
 	 *        considered dead if it has no received heat-beats.
-	 * @return true if the host has received a heat-beat before the <code>cleanUpInterval</code> duration has expired.
+	 * @return <code>true</code> if the host has received a heat-beat before the <code>cleanUpInterval</code> duration
+	 *         has expired, <code>false</code> otherwise
 	 */
-	synchronized boolean isStillAlive(long cleanUpInterval) {
+	synchronized boolean isStillAlive(final long cleanUpInterval) {
 
 		if (this.lastReceivedHeartBeat + cleanUpInterval < System.currentTimeMillis()) {
 			return false;
@@ -98,7 +103,7 @@ class ClusterInstance extends AbstractInstance {
 	}
 
 	/**
-	 * Tries to create a new slice on this instance
+	 * Tries to create a new slice on this instance.
 	 * 
 	 * @param reqType
 	 *        the type describing the hardware characteristics of the slice
@@ -108,7 +113,7 @@ class ClusterInstance extends AbstractInstance {
 	 *         still be accommodated on this instance or <code>null</code> if the instance's remaining resources
 	 *         were insufficient to host the desired slice
 	 */
-	synchronized AllocatedSlice createSlice(InstanceType reqType, JobID jobID) {
+	synchronized AllocatedSlice createSlice(final InstanceType reqType, final JobID jobID) {
 
 		// check whether we can accommodate the instance
 		if (remainingCapacity.getNumberOfComputeUnits() >= reqType.getNumberOfComputeUnits()
@@ -143,7 +148,7 @@ class ClusterInstance extends AbstractInstance {
 	 * @return the slice with has been removed from the instance or <code>null</code> if no slice
 	 *         with the given allocation ID could be found
 	 */
-	synchronized AllocatedSlice removeAllocatedSlice(AllocationID allocationID) {
+	synchronized AllocatedSlice removeAllocatedSlice(final AllocationID allocationID) {
 
 		final AllocatedSlice slice = this.allocatedSlices.remove(allocationID);
 		if (slice != null) {

@@ -16,13 +16,13 @@
 package eu.stratosphere.pact.runtime.test.util;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 
 import junit.framework.Assert;
 
 import org.junit.After;
 import org.junit.runner.RunWith;
+import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -31,19 +31,21 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.stub.Stub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
+@SuppressWarnings("javadoc")
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(LibraryCacheManager.class)
 @PowerMockIgnore("org.apache.log4j.*")
@@ -60,7 +62,7 @@ public abstract class TaskTestBase {
 
 		PowerMockito.mockStatic(LibraryCacheManager.class);
 		try {
-			Mockito.when(LibraryCacheManager.getClassLoader(null)).thenReturn(
+			Mockito.when(LibraryCacheManager.getClassLoader(Matchers.any(JobID.class))).thenReturn(
 				Thread.currentThread().getContextClassLoader());
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -68,70 +70,70 @@ public abstract class TaskTestBase {
 
 	}
 
-	public void addInput(Iterator<KeyValuePair<PactInteger, PactInteger>> input, int groupId) {
+	public void addInput(MutableObjectIterator<PactRecord> input, int groupId) {
 		this.mockEnv.addInput(input);
-		new TaskConfig(mockEnv.getRuntimeConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD, groupId);
+		new TaskConfig(this.mockEnv.getRuntimeConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD, groupId);
 	}
 
-	public void addOutput(List<KeyValuePair<PactInteger, PactInteger>> output) {
+	public void addOutput(List<PactRecord> output) {
 		this.mockEnv.addOutput(output);
-		new TaskConfig(mockEnv.getRuntimeConfiguration()).addOutputShipStrategy(ShipStrategy.FORWARD);
+		new TaskConfig(this.mockEnv.getRuntimeConfiguration()).addOutputShipStrategy(ShipStrategy.FORWARD);
 	}
 
 	public TaskConfig getTaskConfig() {
-		return new TaskConfig(mockEnv.getRuntimeConfiguration());
+		return new TaskConfig(this.mockEnv.getRuntimeConfiguration());
 	}
 	
 	public Configuration getConfiguration() {
-		return mockEnv.getRuntimeConfiguration();
+		return this.mockEnv.getRuntimeConfiguration();
 	}
 
-	public void registerTask(AbstractTask task, Class<? extends Stub<PactInteger, PactInteger>> stubClass) {
-		new TaskConfig(mockEnv.getRuntimeConfiguration()).setStubClass(stubClass);
-		task.setEnvironment(mockEnv);
+	public void registerTask(AbstractTask task, Class<? extends Stub> stubClass) {
+		new TaskConfig(this.mockEnv.getRuntimeConfiguration()).setStubClass(stubClass);
+		task.setEnvironment(this.mockEnv);
 		task.registerInputOutput();
 	}
 
 	public void registerTask(AbstractTask task) {
-		task.setEnvironment(mockEnv);
+		task.setEnvironment(this.mockEnv);
 		task.registerInputOutput();
 	}
 
 	public void registerFileOutputTask(AbstractOutputTask outTask,
-			Class<? extends FileOutputFormat<PactInteger, PactInteger>> stubClass, String outPath)
+			Class<? extends FileOutputFormat> stubClass, String outPath)
 	{
-		TaskConfig dsConfig = new TaskConfig(mockEnv.getRuntimeConfiguration());
+		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getRuntimeConfiguration());
 		
 		dsConfig.setStubClass(stubClass);
 		dsConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outPath);
 	
-		outTask.setEnvironment(mockEnv);
+		outTask.setEnvironment(this.mockEnv);
 		outTask.registerInputOutput();
 	}
 
 	public void registerFileInputTask(AbstractInputTask<?> inTask,
-			Class<? extends TextInputFormat<PactInteger, PactInteger>> stubClass, String inPath, String delimiter)
+			Class<? extends DelimitedInputFormat> stubClass, String inPath, String delimiter)
 	{
-		TaskConfig dsConfig = new TaskConfig(mockEnv.getRuntimeConfiguration()); 
+		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getRuntimeConfiguration()); 
 		dsConfig.setStubClass(stubClass);
 		dsConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, inPath);
-		dsConfig.setStubParameter(TextInputFormat.RECORD_DELIMITER, delimiter);
+		dsConfig.setStubParameter(DelimitedInputFormat.RECORD_DELIMITER, delimiter);
 
 		final MockInputSplitProvider inputSplitProvider = new MockInputSplitProvider(inPath, 5);
-		mockEnv.setInputSplitProvider(inputSplitProvider);
+		this.mockEnv.setInputSplitProvider(inputSplitProvider);
 
-		inTask.setEnvironment(mockEnv);
+		inTask.setEnvironment(this.mockEnv);
 		inTask.registerInputOutput();
 	}
 
 	public MemoryManager getMemoryManager() {
-		return mockEnv.getMemoryManager();
+		return this.mockEnv.getMemoryManager();
 	}
 
 	@After
 	public void shutdownIOManager() throws Exception {
-		mockEnv.getIOManager().shutdown();
-		Assert.assertTrue("IO Manager has not properly shut down.", mockEnv.getIOManager().isProperlyShutDown());
+		this.mockEnv.getIOManager().shutdown();
+		Assert.assertTrue("IO Manager has not properly shut down.", this.mockEnv.getIOManager().isProperlyShutDown());
 	}
 
 	@After

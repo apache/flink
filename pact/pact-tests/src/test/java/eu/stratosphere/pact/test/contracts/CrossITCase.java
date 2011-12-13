@@ -29,19 +29,20 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.io.TextOutputFormat;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.CrossStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.CrossStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
+import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
 
 /**
@@ -100,46 +101,34 @@ public class CrossITCase extends TestBase
 		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_4.txt", CROSS_RIGHT_IN_4);
 	}
 
-	public static class CrossTestInFormat extends TextInputFormat<PactString, PactString> {
 
+	public static class TestCross extends CrossStub {
+
+		private PactString string = new PactString();
+		private PactInteger integer = new PactInteger();
+		
 		@Override
-		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
-
-			pair.setKey(new PactString(new String((char) line[0] + "")));
-			pair.setValue(new PactString(new String((char) line[2] + "")));
-
-			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
-			return true;
-		}
-	}
-
-	public static class CrossTestOutFormat extends TextOutputFormat<PactString, PactInteger> {
-
-		@Override
-		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
-			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
+		public void cross(PactRecord record1, PactRecord record2, Collector out) {
+			string = record1.getField(1, string);
+			int val1 = Integer.parseInt(string.toString());
+			string = record2.getField(1, string);
+			int val2 = Integer.parseInt(string.toString());
+			string = record1.getField(0, string);
+			int key1 = Integer.parseInt(string.toString());
+			string = record2.getField(0, string);
+			int key2 = Integer.parseInt(string.toString());
 			
-			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
-		}
-	}
-
-	public static class TestCross extends
-			CrossStub<PactString, PactString, PactString, PactString, PactString, PactInteger> {
-
-		public void cross(PactString key1, PactString value1, PactString key2, PactString value2,
-				Collector<PactString, PactInteger> out) {
-			LOG.debug("Processing { [" + key1 + "," + value1 + "] , [" + key2 + "," + value2 + "] }");
-			if (Integer.parseInt(value1.toString()) + Integer.parseInt(value2.toString()) <= 6) {
+			LOG.debug("Processing { [" + key1 + "," + val1 + "] , [" + key2 + "," + val2 + "] }");
+			
+			if (val1 + val2 <= 6) {
+				string.setValue((key1 + key2 + 2) + "");
+				integer.setValue(val2 - val1 + 1);
 				
-				key1.setValue(""+(Integer.parseInt(key1.getValue())+1));
-				key2.setValue(""+(Integer.parseInt(key2.getValue())+1));
-				value1.setValue(""+(Integer.parseInt(value1.getValue())+1));
-				value2.setValue(""+(Integer.parseInt(value2.getValue())+2));
+				record1.setField(0, string);
+				record1.setField(1, integer);
 				
-				out.collect(new PactString(Integer.parseInt(key1.toString()) + Integer.parseInt(key2.toString()) + ""),
-						new PactInteger(Integer.parseInt(value2.toString()) - Integer.parseInt(value1.toString())));
+				out.collect(record1);
 			}
-			
 		}
 
 	}
@@ -149,18 +138,17 @@ public class CrossITCase extends TestBase
 
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		FileDataSourceContract<PactString, PactString> input_left = new FileDataSourceContract<PactString, PactString>(
-				CrossTestInFormat.class, pathPrefix + "/cross_left");
-		input_left.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input_left = new FileDataSource(
+				ContractITCaseInputFormat.class, pathPrefix + "/cross_left");
+		input_left.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_left.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
-		FileDataSourceContract<PactString, PactString> input_right = new FileDataSourceContract<PactString, PactString>(
-				CrossTestInFormat.class, pathPrefix + "/cross_right");
-		input_right.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input_right = new FileDataSource(
+				ContractITCaseInputFormat.class, pathPrefix + "/cross_right");
+		input_right.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
-		CrossContract<PactString, PactString, PactString, PactString, PactString, PactInteger> testCross = new CrossContract<PactString, PactString, PactString, PactString, PactString, PactInteger>(
-				TestCross.class);
+		CrossContract testCross = new CrossContract(TestCross.class);
 		testCross.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 		testCross.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("CrossTest#LocalStrategy", ""));
@@ -179,8 +167,8 @@ public class CrossITCase extends TestBase
 					config.getString("CrossTest#ShipStrategy", ""));
 		}
 
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
-				CrossTestOutFormat.class, pathPrefix + "/result.txt");
+		FileDataSink output = new FileDataSink(
+				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.addInput(testCross);

@@ -55,7 +55,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @param pactContract
 	 *        The PACT that the node represents.
 	 */
-	public TwoInputNode(DualInputContract<?, ?, ?, ?, ?, ?> pactContract) {
+	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
 		this.inputs = new ArrayList<List<PactConnection>>(2);
@@ -211,7 +211,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 		// get the predecessors
-		DualInputContract<?, ?, ?, ?, ?, ?> contr = (DualInputContract<?, ?, ?, ?, ?, ?>) getPactContract();
+		DualInputContract<?> contr = (DualInputContract<?>) getPactContract();
 		
 		List<Contract> leftPreds = contr.getFirstInputs();
 		List<Contract> rightPreds = contr.getSecondInputs();

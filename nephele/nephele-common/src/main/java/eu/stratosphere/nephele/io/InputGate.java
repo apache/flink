@@ -30,16 +30,15 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.nephele.event.task.EventNotificationManager;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
-import eu.stratosphere.nephele.io.channels.direct.InMemoryInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.ClassUtils;
@@ -52,17 +51,24 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * input gates
  * can be associated with a {@link DistributionPattern} object which dictates the concrete wiring between two groups of
  * vertices.
+ * <p>
+ * This class is in general not thread-safe.
  * 
  * @author warneke
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class InputGate<T extends Record> extends Gate<T> implements IOReadableWritable {
+public class InputGate<T extends Record> extends AbstractGate<T> implements IOReadableWritable {
 
 	/**
 	 * The log object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(InputGate.class);
+
+	/**
+	 * The deserializer used to construct records from byte streams.
+	 */
+	private final RecordDeserializer<T> deserializer;
 
 	/**
 	 * The list of input channels attached to this input gate.
@@ -72,7 +78,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	/**
 	 * The distribution pattern to determine how to wire the channels.
 	 */
-	private DistributionPattern distributionPattern = null;
+	private final DistributionPattern distributionPattern;
 
 	/**
 	 * Queue with indices of channels that store at least one available record.
@@ -94,8 +100,9 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 */
 	private boolean isClosed = false;
 
-	private final EventNotificationManager eventNotificationManager = new EventNotificationManager();
-
+	/**
+	 * The channel to read from next.
+	 */
 	private int channelToReadFrom = -1;
 
 	/**
@@ -106,6 +113,10 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	/**
 	 * Constructs a new input gate.
 	 * 
+	 * @param jobID
+	 *        the ID of the job this input gate belongs to
+	 * @param gateID
+	 *        the ID of the gate
 	 * @param inputClass
 	 *        the class of the record that can be transported through this gate
 	 * @param index
@@ -113,14 +124,15 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 * @param distributionPattern
 	 *        the distribution pattern to determine the concrete wiring between to groups of vertices
 	 */
-	public InputGate(RecordDeserializer<T> deserializer, int index, DistributionPattern distributionPattern) {
-		this.index = index;
-		setDeserializer(deserializer);
-		if (distributionPattern == null) {
-			this.distributionPattern = new BipartiteDistributionPattern();
-		} else {
-			this.distributionPattern = distributionPattern;
-		}
+	public InputGate(final JobID jobID, final GateID gateID, final RecordDeserializer<T> deserializer, final int index,
+			final DistributionPattern distributionPattern) {
+
+		super(jobID, gateID, index);
+
+		this.deserializer = deserializer;
+
+		this.distributionPattern = (distributionPattern != null) ? distributionPattern
+			: new BipartiteDistributionPattern();
 	}
 
 	/**
@@ -130,6 +142,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 *        the input channel to be added.
 	 */
 	private void addInputChannel(AbstractInputChannel<T> inputChannel) {
+
 		if (!this.inputChannels.contains(inputChannel)) {
 			this.inputChannels.add(inputChannel);
 		}
@@ -315,7 +328,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 *         thrown if an error occurred while reading the channels
 	 */
 
-	public T readRecord() throws IOException, InterruptedException {
+	public T readRecord(final T target) throws IOException, InterruptedException {
 
 		T record = null;
 
@@ -338,7 +351,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
 			try {
-				record = this.getInputChannel(this.channelToReadFrom).readRecord();
+				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
 			} catch (EOFException e) {
 				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
 				// this.getInputChannel(channelToReadFrom).getType().toString() + ")");
@@ -485,7 +498,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean isClosed() throws IOException {
+	public boolean isClosed() throws IOException, InterruptedException {
 
 		if (this.isClosed) {
 			return true;
@@ -508,12 +521,12 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	 * output channels are notified. Any remaining records in any buffers or queue is considered
 	 * irrelevant and is discarded.
 	 * 
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the channels to be closed
 	 * @throws IOException
-	 *         thrown if an I/O error occurs while closing the channels
+	 *         thrown if an I/O error occurs while closing the gate
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the gate to be closed
 	 */
-	public void close() throws InterruptedException, IOException {
+	public void close() throws IOException, InterruptedException {
 
 		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
@@ -559,41 +572,9 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	}
 
 	/**
-	 * Subscribes the listener object to receive events of the given type.
-	 * 
-	 * @param eventListener
-	 *        the listener object to register
-	 * @param eventType
-	 *        the type of event to register the listener for
+	 * {@inheritDoc}
 	 */
-	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Removes the subscription for events of the given type for the listener object.
-	 * 
-	 * @param eventListener
-	 *        the listener object to cancel the subscription for
-	 * @param eventType
-	 *        the type of the event to cancel the subscription for
-	 */
-	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		this.eventNotificationManager.unsubscribeFromEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Publishes an event.
-	 * 
-	 * @param event
-	 *        the event to be published
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the event
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the event to be published
-	 */
+	@Override
 	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
@@ -604,14 +585,13 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 	}
 
 	/**
-	 * Passes a received event on to the event notification manager so it cam ne dispatched.
+	 * Returns the {@link RecordDeserializer} used by this input gate.
 	 * 
-	 * @param event
-	 *        the event to pass on to the notification manager
+	 * @return the {@link RecordDeserializer} used by this input gate
 	 */
-	public void deliverEvent(AbstractTaskEvent event) {
+	public RecordDeserializer<T> getRecordDeserializer() {
 
-		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);
+		return this.deserializer;
 	}
 
 	/**
@@ -626,7 +606,7 @@ public class InputGate<T extends Record> extends Gate<T> implements IOReadableWr
 		}
 	}
 
-	boolean hasRecordAvailable() throws IOException {
+	boolean hasRecordAvailable() throws IOException, InterruptedException {
 
 		if (this.channelToReadFrom == -1) {
 
