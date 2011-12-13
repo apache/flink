@@ -33,7 +33,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 public class CombinerNode extends OptimizerNode {
 	private PactConnection input;
 
-	public CombinerNode(ReduceContract<?, ?, ?, ?> reducer, OptimizerNode predecessor, float reducingFactor) {
+	public CombinerNode(ReduceContract reducer, OptimizerNode predecessor, float reducingFactor) {
 		super(reducer);
 
 		this.input = new PactConnection(predecessor, this, ShipStrategy.FORWARD);
@@ -80,6 +80,11 @@ public class CombinerNode extends OptimizerNode {
 			case COMBININGSORT: return 1;
 			default:	        return 0;
 		}
+	}
+	
+	@Override
+	public ReduceContract getPactContract() {
+		return (ReduceContract) super.getPactContract();
 	}
 
 	@Override

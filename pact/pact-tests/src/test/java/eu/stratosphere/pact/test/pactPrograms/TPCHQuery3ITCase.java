@@ -129,7 +129,7 @@ public class TPCHQuery3ITCase extends TestBase {
 		+ "67|40613|8126|5|23|35733.03|0.05|0.07|N|O|1997-04-19|1997-02-14|1997-05-06|DELIVER IN PERSON|REG AIR|ly regular deposit|\n"
 		+ "67|178306|824|6|29|40144.70|0.02|0.05|N|O|1997-01-25|1997-01-27|1997-01-27|DELIVER IN PERSON|FOB|ultipliers |\n";
 
-	String EXPECTED_RESULT = "5|0|147827|\n" + "66|0|99187|\n";
+	String EXPECTED_RESULT = "5|0|147828.97\n" + "66|0|99188.09\n";
 
 	public TPCHQuery3ITCase(Configuration config) {
 		super(config);

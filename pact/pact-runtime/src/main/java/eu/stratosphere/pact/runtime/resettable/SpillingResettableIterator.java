@@ -23,8 +23,6 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.ChannelReader;
@@ -35,8 +33,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.runtime.task.util.LastRepeatableIterator;
-import eu.stratosphere.pact.runtime.task.util.ResettableIterator;
+import eu.stratosphere.pact.runtime.util.LastRepeatableIterator;
+import eu.stratosphere.pact.runtime.util.ResettableIterator;
 
 /**
  * Implementation of a resettable iterator, that reads all data from a given
@@ -51,7 +49,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 
 	public static final int MINIMUM_NUMBER_OF_BUFFERS = 2;
 	
-	public static final int MIN_BUFFER_SIZE = 32 * 1024;
+	public static final int MIN_BUFFER_SIZE = 64 * 1024;
 	
 	/**
 	 * The minimum amount of memory that the spilling resettable iterator requires to work.
@@ -65,10 +63,10 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	protected final IOManager ioManager;
 
 	protected final Iterator<T> input;
-	
-	protected final RecordDeserializer<T> deserializer;
 
 	protected final List<MemorySegment> memorySegments;
+	
+	private final T instance;
 
 	private ArrayList<Buffer.Input> inputBuffers;
 
@@ -101,15 +99,15 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	 * @param availableMemory
 	 * @throws MemoryAllocationException
 	 */
-	public SpillingResettableIterator(MemoryManager memoryManager, IOManager ioManager, Iterator<T> input,
-			long availableMemory, RecordDeserializer<T> deserializer, AbstractInvokable parentTask)
+	public SpillingResettableIterator(MemoryManager memoryManager, IOManager ioManager,
+			Iterator<T> input, T instance, long availableMemory, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.input = input;
-		this.deserializer = deserializer;
-
+		this.instance = instance;
+		
 		// allocate memory segments and open IO Buffers on them
 		this.memorySegments = this.memoryManager.allocate(parentTask, availableMemory, MINIMUM_NUMBER_OF_BUFFERS, MIN_BUFFER_SIZE);
 		this.numBuffers = this.memorySegments.size();
@@ -124,11 +122,9 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	 * Open the iterator. This will serialize the complete content of the specified Reader<T> into a file and initialize
 	 * the ResettableIterator to this File.
 	 * 
-	 * @throws ServiceException
-	 * @throws InterruptedException
 	 * @throws IOException
 	 */
-	public void open() throws ServiceException, IOException, InterruptedException
+	public void open() throws IOException
 	{
 		fitsIntoMem = true;
 		
@@ -170,8 +166,10 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 			// now open a reader on the channel
 			ioReader = ioManager.createChannelReader(bufferID, memorySegments, false);
 			
-			LOG.debug("Iterator opened, serialized " + count + " objects to disk.");
-		} else {
+			if (LOG.isDebugEnabled())
+				LOG.debug("Iterator opened, serialized " + count + " objects to disk.");
+		}
+		else {
 			usedBuffers = currentBuffer + 1;
 			inputBuffers = new ArrayList<Buffer.Input>(this.numBuffers);
 			// create input Buffers on the output Buffers
@@ -183,16 +181,18 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 				inputBuffers.add(in);
 			}
 			currentBuffer = 0;
-			LOG.debug("Iterator opened, serialized " + count + " objects to memory.");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Iterator opened, serialized " + count + " objects to memory.");
 		}
 		count = 0;
 		
-		if(this.abortFlag) {
+		if (this.abortFlag) {
 			this.close();
 		}
 	}
 
-	public void reset() {
+	public void reset()
+	{
 		try {
 			this.next = null;
 			if (fitsIntoMem) {
@@ -203,17 +203,20 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 				ioReader.close();
 				ioReader = ioManager.createChannelReader(bufferID, memorySegments, false); // reopen
 			}
-		} catch (IOException e) {
+		}
+		catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-		LOG.debug("Iterator reset, deserialized " + count + " objects in previous run.");
+		if (LOG.isDebugEnabled())
+			LOG.debug("Iterator reset, deserialized " + count + " objects in previous run.");
 		count = 0;
 	}
 
 	@Override
-	public boolean hasNext() {
+	public boolean hasNext()
+	{
 		if (this.next == null) {
-			this.next = deserializer.getInstance();
+			this.next = this.instance;
 			if (fitsIntoMem) {
 				if (currentBuffer == usedBuffers)
 					return false;
@@ -235,7 +238,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 				return true;
 			} else {
 				try {
-					if(ioReader.read(this.next)) {
+					if (ioReader.read(this.next)) {
 						return true;
 					} else {
 						this.next = null;
@@ -290,8 +293,7 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	@Override
 	public T repeatLast() {
 
-		T lastReturned = null;
-		lastReturned = deserializer.getInstance();
+		T lastReturned = this.instance;
 		
 		if(fitsIntoMem) {
 			inputBuffers.get(currentBuffer).repeatRead(lastReturned);

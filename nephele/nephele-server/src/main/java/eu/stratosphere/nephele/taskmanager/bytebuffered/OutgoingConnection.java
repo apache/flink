@@ -20,14 +20,13 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.ArrayDeque;
 import java.util.Iterator;
-import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 
@@ -64,7 +63,7 @@ public class OutgoingConnection {
 	/**
 	 * The queue of transfer envelopes to be transmitted.
 	 */
-	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
+	private final TransferEnvelopeQueue queuedEnvelopes = new TransferEnvelopeQueue();
 
 	/**
 	 * The {@link DefaultSerializer} object used to transform the envelopes into a byte stream.
@@ -149,6 +148,15 @@ public class OutgoingConnection {
 
 		synchronized (this.queuedEnvelopes) {
 
+			checkConnection();
+			this.queuedEnvelopes.add(transferEnvelope);
+		}
+	}
+
+	private void checkConnection() {
+
+		synchronized (this.queuedEnvelopes) {
+
 			if (!this.isConnected) {
 
 				this.retriesLeft = this.numberOfConnectionRetries;
@@ -165,7 +173,6 @@ public class OutgoingConnection {
 				}
 			}
 
-			this.queuedEnvelopes.add(transferEnvelope);
 		}
 	}
 
@@ -536,5 +543,20 @@ public class OutgoingConnection {
 		}
 
 		return retVal;
+	}
+
+	/**
+	 * Registers the spilling queue with this network connection. The network connection is then in charge of polling
+	 * the elements from the queue.
+	 * 
+	 * @param spillingQueue
+	 *        the queue to register
+	 */
+	void registerSpillingQueue(final SpillingQueue spillingQueue) {
+
+		synchronized (this.queuedEnvelopes) {
+			checkConnection();
+			this.queuedEnvelopes.registerSpillingQueue(spillingQueue);
+		}
 	}
 }

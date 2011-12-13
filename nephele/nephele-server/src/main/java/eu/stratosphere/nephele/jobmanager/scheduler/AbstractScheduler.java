@@ -160,10 +160,10 @@ public abstract class AbstractScheduler implements InstanceListener {
 	protected void requestInstances(final ExecutionStage executionStage) throws InstanceException {
 
 		final ExecutionGraph executionGraph = executionStage.getExecutionGraph();
+		final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 
-		synchronized (executionGraph) {
+		synchronized (executionStage) {
 
-			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
 
 			final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMinimumIterator();
@@ -186,10 +186,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 				.getIndexOfCurrentExecutionStage(), true, true);
 			while (it2.hasNext()) {
 
-				final ExecutionVertex vertex = it2.next();
-				if (vertex.getExecutionState() == ExecutionState.CREATED) {
-					vertex.updateExecutionState(ExecutionState.SCHEDULED);
-				}
+				it2.next().compareAndUpdateExecutionState(ExecutionState.CREATED, ExecutionState.SCHEDULED);
 			}
 		}
 	}
@@ -197,60 +194,55 @@ public abstract class AbstractScheduler implements InstanceListener {
 	void findVerticesToBeDeployed(final ExecutionVertex vertex,
 			final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed) {
 
-		final ExecutionGraph executionGraph = vertex.getExecutionGraph();
+		if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
+			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
-		synchronized (executionGraph) {
-
-			if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
-				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-
-				if (instance instanceof DummyInstance) {
-					LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
+			if (instance instanceof DummyInstance) {
+				LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
 						+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
 						+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
 						+ ") is about to be deployed on a DummyInstance");
-				}
-
-				List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
-				if (verticesForInstance == null) {
-					verticesForInstance = new ArrayList<ExecutionVertex>();
-					verticesToBeDeployed.put(instance, verticesForInstance);
-				}
-
-				vertex.updateExecutionState(ExecutionState.READY);
-				verticesForInstance.add(vertex);
 			}
 
-			final Environment env = vertex.getEnvironment();
-			final int numberOfOutputGates = env.getNumberOfOutputGates();
-			for (int i = 0; i < numberOfOutputGates; ++i) {
+			List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
+			if (verticesForInstance == null) {
+				verticesForInstance = new ArrayList<ExecutionVertex>();
+				verticesToBeDeployed.put(instance, verticesForInstance);
+			}
 
-				final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
-				boolean deployTarget;
+			vertex.updateExecutionState(ExecutionState.READY);
+			verticesForInstance.add(vertex);
+		}
 
-				switch (outputGate.getChannelType()) {
-				case FILE:
-					deployTarget = false;
-					break;
-				case NETWORK:
-					deployTarget = !this.allowTaskMerging;
-					break;
-				case INMEMORY:
-					deployTarget = true;
-					break;
-				default:
-					throw new IllegalStateException("Unknown channel type");
-				}
+		final Environment env = vertex.getEnvironment();
+		final int numberOfOutputGates = env.getNumberOfOutputGates();
+		for (int i = 0; i < numberOfOutputGates; ++i) {
 
-				if (deployTarget) {
+			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+			boolean deployTarget;
 
-					final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
-					for (int j = 0; j < numberOfOutputChannels; ++j) {
-						final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-						final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
+			switch (outputGate.getChannelType()) {
+			case FILE:
+				deployTarget = false;
+				break;
+			case NETWORK:
+				deployTarget = !this.allowTaskMerging;
+				break;
+			case INMEMORY:
+				deployTarget = true;
+				break;
+			default:
+				throw new IllegalStateException("Unknown channel type");
+			}
+
+			if (deployTarget) {
+
+				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+				for (int j = 0; j < numberOfOutputChannels; ++j) {
+					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
 							outputChannel.getConnectedChannelID());
-						findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed);
-					}
+					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed);
 				}
 			}
 		}
@@ -268,32 +260,29 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
 		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
 
-		synchronized (executionGraph) {
+		for (int i = 0; i < executionStage.getNumberOfStageMembers(); ++i) {
 
-			for (int i = 0; i < executionStage.getNumberOfStageMembers(); ++i) {
-
-				final ExecutionGroupVertex startVertex = executionStage.getStageMember(i);
-				if (!startVertex.isInputVertex()) {
-					continue;
-				}
-
-				for (int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
-					final ExecutionVertex vertex = startVertex.getGroupMember(j);
-					findVerticesToBeDeployed(vertex, verticesToBeDeployed);
-				}
+			final ExecutionGroupVertex startVertex = executionStage.getStageMember(i);
+			if (!startVertex.isInputVertex()) {
+				continue;
 			}
 
-			if (!verticesToBeDeployed.isEmpty()) {
+			for (int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
+				final ExecutionVertex vertex = startVertex.getGroupMember(j);
+				findVerticesToBeDeployed(vertex, verticesToBeDeployed);
+			}
+		}
 
-				final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
-					.entrySet()
-					.iterator();
+		if (!verticesToBeDeployed.isEmpty()) {
 
-				while (it2.hasNext()) {
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
+				.entrySet()
+				.iterator();
 
-					final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
-					this.deploymentManager.deploy(executionGraph.getJobID(), entry.getKey(), entry.getValue());
-				}
+			while (it2.hasNext()) {
+
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+				this.deploymentManager.deploy(executionGraph.getJobID(), entry.getKey(), entry.getValue());
 			}
 		}
 	}
@@ -304,13 +293,12 @@ public abstract class AbstractScheduler implements InstanceListener {
 	@Override
 	public void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
+		if (allocatedResources == null) {
+			LOG.error("Resource to lock is null!");
+			return;
+		}
+
 		for (final AllocatedResource allocatedResource : allocatedResources) {
-
-			if (allocatedResources == null) {
-				LOG.error("Resource to lock is null!");
-				return;
-			}
-
 			if (allocatedResource.getInstance() instanceof DummyInstance) {
 				LOG.debug("Available instance is of type DummyInstance!");
 				return;
@@ -334,16 +322,16 @@ public abstract class AbstractScheduler implements InstanceListener {
 			return;
 		}
 
-		synchronized (eg) {
+		final ExecutionStage stage = eg.getCurrentExecutionStage();
 
-			final int indexOfCurrentStage = eg.getIndexOfCurrentExecutionStage();
+		synchronized (stage) {
 
 			for (final AllocatedResource allocatedResource : allocatedResources) {
 
 				AllocatedResource resourceToBeReplaced = null;
 				// Important: only look for instances to be replaced in the current stage
 				final Iterator<ExecutionGroupVertex> groupIterator = new ExecutionGroupVertexIterator(eg, true,
-					indexOfCurrentStage);
+					stage.getStageNumber());
 				while (groupIterator.hasNext()) {
 
 					final ExecutionGroupVertex groupVertex = groupIterator.next();
@@ -390,10 +378,11 @@ public abstract class AbstractScheduler implements InstanceListener {
 					}
 				}
 			}
-
-			// Deploy the assigned vertices
-			deployAssignedVertices(eg);
 		}
+
+		// Deploy the assigned vertices
+		deployAssignedVertices(eg);
+
 	}
 
 	/**
@@ -419,36 +408,33 @@ public abstract class AbstractScheduler implements InstanceListener {
 			return;
 		}
 
-		synchronized (executionGraph) {
-
-			final List<ExecutionVertex> assignedVertices = executionGraph
+		final List<ExecutionVertex> assignedVertices = executionGraph
 				.getVerticesAssignedToResource(allocatedResource);
-			if (assignedVertices.isEmpty()) {
-				return;
-			}
+		if (assignedVertices.isEmpty()) {
+			return;
+		}
 
-			boolean instanceCanBeReleased = true;
-			final Iterator<ExecutionVertex> it = assignedVertices.iterator();
-			while (it.hasNext()) {
-				final ExecutionVertex vertex = it.next();
-				final ExecutionState state = vertex.getExecutionState();
+		boolean instanceCanBeReleased = true;
+		final Iterator<ExecutionVertex> it = assignedVertices.iterator();
+		while (it.hasNext()) {
+			final ExecutionVertex vertex = it.next();
+			final ExecutionState state = vertex.getExecutionState();
 
-				if (state != ExecutionState.CREATED && state != ExecutionState.FINISHED
+			if (state != ExecutionState.CREATED && state != ExecutionState.FINISHED
 					&& state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
 
-					instanceCanBeReleased = false;
-					break;
-				}
+				instanceCanBeReleased = false;
+				break;
 			}
+		}
 
-			if (instanceCanBeReleased) {
-				LOG.info("Releasing instance " + allocatedResource.getInstance());
-				try {
-					getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
+		if (instanceCanBeReleased) {
+			LOG.info("Releasing instance " + allocatedResource.getInstance());
+			try {
+				getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
 						.getJobConfiguration(), allocatedResource);
-				} catch (InstanceException e) {
-					LOG.error(StringUtils.stringifyException(e));
-				}
+			} catch (InstanceException e) {
+				LOG.error(StringUtils.stringifyException(e));
 			}
 		}
 	}
@@ -462,30 +448,36 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final int currentStageIndex = executionGraph.getIndexOfCurrentExecutionStage();
 		final ExecutionStage previousStage = executionGraph.getStage(currentStageIndex - 1);
 
-		synchronized (executionGraph) {
+		final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToReplay = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
 
-			final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToReplay = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
+		for (int i = 0; i < previousStage.getNumberOfOutputExecutionVertices(); ++i) {
 
-			for (int i = 0; i < previousStage.getNumberOfOutputExecutionVertices(); ++i) {
+			final ExecutionVertex vertex = previousStage.getOutputExecutionVertex(i);
+			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
-				final ExecutionVertex vertex = previousStage.getOutputExecutionVertex(i);
-				final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-
-				List<ExecutionVertexID> vertexIDs = checkpointsToReplay.get(instance);
-				if (vertexIDs == null) {
-					vertexIDs = new SerializableArrayList<ExecutionVertexID>();
-					checkpointsToReplay.put(instance, vertexIDs);
-				}
-
-				vertexIDs.add(vertex.getID());
+			List<ExecutionVertexID> vertexIDs = checkpointsToReplay.get(instance);
+			if (vertexIDs == null) {
+				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
+				checkpointsToReplay.put(instance, vertexIDs);
 			}
 
-			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> it = checkpointsToReplay.entrySet()
-				.iterator();
-			while (it.hasNext()) {
-				final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = it.next();
-				this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
-			}
+			vertexIDs.add(vertex.getID());
 		}
+
+		final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> it = checkpointsToReplay.entrySet()
+				.iterator();
+		while (it.hasNext()) {
+			final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = it.next();
+			this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
+		
+		//TODO: Don't forget to synchronize on stage here
 	}
 }

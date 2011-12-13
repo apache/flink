@@ -15,12 +15,16 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.lang.annotation.Annotation;
+import java.util.List;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.plan.Visitable;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
 * Abstract base class for all Parallelization Contracts (PACTs).
-* A Pact receives one or multiple input sets of records (key/value pairs). It partitions and combines them
+* A Pact receives one or multiple input sets of records (see {@link PactRecord}). It partitions and combines them
 * into independent sets which are processed by user functions.
 */
 public abstract class Contract implements Visitable<Contract>
@@ -30,6 +34,9 @@ public abstract class Contract implements Visitable<Contract>
 	protected final Configuration parameters;		// the parameters that allow to parameterize the stub function
 
 	protected final CompilerHints compilerHints;	// hints to the pact compiler
+
+	
+	protected List<Class<? extends Annotation>> ocs;	// the output contract classes
 	
 	private int degreeOfParallelism = -1;			// the number of parallel instances to use. -1, if unknown
 

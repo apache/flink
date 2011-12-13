@@ -26,9 +26,9 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
@@ -41,8 +41,9 @@ public class CombineTaskTest extends TaskTestBase {
 	
 	private static final Log LOG = LogFactory.getLog(CombineTaskTest.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+	List<PactRecord> outList = new ArrayList<PactRecord>();
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testCombineTask() {
 
@@ -57,6 +58,8 @@ public class CombineTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -74,14 +77,15 @@ public class CombineTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> pair : outList) {
-			Assert.assertTrue("Incorrect result", pair.getValue().getValue() == expSum);
+		for(PactRecord record : outList) {
+			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum);
 		}
 		
 		outList.clear();
 		
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testFailingCombineTask() {
 
@@ -96,6 +100,8 @@ public class CombineTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
 		
@@ -113,6 +119,7 @@ public class CombineTaskTest extends TaskTestBase {
 		
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testCancelCombineTaskSorting() {
 		
@@ -124,6 +131,8 @@ public class CombineTaskTest extends TaskTestBase {
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
 		
@@ -151,60 +160,81 @@ public class CombineTaskTest extends TaskTestBase {
 		
 	}
 	
-	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockCombiningReduceStub extends ReduceStub {
+
+		private final PactInteger theInteger = new PactInteger();
 
 		@Override
-		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+		public void reduce(Iterator<PactRecord> records, Collector out)
+				throws Exception {
+			PactRecord element = null;
 			int sum = 0;
-			while(values.hasNext()) {
-				sum+=values.next().getValue();
+			while (records.hasNext()) {
+				element = records.next();
+				element.getField(1, this.theInteger);
+				
+				sum += this.theInteger.getValue();
 			}
-			out.collect(key, new PactInteger(sum-key.getValue()));			
+			this.theInteger.setValue(sum);
+			element.setField(1, this.theInteger);
+			out.collect(element);
 		}
 		
 		@Override
-		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
-			int sum = 0;
-			while(values.hasNext()) {
-				sum+=values.next().getValue();
-			}
-			out.collect(key, new PactInteger(sum));
+		public void combine(Iterator<PactRecord> records, Collector out) throws Exception {
+			reduce(records, out);
 		}
 		
 	}
 	
 	@Combinable
-	public static class MockFailingCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockFailingCombiningReduceStub extends ReduceStub {
 
 		int cnt = 0;
 		
+		private final PactInteger key = new PactInteger();
+		private final PactInteger value = new PactInteger();
+		private final PactInteger combineValue = new PactInteger();
+
 		@Override
-		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+		public void reduce(Iterator<PactRecord> records, Collector out)
+				throws Exception {
+			PactRecord element = null;
 			int sum = 0;
-			while(values.hasNext()) {
-				sum+=values.next().getValue();
+			while (records.hasNext()) {
+				element = records.next();
+				element.getField(1, this.value);
+				
+				sum += this.value.getValue();
 			}
-			out.collect(key, new PactInteger(sum-key.getValue()));			
+			element.getField(0, key);
+			value.setValue(sum - key.getValue());
+			element.setField(1, value);
+			out.collect(element);
 		}
 		
 		@Override
-		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+		public void combine(Iterator<PactRecord> records, Collector out)
+				throws Exception {
+			PactRecord element = null;
 			int sum = 0;
-			while(values.hasNext()) {
-				sum+=values.next().getValue();
+			while (records.hasNext()) {
+				element = records.next();
+				element.getField(1, combineValue);
+				
+				sum += combineValue.getValue();
 			}
 			
 			if(++cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			
-			out.collect(key, new PactInteger(sum));
+			combineValue.setValue(sum);
+			element.setField(1, combineValue);
+			out.collect(element);
 		}
 		
 	}
-	
-	
 	
 }

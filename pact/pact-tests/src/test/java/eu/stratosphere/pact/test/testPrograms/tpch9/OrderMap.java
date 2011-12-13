@@ -15,16 +15,15 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import org.apache.log4j.Logger;
-
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class OrderMap extends MapStub<PactInteger, Tuple, PactInteger, PactInteger> {
+public class OrderMap extends MapStub {
 	
-	private static Logger LOGGER = Logger.getLogger(OrderMap.class);
+	private final Tuple inputTuple = new Tuple();
 	
 	/**
 	 * Project "orders"
@@ -35,17 +34,12 @@ public class OrderMap extends MapStub<PactInteger, Tuple, PactInteger, PactInteg
 	 *
 	 */
 	@Override
-	public void map(PactInteger partKey, Tuple inputTuple,
-			Collector<PactInteger, PactInteger> output) {
+	public void map(PactRecord record, Collector out) throws Exception {
+		Tuple inputTuple = record.getField(1, this.inputTuple);
 		
-		/* Extract the year from the date element of the order relation: */
-		
-		try {
-			int year = Integer.parseInt(inputTuple.getStringValueAt(4).substring(0, 4));
-			output.collect(partKey, new PactInteger(year));
-		} catch (final Exception ex) {
-			LOGGER.error(ex);
-		}
+		int year = Integer.parseInt(inputTuple.getStringValueAt(4).substring(0, 4));
+		record.setField(1, new PactInteger(year));
+		out.collect(record);
 	}
 
 }

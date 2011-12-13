@@ -15,69 +15,44 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import java.util.Iterator;
+import java.io.IOException;
 import java.util.List;
-import java.util.NoSuchElementException;
+
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 
 /**
  * An iterator that returns the union of a given set of iterators.
  */
-public class UnionIterator<E> implements Iterator<E>
+public class UnionIterator<E> implements MutableObjectIterator<E>
 {
-	private Iterator<E> currentSource;
+	private MutableObjectIterator<E> currentSource;
 	
-	private List<Iterator<E>> nextSources;
+	private List<MutableObjectIterator<E>> nextSources;
 	
-	public UnionIterator(List<Iterator<E>> sources)
+	public UnionIterator(List<MutableObjectIterator<E>> sources)
 	{
 		this.currentSource = sources.remove(0);
 		this.nextSources = sources;
 	}
 
 	/* (non-Javadoc)
-	 * @see java.util.Iterator#hasNext()
+	 * @see java.util.Iterator#next()
 	 */
 	@Override
-	public boolean hasNext()
+	public boolean next(E target) throws IOException
 	{
-		if (this.currentSource.hasNext()) {
+		if (this.currentSource.next(target)) { 
 			return true;
 		}
 		else {
 			if (this.nextSources.size() > 0) {
 				this.currentSource = this.nextSources.remove(0);
-				return hasNext();
+				return next(target);
 			}
 			else {
 				return false;
 			}
 		}
-	}
-
-	/* (non-Javadoc)
-	 * @see java.util.Iterator#next()
-	 */
-	@Override
-	public E next()
-	{
-		if (this.currentSource.hasNext()) {
-			return this.currentSource.next();
-		}
-		else {
-			if (this.nextSources.size() > 0) {
-				this.currentSource = this.nextSources.remove(0);
-				return next();
-			}
-			else {
-				throw new NoSuchElementException();
-			}
-		}
-	}
-
-	@Override
-	public void remove()
-	{
-		throw new UnsupportedOperationException();
 	}
 }

@@ -15,8 +15,11 @@
 
 package eu.stratosphere.pact.example.terasort;
 
-import eu.stratosphere.pact.common.io.output.TextOutputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import java.io.IOException;
+
+import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
+
 
 /**
  * The class is responsible for converting a key-value pair back into a line which is afterward written back to disk.
@@ -24,7 +27,7 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
  * 
  * @author warneke
  */
-public final class TeraOutputFormat extends TextOutputFormat<TeraKey, TeraValue> {
+public final class TeraOutputFormat extends FileOutputFormat {
 
 	/**
 	 * A buffer to store the line which is about to be written back to disk.
@@ -35,14 +38,13 @@ public final class TeraOutputFormat extends TextOutputFormat<TeraKey, TeraValue>
 	 * {@inheritDoc}
 	 */
 	@Override
-	public byte[] writeLine(KeyValuePair<TeraKey, TeraValue> pair) {
-
-		pair.getKey().copyToBuffer(this.buffer);
-		pair.getValue().copyToBuffer(this.buffer);
+	public void writeRecord(PactRecord record) throws IOException {
+		record.getField(0, TeraKey.class).copyToBuffer(this.buffer);
+		record.getField(1, TeraValue.class).copyToBuffer(this.buffer);
 
 		this.buffer[TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE] = '\n';
 
-		return this.buffer;
+		this.stream.write(buffer, 0, buffer.length);
 	}
 
 }

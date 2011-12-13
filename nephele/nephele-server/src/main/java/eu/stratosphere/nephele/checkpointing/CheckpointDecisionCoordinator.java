@@ -72,13 +72,10 @@ public final class CheckpointDecisionCoordinator {
 	 */
 	public void registerJob(final ExecutionGraph executionGraph) {
 
-		synchronized (executionGraph) {
-
-			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
-			while (it.hasNext()) {
-				final ExecutionVertex vertex = it.next();
-				vertex.registerExecutionListener(new CheckpointExecutionListener(this, vertex));
-			}
+		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
+		while (it.hasNext()) {
+			final ExecutionVertex vertex = it.next();
+			vertex.registerExecutionListener(new CheckpointExecutionListener(this, vertex));
 		}
 	}
 
@@ -102,7 +99,7 @@ public final class CheckpointDecisionCoordinator {
 			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), checkpointDecision));
 			checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
 		}
-		
+
 		// Propagate checkpoint decisions
 		this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
 	}

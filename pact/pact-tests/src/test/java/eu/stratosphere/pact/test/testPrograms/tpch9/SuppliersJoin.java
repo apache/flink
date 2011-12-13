@@ -16,17 +16,17 @@
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 
-import org.apache.log4j.Logger;
-
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
 
-public class SuppliersJoin extends MatchStub<PactInteger, PactInteger, Tuple, PactInteger, PactString> {
+public class SuppliersJoin extends MatchStub {
 	
-	private static Logger LOGGER = Logger.getLogger(SuppliersJoin.class);
+	private PactInteger suppKey = new PactInteger();
+	private Tuple nationVal = new Tuple();
 	
 	/**
 	 * Join "nation" and "supplier" by "nationkey".
@@ -37,16 +37,18 @@ public class SuppliersJoin extends MatchStub<PactInteger, PactInteger, Tuple, Pa
 	 *
 	 */
 	@Override
-	public void match(PactInteger partKey, PactInteger suppKey, Tuple nationVal,
-			Collector<PactInteger, PactString> output) {
+	public void match(PactRecord value1, PactRecord value2, Collector out)
+			throws Exception {
+		suppKey = value1.getField(1, suppKey);
+		nationVal = value2.getField(1, nationVal);
 		
-		try {
-			PactString nationName = new PactString(nationVal.getStringValueAt(1));
-			output.collect(suppKey, nationName);
-		} catch (final Exception ex) {
-			LOGGER.error(ex);
-		}
-
+		PactString nationName = new PactString(nationVal.getStringValueAt(1));
+		
+		value1.setField(0, suppKey);
+		value1.setField(1, nationName);
+		
+		out.collect(value1);
+		
 	}
 
 }

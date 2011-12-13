@@ -258,8 +258,8 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		// Get the directory for storing temporary files
-		final String tmpDirPath = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+		final String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
 
 		// Initialize the byte buffered channel manager
 		ByteBufferedChannelManager byteBufferedChannelManager = null;
@@ -302,8 +302,7 @@ public class TaskManager implements TaskOperationProtocol {
 			throw rte;
 		}
 
-		// Initialize the I/O manager
-		this.ioManager = new IOManager(tmpDirPath);
+		this.ioManager = new IOManager(tmpDirPaths);
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));

@@ -19,11 +19,13 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-public interface CoGroupTaskIterator<K extends Key, V1 extends Value, V2 extends Value> {
-	
+/**
+ * Interface describing the methods that have to be implemented by local strategies for the CoGroup Pact.
+ */
+public interface CoGroupTaskIterator
+{	
 	/**
 	 * General-purpose open method.
 	 * 
@@ -51,23 +53,16 @@ public interface CoGroupTaskIterator<K extends Key, V1 extends Value, V2 extends
 	boolean next() throws IOException;
 
 	/**
-	 * Returns the current key.
+	 * Returns an iterable over the left input values for the current key.
 	 * 
-	 * @return Key the current key
+	 * @return an iterable over the left input values for the current key.
 	 */
-	K getKey();
+	Iterator<PactRecord> getValues1();
 
 	/**
 	 * Returns an iterable over the left input values for the current key.
 	 * 
 	 * @return an iterable over the left input values for the current key.
 	 */
-	Iterator<V1> getValues1();
-
-	/**
-	 * Returns an iterable over the left input values for the current key.
-	 * 
-	 * @return an iterable over the left input values for the current key.
-	 */
-	Iterator<V2> getValues2();
+	Iterator<PactRecord> getValues2();
 }

@@ -30,14 +30,14 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
-import eu.stratosphere.pact.common.io.input.TextInputFormat;
-import eu.stratosphere.pact.common.io.output.TextOutputFormat;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stub.CoGroupStub;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.compiler.PactCompiler;
@@ -95,54 +95,82 @@ public class CoGroupITCase extends TestBase
 		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_4.txt", COGROUP_RIGHT_IN_4);
 	}
 
-	public static class CoGroupTestInFormat extends TextInputFormat<PactString, PactString> {
+	public static class CoGroupTestInFormat extends DelimitedInputFormat {
 
+		private final PactString keyString = new PactString();
+		private final PactString valueString = new PactString();
+		
 		@Override
-		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
-
-			pair.setKey(new PactString(new String((char) line[0] + "")));
-			pair.setValue(new PactString(new String((char) line[2] + "")));
-
-			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
-
+		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+			this.keyString.setValueAscii(bytes, 0, 1);
+			this.valueString.setValueAscii(bytes, 2, 1);
+			target.setField(0, keyString);
+			target.setField(1, valueString);
+			
+			LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
+			
 			return true;
 		}
 
 	}
 
-	public static class CoGroupOutFormat extends TextOutputFormat<PactString, PactInteger> {
-
+	public static class CoGroupOutFormat extends FileOutputFormat
+	{
+		private final StringBuilder buffer = new StringBuilder();
+		private final PactString keyString = new PactString();
+		private final PactInteger valueInteger = new PactInteger();
+		
 		@Override
-		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
-
-			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
-
-			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
+		public void writeRecord(PactRecord record) throws IOException {
+			this.buffer.setLength(0);
+			this.buffer.append(record.getField(0, keyString).toString());
+			this.buffer.append(' ');
+			this.buffer.append(record.getField(1, valueInteger).getValue());
+			this.buffer.append('\n');
+			
+			byte[] bytes = this.buffer.toString().getBytes();
+			
+			LOG.debug("Writing out: [" + keyString.toString() + "," + valueInteger.getValue() + "]");
+			
+			this.stream.write(bytes);
 		}
 	}
 
-	public static class TestCoGrouper extends CoGroupStub<PactString, PactString, PactString, PactString, PactInteger> {
+	public static class TestCoGrouper extends CoGroupStub {
+	//CoGroupStub<PactString, PactString, PactString, PactString, PactInteger> {
 
+		private PactString keyString = new PactString();
+		private PactString valueString = new PactString();
+		private PactRecord record = new PactRecord();
+		
 		@Override
-		public void coGroup(PactString key, Iterator<PactString> values1, Iterator<PactString> values2,
-				Collector<PactString, PactInteger> out) {
+		public void coGroup(Iterator<PactRecord> records1,
+				Iterator<PactRecord> records2, Collector out) {
+			// TODO Auto-generated method stub
+			
 			int sum = 0;
 			LOG.debug("Start iterating over input1");
-			while (values1.hasNext()) {
-				PactString value = values1.next();
-				sum += Integer.parseInt(value.toString());
+			while (records1.hasNext()) {
+				record = records1.next();
+				keyString = record.getField(0, keyString);
+				valueString = record.getField(1, valueString);
+				sum += Integer.parseInt(valueString.getValue());
 
-				LOG.debug("Processed: [" + key + "," + value + "]");
+				LOG.debug("Processed: [" + keyString.getValue() + "," + valueString.getValue() + "]");
 			}
 			LOG.debug("Start iterating over input2");
-			while (values2.hasNext()) {
-				PactString value = values2.next();
-				sum -= Integer.parseInt(value.toString());
+			while (records2.hasNext()) {
+				record = records2.next();
+				keyString = record.getField(0, keyString);
+				valueString = record.getField(1, valueString);
+				sum -= Integer.parseInt(valueString.getValue());
 
-				LOG.debug("Processed: [" + key + "," + value + "]");
+				LOG.debug("Processed: [" + keyString.getValue() + "," + valueString.getValue() + "]");
 			}
-			out.collect(key, new PactInteger(sum));
+			record.setField(1, new PactInteger(sum));
 			LOG.debug("Finished");
+			
+			out.collect(record);
 		}
 
 	}
@@ -152,26 +180,22 @@ public class CoGroupITCase extends TestBase
 
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		FileDataSourceContract<PactString, PactString> input_left = new FileDataSourceContract<PactString, PactString>(
-				CoGroupTestInFormat.class, pathPrefix + "/cogroup_left");
-		input_left.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input_left =  new FileDataSource(CoGroupTestInFormat.class, pathPrefix + "/cogroup_left");
+		input_left.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_left.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		FileDataSourceContract<PactString, PactString> input_right = new FileDataSourceContract<PactString, PactString>(
-				CoGroupTestInFormat.class, pathPrefix + "/cogroup_right");
-		input_right.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input_right =  new FileDataSource(CoGroupTestInFormat.class, pathPrefix + "/cogroup_right");
+		input_right.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		CoGroupContract<PactString, PactString, PactString, PactString, PactInteger> testCoGrouper = new CoGroupContract<PactString, PactString, PactString, PactString, PactInteger>(
-				TestCoGrouper.class);
+		CoGroupContract testCoGrouper = new CoGroupContract(TestCoGrouper.class, PactString.class, 0, 0);
 		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 		testCoGrouper.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("CoGroupTest#LocalStrategy", ""));
 		testCoGrouper.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
 				config.getString("CoGroupTest#ShipStrategy", ""));
 
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
-				CoGroupOutFormat.class, pathPrefix + "/result.txt");
+		FileDataSink output = new FileDataSink(CoGroupOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testCoGrouper);

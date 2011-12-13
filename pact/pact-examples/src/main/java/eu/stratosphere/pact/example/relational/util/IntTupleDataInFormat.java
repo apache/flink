@@ -15,19 +15,18 @@
 
 package eu.stratosphere.pact.example.relational.util;
 
-import eu.stratosphere.pact.common.io.input.TextInputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
-public class IntTupleDataInFormat extends TextInputFormat<PactInteger, Tuple> {
+public class IntTupleDataInFormat extends DelimitedInputFormat {
 
 	public static final int MAX_COLUMNS = 20;
 
 	public static final int DELIMITER = '|';
 
 	@Override
-	public boolean readLine(KeyValuePair<PactInteger, Tuple> pair, byte[] line) {
-
+	public boolean readRecord(PactRecord target, byte[] line, int numBytes) {
 		int readPos = 0;
 
 		// allocate the offsets array
@@ -38,7 +37,7 @@ public class IntTupleDataInFormat extends TextInputFormat<PactInteger, Tuple> {
 
 		int startPos = readPos;
 
-		while (readPos < line.length) {
+		while (readPos < numBytes) {
 			if (line[readPos++] == DELIMITER) {
 				offsets[col++] = (short) (countInWrapBuffer + readPos - startPos);
 			}
@@ -46,9 +45,9 @@ public class IntTupleDataInFormat extends TextInputFormat<PactInteger, Tuple> {
 
 		Tuple value = new Tuple(line, offsets, col - 1);
 		PactInteger key = new PactInteger((int) value.getLongValueAt(0));
-
-		pair.setKey(key);
-		pair.setValue(value);
+		
+		target.setField(0, key);
+		target.setField(1, value);
 
 		return true;
 	}

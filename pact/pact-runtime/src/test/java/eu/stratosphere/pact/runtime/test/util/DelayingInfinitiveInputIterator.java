@@ -15,11 +15,10 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-public class DelayingInfinitiveInputIterator extends InfiniteInputIterator {
-
+public class DelayingInfinitiveInputIterator extends InfiniteInputIterator
+{
 	private int delay;
 	
 	public DelayingInfinitiveInputIterator(int delay) {
@@ -27,11 +26,12 @@ public class DelayingInfinitiveInputIterator extends InfiniteInputIterator {
 	}
 	
 	@Override
-	public KeyValuePair<PactInteger, PactInteger> next() {
+	public boolean next(PactRecord target) {
 		try {
 			Thread.sleep(delay);
-		} catch (InterruptedException e) { }
-		return super.next();
+		}
+		catch (InterruptedException e) { }
+		return super.next(target);
 	}
 	
 }

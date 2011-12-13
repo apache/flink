@@ -143,7 +143,8 @@ public class EphemeralCheckpoint {
 
 		this.fileBufferManager = FileBufferManager.getInstance();
 
-		LOG.info("Created checkpoint for vertex " + task.getVertexID() + ", state " + this.checkpointingDecision);
+		if (LOG.isDebugEnabled())
+			LOG.debug("Created checkpoint for vertex " + task.getVertexID() + ", state " + this.checkpointingDecision);
 
 		if (this.checkpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
 			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
