@@ -185,4 +185,15 @@
 		<key>channel.compression.dynamicClass</key> 
 		<value>eu.stratosphere.nephele.io.compression.library.dynamic.DynamicLibrary</value> 
 	</property>
+
+
+	<!-- GFZ use case configuration -->
+	<property>
+		<key>inputsplit.assigner.useUserJar</key> 
+		<value>true</value> 
+	</property>
+	<property>
+		<key>inputsplit.assigner.SerialFileInputSplit</key> 
+		<value>eu.stratosphere.useCases.gfz.distanceMatrix.util.nephele.SerialInputSplitAssigner</value> 
+	</property>
 </configuration>

@@ -204,13 +204,11 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	public void accept(Visitor<Contract> visitor) {
 		boolean descend = visitor.preVisit(this);	
 		if (descend) {
-			if (visitor.preVisit(this)) {
-				for(Contract c : this.input1) {
-					c.accept(visitor);
-				}
-				for(Contract c : this.input2) {
-					c.accept(visitor);
-				}
+			for(Contract c : this.input1) {
+				c.accept(visitor);
+			}
+			for(Contract c : this.input2) {
+				c.accept(visitor);
 			}
 			visitor.postVisit(this);
 		}

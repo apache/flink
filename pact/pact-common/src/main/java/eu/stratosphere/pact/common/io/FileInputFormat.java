@@ -100,7 +100,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	/**
 	 * The fraction that the last split may be larger than the others.
 	 */
-	private static final float MAX_SPLIT_SIZE_DISCREPANCY = 1.1f;
+	protected static final float MAX_SPLIT_SIZE_DISCREPANCY = 1.1f;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -125,9 +125,9 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	protected long length;
 	
 	
-	private long minSplitSize;				// the minimal split size
+	protected long minSplitSize;				// the minimal split size
 	
-	private int numSplits;					// the desired number of splits
+	protected int numSplits;					// the desired number of splits
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -300,7 +300,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	 * @param startIndex The earliest index to look at.
 	 * @return The index of the block containing the given position.
 	 */
-	private final int getBlockIndexForPosition(BlockLocation[] blocks, long offset, long halfSplitSize, int startIndex)
+	protected final int getBlockIndexForPosition(BlockLocation[] blocks, long offset, long halfSplitSize, int startIndex)
 	{
 		// go over all indexes after the startIndex
 		for (int i = startIndex; i < blocks.length; i++) {
@@ -321,7 +321,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	}
 	
 	// --------------------------------------------------------------------------------------------
-
+protected int fileNumber = -1;
 	/**
 	 * Opens an input stream to the file defined in the input format.
 	 * The stream is positioned at the beginning of the given split.
@@ -339,6 +339,8 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 		}
 		
 		final FileInputSplit fileSplit = (FileInputSplit) split;
+		
+		fileNumber = Integer.parseInt(split.getPath().getName());
 		
 		this.start = fileSplit.getStart();
 		this.length = fileSplit.getLength();

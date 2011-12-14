@@ -650,6 +650,7 @@ public final class PactRecord implements Value
 				serializer.writeByte(mask);
 				
 				// now the eight-bit chunks
+				// TODO: mjsax: report BUG to stephan!
 				for (int i = numFields >>> 3; i >= 0; i--) {
 					mask = 0;
 					for (int k = 0; k < 8; k++, col--) {
