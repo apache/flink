@@ -33,6 +33,8 @@ import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
 
+import eu.stratosphere.nephele.jobgraph.JobID;
+
 public final class SWTFailurePatternsManager implements SelectionListener {
 
 	private static final Log LOG = LogFactory.getLog(SWTFailurePatternsManager.class);
@@ -112,13 +114,16 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 
 	}
 
-	public void startFailurePattern(final String jobName, final long referenceTime) {
+	public void startFailurePattern(final JobID jobID, final String jobName, final long referenceTime) {
 
 		final JobFailurePattern failurePattern = this.failurePatterns.get(jobName.toLowerCase());
 		if (failurePattern == null) {
 			LOG.info("No failure pattern for job " + jobName);
 		}
-		
-		
+
+		final JobFailurePatternExecutor executor = new JobFailurePatternExecutor(this.shell.getDisplay(), jobID,
+			jobName, failurePattern);
+
+		executor.start(referenceTime);
 	}
 }

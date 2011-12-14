@@ -33,12 +33,12 @@ public final class JobFailurePattern {
 	private final SortedSet<AbstractFailureEvent> events = new TreeSet<AbstractFailureEvent>();
 
 	/**
-	 * Adds a new failure event to this job failure pattern. A particular event cannot be added more than once.
+	 * Adds or updates a failure event to this job failure pattern.
 	 * 
 	 * @param event
-	 *        the event to be added
+	 *        the event to be added or updated
 	 */
-	public void addEvent(final AbstractFailureEvent event) {
+	public void addOrUpdateEvent(final AbstractFailureEvent event) {
 
 		if (event == null) {
 			throw new IllegalArgumentException("Argument event must not be null");

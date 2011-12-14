@@ -99,7 +99,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	private final boolean detectBottlenecks;
 
 	private volatile boolean applyFailurePatterns = true;
-	
+
 	private final ExtendedManagementProtocol jobManager;
 
 	private final CTabFolder jobTabFolder;
@@ -109,7 +109,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	private Map<JobID, GraphVisualizationData> recentJobs = new HashMap<JobID, GraphVisualizationData>();
 
 	private final SWTFailurePatternsManager failurePatternsManager;
-	
+
 	/**
 	 * Set to filter duplicate events received from the job manager.
 	 */
@@ -212,28 +212,28 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 		// Insert a separator before the last item in the help menu
 		new MenuItem(debuggingMenu, SWT.SEPARATOR);
-		
+
 		final MenuItem debuggingAFPItem = new MenuItem(debuggingMenu, SWT.CHECK);
 		debuggingAFPItem.setText("&Apply failure patterns");
 		debuggingAFPItem.setSelection(this.applyFailurePatterns);
 		debuggingAFPItem.addSelectionListener(new SelectionAdapter() {
-			
+
 			public void widgetSelected(final SelectionEvent arg0) {
-				applyFailurePatterns = debuggingAFPItem.getSelection(); 
+				applyFailurePatterns = debuggingAFPItem.getSelection();
 				shell.setMenuBar(null);
 			}
 		});
-		
+
 		final MenuItem debuggingMFPItem = new MenuItem(debuggingMenu, SWT.PUSH);
 		debuggingMFPItem.setText("&Manage failure patterns...");
 		debuggingMFPItem.addSelectionListener(new SelectionAdapter() {
-			
+
 			public void widgetSelected(final SelectionEvent arg0) {
-				manageFailurePatterns(); 
+				manageFailurePatterns();
 				shell.setMenuBar(null);
 			}
 		});
-				
+
 		final MenuItem helpMenuItem = new MenuItem(this.menuBar, SWT.CASCADE);
 		helpMenuItem.setText("&Help");
 
@@ -303,7 +303,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 		// Create outage patterns manager
 		this.failurePatternsManager = new SWTFailurePatternsManager(this.shell);
-		
+
 		// Launch the timer that will query for events
 		this.display.timerExec(QUERYINTERVAL * 1000, this);
 	}
@@ -453,7 +453,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 					final RecentJobEvent newJobEvent = it.next();
 					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable());
 					// Find a matching failure pattern and start it
-					this.failurePatternsManager.startFailurePattern(newJobEvent.getJobName(), newJobEvent.getTimestamp());
+					this.failurePatternsManager.startFailurePattern(newJobEvent.getJobID(), newJobEvent.getJobName(),
+						newJobEvent.getTimestamp());
 				}
 			}
 
@@ -578,7 +579,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			final TreeItem jobItem = new TreeItem(jobTree, SWT.NONE);
 			jobItem.setText(jobName + " (" + jobID.toString() + ")");
 			jobItem.setData(graphVisualizationData);
-			
+
 			this.recentJobs.put(jobID, graphVisualizationData);
 		}
 	}
@@ -703,10 +704,10 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	}
 
 	private void manageFailurePatterns() {
-		
+
 		this.failurePatternsManager.open();
 	}
-	
+
 	private void logBufferUtilization() {
 
 		if (this.jobTree.getItemCount() == 0) {
