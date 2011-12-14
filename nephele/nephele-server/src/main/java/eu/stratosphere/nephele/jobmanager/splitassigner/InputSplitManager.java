@@ -24,7 +24,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
@@ -112,7 +111,7 @@ public final class InputSplitManager {
 			final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;
 			final Class<? extends InputSplit> splitType = inputTask.getInputSplitType();
 
-			final InputSplitAssigner assigner = getAssignerByType(splitType, true, executionGraph.getJobID());
+			final InputSplitAssigner assigner = getAssignerByType(splitType, true);
 			// Add entry to cache for fast retrieval during the job execution
 			this.assignerCache.put(groupVertex, assigner);
 
@@ -191,13 +190,13 @@ public final class InputSplitManager {
 	 * @return the {@link InputSplitAssigner} responsible for the given type of input split
 	 */
 	private InputSplitAssigner getAssignerByType(final Class<? extends InputSplit> inputSplitType,
-			final boolean allowLoading, JobID jid) {
+			final boolean allowLoading) {
 
 		synchronized (this.loadedAssigners) {
 
 			InputSplitAssigner assigner = this.loadedAssigners.get(inputSplitType);
 			if (assigner == null && allowLoading) {
-				assigner = loadInputSplitAssigner(inputSplitType, jid);
+				assigner = loadInputSplitAssigner(inputSplitType);
 				if (assigner != null) {
 					this.loadedAssigners.put(inputSplitType, assigner);
 				}
@@ -223,8 +222,7 @@ public final class InputSplitManager {
 	 * @return the newly loaded {@link InputSplitAssigner} object or <code>null</code> if no such object could be
 	 *         located or loaded
 	 */
-	@SuppressWarnings("unchecked")
-	private InputSplitAssigner loadInputSplitAssigner(final Class<? extends InputSplit> inputSplitType, JobID jid) {
+	private InputSplitAssigner loadInputSplitAssigner(final Class<? extends InputSplit> inputSplitType) {
 
 		final String typeClassName = inputSplitType.getSimpleName();
 		final String assignerKey = INPUT_SPLIT_CONFIG_KEY_PREFIX + typeClassName;
@@ -242,16 +240,11 @@ public final class InputSplitManager {
 		}
 
 		try {
-			Class<? extends InputSplitAssigner> assignerClass;
-			
-			boolean useUserJar = GlobalConfiguration.getBoolean(INPUT_SPLIT_CONFIG_KEY_PREFIX + "useUserJar", false);
-			if(useUserJar) {
-				final ClassLoader cl = LibraryCacheManager.getClassLoader(jid);
-				
-				assignerClass = (Class<? extends InputSplitAssigner>) Class.forName(assignerClassName, true, cl);
-			} else {
-				assignerClass = (Class<? extends InputSplitAssigner>) Class.forName(assignerClassName);
-			}
+
+			@SuppressWarnings("unchecked")
+			final Class<? extends InputSplitAssigner> assignerClass = (Class<? extends InputSplitAssigner>) Class
+				.forName(assignerClassName);
+
 			return assignerClass.newInstance();
 
 		} catch (Exception e) {
