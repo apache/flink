@@ -294,7 +294,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			}
 			
 			final int groupSize = this.config.getGroupSize(i+1);
-			if(groupSize == 1) {
+			if(groupSize < 2) {
 				inputs[i] = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, dp));
 			} else {
 				@SuppressWarnings("unchecked")
