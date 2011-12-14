@@ -23,8 +23,8 @@ import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.pact.SopremoMatch;
 
 public class Phase3 extends CompositeOperator<Phase3> {
 
@@ -47,8 +47,8 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		TransformAKey[] a = new TransformAKey[itCount];
 		TransformBKey[] b = new TransformBKey[itCount];
 		TransformXKey[] x = new TransformXKey[itCount];
-		BAndXCoGroup[] xb = new BAndXCoGroup[itCount];
-		ACoGroup axb[] = new ACoGroup[itCount];
+		BAndXMatch[] xb = new BAndXMatch[itCount];
+		AMatch axb[] = new AMatch[itCount];
 
 		for (int i = 0; i < itCount; i++) {
 
@@ -57,8 +57,8 @@ public class Phase3 extends CompositeOperator<Phase3> {
 			b[i] = new TransformBKey().withInputs(i == 0 ? input : axb[i - 1]);
 			b[i].setIterationStep(i + 1);
 			x[i] = new TransformXKey().withInputs(i == 0 ? input : axb[i - 1]);
-			xb[i] = new BAndXCoGroup().withInputs(b[i], x[i]);
-			axb[i] = new ACoGroup().withInputs(a[i], xb[i]);
+			xb[i] = new BAndXMatch().withInputs(b[i], x[i]);
+			axb[i] = new AMatch().withInputs(a[i], xb[i]);
 
 		}
 
@@ -159,14 +159,14 @@ public class Phase3 extends CompositeOperator<Phase3> {
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	private static class BAndXCoGroup extends ElementaryOperator<BAndXCoGroup> {
+	private static class BAndXMatch extends ElementaryOperator<BAndXMatch> {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -3480847243868518647L;
 
 		@SuppressWarnings("unused")
-		public static class Implementation extends SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+		public static class Implementation extends SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 
 			/*
 			 * (non-Javadoc)
@@ -175,49 +175,37 @@ public class Phase3 extends CompositeOperator<Phase3> {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
-				if (values1.isEmpty() || values2.isEmpty()) {
-					for (JsonNode value : values1) {
-						out.collect(key, value);
-					}
-					for (JsonNode value : values2) {
-						out.collect(key, value);
-					}
-				} else {
-					for (JsonNode value1 : values1) {
-						for (JsonNode value2 : values2) {
-							ArrayNode oldKeyB = (ArrayNode) ((ArrayNode) value1).get(0);
-							ArrayNode oldKeyX = (ArrayNode) ((ArrayNode) value2).get(0);
-							out.collect(new ArrayNode(oldKeyX.get(0), oldKeyB.get(0)), new ArrayNode(value1, value2));
-						}
-					}
+			protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
 
-				}
+				ArrayNode oldKeyB = (ArrayNode) ((ArrayNode) value1).get(0);
+				ArrayNode oldKeyX = (ArrayNode) ((ArrayNode) value2).get(0);
+				out.collect(new ArrayNode(oldKeyX.get(0), oldKeyB.get(0)), new ArrayNode(value1, value2));
+
 			}
 		}
 	}
 
 	@InputCardinality(min = 2, max = 2)
-	private static class ACoGroup extends ElementaryOperator<ACoGroup> {
+	private static class AMatch extends ElementaryOperator<AMatch> {
 
 		@SuppressWarnings("unused")
-		public static class Implementation extends SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+		public static class Implementation extends SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
 
-			// /*
-			// * (non-Javadoc)
-			// * @see eu.stratosphere.sopremo.pact.SopremoMatch#match(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
-			// * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.jsondatamodel.JsonNode,
-			// * eu.stratosphere.sopremo.pact.JsonCollector)
-			// */
-			// @Override
-			// protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
-			// BinarySparseMatrix matrixA = (BinarySparseMatrix) value1;
-			// BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0))).get(1);
-			// BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1))).get(1);
-			// JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
-			// // 3-input warshall
-			// out.collect(oldKeyX, matrixX);
-			// }
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMatch#match(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
+				BinarySparseMatrix matrixA = (BinarySparseMatrix) value1;
+				BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0))).get(1);
+				BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1))).get(1);
+				JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
+				// 3-input warshall
+				out.collect(oldKeyX, matrixX);
+			}
 
 			/*
 			 * (non-Javadoc)
@@ -225,45 +213,45 @@ public class Phase3 extends CompositeOperator<Phase3> {
 			 * eu.stratosphere.sopremo.jsondatamodel.ArrayNode, eu.stratosphere.sopremo.jsondatamodel.ArrayNode,
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
-			@Override
-			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
-				if (!key.isArray()) {
-					// was not joined in BAndXCoGroup
-					// we don't want to loose these values for next iteration
-					for (JsonNode array : values2) {
-						out.collect(((ArrayNode) array).get(0), ((ArrayNode) array).get(1));
-					}
-				} else {
-					if (values2.isEmpty()) {
-
-						// A could not find any join partners -> emit
-						out.collect(key, values1.get(0));
-					} else {
-						for (JsonNode value2 : values2) {
-							BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0)))
-								.get(1);
-							BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1)))
-								.get(1);
-							JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
-							// JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
-							if (!values1.isEmpty()) {
-								// 3-input warshall
-							}
-
-							// else {
-							// TODO Why don't we need to collect B now?????
-							// // A is not present
-							// // we don't want to loose B, too
-							// JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
-							// out.collect(oldKeyB, matrixB);
-							// }
-							// in both cases we want to collect X
-							out.collect(oldKeyX, matrixX);
-						}
-					}
-				}
-
-			}
+			// @Override
+			// protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
+			// if (!key.isArray()) {
+			// // was not joined in BAndXCoGroup
+			// // we don't want to loose these values for next iteration
+			// for (JsonNode array : values2) {
+			// out.collect(((ArrayNode) array).get(0), ((ArrayNode) array).get(1));
+			// }
+			// } else {
+			// if (values2.isEmpty()) {
+			//
+			// // A could not find any join partners -> emit
+			// out.collect(key, values1.get(0));
+			// } else {
+			// for (JsonNode value2 : values2) {
+			// BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0)))
+			// .get(1);
+			// BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1)))
+			// .get(1);
+			// JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
+			// // JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
+			// if (!values1.isEmpty()) {
+			// // 3-input warshall
+			// }
+			//
+			// // else {
+			// // TODO Why don't we need to collect B now?????
+			// // // A is not present
+			// // // we don't want to loose B, too
+			// // JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
+			// // out.collect(oldKeyB, matrixB);
+			// // }
+			// // in both cases we want to collect X
+			// out.collect(oldKeyX, matrixX);
+			// }
+			// }
+			// }
+			//
+			// }
 
 		}
 	}

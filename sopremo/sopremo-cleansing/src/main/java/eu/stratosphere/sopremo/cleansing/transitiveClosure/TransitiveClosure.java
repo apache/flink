@@ -6,6 +6,7 @@ import java.util.Set;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SopremoModule;
@@ -14,13 +15,16 @@ import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.cleansing.record_linkage.ClosureMode;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
+import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
+import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
+@InputCardinality(min = 2, max = 2)
 public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 
 	/**
@@ -30,9 +34,12 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 
 	@Override
 	public SopremoModule asElementaryOperators() {
-		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 1, 1);
+		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
 		JsonStream input = sopremoModule.getInput(0);
+		JsonStream nullInput = sopremoModule.getInput(1);
 
+		int n = 3;
+		
 		// Partitioning
 		Partitioning partitioning = new Partitioning().withInputs(input);
 		Grouping group = new Grouping().withInputs(partitioning).withGroupingKey(EvaluationExpression.KEY)
@@ -41,17 +48,24 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		// Generate Matrix
 		final GenerateMatrix genMatrix = new GenerateMatrix().withInputs(group);
 
+		// generate empty blocks (see next step)
+		final GenerateEmptyMatrix emptyMatrix = new GenerateEmptyMatrix().withInputs(nullInput);
+		emptyMatrix.setN(n);
+		
+		// fill-up missing block in genMatrix
+		final FillMatrix filledMatrix = new FillMatrix().withInputs(genMatrix, emptyMatrix);
+		
 		// compute transitive Closure P1
-		final Phase1 phase1 = new Phase1().withInputs(genMatrix);
+		final Phase1 phase1 = new Phase1().withInputs(filledMatrix);
 
 		// compute transitive Closure P2
 		final Phase2 phase2 = new Phase2().withInputs(phase1, genMatrix);
-		
+
 		// compute transitive Closure P3
 		final Phase3 phase3 = new Phase3().withInputs(new UnionAll().withInputs(phase1, phase2));
 
 		// emit Results as Links
-		final EmitMatrix result = new EmitMatrix().withInputs(/*new UnionAll().withInputs(phase1, phase2)*/ phase3);
+		final EmitMatrix result = new EmitMatrix().withInputs(new UnionAll().withInputs(phase1, phase2) /*/phase3*/);
 
 		sopremoModule.getOutput(0).setInput(0, result);
 
@@ -77,39 +91,6 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 				out.collect(new ArrayNode(partition1, partition2), new ArrayNode(value1, value2));
 				if (!partition1.equals(partition2))
 					out.collect(new ArrayNode(partition2, partition1), new ArrayNode(value2, value1));
-			}
-		}
-	}
-
-	public static void warshall(final BinarySparseMatrix matrix) {
-		// Warshall
-		for (JsonNode row : matrix.getRows()) {
-			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
-			while (!columnsToExplore.isEmpty()) {
-				final JsonNode column = columnsToExplore.pop();
-				Set<JsonNode> transitiveColumn = matrix.get(column);
-				for (final JsonNode transitiveNode : transitiveColumn)
-					if (!row.equals(transitiveNode) && !matrix.isSet(row, transitiveNode)) {
-						matrix.set(row, transitiveNode);
-						columnsToExplore.push(transitiveNode);
-					}
-			}
-		}
-		// matrix.makeSymmetric();
-	}
-
-	public static void warshall(final BinarySparseMatrix primary, BinarySparseMatrix current) {
-		final Deque<JsonNode> rowsToExplore = new LinkedList<JsonNode>(current.getRows());
-		while (!rowsToExplore.isEmpty()) {
-			JsonNode row = rowsToExplore.pop();
-			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(primary.get(row));
-			while (!columnsToExplore.isEmpty()) {
-				final JsonNode column = columnsToExplore.pop();
-				for (final JsonNode transitiveNode : current.get(row))
-					if (!row.equals(transitiveNode) && !current.isSet(column, transitiveNode)) {
-						current.set(column, transitiveNode);
-						// columnsToExplore.push(transitiveNode);
-					}
 			}
 		}
 	}
@@ -151,6 +132,71 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		}
 	}
 
+	private static class GenerateEmptyMatrix extends ElementaryOperator<GenerateEmptyMatrix> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -5424272405664960478L;
+
+		private int n;
+
+		public void setN(Integer n) {
+			if (n == null)
+				throw new NullPointerException("n must not be null");
+
+			this.n = n;
+		}
+
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			private int n;
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				for (int i=1; i<=n; i++){
+					for(int j=1; j<=i; j++){
+						out.collect(new ArrayNode(new IntNode(i),new IntNode(j)), new BinarySparseMatrix());
+					}
+				}
+
+			}
+		}
+	}
+	
+	@InputCardinality(min = 2, max = 2)
+	private static class FillMatrix extends ElementaryOperator<FillMatrix> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 7978217716893352313L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.ArrayNode, eu.stratosphere.sopremo.jsondatamodel.ArrayNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
+				if(values1.isEmpty()){
+					out.collect(key, values2.get(0));
+				} else {
+					out.collect(key, values1.get(0));
+				}
+			}
+		}
+	}
+
 	private static class EmitMatrix extends ElementaryOperator<EmitMatrix> {
 
 		/**
@@ -169,6 +215,39 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 						if (JsonNodeComparator.INSTANCE.compare(row, column) < 0)
 							out.collect(/* key */NullNode.getInstance(),
 								JsonUtil.asArray(row, column));
+			}
+		}
+	}
+
+	public static void warshall(final BinarySparseMatrix matrix) {
+		// Warshall
+		for (JsonNode row : matrix.getRows()) {
+			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(matrix.get(row));
+			while (!columnsToExplore.isEmpty()) {
+				final JsonNode column = columnsToExplore.pop();
+				Set<JsonNode> transitiveColumn = matrix.get(column);
+				for (final JsonNode transitiveNode : transitiveColumn)
+					if (!row.equals(transitiveNode) && !matrix.isSet(row, transitiveNode)) {
+						matrix.set(row, transitiveNode);
+						columnsToExplore.push(transitiveNode);
+					}
+			}
+		}
+		// matrix.makeSymmetric();
+	}
+
+	public static void warshall(final BinarySparseMatrix primary, BinarySparseMatrix current) {
+		final Deque<JsonNode> rowsToExplore = new LinkedList<JsonNode>(current.getRows());
+		while (!rowsToExplore.isEmpty()) {
+			JsonNode row = rowsToExplore.pop();
+			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(primary.get(row));
+			while (!columnsToExplore.isEmpty()) {
+				final JsonNode column = columnsToExplore.pop();
+				for (final JsonNode transitiveNode : current.get(row))
+					if (!row.equals(transitiveNode) && !current.isSet(column, transitiveNode)) {
+						current.set(column, transitiveNode);
+						// columnsToExplore.push(transitiveNode);
+					}
 			}
 		}
 	}

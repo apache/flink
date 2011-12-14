@@ -19,9 +19,11 @@ public class ParallelTransitiveClosureTest {
 		// transitiveClosure.setClosureMode(ClosureMode.LINKS);
 		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
+		String nullInput = SopremoTest.getResourcePath("null.json");
 
 		String input = SopremoTest.getResourcePath("phase1.json");
-
+		
+		sopremoTestPlan.getInput(1).load(nullInput);
 		sopremoTestPlan
 			.getInput(0).load(input);
 
@@ -38,12 +40,13 @@ public class ParallelTransitiveClosureTest {
 		// transitiveClosure.setClosureMode(ClosureMode.LINKS);
 		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
-
+		String nullInput = SopremoTest.getResourcePath("null.json");
 		String input = SopremoTest.getResourcePath("phase2.json");
 
 		sopremoTestPlan
 			.getInput(0).load(input);
-
+		sopremoTestPlan.getInput(1).load(nullInput);
+		
 		String output = SopremoTest.getResourcePath("phase2Result.json");
 		sopremoTestPlan.getExpectedOutput(0).load(output);
 
@@ -57,11 +60,11 @@ public class ParallelTransitiveClosureTest {
 		// transitiveClosure.setClosureMode(ClosureMode.LINKS);
 		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
-
+		String nullInput = SopremoTest.getResourcePath("null.json");
 		String input = SopremoTest.getResourcePath("phase3.json");
 
-		sopremoTestPlan
-			.getInput(0).load(input);
+		sopremoTestPlan.getInput(0).load(input);
+		sopremoTestPlan.getInput(1).load(nullInput);
 
 		String output = SopremoTest.getResourcePath("phase3Result.json");
 		sopremoTestPlan.getExpectedOutput(0).load(output);
