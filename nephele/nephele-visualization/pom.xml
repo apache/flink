@@ -8,12 +8,12 @@
 	<parent>
 		<artifactId>nephele</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.1.1</version>
+		<version>0.1.2</version>
 	</parent>
 
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>nephele-visualization</artifactId>
-	<version>0.1.1</version>
+	<version>0.1.2</version>
 	<name>nephele-visualization</name>
 	<packaging>jar</packaging>
 

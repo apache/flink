@@ -7,7 +7,7 @@
     <parent>
         <artifactId>nephele</artifactId>
         <groupId>eu.stratosphere</groupId>
-        <version>0.1.1</version>
+        <version>0.1.2</version>
     </parent>
 
     <groupId>eu.stratosphere</groupId>
@@ -15,7 +15,7 @@
     <name>nephele-ec2cloudmanager</name>
     <packaging>jar</packaging>
 
-    <version>0.1.1</version>
+    <version>0.1.2</version>
     
     <dependencies>
       <dependency>

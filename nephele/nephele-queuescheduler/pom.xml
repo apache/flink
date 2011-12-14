@@ -3,13 +3,13 @@
   <parent>
     <groupId>eu.stratosphere</groupId>
     <artifactId>nephele</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>eu.stratosphere</groupId>
   <artifactId>nephele-queuescheduler</artifactId>
   <name>nephele-queuescheduler</name>
-  <version>0.1.1</version>
+  <version>0.1.2</version>
   <url>http://maven.apache.org</url>
   
   <dependencies>
