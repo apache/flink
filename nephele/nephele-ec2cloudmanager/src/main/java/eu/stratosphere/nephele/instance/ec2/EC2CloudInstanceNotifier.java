@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.instance.ec2;
 
+import java.util.List;
+
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -37,7 +39,7 @@ final class EC2CloudInstanceNotifier extends Thread {
 	 */
 	private final InstanceListener instanceListener;
 
-	private final AllocatedResource allocatedResource;
+	private final List<AllocatedResource> allocatedResources;
 
 	private final JobID jobID;
 
@@ -48,14 +50,14 @@ final class EC2CloudInstanceNotifier extends Thread {
 	 *        the listener to send the notification to
 	 * @param jobID
 	 *        the ID of the job the notification refers to
-	 * @param allocatedResource
-	 *        the resource which have been allocated for the job with the given ID
+	 * @param allocatedResources
+	 *        the resources which have been allocated for the job with the given ID
 	 */
 	public EC2CloudInstanceNotifier(final InstanceListener instanceListener, final JobID jobID,
-			final AllocatedResource allocatedResource) {
+			final List<AllocatedResource> allocatedResources) {
 		this.instanceListener = instanceListener;
 		this.jobID = jobID;
-		this.allocatedResource = allocatedResource;
+		this.allocatedResources = allocatedResources;
 	}
 
 	/**
@@ -63,6 +65,6 @@ final class EC2CloudInstanceNotifier extends Thread {
 	 */
 	@Override
 	public void run() {
-		this.instanceListener.resourceAllocated(this.jobID, this.allocatedResource);
+		this.instanceListener.resourcesAllocated(this.jobID, this.allocatedResources);
 	}
 }

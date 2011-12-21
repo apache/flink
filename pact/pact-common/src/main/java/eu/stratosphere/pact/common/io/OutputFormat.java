@@ -15,15 +15,10 @@
 
 package eu.stratosphere.pact.common.io;
 
-import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType1;
-import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType2;
-
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 
 /**
@@ -40,12 +35,9 @@ import eu.stratosphere.pact.common.type.Value;
  *   <li>The output format is closed</li>
  * </ol>
  * 
- * @param <K> The type of the key.
- * @param <V> The type of the value.
- * 
  * @author Stephan Ewen
  */
-public abstract class OutputFormat<K extends Key, V extends Value>
+public abstract class OutputFormat
 {
 	/**
 	 * Configures this output format. Since output formats are instantiated generically and hence parameterless, 
@@ -76,7 +68,7 @@ public abstract class OutputFormat<K extends Key, V extends Value>
 	 * @param record The records to add to the output.
 	 * @throws IOException Thrown, if the records could not be added to to an I/O problem.
 	 */
-	public abstract void writeRecord(KeyValuePair<K, V> record) throws IOException;
+	public abstract void writeRecord(PactRecord record) throws IOException;
 	
 	/**
 	 * Method that marks the end of the life-cycle of parallel output instance. Should be used to close
@@ -88,50 +80,5 @@ public abstract class OutputFormat<K extends Key, V extends Value>
 	 * @throws IOException Thrown, if the input could not be closed properly.
 	 */
 	public abstract void close() throws IOException;
-	
-	
-	
-	// --------------------------------------------------------------------------------------------
-	// The code below here will most likely disappear with the new data model.
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * The input key type class.
-	 */
-	protected Class<K> keyClass;
-
-	/**
-	 * The input value type class.
-	 */
-	protected Class<V> valueClass;
-	
-	/**
-	 * Default constructor initializing the input data types.
-	 */
-	protected OutputFormat()
-	{
-		this.keyClass = getTemplateType1(getClass());
-		this.valueClass = getTemplateType2(getClass());
-	}
-
-	/**
-	 * Gets the class that describes the key type.
-	 * 
-	 * @return The key type class.
-	 */
-	public Class<K> getKeyType()
-	{
-		return this.keyClass;
-	}
-	
-	/**
-	 * Gets the class that describes the value type.
-	 * 
-	 * @return The value type class.
-	 */
-	public Class<V> getValueType()
-	{
-		return this.valueClass;
-	}
 }
 

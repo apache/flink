@@ -18,7 +18,10 @@ package eu.stratosphere.nephele.instance;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Set;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -26,6 +29,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
@@ -176,15 +180,17 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the configuration of the overall job
 	 * @param environment
 	 *        the environment encapsulating the task
+	 * @param activeOutputChannels
+	 *        the set of initially active output channels
 	 * @return the result of the submission attempt
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the task
 	 */
 	public synchronized TaskSubmissionResult submitTask(final ExecutionVertexID id,
 			final Configuration jobConfiguration,
-			final Environment environment) throws IOException {
+			final Environment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
 
-		return getTaskManager().submitTask(id, jobConfiguration, environment);
+		return getTaskManager().submitTask(id, jobConfiguration, environment, activeOutputChannels);
 	}
 
 	/**
@@ -200,6 +206,18 @@ public abstract class AbstractInstance extends NetworkNode {
 			throws IOException {
 
 		return getTaskManager().submitTasks(tasks);
+	}
+
+	public synchronized List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs)
+			throws IOException {
+
+		return getTaskManager().replayCheckpoints(vertexIDs);
+	}
+
+	public synchronized void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions)
+			throws IOException {
+
+		getTaskManager().propagateCheckpointDecisions(checkpointDecisions);
 	}
 
 	/**
@@ -271,8 +289,20 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
 	 */
-	public void logBufferUtilization() throws IOException {
+	public synchronized void logBufferUtilization() throws IOException {
 
 		getTaskManager().logBufferUtilization();
+	}
+
+	/**
+	 * Kills the task manager running on this instance. This method is mainly intended to test and debug Nephele's fault
+	 * tolerance mechanisms.
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the request
+	 */
+	public synchronized void killTaskManager() throws IOException {
+
+		getTaskManager().killTaskManager();
 	}
 }

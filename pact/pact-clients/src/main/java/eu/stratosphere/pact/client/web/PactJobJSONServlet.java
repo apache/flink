@@ -72,30 +72,49 @@ public class PactJobJSONServlet extends HttpServlet {
 		}
 
 		// create the pact plan
+		PactProgram pactProgram;
 		try {
-			PactProgram pactProgram = new PactProgram(jarFile, new String[0]);
+			pactProgram = new PactProgram(jarFile, new String[0]);
+		}
+		catch (Throwable t) {
+			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+			resp.getWriter().print(t.getMessage());
+			return;
+		}
+		
+		String jsonPlan = null;
+		String programDescription = null;
+		
+		try {
 			OptimizedPlan optPlan = pactProgram.getPreviewPlan();
-			String programDescription = pactProgram.getDescription();
+			jsonPlan = new JSONGenerator().compilePlanToJSON(optPlan);
+		}
+		catch (Throwable t) {}
+		
+		try {
+			programDescription = pactProgram.getDescription();
+		}
+		catch (Throwable t) {}
 			
+		if (jsonPlan == null && programDescription == null) {
+			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+			return;
+		} else {
 			resp.setStatus(HttpServletResponse.SC_OK);
 			PrintWriter wrt = resp.getWriter();
 			wrt.print("{ \"jobname\": \"");
 			wrt.print(jobName);
-			if(optPlan != null) {
+			if (jsonPlan != null) {
 				wrt.print("\", \"plan\": ");
-				String json = new JSONGenerator().compilePlanToJSON(optPlan);
-				wrt.println(json);
+				wrt.println(jsonPlan);
 			}
 			if (programDescription != null) {
 				wrt.print(", \"description\": \"");
 				wrt.print(escapeString(programDescription));
-				wrt.print("\"");
 			}
+			
+			wrt.print("\"");
 			wrt.println("}");
-		} catch (Throwable t) {
-			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-			resp.getWriter().print(t.getMessage());
-			return;
 		}
 	}
 
@@ -109,7 +128,8 @@ public class PactJobJSONServlet extends HttpServlet {
 			if ((c == '\\') || (c == '"') || (c == '/')) {
 				sb.append('\\');
 				sb.append(c);
-			} else if (c == '\b')
+			}
+			else if (c == '\b')
 				sb.append("\\b");
 			else if (c == '\t')
 				sb.append("\\t");
@@ -119,6 +139,10 @@ public class PactJobJSONServlet extends HttpServlet {
 				sb.append("\\f");
 			else if (c == '\r')
 				sb.append("\\r");
+			else if (c == '>')
+				sb.append("&gt;");
+			else if (c == '<')
+				sb.append("&lt;");
 			else {
 				if (c < ' ') {
 					// Unreadable throw away

@@ -22,35 +22,32 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class DataSourceTaskTest extends TaskTestBase {
-
-	private static final Log LOG = LogFactory.getLog(DataSourceTaskTest.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList;
+	private List<PactRecord> outList;
 	
-	String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
+	private String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
 	
 	@After
 	public void cleanUp() {
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		if(tempTestFile.exists()) {
 			tempTestFile.delete();
 		}
@@ -63,38 +60,38 @@ public class DataSourceTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+		this.outList = new ArrayList<PactRecord>();
 		
 		try {
 			InputFilePreparator.prepareInputFile(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 
-				tempTestPath, true);
+				this.tempTestPath, true);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
 		}
 		
 		super.initEnvironment(1);
-		super.addOutput(outList);
+		super.addOutput(this.outList);
 		
 		DataSourceTask testTask = new DataSourceTask();
 		
-		super.registerFileInputTask(testTask, MockInputFormat.class, "file://"+tempTestPath, "\n");
+		super.registerFileInputTask(testTask, MockInputFormat.class, "file://"+this.tempTestPath, "\n");
 		
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			LOG.debug(e);
+			System.err.println(e);
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue("Invalid output size. Expected: "+(keyCnt*valCnt)+" Actual: "+outList.size(),
-			outList.size() == keyCnt * valCnt);
+		Assert.assertTrue("Invalid output size. Expected: "+(keyCnt*valCnt)+" Actual: "+this.outList.size(),
+			this.outList.size() == keyCnt * valCnt);
 		
 		HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
 		
-		for(KeyValuePair<PactInteger,PactInteger> kvp : outList) {
+		for (PactRecord kvp : this.outList) {
 			
-			Integer key = kvp.getKey().getValue();
-			Integer val = kvp.getValue().getValue();
+			int key = kvp.getField(0, PactInteger.class).getValue();
+			int val = kvp.getField(1, PactInteger.class).getValue();
 			
 			if(!keyValueCountMap.containsKey(key)) {
 				keyValueCountMap.put(key,new HashSet<Integer>());
@@ -119,22 +116,22 @@ public class DataSourceTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 10;
 		
-		outList = new NirvanaOutputList();
+		this.outList = new NirvanaOutputList();
 		
 		try {
 			InputFilePreparator.prepareInputFile(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 
-				tempTestPath, false);
+				this.tempTestPath, false);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
 		}
 		
 		super.initEnvironment(1);
-		super.addOutput(outList);
+		super.addOutput(this.outList);
 		
 		DataSourceTask testTask = new DataSourceTask();
 
 		
-		super.registerFileInputTask(testTask, MockFailingInputFormat.class, "file://"+tempTestPath, "\n");
+		super.registerFileInputTask(testTask, MockFailingInputFormat.class, "file://"+this.tempTestPath, "\n");
 		
 		boolean stubFailed = false;
 		
@@ -147,7 +144,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
 		// assert that temp file was created
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 		
 	}
@@ -163,16 +160,17 @@ public class DataSourceTaskTest extends TaskTestBase {
 		
 		try {
 			InputFilePreparator.prepareInputFile(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 
-				tempTestPath, false);
+				this.tempTestPath, false);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
 		}
 		
 		final DataSourceTask testTask = new DataSourceTask();
 		
-		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  "file://"+tempTestPath, "\n");
+		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  "file://"+this.tempTestPath, "\n");
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -195,122 +193,121 @@ public class DataSourceTaskTest extends TaskTestBase {
 		}
 		
 		// assert that temp file was created
-		File tempTestFile = new File(tempTestPath);
+		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 				
 	}
 
 	
-	public static class InputFilePreparator {
-		
-		public static void prepareInputFile(Iterator<KeyValuePair<PactInteger,PactInteger>> inIt, 
-				String inputFilePath, boolean insertInvalidData) throws IOException{
-			
+	private static class InputFilePreparator
+	{
+		public static void prepareInputFile(MutableObjectIterator<PactRecord> inIt, String inputFilePath, boolean insertInvalidData)
+		throws IOException
+		{
 			FileWriter fw = new FileWriter(inputFilePath);
 			BufferedWriter bw = new BufferedWriter(fw);
 			
-			if(insertInvalidData) bw.write("####_I_AM_INVALID_########\n");
-			while(inIt.hasNext()) {
-				KeyValuePair<PactInteger,PactInteger> kvp = inIt.next();
+			if (insertInvalidData)
+				bw.write("####_I_AM_INVALID_########\n");
+			
+			PactRecord rec = new PactRecord();
+			while (inIt.next(rec)) {
+				PactInteger key = rec.getField(0, PactInteger.class);
+				PactInteger value = rec.getField(1, PactInteger.class);
 				
-				bw.write(kvp.getKey().getValue()+"_"+kvp.getValue().getValue()+"\n");
+				bw.write(key.getValue() + "_" + value.getValue() + "\n");
 			}
-			if(insertInvalidData) bw.write("####_I_AM_INVALID_########\n");
+			if (insertInvalidData)
+				bw.write("####_I_AM_INVALID_########\n");
 			
 			bw.flush();
 			bw.close();
-			
 		}
-		
 	}
 	
-	public static class MockInputFormat extends TextInputFormat<PactInteger, PactInteger> {
-
+	public static class MockInputFormat extends DelimitedInputFormat
+	{
+		private final PactInteger key = new PactInteger();
+		private final PactInteger value = new PactInteger();
+		
 		@Override
-		public boolean readLine(KeyValuePair<PactInteger, PactInteger> pair, byte[] record) {
+		public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
 			
 			String line = new String(record);
 			
-			Integer key = null;
-			Integer val = null;
-			
 			try {
-				key = Integer.parseInt(line.substring(0,line.indexOf("_")));
-				val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
-			} catch(RuntimeException re) {
+				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
+				this.value.setValue(Integer.parseInt(line.substring(line.indexOf("_")+1,line.length())));
+			}
+			catch(RuntimeException re) {
 				return false;
 			}
 			
-			pair.setKey(new PactInteger(key));
-			pair.setValue(new PactInteger(val));
-			
+			target.setField(0, this.key);
+			target.setField(1, this.value);
 			return true;
 		}
-		
 	}
 	
-	public static class MockDelayingInputFormat extends TextInputFormat<PactInteger, PactInteger> {
-
+	public static class MockDelayingInputFormat extends DelimitedInputFormat
+	{
+		private final PactInteger key = new PactInteger();
+		private final PactInteger value = new PactInteger();
+		
 		@Override
-		public boolean readLine(KeyValuePair<PactInteger, PactInteger> pair, byte[] record) {
-
+		public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
 			try {
 				Thread.sleep(100);
-			} catch (InterruptedException e) {
+			}
+			catch (InterruptedException e) {
 				return false;
 			}
 			
 			String line = new String(record);
 			
-			Integer key = null;
-			Integer val = null;
-			
 			try {
-				key = Integer.parseInt(line.substring(0,line.indexOf("_")));
-				val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
-			} catch(RuntimeException re) {
+				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
+				this.value.setValue(Integer.parseInt(line.substring(line.indexOf("_")+1,line.length())));
+			}
+			catch(RuntimeException re) {
 				return false;
 			}
 			
-			pair.setKey(new PactInteger(key));
-			pair.setValue(new PactInteger(val));
-			
+			target.setField(0, this.key);
+			target.setField(1, this.value);
 			return true;
 		}
 		
 	}
 	
-	public static class MockFailingInputFormat extends TextInputFormat<PactInteger, PactInteger> {
-
-		int cnt = 0;
+	public static class MockFailingInputFormat extends DelimitedInputFormat {
+		private final PactInteger key = new PactInteger();
+		private final PactInteger value = new PactInteger();
+		
+		private int cnt = 0;
 		
 		@Override
-		public boolean readLine(KeyValuePair<PactInteger, PactInteger> pair, byte[] record) {
+		public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
 			
-			if(cnt == 10) {
+			if(this.cnt == 10) {
 				throw new RuntimeException();
 			}
 			
-			cnt++;
+			this.cnt++;
 			
 			String line = new String(record);
 			
-			Integer key = null;
-			Integer val = null;
-			
 			try {
-				key = Integer.parseInt(line.substring(0,line.indexOf("_")));
-				val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
-			} catch(RuntimeException re) {
+				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
+				this.value.setValue(Integer.parseInt(line.substring(line.indexOf("_")+1,line.length())));
+			}
+			catch(RuntimeException re) {
 				return false;
 			}
 			
-			pair.setKey(new PactInteger(key));
-			pair.setValue(new PactInteger(val));
-			
+			target.setField(0, this.key);
+			target.setField(1, this.value);
 			return true;
 		}
-		
 	}
-	
 }

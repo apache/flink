@@ -25,9 +25,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stub.CoGroupStub;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
@@ -36,11 +36,12 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings( {"javadoc", "unchecked"} )
 public class CoGroupTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(CoGroupTaskTest.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+	List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testSortBoth1CoGroupTask() {
@@ -52,14 +53,17 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -72,9 +76,9 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -88,14 +92,17 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -108,9 +115,9 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -124,14 +131,17 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true), 2);
+		super.addOutput(this.outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -144,9 +154,9 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -160,14 +170,17 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true),1 );
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -180,9 +193,9 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -196,14 +209,17 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true), 2);
+		super.addOutput(this.outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
 		super.getTaskConfig().setMemorySize(0);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -216,9 +232,9 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -232,14 +248,17 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockFailingCoGroupStub.class);
 		
@@ -253,7 +272,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -264,18 +283,22 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt = 2;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(1000));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new DelayingInfinitiveInputIterator(1000), 2);
 		super.addOutput(new NirvanaOutputList());
 		
 		final CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -306,18 +329,22 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt = 2;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new DelayingInfinitiveInputIterator(1000));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new DelayingInfinitiveInputIterator(1000), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
 		final CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -347,18 +374,22 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt = 5;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
 		final CoGroupTask testTask = new CoGroupTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockDelayingCoGroupStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -381,26 +412,26 @@ public class CoGroupTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static class MockCoGroupStub extends CoGroupStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockCoGroupStub extends CoGroupStub {
 
 		@Override
-		public void coGroup(PactInteger key, Iterator<PactInteger> values1, Iterator<PactInteger> values2,
-				Collector<PactInteger, PactInteger> out) {
-
+		public void coGroup(Iterator<PactRecord> records1,
+				Iterator<PactRecord> records2, Collector out) {
 			int val1Cnt = 0;
 			
-			while(values1.hasNext()) {
+			while (records1.hasNext()) {
 				val1Cnt++;
-				values1.next();
+				records1.next();
 			}
 			
-			while(values2.hasNext()) {
-				PactInteger val2 =  values2.next();
-				if(val1Cnt == 0) {
-					out.collect(key,val2);
+			while (records2.hasNext()) {
+				PactRecord record2 = records2.next();
+				
+				if (val1Cnt == 0) {
+					out.collect(record2);
 				} else {
-					for(int i=0; i<val1Cnt; i++) {
-						out.collect(key,val2);
+					for (int i=0; i<val1Cnt; i++) {
+						out.collect(record2);
 					}
 				}
 			}
@@ -408,38 +439,37 @@ public class CoGroupTaskTest extends TaskTestBase {
 	
 	}
 	
-	public static class MockFailingCoGroupStub extends CoGroupStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockFailingCoGroupStub extends CoGroupStub {
 		
 		int cnt = 0;
 		
 		@Override
-		public void coGroup(PactInteger key, Iterator<PactInteger> values1, Iterator<PactInteger> values2,
-				Collector<PactInteger, PactInteger> out) {
-
+		public void coGroup(Iterator<PactRecord> records1,
+				Iterator<PactRecord> records2, Collector out) throws RuntimeException {
 			int val1Cnt = 0;
 			
-			while(values1.hasNext()) {
+			while (records1.hasNext()) {
 				val1Cnt++;
-				values1.next();
+				records1.next();
 			}
 			
-			while(values2.hasNext()) {
-				PactInteger val2 =  values2.next();
-				if(val1Cnt == 0) {
+			while (records2.hasNext()) {
+				PactRecord record2 = records2.next();
+				if (val1Cnt == 0) {
 					
-					if(++cnt>=10) {
+					if(++this.cnt>=10) {
 						throw new RuntimeException("Expected Test Exception");
 					}
 					
-					out.collect(key,val2);
+					out.collect(record2);
 				} else {
-					for(int i=0; i<val1Cnt; i++) {
+					for (int i=0; i<val1Cnt; i++) {
 						
-						if(++cnt>=10) {
+						if(++this.cnt>=10) {
 							throw new RuntimeException("Expected Test Exception");
 						}
 						
-						out.collect(key,val2);
+						out.collect(record2);
 					}
 				}
 			}
@@ -447,25 +477,26 @@ public class CoGroupTaskTest extends TaskTestBase {
 	
 	}
 	
-	public static class MockDelayingCoGroupStub extends CoGroupStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockDelayingCoGroupStub extends CoGroupStub {
 
 		@Override
-		public void coGroup(PactInteger key, Iterator<PactInteger> values1, Iterator<PactInteger> values2,
-				Collector<PactInteger, PactInteger> out) {
-
-			while(values1.hasNext()) {
+		public void coGroup(Iterator<PactRecord> records1,
+				Iterator<PactRecord> records2, Collector out) {
+			
+			while(records1.hasNext()) {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
-				values1.next();
+				records1.next();
 			}
 			
-			while(values2.hasNext()) {
+			while(records2.hasNext()) {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
-				values2.next();
+				records2.next();
 			}
+			
 		}
 	
 	}

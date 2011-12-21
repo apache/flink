@@ -43,9 +43,9 @@ public final class IOManager implements UncaughtExceptionHandler
 	private static final Log LOG = LogFactory.getLog(IOManager.class);
 
 	/**
-	 * The default temp path for anonymous Channels.
+	 * The default temp paths for anonymous Channels.
 	 */
-	private final String path;
+	private final String[] paths;
 
 	/**
 	 * A random number generator for the anonymous ChannelIDs.
@@ -58,9 +58,14 @@ public final class IOManager implements UncaughtExceptionHandler
 	private final WriterThread writer;
 
 	/**
-	 * The reader thread used for asynchronous block oriented channel reading.
+	 * The reader threads used for asynchronous block oriented channel reading.
 	 */
-	private final ReaderThread reader;
+	private final ReaderThread[] readers;
+	
+	/**
+	 * The number of the next path to use.
+	 */
+	private volatile int nextPath;
 
 	/**
 	 * A boolean flag indicating whether the close() has already been invoked.
@@ -72,8 +77,20 @@ public final class IOManager implements UncaughtExceptionHandler
 	//               Constructors / Destructors
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Constructs a new IOManager, writing channels to the system directory.
+	 */
 	public IOManager() {
 		this(System.getProperty("java.io.tmpdir"));
+	}
+	
+	/**
+	 * Constructs a new IOManager.
+	 * 
+	 * @param path The base directory path for files underlying channels.
+	 */
+	public IOManager(String tempDir) {
+		this(new String[] {tempDir});
 	}
 
 	/**
@@ -83,11 +100,13 @@ public final class IOManager implements UncaughtExceptionHandler
 	 *        the basic directory path for files underlying anonymous
 	 *        channels.
 	 */
-	public IOManager(String path) {
-		this.path = path;
+	public IOManager(String[] paths)
+	{
+		this.paths = paths;
 		this.random = new Random();
+		this.nextPath = 0;
+		
 		this.writer = new WriterThread();
-		this.reader = new ReaderThread();
 
 		// start the ChannelWriter worker thread
 		this.writer.setName("IOManager writer thread");
@@ -95,11 +114,16 @@ public final class IOManager implements UncaughtExceptionHandler
 		this.writer.setUncaughtExceptionHandler(this);
 		this.writer.start();
 
-		// start the ChannelReader worker thread
-		this.reader.setName("IOManager reader thread");
-		this.reader.setDaemon(true);
-		this.reader.setUncaughtExceptionHandler(this);
-		this.reader.start();
+		// start a reader worker thread for each directory
+		this.readers = new ReaderThread[paths.length];
+		for (int i = 0; i < this.readers.length; i++) {
+			final ReaderThread t = new ReaderThread();
+			this.readers[i] = t;
+			t.setName("IOManager reader thread #" + i);
+			t.setDaemon(true);
+			t.setUncaughtExceptionHandler(this);
+			t.start();
+		}
 	}
 
 	/**
@@ -107,28 +131,38 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * pending requests to be served. This method waits until the threads have actually ceased their
 	 * operation.
 	 */
-	public synchronized final void shutdown() {
-		if (!isClosed) {
-			isClosed = true;
+	public synchronized final void shutdown()
+	{
+		if (!this.isClosed) {
+			this.isClosed = true;
 
 			// close both threads by best effort and log problems
+			
+			// --------------------------------- writer shutdown ----------------------------------
 			try {
-				writer.shutdown();
+				this.writer.shutdown();
 			}
 			catch (Throwable t) {
 				LOG.error("Error while shutting down IO Manager writing thread.", t);
 			}
+
+			// --------------------------------- reader shutdown ----------------------------------
 			
-			try {
-				reader.shutdown();
-			}
-			catch (Throwable t) {
-				LOG.error("Error while shutting down IO Manager reading thread.", t);
+			for (int i = 0; i < this.readers.length; i++) {
+				try {
+					this.readers[i].shutdown();
+				}
+				catch (Throwable t) {
+					LOG.error("Error while shutting down IO Manager reading thread.", t);
+				}
 			}
 			
+			// ------------------------ wait until shutdown is complete ---------------------------
 			try {
 				this.writer.join();
-				this.reader.join();
+				for (int i = 0; i < this.readers.length; i++) {
+					this.readers[i].join();
+				}
 			}
 			catch (InterruptedException iex) {}
 		}
@@ -140,20 +174,24 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * 
 	 * @return True, if the IO manager has properly shut down, false otherwise.
 	 */
-	public final boolean isProperlyShutDown() {
-		return isClosed && 
-			(this.writer.getState() == Thread.State.TERMINATED) && 
-			(this.reader.getState() == Thread.State.TERMINATED);
+	public final boolean isProperlyShutDown()
+	{
+		boolean readersShutDown = true;
+		for (int i = 0; i < this.readers.length; i++) {
+			readersShutDown &= this.readers[i].getState() == Thread.State.TERMINATED;
+		}
+		
+		return isClosed && (this.writer.getState() == Thread.State.TERMINATED) && readersShutDown;
 	}
 
 	/* (non-Javadoc)
 	 * @see java.lang.Thread.UncaughtExceptionHandler#uncaughtException(java.lang.Thread, java.lang.Throwable)
 	 */
 	@Override
-	public void uncaughtException(Thread t, Throwable e) {
+	public void uncaughtException(Thread t, Throwable e)
+	{
 		LOG.fatal("IO Thread '" + t.getName() + "' terminated due to an exception. Closing IO Manager.", e);
-		shutdown();
-		
+		shutdown();	
 	}
 
 	// ------------------------------------------------------------------------
@@ -161,41 +199,25 @@ public final class IOManager implements UncaughtExceptionHandler
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * Creates a new {@link Channel.ID} in the default {@code path}.
+	 * Creates a new {@link Channel.ID} in one of the temp directories. Multiple
+	 * invocations of this method spread the channels evenly across the different directories.
 	 * 
-	 * @return
+	 * @return A channel to a temporary directory.
 	 */
-	public Channel.ID createChannel() {
-		return createChannel(path);
+	public Channel.ID createChannel()
+	{
+		final int num = getNextPathNum();
+		return new Channel.ID(this.paths[num], num, this.random);
 	}
 
 	/**
-	 * Creates a new {@link Channel.ID} in the specified {@code path}.
+	 * Creates a new {@link Channel.Enumerator}, spreading the channels in a round-robin fashion
+	 * across the temporary file directories.
 	 * 
-	 * @param path
-	 * @return
-	 */
-	public Channel.ID createChannel(String path) {
-		return new Channel.ID(path, random);
-	}
-
-	/**
-	 * Creates a new {@link Channel.Enumerator} in the default {@code path}.
-	 * 
-	 * @return
+	 * @return An enumerator for channels.
 	 */
 	public Channel.Enumerator createChannelEnumerator() {
-		return createChannelEnumerator(path);
-	}
-
-	/**
-	 * Creates a new {@link Channel.Enumerator} in the specified {@code path}.
-	 * 
-	 * @param path
-	 * @return
-	 */
-	public Channel.Enumerator createChannelEnumerator(String path) {
-		return new Channel.Enumerator(path, random);
+		return new Channel.Enumerator(this.paths, this.random);
 	}
 
 	
@@ -261,7 +283,7 @@ public final class IOManager implements UncaughtExceptionHandler
 			throw new IllegalStateException("IO-Manger is closed.");
 		}
 		
-		return new ChannelReader(channelID, reader.requestQueue, createInputBuffers(freeSegments), deleteFileAfterRead);
+		return new ChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, createInputBuffers(freeSegments), deleteFileAfterRead);
 	}
 	
 	/**
@@ -286,6 +308,24 @@ public final class IOManager implements UncaughtExceptionHandler
 	}
 	
 	/**
+	 * Creates a block channel writer that writes to the given channel. The writer writes asynchronously (write-behind),
+	 * accepting write request, carrying them out at some time and returning the written segment its return queue afterwards.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @return A block channel writer that writes to the given channel.
+	 * @throws IOException Thrown, if the channel for the writer could not be opened.
+	 */
+	public BlockChannelWriter createBlockChannelWriter(Channel.ID channelID)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
+		return new BlockChannelWriter(channelID, this.writer.requestQueue, new LinkedBlockingQueue<MemorySegment>());
+	}
+	
+	/**
 	 * Creates a block channel reader that reads blocks from the given channel. The reader reads asynchronously,
 	 * such that a read request is accepted, carried out at some (close) point in time, and the full segment
 	 * is pushed to the given queue.
@@ -303,7 +343,26 @@ public final class IOManager implements UncaughtExceptionHandler
 			throw new IllegalStateException("IO-Manger is closed.");
 		}
 		
-		return new BlockChannelReader(channelID, this.reader.requestQueue, returnQueue);
+		return new BlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, returnQueue);
+	}
+	
+	/**
+	 * Creates a block channel reader that reads blocks from the given channel. The reader reads asynchronously,
+	 * such that a read request is accepted, carried out at some (close) point in time, and the full segment
+	 * is pushed to the reader's return queue.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @return A block channel reader that reads from the given channel.
+	 * @throws IOException Thrown, if the channel for the reader could not be opened.
+	 */
+	public BlockChannelReader createBlockChannelReader(Channel.ID channelID)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("IO-Manger is closed.");
+		}
+		
+		return new BlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, new LinkedBlockingQueue<MemorySegment>());
 	}
 	
 	/**
@@ -329,7 +388,7 @@ public final class IOManager implements UncaughtExceptionHandler
 			throw new IllegalStateException("IO-Manger is closed.");
 		}
 		
-		return new BulkBlockChannelReader(channelID, this.reader.requestQueue, targetSegments, numBlocks);
+		return new BulkBlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, targetSegments, numBlocks);
 	}
 
 	
@@ -408,6 +467,17 @@ public final class IOManager implements UncaughtExceptionHandler
 		return freeSegments;
 	}
 	
+	// ========================================================================
+	//                             Utilities
+	// ========================================================================
+	
+	private final int getNextPathNum() {
+		int next = this.nextPath;
+		final int newNext = (next + 1) >= this.paths.length ? 0 : (next + 1);
+		this.nextPath = newNext;
+		return next;
+	}
+	
 	
 	// ========================================================================
 	//                          I/O Worker Threads
@@ -428,7 +498,7 @@ public final class IOManager implements UncaughtExceptionHandler
 		// ---------------------------------------------------------------------
 		// Constructors / Destructors
 		// ---------------------------------------------------------------------
-
+		
 		protected ReaderThread()
 		{
 			this.requestQueue = new RequestQueue<ReadRequest>();
@@ -450,14 +520,14 @@ public final class IOManager implements UncaughtExceptionHandler
 					this.interrupt();
 				}
 				catch (Throwable t) {}
-				
-				// notify all pending write requests that the thread has been shut down
-				IOException ioex = new IOException("Reading thread has been closed.");
-				
-				while (!this.requestQueue.isEmpty()) {
-					ReadRequest request = this.requestQueue.poll();
-					request.requestDone(ioex);
-				}
+			}
+			
+			// notify all pending write requests that the thread has been shut down
+			IOException ioex = new IOException("IO-Manager has been closed.");
+			
+			while (!this.requestQueue.isEmpty()) {
+				ReadRequest request = this.requestQueue.poll();
+				request.requestDone(ioex);
 			}
 		}
 

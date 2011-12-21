@@ -31,14 +31,12 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -71,9 +69,9 @@ public class SortMergeCoGroupIteratorITCase {
 	private Generator generator2;
 
 	// left and right input RecordReader mocks
-	private Reader<KeyValuePair<TestData.Key, TestData.Value>> reader1;
+	private MutableObjectIterator<PactRecord> reader1;
 
-	private Reader<KeyValuePair<TestData.Key, TestData.Value>> reader2;
+	private MutableObjectIterator<PactRecord> reader2;
 	
 	// dummy abstract task
 	private final AbstractTask parentTask = new DummyInvokable();
@@ -123,46 +121,71 @@ public class SortMergeCoGroupIteratorITCase {
 			generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			generator2 = new Generator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 
-			reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
-			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+			reader1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
+			reader2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			// collect expected data
-			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, List<Collection<Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
+			Map<TestData.Key, Collection<TestData.Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
+			Map<TestData.Key, Collection<TestData.Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
+			Map<TestData.Key, List<Collection<TestData.Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
-						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
-						TestData.Value.class, TestData.Value.class,
+			@SuppressWarnings("unchecked")
+			SortMergeCoGroupIterator iterator =	new SortMergeCoGroupIterator(
+						memoryManager, ioManager, reader1, reader2, new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
 			iterator.open();
-			while (iterator.next()) {
-				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
+			
+			final TestData.Key key = new TestData.Key();
+			while (iterator.next())
+			{
+				Iterator<PactRecord> iter1 = iterator.getValues1();
+				Iterator<PactRecord> iter2 = iterator.getValues2();
+				
+				TestData.Value v1 = null;
+				TestData.Value v2 = null;
+				
+				if (iter1.hasNext()) {
+					PactRecord rec = iter1.next();
+					rec.getFieldInto(0, key);
+					v1 = rec.getField(1, TestData.Value.class);
+				}
+				else if (iter2.hasNext()) {
+					PactRecord rec = iter2.next();
+					rec.getFieldInto(0, key);
+					v2 = rec.getField(1, TestData.Value.class);
+				}
+				else {
+					Assert.fail("No input on both sides.");
+				}
 	
 				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedCoGroupsMap.containsKey(key));
-	
-				// assert that each map is expected
-				Iterator<TestData.Value> iter1 = iterator.getValues1();
-				Iterator<TestData.Value> iter2 = iterator.getValues2();
-	
-				Collection<Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
-				Collection<Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				Assert.assertTrue("No matches for key " + key, expectedCoGroupsMap.containsKey(key));
+				
+				Collection<TestData.Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
+				Collection<TestData.Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				
+				if (v1 != null) {
+					expValues1.remove(v1);
+				}
+				else {
+					expValues2.remove(v2);
+				}
 				
 				while(iter1.hasNext()) {
-					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(iter1.next()));
+					PactRecord rec = iter1.next();
+					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
 				
 				while(iter2.hasNext()) {
-					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(iter2.next()));
+					PactRecord rec = iter2.next();
+					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
 	
@@ -186,46 +209,71 @@ public class SortMergeCoGroupIteratorITCase {
 			generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
 
-			reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
-			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+			reader1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
+			reader2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 
 			// collect expected data
-			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, List<Collection<Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
+			Map<TestData.Key, Collection<TestData.Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
+			Map<TestData.Key, Collection<TestData.Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
+			Map<TestData.Key, List<Collection<TestData.Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
-						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
-						TestData.Value.class, TestData.Value.class,
+			@SuppressWarnings("unchecked")
+			SortMergeCoGroupIterator iterator =	new SortMergeCoGroupIterator(
+				memoryManager, ioManager, reader1, reader2, new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_FIRST_MERGE, parentTask);
 	
 			iterator.open();
-			while (iterator.next()) {
-				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
+			
+			final TestData.Key key = new TestData.Key();
+			while (iterator.next())
+			{
+				Iterator<PactRecord> iter1 = iterator.getValues1();
+				Iterator<PactRecord> iter2 = iterator.getValues2();
+				
+				TestData.Value v1 = null;
+				TestData.Value v2 = null;
+				
+				if (iter1.hasNext()) {
+					PactRecord rec = iter1.next();
+					rec.getFieldInto(0, key);
+					v1 = rec.getField(1, TestData.Value.class);
+				}
+				else if (iter2.hasNext()) {
+					PactRecord rec = iter2.next();
+					rec.getFieldInto(0, key);
+					v2 = rec.getField(1, TestData.Value.class);
+				}
+				else {
+					Assert.fail("No input on both sides.");
+				}
 	
 				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedCoGroupsMap.containsKey(key));
-	
-				// assert that each map is expected
-				Iterator<TestData.Value> iter1 = iterator.getValues1();
-				Iterator<TestData.Value> iter2 = iterator.getValues2();
-	
-				Collection<Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
-				Collection<Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				Assert.assertTrue("No matches for key " + key, expectedCoGroupsMap.containsKey(key));
+				
+				Collection<TestData.Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
+				Collection<TestData.Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				
+				if (v1 != null) {
+					expValues1.remove(v1);
+				}
+				else {
+					expValues2.remove(v2);
+				}
 				
 				while(iter1.hasNext()) {
-					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(iter1.next()));
+					PactRecord rec = iter1.next();
+					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
 				
 				while(iter2.hasNext()) {
-					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(iter2.next()));
+					PactRecord rec = iter2.next();
+					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
 	
@@ -248,46 +296,71 @@ public class SortMergeCoGroupIteratorITCase {
 			generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
 			generator2 = new Generator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 
-			reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
-			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+			reader1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
+			reader2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 
 			// collect expected data
-			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, List<Collection<Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
+			Map<TestData.Key, Collection<TestData.Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
+			Map<TestData.Key, Collection<TestData.Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
+			Map<TestData.Key, List<Collection<TestData.Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
-						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
-						TestData.Value.class, TestData.Value.class,
+			@SuppressWarnings("unchecked")
+			SortMergeCoGroupIterator iterator =	new SortMergeCoGroupIterator(
+				memoryManager, ioManager, reader1, reader2, new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_SECOND_MERGE, parentTask);
 	
 			iterator.open();
-			while (iterator.next()) {
-				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
+			
+			final TestData.Key key = new TestData.Key();
+			while (iterator.next())
+			{
+				Iterator<PactRecord> iter1 = iterator.getValues1();
+				Iterator<PactRecord> iter2 = iterator.getValues2();
+				
+				TestData.Value v1 = null;
+				TestData.Value v2 = null;
+				
+				if (iter1.hasNext()) {
+					PactRecord rec = iter1.next();
+					rec.getFieldInto(0, key);
+					v1 = rec.getField(1, TestData.Value.class);
+				}
+				else if (iter2.hasNext()) {
+					PactRecord rec = iter2.next();
+					rec.getFieldInto(0, key);
+					v2 = rec.getField(1, TestData.Value.class);
+				}
+				else {
+					Assert.fail("No input on both sides.");
+				}
 	
 				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedCoGroupsMap.containsKey(key));
-	
-				// assert that each map is expected
-				Iterator<TestData.Value> iter1 = iterator.getValues1();
-				Iterator<TestData.Value> iter2 = iterator.getValues2();
-	
-				Collection<Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
-				Collection<Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				Assert.assertTrue("No matches for key " + key, expectedCoGroupsMap.containsKey(key));
+				
+				Collection<TestData.Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
+				Collection<TestData.Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				
+				if (v1 != null) {
+					expValues1.remove(v1);
+				}
+				else {
+					expValues2.remove(v2);
+				}
 				
 				while(iter1.hasNext()) {
-					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(iter1.next()));
+					PactRecord rec = iter1.next();
+					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
 				
 				while(iter2.hasNext()) {
-					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(iter2.next()));
+					PactRecord rec = iter2.next();
+					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
 	
@@ -310,46 +383,71 @@ public class SortMergeCoGroupIteratorITCase {
 			generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
 			generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
 
-			reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
-			reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+			reader1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
+			reader2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 
 			// collect expected data
-			Map<Key, Collection<Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
-			Map<Key, Collection<Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
-			Map<Key, List<Collection<Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
+			Map<TestData.Key, Collection<TestData.Value>> expectedValuesMap1 = collectData(generator1, INPUT_1_SIZE);
+			Map<TestData.Key, Collection<TestData.Value>> expectedValuesMap2 = collectData(generator2, INPUT_2_SIZE);
+			Map<TestData.Key, List<Collection<TestData.Value>>> expectedCoGroupsMap = coGroupValues(expectedValuesMap1, expectedValuesMap2);
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeCoGroupIterator<TestData.Key, TestData.Value, TestData.Value>(
-						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
-						TestData.Value.class, TestData.Value.class,
+			@SuppressWarnings("unchecked")
+			SortMergeCoGroupIterator iterator =	new SortMergeCoGroupIterator(
+						memoryManager, ioManager, reader1, reader2, new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.MERGE, parentTask);
 	
 			iterator.open();
-			while (iterator.next()) {
-				TestData.Key key = new TestData.Key(iterator.getKey().getKey());
+			
+			final TestData.Key key = new TestData.Key();
+			while (iterator.next())
+			{
+				Iterator<PactRecord> iter1 = iterator.getValues1();
+				Iterator<PactRecord> iter2 = iterator.getValues2();
+				
+				TestData.Value v1 = null;
+				TestData.Value v2 = null;
+				
+				if (iter1.hasNext()) {
+					PactRecord rec = iter1.next();
+					rec.getFieldInto(0, key);
+					v1 = rec.getField(1, TestData.Value.class);
+				}
+				else if (iter2.hasNext()) {
+					PactRecord rec = iter2.next();
+					rec.getFieldInto(0, key);
+					v2 = rec.getField(1, TestData.Value.class);
+				}
+				else {
+					Assert.fail("No input on both sides.");
+				}
 	
 				// assert that matches for this key exist
-				Assert.assertTrue("No matches for key " + key + " are expected", expectedCoGroupsMap.containsKey(key));
-	
-				// assert that each map is expected
-				Iterator<TestData.Value> iter1 = iterator.getValues1();
-				Iterator<TestData.Value> iter2 = iterator.getValues2();
-	
-				Collection<Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
-				Collection<Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				Assert.assertTrue("No matches for key " + key, expectedCoGroupsMap.containsKey(key));
+				
+				Collection<TestData.Value> expValues1 = expectedCoGroupsMap.get(key).get(0);
+				Collection<TestData.Value> expValues2 = expectedCoGroupsMap.get(key).get(1);
+				
+				if (v1 != null) {
+					expValues1.remove(v1);
+				}
+				else {
+					expValues2.remove(v2);
+				}
 				
 				while(iter1.hasNext()) {
-					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(iter1.next()));
+					PactRecord rec = iter1.next();
+					Assert.assertTrue("Value not in expected set of first input", expValues1.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
 				
 				while(iter2.hasNext()) {
-					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(iter2.next()));
+					PactRecord rec = iter2.next();
+					Assert.assertTrue("Value not in expected set of second input", expValues2.remove(rec.getField(1, TestData.Value.class)));
 				}
 				Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
 	
@@ -365,50 +463,56 @@ public class SortMergeCoGroupIteratorITCase {
 		}
 	}
 
-	private Map<Key, List<Collection<Value>>> coGroupValues(Map<Key, Collection<Value>> leftMap,
-			Map<Key, Collection<Value>> rightMap) {
-		Map<Key, List<Collection<Value>>> map = new HashMap<Key, List<Collection<Value>>>();
+	// --------------------------------------------------------------------------------------------
+	
+	private Map<TestData.Key, List<Collection<TestData.Value>>> coGroupValues(
+			Map<TestData.Key, Collection<TestData.Value>> leftMap,
+			Map<TestData.Key, Collection<TestData.Value>> rightMap)
+	{
+		Map<TestData.Key, List<Collection<TestData.Value>>> map = new HashMap<TestData.Key, List<Collection<TestData.Value>>>(1000);
 
-		Set<Key> keySet = new HashSet<Key>(leftMap.keySet());
+		Set<TestData.Key> keySet = new HashSet<TestData.Key>(leftMap.keySet());
 		keySet.addAll(rightMap.keySet());
 		
-		for (Key key : keySet) {
-			Collection<Value> leftValues = leftMap.get(key);
-			Collection<Value> rightValues = rightMap.get(key);
-
-			map.put(key,new ArrayList<Collection<Value>>(2));
+		for (TestData.Key key : keySet) {
+			Collection<TestData.Value> leftValues = leftMap.get(key);
+			Collection<TestData.Value> rightValues = rightMap.get(key);
+			ArrayList<Collection<TestData.Value>> list = new ArrayList<Collection<TestData.Value>>(2);
 			
 			if (leftValues == null) {
-				map.get(key).add(new ArrayList<Value>(0));
+				list.add(new ArrayList<TestData.Value>(0));
 			} else {
-				map.get(key).add(leftValues);
+				list.add(leftValues);
 			}
 			
 			if (rightValues == null) {
-				map.get(key).add(new ArrayList<Value>(0));
+				list.add(new ArrayList<TestData.Value>(0));
 			} else {
-				map.get(key).add(rightValues);
+				list.add(rightValues);
 			}
+			
+			map.put(key, list);
 		}
-
 		return map;
 	}
 
-	private Map<Key, Collection<Value>> collectData(Generator generator, int size) {
-		Map<Key, Collection<Value>> map = new HashMap<Key, Collection<Value>>();
-
-		for (int i = 0; i < size; i++) {
-			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
-
-			if (!map.containsKey(pair.getKey())) {
-				map.put(pair.getKey(), new ArrayList<Value>());
+	private Map<TestData.Key, Collection<TestData.Value>> collectData(Generator iter, int num)
+	throws Exception
+	{
+		Map<TestData.Key, Collection<TestData.Value>> map = new HashMap<TestData.Key, Collection<TestData.Value>>();
+		PactRecord pair = new PactRecord();
+		
+		for (int i = 0; i < num; i++) {
+			iter.next(pair);
+			TestData.Key key = pair.getField(0, TestData.Key.class);
+			
+			if (!map.containsKey(key)) {
+				map.put(new TestData.Key(key.getKey()), new ArrayList<TestData.Value>());
 			}
 
-			Collection<Value> values = map.get(pair.getKey());
-			values.add(pair.getValue());
+			Collection<TestData.Value> values = map.get(key);
+			values.add(new TestData.Value(pair.getField(1, TestData.Value.class).getValue()));
 		}
-
 		return map;
 	}
-	
 }

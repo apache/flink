@@ -16,15 +16,17 @@
 package eu.stratosphere.pact.compiler.util;
 
 
-import eu.stratosphere.pact.common.io.TextOutputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 
-public final class DummyOutputFormat extends TextOutputFormat<PactInteger, PactInteger> {
-	private final byte[] bytes = new byte[0];
+public final class DummyOutputFormat extends DelimitedOutputFormat
+{	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.DelimitedOutputFormat#serializeRecord(eu.stratosphere.pact.common.type.PactRecord, byte[])
+	 */
 	@Override
-	public byte[] writeLine(KeyValuePair<PactInteger, PactInteger> pair) {
-		return bytes;
+	public int serializeRecord(PactRecord rec, byte[] target) throws Exception {
+		return 0;
 	}
 }

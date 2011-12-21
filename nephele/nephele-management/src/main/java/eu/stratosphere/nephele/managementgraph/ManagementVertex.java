@@ -73,6 +73,11 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	private String instanceType;
 
 	/**
+	 * The current state of the vertex's checkpoint.
+	 */
+	private String checkpointState = null;
+
+	/**
 	 * The index of this vertex in the management group vertex it belongs to.
 	 */
 	private final int indexInGroup;
@@ -88,15 +93,18 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 *        the name of the instance the vertex represented by this new management vertex currently runs on
 	 * @param instanceType
 	 *        the type of the instance the vertex represented by this new management vertex currently runs on
+	 * @param checkpointState
+	 *        the state of the vertex's checkpoint
 	 * @param indexInGroup
 	 *        the index of this vertex in the management group vertex it belongs to
 	 */
 	public ManagementVertex(final ManagementGroupVertex groupVertex, final ManagementVertexID id,
-			final String instanceName, final String instanceType, final int indexInGroup) {
+			final String instanceName, final String instanceType, final String checkpointState, final int indexInGroup) {
 		this.groupVertex = groupVertex;
 		this.id = id;
 		this.instanceName = instanceName;
 		this.instanceType = instanceType;
+		this.checkpointState = checkpointState;
 
 		this.indexInGroup = indexInGroup;
 
@@ -283,6 +291,25 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	}
 
 	/**
+	 * Sets the checkpoint state of this vertex.
+	 * 
+	 * @param checkpointState
+	 *        the checkpoint state of this vertex
+	 */
+	public void setCheckpointState(final String checkpointState) {
+		this.checkpointState = checkpointState;
+	}
+
+	/**
+	 * Returns the checkpoint state of the vertex.
+	 * 
+	 * @return the checkpoint state of the vertex
+	 */
+	public String getCheckpointState() {
+		return this.checkpointState;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -306,6 +333,10 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 			final String recordType = StringRecord.readString(in);
 			new ManagementGate(this, i, false, recordType);
 		}
+
+		this.instanceName = StringRecord.readString(in);
+		this.instanceType = StringRecord.readString(in);
+		this.checkpointState = StringRecord.readString(in);
 	}
 
 	/**
@@ -334,5 +365,9 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 			final ManagementGate managementGate = it.next();
 			StringRecord.writeString(out, managementGate.getRecordType());
 		}
+
+		StringRecord.writeString(out, this.instanceName);
+		StringRecord.writeString(out, this.instanceType);
+		StringRecord.writeString(out, this.checkpointState);
 	}
 }

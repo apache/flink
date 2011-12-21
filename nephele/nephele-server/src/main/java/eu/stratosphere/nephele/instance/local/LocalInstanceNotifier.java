@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.instance.local;
 
+import java.util.List;
+
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -42,9 +44,9 @@ public class LocalInstanceNotifier extends Thread {
 	private final JobID jobID;
 
 	/**
-	 * The resource allcoated for the job.
+	 * The resources allocated for the job.
 	 */
-	private final AllocatedResource allocatedResource;
+	private final List<AllocatedResource> allocatedResources;
 
 	/**
 	 * Constructs a new instance notifier object.
@@ -54,12 +56,12 @@ public class LocalInstanceNotifier extends Thread {
 	 * @param jobID
 	 *        the ID of the job the newly allocated resources belongs to
 	 * @param allocatedResource
-	 *        the resource allocated for the job
+	 *        the resources allocated for the job
 	 */
-	public LocalInstanceNotifier(InstanceListener instanceListener, JobID jobID, AllocatedResource allocatedResource) {
+	public LocalInstanceNotifier(final InstanceListener instanceListener, final JobID jobID, final List<AllocatedResource> allocatedResources) {
 		this.instanceListener = instanceListener;
 		this.jobID = jobID;
-		this.allocatedResource = allocatedResource;
+		this.allocatedResources = allocatedResources;
 	}
 
 	/**
@@ -67,8 +69,7 @@ public class LocalInstanceNotifier extends Thread {
 	 */
 	@Override
 	public void run() {
-
-		this.instanceListener.resourceAllocated(this.jobID, this.allocatedResource);
-
+		
+		this.instanceListener.resourcesAllocated(this.jobID, this.allocatedResources);
 	}
 }

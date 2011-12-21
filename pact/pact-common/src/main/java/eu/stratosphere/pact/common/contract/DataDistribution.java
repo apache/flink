@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 public interface DataDistribution {
 	/**
@@ -31,5 +31,5 @@ public interface DataDistribution {
 	 * @param totalSplits
 	 * @return
 	 */
-	public Key getSplit(int splitId, int totalSplits); 
+	public PactRecord getSplit(int splitId, int totalSplits); 
 }

@@ -18,26 +18,21 @@ package eu.stratosphere.pact.common.contract;
 import java.lang.annotation.Annotation;
 
 /**
- * Interface that indicates that the output contract for a Contract
- * can also be set by using the setOutputContract method instead
- * of annotations.
- * 
- * @author Moritz Kaufmann
+ * Interface defining that an output contract can be attached to an object.
  */
-public interface OutputContractConfigurable {
+public interface OutputContractConfigurable
+{
+	/**
+	 * Adds an output contract.
+	 * 
+	 * @param clazz The class of the OutputContract to attach.
+	 */
+	public void addOutputContract(Class<? extends Annotation> clazz);
 
 	/**
-	 * The output contract for the contract
+	 * Returns the output contracts that were attached to the object.
 	 * 
-	 * @param clazz The class of the OutputContract that is attached.
+	 * @return An array containing the classes of the attached output contracts.
 	 */
-	public void setOutputContract(Class<? extends Annotation> clazz);
-
-	/**
-	 * Returns the output contract that was set.
-	 * 
-	 * @return The class of the attached OutputContract.
-	 */
-	public Class<? extends Annotation> getOutputContract();
-
+	public Class<? extends Annotation>[] getOutputContracts();
 }

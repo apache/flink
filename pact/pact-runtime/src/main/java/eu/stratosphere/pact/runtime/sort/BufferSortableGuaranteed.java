@@ -18,14 +18,9 @@ package eu.stratosphere.pact.runtime.sort;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 
-import eu.stratosphere.nephele.services.iomanager.Deserializer;
 import eu.stratosphere.nephele.services.iomanager.MemoryIOWrapper;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
-import eu.stratosphere.nephele.services.iomanager.Serializer;
 import eu.stratosphere.nephele.services.iomanager.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemoryBacked;
@@ -33,9 +28,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultDataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemorySegmentView;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * Sortable buffer based on heap/stack concept where pairs are written in the heap and index into stack.
@@ -58,12 +52,8 @@ import eu.stratosphere.pact.common.type.Value;
  * and pointers.
  * 
  * @author Erik Nijkamp
- * @param <K>
- *        The type of the key.
- * @param <V>
- *        The type of the value.
  */
-public final class BufferSortableGuaranteed<K extends Key, V extends Value> extends MemoryBacked implements IndexedSortable {
+public final class BufferSortableGuaranteed extends MemoryBacked implements IndexedSortable {
 	
 	/**
 	 * {@link OutputView} wrapper which can (virtually) reduce the size of the buffer segment
@@ -327,6 +317,14 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 
 			write(bytearr, 0, utflen + 2);
 		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.nephele.services.memorymanager.DataOutputView#getRemainingBytes()
+		 */
+		@Override
+		public int getRemainingBytes() {
+			return this.stackEndAbs - this.position;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -343,24 +341,14 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	// ------------------------------------------------------------------------
 	//                               Members
 	// ------------------------------------------------------------------------
-
+	
 	private final MemoryIOWrapper memoryWrapper;
 
 	private final RawComparator comparator;
-
-	private final SerializationFactory<K> keySerialization;
-
-	private final SerializationFactory<V> valSerialization;
-
-	private final Serializer<K> keySerializer;
-
-	private final Serializer<V> valSerializer;
-
-	private final Deserializer<K> keyDeserializer;
-
-	private final Deserializer<V> valDeserializer;
 	
 	private HeapStackDataOutputView outputView;
+	
+	
 	
 	private int position;
 	
@@ -370,19 +358,11 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
 
-	public BufferSortableGuaranteed(MemorySegment memory, RawComparator comparator,
-			SerializationFactory<K> keySerialization, SerializationFactory<V> valSerialization)
+	public BufferSortableGuaranteed(MemorySegment memory, RawComparator comparator)
 	{
 		super();
-
-		// serialization
+		
 		this.comparator = comparator;
-		this.keySerialization = keySerialization;
-		this.valSerialization = valSerialization;
-		this.keySerializer = keySerialization.getSerializer();
-		this.valSerializer = valSerialization.getSerializer();
-		this.keyDeserializer = keySerialization.getDeserializer();
-		this.valDeserializer = valSerialization.getDeserializer();
 
 		// bind memory segment
 		bind(memory);
@@ -415,29 +395,15 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	}
 
 	public void reset() {
-		try {
-			// memory segment
-			this.outputView.reset();
+		// memory segment
+		this.outputView.reset();
 
-			// buffer
-			this.position = 0;
-			this.pairsCount = 0;
+		// buffer
+		this.position = 0;
+		this.pairsCount = 0;
 
-			// serialization
-			this.keySerializer.open(this.outputView);
-			this.valSerializer.open(this.outputView);
-			
-			// deserialization
-			this.keyDeserializer.open(this.memory.inputView);
-			this.valDeserializer.open(this.memory.inputView);
-
-
-			// accounting
-			this.outputView.resetStackHeap();
-		}
-		catch (IOException iex) {
-			throw new RuntimeException(iex);
-		}
+		// accounting
+		this.outputView.resetStackHeap();
 	}
 
 	// -------------------------------------------------------------------------
@@ -464,25 +430,13 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	// Retrieving and Writing
 	// -------------------------------------------------------------------------
 
-
-	public void getKey(K target, int logicalPosition) throws IOException
+	public void getRecord(PactRecord target, int logicalPosition) throws IOException
 	{
 		final int physicalPosition = readOffsetPosition(logicalPosition);
-		final int keyStart = readPairOffset(physicalPosition);
-		this.memory.inputView.setPosition(keyStart);
+		final int start = readPairOffset(physicalPosition);
+		this.memory.inputView.setPosition(start);
 		
-		this.keyDeserializer.deserialize(target);
-	}
-	
-
-	public void getKeyValuePair(KeyValuePair<K, V> target, int logicalPosition) throws IOException
-	{
-		final int physicalPosition = readOffsetPosition(logicalPosition);
-		final int keyStart = readPairOffset(physicalPosition);
-		this.memory.inputView.setPosition(keyStart);
-		
-		this.keyDeserializer.deserialize(target.getKey());
-		this.valDeserializer.deserialize(target.getValue());
+		target.read(this.memory.inputView);
 	}
 
 	/**
@@ -493,18 +447,16 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 	 * @throws IOException
 	 * @throws UnboundMemoryBackedException
 	 */
-	public boolean write(KeyValuePair<K, V> pair) {
+	public boolean write(PactRecord record) {
 		try {
-			// 1) serialize pair bytes into buffer
+			// 1) serialize record into buffer
 			final int offset = this.outputView.getPosition();
-			this.keySerializer.serialize(pair.getKey());
-			this.valSerializer.serialize(pair.getValue());
+			record.write(this.outputView);
 			
 			// 2) INSERT INDEX AND OFFSET
 			// a. check heap size
 			final int free = this.outputView.getStackEndRel() - this.outputView.getHeapEndRel();
-			if(free < STACK_ENTRY_SIZE)
-			{
+			if (free < STACK_ENTRY_SIZE) {
 				return false;
 			}
 			
@@ -520,9 +472,9 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 			// 3). UPDATE WRITE POSITION
 			this.pairsCount++;
 			this.position = this.outputView.getPosition();
-			
 			return true;
-		} catch (IOException e) {
+		} 
+		catch (IOException e) {
 			return false;
 		}
 	}
@@ -662,41 +614,26 @@ public final class BufferSortableGuaranteed<K extends Key, V extends Value> exte
 		return this.pairsCount;
 	}
 
-	public final Iterator<KeyValuePair<K, V>> getIterator() {
-
-		return new Iterator<KeyValuePair<K, V>>() {
-
+	public final MutableObjectIterator<PactRecord> getIterator()
+	{
+		return new MutableObjectIterator<PactRecord>() {
 			private final int size = size();
 			private int current = 0;
 
 			@Override
-			public boolean hasNext() {
-				return this.current < this.size;
-			}
-
-			@Override
-			public KeyValuePair<K, V> next() {
-				if (!hasNext()) {
-					throw new NoSuchElementException();
+			public boolean next(PactRecord target) {
+				if (this.current < this.size) {
+					try {
+						getRecord(target, this.current++);
+						return true;
+					}
+					catch (IOException ioe) {
+						throw new RuntimeException(ioe);
+					}
 				}
-				
-				try {
-					final K key = keySerialization.newInstance();
-					final V val = valSerialization.newInstance();
-					final KeyValuePair<K, V> pair = new KeyValuePair<K, V>(key, val);
-
-					getKeyValuePair(pair, this.current++);
-
-					return pair;
+				else {
+					return false;
 				}
-				catch (IOException ioe) {
-					throw new RuntimeException(ioe);
-				}
-			}
-
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
 			}
 		};
 	}

@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -218,7 +219,10 @@ final class SegmentReadRequest implements ReadRequest
 	@Override
 	public void read() throws IOException
 	{
-		this.channel.fileChannel.read(this.segment.wrap(0, this.segment.size()));
+		final FileChannel c = this.channel.fileChannel;
+		if (c.size() - c.position() > 0) {
+			this.channel.fileChannel.read(this.segment.wrap(0, this.segment.size()));
+		}
 	}
 
 	/* (non-Javadoc)

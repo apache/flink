@@ -20,23 +20,33 @@ import java.util.Calendar;
 import java.util.Collection;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
+
 
 /**
- * 
+ * This class encapsulates a Pact program (which is a form of data flow), together with some parameters, like e.g.
+ * a name and a default degree of parallelism.
+ * The program (data flow) is references by this plan by holding it sinks, from which a traversal reaches all connected
+ * nodes. 
  */
-public class Plan implements Visitable<Contract> {
+public class Plan implements Visitable<Contract>
+{
 	/**
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
 	 */
-	protected final Collection<FileDataSinkContract<?, ?>> sinks;
+	protected final Collection<GenericDataSink> sinks;
 
 	/**
 	 * The name of the pact job.
 	 */
 	protected final String jobName;
 
+	/**
+	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
+	 */
+	protected int defaultParallelism = -1;
+	
 	/**
 	 * The maximal number of machines to use in the job.
 	 */
@@ -49,24 +59,65 @@ public class Plan implements Visitable<Contract> {
 
 	// ------------------------------------------------------------------------
 
-	public Plan(Collection<FileDataSinkContract<?, ?>> sinks, String jobName) {
+	/**
+	 * Creates a new Pact plan with the given name, describing the Pact data flow that ends at the
+	 * given data sinks.
+	 * <p>
+	 * If not all of the sinks of a data flow are given to the plan, the flow might
+	 * not be translated entirely. 
+	 *  
+	 * @param sinks The collection will the sinks of the plan.
+	 * @param jobName The name to display for the job.
+	 */
+	public Plan(Collection<GenericDataSink> sinks, String jobName)
+	{
 		this.sinks = sinks;
 		this.jobName = jobName;
 		this.planConfiguration = new PlanConfiguration();
 	}
 
-	public Plan(FileDataSinkContract<?, ?> sink, String jobName) {
-		this.sinks = new ArrayList<FileDataSinkContract<?, ?>>();
+	/**
+	 * Creates a new Pact plan with the given name, containing initially a single data sink.
+	 * <p>
+	 * If not all of the sinks of a data flow are given to the plan, the flow might
+	 * not be translated entirely. 
+	 * 
+	 * @param sink The data sink of the data flow.
+	 * @param jobName The name to display for the job.
+	 */
+	public Plan(GenericDataSink sink, String jobName)
+	{
+		this.sinks = new ArrayList<GenericDataSink>();
 		this.sinks.add(sink);
 		this.jobName = jobName;
 		this.planConfiguration = new PlanConfiguration();
 	}
 
-	public Plan(Collection<FileDataSinkContract<?, ?>> sinks) {
+	/**
+	 * Creates a new Pact plan, describing the Pact data flow that ends at the
+	 * given data sinks. The display name for the job is generated using a timestamp.
+	 * <p>
+	 * If not all of the sinks of a data flow are given to the plan, the flow might
+	 * not be translated entirely. 
+	 *  
+	 * @param sinks The collection will the sinks of the plan.
+	 */
+	public Plan(Collection<GenericDataSink> sinks)
+	{
 		this(sinks, "PACT Job at " + Calendar.getInstance().getTime());
 	}
 
-	public Plan(FileDataSinkContract<?, ?> sink) {
+	/**
+	 * Creates a new Pact plan with the given name, containing initially a single data sink.
+	 * The display name for the job is generated using a timestamp.
+	 * <p>
+	 * If not all of the sinks of a data flow are given to the plan, the flow might
+	 * not be translated entirely. 
+	 * 
+	 * @param sink The data sink of the data flow.
+	 */
+	public Plan(GenericDataSink sink)
+	{
 		this(sink, "PACT Job at " + Calendar.getInstance().getTime());
 	}
 
@@ -75,12 +126,11 @@ public class Plan implements Visitable<Contract> {
 	/**
 	 * Adds a data sink to the set of sinks in this program.
 	 * 
-	 * @param sink
-	 *        The data sink to add.
+	 * @param sink The data sink to add.
 	 */
-	public void addDataSink(FileDataSinkContract<?, ?> sink) {
-		if (!sinks.contains(sink)) {
-			sinks.add(sink);
+	public void addDataSink(GenericDataSink sink) {
+		if (!this.sinks.contains(sink)) {
+			this.sinks.add(sink);
 		}
 	}
 
@@ -89,8 +139,8 @@ public class Plan implements Visitable<Contract> {
 	 * 
 	 * @return All sinks of the program.
 	 */
-	public Collection<FileDataSinkContract<?, ?>> getDataSinks() {
-		return sinks;
+	public Collection<GenericDataSink> getDataSinks() {
+		return this.sinks;
 	}
 
 	/**
@@ -115,31 +165,49 @@ public class Plan implements Visitable<Contract> {
 	 * @return The maximum number of machines to be used for this job.
 	 */
 	public int getMaxNumberMachines() {
-		return maxNumberMachines;
+		return this.maxNumberMachines;
 	}
 
 	/**
 	 * Sets the maximum number of machines to be used for this job.
 	 * 
-	 * @param maxNumberMachines
-	 *        The the maximum number to set.
+	 * @param maxNumberMachines The the maximum number to set.
 	 */
 	public void setMaxNumberMachines(int maxNumberMachines) {
 		this.maxNumberMachines = maxNumberMachines;
+	}
+	
+	/**
+	 * Gets the default degree of parallelism for this plan. That degree is always used when a Pact
+	 * is not explicitly given a degree of parallelism,
+	 *
+	 * @return The default parallelism for the plan.
+	 */
+	public int getDefaultParallelism() {
+		return this.defaultParallelism;
+	}
+	
+	/**
+	 * Sets the default degree of parallelism for this plan. That degree is always used when a Pact
+	 * is not explicitly given a degree of parallelism,
+	 *
+	 * @param defaultParallelism The default parallelism for the plan.
+	 */
+	public void setDefaultParallelism(int defaultParallelism) {
+		this.defaultParallelism = defaultParallelism;
 	}
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Traverses the pact plan, starting from the data sinks that were added to this program.
+	 * Traverses the pact plan depth first from all data sinks on towards the sources.
 	 * 
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 * @see Visitable#accept(Visitor)
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {
-		for (FileDataSinkContract<?, ?> sink : sinks) {
+		for (GenericDataSink sink : this.sinks) {
 			sink.accept(visitor);
 		}
 	}
-
 }

@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class InstanceConnectionInfo implements IOReadableWritable {
+public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo> {
 
 	/**
 	 * The network address the instance's task manager binds its sockets to.
@@ -221,4 +221,11 @@ public class InstanceConnectionInfo implements IOReadableWritable {
 
 		return this.inetAddress.hashCode();
 	}
+
+	@Override
+	public int compareTo(InstanceConnectionInfo o) {
+		return this.getAddress().getHostName()
+			.compareTo(((InstanceConnectionInfo) o).getAddress().getHostName());
+	}
+
 }

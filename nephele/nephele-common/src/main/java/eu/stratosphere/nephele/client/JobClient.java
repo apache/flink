@@ -260,12 +260,13 @@ public class JobClient {
 	 * Submits the job assigned to this job client to the job manager and queries the job manager
 	 * about the progress of the job until it is either finished or aborted.
 	 * 
+	 * @return the duration of the job execution in milliseconds
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
 	 * @throws JobExecutionException
 	 *         thrown if the job has been aborted either by the user or as a result of an error
 	 */
-	public void submitJobAndWait() throws IOException, JobExecutionException {
+	public long submitJobAndWait() throws IOException, JobExecutionException {
 
 		synchronized (this.jobSubmitClient) {
 
@@ -295,6 +296,8 @@ public class JobClient {
 			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 			logErrorAndRethrow(StringUtils.stringifyException(e));
 		}
+
+		long startTimestamp = -1;
 
 		while (true) {
 
@@ -334,9 +337,14 @@ public class JobClient {
 				if (event instanceof JobEvent) {
 					final JobEvent jobEvent = (JobEvent) event;
 					final JobStatus jobStatus = jobEvent.getCurrentJobStatus();
+					if (jobStatus == JobStatus.SCHEDULED) {
+						startTimestamp = jobEvent.getTimestamp();
+					}
 					if (jobStatus == JobStatus.FINISHED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
-						return;
+						final long jobDuration = jobEvent.getTimestamp() - startTimestamp;
+						System.out.println("Job duration (in ms): " + jobDuration);
+						return jobDuration;
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());

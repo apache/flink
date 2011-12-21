@@ -17,9 +17,6 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
@@ -33,17 +30,7 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be read from this record reader
  */
 
-public class RecordReader<T extends Record> implements Reader<T> {
-
-	/**
-	 * The input gate associated with the record reader.
-	 */
-	private InputGate<T> inputGate = null;
-
-	/**
-	 * The environment the associated task runs in.
-	 */
-	private Environment environment = null;
+public class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T> {
 
 	/**
 	 * Temporarily stores an exception which may have occurred while reading data from the input gate.
@@ -74,8 +61,7 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 */
 	public RecordReader(AbstractTask taskBase, Class<T> inputClass, DistributionPattern distributionPattern) {
 
-		this.environment = taskBase.getEnvironment();
-		connectInputGate(new DefaultRecordDeserializer<T>(inputClass), 0, distributionPattern);
+		super(taskBase, new DefaultRecordDeserializer<T>(inputClass), 0, distributionPattern);
 	}
 
 	/**
@@ -90,8 +76,7 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 */
 	public RecordReader(AbstractOutputTask outputBase, Class<T> inputClass, DistributionPattern distributionPattern) {
 
-		this.environment = outputBase.getEnvironment();
-		connectInputGate(new DefaultRecordDeserializer<T>(inputClass), 0, distributionPattern);
+		super(outputBase, new DefaultRecordDeserializer<T>(inputClass), 0, distributionPattern);
 	}
 
 	/**
@@ -105,8 +90,8 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
 	public RecordReader(AbstractTask taskBase, RecordDeserializer<T> deserializer) {
-		this.environment = taskBase.getEnvironment();
-		connectInputGate(deserializer, 0, null);
+
+		super(taskBase, deserializer, 0, null);
 	}
 
 	/**
@@ -120,8 +105,8 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
 	public RecordReader(AbstractTask taskBase, RecordDeserializer<T> deserializer, int inputGateID) {
-		this.environment = taskBase.getEnvironment();
-		connectInputGate(deserializer, inputGateID, null);
+
+		super(taskBase, deserializer, inputGateID, null);
 	}
 
 	/**
@@ -136,8 +121,8 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 */
 	public RecordReader(AbstractTask taskBase, RecordDeserializer<T> deserializer,
 			DistributionPattern distributionPattern) {
-		this.environment = taskBase.getEnvironment();
-		connectInputGate(deserializer, 0, distributionPattern);
+
+		super(taskBase, deserializer, 0, distributionPattern);
 	}
 
 	/**
@@ -153,8 +138,7 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	public RecordReader(AbstractTask outputBase, RecordDeserializer<T> deserializer, int inputGateID,
 			DistributionPattern distributionPattern) {
 
-		this.environment = outputBase.getEnvironment();
-		connectInputGate(deserializer, inputGateID, distributionPattern);
+		super(outputBase, deserializer, inputGateID, distributionPattern);
 	}
 
 	/**
@@ -170,8 +154,7 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	public RecordReader(AbstractOutputTask outputBase, RecordDeserializer<T> deserializer,
 			DistributionPattern distributionPattern) {
 
-		this.environment = outputBase.getEnvironment();
-		connectInputGate(deserializer, 0, distributionPattern);
+		super(outputBase, deserializer, 0, distributionPattern);
 	}
 
 	/**
@@ -187,63 +170,7 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	public RecordReader(AbstractOutputTask outputBase, RecordDeserializer<T> deserializer, int inputGateID,
 			DistributionPattern distributionPattern) {
 
-		this.environment = outputBase.getEnvironment();
-		connectInputGate(deserializer, inputGateID, distributionPattern);
-	}
-
-	/**
-	 * Returns the number of input channels wired to this reader's input gate.
-	 * 
-	 * @return the number of input channels wired to this reader's input gate
-	 */
-	public int getNumberOfInputChannels() {
-		return this.inputGate.getNumberOfInputChannels();
-	}
-
-	/**
-	 * Checks if the input channel with the given index is closed.
-	 * 
-	 * @param index
-	 *        the index of the input channel
-	 * @return <code>true</code> if the respective input channel is already closed, otherwise <code>false</code>
-	 * @throws IOException
-	 *         thrown if an error occurred while closing the input channel
-	 */
-	public boolean isInputChannelClosed(int index) throws IOException {
-
-		if (index < this.inputGate.getNumberOfInputChannels()) {
-			return this.inputGate.getInputChannel(index).isClosed();
-		}
-
-		return false;
-	}
-
-	/**
-	 * Connects a record reader to an input gate.
-	 * 
-	 * @param inputClass
-	 *        the class of the record that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
-	 */
-	// TODO: See if type safety can be improved here
-	@SuppressWarnings("unchecked")
-	private void connectInputGate(RecordDeserializer<T> deserializer, int inputGateID,
-			DistributionPattern distributionPattern) {
-
-		// See if there are any unbound input gates left we can connect to
-		if (this.environment.hasUnboundInputGates()) {
-			final InputGate<T> ig = (InputGate<T>) this.environment.getUnboundInputGate(inputGateID);
-			if (!deserializer.getRecordType().equals(ig.getType())) {
-				throw new RuntimeException("Unbound input gate found, but types do not match!");
-			}
-
-			this.inputGate = ig;
-		} else {
-			this.inputGate = new InputGate<T>(deserializer, this.environment.getNumberOfInputGates(),
-				distributionPattern);
-			this.environment.registerInputGate(this.inputGate);
-		}
+		super(outputBase, deserializer, inputGateID, distributionPattern);
 	}
 
 	/**
@@ -253,6 +180,7 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 * @return <code>true</code>it at least one more record can be read from the associated input gate, otherwise
 	 *         <code>false</code>
 	 */
+	@Override
 	public boolean hasNext() {
 
 		if (this.noMoreRecordsWillFollow) {
@@ -261,7 +189,7 @@ public class RecordReader<T extends Record> implements Reader<T> {
 
 		if (this.lastRead == null) {
 			try {
-				this.lastRead = inputGate.readRecord();
+				this.lastRead = getInputGate().readRecord(null);
 				if (this.lastRead == null) {
 					return false;
 				}
@@ -285,6 +213,7 @@ public class RecordReader<T extends Record> implements Reader<T> {
 	 * @throws IOException
 	 *         thrown if any error occurs while reading the record from the input gate
 	 */
+	@Override
 	public T next() throws IOException, InterruptedException {
 
 		if (this.ioException != null) {
@@ -295,66 +224,12 @@ public class RecordReader<T extends Record> implements Reader<T> {
 		}
 
 		final T retVal = this.lastRead;
-		this.lastRead = this.inputGate.readRecord();
+		this.lastRead = getInputGate().readRecord(null);
 		if (this.lastRead == null) {
 			this.noMoreRecordsWillFollow = true;
 		}
 
 		return retVal;
 	}
-
-	/**
-	 * Registers a new listener object with the assigned input gate.
-	 * 
-	 * @param inputGateListener
-	 *        the listener object to register
-	 */
-	public void registerInputGateListener(InputGateListener inputGateListener) {
-
-		this.inputGate.registerInputGateListener(inputGateListener);
-	}
-
-	/**
-	 * Subscribes the listener object to receive events of the given type.
-	 * 
-	 * @param eventListener
-	 *        the listener object to register
-	 * @param eventType
-	 *        the type of event to register the listener for
-	 */
-	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		// Delegate call to input gate
-		this.inputGate.subscribeToEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Removes the subscription for events of the given type for the listener object.
-	 * 
-	 * @param eventListener
-	 *        the listener object to cancel the subscription for
-	 * @param eventType
-	 *        the type of the event to cancel the subscription for
-	 */
-	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
-
-		// Delegate call to input gate
-		this.inputGate.unsubscribeFromEvent(eventListener, eventType);
-	}
-
-	/**
-	 * Publishes an event.
-	 * 
-	 * @param event
-	 *        the event to be published
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the event
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the event to be published
-	 */
-	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-
-		// Delegate call to input gate
-		this.inputGate.publishEvent(event);
-	}
 }
+

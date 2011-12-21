@@ -25,7 +25,8 @@ import eu.stratosphere.pact.common.contract.Order;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class GlobalProperties implements Cloneable {
+public final class GlobalProperties implements Cloneable
+{
 	private PartitionProperty partitioning; // the partitioning
 
 	private Order keyOrder; // order across all partitions
@@ -131,43 +132,43 @@ public final class GlobalProperties implements Cloneable {
 		this.keyUnique = false;
 	}
 
-	/**
-	 * Filters these properties by what can be preserved through the given output contract.
-	 * 
-	 * @param contract
-	 *        The output contract.
-	 * @return True, if any non-default value is preserved, false otherwise.
-	 */
-	public boolean filterByOutputContract(OutputContract contract) {
-		boolean nonTrivial = false;
-
-		// check, if the partitioning survives
-		if (partitioning == PartitionProperty.HASH_PARTITIONED || partitioning == PartitionProperty.RANGE_PARTITIONED
-			|| partitioning == PartitionProperty.ANY) {
-			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
-				|| contract == OutputContract.SameKeySecond || contract == OutputContract.SuperKey
-				|| contract == OutputContract.SuperKeyFirst || contract == OutputContract.SuperKeySecond) {
-				nonTrivial = true;
-			} else {
-				partitioning = PartitionProperty.NONE;
-			}
-		}
-
-		// check, whether the global order is preserved
-		if (keyOrder != Order.NONE) {
-			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
-				|| contract == OutputContract.SameKeySecond) {
-				nonTrivial = true;
-			} else {
-				keyOrder = Order.NONE;
-			}
-		}
-
-		// check, whether we have key uniqueness
-		nonTrivial |= (keyUnique = contract == OutputContract.UniqueKey);
-
-		return nonTrivial;
-	}
+//	/**
+//	 * Filters these properties by what can be preserved through the given output contract.
+//	 * 
+//	 * @param contract
+//	 *        The output contract.
+//	 * @return True, if any non-default value is preserved, false otherwise.
+//	 */
+//	public boolean filterByOutputContract(OutputContract contract) {
+//		boolean nonTrivial = false;
+//
+//		// check, if the partitioning survives
+//		if (partitioning == PartitionProperty.HASH_PARTITIONED || partitioning == PartitionProperty.RANGE_PARTITIONED
+//			|| partitioning == PartitionProperty.ANY) {
+//			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
+//				|| contract == OutputContract.SameKeySecond || contract == OutputContract.SuperKey
+//				|| contract == OutputContract.SuperKeyFirst || contract == OutputContract.SuperKeySecond) {
+//				nonTrivial = true;
+//			} else {
+//				partitioning = PartitionProperty.NONE;
+//			}
+//		}
+//
+//		// check, whether the global order is preserved
+//		if (keyOrder != Order.NONE) {
+//			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
+//				|| contract == OutputContract.SameKeySecond) {
+//				nonTrivial = true;
+//			} else {
+//				keyOrder = Order.NONE;
+//			}
+//		}
+//
+//		// check, whether we have key uniqueness
+//		nonTrivial |= (keyUnique = contract == OutputContract.UniqueKey);
+//
+//		return nonTrivial;
+//	}
 
 	/**
 	 * Checks, if this set of properties, as interesting properties, is met by the given
