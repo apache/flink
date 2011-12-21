@@ -392,6 +392,13 @@
 				</dependencies> </plugin> -->
 		</plugins>
 	</build>
+	<distributionManagement>
+                <repository>
+                        <id>stratosphere.eu</id>
+                        <name>Stratosphere Repository</name>
+                        <url>scp://stratosphere.eu/var/projects/stratosphere/maven2</url>
+                </repository>
+        </distributionManagement>
 
 	<profiles>
 		<!-- Hudson by default defines a property BUILD_NUMBER which is used to 
@@ -435,6 +442,17 @@
 						</executions>
 					</plugin>
 				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>nightly</id>
+                        <activation>
+                                <property>
+                                        <name>BUILD_NUMBER</name>
+                                </property>
+                        </activation>
+			<build>
+				 <finalName>${artifactId}-${version}-nightly-${BUILD_NUMBER}</finalName>
 			</build>
 		</profile>
 	</profiles>
