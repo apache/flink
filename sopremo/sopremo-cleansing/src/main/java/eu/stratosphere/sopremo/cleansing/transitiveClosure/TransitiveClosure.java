@@ -59,13 +59,13 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		final Phase1 phase1 = new Phase1().withInputs(filledMatrix);
 
 		// compute transitive Closure P2
-		final Phase2 phase2 = new Phase2().withInputs(phase1, genMatrix);
+		final Phase2 phase2 = new Phase2().withInputs(phase1, filledMatrix);
 
 		// compute transitive Closure P3
 		final Phase3 phase3 = new Phase3().withInputs(new UnionAll().withInputs(phase1, phase2));
 
 		// emit Results as Links
-		final EmitMatrix result = new EmitMatrix().withInputs(new UnionAll().withInputs(phase1, phase2) /*/phase3*/);
+		final EmitMatrix result = new EmitMatrix().withInputs(/*new UnionAll().withInputs(phase1, phase2) */phase3);
 
 		sopremoModule.getOutput(0).setInput(0, result);
 
@@ -88,9 +88,11 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 				JsonNode value2 = ((ArrayNode) value).get(1);
 				JsonNode partition1 = ((ObjectNode) value1).get("partition");
 				JsonNode partition2 = ((ObjectNode) value2).get("partition");
-				out.collect(new ArrayNode(partition1, partition2), new ArrayNode(value1, value2));
-				if (!partition1.equals(partition2))
+				if (partition1.compareTo(partition2) <= 0){
+					out.collect(new ArrayNode(partition1, partition2), new ArrayNode(value1, value2));
+				} else {
 					out.collect(new ArrayNode(partition2, partition1), new ArrayNode(value2, value1));
+				}
 			}
 		}
 	}
@@ -161,7 +163,7 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
 				for (int i=1; i<=n; i++){
 					for(int j=1; j<=i; j++){
-						out.collect(new ArrayNode(new IntNode(i),new IntNode(j)), new BinarySparseMatrix());
+						out.collect(new ArrayNode(new IntNode(j),new IntNode(i)), new BinarySparseMatrix());
 					}
 				}
 

@@ -72,6 +72,20 @@ public class BinarySparseMatrix extends JsonNode implements Value {
 				this.set(column, row);
 	}
 
+	public BinarySparseMatrix transpose() {
+		BinarySparseMatrix transposedMatrix = new BinarySparseMatrix();
+
+		final Set<JsonNode> rows = this.getRows();
+
+		for (JsonNode row : rows) {
+			for (JsonNode column : this.get(row)) {
+				transposedMatrix.set(column, row);
+			}
+		}
+
+		return transposedMatrix;
+	}
+
 	public void set(final JsonNode n1, final JsonNode n2) {
 		Set<JsonNode> set = this.sparseMatrix.get(n1);
 		if (set == null)

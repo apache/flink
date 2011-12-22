@@ -19,6 +19,7 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
 import eu.stratosphere.sopremo.jsondatamodel.IntNode;
 import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
@@ -44,37 +45,84 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		JsonStream input = sopremoModule.getInput(0);
 
 		int itCount = 3;// TODO number of N
+
+		ExtractNonRelatingBlocks otherBlocks[] = new ExtractNonRelatingBlocks[itCount];
 		TransformAKey[] a = new TransformAKey[itCount];
 		TransformBKey[] b = new TransformBKey[itCount];
 		TransformXKey[] x = new TransformXKey[itCount];
 		BAndXMatch[] xb = new BAndXMatch[itCount];
 		AMatch axb[] = new AMatch[itCount];
+		UnionAll itOutput[] = new UnionAll[itCount];
 
 		for (int i = 0; i < itCount; i++) {
+			JsonStream inputStream = i == 0 ? input : itOutput[i - 1];
 
-			a[i] = new TransformAKey().withInputs(i == 0 ? input : axb[i - 1]);
+			otherBlocks[i] = new ExtractNonRelatingBlocks().withInputs(inputStream);
+			otherBlocks[i].setIterationStep(i + 1);
+			a[i] = new TransformAKey().withInputs(inputStream);
 			a[i].setIterationStep(i + 1);
-			b[i] = new TransformBKey().withInputs(i == 0 ? input : axb[i - 1]);
+			b[i] = new TransformBKey().withInputs(inputStream);
 			b[i].setIterationStep(i + 1);
-			x[i] = new TransformXKey().withInputs(i == 0 ? input : axb[i - 1]);
+			x[i] = new TransformXKey().withInputs(inputStream);
 			xb[i] = new BAndXMatch().withInputs(b[i], x[i]);
 			axb[i] = new AMatch().withInputs(a[i], xb[i]);
+			itOutput[i] = new UnionAll().withInputs(axb[i], otherBlocks[i]);
 
 		}
 
 		// final GenerateColumns columns = new GenerateColumns().withInputs(computeRows);
 		// final ComputeBlockTuples computeTuples = new ComputeBlockTuples().withInputs(transDia, columns);
 
-		sopremoModule.getOutput(0).setInput(0, axb[itCount - 1]);
+		sopremoModule.getOutput(0).setInput(0, itOutput[itCount - 1]);
 
 		return sopremoModule;
 	}
 
-	private static class TransformAKey extends ElementaryOperator<TransformAKey> {
+	private static class ExtractNonRelatingBlocks extends ElementaryOperator<ExtractNonRelatingBlocks> {
 		/**
 		 * 
 		 */
-		private static final long serialVersionUID = -3480847243868518647L;
+		private static final long serialVersionUID = 5070880956812918482L;
+
+		/**
+		 * 
+		 */
+
+		private int iterationStep;
+
+		public void setIterationStep(Integer iterationStep) {
+			if (iterationStep == null)
+				throw new NullPointerException("iterationStep must not be null");
+
+			this.iterationStep = iterationStep;
+		}
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			private int iterationStep;
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				IntNode intNode = new IntNode(this.iterationStep);
+				if (!((ArrayNode) key).get(0).equals(intNode) && !((ArrayNode) key).get(1).equals(intNode)) {
+					out.collect(key, value);
+				}
+			}
+		}
+	}
+
+	private static class TransformAKey extends ElementaryOperator<TransformAKey> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1296171168406180753L;
 
 		private int iterationStep;
 
@@ -107,6 +155,7 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		/**
 		 * 
 		 */
+		private static final long serialVersionUID = -8824655332341819085L;
 
 		private int iterationStep;
 
@@ -116,8 +165,6 @@ public class Phase3 extends CompositeOperator<Phase3> {
 
 			this.iterationStep = iterationStep;
 		}
-
-		private static final long serialVersionUID = -3480847243868518647L;
 
 		@SuppressWarnings("unused")
 		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
@@ -160,10 +207,11 @@ public class Phase3 extends CompositeOperator<Phase3> {
 
 	@InputCardinality(min = 2, max = 2)
 	private static class BAndXMatch extends ElementaryOperator<BAndXMatch> {
+
 		/**
 		 * 
 		 */
-		private static final long serialVersionUID = -3480847243868518647L;
+		private static final long serialVersionUID = -1218248591344660494L;
 
 		@SuppressWarnings("unused")
 		public static class Implementation extends SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
@@ -187,6 +235,11 @@ public class Phase3 extends CompositeOperator<Phase3> {
 
 	@InputCardinality(min = 2, max = 2)
 	private static class AMatch extends ElementaryOperator<AMatch> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2889622825342608482L;
 
 		@SuppressWarnings("unused")
 		public static class Implementation extends SopremoMatch<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {

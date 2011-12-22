@@ -34,13 +34,13 @@ public class Phase2 extends CompositeOperator<Phase2> {
 		final GenerateRows rows = new GenerateRows().withInputs(matrix);
 		final ComputeBlockTuples computeRows = new ComputeBlockTuples().withInputs(transDia, rows);
 
-//		final GenerateColumns columns = new GenerateColumns().withInputs(computeRows);
-//		final ComputeBlockTuples computeTuples = new ComputeBlockTuples().withInputs(transDia, columns);
+		final GenerateColumns columns = new GenerateColumns().withInputs(computeRows);
+		final ComputeBlockTuples computeTuples = new ComputeBlockTuples().withInputs(transDia, columns);
 
-		final ExtractMirroredMatrix mirroredMatrix = new ExtractMirroredMatrix().withInputs(computeRows);
-		final FillMatrix fillMatrix = new FillMatrix().withInputs(computeRows, mirroredMatrix);
+		//final ExtractMirroredMatrix mirroredMatrix = new ExtractMirroredMatrix().withInputs(computeRows);
+		//final FillMatrix fillMatrix = new FillMatrix().withInputs(computeRows, mirroredMatrix);
 		
-		sopremoModule.getOutput(0).setInput(0, fillMatrix);
+		sopremoModule.getOutput(0).setInput(0, computeTuples/*fillMatrix*/);
 
 		return sopremoModule;
 	}
@@ -136,11 +136,25 @@ public class Phase2 extends CompositeOperator<Phase2> {
 			 */
 			@Override
 			protected void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out) {
-				JsonNode oldKey = ((ArrayNode) value2).get(0);
-				TransitiveClosure.warshall((BinarySparseMatrix) value1,
-					(BinarySparseMatrix) ((ArrayNode) value2).get(1));
 
-				out.collect(oldKey, ((ArrayNode) value2).get(1));
+				JsonNode oldKeyPrimary = key;
+				JsonNode oldKeyCurrent = ((ArrayNode) value2).get(0);
+				
+				BinarySparseMatrix current = (BinarySparseMatrix) ((ArrayNode) value2).get(1);
+				
+				//if the two blocks are in the same column, we have to bring them into the same row -> transpose
+				if(oldKeyPrimary.equals(((ArrayNode)oldKeyCurrent).get(1))){
+					current = current.transpose();
+				}
+				
+				//transpose back
+				TransitiveClosure.warshall((BinarySparseMatrix) value1, current);
+				
+				if(oldKeyPrimary.equals(((ArrayNode)oldKeyCurrent).get(1))){
+					current = current.transpose();
+				}
+				
+				out.collect(oldKeyCurrent, current);
 			}
 
 		}
