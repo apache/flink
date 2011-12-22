@@ -253,6 +253,25 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 			}
 		}
 	}
+	
+	public static void warshall(final BinarySparseMatrix primaryRow, final BinarySparseMatrix primaryColumn, BinarySparseMatrix current) {
+		final Deque<JsonNode> rowsToExplore = new LinkedList<JsonNode>(primaryRow.getRows());
+		while (!rowsToExplore.isEmpty()){
+			JsonNode row = rowsToExplore.pop();
+			final Deque<JsonNode> columnsToExplore = new LinkedList<JsonNode>(primaryRow.get(row));
+			while (!columnsToExplore.isEmpty()) {
+				final JsonNode column = columnsToExplore.pop();
+				final Deque<JsonNode> transitiveNodesToExplore = new LinkedList<JsonNode>(primaryColumn.get(column));
+				while(!transitiveNodesToExplore.isEmpty()){
+					final JsonNode transitiveNode = transitiveNodesToExplore.pop();
+					current.set(row, transitiveNode);
+				}
+
+
+			}
+
+		}
+	}
 
 	/**
 	 * @param closureMode

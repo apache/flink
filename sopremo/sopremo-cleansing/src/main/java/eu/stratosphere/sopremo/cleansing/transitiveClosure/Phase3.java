@@ -44,9 +44,13 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 1, 1);
 		JsonStream input = sopremoModule.getInput(0);
 
+		GenerateFullMatrix fullMatrix = new GenerateFullMatrix().withInputs(input);
+
 		int itCount = 3;// TODO number of N
 
-		ExtractNonRelatingBlocks otherBlocks[] = new ExtractNonRelatingBlocks[itCount];
+		ExtractRelatingBlocks xBlocks[] = new ExtractRelatingBlocks[itCount];
+		ExtractNonRelatingBlocks abBlocks[] = new ExtractNonRelatingBlocks[itCount];
+
 		TransformAKey[] a = new TransformAKey[itCount];
 		TransformBKey[] b = new TransformBKey[itCount];
 		TransformXKey[] x = new TransformXKey[itCount];
@@ -55,18 +59,20 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		UnionAll itOutput[] = new UnionAll[itCount];
 
 		for (int i = 0; i < itCount; i++) {
-			JsonStream inputStream = i == 0 ? input : itOutput[i - 1];
+			JsonStream inputStream = i == 0 ? fullMatrix : itOutput[i - 1];
 
-			otherBlocks[i] = new ExtractNonRelatingBlocks().withInputs(inputStream);
-			otherBlocks[i].setIterationStep(i + 1);
-			a[i] = new TransformAKey().withInputs(inputStream);
+			xBlocks[i] = new ExtractRelatingBlocks().withInputs(inputStream);
+			xBlocks[i].setIterationStep(i + 1);
+			abBlocks[i] = new ExtractNonRelatingBlocks().withInputs(inputStream);
+			abBlocks[i].setIterationStep(i + 1);
+			a[i] = new TransformAKey().withInputs(abBlocks[i]);
 			a[i].setIterationStep(i + 1);
-			b[i] = new TransformBKey().withInputs(inputStream);
+			b[i] = new TransformBKey().withInputs(abBlocks[i]);
 			b[i].setIterationStep(i + 1);
-			x[i] = new TransformXKey().withInputs(inputStream);
+			x[i] = new TransformXKey().withInputs(xBlocks[i]);
 			xb[i] = new BAndXMatch().withInputs(b[i], x[i]);
 			axb[i] = new AMatch().withInputs(a[i], xb[i]);
-			itOutput[i] = new UnionAll().withInputs(axb[i], otherBlocks[i]);
+			itOutput[i] = new UnionAll().withInputs(abBlocks[i], axb[i]);
 
 		}
 
@@ -78,7 +84,36 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		return sopremoModule;
 	}
 
-	private static class ExtractNonRelatingBlocks extends ElementaryOperator<ExtractNonRelatingBlocks> {
+	private static class GenerateFullMatrix extends ElementaryOperator<GenerateFullMatrix> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2835910815949750884L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			private int iterationStep;
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				if (!((ArrayNode) key).get(0).equals(((ArrayNode) key).get(1))) {
+					out.collect(new ArrayNode(((ArrayNode) key).get(1), ((ArrayNode) key).get(0)),
+						((BinarySparseMatrix) value).transpose());
+				}
+				out.collect(key, value);
+
+			}
+		}
+	}
+
+	private static class ExtractRelatingBlocks extends ElementaryOperator<ExtractRelatingBlocks> {
 		/**
 		 * 
 		 */
@@ -111,6 +146,42 @@ public class Phase3 extends CompositeOperator<Phase3> {
 			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
 				IntNode intNode = new IntNode(this.iterationStep);
 				if (!((ArrayNode) key).get(0).equals(intNode) && !((ArrayNode) key).get(1).equals(intNode)) {
+					out.collect(key, value);
+				}
+			}
+		}
+	}
+
+	private static class ExtractNonRelatingBlocks extends ElementaryOperator<ExtractNonRelatingBlocks> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -7207837316671752288L;
+
+		private int iterationStep;
+
+		public void setIterationStep(Integer iterationStep) {
+			if (iterationStep == null)
+				throw new NullPointerException("iterationStep must not be null");
+
+			this.iterationStep = iterationStep;
+		}
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			private int iterationStep;
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				IntNode intNode = new IntNode(this.iterationStep);
+				if (((ArrayNode) key).get(0).equals(intNode) || ((ArrayNode) key).get(1).equals(intNode)) {
 					out.collect(key, value);
 				}
 			}
@@ -256,55 +327,9 @@ public class Phase3 extends CompositeOperator<Phase3> {
 				BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0))).get(1);
 				BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1))).get(1);
 				JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
-				// 3-input warshall
+				TransitiveClosure.warshall(matrixA, matrixB, matrixX);
 				out.collect(oldKeyX, matrixX);
 			}
-
-			/*
-			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
-			 * eu.stratosphere.sopremo.jsondatamodel.ArrayNode, eu.stratosphere.sopremo.jsondatamodel.ArrayNode,
-			 * eu.stratosphere.sopremo.pact.JsonCollector)
-			 */
-			// @Override
-			// protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
-			// if (!key.isArray()) {
-			// // was not joined in BAndXCoGroup
-			// // we don't want to loose these values for next iteration
-			// for (JsonNode array : values2) {
-			// out.collect(((ArrayNode) array).get(0), ((ArrayNode) array).get(1));
-			// }
-			// } else {
-			// if (values2.isEmpty()) {
-			//
-			// // A could not find any join partners -> emit
-			// out.collect(key, values1.get(0));
-			// } else {
-			// for (JsonNode value2 : values2) {
-			// BinarySparseMatrix matrixB = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(0)))
-			// .get(1);
-			// BinarySparseMatrix matrixX = (BinarySparseMatrix) ((ArrayNode) (((ArrayNode) value2).get(1)))
-			// .get(1);
-			// JsonNode oldKeyX = ((ArrayNode) (((ArrayNode) value2).get(1))).get(0);
-			// // JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
-			// if (!values1.isEmpty()) {
-			// // 3-input warshall
-			// }
-			//
-			// // else {
-			// // TODO Why don't we need to collect B now?????
-			// // // A is not present
-			// // // we don't want to loose B, too
-			// // JsonNode oldKeyB = ((ArrayNode) (((ArrayNode) value2).get(0))).get(0);
-			// // out.collect(oldKeyB, matrixB);
-			// // }
-			// // in both cases we want to collect X
-			// out.collect(oldKeyX, matrixX);
-			// }
-			// }
-			// }
-			//
-			// }
 
 		}
 	}
