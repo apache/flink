@@ -142,7 +142,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 		// get the file path
 		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
 		if (filePath == null) {
-			throw new IllegalArgumentException("Configuration file FileOutputFormat does not contain the file path.");
+			throw new IllegalArgumentException("Configuration file FileInputFormat does not contain the file path.");
 		}
 		
 		try {
