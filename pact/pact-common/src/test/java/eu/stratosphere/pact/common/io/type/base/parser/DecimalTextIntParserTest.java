@@ -21,7 +21,7 @@ public class DecimalTextIntParserTest {
 	@Test
 	public void testParseField() {
 		
-		byte[] recBytes = "1234|123abc4|".getBytes();
+		byte[] recBytes = "1234|-987|123abc4|".getBytes();
 		
 		// check valid int
 		PactInteger i = new PactInteger();
@@ -29,6 +29,9 @@ public class DecimalTextIntParserTest {
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', i);
 		assertTrue(startPos == 5);
 		assertTrue(i.getValue() == 1234);
+		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', i);
+		assertTrue(startPos == 10);
+		assertTrue(i.getValue() == -987);
 		
 		// check invalid chars
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', i);
