@@ -1,17 +1,17 @@
 package eu.stratosphere.pact.common.type.base.parser;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactLong;
 
 /**
- * Parses a decimal text field into a PactInteger.
+ * Parses a decimal text field into a PactLong.
  * Only characters '1' to '0' and '-' are allowed.
  * The parser does not check for the maximum value.
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class DecimalTextIntParser  implements FieldParser<PactInteger> {
+public class DecimalTextLongParser  implements FieldParser<PactLong> {
 
 	/*
 	 * (non-Javadoc)
@@ -25,10 +25,9 @@ public class DecimalTextIntParser  implements FieldParser<PactInteger> {
 	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#parseField(byte[], int, int, char, eu.stratosphere.pact.common.type.Value)
 	 */
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim,
-			PactInteger field) {
+	public int parseField(byte[] bytes, int startPos, int length, char delim, PactLong field) {
 		
-		int val = 0;
+		long val = 0;
 		boolean neg = false;
 		
 		if(bytes[startPos] == '-') {
@@ -56,8 +55,8 @@ public class DecimalTextIntParser  implements FieldParser<PactInteger> {
 	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#getValue()
 	 */
 	@Override
-	public PactInteger getValue() {
-		return new PactInteger();
+	public PactLong getValue() {
+		return new PactLong();
 	}
 
 }
