@@ -107,14 +107,14 @@ public class FixedLengthStringParserTest {
 		config.setString(FixedLengthStringParser.STRING_ENCAPSULATOR, "'");
 		config.setInteger(FixedLengthStringParser.STRING_LENGTH, 7);
 		parser.configure(config);
-		recBytes = "'abcde'|'efghi'|'jklmn|".getBytes();
+		recBytes = "'abcde'|'e  f '|'jklmn|".getBytes();
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
 		assertTrue(startPos == 8);
 		assertTrue(s.getValue().equals("abcde"));
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
 		assertTrue(startPos == 16);
-		assertTrue(s.getValue().equals("efghi"));
+		assertTrue(s.getValue().equals("e  f "));
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
 		assertTrue(startPos == -1);
 		

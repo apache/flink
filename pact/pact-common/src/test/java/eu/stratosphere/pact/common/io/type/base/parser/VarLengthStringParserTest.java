@@ -76,7 +76,7 @@ public class VarLengthStringParserTest {
 		// check encapsulation
 		config.setString(VarLengthStringParser.STRING_ENCAPSULATOR, "'");
 		parser.configure(config);
-		recBytes = "'abcdef'|'ghi'|'jklmnopqr'|".getBytes();
+		recBytes = "'abcdef'|'ghi'|'j kl  mn '|".getBytes();
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
 		assertTrue(startPos == 9);
@@ -86,7 +86,7 @@ public class VarLengthStringParserTest {
 		assertTrue(s.getValue().equals("ghi"));
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, '|', s);
 		assertTrue(startPos == 27);
-		assertTrue(s.getValue().equals("jklmnopqr"));
+		assertTrue(s.getValue().equals("j kl  mn "));
 		
 		// check corrupt encapsulation
 		config.setString(VarLengthStringParser.STRING_ENCAPSULATOR, "'");
