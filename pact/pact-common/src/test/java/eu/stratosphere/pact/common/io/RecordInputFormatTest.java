@@ -418,6 +418,32 @@ public class RecordInputFormatTest {
 		
 	}
 	
+	@Test
+	public void testReadTooShortInput() throws IOException
+	{
+		final String fileContent = "111|222|333|444\n666|777|888|999";
+		final FileInputSplit split = createTempFile(fileContent);	
+	
+		final Configuration parameters = new Configuration();
+		parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
+		parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
+		parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
+		parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 3, DecimalTextIntParser.class);
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 4, DecimalTextIntParser.class);
+		
+		format.configure(parameters);
+		format.open(split);
+		
+		PactRecord record = new PactRecord();
+		
+		assertFalse(format.nextRecord(record));
+				
+	}
+	
 	private FileInputSplit createTempFile(String content) throws IOException
 	{
 		this.tempFile = File.createTempFile("test_contents", "tmp");

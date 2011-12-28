@@ -182,11 +182,15 @@ public class RecordInputFormat extends DelimitedInputFormat {
 		
 		for(int i=0; i<recordPositions.length; i++) {
 			
+			// check valid start position
+			if(startPos >= numBytes) return false;
+			
 			if(recordPositions[i] > -1) {
 				// parse field
 				parser = this.fieldParsers[i];
 				val = this.fieldValues[i];
 				startPos = parser.parseField(bytes, startPos, numBytes, fieldDelim, val);
+				// check parse result
 				if(startPos < 0) return false;
 				target.setField(recordPositions[i], val);
 				
