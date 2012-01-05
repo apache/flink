@@ -18,18 +18,27 @@ package eu.stratosphere.nephele.visualization.swt;
 import java.util.HashMap;
 import java.util.Map;
 
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.events.MenuEvent;
+import org.eclipse.swt.events.MenuListener;
+import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
 
@@ -61,10 +70,27 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		this.shell = new Shell(parent);
 		this.shell.setSize(WIDTH, HEIGHT);
 		this.shell.setText("Manage Outage Patterns");
-
-		this.shell.setLayout(new GridLayout(2, false));
-
-		final SashForm horizontalSash = new SashForm(this.shell, SWT.HORIZONTAL);
+		GridLayout gl = new GridLayout(1, false);
+		gl.horizontalSpacing = 0;
+		gl.verticalSpacing = 0;
+		gl.marginRight = 0;
+		gl.marginLeft = 0;
+		gl.marginBottom = 0;
+		gl.marginTop = 0;
+		gl.marginHeight = 0;
+		gl.marginWidth = 0;
+		this.shell.setLayout(gl);
+		
+		final Composite mainComposite = new Composite(this.shell, SWT.NONE);
+		mainComposite.setLayout(new GridLayout(1, false));
+		GridData gridData = new GridData();
+		gridData.horizontalAlignment = GridData.FILL;
+		gridData.verticalAlignment = GridData.FILL;
+		gridData.grabExcessHorizontalSpace = true;
+		gridData.grabExcessVerticalSpace = true;
+		mainComposite.setLayoutData(gridData);
+		
+		final SashForm horizontalSash = new SashForm(mainComposite, SWT.HORIZONTAL);
 		horizontalSash.setLayoutData(new GridData(GridData.FILL_BOTH));
 
 		final Group jobGroup = new Group(horizontalSash, SWT.NONE);
@@ -73,10 +99,10 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 
 		this.jobTree = new Tree(jobGroup, SWT.SINGLE | SWT.BORDER);
 		this.jobTree.addSelectionListener(this);
-
+		this.jobTree.setMenu(createTreeContextMenu());
+		
 		this.jobTabFolder = new CTabFolder(horizontalSash, SWT.TOP);
 		this.jobTabFolder.addSelectionListener(this);
-		this.jobTabFolder.setVisible(false);
 
 		this.taskFailurePatternsTab = new CTabItem(this.jobTabFolder, SWT.NONE);
 
@@ -89,6 +115,26 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		this.taskFailurePatternsTab.setText("Task Failure Patterns");
 		this.instanceFailurePatternsTab.setText("Instance Failure Patterns");
 
+		
+		final Composite buttonComposite = new Composite(this.shell, SWT.NONE);
+		buttonComposite.setLayout(new GridLayout(2, false));
+		gridData = new GridData();
+		gridData.horizontalAlignment = GridData.FILL;
+		buttonComposite.setLayoutData(gridData);
+		
+		final Label fillLabel = new Label(buttonComposite, SWT.NONE);
+		gridData = new GridData();
+		gridData.horizontalAlignment = GridData.FILL;
+		gridData.grabExcessHorizontalSpace = true;
+		gridData.grabExcessVerticalSpace = false;
+		fillLabel.setLayoutData(gridData);
+		
+		final Button closeButton = new Button(buttonComposite, SWT.PUSH);
+		closeButton.setText("Close");
+		gridData = new GridData();
+		gridData.horizontalAlignment = SWT.RIGHT;
+		closeButton.setLayoutData(gridData);
+		
 	}
 
 	public void open() {
@@ -96,6 +142,94 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		this.shell.open();
 	}
 
+	private Menu createTreeContextMenu() {
+		
+		final Menu treeContextMenu = new Menu(this.shell);
+		final MenuItem createItem = new MenuItem(treeContextMenu, SWT.PUSH);
+		createItem.setText("Create...");
+		createItem.addSelectionListener(new SelectionAdapter() {
+			
+			@Override
+			public void widgetSelected(final SelectionEvent arg0) {
+				createNewFailurePattern();
+			}
+		});
+		new MenuItem(treeContextMenu, SWT.SEPARATOR);
+		final MenuItem deleteItem = new MenuItem(treeContextMenu, SWT.PUSH);
+		deleteItem.setText("Delete...");
+		deleteItem.addSelectionListener(new SelectionAdapter() {
+			
+			@Override
+			public void widgetSelected(final SelectionEvent arg0) {
+				deleteFailurePattern();
+			}
+		});
+		new MenuItem(treeContextMenu, SWT.SEPARATOR);
+		final MenuItem saveItem = new MenuItem(treeContextMenu, SWT.PUSH);
+		saveItem.setText("Save...");
+		saveItem.addSelectionListener(new SelectionAdapter() {
+			
+			@Override
+			public void widgetSelected(final SelectionEvent arg0) {
+				saveFailurePattern();
+			}
+		});
+		final MenuItem loadItem = new MenuItem(treeContextMenu, SWT.PUSH);
+		loadItem.setText("Load...");
+		loadItem.addSelectionListener(new SelectionAdapter() {
+			
+			@Override
+			public void widgetSelected(final SelectionEvent arg0) {
+				loadFailurePattern();
+			}
+		});
+		
+		treeContextMenu.addMenuListener(new MenuListener() {
+			
+			@Override
+			public void menuShown(final MenuEvent arg0) {
+				
+				if(jobTree.getSelection().length == 0) {
+					createItem.setEnabled(true);
+					deleteItem.setEnabled(false);
+					saveItem.setEnabled(false);
+					loadItem.setEnabled(true);
+				} else {
+					createItem.setEnabled(false);
+					deleteItem.setEnabled(true);
+					saveItem.setEnabled(true);
+					loadItem.setEnabled(false);
+				}
+			}
+			
+			@Override
+			public void menuHidden(final MenuEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+		});
+		
+		return treeContextMenu;
+	}
+	
+	private void createNewFailurePattern() {
+		//TODO: Implement me
+		
+		
+	}
+	
+	private void deleteFailurePattern() {
+		//TODO: Implement me
+	}
+	
+	private void saveFailurePattern() {
+		//TODO: Implement me
+	}
+	
+	private void loadFailurePattern() {
+		//TODO: Implement me
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */
