@@ -204,8 +204,7 @@
               </archive>
 
               <includes>
-                <include>**/wordcount/WordCount.class</include>
-                <include>**/wordcount/WordCount$*.class</include>
+                <include>**/wordcount/*.class</include>
               </includes>
             </configuration>
           </execution>
