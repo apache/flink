@@ -19,6 +19,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -105,6 +106,19 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	
 	/**
 	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyClass The class of the key's type.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param inputs The contracts to use as the input.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn, List<Contract> inputs) {
+		this(c, keyClass, keyColumn, inputs, DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
 	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
@@ -116,6 +130,19 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		this(c, keyClasses, keyColumns, input, DEFAULT_NAME);
 	}
 	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
+	 * It uses the given contracts as its input. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param inputs The contracts to use as the input.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, List<Contract> inputs) {
+		this(c, keyClasses, keyColumns, inputs, DEFAULT_NAME);
+	}
+
 	/**
 	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
 	 * It uses the given contract as its input.
@@ -133,6 +160,21 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	
 	/**
 	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyClass The class of the key's type.
+	 * @param keyColumn The position of the key in the input records.
+	 * @param inputs The contracts to use as the input.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn, List<Contract> inputs, String name) {
+		this(c, keyClass, keyColumn, name);
+		setInputs(inputs);
+	}
+
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
 	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
 	 * 
 	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
@@ -146,6 +188,21 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		setInput(input);
 	}
 	
+	/**
+	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
+	 * It uses the given contracts as its input. The reducer has a composite key on which it groups.
+	 * 
+	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
+	 * @param keyClasses The classes of the data types of the key fields.
+	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param inputs The contracts to use as the input.
+	 * @param name The name of PACT.
+	 */
+	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, List<Contract> inputs, String name) {
+		this(c, keyClasses, keyColumns, name);
+		setInputs(inputs);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	/**

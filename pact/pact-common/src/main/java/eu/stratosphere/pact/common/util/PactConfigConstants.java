@@ -37,7 +37,7 @@ public final class PactConfigConstants {
 	 * The key for the config parameter defining the default intra-node degree of parallelization
 	 * for user functions.
 	 */
-	public static final String DEFAULT_PARALLELIZATION_INTRA_NODE_DEGREE_KEY = "pact.parallelization.intra-node-degree";
+	public static final String PARALLELIZATION_MAX_INTRA_NODE_DEGREE_KEY = "pact.parallelization.max-intra-node-degree";
 
 	/**
 	 * The key for the config parameter defining the number of nodes to use for the pact program execution.
@@ -100,7 +100,7 @@ public final class PactConfigConstants {
 	/**
 	 * The default intra-node parallelism
 	 */
-	public static final int DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE = 1;
+	public static final int DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE = -1;
 
 	/**
 	 * The default maximal number of machines to use for the execution of a pact program. The -1 indicates

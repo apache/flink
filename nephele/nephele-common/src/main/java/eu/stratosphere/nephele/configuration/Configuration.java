@@ -347,6 +347,30 @@ public class Configuration implements IOReadableWritable {
 
 		return retVal;
 	}
+	
+	/**
+	 * Adds all entries from the given configuration into this configuration. The keys
+	 * are prepended with the given prefix.
+	 * 
+	 * @param other The configuration whose entries are added to this configuration.
+	 * @param prefix The prefix to prepend.
+	 */
+	public void addAll(Configuration other, String prefix)
+	{
+		final StringBuilder bld = new StringBuilder();
+		bld.append(prefix);
+		final int pl = bld.length();
+		
+		synchronized (this.confData) {
+			synchronized (other.confData) {
+				for (Map.Entry<String, String> entry :other.confData.entrySet()) {
+					bld.setLength(pl);
+					bld.append(entry.getKey());
+					this.confData.put(bld.toString(), entry.getValue());
+				}
+			}
+		}
+	}
 
 	/**
 	 * {@inheritDoc}

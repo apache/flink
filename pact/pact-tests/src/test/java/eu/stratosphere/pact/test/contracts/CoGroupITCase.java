@@ -139,8 +139,8 @@ public class CoGroupITCase extends TestBase
 	public static class TestCoGrouper extends CoGroupStub {
 	//CoGroupStub<PactString, PactString, PactString, PactString, PactInteger> {
 
-		private final PactString keyString = new PactString();
-		private final PactString valueString = new PactString();
+		private PactString keyString = new PactString();
+		private PactString valueString = new PactString();
 		private PactRecord record = new PactRecord();
 		
 		@Override
@@ -152,8 +152,8 @@ public class CoGroupITCase extends TestBase
 			LOG.debug("Start iterating over input1");
 			while (records1.hasNext()) {
 				record = records1.next();
-				record.getField(0, keyString);
-				record.getField(1, valueString);
+				keyString = record.getField(0, keyString);
+				valueString = record.getField(1, valueString);
 				sum += Integer.parseInt(valueString.getValue());
 
 				LOG.debug("Processed: [" + keyString.getValue() + "," + valueString.getValue() + "]");
@@ -161,8 +161,8 @@ public class CoGroupITCase extends TestBase
 			LOG.debug("Start iterating over input2");
 			while (records2.hasNext()) {
 				record = records2.next();
-				record.getField(0, keyString);
-				record.getField(1, valueString);
+				keyString = record.getField(0, keyString);
+				valueString = record.getField(1, valueString);
 				sum -= Integer.parseInt(valueString.getValue());
 
 				LOG.debug("Processed: [" + keyString.getValue() + "," + valueString.getValue() + "]");
@@ -198,9 +198,9 @@ public class CoGroupITCase extends TestBase
 		FileDataSink output = new FileDataSink(CoGroupOutFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testCoGrouper);
-		testCoGrouper.setFirstInput(input_left);
-		testCoGrouper.setSecondInput(input_right);
+		output.addInput(testCoGrouper);
+		testCoGrouper.addFirstInput(input_left);
+		testCoGrouper.addSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 

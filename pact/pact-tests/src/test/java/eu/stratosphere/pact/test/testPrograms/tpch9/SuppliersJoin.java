@@ -25,8 +25,8 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
 
 public class SuppliersJoin extends MatchStub {
 	
-	private final PactInteger suppKey = new PactInteger();
-	private final Tuple nationVal = new Tuple();
+	private PactInteger suppKey = new PactInteger();
+	private Tuple nationVal = new Tuple();
 	
 	/**
 	 * Join "nation" and "supplier" by "nationkey".
@@ -39,8 +39,8 @@ public class SuppliersJoin extends MatchStub {
 	@Override
 	public void match(PactRecord value1, PactRecord value2, Collector out)
 			throws Exception {
-		value1.getField(1, suppKey);
-		value2.getField(1, nationVal);
+		suppKey = value1.getField(1, suppKey);
+		nationVal = value2.getField(1, nationVal);
 		
 		PactString nationName = new PactString(nationVal.getStringValueAt(1));
 		

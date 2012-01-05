@@ -135,9 +135,8 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				element.getField(1, this.theInteger);
-				// we could have equivalently used PactInteger i = record.getField(1, PactInteger.class);
-				sum += this.theInteger.getValue();
+				PactInteger i = element.getField(1, PactInteger.class);
+				sum += i.getValue();
 			}
 
 			this.theInteger.setValue(sum);
@@ -170,7 +169,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		FileDataSource source = new FileDataSource(LineInFormat.class, dataInput, "Input Lines");
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
 		ReduceContract reducer = new ReduceContract(CountWords.class, PactString.class, 0, mapper, "Count Words");
-		FileDataSink out = new FileDataSink(WordCountOutFormat.class, output, reducer, "Output");
+		FileDataSink out = new FileDataSink(WordCountOutFormat.class, output, reducer, "Word Counts");
 
 		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(noSubTasks);

@@ -17,13 +17,14 @@ package eu.stratosphere.pact.runtime.sort;
 
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -64,7 +65,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 	public AsynchronousPartialSorter(
 			MemoryManager memoryManager, IOManager ioManager, long totalMemory,
 			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			MutableObjectIterator<PactRecord> input, AbstractTask parentTask)
+			MutableObjectIterator<PactRecord> input, AbstractInvokable parentTask)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, totalMemory, 0,
@@ -93,8 +94,7 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 		this.bufferIterator = new BufferQueueIterator(queues);
 		setResultIterator(this.bufferIterator);
 		
-		return new SpillingThread(exceptionHandler, queues, memoryManager, ioManager,
-			readMemSize, parentTask);
+		return new DummyThread(exceptionHandler, queues, parentTask);
 	}
 	
 	/* (non-Javadoc)
@@ -115,27 +115,26 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 	}
 
 	// ------------------------------------------------------------------------
-	// Threads
+	//                           Utility Classes
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This thread
+	 * This thread does nothing except immediately terminating.
 	 */
-	private class SpillingThread extends ThreadBase
+	protected static final class DummyThread extends ThreadBase
 	{
-		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				MemoryManager memoryManager, IOManager ioManager, long readMemSize, AbstractInvokable parentTask)
+		public DummyThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues, AbstractInvokable parentTask)
 		{
 			super(exceptionHandler, "Partial Sorter Iterator Thread.", queues, parentTask);
 		}
 
 		/**
-		 * Entry point of the thread. Does Nothing, since the thread does not spill.
+		 * Entry point of the thread. Does Nothing.
 		 */
 		public void go() throws IOException
 		{}
 		
-	} // end spilling thread
+	} // end dummy thread
 
 	// ------------------------------------------------------------------------
 
@@ -203,6 +202,9 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 						}
 						
 						if (this.currentElement == SENTINEL) {
+							// signals the end, no more buffers will come
+							// release the memory first before returning
+							releaseSortBuffers();
 							return false;
 						}
 						if (this.currentElement == SPILLING_MARKER) {
@@ -237,6 +239,19 @@ public class AsynchronousPartialSorter extends UnilateralSortMerger
 			}
 			if (this.currentIterator != null) {
 				this.currentIterator = null;
+			}
+		}
+		
+		private final void releaseSortBuffers()
+		{
+			while (!this.queues.empty.isEmpty()) {
+				final CircularElement elem = this.queues.empty.poll();
+				if (elem != null) {
+					final NormalizedKeySorter<?> sorter = elem.buffer;
+					final List<MemorySegment> segments = sorter.dispose();
+					AsynchronousPartialSorter.this.memoryManager.release(segments);
+					AsynchronousPartialSorter.this.sortBuffers.remove(sorter);
+				}
 			}
 		}
 

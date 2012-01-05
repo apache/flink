@@ -58,11 +58,11 @@ import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
+import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
-import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.runtime.task.HistogramTask;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
@@ -350,9 +350,9 @@ public class PactCompiler {
 	private final int defaultDegreeOfParallelism;
 
 	/**
-	 * The default number of subtasks that should share an instance.
+	 * The maximum number of subtasks that should share an instance.
 	 */
-	private final int defaultIntraNodeParallelism;
+	private final int maxIntraNodeParallelism;
 
 	// ------------------------------------------------------------------------
 	// Constructor & Setup
@@ -449,14 +449,14 @@ public class PactCompiler {
 			PactConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
 
 		// determine the default intra-node parallelism
-		int defaultInNodePar = config.getInteger(PactConfigConstants.DEFAULT_PARALLELIZATION_INTRA_NODE_DEGREE_KEY,
-			PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE);
-		if (defaultInNodePar < 1) {
-			LOG.error("Invalid default degree of intra-node parallelism: " + defaultInNodePar +
-				". Using default degree of " + PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE + ".");
-			defaultInNodePar = PactConfigConstants.DEFAULT_INTRA_NODE_PARALLELIZATION_DEGREE;
+		int maxInNodePar = config.getInteger(PactConfigConstants.PARALLELIZATION_MAX_INTRA_NODE_DEGREE_KEY,
+			PactConfigConstants.DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE);
+		if (maxInNodePar == 0 || maxInNodePar < -1) {
+			LOG.error("Invalid maximum degree of intra-node parallelism: " + maxInNodePar +
+				". Ignoring parameter.");
+			maxInNodePar = PactConfigConstants.DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE;
 		}
-		this.defaultIntraNodeParallelism = defaultInNodePar;
+		this.maxIntraNodeParallelism = maxInNodePar;
 
 		// assign the connection to the job-manager
 		if (jobManagerConnection != null) {
@@ -562,8 +562,10 @@ public class PactCompiler {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
 		}
 		
-		String instanceName = type.getInstanceType().getIdentifier();
-		long memoryPerInstance = (long) (type.getHardwareDescription().getSizeOfFreeMemory() * 0.95f);
+		final String instanceName = type.getInstanceType().getIdentifier();
+		
+		// we subtract some percentage of the memory to accommodate for rounding errors and fragmentation
+		final long memoryPerInstance = (long) (type.getHardwareDescription().getSizeOfFreeMemory() * 0.96f);
 		int memoryMegabytes = (int) (memoryPerInstance >>> 20);
 		int numInstances = type.getMaximumNumberOfAvailableInstances();
 		
@@ -597,25 +599,34 @@ public class PactCompiler {
 		// set the default degree of parallelism
 		int defaultParallelism = pactPlan.getDefaultParallelism() > 0 ?
 			pactPlan.getDefaultParallelism() : this.defaultDegreeOfParallelism;
-		if (defaultParallelism < 1) {
-			defaultParallelism = maxMachinesJob * this.defaultIntraNodeParallelism;
-		} else if (defaultParallelism > maxMachinesJob * this.defaultIntraNodeParallelism) {
-			int oldParallelism = defaultParallelism;
-			defaultParallelism = maxMachinesJob * this.defaultIntraNodeParallelism;
+		
+		if (this.maxIntraNodeParallelism > 0) {
+			if (defaultParallelism < 1) {
+				defaultParallelism = maxMachinesJob * this.maxIntraNodeParallelism;
+			}
+			else if (defaultParallelism > maxMachinesJob * this.maxIntraNodeParallelism) {
+				int oldParallelism = defaultParallelism;
+				defaultParallelism = maxMachinesJob * this.maxIntraNodeParallelism;
 
+				if (LOG.isInfoEnabled()) {
+					LOG.info("Decreasing default degree of parallelism from " + oldParallelism +
+						" to " + defaultParallelism + " to fit a maximum number of " + maxMachinesJob +
+						" instances with a intra-parallelism of " + this.maxIntraNodeParallelism);
+				}
+			}
+		} else if (defaultParallelism < 1) {
+			defaultParallelism = maxMachinesJob;
 			if (LOG.isInfoEnabled()) {
-				LOG.info("Decreasing default degree of parallelism from " + oldParallelism +
-					" to " + defaultParallelism + " to fit a maximum number of " + maxMachinesJob +
-					" instances with a intra-parallelism of " + defaultIntraNodeParallelism);
+				LOG.info("No default parallelism specified. Using default parallelism of " + defaultParallelism + " (One task per instance)");
 			}
 		}
 
 		// log the output
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Using a default degree of parallelism of " + defaultParallelism +
-				", a default intra-node parallelism of " + this.defaultIntraNodeParallelism + '.');
-			if (maxMachines > 0) {
-				LOG.debug("The execution is limited to a maximum number of " + maxMachines + " machines.");
+				", a maximum intra-node parallelism of " + this.maxIntraNodeParallelism + '.');
+			if (this.maxMachines > 0) {
+				LOG.debug("The execution is limited to a maximum number of " + maxMachinesJob + " machines.");
 			}
 
 		}
@@ -629,8 +640,7 @@ public class PactCompiler {
 		// 4) It makes estimates about the data volume of the data sources and
 		// propagates those estimates through the plan
 
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(this.statistics, maxMachinesJob,
-			defaultParallelism, this.defaultIntraNodeParallelism, true);
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(this.statistics, maxMachinesJob, defaultParallelism, true);
 		pactPlan.accept(graphCreator);
 
 		// if we have a plan with multiple data sinks, add logical optimizer nodes that have two data-sinks as children
@@ -705,8 +715,9 @@ public class PactCompiler {
 	 *        The plan to generate the optimizer representation for.
 	 * @return The optimizer representation of the plan.
 	 */
-	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan) {
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, -1, -1, false);
+	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan)
+	{
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
 		pactPlan.accept(graphCreator);
 		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
 				pactPlan.getJobName());
@@ -724,7 +735,8 @@ public class PactCompiler {
 	 * estimation and the awareness for optimizer hints, the sizes will be properly estimated and the translated plan
 	 * already respects all optimizer hints.
 	 */
-	private static final class GraphCreatingVisitor implements Visitor<Contract> {
+	private static final class GraphCreatingVisitor implements Visitor<Contract>
+	{
 		private final Map<Contract, OptimizerNode> con2node; // map from the contract objects to their
 																// corresponding optimizer nodes
 
@@ -738,8 +750,6 @@ public class PactCompiler {
 
 		private final int defaultParallelism; // the default degree of parallelism
 
-		private final int defaultIntraNodeParallelism; //
-
 		private int id; // the incrementing id for the nodes.
 
 		private final boolean computeEstimates; // flag indicating whether to compute additional info
@@ -747,8 +757,8 @@ public class PactCompiler {
 		/**
 		 * Creates a new node creating visitor.
 		 */
-		private GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism,
-				int defaultIntraNodeParallelism, boolean computeEstimates) {
+		private GraphCreatingVisitor(DataStatistics statistics, int maxMachines, int defaultParallelism, boolean computeEstimates)
+		{
 			this.con2node = new HashMap<Contract, OptimizerNode>();
 			this.sources = new ArrayList<DataSourceNode>(4);
 			this.sinks = new ArrayList<DataSinkNode>(2);
@@ -757,7 +767,6 @@ public class PactCompiler {
 
 			this.maxMachines = maxMachines;
 			this.defaultParallelism = defaultParallelism;
-			this.defaultIntraNodeParallelism = defaultIntraNodeParallelism;
 
 			this.id = 1;
 
@@ -772,7 +781,7 @@ public class PactCompiler {
 		@Override
 		public boolean preVisit(Contract c) {
 			// check if we have been here before
-			if (con2node.containsKey(c)) {
+			if (this.con2node.containsKey(c)) {
 				return false;
 			}
 
@@ -781,11 +790,11 @@ public class PactCompiler {
 			// create a node for the pact (or sink or source) if we have not been here before
 			if (c instanceof GenericDataSink) {
 				DataSinkNode dsn = new DataSinkNode((GenericDataSink) c);
-				sinks.add(dsn);
+				this.sinks.add(dsn);
 				n = dsn;
 			} else if (c instanceof GenericDataSource) {
 				DataSourceNode dsn = new DataSourceNode((GenericDataSource<?>) c);
-				sources.add(dsn);
+				this.sources.add(dsn);
 				n = dsn;
 			} else if (c instanceof MapContract) {
 				n = new MapNode((MapContract) c);
@@ -801,7 +810,7 @@ public class PactCompiler {
 				throw new IllegalArgumentException("Unknown contract type.");
 			}
 
-			con2node.put(c, n);
+			this.con2node.put(c, n);
 
 			// set the degree of parallelism
 			int par = c.getDegreeOfParallelism();
@@ -815,10 +824,9 @@ public class PactCompiler {
 			// check if we need to set the instance sharing accordingly such that
 			// the maximum number of machines is not exceeded
 			int tasksPerInstance = 1;
-			if (maxMachines > 0) {
+			if (this.maxMachines > 0) {
 				int p = n.getDegreeOfParallelism();
-				tasksPerInstance = (p / maxMachines) + (p % maxMachines == 0 ? 0 : 1);
-				tasksPerInstance = Math.max(tasksPerInstance, this.defaultIntraNodeParallelism);
+				tasksPerInstance = (p / this.maxMachines) + (p % this.maxMachines == 0 ? 0 : 1);
 			}
 
 			// we group together n tasks per machine, depending on config and the above computed
@@ -835,26 +843,27 @@ public class PactCompiler {
 		 */
 		@Override
 		public void postVisit(Contract c) {
-			OptimizerNode n = con2node.get(c);
+			OptimizerNode n = this.con2node.get(c);
 
 			// check if we have been here before
 			if (n.getId() > 0) {
 				return;
 			}
 
-			n.SetId(id++);
+			n.SetId(this.id++);
 
 			// first connect to the predecessors
-			n.setInputs(con2node);
+			if(!(c instanceof GenericDataSource))
+				n.setInputs(this.con2node);
 
 			// now compute the output estimates
-			if (computeEstimates) {
+			if (this.computeEstimates) {
 				n.computeOutputEstimates(this.statistics);
 			}
 		}
 
 		public int getId() {
-			return id;
+			return this.id;
 		}
 
 	};
@@ -895,7 +904,7 @@ public class PactCompiler {
 
 			if (node.haveAllOutputConnectionInterestingProperties() && node.getInterestingProperties() == null) {
 				node.computeInterestingProperties();
-				node.computeInterestingPropertiesForInputs(estimator);
+				node.computeInterestingPropertiesForInputs(this.estimator);
 			}
 
 			// make sure we descend in any case (even if it causes redundant descends), because the branch propagation
@@ -943,12 +952,14 @@ public class PactCompiler {
 		@Override
 		public boolean preVisit(OptimizerNode visitable) {
 			// if we come here again, prevent a further descend
-			if (!allNodes.add(visitable)) {
+			if (!this.allNodes.add(visitable)) {
 				return false;
 			}
 
-			for (PactConnection c : visitable.getIncomingConnections()) {
-				c.getSourcePact().addOutgoingConnection(c);
+			for (List<PactConnection> cl : visitable.getIncomingConnections()) {
+				for(PactConnection c : cl) {
+					c.getSourcePact().addOutgoingConnection(c);
+				}
 			}
 
 			return true;
@@ -969,7 +980,8 @@ public class PactCompiler {
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.
 	 * Besides collecting all nodes, this traversal assigns the memory to the nodes.
 	 */
-	private static final class PlanFinalizer implements Visitor<OptimizerNode> {
+	private static final class PlanFinalizer implements Visitor<OptimizerNode>
+	{
 		private final Set<OptimizerNode> allNodes; // a set of all nodes in the optimizer plan
 
 		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
@@ -989,9 +1001,10 @@ public class PactCompiler {
 			this.sinks = new ArrayList<DataSinkNode>();
 		}
 
-		private OptimizedPlan createFinalPlan(List<DataSinkNode> sinks, String jobName, int memoryPerInstance) {
-			
-			LOG.debug("Available memory per instance: "+memoryPerInstance);
+		private OptimizedPlan createFinalPlan(List<DataSinkNode> sinks, String jobName, int memoryPerInstance)
+		{
+			if (LOG.isDebugEnabled())
+				LOG.debug("Available memory per instance: " + memoryPerInstance);
 			
 			this.memoryPerInstance = memoryPerInstance;
 			this.memoryConsumers = 0;
@@ -1032,53 +1045,54 @@ public class PactCompiler {
 		@Override
 		public boolean preVisit(OptimizerNode visitable) {
 			// if we come here again, prevent a further descend
-			if (!allNodes.add(visitable)) {
+			if (!this.allNodes.add(visitable)) {
 				return false;
 			}
 
-			for (PactConnection c : visitable.getIncomingConnections()) {
-				// check for memory consuming temp connection
-				switch(c.getTempMode()) {
-					case NONE:
-						// do nothing
-						break;
-					case TEMP_SENDER_SIDE:
-						// reduce available memory
-						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
-													c.getSourcePact().getDegreeOfParallelism();
-						LOG.debug("Memory reduced to "+memoryPerInstance+ " due to TempTask");
-						break;
-					case TEMP_RECEIVER_SIDE:
-						// reduce available memory
-						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
-													c.getTargetPact().getDegreeOfParallelism();
-						LOG.debug("Memory reduced to "+memoryPerInstance+ " due to TempTask");
-						break;
+			for (List<PactConnection> cl : visitable.getIncomingConnections()) {
+				for(PactConnection c : cl) {
+					// check for memory consuming temp connection
+					switch(c.getTempMode()) {
+						case NONE:
+							// do nothing
+							break;
+						case TEMP_SENDER_SIDE:
+							// reduce available memory
+							this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
+														c.getSourcePact().getDegreeOfParallelism();
+							LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
+							break;
+						case TEMP_RECEIVER_SIDE:
+							// reduce available memory
+							this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
+														c.getTargetPact().getDegreeOfParallelism();
+							LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
+							break;
+					}
 				}
-
 			}
 			
 			for (PactConnection conn : visitable.getOutgoingConnections()) {
 				if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
 					// One memory consumer for the histogram
-					memoryConsumers += visitable.getInstancesPerMachine();
+					this.memoryConsumers += visitable.getInstancesPerMachine();
 					//Reduce available memory because of temp task to avoid spilling
 					this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY *
 					conn.getSourcePact().getDegreeOfParallelism();
 					//TODO: is this correct reducing memory per INSTANCE by multiplying required
 					//memory * the TOTAL DoP?
-					LOG.debug("Memory reduced to "+memoryPerInstance+ " due to TempTask");
+					LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
 				}
 			}
 
 			if (visitable instanceof DataSinkNode) {
-				sinks.add((DataSinkNode) visitable);
+				this.sinks.add((DataSinkNode) visitable);
 			} else if (visitable instanceof DataSourceNode) {
-				sources.add((DataSourceNode) visitable);
+				this.sources.add((DataSourceNode) visitable);
 			}
 
 			// count the memory consumption
-			memoryConsumers += visitable.getMemoryConsumerCount() * visitable.getInstancesPerMachine();
+			this.memoryConsumers += visitable.getMemoryConsumerCount() * visitable.getInstancesPerMachine();
 			
 			return true;
 		}
@@ -1123,7 +1137,7 @@ public class PactCompiler {
 				node.accept(this);
 			}
 
-			for(PactConnection conn : deadlockConnection) {
+			for(PactConnection conn : this.deadlockConnection) {
 				// unmark connection
 				conn.setTempMode(TempMode.NONE);
 				// resolve deadlock for connection
@@ -1135,30 +1149,28 @@ public class PactCompiler {
 		/**
 		 * Inserts temping connections where it is necessary.
 		 * 
-		 * @param nodesToVisit List of nodes that are visited in this recursive call. To process all nodes of the plan, 
-		 *                     the method must be called with a list of all DataSinkNodes.
-		 * @param visitedNodes Set of nodes that have already been visited. To process all nodes of the plan, 
-		 *                     the method must be called with an empty set. 
 		 */
 		@Override
 		public boolean preVisit(OptimizerNode node) {
 			
-			if(visitedNodes.contains(node)) 
+			if(this.visitedNodes.contains(node)) 
 				return false; 
 			
 			// mark that we have been here
-			visitedNodes.add(node);
+			this.visitedNodes.add(node);
 			
 			// check if temp task is required
-			for (PactConnection inConn : node.getIncomingConnections()) {
-				// check if inConn is a blocked connection
-				if (isBlockedConnection(inConn)) {
-					// check if inConn needs to be temped
-					if (mayCauseDeadlock(inConn)) {
-						// mark connection as temped
-						inConn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-						// insert connection into temp connection list
-						deadlockConnection.add(inConn);
+			for (List<PactConnection> inConnList : node.getIncomingConnections()) {
+				for(PactConnection inConn : inConnList) {
+					// check if inConn is a blocked connection
+					if (isBlockedConnection(inConn)) {
+						// check if inConn needs to be temped
+						if (mayCauseDeadlock(inConn)) {
+							// mark connection as temped
+							inConn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+							// insert connection into temp connection list
+							this.deadlockConnection.add(inConn);
+						}
 					}
 				}
 			}
@@ -1213,38 +1225,38 @@ public class PactCompiler {
 					// first input is build side
 					if (inConnIdx == 1)
 						return true;
-					else
-						return false;
+					
+					return false;
 				case HYBRIDHASH_SECOND:
 					// second input is build side
 					if (inConnIdx == 0)
 						return true;
-					else
-						return false;
+
+					return false;
 				case MMHASH_FIRST:
 					// first input is build side
 					if (inConnIdx == 1)
 						return true;
-					else
-						return false;
+
+					return false;
 				case MMHASH_SECOND:
 					// second input is build side
 					if (inConnIdx == 0)
 						return true;
-					else
-						return false;
+
+					return false;
 				case SORT_FIRST_MERGE:
 					// first input is sorted
 					if (inConnIdx == 1)
 						return true;
-					else
-						return false;
+
+					return false;
 				case SORT_SECOND_MERGE:
 					// second input is sorted
 					if (inConnIdx == 0)
 						return true;
-					else
-						return false;
+
+					return false;
 				default:
 					return false;
 				}
@@ -1255,14 +1267,14 @@ public class PactCompiler {
 					// first input is sorted
 					if (inConnIdx == 1)
 						return true;
-					else
-						return false;
+
+					return false;
 				case SORT_SECOND_MERGE:
 					// second input is sorted
 					if (inConnIdx == 0)
 						return true;
-					else
-						return false;
+
+					return false;
 				default:
 					return false;
 				}
@@ -1273,26 +1285,26 @@ public class PactCompiler {
 					// first input is fully read before processing (inner side)
 					if (inConnIdx == 1)
 						return true;
-					else
-						return false;
+
+					return false;
 				case NESTEDLOOP_STREAMED_OUTER_SECOND:
 					// first input is fully read before processing (inner side)
 					if (inConnIdx == 1)
 						return true;
-					else
-						return false;
+
+					return false;
 				case NESTEDLOOP_BLOCKED_OUTER_FIRST:
 					// second input is fully read before processing (inner side)
 					if (inConnIdx == 0)
 						return true;
-					else
-						return false;
+
+					return false;
 				case NESTEDLOOP_STREAMED_OUTER_FIRST:
 					// second input is fully read before processing (inner side)
 					if (inConnIdx == 0)
 						return true;
-					else
-						return false;
+
+					return false;
 				default:
 					return false;
 				}
@@ -1338,44 +1350,44 @@ public class PactCompiler {
 					if (inConnIdx == 0)
 						// input is sorted
 						return true;
-					else
-						// input is NOT sorted
-						return false;
+	
+					// input is NOT sorted
+					return false;
 				case SORT_SECOND_MERGE:
 					if (inConnIdx == 1)
 						// input is sorted
 						return true;
-					else
-						// input is NOT sorted
-						return false;
+
+					// input is NOT sorted
+					return false;
 				case HYBRIDHASH_FIRST:
 					if (inConnIdx == 0)
 						// input is put into hashtable
 						return true;
-					else
-						// input is NOT put into hashtable
-						return false;
+
+					// input is NOT put into hashtable
+					return false;
 				case HYBRIDHASH_SECOND:
 					if (inConnIdx == 1)
 						// input is put into hashtable
 						return true;
-					else
-						// input is NOT put into hashtable
-						return false;
+
+					// input is NOT put into hashtable
+					return false;
 				case MMHASH_FIRST:
 					if (inConnIdx == 0)
 						// input is put into hashtable
 						return true;
-					else
-						// input is NOT put into hashtable
-						return false;
+
+					// input is NOT put into hashtable
+					return false;
 				case MMHASH_SECOND:
 					if (inConnIdx == 1)
 						// input is put into hashtable
 						return true;
-					else
-						// input is NOT put into hashtable
-						return false;
+
+					// input is NOT put into hashtable
+					return false;
 				default:
 					return false;
 				}
@@ -1386,30 +1398,30 @@ public class PactCompiler {
 					if (inConnIdx == 0)
 						// input is put read into resettable iterator
 						return true;
-					else
-						// input is put block-wise streamed over resettable iterator
-						return false;
+
+					// input is put block-wise streamed over resettable iterator
+					return false;
 				case NESTEDLOOP_STREAMED_OUTER_SECOND:
 					if (inConnIdx == 0)
 						// input is put read into resettable iterator
 						return true;
-					else
-						// input is put block-wise streamed over resettable iterator
-						return false;
+
+					// input is put block-wise streamed over resettable iterator
+					return false;
 				case NESTEDLOOP_BLOCKED_OUTER_FIRST:
 					if (inConnIdx == 1)
 						// input is put read into resettable iterator
 						return true;
-					else
-						// input is put block-wise streamed over resettable iterator
-						return false;
+
+					// input is put block-wise streamed over resettable iterator
+					return false;
 				case NESTEDLOOP_STREAMED_OUTER_FIRST:
 					if (inConnIdx == 1)
 						// input is put read into resettable iterator
 						return true;
-					else
-						// input is put block-wise streamed over resettable iterator
-						return false;
+
+					// input is put block-wise streamed over resettable iterator
+					return false;
 				}
 			case Cogroup:
 				inConnIdx = conn.getTargetPact().getIncomingConnections().indexOf(conn);
@@ -1421,16 +1433,15 @@ public class PactCompiler {
 					if (inConnIdx == 0)
 						// input is sorted
 						return true;
-					else
-						// input is NOT sorted
-						return false;
+
+					// input is NOT sorted
+					return false;
 				case SORT_SECOND_MERGE:
 					if (inConnIdx == 1)
 						// input is sorted
 						return true;
-					else
-						// input is NOT sorted
-						return false;
+					// input is NOT sorted
+					return false;
 				}
 			default:
 				return false;
@@ -1460,18 +1471,22 @@ public class PactCompiler {
 		private boolean mayCauseDeadlock(PactConnection conn) {
 			if (isTempingConnection(conn)) {
 				return false;
-			} else {
-				if (conn.getSourcePact().getOutgoingConnections().size() > 1) {
-					return true;
-				} else {
-					for (PactConnection inConn : conn.getSourcePact().getIncomingConnections()) {
-						if (mayCauseDeadlock(inConn) == true) {
-							return true;
-						}
+			}
+
+			if (conn.getSourcePact().getOutgoingConnections().size() > 1) {
+				return true;
+			}
+			
+			
+			for (List<PactConnection> inConnList : conn.getSourcePact().getIncomingConnections()) {
+				for(PactConnection inConn : inConnList) {
+					if (mayCauseDeadlock(inConn) == true) {
+						return true;
 					}
-					return false;
 				}
 			}
+		
+			return false;
 		}
 
 		private void resolveDeadlock(PactConnection conn) {
@@ -1485,6 +1500,8 @@ public class PactCompiler {
 				
 				// duplicate DataSourceNode
 				DataSourceNode duplicateDataSource = new DataSourceNode((GenericDataSource<?>)sourcePact.getPactContract());
+				duplicateDataSource.setDegreeOfParallelism(sourcePact.getDegreeOfParallelism());
+				duplicateDataSource.setInstancesPerMachine(sourcePact.getInstancesPerMachine());
 				// create new connection
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				
@@ -1494,7 +1511,7 @@ public class PactCompiler {
 				duplicateDataSource.addOutgoingConnection(newConn);
 				// replace old connection with new connection
 				if(targetPact instanceof SingleInputNode) {
-					((SingleInputNode)targetPact).setInputConnection(newConn);
+					((SingleInputNode)targetPact).addInputConnection(newConn);
 				} else if(targetPact instanceof TwoInputNode) {
 					if(((TwoInputNode)targetPact).getFirstInputConnection() == conn) {
 						((TwoInputNode)targetPact).setFirstInputConnection(newConn);
@@ -1512,18 +1529,21 @@ public class PactCompiler {
 				// this is the reason for the temp, insert temping here
 				conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
 			} else {
-				PactConnection predConn = sourcePact.getIncomingConnections().get(0); 
-				long curSize = sourcePact.getEstimatedOutputSize();
-				long predSize = predConn.getSourcePact().getEstimatedOutputSize();
+				List<PactConnection> predConn = sourcePact.getIncomingConnections().get(0);
 				
-				if(curSize < predSize) {
-					// this conn will ship less data than the preceding conn
-					// insert temping here
-					conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-				} else {
-					// this conn ships same or more data than preceding conn
-					// insert temp further ahead
-					resolveDeadlock(predConn);
+				for(PactConnection c : predConn) {
+					long curSize = sourcePact.getEstimatedOutputSize();
+					long predSize = c.getSourcePact().getEstimatedOutputSize();
+				
+					if(curSize < predSize) {
+						// this conn will ship less data than the preceding conn
+						// insert temping here
+						conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+					} else {
+						// this conn ships same or more data than preceding conn
+						// insert temp further ahead
+						resolveDeadlock(c);
+					}
 				}
 			}
 		}
@@ -1683,6 +1703,5 @@ public class PactCompiler {
 				jobManagerConnection = null;
 			}
 		}
-		
 	}
 }

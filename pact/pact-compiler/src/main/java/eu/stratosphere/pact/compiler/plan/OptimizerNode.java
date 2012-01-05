@@ -124,6 +124,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	protected Map<OptimizerNode, OptimizerNode> branchPlan; // the actual plan alternative chosen at a branch point
 
+	protected OptimizerNode lastJoinedBranchNode; // the node with latest branch (node with multiple outputs)
+	                                          // that both children share and that is at least partially joined
+
 	protected LocalStrategy localStrategy; // The local strategy (sorting / hashing, ...)
 
 	protected Costs nodeCosts; // the costs incurred by this node
@@ -209,7 +212,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(6);
 			this.branchPlan.put(toClone, this);
 		}
-	}
+
+		// remember the highest node in our sub-plan that branched.
+		this.lastJoinedBranchNode = toClone.lastJoinedBranchNode;
+}
 
 	// ------------------------------------------------------------------------
 	//      Abstract methods that implement node specific behavior
@@ -241,7 +247,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * 
 	 * @return The list of incoming links.
 	 */
-	public abstract List<PactConnection> getIncomingConnections();
+	public abstract List<List<PactConnection>> getIncomingConnections();
 
 	/**
 	 * Causes this node to compute its output estimates (such as number of rows, size in bytes)
@@ -259,6 +265,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * Tells the node to compute the interesting properties for its inputs. The interesting properties
 	 * for the node itself must have been computed before.
 	 * The node must then see how many of interesting properties it preserves and add its own.
+	 * 
+	 * @param estimator		The {@code CostEstimator} instance to use for plan cost estimation. 
 	 */
 	public abstract void computeInterestingPropertiesForInputs(CostEstimator estimator);
 
@@ -292,6 +300,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 *        The graph traversing visitor.
 	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
 	 */
+	@Override
 	public abstract void accept(Visitor<OptimizerNode> visitor);
 
 	/**
@@ -311,7 +320,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return This node's id, or -1, if not yet set.
 	 */
 	public int getId() {
-		return id;
+		return this.id;
 	}
 
 	/**
@@ -366,7 +375,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The type of the PACT.
 	 */
 	public PactType getPactType() {
-		return PactType.getType(pactContract.getClass());
+		return PactType.getType(this.pactContract.getClass());
 	}
 
 //	/**
@@ -375,7 +384,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 //	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
 //	 */
 //	public OutputContract getOutputContract() {
-//		return outputContract;
+//		return this.outputContract;
 //	}
 
 	/**
@@ -387,7 +396,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The degree of parallelism.
 	 */
 	public int getDegreeOfParallelism() {
-		return degreeOfParallelism;
+		return this.degreeOfParallelism;
 	}
 
 	/**
@@ -416,7 +425,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The number of instances per machine.
 	 */
 	public int getInstancesPerMachine() {
-		return instancesPerMachine;
+		return this.instancesPerMachine;
 	}
 
 	/**
@@ -441,7 +450,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The memory per task, in MiBytes.
 	 */
 	public int getMemoryPerTask() {
-		return memoryPerTask;
+		return this.memoryPerTask;
 	}
 
 	/**
@@ -461,7 +470,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The node-costs, or null, if not yet set.
 	 */
 	public Costs getNodeCosts() {
-		return nodeCosts;
+		return this.nodeCosts;
 	}
 
 	/**
@@ -471,7 +480,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The cumulative costs, or null, if not yet set.
 	 */
 	public Costs getCumulativeCosts() {
-		return cumulativeCosts;
+		return this.cumulativeCosts;
 	}
 
 	/**
@@ -481,7 +490,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The local strategy.
 	 */
 	public LocalStrategy getLocalStrategy() {
-		return localStrategy;
+		return this.localStrategy;
 	}
 
 	/**
@@ -510,7 +519,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The local properties.
 	 */
 	public LocalProperties getLocalProperties() {
-		return localProps;
+		return this.localProps;
 	}
 
 	/**
@@ -519,7 +528,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The global properties.
 	 */
 	public GlobalProperties getGlobalProperties() {
-		return globalProps;
+		return this.globalProps;
 	}
 
 	/**
@@ -528,7 +537,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The estimated output size.
 	 */
 	public long getEstimatedOutputSize() {
-		return estimatedOutputSize;
+		return this.estimatedOutputSize;
 	}
 
 	/**
@@ -537,7 +546,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The estimated number of records.
 	 */
 	public long getEstimatedNumRecords() {
-		return estimatedNumRecords;
+		return this.estimatedNumRecords;
 	}
 
 	/**
@@ -546,7 +555,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The estimated key cardinality.
 	 */
 	public long getEstimatedKeyCardinality() {
-		return estimatedKeyCardinality;
+		return this.estimatedKeyCardinality;
 	}
 
 	/**
@@ -559,6 +568,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return getOutgoingConnections() != null && getOutgoingConnections().size() > 1;
 	}
 
+	/**
+	 * Sets the basic cost for this {@code OptimizerNode}
+	 * 
+	 * @param nodeCosts		The already knows costs for this node
+	 * 						(this cost a produces by a concrete {@code OptimizerNode} subclass.
+	 */
 	public void setCosts(Costs nodeCosts) {
 		// set the node costs
 		this.nodeCosts = nodeCosts;
@@ -567,8 +582,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.cumulativeCosts = new Costs(0, 0);
 		this.cumulativeCosts.addCosts(nodeCosts);
 
-		for (PactConnection p : getIncomingConnections()) {
-			this.cumulativeCosts.addCosts(p.getSourcePact().cumulativeCosts);
+		for(List<PactConnection> pl : getIncomingConnections()) {
+			for (PactConnection p : pl) {
+				Costs parentCosts = p.getSourcePact().cumulativeCosts;
+				if(parentCosts != null)
+					this.cumulativeCosts.addCosts(parentCosts);
+			}
 		}
 	}
 
@@ -577,16 +596,54 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	// ------------------------------------------------------------------------
 
 	/**
+	 * This method step over all inputs recursively and combines all alternatives per input with all
+	 * other alternative of all other inputs.
+	 * 
+	 * @param inPlans		all alternative plans for all incoming connections (which are unioned)
+	 * @param predList		list of currently chosen alternative plans (has one entry for each incoming connection)
+	 * 						[this list is build up recursively within the method]
+	 * @param estimator		the cost estimator
+	 * @param alternativeSubPlans	all generated alternative for this node
+	 */
+	@SuppressWarnings("unchecked")
+	final protected void getAlternativeSubPlanCombinationsRecursively(List<? extends OptimizerNode>[] inPlans,
+			ArrayList<OptimizerNode> predList, List<List<OptimizerNode>> alternativeSubPlans)
+	{
+		final int inputNumberToProcess = predList.size();
+		final int numberOfAlternatives = inPlans[inputNumberToProcess].size();
+
+		for(int i = 0; i < numberOfAlternatives; ++i) {
+			predList.add(inPlans[inputNumberToProcess].get(i));
+		
+			// check if the hit the last recursion level
+			if(inputNumberToProcess + 1 == inPlans.length) {
+				// last recursion level: create a new alternative now
+
+				// we clone the current list in order to preserve this alternative plan combination
+				// otherwise we would override it later in...
+				alternativeSubPlans.add((ArrayList<OptimizerNode>)predList.clone());
+				
+			} else {
+				// step to next input and start to step though all plan alternatives
+				getAlternativeSubPlanCombinationsRecursively(inPlans, predList, alternativeSubPlans);
+			}
+			
+			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
+			predList.remove(inputNumberToProcess);
+		}
+	}
+	
+	/**
 	 * Checks, if all outgoing connections have their interesting properties set from their target nodes.
 	 * 
 	 * @return True, if on all outgoing connections, the interesting properties are set. False otherwise.
 	 */
 	public boolean haveAllOutputConnectionInterestingProperties() {
-		if (outgoingConnections == null) {
+		if (this.outgoingConnections == null) {
 			return true;
 		}
 
-		for (PactConnection conn : outgoingConnections) {
+		for (PactConnection conn : this.outgoingConnections) {
 			if (conn.getInterestingProperties() == null) {
 				return false;
 			}
@@ -729,9 +786,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 
 	private final <T extends OptimizerNode> void prunePlansWithCommonBranchAlternatives(List<T> plans) {
-		List<List<T>> toKeep = new ArrayList<List<T>>(intProps.size()); // for each interesting property, which plans
+		List<List<T>> toKeep = new ArrayList<List<T>>(this.intProps.size()); // for each interesting property, which plans
 		// are cheapest
-		for (int i = 0; i < intProps.size(); i++) {
+		for (int i = 0; i < this.intProps.size(); i++) {
 			toKeep.add(null);
 		}
 
@@ -745,8 +802,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			}
 
 			// find the interesting properties that this plan matches
-			for (int i = 0; i < intProps.size(); i++) {
-				if (intProps.get(i).isMetBy(candidate)) {
+			for (int i = 0; i < this.intProps.size(); i++) {
+				if (this.intProps.get(i).isMetBy(candidate)) {
 					// the candidate meets them
 					if (toKeep.get(i) == null) {
 						// first one to meet the interesting properties, so store it
@@ -804,7 +861,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			List<T> l = toKeep.get(i);
 
 			if (l != null) {
-				Costs maxDelta = intProps.get(i).getMaximalCosts();
+				Costs maxDelta = this.intProps.get(i).getMaximalCosts();
 
 				for (T plan : l) {
 					if (plan != null && !plan.pFlag) {
@@ -829,20 +886,25 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
+	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder();
 
 		bld.append(getName());
 		bld.append(" (").append(getPactType().name()).append(") ");
 
-		if (localStrategy != null) {
+		if (this.localStrategy != null) {
 			bld.append('(');
 			bld.append(getLocalStrategy().name());
 			bld.append(") ");
 		}
 
-		for (PactConnection conn : getIncomingConnections()) {
-			bld.append('(').append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
+		List<List<PactConnection>> pl = getIncomingConnections();
+		final int size = pl.size();
+		for(int i = 0; i < size; ++i) {
+			for (PactConnection conn : pl.get(i)) {
+				bld.append('(').append(i).append(":").append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
+			}
 		}
 
 		return bld.toString();
@@ -854,16 +916,16 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	public boolean hasUnclosedBranches()
 	{
-		return openBranches != null && !openBranches.isEmpty();
+		return this.openBranches != null && !this.openBranches.isEmpty();
 	}
 
 	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent)
 	{
-		if (outgoingConnections.size() == 1) {
+		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
 			return this.openBranches;
 		}
-		else if (outgoingConnections.size() > 1) {
+		else if (this.outgoingConnections.size() > 1) {
 			// we branch add a branch info to the stack
 			List<UnclosedBranchDescriptor> branches = new ArrayList<UnclosedBranchDescriptor>(4);
 			if (this.openBranches != null) {
@@ -872,12 +934,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 			// find out, which output number the connection to the parent
 			int num;
-			for (num = 0; num < outgoingConnections.size(); num++) {
-				if (outgoingConnections.get(num).getTargetPact() == parent) {
+			for (num = 0; num < this.outgoingConnections.size(); num++) {
+				if (this.outgoingConnections.get(num).getTargetPact() == parent) {
 					break;
 				}
 			}
-			if (num >= outgoingConnections.size()) {
+			if (num >= this.outgoingConnections.size()) {
 				throw new CompilerException("Error in compiler: "
 					+ "Parent to get branch info for is not contained in the outgoing connections.");
 			}
@@ -892,6 +954,139 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 				"Error in compiler: Cannot get branch info for parent in a node woth no parents.");
 		}
 	}
+	
+	/**
+	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
+	 * alternative plans are comparable, if
+	 * a) There is no branch in the sub-plan of this node
+	 * b) Both candidates have the same candidate as the child at the last open branch. 
+	 * 
+	 * @param child1Candidate
+	 * @param child2Candidate
+	 * @return
+	 */
+	protected boolean areBranchCompatible(List<OptimizerNode> child1Candidate, List<OptimizerNode> child2Candidate)
+	{
+		// if there is no open branch, the children are always compatible.
+		// in most plans, that will be the dominant case
+		if (this.lastJoinedBranchNode == null) {
+			return true;
+		}
+
+		
+		// the order of the branches in <joinedLists> does not matter 
+		List<OptimizerNode> joinedLists;
+		
+		final int size1 = child1Candidate.size();
+		int size = size1;
+		
+		if(child2Candidate != null) {
+			final int size2 = child2Candidate.size();
+			size += size2;
+			
+			joinedLists = new ArrayList<OptimizerNode>(size);
+			
+			for(int i = 0; i < size2; ++i) {
+				joinedLists.add(child2Candidate.get(i));
+			}			
+		} else {
+			joinedLists = new ArrayList<OptimizerNode>(size);			
+		}
+
+		for(int i = 0; i < size1; ++i) {
+			joinedLists.add(child1Candidate.get(i));
+		}
+
+		// we check if each branch is compatible with all others
+		for(int i = 0; i < size; ++i) {
+			
+			final OptimizerNode nodeToCompare = joinedLists.get(i).branchPlan.get(this.lastJoinedBranchNode);
+			
+			for(int j = i+1; j < size; ++j) {
+				if(!(nodeToCompare == joinedLists.get(j).branchPlan.get(this.lastJoinedBranchNode))) {
+					return false;
+				}
+			}
+		}
+		
+		return true;
+	}
+
+	/*
+	 * node IDs are assigned in graph-traversal order (pre-order)
+	 * hence, each list is sorted by ID in ascending order and all consecutive lists start with IDs in ascending order
+	 */
+	protected List<UnclosedBranchDescriptor> mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open) {
+		// check how many open branches we have. the cases:
+		// 1) if both are null or empty, the result is null
+		// 2) if one side is null (or empty), the result is the other side.
+		// 3) both are set, then we need to merge.
+		if(child1open == null || child1open.isEmpty()) {
+			return child2open;
+		}
+		
+		if(child2open == null || child2open.isEmpty()) {
+			return child1open;
+		}
+		
+		// both have a history. merge...
+		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>(4);
+
+
+		int index1 = child1open.size() - 1;
+		int index2 = child2open.size() - 1;
+
+		// as both lists (child1open and child2open) are sorted in ascending ID order
+		// we can do a merge-join-like loop which preserved the order in the result list
+		// and eliminates duplicates
+		while(index1 >= 0 || index2 >= 0) {
+			int id1 = -1;
+			int id2 = index2 >= 0 ? child2open.get(index2).getBranchingNode().getId() : -1;
+
+			while (index1 >= 0 && (id1 = child1open.get(index1).getBranchingNode().getId()) > id2) {
+				result.add(child1open.get(index1));
+				index1--;
+			}
+			while (index2 >= 0 && (id2 = child2open.get(index2).getBranchingNode().getId()) > id1) {
+				result.add(child2open.get(index2));
+				index2--;
+			}
+
+			// match: they share a common branching child
+			if (id1 == id2) {
+				// if this is the latest common child, remember it
+				OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
+
+				if (this.lastJoinedBranchNode == null) {
+					this.lastJoinedBranchNode = currBanchingNode;
+				}
+
+				// see, if this node closes the branch
+				long joinedInputs = child1open.get(index1).getJoinedPathsVector()
+					| child2open.get(index2).getJoinedPathsVector();
+
+				// this is 2^size - 1, which is all bits set at positions 0..size-1
+				long allInputs = (0x1L << currBanchingNode.getOutgoingConnections().size()) - 1;
+
+				if (joinedInputs == allInputs) {
+					// closed - we can remove it from the stack
+				} else {
+					// not quite closed
+					result.add(new UnclosedBranchDescriptor(currBanchingNode, joinedInputs));
+				}
+
+				index1--;
+				index2--;
+			}
+
+		}
+
+		// merged. now we need to reverse the list, because we added the elements in reverse order
+		Collections.reverse(result);
+		
+		return result;
+	}
+
 
 	protected static final class UnclosedBranchDescriptor
 	{
@@ -910,11 +1105,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 
 		public OptimizerNode getBranchingNode() {
-			return branchingNode;
+			return this.branchingNode;
 		}
 
 		public long getJoinedPathsVector() {
-			return joinedPathsVector;
+			return this.joinedPathsVector;
 		}
 	}
 }

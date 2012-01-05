@@ -122,7 +122,11 @@ public class PartitionTask extends AbstractPactTask {
 		// cache references on the stack
 		final MutableObjectIterator<PactRecord> input = this.inputs[0];
 		final MutableObjectIterator<PactRecord> histogramInput = this.inputs[1];
-		final OutputCollector output = this.output;
+		
+		if (!(this.output instanceof OutputCollector))
+			throw new Exception("Error: Partition Task has a collector that is not an OutputCollector. " +
+					"Another task was probably accidentally chained.");
+		final OutputCollector output = (OutputCollector) this.output;
 		
 		final PactRecord record = new PactRecord();
 		final PactRecord histogramRecord = new PactRecord();

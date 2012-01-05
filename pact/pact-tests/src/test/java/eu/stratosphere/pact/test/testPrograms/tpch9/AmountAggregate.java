@@ -23,9 +23,8 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 
-public class AmountAggregate extends ReduceStub {
-	
-	private PactRecord record = new PactRecord();
+public class AmountAggregate extends ReduceStub
+{
 	private PactString value = new PactString();
 	
 	/**
@@ -41,22 +40,20 @@ public class AmountAggregate extends ReduceStub {
 	 */
 	
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector out)
-			throws Exception {
-
+	public void reduce(Iterator<PactRecord> records, Collector out) throws Exception
+	{
+		PactRecord record = null;
 		float amount = 0;
 
 		while (records.hasNext()) {
 			record = records.next();
-			record.getField(1, value);
+			PactString value = record.getField(1, PactString.class);
 			amount += Float.parseFloat(value.toString());
 		}
 
-		if (value != null) {
-			value.setValue("" + amount);
-			record.setField(1, value);
-			out.collect(record);
-		}
+		value.setValue(String.valueOf(amount));
+		record.setField(1, value);
+		out.collect(record);
 	}
 	
 	
@@ -64,9 +61,8 @@ public class AmountAggregate extends ReduceStub {
 	 * Creates partial sums of "amount" for each data batch:
 	 */
 	@Override
-	public void combine(Iterator<PactRecord> records, Collector out)
-			throws Exception {
+	public void combine(Iterator<PactRecord> records, Collector out) throws Exception
+	{
 		reduce(records, out);
 	}
-
 }

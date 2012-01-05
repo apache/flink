@@ -15,13 +15,29 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
+import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
+import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.runtime.sort.SortMergeCoGroupIterator;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -146,7 +162,7 @@ public class CoGroupTask extends AbstractPactTask<CoGroupStub>
 	public void run() throws Exception
 	{
 		final CoGroupStub coGroupStub = this.stub;
-		final OutputCollector collector = this.output;
+		final Collector collector = this.output;
 		final CoGroupTaskIterator coGroupIterator = this.coGroupIterator;
 		
 		while (this.running && coGroupIterator.next()) {

@@ -32,7 +32,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings( {"javadoc", "unchecked"} )
 public class CrossTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(CrossTaskExternalITCase.class);
@@ -50,9 +50,9 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
@@ -72,9 +72,9 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -89,9 +89,9 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
@@ -111,9 +111,9 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		
 		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	

@@ -91,7 +91,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 */
 	public static class ProjectOrder extends MapStub {
 
-		private final Tuple value = new Tuple();
+		private Tuple value = new Tuple();
 		private final PactInteger custKey = new PactInteger();
 
 		/**
@@ -101,7 +101,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 */
 		@Override
 		public void map(PactRecord record, Collector out) throws Exception {
-			record.getField(1, value);
+			value = record.getField(1, value);
 			custKey.setValue((int)value.getLongValueAt(1));
 			record.clear();
 			record.setField(0, custKey);
@@ -119,7 +119,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	@OutputContract.Constant(0)
 	public static class ProjectCust extends MapStub {
 
-		private final Tuple value = new Tuple();
+		private Tuple value = new Tuple();
 		
 		/**
 		 * Output Schema:
@@ -128,7 +128,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 */
 		@Override
 		public void map(PactRecord record, Collector out) throws Exception {
-			record.getField(1, value);
+			value = record.getField(1, value);
 			PactString mktSegment = new PactString(value.getStringValueAt(6));
 			record.setField(1, mktSegment);
 			
@@ -143,7 +143,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	public static class JoinCO extends MatchStub {
 
 		private final PactInteger oneInteger = new PactInteger(1);
-		private final PactString mktSeg = new PactString();
+		private PactString mktSeg = new PactString();
 		
 		/**
 		 * Output Schema:
@@ -153,7 +153,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector out)
 				throws Exception {
-			value2.getField(1, mktSeg);
+			mktSeg = value2.getField(1, mktSeg);
 			value2.setField(0, mktSeg);
 			value2.setField(1, oneInteger);
 			out.collect(value2);
@@ -260,12 +260,12 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		result.setDegreeOfParallelism(noSubtasks);
 
 		// assemble the PACT plan
-		result.setInput(aggCO);
-		aggCO.setInput(joinCO);
-		joinCO.setFirstInput(projectO);
-		projectO.setInput(orders);
-		joinCO.setSecondInput(projectC);
-		projectC.setInput(customers);
+		result.addInput(aggCO);
+		aggCO.addInput(joinCO);
+		joinCO.addFirstInput(projectO);
+		projectO.addInput(orders);
+		joinCO.addSecondInput(projectC);
+		projectC.addInput(customers);
 
 		// return the PACT plan
 		return new Plan(result, "TPCH Asterix");

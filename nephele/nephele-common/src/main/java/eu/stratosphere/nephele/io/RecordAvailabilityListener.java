@@ -13,39 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.stubs;
+package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.pact.common.util.ReflectionUtil;
-
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * Abstract stub class for all PACT stubs with a single input.
- * PACT stubs must be overwritten to provide user implementations for PACT programs.
+ * This interface can be implemented by a class which shall be notified by an input gate when one of the its connected
+ * input channels has at least one record available for reading.
  * 
- * @author Fabian Hueske
- * @param <K> Type of the input key.
+ * @author warneke
+ * @param <T>
+ *        the type of record transported through the corresponding input gate
  */
-abstract class SingleInputKeyStub<K extends Key> extends Stub
-{
-	/**
-	 * Input key type.
-	 */
-	protected Class<K> keyClass;
+public interface RecordAvailabilityListener<T extends Record> {
 
 	/**
-	 * {@inheritDoc}
-	 */
-	protected void initTypes() {
-		this.keyClass = ReflectionUtil.getTemplateType(getClass(), 0);
-	}
-
-	/**
-	 * Returns the type of the input key.
+	 * This method is called by an input gate when one of its connected input channels has at least one record available
+	 * for reading.
 	 * 
-	 * @return Type of the input key.
+	 * @param inputGate
+	 *        the input gate which has at least one record available
 	 */
-	public Class<K> getKeyType() {
-		return this.keyClass;
-	}
+	void reportRecordAvailability(InputGate<T> inputGate);
 }

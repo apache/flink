@@ -322,6 +322,19 @@ public final class PactRecord implements Value
 	}
 	
 	/**
+	 * @param positions
+	 * @param targets
+	 * @return
+	 */
+	public void getFieldsIntoCheckingNull(int[] positions, Value[] targets)
+	{
+		for (int i = 0; i < positions.length; i++) {
+			if (!getFieldInto(positions[i], targets[i]))
+				throw new NullKeyFieldException(i);
+		}
+	}
+	
+	/**
 	 * Deserializes the given object from the binary string, starting at the given position.
 	 * If the deserialization asks for more that <code>limit - offset</code> bytes, than 
 	 * an exception is thrown.
@@ -630,14 +643,14 @@ public final class PactRecord implements Value
 				// the remainder %8 comes first 
 				int col = numFields - 1;
 				int mask = 0;
-				for (int i = numFields & 0x7; i >= 0; i--, col--) {
+				for (int i = numFields & 0x7; i > 0; i--, col--) {
 					mask <<= 1;
 					mask |= (offsets[col] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
 				}
 				serializer.writeByte(mask);
 				
 				// now the eight-bit chunks
-				for (int i = numFields >>> 3; i >= 0; i--) {
+				for (int i = numFields >>> 3; i > 0; i--) {
 					mask = 0;
 					for (int k = 0; k < 8; k++, col--) {
 						mask <<= 1;

@@ -96,7 +96,7 @@ public class ReduceITCase extends TestBase
 			PactRecord record = new PactRecord();
 			while (records.hasNext()) {
 				record = records.next();
-				record.getField(1, combineValue);
+				combineValue = record.getField(1, combineValue);
 				sum += Integer.parseInt(combineValue.toString());
 
 				LOG.debug("Processed: [" + record.getField(0, PactString.class).toString() +
@@ -114,7 +114,7 @@ public class ReduceITCase extends TestBase
 			PactRecord record = new PactRecord();
 			while (records.hasNext()) {
 				record = records.next();
-				record.getField(1, reduceValue);
+				reduceValue = record.getField(1, reduceValue);
 				sum += Integer.parseInt(reduceValue.toString());
 
 				LOG.debug("Processed: [" + record.getField(0, PactString.class).toString() +
@@ -145,8 +145,8 @@ public class ReduceITCase extends TestBase
 				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testReducer);
-		testReducer.setInput(input);
+		output.addInput(testReducer);
+		testReducer.addInput(input);
 
 		Plan plan = new Plan(output);
 

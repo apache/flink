@@ -202,32 +202,32 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		sumAmountAggregate.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Connect input filters: */
-		filterPart.setInput(partInput);
-		mapPartsupp.setInput(partSuppInput);
-		mapOrder.setInput(ordersInput);
-		mapLineItem.setInput(lineItemInput);
-		mapSupplier.setInput(supplierInput);
+		filterPart.addInput(partInput);
+		mapPartsupp.addInput(partSuppInput);
+		mapOrder.addInput(ordersInput);
+		mapLineItem.addInput(lineItemInput);
+		mapSupplier.addInput(supplierInput);
 
 		/* Connect equijoins: */
-		partsJoin.setFirstInput(filterPart);
-		partsJoin.setSecondInput(mapPartsupp);
-		orderedPartsJoin.setFirstInput(mapOrder);
-		orderedPartsJoin.setSecondInput(mapLineItem);
-		suppliersJoin.setFirstInput(mapSupplier);
-		suppliersJoin.setSecondInput(nationInput);
-		filteredPartsJoin.setFirstInput(partsJoin);
-		filteredPartsJoin.setSecondInput(orderedPartsJoin);
-		partListJoin.setFirstInput(filteredPartsJoin);
-		partListJoin.setSecondInput(suppliersJoin);
+		partsJoin.addFirstInput(filterPart);
+		partsJoin.addSecondInput(mapPartsupp);
+		orderedPartsJoin.addFirstInput(mapOrder);
+		orderedPartsJoin.addSecondInput(mapLineItem);
+		suppliersJoin.addFirstInput(mapSupplier);
+		suppliersJoin.addSecondInput(nationInput);
+		filteredPartsJoin.addFirstInput(partsJoin);
+		filteredPartsJoin.addSecondInput(orderedPartsJoin);
+		partListJoin.addFirstInput(filteredPartsJoin);
+		partListJoin.addSecondInput(suppliersJoin);
 
 		/* Connect aggregate: */
-		sumAmountAggregate.setInput(partListJoin);
+		sumAmountAggregate.addInput(partListJoin);
 
 		/* Connect sink: */
 		FileDataSink result = new FileDataSink(
 				StringIntPairStringDataOutFormat.class, this.outputPath, "Results sink");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
-		result.setInput(sumAmountAggregate);
+		result.addInput(sumAmountAggregate);
 
 		return new Plan(result, "TPC-H query 9");
 	}

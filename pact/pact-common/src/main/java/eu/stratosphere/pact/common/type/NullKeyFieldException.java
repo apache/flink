@@ -42,4 +42,14 @@ public class NullKeyFieldException extends RuntimeException
 	public NullKeyFieldException(String message) {
 		super(message);
 	}
+	
+	/**
+     * Constructs an {@code NullKeyFieldException} with a default message, referring to
+     * given field number as the null key field.
+     *
+     * @param fieldNumber The index of the field that was null, bit expected to hold a key.
+     */
+	public NullKeyFieldException(int fieldNumber) {
+		super("Field " + fieldNumber + " is null, but expected to hold a key.");
+	}
 }

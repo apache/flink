@@ -93,8 +93,8 @@ public class CombinerNode extends OptimizerNode {
 	}
 
 	@Override
-	public List<PactConnection> getIncomingConnections() {
-		return Collections.singletonList(input);
+	public List<List<PactConnection>> getIncomingConnections() {
+		return Collections.singletonList(Collections.singletonList(this.input));
 	}
 
 	@Override
@@ -120,7 +120,7 @@ public class CombinerNode extends OptimizerNode {
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {
-			input.getSourcePact().accept(visitor);
+			this.input.getSourcePact().accept(visitor);
 			visitor.postVisit(this);
 		}
 	}

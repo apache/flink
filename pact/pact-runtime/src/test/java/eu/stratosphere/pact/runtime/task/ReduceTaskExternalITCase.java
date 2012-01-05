@@ -34,7 +34,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings( {"javadoc", "unchecked"} )
 public class ReduceTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
@@ -48,8 +48,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
@@ -67,13 +67,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == valCnt-record.getField(0, PactInteger.class).getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -84,8 +84,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
@@ -103,13 +103,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == valCnt-record.getField(0, PactInteger.class).getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -120,8 +120,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -144,13 +144,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			expSum+=i;
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum-record.getField(0, PactInteger.class).getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -162,8 +162,8 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -186,13 +186,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			expSum+=i;
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum-record.getField(0, PactInteger.class).getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -210,9 +210,9 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 				element = records.next();
 				cnt++;
 			}
-			element.getField(0, key);
-			value.setValue(cnt - key.getValue());
-			element.setField(1, value);
+			element.getField(0, this.key);
+			this.value.setValue(cnt - this.key.getValue());
+			element.setField(1, this.value);
 			out.collect(element);
 		}
 	}
@@ -235,9 +235,9 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 				
 				sum += this.value.getValue();
 			}
-			element.getField(0, key);
-			value.setValue(sum - key.getValue());
-			element.setField(1, value);
+			element.getField(0, this.key);
+			this.value.setValue(sum - this.key.getValue());
+			element.setField(1, this.value);
 			out.collect(element);
 		}
 		
@@ -248,13 +248,13 @@ public class ReduceTaskExternalITCase extends TaskTestBase {
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				element.getField(1, combineValue);
+				element.getField(1, this.combineValue);
 				
-				sum += combineValue.getValue();
+				sum += this.combineValue.getValue();
 			}
 			
-			combineValue.setValue(sum);
-			element.setField(1, combineValue);
+			this.combineValue.setValue(sum);
+			element.setField(1, this.combineValue);
 			out.collect(element);
 		}
 		

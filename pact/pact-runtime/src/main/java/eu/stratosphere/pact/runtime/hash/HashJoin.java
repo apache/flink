@@ -473,10 +473,7 @@ public class HashJoin
 		PactRecord next;
 		while ((next = probeIter.next()) != null)
 		{
-			if (!next.getFieldsInto(this.probeSideKeyFields, keyHolders)) {
-				throw new NullKeyFieldException(); 
-			}
-			
+			next.getFieldsIntoCheckingNull(this.probeSideKeyFields, keyHolders);
 			final int hash = hash(keyHolders, this.currentRecursionDepth);
 			final int posHashCode = hash % this.numBuckets;
 			
@@ -644,7 +641,7 @@ public class HashJoin
 		initTable(numBuckets, (byte) partitionFanOut);
 		
 		final int[] positions = this.buildSideKeyFields;
-		final Key[] keys = this.keyHolders;
+		final Class<? extends Key>[] keys = this.keyClasses;
 		
 		// go over the complete input and insert every element into the hash table
 		PactRecord record = new PactRecord();
@@ -652,12 +649,12 @@ public class HashJoin
 		{
 			int hashCode = 0;
 			for (int i = 0; i < positions.length; i++) {
-				Key k = keys[i];
-				if ((k = record.getField(positions[i], k)) != null) {
+				Key k = record.getField(positions[i], keys[i]);
+				if (k != null) {
 					hashCode ^= hash(k.hashCode(), 0);
 				}
 				else {
-					throw new NullKeyFieldException();
+					throw new NullKeyFieldException(i);
 				}
 			}
 			insertIntoTable(record, hashCode);
@@ -1128,12 +1125,12 @@ public class HashJoin
 	{
 		int hashCode = 0;
 		for (int i = 0; i < this.buildSideKeyFields.length; i++) {
-			Key k = this.keyHolders[i];
-			if ((k = record.getField(this.buildSideKeyFields[i], k)) != null) {
+			Key k = record.getField(this.buildSideKeyFields[i], this.keyClasses[i]);
+			if (k != null) {
 				hashCode ^= hash(k.hashCode(), recursionLevel);
 			}
 			else {
-				throw new NullKeyFieldException();
+				throw new NullKeyFieldException(i);
 			}
 		}
 		return hashCode;

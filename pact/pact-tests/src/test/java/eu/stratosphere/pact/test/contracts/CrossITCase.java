@@ -104,18 +104,18 @@ public class CrossITCase extends TestBase
 
 	public static class TestCross extends CrossStub {
 
-		private final PactString string = new PactString();
-		private final PactInteger integer = new PactInteger();
+		private PactString string = new PactString();
+		private PactInteger integer = new PactInteger();
 		
 		@Override
 		public void cross(PactRecord record1, PactRecord record2, Collector out) {
-			record1.getField(1, string);
+			string = record1.getField(1, string);
 			int val1 = Integer.parseInt(string.toString());
-			record2.getField(1, string);
+			string = record2.getField(1, string);
 			int val2 = Integer.parseInt(string.toString());
-			record1.getField(0, string);
+			string = record1.getField(0, string);
 			int key1 = Integer.parseInt(string.toString());
-			record2.getField(0, string);
+			string = record2.getField(0, string);
 			int key2 = Integer.parseInt(string.toString());
 			
 			LOG.debug("Processing { [" + key1 + "," + val1 + "] , [" + key2 + "," + val2 + "] }");
@@ -171,9 +171,9 @@ public class CrossITCase extends TestBase
 				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testCross);
-		testCross.setFirstInput(input_left);
-		testCross.setSecondInput(input_right);
+		output.addInput(testCross);
+		testCross.addFirstInput(input_left);
+		testCross.addSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 

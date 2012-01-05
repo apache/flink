@@ -265,7 +265,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		String edgeInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
-		FileDataSource edges = new FileDataSource(EdgeListInFormat.class, edgeInput);
+		FileDataSource edges = new FileDataSource(EdgeListInFormat.class, edgeInput, "RDF Triples");
 		edges.setDegreeOfParallelism(noSubTasks);
 		//edges.setOutputContract(UniqueKey.class);
 
@@ -278,15 +278,15 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		MatchContract closeTriads = new MatchContract(CloseTriads.class, Edge.class, 0, 0, "Close Triads");
 		closeTriads.setDegreeOfParallelism(noSubTasks);
 
-		FileDataSink triangles = new FileDataSink(EdgeListOutFormat.class, output);
+		FileDataSink triangles = new FileDataSink(EdgeListOutFormat.class, output, "Triangles");
 		triangles.setDegreeOfParallelism(noSubTasks);
 
-		triangles.setInput(closeTriads);
-		closeTriads.setSecondInput(edges);
-		closeTriads.setFirstInput(buildTriads);
-		buildTriads.setFirstInput(assignKeys);
-		buildTriads.setSecondInput(assignKeys);
-		assignKeys.setInput(edges);
+		triangles.addInput(closeTriads);
+		closeTriads.addSecondInput(edges);
+		closeTriads.addFirstInput(buildTriads);
+		buildTriads.addFirstInput(assignKeys);
+		buildTriads.addSecondInput(assignKeys);
+		assignKeys.addInput(edges);
 
 		return new Plan(triangles, "Enumerate Triangles");
 
