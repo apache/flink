@@ -84,6 +84,16 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	private InputGateListener[] inputGateListeners = null;
 
 	/**
+	 * The listener object to be notified when a channel has at least one record available.
+	 */
+	private RecordAvailabilityListener<T> recordAvailabilityListener = null;
+
+	/**
+	 * If the value of this variable is set to <code>true</code>, the input gate is closed.
+	 */
+	private boolean isClosed = false;
+
+	/**
 	 * The channel to read from next.
 	 */
 	private int channelToReadFrom = -1;
@@ -304,6 +314,11 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		while (true) {
 
 			if (this.channelToReadFrom == -1) {
+
+				if (this.isClosed()) {
+					return null;
+				}
+
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
 			try {
@@ -312,6 +327,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
 				// this.getInputChannel(channelToReadFrom).getType().toString() + ")");
 				if (this.isClosed()) {
+					this.channelToReadFrom = -1;
 					return null;
 				}
 			}
@@ -330,12 +346,15 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void notifyRecordIsAvailable(final int channelIndex) {
-
+	public void notifyRecordIsAvailable(int channelIndex) {
 		synchronized (this.availableChannels) {
 
 			this.availableChannels.add(Integer.valueOf(channelIndex));
 			this.availableChannels.notify();
+
+			if (this.recordAvailabilityListener != null) {
+				this.recordAvailabilityListener.reportRecordAvailability(this);
+			}
 		}
 	}
 
@@ -371,12 +390,18 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	@Override
 	public boolean isClosed() throws IOException, InterruptedException {
 
+		if (this.isClosed) {
+			return true;
+		}
+
 		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
 			if (!inputChannel.isClosed()) {
 				return false;
 			}
 		}
+
+		this.isClosed = true;
 
 		return true;
 	}
@@ -470,5 +495,43 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	public void activateInputChannels() throws IOException, InterruptedException {
 		// TODO Auto-generated method stub
 
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerRecordAvailabilityListener(final RecordAvailabilityListener<T> listener) {
+
+		synchronized (this.availableChannels) {
+
+			if (this.recordAvailabilityListener != null) {
+				throw new IllegalStateException(this.recordAvailabilityListener
+					+ " is already registered as a record availability listener");
+			}
+
+			this.recordAvailabilityListener = listener;
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean hasRecordAvailable() throws IOException, InterruptedException {
+
+		if (this.channelToReadFrom == -1) {
+
+			if (this.isClosed()) {
+				return true;
+			}
+
+			synchronized (this.availableChannels) {
+
+				return !(this.availableChannels.isEmpty());
+			}
+		}
+
+		return true;
 	}
 }

@@ -158,4 +158,21 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 * Removes all input channels from the input gate.
 	 */
 	void removeAllInputChannels();
+
+	/**
+	 * Registers a {@link RecordAvailabilityListener} with this input gate.
+	 * 
+	 * @param listener
+	 *        the listener object to be registered
+	 */
+	void registerRecordAvailabilityListener(RecordAvailabilityListener<T> listener);
+
+	/**
+	 * Checks if the input gate has records available.
+	 * 
+	 * @return <code>true</code> if the gate has records available, <code>false</code> otherwise
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	boolean hasRecordAvailable() throws IOException, InterruptedException;
 }

@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 
 import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.RecordAvailabilityListener;
 import eu.stratosphere.nephele.plugins.wrapper.AbstractInputGateWrapper;
 import eu.stratosphere.nephele.streaming.listeners.StreamListener;
 import eu.stratosphere.nephele.types.Record;
@@ -112,10 +113,10 @@ public final class StreamingInputGate<T extends Record> extends AbstractInputGat
 	}
 
 	public void reportRecordReceived(final Record record) {
-		
+
 		this.streamListener.recordReceived(record);
 	}
-	
+
 	/**
 	 * This method returns the index of a channel which has at least
 	 * one record available. The method may block until at least one
@@ -146,5 +147,25 @@ public final class StreamingInputGate<T extends Record> extends AbstractInputGat
 			this.availableChannels.add(Integer.valueOf(channelIndex));
 			this.availableChannels.notify();
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerRecordAvailabilityListener(final RecordAvailabilityListener<T> listener) {
+
+		// TODO: Implement me
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean hasRecordAvailable() throws IOException, InterruptedException {
+
+		// TODO: Implement me
+
+		return false;
 	}
 }
