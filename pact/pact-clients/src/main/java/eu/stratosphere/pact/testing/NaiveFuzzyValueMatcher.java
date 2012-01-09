@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
@@ -12,18 +13,18 @@ import eu.stratosphere.pact.common.type.Value;
  * against items from another bag.
  * 
  * @author Arvid.Heise
- * @param <V>
+ * @param <PactRecord>
  */
-public class NaiveFuzzyValueMatcher<V extends Value> implements FuzzyTestValueMatcher<V> {
+public class NaiveFuzzyValueMatcher implements FuzzyTestValueMatcher {
 	@Override
-	public void removeMatchingValues(FuzzyTestValueSimilarity<V> matcher, Collection<V> expectedValues,
-			Collection<V> actualValues) {
-		Iterator<V> expectedIterator = expectedValues.iterator();
-		List<V> matchedActualValues = new ArrayList<V>();
+	public void removeMatchingValues(FuzzyTestValueSimilarity matcher, Class<? extends Value>[] schema,
+			Collection<PactRecord> expectedValues, Collection<PactRecord> actualValues) {
+		Iterator<PactRecord> expectedIterator = expectedValues.iterator();
+		List<PactRecord> matchedActualValues = new ArrayList<PactRecord>();
 		while (expectedIterator.hasNext()) {
-			V expected = expectedIterator.next();
+			PactRecord expected = expectedIterator.next();
 			boolean matched = false;
-			for (V actual : actualValues)
+			for (PactRecord actual : actualValues)
 				if (matcher.getDistance(expected, actual) >= 0) {
 					matched = true;
 					matchedActualValues.add(actual);

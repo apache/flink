@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -27,73 +28,73 @@ import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 
-
-
 /**
  * The Pact Record is the basic data record that flows between functions in a Pact program. The record is a tuple of
  * arbitrary values.
- * 
  * <p>
  * The Pact Record implements a sparse tuple model, meaning that the record can contain many fields which are actually
  * null and not represented in the record. It has internally a bitmap marking which fields are set and which are not.
- * 
  * This class is NOT thread-safe!
- *
+ * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class PactRecord implements Value
 {
-	private static final int NULL_INDICATOR_OFFSET = Integer.MIN_VALUE;			// value marking a field as null
-	
-	private static final int MODIFIED_INDICATOR_OFFSET = Integer.MIN_VALUE + 1;	// value marking field as modified
-	
-	private static final int DEFAULT_FIELD_LEN = 8;								// length estimate for bin array
-	
+	private static final int NULL_INDICATOR_OFFSET = Integer.MIN_VALUE; // value marking a field as null
+
+	private static final int MODIFIED_INDICATOR_OFFSET = Integer.MIN_VALUE + 1; // value marking field as modified
+
+	private static final int DEFAULT_FIELD_LEN = 8; // length estimate for bin array
+
 	// --------------------------------------------------------------------------------------------
-	
-	private byte[] binaryData;			// the buffer containing the binary representation
-	
-	private int binaryLen;				// the length of the contents in the binary buffer that is valid
-	
-	private int numFields;				// the number of fields in the record
-	
-	private int[] offsets;				// the offsets to the binary representations of the fields
-	
-	private int[] lengths;				// the lengths of the fields
-	
-	private Value[] fields;				// the cache for objects into which the binary representations are read 
-	
-	private int firstModifiedPos = Integer.MAX_VALUE;	// position of the first modification (since (de)serialization)
-	
-	private boolean modified;							// flag to mark the record as modified
-	
-	private InternalDeSerializer serializer;			// provides DataInpout and DataOutput abstraction to fields
-	
-	private byte[] serializationSwitchBuffer;			// byte array that is switched with binData during ser/deser
-	
+
+	private byte[] binaryData; // the buffer containing the binary representation
+
+	private int binaryLen; // the length of the contents in the binary buffer that is valid
+
+	private int numFields; // the number of fields in the record
+
+	private int[] offsets; // the offsets to the binary representations of the fields
+
+	private int[] lengths; // the lengths of the fields
+
+	private Value[] fields; // the cache for objects into which the binary representations are read
+
+	private int firstModifiedPos = Integer.MAX_VALUE; // position of the first modification (since (de)serialization)
+
+	private boolean modified; // flag to mark the record as modified
+
+	private InternalDeSerializer serializer; // provides DataInpout and DataOutput abstraction to fields
+
+	private byte[] serializationSwitchBuffer; // byte array that is switched with binData during ser/deser
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Required nullary constructor for instantiation by serialization logic.
 	 */
 	public PactRecord()
-	{}
-	
+	{
+	}
+
 	/**
 	 * Creates a new record containing only a single field, which is the given value.
 	 * 
-	 * @param value The value for the single field of the record.
+	 * @param value
+	 *        The value for the single field of the record.
 	 */
 	public PactRecord(Value value)
 	{
 		setField(0, value);
 	}
-	
+
 	/**
 	 * Creates a new record containing exactly to fields, which are the given values.
 	 * 
-	 * @param val1 The value for the first field.
-	 * @param val2 The value for the second field.
+	 * @param val1
+	 *        The value for the first field.
+	 * @param val2
+	 *        The value for the second field.
 	 */
 	public PactRecord(Value val1, Value val2)
 	{
@@ -101,11 +102,12 @@ public final class PactRecord implements Value
 		setField(0, val1);
 		setField(1, val2);
 	}
-	
+
 	/**
 	 * Creates a new pact record, containing the given number of fields. The fields are initially all nulls.
-	 *  
-	 * @param numFields The number of fields for the record.
+	 * 
+	 * @param numFields
+	 *        The number of fields for the record.
 	 */
 	public PactRecord(int numFields)
 	{
@@ -113,30 +115,31 @@ public final class PactRecord implements Value
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//                             Basic Accessors
+	// Basic Accessors
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets the number of fields currently in the record. This also includes null fields.
-	 *  
+	 * 
 	 * @return The number of fields in the record.
 	 */
 	public int getNumFields()
 	{
 		return this.numFields;
 	}
-	
+
 	/**
 	 * Sets the number of fields in the record. If the new number of fields is longer than the current number of
 	 * fields, then null fields are appended. If the new number of fields is smaller than the current number of
 	 * fields, then the last fields are truncated.
 	 * 
-	 * @param numFields The new number of fields.
+	 * @param numFields
+	 *        The new number of fields.
 	 */
 	public void setNumFields(final int numFields)
 	{
 		final int oldNumFields = this.numFields;
-		// check whether we increase or decrease the fields 
+		// check whether we increase or decrease the fields
 		if (numFields > oldNumFields) {
 			makeSpace(numFields);
 			for (int i = oldNumFields; i < numFields; i++) {
@@ -151,11 +154,12 @@ public final class PactRecord implements Value
 		}
 		this.numFields = numFields;
 	}
-	
+
 	/**
 	 * Reserves space for at least the given number of fields in the internal arrays.
 	 * 
-	 * @param numFields The number of fields to reserve space for.
+	 * @param numFields
+	 *        The number of fields to reserve space for.
 	 */
 	public void makeSpace(int numFields)
 	{
@@ -169,7 +173,7 @@ public final class PactRecord implements Value
 			System.arraycopy(this.offsets, 0, newOffs, 0, oldNumFields);
 			this.offsets = newOffs;
 		}
-		
+
 		if (this.lengths == null) {
 			this.lengths = new int[numFields];
 		}
@@ -178,7 +182,7 @@ public final class PactRecord implements Value
 			System.arraycopy(this.lengths, 0, newLens, 0, oldNumFields);
 			this.lengths = newLens;
 		}
-		
+
 		if (this.fields == null) {
 			this.fields = new Value[numFields];
 		}
@@ -188,20 +192,23 @@ public final class PactRecord implements Value
 			this.fields = newFields;
 		}
 	}
-	
+
 	/**
 	 * Gets the field at the given position from the record. This method checks internally, if this instance of
 	 * the record has previously returned a value for this field. If so, it reuses the object, if not, it
 	 * creates one from the supplied class.
-	 *  
-	 * @param <T> The type of the field.
 	 * 
-	 * @param fieldNum The logical position of the field.
-	 * @param type The type of the field as a class. This class is used to instantiate a value object, if none had
-	 *             previously been instantiated. 
+	 * @param <T>
+	 *        The type of the field.
+	 * @param fieldNum
+	 *        The logical position of the field.
+	 * @param type
+	 *        The type of the field as a class. This class is used to instantiate a value object, if none had
+	 *        previously been instantiated.
 	 * @return The field at the given position, or null, if the field was null.
-	 * @throws IndexOutOfBoundsException Thrown, if the field number is negative or larger or equal to the number of
-	 *                                   fields in this record.
+	 * @throws IndexOutOfBoundsException
+	 *         Thrown, if the field number is negative or larger or equal to the number of
+	 *         fields in this record.
 	 */
 	@SuppressWarnings("unchecked")
 	public <T extends Value> T getField(final int fieldNum, final Class<T> type)
@@ -210,21 +217,21 @@ public final class PactRecord implements Value
 		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		// get offset and check for null
 		final int offset = this.offsets[fieldNum];
 		if (offset == NULL_INDICATOR_OFFSET) {
 			return null;
-		}		
-		else if (offset == MODIFIED_INDICATOR_OFFSET) {
+		}
+		else if (this.fields[fieldNum] != null) {
 			// value that has been set is new or modified
 			return (T) this.fields[fieldNum];
 		}
-		
+
 		final int limit = offset + this.lengths[fieldNum];
-		
+
 		// get an instance, either from the instance cache or create a new one
-		final Value oldField = this.fields[fieldNum]; 
+		final Value oldField = this.fields[fieldNum];
 		final T field;
 		if (oldField != null && oldField.getClass() == type) {
 			field = (T) this.fields[fieldNum];
@@ -233,22 +240,23 @@ public final class PactRecord implements Value
 			field = InstantiationUtil.instantiate(type, Value.class);
 			this.fields[fieldNum] = field;
 		}
-		
+
 		// deserialize
 		deserialize(field, offset, limit, fieldNum);
 		return field;
 	}
-	
+
 	/**
 	 * Gets the field at the given position. The method tries to deserialize the fields into the given target value.
 	 * If the fields has been changed since the last (de)serialization, or is null, them the target value is left
-	 * unchanged and the changed value (or null) is returned.   
+	 * unchanged and the changed value (or null) is returned.
 	 * <p>
 	 * In all cases, the returned value contains the correct data (or is correctly null).
 	 * 
-	 * @param fieldNum The position of the field.
-	 * @param target The value to deserialize the field into.
-	 * 
+	 * @param fieldNum
+	 *        The position of the field.
+	 * @param target
+	 *        The value to deserialize the field into.
 	 * @return The value with the contents of the requested field, or null, if the field is null.
 	 */
 	@SuppressWarnings("unchecked")
@@ -258,29 +266,31 @@ public final class PactRecord implements Value
 		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		// get offset and check for null
 		int offset = this.offsets[fieldNum];
 		if (offset == NULL_INDICATOR_OFFSET) {
 			return null;
 		}
-		else if (offset == MODIFIED_INDICATOR_OFFSET) {
+		else if (this.fields[fieldNum] != null) {
 			// value that has been set is new or modified
 			// bring the binary in sync so that the deserialization gives the correct result
 			return (T) this.fields[fieldNum];
 		}
-		
+
 		final int limit = offset + this.lengths[fieldNum];
 		deserialize(target, offset, limit, fieldNum);
 		return target;
 	}
-	
+
 	/**
 	 * Gets the field at the given position. If the field at that position is null, then this method leaves
 	 * the target field unchanged and returns false.
 	 * 
-	 * @param fieldNum The position of the field.
-	 * @param target The value to deserialize the field into.
+	 * @param fieldNum
+	 *        The position of the field.
+	 * @param target
+	 *        The value to deserialize the field into.
 	 * @return True, if the field was deserialized properly, false, if the field was null.
 	 */
 	public boolean getFieldInto(int fieldNum, Value target)
@@ -289,7 +299,7 @@ public final class PactRecord implements Value
 		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		// get offset and check for null
 		int offset = this.offsets[fieldNum];
 		if (offset == NULL_INDICATOR_OFFSET) {
@@ -301,12 +311,12 @@ public final class PactRecord implements Value
 			updateBinaryRepresenation();
 			offset = offsets[fieldNum];
 		}
-		
+
 		final int limit = offset + this.lengths[fieldNum];
 		deserialize(target, offset, limit, fieldNum);
 		return true;
 	}
-	
+
 	/**
 	 * @param positions
 	 * @param targets
@@ -320,7 +330,7 @@ public final class PactRecord implements Value
 		}
 		return true;
 	}
-	
+
 	/**
 	 * @param positions
 	 * @param targets
@@ -333,16 +343,20 @@ public final class PactRecord implements Value
 				throw new NullKeyFieldException(i);
 		}
 	}
-	
+
 	/**
 	 * Deserializes the given object from the binary string, starting at the given position.
-	 * If the deserialization asks for more that <code>limit - offset</code> bytes, than 
+	 * If the deserialization asks for more that <code>limit - offset</code> bytes, than
 	 * an exception is thrown.
 	 * 
-	 * @param <T> The generic type of the value to be deserialized.
-	 * @param target The object to deserialize the data into.
-	 * @param offset The offset in the binary string.
-	 * @param limit The limit in the binary string.
+	 * @param <T>
+	 *        The generic type of the value to be deserialized.
+	 * @param target
+	 *        The object to deserialize the data into.
+	 * @param offset
+	 *        The offset in the binary string.
+	 * @param limit
+	 *        The limit in the binary string.
 	 */
 	private final <T extends Value> void deserialize(T target, int offset, int limit, int fieldNumber)
 	{
@@ -355,25 +369,27 @@ public final class PactRecord implements Value
 		serializer.end = limit;
 		try {
 			target.read(serializer);
-		}
-		catch (Exception e) {
-			throw new DeserializationException("Error reading field " + fieldNumber + " as " + target.getClass().getName(), e);
+		} catch (Exception e) {
+			throw new DeserializationException("Error reading field " + fieldNumber + " as "
+				+ target.getClass().getName(), e);
 		}
 	}
-	
+
 	/**
 	 * Sets the field at the given position to the given value. If the field position is larger or equal than
 	 * the current number of fields in the record, than the record is expanded to host as many columns.
 	 * <p>
-	 * The value is kept as a reference in the record until the binary representation is synchronized. Until that
-	 * point, all modifications to the value's object will change the value inside the record. 
+	 * The value is kept as a reference in the record until the binary representation is synchronized. Until that point,
+	 * all modifications to the value's object will change the value inside the record.
 	 * <p>
-	 * The binary representation is synchronized the latest when the record is emitted. It may be triggered 
-	 * manually at an earlier point, but it is generally not necessary and advisable. Because the synchronization
-	 * triggers the serialization on all modified values, it may be an expensive operation. 
+	 * The binary representation is synchronized the latest when the record is emitted. It may be triggered manually at
+	 * an earlier point, but it is generally not necessary and advisable. Because the synchronization triggers the
+	 * serialization on all modified values, it may be an expensive operation.
 	 * 
-	 * @param fieldNum The position of the field, starting at zero.
-	 * @param value The new value.
+	 * @param fieldNum
+	 *        The position of the field, starting at zero.
+	 * @param value
+	 *        The new value.
 	 */
 	public void setField(int fieldNum, Value value)
 	{
@@ -387,7 +403,7 @@ public final class PactRecord implements Value
 		}
 		internallySetField(fieldNum, value);
 	}
-	
+
 	/**
 	 * @param value
 	 */
@@ -397,7 +413,7 @@ public final class PactRecord implements Value
 		setNumFields(pos + 1);
 		internallySetField(pos, value);
 	}
-	
+
 	/**
 	 * @param position
 	 * @param value
@@ -406,7 +422,7 @@ public final class PactRecord implements Value
 	{
 		throw new UnsupportedOperationException();
 	}
-	
+
 	private final void internallySetField(int fieldNum, Value value)
 	{
 		// check if we modify an existing field
@@ -414,7 +430,7 @@ public final class PactRecord implements Value
 		this.fields[fieldNum] = value;
 		markModified(fieldNum);
 	}
-	
+
 	private final void markModified(int field)
 	{
 		if (this.firstModifiedPos > field) {
@@ -422,35 +438,35 @@ public final class PactRecord implements Value
 		}
 		this.modified = true;
 	}
-	
+
 	public void removeField(int field) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public void project(long mask) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public void project(long[] mask) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public void setNull(int field) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public void setNull(long fields) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public void setNull(long[] fields) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public void concatenate(PactRecord record) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	/**
 	 * Clears the record. After this operation, the record will have zero fields.
 	 */
@@ -462,7 +478,7 @@ public final class PactRecord implements Value
 			this.modified = true;
 		}
 	}
-	
+
 	/**
 	 * @param other
 	 */
@@ -470,7 +486,7 @@ public final class PactRecord implements Value
 	{
 		throw new UnsupportedOperationException();
 	}
-	
+
 	/**
 	 * @param target
 	 */
@@ -478,14 +494,14 @@ public final class PactRecord implements Value
 	{
 		copyTo(target);
 	}
-	
+
 	/**
 	 * @param target
 	 */
 	public void copyTo(PactRecord target)
 	{
 		updateBinaryRepresenation();
-		
+
 		if (target.binaryData == null || target.binaryData.length < this.binaryLen) {
 			target.binaryData = new byte[this.binaryLen];
 		}
@@ -498,21 +514,21 @@ public final class PactRecord implements Value
 		if (target.fields == null || target.fields.length < this.numFields) {
 			target.fields = new Value[this.numFields];
 		}
-		
+
 		System.arraycopy(this.binaryData, 0, target.binaryData, 0, this.binaryLen);
 		System.arraycopy(this.offsets, 0, target.offsets, 0, this.numFields);
 		System.arraycopy(this.lengths, 0, target.lengths, 0, this.numFields);
-		
+
 		target.binaryLen = this.binaryLen;
 		target.numFields = this.numFields;
 		target.firstModifiedPos = Integer.MAX_VALUE;
 		target.modified = false;
 	}
-	
+
 	/**
 	 * Creates an exact copy of this record.
 	 * 
-	 * @return An exact copy of this record. 
+	 * @return An exact copy of this record.
 	 */
 	public PactRecord createCopy()
 	{
@@ -522,7 +538,61 @@ public final class PactRecord implements Value
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder("(");
+		for(int index = 0; index < this.numFields; index++) {
+			if(index > 0)
+				builder.append(", ");
+			int offset = this.offsets[index];
+			if(offset == NULL_INDICATOR_OFFSET)
+				builder.append("null");
+			else if (this.fields[index] != null)
+				builder.append(this.fields[index]);
+			else 
+				builder.append("<serialized>");
+		}
+		return builder.append(")").toString();
+	}
+
+//	@Override
+//	public int hashCode() {
+//		final int prime = 31;
+//		this.updateBinaryRepresenation();
+//		int result = 1;
+//		result = prime * result + Arrays.hashCode(this.offsets);
+//		for(int index = 0; index < this.binaryLen; index++)
+//            result = prime * result + this.binaryData[index];
+//		result = prime * result + Arrays.hashCode(fields);
+//		return result;
+//	}
+//
+//	@Override
+//	public boolean equals(Object obj) {
+//		if (this == obj)
+//			return true;
+//		if (obj == null)
+//			return false;
+//		if (getClass() != obj.getClass())
+//			return false;
+//		PactRecord other = (PactRecord) obj;
+//		int numFields = getNumFields();
+//		if(numFields != other.getNumFields())
+//			return false;
+//
+//		this.updateBinaryRepresenation();
+//		other.updateBinaryRepresenation();
+//				
+//		if(this.binaryLen != other.binaryLen || !Arrays.equals(this.offsets, other.offsets))
+//			return false;
+//		
+//		for(int index = 0; index < this.binaryLen; index++)
+//			if(this.binaryData[index] != other.binaryData[index])
+//				return false;
+//		return true;
+//	}
+
 	/**
 	 * @param positions
 	 * @param searchValues
@@ -539,9 +609,9 @@ public final class PactRecord implements Value
 		}
 		return true;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Updates the binary representation of the data, such that it reflects the state of the currently
 	 * stored fields. If the binary representation is already up to date, nothing happens. Otherwise,
@@ -553,23 +623,23 @@ public final class PactRecord implements Value
 		// check whether the binary state is in sync
 		if (!this.modified)
 			return;
-		
+
 		final int firstModified = this.firstModifiedPos;
-		final int numFields = this.numFields;		
+		final int numFields = this.numFields;
 		final int[] offsets = this.offsets;
 		if (this.serializer == null) {
 			this.serializer = new InternalDeSerializer();
 		}
 		final InternalDeSerializer serializer = this.serializer;
-		
+
 		if (numFields > 0) {
 			int offset = firstModified <= 0 ? 0 : this.offsets[firstModified - 1] + this.lengths[firstModified - 1];
 			serializer.position = offset;
-			
+
 			// for efficiency, we treat the typical pattern that modifications are at the end as a special case
 			if (firstModified > 0) {
-				// changed fields are after unchanged fields 
-				serializer.memory = this.binaryData == null ? new byte[numFields * DEFAULT_FIELD_LEN] : this.binaryData;	
+				// changed fields are after unchanged fields
+				serializer.memory = this.binaryData == null ? new byte[numFields * DEFAULT_FIELD_LEN] : this.binaryData;
 				try {
 					for (int i = firstModified; i < numFields; i++) {
 						if (offsets[i] == NULL_INDICATOR_OFFSET)
@@ -580,15 +650,15 @@ public final class PactRecord implements Value
 						this.lengths[i] = newOffset - offset;
 						offset = newOffset;
 					}
-				}
-				catch (Exception e) {
-					throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
+				} catch (Exception e) {
+					throw new RuntimeException("Error in data type serialization: " + e.getMessage());
 				}
 			}
 			else {
 				// changed and unchanged fields are interleaved
 				// we serialize into another array
-				serializer.memory = this.serializationSwitchBuffer == null ? new byte[numFields * DEFAULT_FIELD_LEN] : this.serializationSwitchBuffer;
+				serializer.memory = this.serializationSwitchBuffer == null ? new byte[numFields * DEFAULT_FIELD_LEN]
+					: this.serializationSwitchBuffer;
 				if (offset > 0 & this.binaryData != null) {
 					System.arraycopy(this.binaryData, 0, serializer.memory, 0, offset);
 				}
@@ -597,7 +667,7 @@ public final class PactRecord implements Value
 						final int co = offsets[i];
 						if (co == NULL_INDICATOR_OFFSET)
 							continue;
-						
+
 						offsets[i] = offset;
 						if (co == MODIFIED_INDICATOR_OFFSET)
 							this.fields[i].write(serializer);
@@ -606,16 +676,15 @@ public final class PactRecord implements Value
 						this.lengths[i] = serializer.position - offset;
 						offset = serializer.position;
 					}
+				} catch (Exception e) {
+					throw new RuntimeException("Error in data type serialization: " + e.getMessage());
 				}
-				catch (Exception e) {
-					throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
-				}
-				
+
 				this.serializationSwitchBuffer = this.binaryData;
 				this.binaryData = serializer.memory;
 			}
 		}
-		
+
 		try {
 			// now, serialize the lengths, the sparsity mask and the number of fields
 			if (numFields <= 8) {
@@ -640,7 +709,7 @@ public final class PactRecord implements Value
 					}
 				}
 				// now the mask. we write it in chucks of 8 bit.
-				// the remainder %8 comes first 
+				// the remainder %8 comes first
 				int col = numFields - 1;
 				int mask = 0;
 				for (int i = numFields & 0x7; i > 0; i--, col--) {
@@ -648,7 +717,7 @@ public final class PactRecord implements Value
 					mask |= (offsets[col] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
 				}
 				serializer.writeByte(mask);
-				
+
 				// now the eight-bit chunks
 				for (int i = numFields >>> 3; i > 0; i--) {
 					mask = 0;
@@ -660,23 +729,23 @@ public final class PactRecord implements Value
 				}
 			}
 			serializer.writeValLenIntBackwards(numFields);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Serialization into binary state failed: " + e.getMessage(), e);
 		}
-		
+
 		// set the fields
 		this.binaryData = serializer.memory;
 		this.binaryLen = serializer.position;
 		this.firstModifiedPos = Integer.MAX_VALUE;
 		this.modified = false;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	//                             Serialization
+	// Serialization
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
@@ -684,13 +753,14 @@ public final class PactRecord implements Value
 	{
 		// make sure everything is in a valid binary representation
 		updateBinaryRepresenation();
-		
+
 		// write the length first, variably encoded, then the contents of the binary array
 		writeVarLengthInt(out, this.binaryLen);
 		out.write(this.binaryData, 0, this.binaryLen);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
@@ -698,19 +768,19 @@ public final class PactRecord implements Value
 	{
 		final int len = readVarLengthInt(in);
 		this.binaryLen = len;
-			
+
 		// ensure out byte array is large enough
 		byte[] data = this.binaryData;
 		if (data == null || data.length < len) {
 			data = new byte[len];
 			this.binaryData = data;
 		}
-		
+
 		// read the binary data
 		in.readFully(data, 0, len);
 		initFields(data, 0, len);
 	}
-	
+
 	private final void initFields(byte[] data, int begin, int len) {
 		// read number of fields, variable length encoded reverse at the back
 		int pos = begin + len - 2;
@@ -726,24 +796,25 @@ public final class PactRecord implements Value
 			numFields |= curr << shift;
 		}
 		this.numFields = numFields;
-		
+
 		// ensure that all arrays are there and of sufficient size
 		if (this.offsets == null || this.offsets.length < numFields) {
 			this.offsets = new int[numFields];
 		}
 		if (this.fields == null || this.fields.length < numFields) {
 			this.fields = new Value[numFields];
-		}
+		} else
+			Arrays.fill(this.fields, null);
 		if (this.lengths == null || this.lengths.length < numFields) {
 			this.lengths = new int[numFields];
 		}
-		
+
 		final int beginMasks = pos; // beginning of bitmap for null fields
 		final int fieldsBy8 = (numFields >>> 3) + ((numFields & 0x7) == 0 ? 0 : 1);
-		
-		pos = beginMasks - fieldsBy8; 
+
+		pos = beginMasks - fieldsBy8;
 		int lastNonNullField = -1;
-		
+
 		for (int field = 0, chunk = 0; chunk < fieldsBy8; chunk++) {
 			int mask = data[beginMasks - chunk];
 			for (int i = 0; i < 8 && field < numFields; i++, field++) {
@@ -783,7 +854,7 @@ public final class PactRecord implements Value
 		this.firstModifiedPos = Integer.MAX_VALUE;
 		this.modified = false;
 	}
-	
+
 	/**
 	 * @param fields
 	 * @param holders
@@ -805,15 +876,15 @@ public final class PactRecord implements Value
 			}
 			val |= curr << shift;
 		}
-		
+
 		// initialize the fields
 		this.binaryData = binData;
 		initFields(binData, offset, val);
-		
+
 		// get the values
 		return getFieldsInto(fields, holders);
 	}
-	
+
 	/**
 	 * @param fields
 	 * @param holders
@@ -827,7 +898,7 @@ public final class PactRecord implements Value
 		deserialize(memory, firstSegment, offset);
 		return getFieldsInto(fields, holders);
 	}
-	
+
 	/**
 	 * @param record
 	 * @param target
@@ -838,10 +909,10 @@ public final class PactRecord implements Value
 	 */
 	public long serialize(PactRecord record, DataOutputView target, Iterator<MemorySegment> furtherBuffers,
 			List<MemorySegment> targetForUsedFurther)
-	throws IOException
+			throws IOException
 	{
 		updateBinaryRepresenation();
-		
+
 		long bytesForLen = 1;
 		if (target.getRemainingBytes() >= this.binaryLen + 5) {
 			int len = this.binaryLen;
@@ -892,14 +963,14 @@ public final class PactRecord implements Value
 				}
 				target.write(len);
 			}
-			
+
 			// now write the binary data
 			int currOff = 0;
 			while (true) {
 				int toWrite = Math.min(this.binaryLen - currOff, target.getRemainingBytes());
 				target.write(this.binaryData, currOff, toWrite);
 				currOff += toWrite;
-				
+
 				if (currOff < this.binaryLen) {
 					target = getNextBuffer(furtherBuffers, targetForUsedFurther);
 					if (target == null) {
@@ -911,11 +982,12 @@ public final class PactRecord implements Value
 				}
 			}
 		}
-		
+
 		return bytesForLen + this.binaryLen;
 	}
-	
-	private final DataOutputView getNextBuffer(Iterator<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther)
+
+	private final DataOutputView getNextBuffer(Iterator<MemorySegment> furtherBuffers,
+			List<MemorySegment> targetForUsedFurther)
 	{
 		if (furtherBuffers.hasNext()) {
 			MemorySegment seg = furtherBuffers.next();
@@ -923,9 +995,10 @@ public final class PactRecord implements Value
 			DataOutputView target = seg.outputView;
 			return target;
 		}
-		else return null;
+		else
+			return null;
 	}
-	
+
 	/**
 	 * @param sources
 	 * @param segmentNum
@@ -935,7 +1008,7 @@ public final class PactRecord implements Value
 	public void deserialize(List<MemorySegment> sources, int segmentNum, int segmentOffset)
 	{
 		MemorySegment seg = sources.get(segmentNum);
-		
+
 		if (seg.size() - segmentOffset > 5) {
 			int val = seg.get(segmentOffset++) & 0xff;
 			if (val >= MAX_BIT) {
@@ -957,7 +1030,7 @@ public final class PactRecord implements Value
 				segmentOffset = 0;
 				seg = sources.get(++segmentNum);
 			}
-			
+
 			if (val >= MAX_BIT) {
 				int shift = 7;
 				int curr;
@@ -983,10 +1056,10 @@ public final class PactRecord implements Value
 		if (this.binaryData == null || this.binaryData.length < this.binaryLen) {
 			this.binaryData = new byte[this.binaryLen];
 		}
-		
+
 		int remaining = seg.size() - segmentOffset;
 		if (remaining >= this.binaryLen) {
-			seg.get(segmentOffset, this.binaryData,	0, this.binaryLen);
+			seg.get(segmentOffset, this.binaryData, 0, this.binaryLen);
 		}
 		else {
 			// read across segments
@@ -996,22 +1069,23 @@ public final class PactRecord implements Value
 				seg.get(segmentOffset, this.binaryData, offset, toRead);
 				offset += toRead;
 				segmentOffset += toRead;
-				
+
 				if (offset < this.binaryLen) {
 					segmentOffset = 0;
-					seg = sources.get(++segmentNum); 
+					seg = sources.get(++segmentNum);
 				}
-				else break;
+				else
+					break;
 			}
 		}
-		
+
 		initFields(this.binaryData, 0, this.binaryLen);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	//                                     Utilities
+	// Utilities
 	// --------------------------------------------------------------------------------------------
-	
+
 	private static final void writeVarLengthInt(DataOutput out, int value) throws IOException
 	{
 		while (value >= MAX_BIT) {
@@ -1020,7 +1094,7 @@ public final class PactRecord implements Value
 		}
 		out.write(value);
 	}
-	
+
 	private static final int readVarLengthInt(DataInput in) throws IOException
 	{
 		// read first byte
@@ -1037,29 +1111,30 @@ public final class PactRecord implements Value
 		}
 		return val;
 	}
-	
+
 	private static final int MAX_BIT = 0x1 << 7;
-	
-	
+
 	// ------------------------------------------------------------------------
-	//                Utility class for internal (de)serialization
+	// Utility class for internal (de)serialization
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Internal interface class to provide serialization for the data types.
-	 *
+	 * 
 	 * @author Stephan Ewen
 	 */
 	private final class InternalDeSerializer implements DataInput, DataOutput
 	{
 		private byte[] memory;
+
 		private int position;
+
 		private int end;
-		
+
 		// ----------------------------------------------------------------------------------------
-		//                               Data Input
+		// Data Input
 		// ----------------------------------------------------------------------------------------
-		
+
 		@Override
 		public boolean readBoolean() throws IOException {
 			if (this.position < this.end) {
@@ -1266,11 +1341,11 @@ public final class PactRecord implements Value
 				return n;
 			}
 		}
-		
+
 		// ----------------------------------------------------------------------------------------
-		//                               Data Output
+		// Data Output
 		// ----------------------------------------------------------------------------------------
-		
+
 		@Override
 		public void write(int b) throws IOException {
 			if (this.position >= this.memory.length) {
@@ -1312,7 +1387,7 @@ public final class PactRecord implements Value
 			if (this.position >= this.memory.length - sLen) {
 				resize(sLen);
 			}
-			
+
 			for (int i = 0; i < sLen; i++) {
 				writeByte(s.charAt(i));
 			}
@@ -1331,9 +1406,9 @@ public final class PactRecord implements Value
 		@Override
 		public void writeChars(String s) throws IOException {
 			final int sLen = s.length();
-			if (this.position >= this.memory.length - 2*sLen) {
-				resize(2*sLen);
-			} 
+			if (this.position >= this.memory.length - 2 * sLen) {
+				resize(2 * sLen);
+			}
 			for (int i = 0; i < sLen; i++) {
 				writeChar(s.charAt(i));
 			}
@@ -1404,11 +1479,11 @@ public final class PactRecord implements Value
 
 			if (utflen > 65535)
 				throw new UTFDataFormatException("Encoded string is too long: " + utflen);
-			
+
 			else if (this.position > this.memory.length - utflen - 2) {
 				resize(utflen);
 			}
-			
+
 			byte[] bytearr = this.memory;
 			int count = this.position;
 
@@ -1440,13 +1515,13 @@ public final class PactRecord implements Value
 
 			this.position = count;
 		}
-		
+
 		private final void writeValLenIntBackwards(int value) throws IOException
 		{
 			if (this.position > this.memory.length - 4) {
 				resize(4);
 			}
-			
+
 			if (value <= 0x7f) {
 				this.memory[this.position++] = (byte) value;
 			}
@@ -1460,20 +1535,20 @@ public final class PactRecord implements Value
 				this.memory[this.position++] = (byte) (value | MAX_BIT);
 			}
 			else if (value <= 0xfffffff) {
-				this.memory[this.position++] = (byte) (  value >>> 21);
+				this.memory[this.position++] = (byte) (value >>> 21);
 				this.memory[this.position++] = (byte) ((value >>> 14) | MAX_BIT);
-				this.memory[this.position++] = (byte) ((value >>>  7) | MAX_BIT);
-				this.memory[this.position++] = (byte) (value | MAX_BIT);				
+				this.memory[this.position++] = (byte) ((value >>> 7) | MAX_BIT);
+				this.memory[this.position++] = (byte) (value | MAX_BIT);
 			}
 			else {
-				this.memory[this.position++] = (byte) ( value >>> 28);
+				this.memory[this.position++] = (byte) (value >>> 28);
 				this.memory[this.position++] = (byte) ((value >>> 21) | MAX_BIT);
 				this.memory[this.position++] = (byte) ((value >>> 14) | MAX_BIT);
-				this.memory[this.position++] = (byte) ((value >>>  7) | MAX_BIT);
+				this.memory[this.position++] = (byte) ((value >>> 7) | MAX_BIT);
 				this.memory[this.position++] = (byte) (value | MAX_BIT);
 			}
 		}
-		
+
 		private final void resize(int minCapacityAdd) throws IOException
 		{
 			try {
@@ -1481,8 +1556,7 @@ public final class PactRecord implements Value
 				byte[] nb = new byte[newLen];
 				System.arraycopy(this.memory, 0, nb, 0, this.position);
 				this.memory = nb;
-			}
-			catch (NegativeArraySizeException nasex) {
+			} catch (NegativeArraySizeException nasex) {
 				throw new IOException("Serialization failed because the record length would exceed 2GB.");
 			}
 		}

@@ -2,6 +2,9 @@ package eu.stratosphere.pact.testing;
 
 import java.util.Collection;
 
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
+
 /**
  * Global match algorithm that uses a {@link FuzzyTestValueSimilarity} to match a bag of expected values with a bag of
  * actual values.
@@ -10,7 +13,7 @@ import java.util.Collection;
  * @param <V>
  *        the value type
  */
-public interface FuzzyTestValueMatcher<V> {
+public interface FuzzyTestValueMatcher {
 	/**
 	 * Removes all pairs of matching items from the two collections. The cardinality of both collections is guaranteed
 	 * to be the same on input and does not have to be equal on output. The given {@link FuzzyTestValueSimilarity}
@@ -25,6 +28,6 @@ public interface FuzzyTestValueMatcher<V> {
 	 * @param actualValues
 	 *        a bag of actual values
 	 */
-	public void removeMatchingValues(FuzzyTestValueSimilarity<V> similarity, Collection<V> expectedValues,
-			Collection<V> actualValues);
+	public void removeMatchingValues(FuzzyTestValueSimilarity similarity, Class<? extends Value>[] schema,
+			Collection<PactRecord> expectedValues, Collection<PactRecord> actualValues);
 }

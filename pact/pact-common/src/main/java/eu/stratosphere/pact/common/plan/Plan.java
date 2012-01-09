@@ -35,7 +35,7 @@ public class Plan implements Visitable<Contract>
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
 	 */
-	protected final Collection<GenericDataSink> sinks;
+	protected final Collection<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
 
 	/**
 	 * The name of the pact job.
@@ -69,9 +69,9 @@ public class Plan implements Visitable<Contract>
 	 * @param sinks The collection will the sinks of the plan.
 	 * @param jobName The name to display for the job.
 	 */
-	public Plan(Collection<GenericDataSink> sinks, String jobName)
+	public Plan(Collection<? extends  GenericDataSink> sinks, String jobName)
 	{
-		this.sinks = sinks;
+		this.sinks.addAll(sinks);
 		this.jobName = jobName;
 		this.planConfiguration = new PlanConfiguration();
 	}
@@ -87,7 +87,6 @@ public class Plan implements Visitable<Contract>
 	 */
 	public Plan(GenericDataSink sink, String jobName)
 	{
-		this.sinks = new ArrayList<GenericDataSink>();
 		this.sinks.add(sink);
 		this.jobName = jobName;
 		this.planConfiguration = new PlanConfiguration();
@@ -102,7 +101,7 @@ public class Plan implements Visitable<Contract>
 	 *  
 	 * @param sinks The collection will the sinks of the plan.
 	 */
-	public Plan(Collection<GenericDataSink> sinks)
+	public Plan(Collection<? extends GenericDataSink> sinks)
 	{
 		this(sinks, "PACT Job at " + Calendar.getInstance().getTime());
 	}

@@ -25,9 +25,7 @@ import java.util.NoSuchElementException;
 import junit.framework.Assert;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Provides an {@link Iterator} for {@link InputFormat}s. If multiple formats are specified, it is assumed that they are
@@ -39,23 +37,20 @@ import eu.stratosphere.pact.common.type.Value;
  * @param <V>
  *        the type of the values
  */
-public class InputFileIterator<K extends Key, V extends Value> implements Iterator<KeyValuePair<K, V>>, Closeable {
-	private final List<FileInputFormat<K, V>> inputFormats;
+public class InputFileIterator implements Iterator<PactRecord>, Closeable {
+	private final List<FileInputFormat> inputFormats;
 
-	private final Iterator<FileInputFormat<K, V>> formatIterator;
+	private final Iterator<FileInputFormat> formatIterator;
 
-	private FileInputFormat<K, V> currentFormat;
+	private FileInputFormat currentFormat;
 
-	private KeyValuePair<K, V> nextPair;
-
-	@SuppressWarnings("unchecked")
-	private KeyValuePair<K, V>[] buffer = new KeyValuePair[2];
+	private PactRecord[] buffer = new PactRecord[] { new PactRecord(), new PactRecord() };
 
 	private int bufferIndex;
 
-	private final boolean reusePair;
+	private PactRecord nextRecord;
 
-	private static KeyValuePair<?, ?> NO_MORE_PAIR = new KeyValuePair<Key, Value>();
+	private static PactRecord NO_MORE_PAIR = new PactRecord();
 
 	/**
 	 * Initializes InputFileIterator from already configured and opened {@link InputFormat}s.
@@ -65,25 +60,19 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 	 * @param inputFormats
 	 *        the inputFormats to wrap
 	 */
-	public InputFileIterator(final boolean reusePair, final FileInputFormat<K, V>... inputFormats) {
+	public InputFileIterator(final FileInputFormat... inputFormats) {
 		this.inputFormats = Arrays.asList(inputFormats);
 		this.formatIterator = this.inputFormats.iterator();
 		this.currentFormat = this.formatIterator.next();
 
-		this.reusePair = reusePair;
-		if (reusePair) {
-			this.buffer[0] = this.currentFormat.createPair();
-			this.buffer[1] = this.currentFormat.createPair();
-		}
 		this.loadNextPair();
 	}
 
 	@Override
 	public boolean hasNext() {
-		return this.nextPair != NO_MORE_PAIR;
+		return this.nextRecord != NO_MORE_PAIR;
 	}
 
-	@SuppressWarnings("unchecked")
 	private void loadNextPair() {
 		try {
 			do {
@@ -91,34 +80,33 @@ public class InputFileIterator<K extends Key, V extends Value> implements Iterat
 					if (this.formatIterator.hasNext())
 						this.currentFormat = this.formatIterator.next();
 					else {
-						this.nextPair = (KeyValuePair<K, V>) NO_MORE_PAIR;
+						this.nextRecord = NO_MORE_PAIR;
 						return;
 					}
 
-				if (!this.reusePair)
-					this.nextPair = this.currentFormat.createPair();
-				else
-					this.nextPair = this.buffer[this.bufferIndex++ % 2];
-			} while (!this.currentFormat.nextRecord(this.nextPair));
+				// TODO: replace when read works properly
+				// this.nextRecord = this.buffer[this.bufferIndex++ % 2];
+				this.nextRecord = new PactRecord();
+			} while (!this.currentFormat.nextRecord(this.nextRecord));
 
 		} catch (final IOException e) {
-			this.nextPair = (KeyValuePair<K, V>) NO_MORE_PAIR;
+			this.nextRecord = NO_MORE_PAIR;
 			Assert.fail("reading expected values " + StringUtils.stringifyException(e));
 		}
 	}
 
 	@Override
-	public KeyValuePair<K, V> next() {
+	public PactRecord next() {
 		if (!this.hasNext())
 			throw new NoSuchElementException();
-		final KeyValuePair<K, V> pair = this.nextPair;
+		final PactRecord pair = this.nextRecord;
 		this.loadNextPair();
 		return pair;
 	}
 
 	@Override
 	public void close() throws IOException {
-		for (final FileInputFormat<K, V> inputFormat : this.inputFormats)
+		for (final FileInputFormat inputFormat : this.inputFormats)
 			inputFormat.close();
 	}
 

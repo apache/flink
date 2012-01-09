@@ -15,22 +15,13 @@
 
 package eu.stratosphere.pact.testing;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
-import eu.stratosphere.pact.common.contract.SingleInputContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
 /**
  * Adds missing {@link DataSourceContract} and {@link DataSinkContract} to an incomplete plan.
@@ -38,85 +29,43 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Arvid Heise
  */
 class InputOutputAdder implements Visitor<Contract> {
-	final Collection<Contract> contractsWithoutInput = new HashSet<Contract>();
-
-	final Collection<Contract> contractsWithoutOutput = new HashSet<Contract>();
-
-	private final LinkedList<Integer> inputs = new LinkedList<Integer>(Arrays.asList(0));
-
-	private void addDefaultInput(final Contract contract) {
-		if (contract instanceof FileDataSinkContract<?, ?>)
-			((FileDataSinkContract<?, ?>) contract).setInput(TestPlan.createDefaultSource(contract.getName() + "-input"));
-		else if (contract instanceof SingleInputContract<?, ?, ?, ?>)
-			((SingleInputContract<?, ?, ?, ?>) contract).setInput(TestPlan.createDefaultSource(contract.getName()
-				+ "-input"));
-		else if (contract instanceof DualInputContract<?, ?, ?, ?, ?, ?>) {
-			if (((DualInputContract<?, ?, ?, ?, ?, ?>) contract).getFirstInput() == null)
-				((DualInputContract<?, ?, ?, ?, ?, ?>) contract).setFirstInput(TestPlan.createDefaultSource(contract
-					.getName()
-					+ "-input1"));
-			if (((DualInputContract<?, ?, ?, ?, ?, ?>) contract).getSecondInput() == null)
-				((DualInputContract<?, ?, ?, ?, ?, ?>) contract).setSecondInput(TestPlan.createDefaultSource(contract
-					.getName()
-					+ "-input2"));
-		}
-	}
-
-	private Integer getExpectedInputs(final Class<?> clazz) {
-		if (clazz == null)
-			return 1;
-
-		final Integer expected = EXPECTED_INPUTS.get(clazz);
-		if (expected != null)
-			return expected;
-
-		return this.getExpectedInputs(clazz.getSuperclass());
-	}
-
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+	 */
 	@Override
-	public void postVisit(final Contract visitable) {
-		final Integer actualInputs = this.inputs.pop();
-		if (this.inputs.size() == 1 && !(visitable instanceof FileDataSinkContract<?, ?>))
-			this.contractsWithoutOutput.add(visitable);
-		if (this.getExpectedInputs(visitable.getClass()) != actualInputs)
-			this.contractsWithoutInput.add(visitable);
-	}
-
-	@Override
-	public boolean preVisit(final Contract visitable) {
-		this.inputs.push(this.inputs.pop() + 1);
-		this.inputs.push(0);
+	public boolean preVisit(Contract visitable) {
 		return true;
 	}
 
-	public Contract[] process(final Contract[] contracts) {
-		final List<Contract> list = Arrays.asList(contracts);
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+	 */
+	@Override
+	public void postVisit(Contract contract) {
+		List<List<Contract>> inputs = ContractUtil.getInputs(contract);
+		for (int index = 0; index < inputs.size(); index++)
+			if (inputs.get(index).isEmpty())
+				inputs.get(index).add(
+					TestPlan.createDefaultSource(String.format("%s-input%d", contract.getName(), index)));
+		ContractUtil.setInputs(contract, inputs);
+	}
 
-		for (final Contract contract : contracts)
+	public Contract[] process(final Contract[] contracts) {
+		for (Contract contract : contracts)
 			contract.accept(this);
 
-		for (final Contract contract : this.contractsWithoutOutput)
-			list.set(list.indexOf(contract), this.replaceWithDefaultOutput(contract));
-
-		for (final Contract contract : this.contractsWithoutInput)
-			this.addDefaultInput(contract);
+		for (int index = 0; index < contracts.length; index++)
+			if (!(contracts[index] instanceof GenericDataSink))
+				contracts[index] = this.replaceWithDefaultOutput(contracts[index]);
 
 		return contracts;
 	}
 
 	private Contract replaceWithDefaultOutput(final Contract contract) {
-		final FileDataSinkContract<Key, Value> defaultSink = TestPlan.createDefaultSink(contract.getName() + "-output");
-		defaultSink.setInput(contract);
+		final FileDataSink defaultSink = TestPlan.createDefaultSink(contract.getName() + "-output");
+		defaultSink.addInput(contract);
 		return defaultSink;
 	}
-
-	@SuppressWarnings("serial")
-	private final static Map<Class<? extends Contract>, Integer> EXPECTED_INPUTS = new HashMap<Class<? extends Contract>, Integer>() {
-		{
-			this.put(FileDataSourceContract.class, 0);
-			this.put(FileDataSinkContract.class, 1);
-			this.put(SingleInputContract.class, 1);
-			this.put(DualInputContract.class, 2);
-		}
-	};
 }
