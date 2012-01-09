@@ -22,6 +22,8 @@ import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.KeyListener;
+import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Combo;
@@ -32,7 +34,7 @@ import org.eclipse.swt.widgets.Composite;
  * 
  * @author warneke
  */
-public final class AutoCompletionCombo extends Composite implements KeyListener {
+public final class AutoCompletionCombo extends Composite implements KeyListener, SelectionListener {
 
 	/**
 	 * The list of possible suggestions for the auto-completion.
@@ -65,6 +67,7 @@ public final class AutoCompletionCombo extends Composite implements KeyListener 
 
 		this.combo = new Combo(this, style);
 		this.combo.addKeyListener(this);
+		this.combo.addSelectionListener(this);
 
 		// Add the suggestions
 		for (final String suggestion : this.suggestions) {
@@ -156,5 +159,24 @@ public final class AutoCompletionCombo extends Composite implements KeyListener 
 	public String getText() {
 
 		return this.combo.getText();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void widgetDefaultSelected(final SelectionEvent arg0) {
+		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void widgetSelected(final SelectionEvent arg0) {
+
+		final String text = this.combo.getText();
+		updateSuggestions(text);
+		this.combo.setText(text);
 	}
 }
