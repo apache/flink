@@ -23,8 +23,10 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -148,65 +150,63 @@ public class CoGroupNode extends TwoInputNode {
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-//		// first, get all incoming interesting properties and see, how they can be propagated to the
-//		// children, depending on the output contract.
-//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-//
-//		List<InterestingProperties> props1 = null;
-//		List<InterestingProperties> props2 = new ArrayList<InterestingProperties>();
-//
-//		OutputContract oc = getOutputContract();
-//		if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
-//			props1 = InterestingProperties.filterByOutputContract(thisNodesIntProps, oc);
-//			props2.addAll(props1);
-//		} else {
-//			props1 = new ArrayList<InterestingProperties>();
-//		}
-//
-//		// a co-group is always interested in the following properties from both inputs:
-//		// 1) any-partition and order
-//		// 2) partition only
-//		createInterestingProperties(input1, props1, estimator);
-//		createInterestingProperties(input2, props2, estimator);
-//
-//		input1.addAllInterestingProperties(props1);
-//		input2.addAllInterestingProperties(props2);
-		
-		this.input1.setNoInterestingProperties();
-		this.input2.setNoInterestingProperties();
+		// first, get all incoming interesting properties and see, how they can be propagated to the
+		// children, depending on the output contract.
+		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+		List<InterestingProperties> props1 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
+			getKeepSet(0));
+		List<InterestingProperties> props2 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
+				getKeepSet(1));
+
+		// a co-group is always interested in the following properties from both inputs:
+		// 1) any-partition and order
+		// 2) partition only
+		createInterestingProperties(input1, props1, estimator, 0);
+		createInterestingProperties(input2, props2, estimator, 1);
+
+		input1.addAllInterestingProperties(props1);
+		input2.addAllInterestingProperties(props2);
 	}
 
-//	/**
-//	 * Utility method that generates for the given input interesting properties about partitioning and
-//	 * order.
-//	 * 
-//	 * @param input
-//	 *        The input to generate the interesting properties for.
-//	 * @param target
-//	 *        The list to add the interesting properties to.
-//	 * @param estimator
-//	 *        The cost estimator to estimate the maximal costs for the interesting properties.
-//	 */
-//	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
-//			CostEstimator estimator) {
-//		InterestingProperties p = new InterestingProperties();
-//
-//		// partition and any order
-//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-//		p.getLocalProperties().setKeyOrder(Order.ANY);
-//
-//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
-//		Costs c = new Costs();
-//		estimator.getLocalSortCost(this, input, c);
-//		p.getMaximalCosts().addCosts(c);
-//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
-//
-//		// partition only
-//		p = new InterestingProperties();
-//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
-//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
-//	}
+	/**
+	 * Utility method that generates for the given input interesting properties about partitioning and
+	 * order.
+	 * 
+	 * @param input
+	 *        The input to generate the interesting properties for.
+	 * @param target
+	 *        The list to add the interesting properties to.
+	 * @param estimator
+	 *        The cost estimator to estimate the maximal costs for the interesting properties.
+	 */
+	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
+			CostEstimator estimator, int inputNum) {
+		InterestingProperties p = new InterestingProperties();
+
+		FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(inputNum));
+		
+		// partition and any order
+		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet);
+		
+		Ordering ordering = new Ordering();
+		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
+			ordering.appendOrdering(index, Order.ANY);
+		}
+		
+		p.getLocalProperties().setOrdering(ordering);
+
+		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+		Costs c = new Costs();
+		estimator.getLocalSortCost(this, input, c);
+		p.getMaximalCosts().addCosts(c);
+		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+
+		// partition only
+		p = new InterestingProperties();
+		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet);
+		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -488,13 +488,29 @@ public class CoGroupNode extends TwoInputNode {
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator) {
 		// compute the given properties of the incoming data
 		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
 
 		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
 		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
 
+		
+		int[] keyColumns1 = getPactContract().getKeyColumnNumbers(0);
+		
+		Ordering ordering1 = new Ordering();
+		for (int keyColumn : keyColumns1) {
+			ordering1.appendOrdering(keyColumn, Order.ASCENDING);
+		}
+		
+		int[] keyColumns2 = getPactContract().getKeyColumnNumbers(1);
+		
+		Ordering ordering2 = new Ordering();
+		for (int keyColumn : keyColumns2) {
+			ordering2.appendOrdering(keyColumn, Order.ASCENDING);
+		}
+		
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();
-		outGp.setPartitioning(gp1.getPartitioning());
+		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFiels());
 
 		// create a new cogroup node for this input
 		CoGroupNode n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, new LocalProperties());
@@ -503,20 +519,22 @@ public class CoGroupNode extends TwoInputNode {
 		n.input2.setShipStrategy(ss2);
 
 		// output will have ascending order
-		n.getLocalProperties().setKeyOrder(Order.ASCENDING);
-		n.getLocalProperties().setKeysGrouped(true);
+		//TODO generate for both inputs and filter later on
+		
+		n.getLocalProperties().setOrdering(ordering1);
+		n.getLocalProperties().setGrouped(true, new FieldSet(keyColumns1));
 		
 		if(n.getLocalStrategy() == LocalStrategy.NONE) {
 			// local strategy was NOT set with compiler hint
 			
 			// set local strategy according to pre-existing ordering
-			if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+			if (ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
 				// both inputs have ascending order
 				n.setLocalStrategy(LocalStrategy.MERGE);
-			} else if (lp1.getKeyOrder() != Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+			} else if (!ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
 				// input 2 has ascending order, input 1 does not
 				n.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
-			} else if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() != Order.ASCENDING) {
+			} else if (ordering1.isMetBy(lp1.getOrdering()) && !ordering2.isMetBy(lp2.getOrdering())) {
 				// input 1 has ascending order, input 2 does not
 				n.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 			} else {
@@ -526,10 +544,56 @@ public class CoGroupNode extends TwoInputNode {
 		}
 
 		// compute, which of the properties survive, depending on the output contract
-//		n.getGlobalProperties().filterByOutputContract(getOutputContract());
-//		n.getLocalProperties().filterByOutputContract(getOutputContract());
-		n.getGlobalProperties().reset();
-		n.getLocalProperties().reset();
+		n.getGlobalProperties().filterByKeepSet(getKeepSet(0));
+		n.getLocalProperties().filterByKeepSet(getKeepSet(0));
+		
+		// compute the costs
+		estimator.costOperator(n);
+
+		target.add(n);
+		
+		
+		
+		
+		
+		// determine the properties of the data before it goes to the user code
+		outGp = new GlobalProperties();
+		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFiels());
+
+		// create a new cogroup node for this input
+		n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, new LocalProperties());
+
+		n.input1.setShipStrategy(ss1);
+		n.input2.setShipStrategy(ss2);
+
+		// output will have ascending order
+		//TODO generate for both inputs and filter later on
+		
+		n.getLocalProperties().setOrdering(ordering2);
+		n.getLocalProperties().setGrouped(true, new FieldSet(keyColumns2));
+		
+		if(n.getLocalStrategy() == LocalStrategy.NONE) {
+			// local strategy was NOT set with compiler hint
+			
+			// set local strategy according to pre-existing ordering
+			if (ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
+				// both inputs have ascending order
+				n.setLocalStrategy(LocalStrategy.MERGE);
+			} else if (!ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
+				// input 2 has ascending order, input 1 does not
+				n.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+			} else if (ordering1.isMetBy(lp1.getOrdering()) && !ordering2.isMetBy(lp2.getOrdering())) {
+				// input 1 has ascending order, input 2 does not
+				n.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+			} else {
+				// none of the inputs has ascending order
+				n.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+			}
+		}
+
+		// compute, which of the properties survive, depending on the output contract
+		n.getGlobalProperties().filterByKeepSet(getKeepSet(1));
+		n.getLocalProperties().filterByKeepSet(getKeepSet(1));
 		
 		// compute the costs
 		estimator.costOperator(n);

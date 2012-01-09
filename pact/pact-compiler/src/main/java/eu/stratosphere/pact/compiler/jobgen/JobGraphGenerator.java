@@ -730,7 +730,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// set the degree-of-parallelism into the config to have it available during the output path checking.
 		sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, sinkNode.getDegreeOfParallelism());
 		// set the sort order into config (can also be NONE)
-		sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getKeyOrder().name());
+		sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getOrdering().getOrder(0).name());
 		// get task configuration object
 		TaskConfig sinkConfig = new TaskConfig(sinkVertex.getConfiguration());
 		// set user code class
@@ -973,7 +973,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		partitionConfig.setStubClass(sourceStub);
 		Configuration partitionStubConfig = new Configuration();
 		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
-			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
+			connection.getTargetPact().getGlobalProperties().getOrdering().getOrder(0).name());
 		partitionConfig.setStubParameters(partitionStubConfig);
 		
 		//Add temp vertex to avoid blocking
@@ -1050,7 +1050,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		partitionConfig.setStubClass(sourceStub);
 		Configuration partitionStubConfig = new Configuration();
 		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
-			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
+			connection.getTargetPact().getGlobalProperties().getOrdering().getOrder(0).name());
 		partitionStubConfig.setBoolean(PartitionTask.PARTITION_BY_SAMPLING, false);
 		partitionStubConfig.setInteger(PartitionTask.NUMBER_OF_PARTITIONS, targetDOP);
 		partitionStubConfig.setClass(PartitionTask.DATA_DISTRIBUTION_CLASS,

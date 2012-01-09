@@ -28,6 +28,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.pact.common.contract.KeepSet;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -362,15 +363,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return PactType.getType(pactContract.getClass());
 	}
 
-//	/**
-//	 * Gets the output contract declared on the user function that is wrapped in the PACT of this node.
-//	 * 
-//	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
-//	 */
-//	public OutputContract getOutputContract() {
-//		//return outputContract;
-//		return null;
-//	}
+	/**
+	 * Gets the output contract declared on the user function that is wrapped in the PACT of this node.
+	 * 
+	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
+	 */
+	public KeepSet getKeepSet(int inputNum) {
+		//return outputContract;
+		return new KeepSet();
+	}
 
 	/**
 	 * Gets the degree of parallelism for the contract represented by this optimizer node.

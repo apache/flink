@@ -6,6 +6,9 @@ public class FieldSet  extends HashSet<Integer>{
 
 	private static final long serialVersionUID = -6333143284628275141L;
 
+	public FieldSet() {
+	}
+	
 	public FieldSet(int columnIndex) {
 		this.add(columnIndex);
 	}

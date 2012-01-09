@@ -23,8 +23,10 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
@@ -165,65 +167,65 @@ public class MatchNode extends TwoInputNode {
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-//		// first, get all incoming interesting properties and see, how they can be propagated to the
-//		// children, depending on the output contract.
-//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-//
-//		List<InterestingProperties> props1 = null;
-//		List<InterestingProperties> props2 = new ArrayList<InterestingProperties>();
-//
-//		OutputContract oc = getOutputContract();
-//		if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
-//			props1 = InterestingProperties.filterByOutputContract(thisNodesIntProps, oc);
-//			props2.addAll(props1);
-//		} else {
-//			props1 = new ArrayList<InterestingProperties>();
-//		}
-//
-//		// a match is always interested in the following properties from both inputs:
-//		// 1) any-partition and order
-//		// 2) partition only
-//		createInterestingProperties(input1, props1, estimator);
-//		createInterestingProperties(input2, props2, estimator);
-//
-//		input1.addAllInterestingProperties(props1);
-//		input2.addAllInterestingProperties(props2);
+		// first, get all incoming interesting properties and see, how they can be propagated to the
+		// children, depending on the output contract.
+		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+		List<InterestingProperties> props1 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
+			getKeepSet(0));
+		List<InterestingProperties> props2 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
+				getKeepSet(1));
 		
-		this.input1.setNoInterestingProperties();
-		this.input2.setNoInterestingProperties();
+
+		// a match is always interested in the following properties from both inputs:
+		// 1) any-partition and order
+		// 2) partition only
+		createInterestingProperties(input1, props1, estimator, 0);
+		createInterestingProperties(input2, props2, estimator, 1);
+
+		input1.addAllInterestingProperties(props1);
+		input2.addAllInterestingProperties(props2);
+		
 	}
 
-//	/**
-//	 * Utility method that generates for the given input interesting properties about partitioning and
-//	 * order.
-//	 * 
-//	 * @param input
-//	 *        The input to generate the interesting properties for.
-//	 * @param target
-//	 *        The list to add the interesting properties to.
-//	 * @param estimator
-//	 *        The cost estimator to estimate the maximal costs for the interesting properties.
-//	 */
-//	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
-//			CostEstimator estimator) {
-//		InterestingProperties p = new InterestingProperties();
-//
-//		// partition and any order
-//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-//		p.getLocalProperties().setKeyOrder(Order.ANY);
-//
-//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
-//		Costs c = new Costs();
-//		estimator.getLocalSortCost(this, input, c);
-//		p.getMaximalCosts().addCosts(c);
-//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
-//
-//		// partition only
-//		p = new InterestingProperties();
-//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
-//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
-//	}
+	/**
+	 * Utility method that generates for the given input interesting properties about partitioning and
+	 * order.
+	 * 
+	 * @param input
+	 *        The input to generate the interesting properties for.
+	 * @param target
+	 *        The list to add the interesting properties to.
+	 * @param estimator
+	 *        The cost estimator to estimate the maximal costs for the interesting properties.
+	 */
+	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
+			CostEstimator estimator, int inputNum) {
+		InterestingProperties p = new InterestingProperties();
+
+		FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(inputNum));
+		
+		// partition and any order
+		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet);
+		
+		Ordering ordering = new Ordering();
+		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
+			ordering.appendOrdering(index, Order.ANY);
+		}
+		
+		p.getLocalProperties().setOrdering(ordering);
+
+		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+		Costs c = new Costs();
+		estimator.getLocalSortCost(this, input, c);
+		p.getMaximalCosts().addCosts(c);
+		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+
+		// partition only
+		p = new InterestingProperties();
+		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet);
+		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -570,19 +572,10 @@ public class MatchNode extends TwoInputNode {
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
 	{
 		// compute the given properties of the incoming data
-		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
-
 		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
 		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
 
-		// determine the properties of the data before it goes to the user code
-		GlobalProperties outGp = new GlobalProperties();
-		outGp.setPartitioning(gp1.getPartitioning().isComputablyPartitioned() ? gp1.getPartitioning() : gp2.getPartitioning());
-		outGp.setKeyOrder(gp1.getKeyOrder().isOrdered() ? gp1.getKeyOrder() : gp2.getKeyOrder());
-
 		// create alternatives for different local strategies
-		LocalProperties outLp = new LocalProperties();
 		LocalStrategy ls = getLocalStrategy();
 		
 		if (ls != LocalStrategy.NONE) {
@@ -591,26 +584,21 @@ public class MatchNode extends TwoInputNode {
 			// set the local properties accordingly
 			if (ls == LocalStrategy.SORT_BOTH_MERGE || ls == LocalStrategy.SORT_FIRST_MERGE 
 				|| ls == LocalStrategy.SORT_SECOND_MERGE || ls == LocalStrategy.MERGE) {
-				outLp.setKeyOrder(Order.ASCENDING);
-				outLp.setKeysGrouped(true);
 				
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, outGp, outLp, estimator);
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, Order.ASCENDING, true, null, estimator);
 			} else if (ls == LocalStrategy.HYBRIDHASH_FIRST || ls == LocalStrategy.HYBRIDHASH_SECOND
 				|| ls == LocalStrategy.MMHASH_FIRST || ls == LocalStrategy.MMHASH_SECOND) {
-				outLp.setKeyOrder(Order.NONE);
-				outLp.setKeysGrouped(false);
-				
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, outGp, outLp, estimator);
+
+				createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, Order.NONE, false, null, estimator);
 			} else if (ls == LocalStrategy.SORT_SELF_NESTEDLOOP) {
-				outLp.setKeyOrder(Order.ASCENDING);
-				outLp.setKeysGrouped(true);
 				
-				createMatchAlternative(target, pred1, null, ss1, null, ls, outGp, outLp, estimator);
+				createMatchAlternative(target, pred1, null, ss1, null, ls, Order.ASCENDING, true, null, estimator);
 			} else if (ls == LocalStrategy.SELF_NESTEDLOOP) {
-				outLp.setKeyOrder(lp1.getKeyOrder());
-				outLp.setKeysGrouped(true);
+				LocalProperties outLp = new LocalProperties();
+				outLp.setOrdering(lp1.getOrdering());
+				outLp.setGrouped(true, lp1.getGroupedFields());
 				
-				createMatchAlternative(target, pred1, null, ss1, null, ls, outGp, outLp, estimator);
+				createMatchAlternative(target, pred1, null, ss1, null, ls, Order.ANY, true, outLp, estimator);
 			}
 
 		} else {
@@ -621,53 +609,63 @@ public class MatchNode extends TwoInputNode {
 				if (pred1.estimatedOutputSize > 0 && pred2.estimatedOutputSize > 0)
 				{
 					// create the hybrid-hash strategy where the first input is the building side
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, outGp.createCopy(),
-						outLp.createCopy(), estimator);
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, Order.NONE, false,
+						null, estimator);
 		
 					// create the hybrid-hash strategy where the second input is the building side
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_SECOND, outGp.createCopy(),
-						outLp.createCopy(), estimator);
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_SECOND, Order.NONE, false,
+						null, estimator);
 				}
 	
 				// create sort merge strategy depending on pre-existing orders
-				outLp.setKeyOrder(Order.ASCENDING);
-				outLp.setKeysGrouped(true);
+				
+				int[] keyColumns = getPactContract().getKeyColumnNumbers(0);
+				Ordering ordering1 = new Ordering();
+				for (int keyColumn : keyColumns) {
+					ordering1.appendOrdering(keyColumn, Order.ASCENDING);
+				}
+				
+				keyColumns = getPactContract().getKeyColumnNumbers(1);
+				Ordering ordering2 = new Ordering();
+				for (int keyColumn : keyColumns) {
+					ordering2.appendOrdering(keyColumn, Order.ASCENDING);
+				}
+				
 				
 				// set local strategy according to pre-existing ordering
-				if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+				if (ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
 					// both inputs have ascending order
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.MERGE, outGp, outLp, estimator);
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.MERGE, Order.ASCENDING, true, null, estimator);
 					
-				} else if (lp1.getKeyOrder() != Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
+				} else if (!ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
 					// input 2 has ascending order, input 1 does not
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_FIRST_MERGE, outGp, outLp, estimator);
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_FIRST_MERGE, Order.ASCENDING, true, null, estimator);
 					
-				} else if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() != Order.ASCENDING) {
+				} else if (ordering1.isMetBy(lp1.getOrdering()) && !ordering2.isMetBy(lp2.getOrdering())) {
 					// input 1 has ascending order, input 2 does not
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_SECOND_MERGE, outGp, outLp, estimator);
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_SECOND_MERGE, Order.ASCENDING, true, null, estimator);
 					
 				} else {
 					// none of the inputs has ascending order
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_BOTH_MERGE, outGp, outLp, estimator);
+					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_BOTH_MERGE, Order.ASCENDING, true, null, estimator);
 					
 				}
 				
 			} else {
 				// this is a self match
 
-				// will always be grouped by key
-				outLp.setKeysGrouped(true);
 				
-				if(lp1.areKeysGrouped()) {
+				if(lp1.isGrouped()) {
 					// output will have order of input
-					outLp.setKeyOrder(lp1.getKeyOrder());
+					LocalProperties outLp = new LocalProperties();
+					outLp.setOrdering(lp1.getOrdering());
+					outLp.setGrouped(true, lp1.getGroupedFields());
 					// self match without sorting
-					createMatchAlternative(target, pred1, null, ss1, null, LocalStrategy.SELF_NESTEDLOOP, outGp, outLp, estimator);
+					createMatchAlternative(target, pred1, null, ss1, null, LocalStrategy.SELF_NESTEDLOOP, Order.ANY, true, outLp, estimator);
 				} else {
 					// output will be ascendingly sorted
-					outLp.setKeyOrder(Order.ASCENDING);
 					// self match with sorting
-					createMatchAlternative(target, pred1, null, ss1, null, LocalStrategy.SORT_SELF_NESTEDLOOP, outGp, outLp, estimator);
+					createMatchAlternative(target, pred1, null, ss1, null, LocalStrategy.SORT_SELF_NESTEDLOOP, Order.ASCENDING, true, null, estimator);
 				}
 				
 			}
@@ -699,8 +697,37 @@ public class MatchNode extends TwoInputNode {
 	 *        The cost estimator.
 	 */
 	private void createMatchAlternative(List<MatchNode> target, OptimizerNode pred1, OptimizerNode pred2,
-			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, GlobalProperties outGp, LocalProperties outLp,
+			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, Order order, boolean grouped, LocalProperties outLpp,
 			CostEstimator estimator) {
+		
+		// compute the given properties of the incoming data
+		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+
+		LocalProperties outLp = outLpp;
+		
+		// determine the properties of the data before it goes to the user code
+		GlobalProperties outGp = new GlobalProperties();
+		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFiels());
+		outGp.setOrdering(gp1.getOrdering());
+		
+		if (outLpp == null) {
+			int[] keyColumns = getPactContract().getKeyColumnNumbers(0);
+			
+			outLp = new LocalProperties();
+			if (order != Order.NONE) {
+				Ordering ordering = new Ordering();
+				for (int keyColumn : keyColumns) {
+					ordering.appendOrdering(keyColumn, order);
+				}
+				outLp.setOrdering(ordering);
+			}
+			else {
+				outLp.setOrdering(null);	
+			}
+			outLp.setGrouped(grouped, new FieldSet(keyColumns));
+		}
+				
 		// create a new reduce node for this input
 		MatchNode n = new MatchNode(this, pred1, pred2, input1, input2, outGp, outLp);
 
@@ -713,10 +740,52 @@ public class MatchNode extends TwoInputNode {
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
-//		n.getGlobalProperties().filterByOutputContract(getOutputContract());
-//		n.getLocalProperties().filterByOutputContract(getOutputContract());
-		n.getGlobalProperties().reset();
-		n.getLocalProperties().reset();
+		n.getGlobalProperties().filterByKeepSet(getKeepSet(0));
+		n.getLocalProperties().filterByKeepSet(getKeepSet(0));
+
+		// compute the costs
+		estimator.costOperator(n);
+
+		target.add(n);
+		
+		
+		
+		// determine the properties of the data before it goes to the user code
+		outGp = new GlobalProperties();
+		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFiels());
+		outGp.setOrdering(gp2.getOrdering());
+		
+		if (outLpp == null) {
+			int[] keyColumns = getPactContract().getKeyColumnNumbers(1);
+			
+			outLp = new LocalProperties();
+			if (order != Order.NONE) {
+				Ordering ordering = new Ordering();
+				for (int keyColumn : keyColumns) {
+					ordering.appendOrdering(keyColumn, order);
+				}
+				outLp.setOrdering(ordering);
+			}
+			else {
+				outLp.setOrdering(null);	
+			}
+			outLp.setGrouped(grouped, new FieldSet(keyColumns));
+		}
+				
+		// create a new reduce node for this input
+		n = new MatchNode(this, pred1, pred2, input1, input2, outGp, outLp);
+
+		if(n.input1 != null) {
+			n.input1.setShipStrategy(ss1);
+		}
+		if(n.input2 != null) {
+			n.input2.setShipStrategy(ss2);
+		}
+		n.setLocalStrategy(ls);
+
+		// compute, which of the properties survive, depending on the output contract
+		n.getGlobalProperties().filterByKeepSet(getKeepSet(1));
+		n.getLocalProperties().filterByKeepSet(getKeepSet(1));
 
 		// compute the costs
 		estimator.costOperator(n);

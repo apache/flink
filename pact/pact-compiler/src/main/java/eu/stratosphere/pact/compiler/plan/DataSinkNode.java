@@ -22,9 +22,11 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -192,31 +194,37 @@ public class DataSinkNode extends OptimizerNode
 		// 2) an interest in range-partitioned data
 		// 3) an interest in locally sorted data
 
-//		Order o = getPactContract().getGlobalOrder();
-//		if (o != Order.NONE) {
-//			InterestingProperties i1 = new InterestingProperties();
-//			i1.getGlobalProperties().setKeyOrder(o);
-//
-//			// costs are a range partitioning and a local sort
-//			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
-//			Costs c = new Costs();
-//			estimator.getLocalSortCost(this, this.input, c);
-//			i1.getMaximalCosts().addCosts(c);
-//
-//			InterestingProperties i2 = new InterestingProperties();
-//			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED);
-//			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
-//
-//			input.addInterestingProperties(i1);
-//			input.addInterestingProperties(i2);
-//		} else if (getPactContract().getLocalOrder() != Order.NONE) {
-//			InterestingProperties i = new InterestingProperties();
-//			i.getLocalProperties().setKeyOrder(getPactContract().getLocalOrder());
-//			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
-//			input.addInterestingProperties(i);
-//		} else {
+		Ordering o = getPactContract().getGlobalOrder();
+		if (o != null) {
+			InterestingProperties i1 = new InterestingProperties();
+			i1.getGlobalProperties().setOrdering(o);
+
+			// costs are a range partitioning and a local sort
+			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
+			Costs c = new Costs();
+			estimator.getLocalSortCost(this, this.input, c);
+			i1.getMaximalCosts().addCosts(c);
+
+			InterestingProperties i2 = new InterestingProperties();
+			FieldSet fieldSet = new FieldSet();
+			
+			for (Integer field : o.getInvolvedIndexes()) {
+				fieldSet.add(field);
+			}
+			
+			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, fieldSet);
+			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
+
+			input.addInterestingProperties(i1);
+			input.addInterestingProperties(i2);
+		} else if (getPactContract().getLocalOrder() != null) {
+			InterestingProperties i = new InterestingProperties();
+			i.getLocalProperties().setOrdering(getPactContract().getLocalOrder());
+			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
+			input.addInterestingProperties(i);
+		} else {
 			this.input.setNoInterestingProperties();
-//		}
+		}
 	}
 
 	/*
@@ -254,8 +262,8 @@ public class DataSinkNode extends OptimizerNode
 		List<DataSinkNode> plans = new ArrayList<DataSinkNode>(inPlans.size());
 
 		for (OptimizerNode pred : inPlans) {
-			Order go = getPactContract().getGlobalOrder();
-			Order lo = getPactContract().getLocalOrder();
+			Ordering go = getPactContract().getGlobalOrder();
+			Ordering lo = getPactContract().getLocalOrder();
 
 			GlobalProperties gp = pred.getGlobalProperties().createCopy();
 			LocalProperties lp = pred.getLocalProperties().createCopy();
@@ -263,7 +271,7 @@ public class DataSinkNode extends OptimizerNode
 			ShipStrategy ss = null;
 			LocalStrategy ls = null;
 
-			if (go != Order.NONE && go != gp.getKeyOrder()) {
+			if (go != null && go != null) {
 				// requires global sort
 
 				if (input.getShipStrategy() == ShipStrategy.NONE
@@ -285,10 +293,16 @@ public class DataSinkNode extends OptimizerNode
 					continue;
 				}
 
-				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED);
-				gp.setKeyOrder(go);
-				lp.setKeyOrder(go);
-			} else if (lo != Order.NONE && lo != lp.getKeyOrder()) {
+				FieldSet fieldSet = new FieldSet();
+				
+				for (Integer field : go.getInvolvedIndexes()) {
+					fieldSet.add(field);
+				}
+				
+				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, fieldSet);
+				gp.setOrdering(go);
+				lp.setOrdering(go);
+			} else if (lo != null && lo.isMetBy(lp.getOrdering())) {
 
 				// requires local sort
 				if (localStrategy == LocalStrategy.NONE || localStrategy == LocalStrategy.SORT) {
@@ -301,7 +315,7 @@ public class DataSinkNode extends OptimizerNode
 				}
 
 				ls = LocalStrategy.SORT;
-				lp.setKeyOrder(lo);
+				lp.setOrdering(lo);
 			}
 
 			// create the new node and connection

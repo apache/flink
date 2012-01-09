@@ -15,7 +15,11 @@
 
 package eu.stratosphere.pact.compiler;
 
-import eu.stratosphere.pact.common.contract.Order;
+import java.util.ArrayList;
+
+import eu.stratosphere.pact.common.contract.KeepSet;
+import eu.stratosphere.pact.common.contract.Ordering;
+import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  * This class represents global properties of the data. Global properties are properties that
@@ -27,11 +31,13 @@ import eu.stratosphere.pact.common.contract.Order;
  */
 public final class GlobalProperties implements Cloneable
 {
+	private FieldSet partitionedFields;
+	
 	private PartitionProperty partitioning; // the partitioning
 
-	private Order keyOrder; // order across all partitions
+	private Ordering ordering; // order across all partitions
 
-	private boolean keyUnique = false; // flag indicating whether the keys are unique
+//	private boolean keyUnique = false; // flag indicating whether the keys are unique
 
 	// across all partitions
 
@@ -40,7 +46,7 @@ public final class GlobalProperties implements Cloneable
 	 */
 	public GlobalProperties() {
 		partitioning = PartitionProperty.NONE;
-		keyOrder = Order.NONE;
+		ordering = null;
 	}
 
 	/**
@@ -53,12 +59,16 @@ public final class GlobalProperties implements Cloneable
 	 * @param keyUnique
 	 *        The flag that indicates, whether the keys are unique.
 	 */
-	public GlobalProperties(PartitionProperty partitioning, Order keyOrder, boolean keyUnique) {
+	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, boolean keyUnique) {
 		this.partitioning = partitioning;
-		this.keyOrder = keyOrder;
-		this.keyUnique = keyUnique;
+		this.ordering = ordering;
+//		this.keyUnique = keyUnique;
 	}
 
+	
+	public FieldSet getPartitionedFiels() {
+		return partitionedFields;
+	}
 	/**
 	 * Gets the partitioning property.
 	 * 
@@ -74,8 +84,9 @@ public final class GlobalProperties implements Cloneable
 	 * @param partitioning
 	 *        The new partitioning to set.
 	 */
-	public void setPartitioning(PartitionProperty partitioning) {
+	public void setPartitioning(PartitionProperty partitioning, FieldSet partitionedFields) {
 		this.partitioning = partitioning;
+		this.partitionedFields = partitionedFields;
 	}
 
 	/**
@@ -83,8 +94,8 @@ public final class GlobalProperties implements Cloneable
 	 * 
 	 * @return The key order.
 	 */
-	public Order getKeyOrder() {
-		return keyOrder;
+	public Ordering getOrdering() {
+		return this.ordering;
 	}
 
 	/**
@@ -93,8 +104,8 @@ public final class GlobalProperties implements Cloneable
 	 * @param keyOrder
 	 *        The key order to set.
 	 */
-	public void setKeyOrder(Order keyOrder) {
-		this.keyOrder = keyOrder;
+	public void setOrdering(Ordering ordering) {
+		this.ordering = ordering;
 	}
 
 	/**
@@ -102,15 +113,16 @@ public final class GlobalProperties implements Cloneable
 	 * 
 	 * @return The keyUnique property.
 	 */
-	public boolean isKeyUnique() {
-		return keyUnique;
-	}
+//	public boolean isKeyUnique() {
+//		return keyUnique;
+//	}
 
 	/**
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
 	public boolean isTrivial() {
-		return partitioning == PartitionProperty.NONE && keyOrder == Order.NONE && !keyUnique;
+		return partitioning == PartitionProperty.NONE && ordering == null;
+//				&& !keyUnique;
 	}
 
 	/**
@@ -119,17 +131,18 @@ public final class GlobalProperties implements Cloneable
 	 * @param keyUnique
 	 *        The keyUnique to set.
 	 */
-	public void setKeyUnique(boolean keyUnique) {
-		this.keyUnique = keyUnique;
-	}
+//	public void setKeyUnique(boolean keyUnique) {
+//		this.keyUnique = keyUnique;
+//	}
 
 	/**
 	 * This method resets the properties to a state where no properties are given.
 	 */
 	public void reset() {
+		this.partitionedFields = null;
 		this.partitioning = PartitionProperty.NONE;
-		this.keyOrder = Order.NONE;
-		this.keyUnique = false;
+		this.ordering = null;
+//		this.keyUnique = false;
 	}
 
 //	/**
@@ -169,6 +182,33 @@ public final class GlobalProperties implements Cloneable
 //
 //		return nonTrivial;
 //	}
+	
+	public boolean filterByKeepSet(KeepSet keepSet) {
+		
+		//check if partitioning survives
+		for (Integer index : partitionedFields) {
+			if (keepSet.isKept(index) == false) {
+				partitionedFields.remove(index);
+			}
+		}
+		
+		if (partitionedFields.size() == 0) {
+			partitioning = PartitionProperty.NONE;
+		}
+		
+		// check, whether the global order is preserved
+		if (ordering != null) {
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+			for (int i = 0; i < involvedIndexes.size(); i++) {
+				if (keepSet.isKept(involvedIndexes.get(i)) == false) {
+					ordering = ordering.createNewOrderingUpToIndex(i);
+					break;
+				}
+			}
+		}
+		
+		return partitioning != PartitionProperty.NONE || ordering != null;
+	}
 
 	/**
 	 * Checks, if this set of properties, as interesting properties, is met by the given
@@ -188,22 +228,35 @@ public final class GlobalProperties implements Cloneable
 				return false;
 			}
 		}
-
-		// check the order
-		// if this one request no order, everything is good
-		if (this.keyOrder != Order.NONE) {
-			if (this.keyOrder == Order.ANY) {
-				// if any order is requested, any not NONE order is good
-				if (other.keyOrder == Order.NONE) {
-					return false;
-				}
-			} else if (other.keyOrder != this.keyOrder) {
-				// the orders must be equal
+		
+		FieldSet otherPartitionedFields = other.getPartitionedFiels();
+		if (this.partitionedFields.size() > otherPartitionedFields.size()) {
+			return false;
+		}
+		
+		for (Integer fieldIndex : this.partitionedFields) {
+			if (otherPartitionedFields.contains(fieldIndex) == false) {
 				return false;
 			}
 		}
+		
+		return this.ordering.isMetBy(other.getOrdering());
 
-		return this.keyUnique == other.keyUnique;
+//		// check the order
+//		// if this one request no order, everything is good
+//		if (this.keyOrder != Order.NONE) {
+//			if (this.keyOrder == Order.ANY) {
+//				// if any order is requested, any not NONE order is good
+//				if (other.keyOrder == Order.NONE) {
+//					return false;
+//				}
+//			} else if (other.keyOrder != this.keyOrder) {
+//				// the orders must be equal
+//				return false;
+//			}
+//		}
+
+//		return this.keyUnique == other.keyUnique;
 	}
 
 	// ------------------------------------------------------------------------
@@ -217,8 +270,9 @@ public final class GlobalProperties implements Cloneable
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((partitioning == null) ? 0 : partitioning.hashCode());
-		result = prime * result + ((keyOrder == null) ? 0 : keyOrder.hashCode());
-		result = prime * result + (keyUnique ? 1231 : 1237);
+		result = prime * result + ((partitionedFields == null) ? 0 : partitionedFields.hashCode());
+		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
+//		result = prime * result + (keyUnique ? 1231 : 1237);
 
 		return result;
 	}
@@ -238,7 +292,8 @@ public final class GlobalProperties implements Cloneable
 		}
 
 		GlobalProperties other = (GlobalProperties) obj;
-		if (keyOrder == other.keyOrder && keyUnique == other.keyUnique && partitioning == other.partitioning) {
+		if (ordering.equals(other.getOrdering()) && partitioning == other.getPartitioning() && partitionedFields.equals(other.getPartitionedFiels())) {
+		//if (keyOrder == other.keyOrder && keyUnique == other.keyUnique && partitioning == other.partitioning) {
 			return true;
 		} else {
 			return false;
@@ -251,7 +306,7 @@ public final class GlobalProperties implements Cloneable
 	 */
 	@Override
 	public String toString() {
-		return "GlobalProperties [partitioning=" + partitioning + ", keyOrder=" + keyOrder + ", keyUnique=" + keyUnique
+		return "GlobalProperties [partitioning=" + partitioning + " on fields=" + partitionedFields + ", ordering=" + ordering //+ ", keyUnique=" + keyUnique
 			+ "]";
 	}
 

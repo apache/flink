@@ -112,24 +112,18 @@ public class MapNode extends SingleInputNode
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-//		// the map itself has no interesting properties.
-//		// check, if there is an output contract that tells us that certain properties are preserved.
-//		// if so, propagate to the child.
-//
-//		OutputContract oc = getOutputContract();
-//		if (oc == OutputContract.None) {
-//			input.setNoInterestingProperties();
-//		} else if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
-//			List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-//			List<InterestingProperties> props = InterestingProperties.filterByOutputContract(thisNodesIntProps,
-//				getOutputContract());
-//			if (!props.isEmpty()) {
-//				input.addAllInterestingProperties(props);
-//			} else {
-//				input.setNoInterestingProperties();
-//			}
-//		}
-		this.input.setNoInterestingProperties();
+		// the map itself has no interesting properties.
+		// check, if there is an output contract that tells us that certain properties are preserved.
+		// if so, propagate to the child.
+		
+		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+		List<InterestingProperties> props = InterestingProperties.filterByKeepSet(thisNodesIntProps,
+			getKeepSet(0));
+		if (!props.isEmpty()) {
+			input.addAllInterestingProperties(props);
+		} else {
+			input.setNoInterestingProperties();
+		} 
 	}
 
 	/*
@@ -167,10 +161,8 @@ public class MapNode extends SingleInputNode
 
 			// now, the properties (copied from the inputs) are filtered by the
 			// output contracts
-//			nMap.getGlobalProperties().filterByOutputContract(getOutputContract());
-//			nMap.getLocalProperties().filterByOutputContract(getOutputContract());
-			nMap.getGlobalProperties().reset();
-			nMap.getLocalProperties().reset();
+			nMap.getGlobalProperties().filterByKeepSet(getKeepSet(0));
+			nMap.getLocalProperties().filterByKeepSet(getKeepSet(0));
 
 			// copy the cumulative costs and set the costs of the map itself to zero
 			estimator.costOperator(nMap);

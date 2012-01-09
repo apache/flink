@@ -15,7 +15,11 @@
 
 package eu.stratosphere.pact.compiler;
 
-import eu.stratosphere.pact.common.contract.Order;
+import java.util.ArrayList;
+
+import eu.stratosphere.pact.common.contract.KeepSet;
+import eu.stratosphere.pact.common.contract.Ordering;
+import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
@@ -24,17 +28,18 @@ import eu.stratosphere.pact.common.contract.Order;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class LocalProperties implements Cloneable {
-	private Order keyOrder; // order inside a partition
+	private Ordering ordering = null; // order inside a partition
 
-	private boolean keysGrouped = false; // flag indicating whether the keys are grouped
+	private FieldSet groupedFields = null;
+	
+	private boolean grouped = false; // flag indicating whether the keys are grouped
 
-	private boolean keyUnique = false; // flag indicating whether the keys are unique
+//	private boolean keyUnique = false; // flag indicating whether the keys are unique
 
 	/**
 	 * Default constructor. Initiates the order to NONE and the uniqueness to false.
 	 */
 	public LocalProperties() {
-		this.keyOrder = Order.NONE;
 	}
 
 	/**
@@ -42,8 +47,8 @@ public final class LocalProperties implements Cloneable {
 	 * 
 	 * @return The key order.
 	 */
-	public Order getKeyOrder() {
-		return keyOrder;
+	public Ordering getOrdering() {
+		return ordering;
 	}
 
 	/**
@@ -52,62 +57,73 @@ public final class LocalProperties implements Cloneable {
 	 * @param keyOrder
 	 *        The key order to set.
 	 */
-	public void setKeyOrder(Order keyOrder) {
-		this.keyOrder = keyOrder;
+	public void setOrdering(Ordering ordering) {
+		this.ordering = ordering;
 	}
 
-	/**
-	 * Checks whether the key is unique.
-	 * 
-	 * @return The keyUnique property.
-	 */
-	public boolean isKeyUnique() {
-		return keyUnique;
-	}
+//	/**
+//	 * Checks whether the key is unique.
+//	 * 
+//	 * @return The keyUnique property.
+//	 */
+//	public boolean isKeyUnique() {
+//		return keyUnique;
+//	}
 
-	/**
-	 * Sets the flag that indicates whether the key is unique.
-	 * 
-	 * @param keyUnique
-	 *        The uniqueness flag to set.
-	 */
-	public void setKeyUnique(boolean keyUnique) {
-		this.keyUnique = keyUnique;
-	}
+//	/**
+//	 * Sets the flag that indicates whether the key is unique.
+//	 * 
+//	 * @param keyUnique
+//	 *        The uniqueness flag to set.
+//	 */
+//	public void setKeyUnique(boolean keyUnique) {
+//		this.keyUnique = keyUnique;
+//	}
 
 	/**
 	 * Checks whether the keys are grouped.
 	 * 
 	 * @return True, if the keys are grouped, false otherwise.
 	 */
-	public boolean areKeysGrouped() {
-		return this.keysGrouped;
+	public boolean isGrouped() {
+		return this.grouped;
 	}
 
+	public FieldSet getGroupedFields() {
+		return this.groupedFields;
+	}
+	
 	/**
 	 * Sets the flag that indicates whether the keys are grouped.
 	 * 
 	 * @param keysGrouped
 	 *        The keys-grouped flag to set.
 	 */
-	public void setKeysGrouped(boolean keysGrouped) {
-		this.keysGrouped = keysGrouped;
+	public void setGrouped(boolean isGrouped, FieldSet groupedFields) {
+		this.grouped = isGrouped;
+		if (isGrouped) {
+			this.groupedFields = groupedFields;	
+		}
 	}
 
 	/**
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
 	public boolean isTrivial() {
-		return keyOrder == Order.NONE && !keyUnique && !keysGrouped;
+		//return keyOrder == Order.NONE && !keyUnique && !keysGrouped;
+		return !this.grouped && ordering == null;
 	}
 
 	/**
 	 * This method resets the local properties to a state where no properties are given.
 	 */
 	public void reset() {
-		this.keyOrder = Order.NONE;
-		this.keyUnique = false;
-		this.keysGrouped = false;
+//		this.keyOrder = Order.NONE;
+//		this.keyUnique = false;
+//		this.keysGrouped = false;
+		this.ordering = null;
+		this.grouped = false;
+		this.groupedFields = null;
 	}
 
 //	/**
@@ -145,6 +161,33 @@ public final class LocalProperties implements Cloneable {
 //
 //		return nonTrivial;
 //	}
+	
+	public boolean filterByKeepSet(KeepSet keepSet) {
+		
+		// check, whether the local order is preserved
+		if (ordering != null) {
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+			for (int i = 0; i < involvedIndexes.size(); i++) {
+				if (keepSet.isKept(involvedIndexes.get(i)) == false) {
+					ordering = ordering.createNewOrderingUpToIndex(i);
+					break;
+				}
+			}
+		}
+		
+		// check, whether the local key grouping is preserved
+		for (Integer index : this.groupedFields) {
+			if (keepSet.isKept(index) == false) {
+				this.groupedFields = null;
+				this.grouped = false;
+				break;
+			}
+		}
+		
+		
+		return isTrivial();
+		
+	}
 
 	/**
 	 * Checks, if this set of properties, as interesting properties, is met by the given
@@ -155,27 +198,36 @@ public final class LocalProperties implements Cloneable {
 	 * @return True, if the properties are met, false otherwise.
 	 */
 	public boolean isMetBy(LocalProperties other) {
-		// check the order
-		// if this one request no order, everything is good
-		if (this.keyOrder != Order.NONE) {
-			if (this.keyOrder == Order.ANY) {
-				// if any order is requested, any not NONE order is good
-				if (other.keyOrder == Order.NONE) {
-					return false;
-				}
-			} else if (other.keyOrder != this.keyOrder) {
-				// the orders must be equal
-				return false;
-			}
-		}
 
 		// check the grouping. if this one requests a grouping, then an
 		// order or a grouping are good.
-		if (this.keysGrouped && !(other.keysGrouped || other.getKeyOrder().isOrdered())) {
-			return false;
+		boolean groupingFulfilled = false;
+		
+		if (this.grouped) {
+			if (other.isGrouped()) {
+				groupingFulfilled = this.groupedFields.equals(other.groupedFields);
+			}
+			if (!groupingFulfilled && other.getOrdering() != null) {
+				ArrayList<Integer> otherIndexes = other.getOrdering().getInvolvedIndexes();
+				if (groupedFields.size() > otherIndexes.size()) {
+					return false;
+				}
+				
+				for (int i = 0; i < groupedFields.size(); i++) {
+					if (groupedFields.contains(otherIndexes.get(i)) == false) {
+						return false;
+					}
+				}
+			}
 		}
 
-		return this.keyUnique == other.keyUnique;
+		if (groupingFulfilled == false) {
+			return false;
+		}
+		// check the order
+		return this.ordering.isMetBy(other.getOrdering());
+		
+//		return this.keyUnique == other.keyUnique;
 	}
 
 	// ------------------------------------------------------------------------
@@ -188,9 +240,11 @@ public final class LocalProperties implements Cloneable {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((keyOrder == null) ? 0 : keyOrder.hashCode());
-		result = prime * result + (keyUnique ? 1231 : 1237);
-		result = prime * result + (keysGrouped ? 1231 : 1237);
+		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
+		result = prime * result + ((groupedFields == null) ? 0 : groupedFields.hashCode());
+		//result = prime * result + (keyUnique ? 1231 : 1237);
+		result = prime * result + (grouped ? 1231 : 1237);
+		
 
 		return result;
 	}
@@ -210,8 +264,8 @@ public final class LocalProperties implements Cloneable {
 		}
 
 		LocalProperties other = (LocalProperties) obj;
-		if (this.keyOrder == other.keyOrder && this.keyUnique == other.keyUnique
-			&& this.keysGrouped == other.keysGrouped) {
+		if (this.ordering == other.ordering // && this.keyUnique == other.keyUnique
+			&& this.grouped == other.grouped && this.groupedFields.equals(other.groupedFields)) {
 			return true;
 		} else {
 			return false;
@@ -224,7 +278,9 @@ public final class LocalProperties implements Cloneable {
 	 */
 	@Override
 	public String toString() {
-		return "LocalProperties [keyOrder=" + keyOrder + ", keyUnique=" + keyUnique + ", keysGrouped=" + keysGrouped
+		return "LocalProperties [ordering=" + ordering+ ", grouped=" + grouped
+				+ " on " + groupedFields
+				// + ", keyUnique=" + keyUnique 
 			+ "]";
 	}
 

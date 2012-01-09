@@ -20,7 +20,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.AbstractPact;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -356,21 +357,38 @@ public class PactConnection {
 	 */
 	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
 		GlobalProperties gp = source.getGlobalProperties().createCopy();
-
+		
+		//TODO make nicer
+		int inputNum = 0;
+		FieldSet keyFields = null;
+		for (PactConnection connection : target.getIncomingConnections()) {
+			if (connection.getSourcePact().equals(source)) {
+				if (target.getPactContract() instanceof AbstractPact<?>) {
+					keyFields = new FieldSet(((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum));
+				}
+				break;
+			}
+			else {
+				inputNum++;
+			}
+		}
+		
 		switch (shipMode) {
 		case BROADCAST:
 			gp.reset();
 			break;
 		case PARTITION_RANGE:
-			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED);
+			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, keyFields);
 			break;
 		case PARTITION_HASH:
-			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED);
-			gp.setKeyOrder(Order.NONE);
+			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, keyFields);
+//			gp.setKeyOrder(Order.NONE);
+			gp.setOrdering(null);
 			break;
 		case FORWARD:
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
-				gp.setKeyOrder(Order.NONE);
+//				gp.setKeyOrder(Order.NONE);
+				gp.setOrdering(null);
 			}
 			// nothing else changes
 			break;
@@ -400,9 +418,11 @@ public class PactConnection {
 		else if (shipMode == ShipStrategy.FORWARD) {
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
 				// any order is destroyed by the random merging of the inputs
-				lp.setKeyOrder(Order.NONE);
+//				lp.setKeyOrder(Order.NONE);
+				lp.setOrdering(null);
 				// keys are only grouped if they are unique
-				lp.setKeysGrouped(lp.isKeyUnique());
+				//lp.setKeysGrouped(lp.isKeyUnique());
+				lp.setGrouped(false, null);
 			}
 		}
 		else {

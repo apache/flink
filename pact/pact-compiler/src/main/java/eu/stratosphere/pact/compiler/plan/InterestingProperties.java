@@ -16,8 +16,10 @@
 package eu.stratosphere.pact.compiler.plan;
 
 //import java.util.ArrayList;
+import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.contract.KeepSet;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -306,4 +308,21 @@ public class InterestingProperties implements Cloneable {
 //			return preserved;
 //		}
 //	}
+	
+	
+	public static final List<InterestingProperties> filterByKeepSet(List<InterestingProperties> props,
+			KeepSet keepSet) {
+		List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
+		
+		for (InterestingProperties p : props) {
+			boolean nonTrivial = p.getGlobalProperties().filterByKeepSet(keepSet);
+			nonTrivial |= p.getLocalProperties().filterByKeepSet(keepSet);
+
+			if (nonTrivial) {
+				preserved.add(p);
+			}
+		}
+
+		return preserved;
+	}
 }

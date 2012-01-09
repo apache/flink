@@ -23,13 +23,16 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
+import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
@@ -170,40 +173,32 @@ public class ReduceNode extends SingleInputNode {
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-//		// check, if there is an output contract that tells us that certain properties are preserved.
-//		// if so, propagate to the child.
-//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-//		List<InterestingProperties> props = null;
-//
-//		switch (getOutputContract()) {
-//		case SameKey:
-//		case SuperKey:
-//			props = InterestingProperties.filterByOutputContract(thisNodesIntProps, getOutputContract());
-//			break;
-//		default:
-//			props = new ArrayList<InterestingProperties>();
-//			break;
-//		}
-//
-//		// add the first interesting properties: partitioned and grouped
-//		InterestingProperties ip1 = new InterestingProperties();
-//		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-//		ip1.getLocalProperties().setKeysGrouped(true);
-//		estimator.getHashPartitioningCost(this.input, ip1.getMaximalCosts());
-//		Costs c = new Costs();
-//		estimator.getLocalSortCost(this, this.input, c);
-//		ip1.getMaximalCosts().addCosts(c);
-//
-//		// add the second interesting properties: partitioned only
-//		InterestingProperties ip2 = new InterestingProperties();
-//		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
-//		estimator.getHashPartitioningCost(this.input, ip2.getMaximalCosts());
-//
-//		InterestingProperties.mergeUnionOfInterestingProperties(props, ip1);
-//		InterestingProperties.mergeUnionOfInterestingProperties(props, ip2);
-//
-//		input.addAllInterestingProperties(props);
-		this.input.setNoInterestingProperties();
+		// check, if there is an output contract that tells us that certain properties are preserved.
+		// if so, propagate to the child.
+		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+		List<InterestingProperties> props = InterestingProperties.filterByKeepSet(thisNodesIntProps,
+			getKeepSet(0));
+
+		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+		
+		// add the first interesting properties: partitioned and grouped
+		InterestingProperties ip1 = new InterestingProperties();
+		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields);
+		ip1.getLocalProperties().setGrouped(true, keyFields);
+		estimator.getHashPartitioningCost(this.input, ip1.getMaximalCosts());
+		Costs c = new Costs();
+		estimator.getLocalSortCost(this, this.input, c);
+		ip1.getMaximalCosts().addCosts(c);
+
+		// add the second interesting properties: partitioned only
+		InterestingProperties ip2 = new InterestingProperties();
+		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields);
+		estimator.getHashPartitioningCost(this.input, ip2.getMaximalCosts());
+
+		InterestingProperties.mergeUnionOfInterestingProperties(props, ip1);
+		InterestingProperties.mergeUnionOfInterestingProperties(props, ip2);
+
+		input.addAllInterestingProperties(props);
 	}
 
 	/*
@@ -238,7 +233,7 @@ public class ReduceNode extends SingleInputNode {
 				gp = pred.getGlobalProperties();
 				lp = pred.getLocalProperties();
 
-				if (gp.getPartitioning().isPartitioned() || gp.isKeyUnique()) {
+				if (gp.getPartitioning().isPartitioned()) { //|| gp.isKeyUnique()) {
 					ss = ShipStrategy.FORWARD;
 				} else {
 					ss = ShipStrategy.PARTITION_HASH;
@@ -252,15 +247,26 @@ public class ReduceNode extends SingleInputNode {
 				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
 				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
 
-				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
+//				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
+				if (!(gp.getPartitioning().isPartitioned())) {
 					// the shipping strategy is fixed to a value that does not leave us with
 					// the necessary properties. this candidate cannot produce a valid child
 					continue;
 				}
 			}
+			
+			FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+			boolean localStrategyNeeded = !lp.getOrdering().groupsFieldSet(keySet);
+
+			if (localStrategyNeeded && lp.isGrouped() == true) {
+				localStrategyNeeded = !lp.getGroupedFields().containsAll(keySet);
+			}
+			
 
 			// see, whether we need a local strategy
-			if (!(lp.areKeysGrouped() || lp.getKeyOrder().isOrdered() || lp.isKeyUnique())) {
+//			if (!(lp.areKeysGrouped() || lp.getKeyOrder().isOrdered() || lp.isKeyUnique())) {
+			if (localStrategyNeeded) {
+			
 				// we need one
 				if (ls != LocalStrategy.NONE) {
 					if (ls != LocalStrategy.COMBININGSORT && ls != LocalStrategy.SORT) {
@@ -276,8 +282,12 @@ public class ReduceNode extends SingleInputNode {
 
 			// adapt the local properties
 			if (ls == LocalStrategy.COMBININGSORT || ls == LocalStrategy.SORT) {
-				lp.setKeyOrder(Order.ASCENDING);
-				lp.setKeysGrouped(true);
+				Ordering ordering = new Ordering();
+				for (Integer index :keySet) {
+					ordering.appendOrdering(index, Order.ASCENDING);
+				}
+				lp.setOrdering(ordering);
+				lp.setGrouped(true, keySet);
 			}
 
 			// ----------------------------------------------------------------
@@ -299,10 +309,8 @@ public class ReduceNode extends SingleInputNode {
 			n.setLocalStrategy(ls);
 
 			// compute, which of the properties survive, depending on the output contract
-//			n.getGlobalProperties().filterByOutputContract(getOutputContract());
-//			n.getLocalProperties().filterByOutputContract(getOutputContract());
-			n.getGlobalProperties().reset();
-			n.getLocalProperties().reset();
+			n.getGlobalProperties().filterByKeepSet(getKeepSet(0));
+			n.getLocalProperties().filterByKeepSet(getKeepSet(0));
 
 			estimator.costOperator(n);
 

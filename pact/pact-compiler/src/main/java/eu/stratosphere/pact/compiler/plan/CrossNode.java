@@ -22,7 +22,6 @@ import java.util.Map;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
@@ -188,40 +187,32 @@ public class CrossNode extends TwoInputNode {
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-//		// the cross itself has no interesting properties.
-//		// check, if there is an output contract that tells us that certain properties are preserved.
-//		// if so, propagate to the child.
-//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-//		List<InterestingProperties> props = null;
-//
-//		switch (getOutputContract()) {
-//		case SameKeyFirst:
-//		case SuperKeyFirst:
-//			props = InterestingProperties.filterByOutputContract(thisNodesIntProps, getOutputContract());
-//			if (!props.isEmpty()) {
-//				input1.addAllInterestingProperties(props);
-//			} else {
-//				input1.setNoInterestingProperties();
-//			}
-//			break;
-//
-//		case SameKeySecond:
-//		case SuperKeySecond:
-//			props = InterestingProperties.filterByOutputContract(thisNodesIntProps, getOutputContract());
-//			if (!props.isEmpty()) {
-//				input2.addAllInterestingProperties(props);
-//			} else {
-//				input2.setNoInterestingProperties();
-//			}
-//			break;
-//
-//		default:
-//			input1.setNoInterestingProperties();
-//			input2.setNoInterestingProperties();
-//			break;
-//		}
-		this.input1.setNoInterestingProperties();
-		this.input2.setNoInterestingProperties();
+		// the cross itself has no interesting properties.
+		// check, if there is an output contract that tells us that certain properties are preserved.
+		// if so, propagate to the child.
+
+		
+		
+		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+		List<InterestingProperties> props1 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
+			getKeepSet(0));
+		List<InterestingProperties> props2 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
+				getKeepSet(1));
+	
+		if (props1.isEmpty() == false) {
+			input1.addAllInterestingProperties(props1);
+		}
+		else {
+			input1.setNoInterestingProperties();
+		}
+		
+		if (props2.isEmpty() == false) {
+			input2.addAllInterestingProperties(props2);
+		}
+		else {
+			input2.setNoInterestingProperties();
+		}
+		
 	}
 
 	/*
@@ -305,32 +296,11 @@ public class CrossNode extends TwoInputNode {
 	private void createLocalAlternatives(List<CrossNode> target, OptimizerNode pred1, OptimizerNode pred2,
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator) {
 		// compute the given properties of the incoming data
-		LocalProperties lpDefaults = new LocalProperties();
-
-		GlobalProperties gp = null;
-		LocalProperties lp = null;
+		
+		boolean keepFirstOrder = false;
+		boolean keepSecondOrder = false;
 
 //		OutputContract oc = getOutputContract();
-
-		boolean isFirst = false;
-
-//		if (oc.appliesToFirstInput()) {
-//			gp = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-//			lp = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
-//			isFirst = true;
-//		} else if (oc.appliesToSecondInput()) {
-//			gp = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
-//			lp = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
-//		} else {
-			gp = new GlobalProperties();
-			lp = new LocalProperties();
-//		}
-
-		gp.setKeyUnique(false);
-		lp.setKeyUnique(false);
-
-		GlobalProperties gpNoOrder = gp.createCopy();
-		gpNoOrder.setKeyOrder(Order.NONE);
 
 		// for the streamed nested loop strategies, the local properties (except uniqueness) of the
 		// outer side are preserved
@@ -341,43 +311,33 @@ public class CrossNode extends TwoInputNode {
 		if (ls != LocalStrategy.NONE) {
 			// local strategy is fixed
 			if (ls == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST) {
-				gp = isFirst ? gp : gpNoOrder;
-				lp = isFirst ? lp : lpDefaults;
+				keepFirstOrder = true;
 			} else if (ls == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
-				gp = isFirst ? gpNoOrder : gp;
-				lp = isFirst ? lpDefaults : lp;
+				keepSecondOrder = true;
 			} else if (ls == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST
 				|| ls == LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND) {
-				gp = gpNoOrder;
-				lp = lpDefaults;
+				
 			} else {
 				// not valid
 				return;
 			}
 
-			createCrossAlternative(target, pred1, pred2, ss1, ss2, ls, gp, lp, estimator);
+			createCrossAlternative(target, pred1, pred2, ss1, ss2, ls, keepFirstOrder, keepSecondOrder, estimator);
 		}
 		else {
 			// we generate the streamed nested-loops only, when we have size estimates. otherwise, we generate
 			// only the block nested-loops variants, as they are more robust.
 			if (pred1.getEstimatedOutputSize() > 0 && pred2.getEstimatedOutputSize() > 0) {
-				if (isFirst) {
-					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
-						gp, lp, estimator);
-					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
-						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
-				} else {
-					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
-						gp, lp, estimator);
-					createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
-						gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
-				}
+				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
+					true, false, estimator);
+				createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
+					false, true, estimator);
 			}
 
 			createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST,
-				gpNoOrder.createCopy(), lpDefaults.createCopy(), estimator);
+				false, false, estimator);
 			createCrossAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND,
-				gpNoOrder, lpDefaults, estimator);
+				false, false, estimator);
 		}
 	}
 
@@ -405,10 +365,23 @@ public class CrossNode extends TwoInputNode {
 	 *        The cost estimator.
 	 */
 	private void createCrossAlternative(List<CrossNode> target, OptimizerNode pred1, OptimizerNode pred2,
-			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, GlobalProperties outGp, LocalProperties outLp,
+			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, boolean keepFirstOrder, boolean keepSecondOrder,
 			CostEstimator estimator) {
+		
+		
+		GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
+		LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
+		
+//		gp.setUniqe(false);
+//		lp.setUniqe(false);
+		
+		if (keepFirstOrder == false) {
+			gp.setOrdering(null);
+			lp.setOrdering(null);
+		}
+		
 		// create a new reduce node for this input
-		CrossNode n = new CrossNode(this, pred1, pred2, input1, input2, outGp, outLp);
+		CrossNode n = new CrossNode(this, pred1, pred2, input1, input2, gp, lp);
 
 		n.input1.setShipStrategy(ss1);
 		n.input2.setShipStrategy(ss2);
@@ -417,8 +390,41 @@ public class CrossNode extends TwoInputNode {
 		// compute, which of the properties survive, depending on the output contract
 //		n.getGlobalProperties().filterByOutputContract(getOutputContract());
 //		n.getLocalProperties().filterByOutputContract(getOutputContract());
-		n.getGlobalProperties().reset();
-		n.getLocalProperties().reset();
+		
+		n.getGlobalProperties().filterByKeepSet(getKeepSet(0));
+		n.getLocalProperties().filterByKeepSet(getKeepSet(0));
+		
+		// compute the costs
+		estimator.costOperator(n);
+
+		target.add(n);
+		
+		
+		
+		gp = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+		lp = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
+		
+//		gp.setUniqe(false);
+//		lp.setUniqe(false);
+		
+		if (keepSecondOrder == false) {
+			gp.setOrdering(null);
+			lp.setOrdering(null);
+		}
+		
+		// create a new reduce node for this input
+		n = new CrossNode(this, pred1, pred2, input1, input2, gp, lp);
+
+		n.input1.setShipStrategy(ss1);
+		n.input2.setShipStrategy(ss2);
+		n.setLocalStrategy(ls);
+
+		// compute, which of the properties survive, depending on the output contract
+//		n.getGlobalProperties().filterByOutputContract(getOutputContract());
+//		n.getLocalProperties().filterByOutputContract(getOutputContract());
+		
+		n.getGlobalProperties().filterByKeepSet(getKeepSet(1));
+		n.getLocalProperties().filterByKeepSet(getKeepSet(1));
 		
 		// compute the costs
 		estimator.costOperator(n);
