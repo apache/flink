@@ -179,4 +179,15 @@ public final class AutoCompletionCombo extends Composite implements KeyListener,
 		updateSuggestions(text);
 		this.combo.setText(text);
 	}
+
+	/**
+	 * Adds a {@link KeyListener} to the combo box.
+	 * 
+	 * @param keyListener
+	 *        the key listener object to be added
+	 */
+	public void addKeyListener(final KeyListener keyListener) {
+
+		this.combo.addKeyListener(keyListener);
+	}
 }
