@@ -28,9 +28,43 @@ import java.util.TreeSet;
 public final class JobFailurePattern {
 
 	/**
+	 * The name of the job failure pattern.
+	 */
+	private final String name;
+
+	/**
 	 * The series of events belonging to this job failure pattern.
 	 */
 	private final SortedSet<AbstractFailureEvent> events = new TreeSet<AbstractFailureEvent>();
+
+	/**
+	 * Constructs a new job failure pattern with a given name.
+	 * 
+	 * @param name
+	 *        the name of the job failure pattern
+	 */
+	public JobFailurePattern(final String name) {
+
+		if (name == null) {
+			throw new IllegalArgumentException("Argument name must not be null");
+		}
+
+		if (name.isEmpty()) {
+			throw new IllegalArgumentException("Argument name must not be empty");
+		}
+
+		this.name = name;
+	}
+
+	/**
+	 * Returns the name of the job failure pattern.
+	 * 
+	 * @return the name of the job failure pattern
+	 */
+	public String getName() {
+
+		return this.name;
+	}
 
 	/**
 	 * Adds or updates a failure event to this job failure pattern.
