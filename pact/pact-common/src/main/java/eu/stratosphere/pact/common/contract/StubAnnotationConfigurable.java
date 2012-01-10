@@ -27,7 +27,7 @@ public interface StubAnnotationConfigurable
 	 * 
 	 * @param clazz The class of the OutputContract to attach.
 	 */
-	public void addOutputContract(Class<? extends Annotation> clazz);
+	public void addStubAnnotation(Class<? extends Annotation> clazz);
 
 	/**
 	 * Returns the output contracts that were attached to the object.

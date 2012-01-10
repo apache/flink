@@ -63,7 +63,7 @@ public class GenericDataSource<T extends InputFormat<?>> extends Contract
 	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
 	 */
 	@Override
-	public void addOutputContract(Class<? extends Annotation> oc)
+	public void addStubAnnotation(Class<? extends Annotation> oc)
 	{
 		if (!oc.getEnclosingClass().equals(StubAnnotation.class)) {
 			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
