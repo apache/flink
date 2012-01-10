@@ -20,7 +20,7 @@ import java.lang.annotation.Annotation;
 /**
  * Interface defining that an output contract can be attached to an object.
  */
-public interface OutputContractConfigurable
+public interface StubAnnotationConfigurable
 {
 	/**
 	 * Adds an output contract.
@@ -34,5 +34,5 @@ public interface OutputContractConfigurable
 	 * 
 	 * @return An array containing the classes of the attached output contracts.
 	 */
-	public Class<? extends Annotation>[] getOutputContracts();
+	public Class<? extends Annotation>[] getStubAnnotation();
 }

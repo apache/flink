@@ -24,11 +24,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.OutputContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
@@ -39,6 +37,15 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet.UpdateSetMode;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -341,9 +348,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@OutputContract.AllConstant(input = 1)
-	@OutputContract.SameField(outputField = 2, inputField = 0, input = 1)
-	@OutputContract.DerivedField(targetField = 3, sourceFields = {1, 1}, input = {0, 1})
+	@ReadSetFirst(fields={1})
+	@UpdateSetFirst(fields={})
+	@ReadSetSecond(fields={1})
+	@UpdateSetSecond(fields={}, setMode=UpdateSetMode.Constant)
+	@AddSet(fields={2,3})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class ComputeDistance extends	CrossStub
 	{
 		private final PactDouble distance = new PactDouble();
@@ -377,6 +387,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
+	@ReadSet(fields={3})
+	@UpdateSet(fields={}, setMode=UpdateSetMode.Constant)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class FindNearestCenter extends ReduceStub
 	{
@@ -464,7 +478,11 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@OutputContract.Constant(0)
+	
+	@ReadSet(fields={1,2})
+	@UpdateSet(fields={1,2}, setMode=UpdateSetMode.Update)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class RecomputeClusterCenter extends ReduceStub
 	{
