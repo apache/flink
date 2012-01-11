@@ -20,7 +20,8 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -75,16 +76,20 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 
 	private final Table failureEventTable;
 
-	private final List<String> jobSuggestions;
+	private final Set<String> jobSuggestions;
 
-	private final List<String> nameSuggestions;
+	private final Set<String> nameSuggestions;
+
+	private final Map<String, JobFailurePattern> loadedPatterns;
 
 	private JobFailurePattern selectedFailurePattern = null;
 
-	SWTFailurePatternsEditor(final Shell parent, final List<String> jobSuggestions, final List<String> nameSuggestions) {
+	SWTFailurePatternsEditor(final Shell parent, final Set<String> jobSuggestions, final Set<String> nameSuggestions,
+			final Map<String, JobFailurePattern> loadedPatterns) {
 
 		this.jobSuggestions = jobSuggestions;
 		this.nameSuggestions = nameSuggestions;
+		this.loadedPatterns = loadedPatterns;
 
 		// Set size
 		this.shell = new Shell(parent);
@@ -142,9 +147,31 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		gridData = new GridData();
 		gridData.horizontalAlignment = SWT.RIGHT;
 		closeButton.setLayoutData(gridData);
+		closeButton.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(SelectionEvent arg0) {
+
+				shell.dispose();
+			}
+		});
+
+		final Iterator<JobFailurePattern> it = this.loadedPatterns.values().iterator();
+		while (it.hasNext()) {
+			addFailurePatternToTree(it.next());
+		}
 
 		// Initialize the tables
-		displayFailurePattern(null);
+		if (this.jobTree.getItemCount() > 0) {
+
+			final TreeItem ti = this.jobTree.getItem(0);
+			this.jobTree.setSelection(ti);
+			displayFailurePattern((JobFailurePattern) ti.getData());
+
+		} else {
+			displayFailurePattern(null);
+		}
+
 	}
 
 	private Table createFailureEventTable(final Composite parent) {
@@ -307,7 +334,7 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		ti.setData(event);
 	}
 
-	public List<JobFailurePattern> show() {
+	public Map<String, JobFailurePattern> show() {
 
 		this.shell.open();
 
@@ -319,8 +346,7 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 			}
 		}
 
-		// TODO: Fix me
-		return null;
+		return this.loadedPatterns;
 	}
 
 	private Menu createTreeContextMenu() {
@@ -389,7 +415,10 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 
 	private void createNewFailurePattern() {
 
-		final SWTNewFailurePatternDialog dialog = new SWTNewFailurePatternDialog(this.shell, this.jobSuggestions);
+		final Set<String> takenNames = this.loadedPatterns.keySet();
+
+		final SWTNewFailurePatternDialog dialog = new SWTNewFailurePatternDialog(this.shell, this.jobSuggestions,
+			takenNames);
 
 		final String patternName = dialog.showDialog();
 		if (patternName == null) {
@@ -397,6 +426,9 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		}
 
 		final JobFailurePattern jobFailurePattern = new JobFailurePattern(patternName);
+
+		// Add to loaded patterns
+		this.loadedPatterns.put(jobFailurePattern.getName(), jobFailurePattern);
 
 		addFailurePatternToTree(jobFailurePattern);
 		displayFailurePattern(jobFailurePattern);
@@ -423,6 +455,19 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		}
 
 		final JobFailurePattern failurePattern = loadFailurePatternFromFile(selectedFile);
+
+		if (this.loadedPatterns.containsKey(failurePattern.getName())) {
+
+			final MessageBox messageBox = new MessageBox(this.shell, SWT.ICON_ERROR);
+			messageBox.setText("Cannot load failure pattern");
+			messageBox.setMessage("There is already a failure pattern loaded with the name '"
+				+ failurePattern.getName() + "'. Please remove it first.");
+			messageBox.open();
+
+			return;
+		}
+
+		this.loadedPatterns.put(failurePattern.getName(), failurePattern);
 
 		addFailurePatternToTree(failurePattern);
 		displayFailurePattern(failurePattern);
@@ -643,9 +688,11 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 
 			final AbstractFailureEvent event = it.next();
 			final TableItem ti = new TableItem(this.failureEventTable, SWT.NONE);
+			ti.setData(event);
 			updateTableItem(ti, event);
 		}
 
+		System.out.println("Created empty item");
 		// Finally, add item to create new entry in both tables
 		new TableItem(this.failureEventTable, SWT.NONE);
 

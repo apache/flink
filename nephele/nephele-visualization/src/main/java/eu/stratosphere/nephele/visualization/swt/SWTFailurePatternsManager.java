@@ -16,8 +16,8 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,7 +32,7 @@ public final class SWTFailurePatternsManager {
 
 	private final Display display;
 
-	private final Map<String, JobFailurePattern> failurePatterns = new HashMap<String, JobFailurePattern>();
+	private Map<String, JobFailurePattern> failurePatterns = new HashMap<String, JobFailurePattern>();
 
 	public SWTFailurePatternsManager(final Display display) {
 		this.display = display;
@@ -40,7 +40,7 @@ public final class SWTFailurePatternsManager {
 
 	public void startFailurePattern(final JobID jobID, final String jobName, final long referenceTime) {
 
-		final JobFailurePattern failurePattern = this.failurePatterns.get(jobName.toLowerCase());
+		final JobFailurePattern failurePattern = this.failurePatterns.get(jobName);
 		if (failurePattern == null) {
 			LOG.info("No failure pattern for job " + jobName);
 		}
@@ -50,11 +50,12 @@ public final class SWTFailurePatternsManager {
 
 		executor.start(referenceTime);
 	}
-	
-	public void openEditor(final Shell parent, final List<String> jobSuggestions, final List<String> nameSuggestions) {
-		
-		final SWTFailurePatternsEditor editor = new SWTFailurePatternsEditor(parent, jobSuggestions, nameSuggestions);
-		
+
+	public void openEditor(final Shell parent, final Set<String> jobSuggestions, final Set<String> nameSuggestions) {
+
+		final SWTFailurePatternsEditor editor = new SWTFailurePatternsEditor(parent, jobSuggestions, nameSuggestions,
+			this.failurePatterns);
+
 		editor.show();
 	}
 }

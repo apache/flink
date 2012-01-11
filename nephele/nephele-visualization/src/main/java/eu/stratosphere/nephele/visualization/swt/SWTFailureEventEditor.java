@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.visualization.swt;
 
-import java.util.List;
+import java.util.Set;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyAdapter;
@@ -76,7 +76,7 @@ public final class SWTFailureEventEditor {
 	 */
 	private AbstractFailureEvent returnValue = null;
 
-	public SWTFailureEventEditor(final Shell parent, final List<String> nameSuggestions,
+	public SWTFailureEventEditor(final Shell parent, final Set<String> nameSuggestions,
 			final AbstractFailureEvent failureEvent) {
 
 		this.shell = new Shell(parent);

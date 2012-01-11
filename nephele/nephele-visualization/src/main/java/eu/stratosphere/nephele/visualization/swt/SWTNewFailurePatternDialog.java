@@ -15,7 +15,8 @@
 
 package eu.stratosphere.nephele.visualization.swt;
 
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
@@ -59,6 +60,11 @@ public final class SWTNewFailurePatternDialog {
 	private final AutoCompletionCombo input;
 
 	/**
+	 * The taken names which must not be accepted as names for the new pattern.
+	 */
+	private final Set<String> takenNames;
+
+	/**
 	 * The return value of the <code>showDialog</code> method.
 	 */
 	private String returnValue = null;
@@ -70,8 +76,13 @@ public final class SWTNewFailurePatternDialog {
 	 *        the parent of this dialog
 	 * @param nameSuggestions
 	 *        name suggestions to be displayed inside auto-completion combo box
+	 * @param takenNames
+	 *        names that are already taken and must not be accepted as input
 	 */
-	public SWTNewFailurePatternDialog(final Shell parent, final List<String> nameSuggestions) {
+	public SWTNewFailurePatternDialog(final Shell parent, final Set<String> nameSuggestions,
+			final Set<String> takenNames) {
+
+		this.takenNames = takenNames;
 
 		this.shell = new Shell(parent);
 		this.shell.setSize(WIDTH, HEIGHT);
@@ -83,7 +94,11 @@ public final class SWTNewFailurePatternDialog {
 		gridData.grabExcessHorizontalSpace = true;
 		gridData.grabExcessVerticalSpace = false;
 
-		this.input = new AutoCompletionCombo(this.shell, SWT.NONE, nameSuggestions);
+		// Remove the taken names from
+		final Set<String> nameSugg = new HashSet<String>(nameSuggestions);
+		nameSugg.removeAll(takenNames);
+
+		this.input = new AutoCompletionCombo(this.shell, SWT.NONE, nameSugg);
 		this.input.setLayoutData(gridData);
 		this.input.addKeyListener(new KeyAdapter() {
 
@@ -165,6 +180,20 @@ public final class SWTNewFailurePatternDialog {
 			this.input.setFocus();
 
 			return false;
+		}
+
+		if (this.takenNames.contains(text)) {
+
+			final MessageBox messageBox = new MessageBox(this.shell, SWT.ICON_ERROR);
+
+			messageBox.setText("Invalid Input");
+			messageBox.setMessage("The chosen name is already used by another loaded failure pattern.");
+			messageBox.open();
+
+			this.input.setFocus();
+
+			return false;
+
 		}
 
 		return true;

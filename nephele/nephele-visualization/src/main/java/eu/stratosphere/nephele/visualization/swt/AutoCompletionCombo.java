@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.visualization.swt;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyEvent;
@@ -56,7 +57,7 @@ public final class AutoCompletionCombo extends Composite implements KeyListener,
 	 * @param suggestions
 	 *        a list of suggestions for the auto-completion
 	 */
-	public AutoCompletionCombo(final Composite parent, final int style, final List<String> suggestions) {
+	public AutoCompletionCombo(final Composite parent, final int style, final Set<String> suggestions) {
 		super(parent, style);
 
 		// First, sort the suggestions

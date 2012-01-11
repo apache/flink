@@ -706,10 +706,10 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private void manageFailurePatterns() {
 
-		// TODO: Replace empty list by sensible suggestions
-		final List<String> emptyList = Collections.emptyList();
+		// TODO: Replace empty set by sensible suggestions
+		final Set<String> emptySet = Collections.emptySet();
 
-		this.failurePatternsManager.openEditor(this.shell, emptyList, emptyList);
+		this.failurePatternsManager.openEditor(this.shell, emptySet, emptySet);
 	}
 
 	private void logBufferUtilization() {
