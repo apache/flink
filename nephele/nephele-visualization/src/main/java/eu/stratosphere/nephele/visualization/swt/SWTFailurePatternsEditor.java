@@ -28,6 +28,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.events.KeyAdapter;
+import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.MenuAdapter;
 import org.eclipse.swt.events.MenuEvent;
 import org.eclipse.swt.events.MouseAdapter;
@@ -176,7 +178,7 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 
 	private Table createFailureEventTable(final Composite parent) {
 
-		final Table table = new Table(parent, SWT.BORDER | SWT.MULTI);
+		final Table table = new Table(parent, SWT.BORDER | SWT.SINGLE);
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
 
@@ -300,7 +302,53 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		nameColumn.addListener(SWT.Selection, sortListener);
 		intervalColumn.addListener(SWT.Selection, sortListener);
 
+		// Implement keyboard commands
+		table.addKeyListener(new KeyAdapter() {
+
+			@Override
+			public void keyReleased(final KeyEvent arg0) {
+
+				if (arg0.keyCode != SWT.DEL) {
+					return;
+				}
+
+				removeSelectedTableItems();
+			}
+		});
+
+		// Set the menu
+		table.setMenu(createTableContextMenu());
+
 		return table;
+	}
+
+	private void removeSelectedTableItems() {
+
+		final TableItem[] selectedItems = this.failureEventTable.getSelection();
+		if (selectedItems == null) {
+			return;
+		}
+
+		for (final TableItem selectedItem : selectedItems) {
+			removeTableItem(selectedItem);
+		}
+	}
+
+	private void removeTableItem(final TableItem ti) {
+
+		final AbstractFailureEvent event = (AbstractFailureEvent) ti.getData();
+		if (event == null) {
+			return;
+		}
+
+		final MessageBox messageBox = new MessageBox(shell, SWT.ICON_QUESTION | SWT.YES | SWT.NO);
+		messageBox.setText("Confirm removal");
+		messageBox.setMessage("Do you really want to remove the event '" + event.getName() + "'");
+		if (messageBox.open() == SWT.YES) {
+			ti.dispose();
+		}
+
+		this.selectedFailurePattern.removeEvent(event);
 	}
 
 	private void updateTableItem(TableItem ti, final AbstractFailureEvent event) {
@@ -347,6 +395,77 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		}
 
 		return this.loadedPatterns;
+	}
+
+	private Menu createTableContextMenu() {
+
+		final Menu tableContextMenu = new Menu(this.shell);
+
+		final MenuItem createItem = new MenuItem(tableContextMenu, SWT.PUSH);
+		createItem.setText("Create...");
+		createItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(final SelectionEvent arg0) {
+				// TODO: Implement me
+			}
+
+		});
+
+		final MenuItem editItem = new MenuItem(tableContextMenu, SWT.PUSH);
+		editItem.setText("Edit...");
+		editItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(final SelectionEvent arg0) {
+				// TODO: Implement me
+			}
+
+		});
+
+		final MenuItem removeItem = new MenuItem(tableContextMenu, SWT.PUSH);
+		removeItem.setText("Remove...");
+		removeItem.addSelectionListener(new SelectionAdapter() {
+
+			@Override
+			public void widgetSelected(final SelectionEvent arg0) {
+				removeSelectedTableItems();
+			}
+		});
+
+		tableContextMenu.addMenuListener(new MenuAdapter() {
+
+			@Override
+			public void menuShown(final MenuEvent arg0) {
+
+				TableItem[] selectedItems = failureEventTable.getSelection();
+				if (selectedItems == null) {
+
+					return;
+				}
+
+				if (selectedItems.length == 0) {
+
+					editItem.setEnabled(false);
+					removeItem.setEnabled(false);
+
+					return;
+				}
+
+				if (selectedItems[0].getData() == null) {
+
+					editItem.setEnabled(false);
+					removeItem.setEnabled(false);
+
+					return;
+				}
+
+				editItem.setEnabled(true);
+				removeItem.setEnabled(true);
+			}
+		});
+
+		return tableContextMenu;
 	}
 
 	private Menu createTreeContextMenu() {
