@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
@@ -37,6 +38,8 @@ public class ChainedMapTask implements ChainedTask
 	
 	private String taskName;
 	
+	private AbstractInvokable parent;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
@@ -48,6 +51,7 @@ public class ChainedMapTask implements ChainedTask
 	{
 		this.config = config;
 		this.taskName = taskName;
+		this.parent = parent;
 		this.collector = output;
 		this.mapper = AbstractPactTask.instantiateUserCode(config, userCodeClassLoader, MapStub.class);
 	}
@@ -58,7 +62,11 @@ public class ChainedMapTask implements ChainedTask
 	@Override
 	public void openTask() throws Exception
 	{
-		AbstractPactTask.openUserCode(this.mapper, this.config.getStubParameters());
+		Configuration stubConfig = this.config.getStubParameters();
+		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
+		stubConfig.setInteger("pact.parallel.task.count", this.parent.getEnvironment().getCurrentNumberOfSubtasks());
+		stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
+		AbstractPactTask.openUserCode(this.mapper, stubConfig);
 	}
 	
 	/* (non-Javadoc)

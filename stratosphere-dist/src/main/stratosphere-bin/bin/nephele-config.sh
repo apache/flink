@@ -1,3 +1,4 @@
+#!/bin/bash
 ########################################################################################################################
 # 
 #  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
@@ -12,8 +13,6 @@
 #  specific language governing permissions and limitations under the License.
 # 
 ########################################################################################################################
-
-#!/bin/bash
 
 # The default Java heap size for the Nephele Job Manager in MB
 DEFAULT_NEPHELE_JM_HEAP=256

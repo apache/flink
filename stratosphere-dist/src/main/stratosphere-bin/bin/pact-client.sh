@@ -1,3 +1,4 @@
+#!/bin/bash
 ########################################################################################################################
 # 
 #  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
@@ -12,9 +13,6 @@
 #  specific language governing permissions and limitations under the License.
 # 
 ########################################################################################################################
-
-
-#!/bin/bash
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`

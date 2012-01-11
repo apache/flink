@@ -638,6 +638,114 @@ public class HashJoinITCase
 			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
 		}
 	}
+	
+	/*
+	 * Spills build records, so that probe records are also spilled. But only so
+	 * few probe records are used that some partitions remain empty.
+	 */
+	@Test
+	public void testSparseProbeSpilling() throws IOException, MemoryAllocationException
+	{
+		int reqMem = 4 * 1024 * 1024;
+
+		final int NUM_BUILD_KEYS = 1000000;
+		final int NUM_BUILD_VALS = 1;
+		final int NUM_PROBE_KEYS = 20;
+		final int NUM_PROBE_VALS = 1;
+
+		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(
+				NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
+
+		// allocate the memory for the HashTable
+		MemoryManager memMan;
+		List<MemorySegment> memSegments;
+		try {
+			memMan = new DefaultMemoryManager(reqMem);
+			memSegments = memMan.allocate(MEM_OWNER, reqMem, 64, 32 * 1024);
+		} catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+
+		// I/O manager should be unnecessary
+		IOManager ioManager = new IOManager();
+
+		@SuppressWarnings("unchecked")
+		HashJoin join = new HashJoin(buildInput,
+				new RegularlyGeneratedInputGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true),
+				new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, 
+				memSegments, ioManager);
+		join.open();
+
+		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
+				* NUM_PROBE_VALS;
+
+		final PactRecord record = new PactRecord();
+		int numRecordsInJoinResult = 0;
+		
+		while (join.nextRecord()) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			while (buildSide.next(record)) {
+				numRecordsInJoinResult++;
+			}
+		}
+		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
+
+		join.close();
+	}
+	
+	/*
+	 * This test validates a bug fix against former memory loss in the case where a partition was spilled
+	 * during an insert into the same.
+	 */
+	@Test
+	public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
+		int reqMem = 2785280;
+
+		final int NUM_BUILD_KEYS = 500000;
+		final int NUM_BUILD_VALS = 1;
+		final int NUM_PROBE_KEYS = 10;
+		final int NUM_PROBE_VALS = 1;
+		
+		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
+		// allocate the memory for the HashTable
+		MemoryManager memMan; 
+		List<MemorySegment> memSegments;
+		try {
+			memMan = new DefaultMemoryManager(reqMem);
+			long memoryAmount = reqMem & ~(((long) BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE) - 1);
+			// NOTE: This calculation is erroneous if the total memory is above 63 TiBytes. 
+			final int numPages = (int) (memoryAmount / BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE);
+			memSegments = memMan.allocateStrict(MEM_OWNER, numPages, BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}		
+		
+		IOManager ioManager = new IOManager();
+				
+		@SuppressWarnings("unchecked")
+		HashJoin join = new HashJoin(buildInput, new RegularlyGeneratedInputGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true), 
+				new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
+		join.open();
+		
+		final PactRecord record = new PactRecord();
+		int numRecordsInJoinResult = 0;
+		
+		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
+		* NUM_PROBE_VALS;
+		
+		while (join.nextRecord()) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			while (buildSide.next(record)) {
+				numRecordsInJoinResult++;
+			}
+		}
+		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
+		
+		join.close();
+	}
 
 
 	// ============================================================================================
