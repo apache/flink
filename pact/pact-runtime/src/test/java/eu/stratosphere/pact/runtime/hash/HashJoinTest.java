@@ -795,7 +795,7 @@ public class HashJoinTest
 	}
 	
 	@Test
-	public void testStrangeCase() throws IOException, MemoryAllocationException {
+	public void testInsertionIntoPartitionWhileSpillingRequestedForTheSame() throws IOException, MemoryAllocationException {
 		int reqMem = 2785280;
 
 		final int NUM_BUILD_KEYS = 500000;

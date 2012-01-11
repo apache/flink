@@ -779,15 +779,20 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			// if no buffer is available, we need to spill a partition
 			MemorySegment nextSeg = getNextBuffer();
 			if (nextSeg == null) {
-				spillPartition();
-				nextSeg = getNextBuffer();
-				if (nextSeg == null) {
-					throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling partition.");
+				int spilledPartitionNum = spillPartition();
+				// if we spilled this partition, we don't need to give it a new buffer
+				if (spilledPartitionNum != partitionNumber) {
+					nextSeg = getNextBuffer();
+					if (nextSeg == null) {
+						throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling partition.");
+					}
+					p.addBuildSideBuffer(nextSeg);
 				}
 			}
-			
-			// add the buffer to the partition.
-			p.addBuildSideBuffer(nextSeg);
+			else {
+				// add the buffer to the partition.
+				p.addBuildSideBuffer(nextSeg);
+			}
 			
 			// retry to write into the buffer
 			pointer = p.insertIntoBuildBuffer(pair);
