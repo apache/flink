@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -301,8 +302,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			}
 		});
 
-		// Create outage patterns manager
-		this.failurePatternsManager = new SWTFailurePatternsManager(this.shell);
+		// Create failure patterns manager
+		this.failurePatternsManager = new SWTFailurePatternsManager(this.shell.getDisplay());
 
 		// Launch the timer that will query for events
 		this.display.timerExec(QUERYINTERVAL * 1000, this);
@@ -705,7 +706,10 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private void manageFailurePatterns() {
 
-		this.failurePatternsManager.open();
+		// TODO: Replace empty list by sensible suggestions
+		final List<String> emptyList = Collections.emptyList();
+
+		this.failurePatternsManager.openEditor(this.shell, emptyList, emptyList);
 	}
 
 	private void logBufferUtilization() {
