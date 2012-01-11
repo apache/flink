@@ -18,6 +18,8 @@ package eu.stratosphere.nephele.visualization.swt;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -36,16 +38,17 @@ import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.MessageBox;
@@ -62,7 +65,7 @@ import org.w3c.dom.NodeList;
 
 import eu.stratosphere.nephele.jobgraph.JobID;
 
-public final class SWTFailurePatternsManager implements SelectionListener {
+public final class SWTFailurePatternsManager extends SelectionAdapter {
 
 	private static final Log LOG = LogFactory.getLog(SWTFailurePatternsManager.class);
 
@@ -153,9 +156,11 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
 
-		new TableColumn(table, SWT.NONE);
-		new TableColumn(table, SWT.NONE).setText("Task name");
-		new TableColumn(table, SWT.NONE).setText("Interval");
+		final TableColumn iconColumn = new TableColumn(table, SWT.NONE);
+		final TableColumn nameColumn = new TableColumn(table, SWT.NONE);
+		nameColumn.setText("Name");
+		final TableColumn intervalColumn = new TableColumn(table, SWT.NONE);
+		intervalColumn.setText("Interval");
 
 		for (int i = 0; i < table.getColumnCount(); ++i) {
 			if (i == 0) {
@@ -165,6 +170,7 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 			}
 		}
 
+		// Implement listener to add and update events
 		table.addMouseListener(new MouseAdapter() {
 
 			@Override
@@ -199,6 +205,79 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 			}
 		});
 
+		// Implement sorting of columns
+		final Listener sortListener = new Listener() {
+
+			@Override
+			public void handleEvent(final Event arg0) {
+
+				final TableColumn sortColumn = failureEventTable.getSortColumn();
+				final TableColumn currentColumn = (TableColumn) arg0.widget;
+				int dir = failureEventTable.getSortDirection();
+				if (sortColumn == currentColumn) {
+					dir = (dir == SWT.UP) ? SWT.DOWN : SWT.UP;
+				} else {
+					table.setSortColumn(currentColumn);
+					dir = SWT.UP;
+				}
+
+				final int direction = dir;
+				final AbstractFailureEvent[] failureEvents = new AbstractFailureEvent[table.getItemCount()];
+				for (int i = 0; i < table.getItemCount(); ++i) {
+					failureEvents[i] = (AbstractFailureEvent) failureEventTable.getItem(i).getData();
+				}
+				Arrays.sort(failureEvents, new Comparator<AbstractFailureEvent>() {
+
+					@Override
+					public int compare(final AbstractFailureEvent o1, AbstractFailureEvent o2) {
+
+						if (o1 == null) {
+							return -1;
+						}
+
+						if (o2 == null) {
+							return 1;
+						}
+
+						if (currentColumn == iconColumn) {
+
+							final int v1 = (o1 instanceof VertexFailureEvent) ? 0 : 1;
+							final int v2 = (o2 instanceof VertexFailureEvent) ? 0 : 1;
+							return (direction == SWT.UP) ? (v1 - v2) : (v2 - v1);
+
+						} else if (currentColumn == nameColumn) {
+
+							if (direction == SWT.UP) {
+								return String.CASE_INSENSITIVE_ORDER.compare(o1.getName(), o2.getName());
+							} else {
+								return String.CASE_INSENSITIVE_ORDER.compare(o2.getName(), o1.getName());
+							}
+
+						} else {
+
+							if (direction == SWT.UP) {
+								return (o1.getInterval() - o2.getInterval());
+							} else {
+								return (o2.getInterval() - o1.getInterval());
+							}
+						}
+					}
+				});
+
+				failureEventTable.removeAll();
+				for (int i = 0; i < failureEvents.length; ++i) {
+					updateTableItem(null, failureEvents[i]);
+				}
+
+				failureEventTable.setSortColumn(currentColumn);
+				failureEventTable.setSortDirection(direction);
+			}
+		};
+
+		iconColumn.addListener(SWT.Selection, sortListener);
+		nameColumn.addListener(SWT.Selection, sortListener);
+		intervalColumn.addListener(SWT.Selection, sortListener);
+
 		return table;
 	}
 
@@ -207,18 +286,23 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		boolean newItemCreated = false;
 
 		if (ti == null) {
-			ti = new TableItem(this.failureEventTable, SWT.NONE, this.failureEventTable.getItemCount() - 1);
+
+			final int index = (failureEventTable.getItemCount() == 0) ? 0 : (this.failureEventTable.getItemCount() - 1);
+
+			ti = new TableItem(this.failureEventTable, SWT.NONE, index);
 			newItemCreated = true;
 		}
 
-		if (event instanceof VertexFailureEvent) {
-			ti.setText(0, "T");
-		} else {
-			ti.setText(0, "I");
-		}
+		if (event != null) {
+			if (event instanceof VertexFailureEvent) {
+				ti.setText(0, "T");
+			} else {
+				ti.setText(0, "I");
+			}
 
-		ti.setText(1, event.getName());
-		ti.setText(2, Integer.toString(event.getInterval()));
+			ti.setText(1, event.getName());
+			ti.setText(2, Integer.toString(event.getInterval()));
+		}
 
 		// Add new blank item if the old one has been used to create the new event
 		if (ti.getData() == null && !newItemCreated) {
@@ -570,24 +654,6 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		new TableItem(this.failureEventTable, SWT.NONE);
 
 		this.selectedFailurePattern = jobFailurePattern;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void widgetDefaultSelected(final SelectionEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void widgetSelected(final SelectionEvent arg0) {
-		// TODO Auto-generated method stub
-
 	}
 
 	public void startFailurePattern(final JobID jobID, final String jobName, final long referenceTime) {
