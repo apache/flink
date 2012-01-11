@@ -59,7 +59,12 @@ public class StubAnnotation
 	 * Specifies the read set for a stub with a single input ( {@link MapStub}, {@link ReduceStub}).
 	 * The {@link ReadSet#fields()} attribute of the read set specifies all fields of the record 
 	 * that the stub reads and uses to modify its output. 
-	 * This is the case for if the value is used in conditional statements or to compute new values.   
+	 * This is the case for if the value is used in conditional statements or to compute new values.
+	 * 
+	 * It is very important the the ReadSet contains at least all fields that are read in order to guarantee 
+	 * correct execution of PACT programs. 
+	 * 
+	 * If no ReadSet is specified, all fields are considered to be read.
 	 *
 	 */
 	@Target(ElementType.TYPE)
@@ -76,6 +81,11 @@ public class StubAnnotation
 	 * that the stub reads from the first input's tuples and uses to modify its output. 
 	 * This is the case for if the value is used in conditional statements or to compute new values.   
 	 *
+	 * It is very important the the ReadSet contains at least all fields that are read in order to guarantee 
+	 * correct execution of PACT programs. 
+	 *
+	 * If no ReadSet is specified, all fields are considered to be read.
+	 * 
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -93,6 +103,8 @@ public class StubAnnotation
 	 *
 	 * It is very important the the ReadSet contains at least all fields that are read in order to guarantee 
 	 * correct execution of PACT programs. 
+	 * 
+	 * If no ReadSet is specified, all fields are considered to be read.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -105,14 +117,18 @@ public class StubAnnotation
 	 * Specifies the update set for a stub with a single input ( {@link MapStub}, {@link ReduceStub}).
 	 * The {@link UpdateSet#setMode()} attribute specifies whether the {@link UpdateSet#fields()} attribute 
 	 * lists fields that are updated {@link UpdateSet.UpdateSetMode#Update} 
-	 * or not modified {@link UpdateSet.UpdateSetMode#Constant}. 
+	 * or constant (not updated) {@link UpdateSet.UpdateSetMode#Constant}. 
 	 * 
-	 * Fields are updated as soon as their value changes. Moving a value from one field into another
-	 * field must be also considered as an change.
+	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
+	 * at the same field index <i>i</i>. 
+	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
+	 * the output record, the field must be considered to be updated.
 	 * 
 	 * It is very important the the UpdateSet contains at least all fields that are changed in order to guarantee 
 	 * correct execution of PACT programs. If the set mode is {@link UpdateSet.UpdateSetMode#Constant}, only 
 	 * those fields might be added to the field attribute which are definitely not changed!
+	 * 
+	 * If you do not specify an UpdateSet, all fields are considered to be updated.
 	 *
 	 */
 	@Target(ElementType.TYPE)
@@ -132,13 +148,16 @@ public class StubAnnotation
 	 * attribute lists fields of the first input that are updated {@link UpdateSet.UpdateSetMode#Update} 
 	 * or not modified {@link UpdateSet.UpdateSetMode#Constant}. 
 	 * 
-	 * Fields are updated as soon as their value changes. Moving a value from one field into another
-	 * field must be also considered as an change.
+	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
+	 * at the same field index <i>i</i>. 
+	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
+	 * the output record, the field must be considered to be updated.
 	 * 
 	 * It is very important the the UpdateSet contains at least all fields that are changed in order to guarantee 
 	 * correct execution of PACT programs. If the set mode is {@link UpdateSet.UpdateSetMode#Constant}, only 
 	 * those fields might be added to the field attribute which are definitely not changed!
 	 *
+	 * If you do not specify an UpdateSet, all fields are considered to be updated.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -155,13 +174,17 @@ public class StubAnnotation
 	 * attribute lists fields of the second input that are updated {@link UpdateSet.UpdateSetMode#Update} 
 	 * or not modified {@link UpdateSet.UpdateSetMode#Constant}. 
 	 * 
-	 * Fields are updated as soon as their value changes. Moving a value from one field into another
-	 * field must be also considered as an change.
+	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
+	 * at the same field index <i>i</i>. 
+	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
+	 * the output record, the field must be considered to be updated.
 	 * 
 	 * It is very important the the UpdateSet contains at least all fields that are changed in order to guarantee 
 	 * correct execution of PACT programs. If the set mode is {@link UpdateSet.UpdateSetMode#Constant}, only 
 	 * those fields might be added to the field attribute which are definitely not changed!
 	 *
+	 * If you do not specify an UpdateSet, all fields are considered to be updated.
+	 * 
 	 */	
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -174,6 +197,9 @@ public class StubAnnotation
 	/**
 	 * Specifies the add set for all kinds of stubs.
 	 * The {@link AddSet#fields()} attribute specifies all fields that are added by the stub.
+	 * 
+	 * A field is added if it is written to a field of the output record that was not used in any
+	 * of the stubs inputs.
 	 * 
 	 * It is very important the the AddSet contains at least all fields that have been added in order to guarantee 
 	 * correct execution of PACT programs.
@@ -198,10 +224,11 @@ public class StubAnnotation
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface OutCardBounds
 	{
-		public static final int UNBOUNDED = -1;
-		public static final int INPUTCARD = -2;
-		public static final int FIRSTINPUTCARD = -3;
-		public static final int SECONDINPUTCARD = -4;
+		public static final int UNKNOWN = -1;
+		public static final int UNBOUNDED = -2;
+		public static final int INPUTCARD = -3;
+		public static final int FIRSTINPUTCARD = -4;
+		public static final int SECONDINPUTCARD = -5;
 		
 		int lowerBound();
 		int upperBound();

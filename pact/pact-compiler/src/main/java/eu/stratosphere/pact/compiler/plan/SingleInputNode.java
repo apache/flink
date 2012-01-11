@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -23,14 +24,18 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.util.FieldSetOperations;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -39,11 +44,21 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public abstract class SingleInputNode extends OptimizerNode {
+	
 	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
 
-
 	final protected List<PactConnection> input = new ArrayList<PactConnection>(); // The list of input edges
+	
+	// ------------- Stub Annotations
+	
+	private int[] readSet; // set of fields that are read by the stub
+	
+	private int[] updateSet; // set of fields that are modified by the stub
+	
+	private int[] constantSet; // set of fields that remain constant from input to output 
 
+	// ------------------------------
+	
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
@@ -52,6 +67,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
+		readReadSetAnnotation();
+		readUpdateSetAnnotation();
 	}
 
 	/**
@@ -295,5 +312,79 @@ public abstract class SingleInputNode extends OptimizerNode {
 				getCumulativeCosts().subtractCosts(douleCounted);
 			}
 		}
+	}
+	
+	protected void readReadSetAnnotation() {
+		
+		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
+		
+		// get readSet annotation from stub
+		ReadSet readSetAnnotation = c.getUserCodeClass().getAnnotation(ReadSet.class);
+		
+		// extract readSet from annotation
+		if(readSetAnnotation == null) {
+			this.readSet = null;
+			return;
+		} else {
+			this.readSet = readSetAnnotation.fields();
+		}
+
+		if(c instanceof ReduceContract) {
+			// merge read and key sets
+			int[] keySet = c.getKeyColumnNumbers(0);
+			Arrays.sort(keySet);
+			Arrays.sort(this.readSet);
+			this.readSet = FieldSetOperations.unionSets(keySet, this.readSet);
+			
+		} else {
+			Arrays.sort(this.readSet);
+		}
+	}
+	
+	protected void readUpdateSetAnnotation() {
+		
+		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
+		
+		// get updateSet annotation from stub
+		UpdateSet updateSetAnnotation = c.getUserCodeClass().getAnnotation(UpdateSet.class);
+		
+		// extract readSet from annotation
+		if(updateSetAnnotation == null) {
+			this.updateSet = null;
+			this.constantSet = null;
+			return;
+		} else {
+			
+			switch(updateSetAnnotation.setMode()) {
+			case Update:
+				// we have a write set
+				this.updateSet = updateSetAnnotation.fields();
+				this.constantSet = null;
+				Arrays.sort(this.updateSet);
+				return;
+			case Constant:
+				// we have a constant set
+				this.updateSet = null;
+				this.constantSet = updateSetAnnotation.fields();
+				Arrays.sort(this.constantSet);
+				return;
+			default:
+				this.updateSet = null;
+				this.constantSet = null;
+				return;
+			}
+		}
+	}
+	
+	public int[] getReadSet() {
+		return this.readSet;
+	}
+	
+	public int[] getUpdateSet() {
+		return this.updateSet;
+	}
+	
+	public int[] getConstantSet() {
+		return this.constantSet;
 	}
 }

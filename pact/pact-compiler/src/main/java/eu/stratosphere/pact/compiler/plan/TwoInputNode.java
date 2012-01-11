@@ -16,21 +16,29 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
+import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetSecond;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.util.FieldSetOperations;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -48,6 +56,20 @@ public abstract class TwoInputNode extends OptimizerNode
 	final protected List<PactConnection> input2 = new ArrayList<PactConnection>(); // The second input edge
 
 	private List<List<PactConnection>> inputs; // the cached list of inputs
+	
+	// ------------- Stub Annotations
+	
+	private int[] readSet1; // set of fields of the first input that are read by the stub
+	
+	private int[] updateSet1; // set of fields of the first input that are modified by the stub
+	
+	private int[] constantSet1; // set of fields of the first input that remain constant from input to output
+	
+	private int[] readSet2; // set of fields of the first input that are read by the stub
+	
+	private int[] updateSet2; // set of fields of the first input that are modified by the stub
+	
+	private int[] constantSet2; // set of fields of the first input that remain constant from input to output
 
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
@@ -59,6 +81,8 @@ public abstract class TwoInputNode extends OptimizerNode
 		super(pactContract);
 
 		this.inputs = new ArrayList<List<PactConnection>>(2);
+		readReadSetAnnotations();
+		readUpdateSetAnnotations();
 	}
 
 	/**
@@ -558,6 +582,129 @@ public abstract class TwoInputNode extends OptimizerNode
 				Costs douleCounted = lastCommonChild.getCumulativeCosts();
 				getCumulativeCosts().subtractCosts(douleCounted);
 			}
+		}
+	}
+	
+	protected void readReadSetAnnotations() {
+		
+		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
+		
+		// get readSet annotation from stub
+		ReadSetFirst readSet1Annotation = c.getUserCodeClass().getAnnotation(ReadSetFirst.class);
+		ReadSetSecond readSet2Annotation = c.getUserCodeClass().getAnnotation(ReadSetSecond.class);
+		
+		// extract readSets from annotations
+		if(readSet1Annotation == null) {
+			this.readSet1 = null;
+		} else {
+			this.readSet1 = readSet1Annotation.fields();
+			Arrays.sort(this.readSet1);
+		}
+		
+		if(readSet2Annotation == null) {
+			this.readSet2 = null;
+		} else {
+			this.readSet2 = readSet2Annotation.fields();
+			Arrays.sort(this.readSet2);
+		}
+
+		if(c instanceof MatchContract || c instanceof CoGroupContract) {
+			// merge read and key sets
+			if(this.readSet1 != null) {
+				int[] keySet1 = c.getKeyColumnNumbers(0);
+				Arrays.sort(keySet1);
+				this.readSet1 = FieldSetOperations.unionSets(keySet1, this.readSet1);
+			}
+			
+			if(this.readSet2 != null) {
+				int[] keySet2 = c.getKeyColumnNumbers(1);
+				Arrays.sort(keySet2);
+				this.readSet2 = FieldSetOperations.unionSets(keySet2, this.readSet1);
+			}
+		} 
+	}
+	
+	protected void readUpdateSetAnnotations() {
+		
+		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
+		
+		// get updateSet annotation from stub
+		UpdateSetFirst updateSet1Annotation = c.getUserCodeClass().getAnnotation(UpdateSetFirst.class);
+		UpdateSetSecond updateSet2Annotation = c.getUserCodeClass().getAnnotation(UpdateSetSecond.class);
+		
+		if(updateSet1Annotation == null) {
+			this.updateSet1 = null;
+			this.constantSet1 = null;
+		} else {
+			
+			switch(updateSet1Annotation.setMode()) {
+			case Update:
+				// we have a write set
+				this.updateSet1 = updateSet1Annotation.fields();
+				this.constantSet1 = null;
+				Arrays.sort(this.updateSet1);
+				break;
+			case Constant:
+				// we have a constant set
+				this.updateSet1 = null;
+				this.constantSet1 = updateSet1Annotation.fields();
+				Arrays.sort(this.constantSet1);
+				break;
+			default:
+				this.updateSet1 = null;
+				this.constantSet1 = null;
+				break;
+			}
+			
+		}
+		
+		if(updateSet2Annotation == null) {
+			this.updateSet2 = null;
+			this.constantSet2 = null;
+		} else {
+			
+			switch(updateSet2Annotation.setMode()) {
+			case Update:
+				// we have a write set
+				this.updateSet2 = updateSet2Annotation.fields();
+				this.constantSet2 = null;
+				Arrays.sort(this.updateSet2);
+				break;
+			case Constant:
+				// we have a constant set
+				this.updateSet2 = null;
+				this.constantSet2 = updateSet2Annotation.fields();
+				Arrays.sort(this.constantSet2);
+				break;
+			default:
+				this.updateSet2 = null;
+				this.constantSet2 = null;
+				break;
+			}
+		}
+	}
+	
+	public int[] getReadSet(int input) {
+		switch(input) {
+		case 0: return readSet1;
+		case 1: return readSet2;
+		default: throw new IndexOutOfBoundsException();
+		}
+	}
+	
+	public int[] getUpdateSet(int input) {
+		switch(input) {
+		case 0: return updateSet1;
+		case 1: return updateSet2;
+		default: throw new IndexOutOfBoundsException();
+		}
+	}
+	
+	public int[] getConstantSet(int input) {
+		switch(input) {
+		case 0: return constantSet1;
+		case 1: return constantSet2;
+		default: throw new IndexOutOfBoundsException();
 		}
 	}
 }
