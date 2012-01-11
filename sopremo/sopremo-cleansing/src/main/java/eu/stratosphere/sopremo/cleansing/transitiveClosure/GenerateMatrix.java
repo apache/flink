@@ -31,14 +31,21 @@ import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
 @InputCardinality(min = 2, max = 2)
-public class GenerateMatrix extends CompositeOperator<GenerateMatrix>{
+public class GenerateMatrix extends CompositeOperator<GenerateMatrix> {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 9114512991148137780L;
 
-	/* (non-Javadoc)
+	private int numberOfPartitions = 1;
+
+	public void setNumberOfPartitions(int number) {
+		this.numberOfPartitions = number;
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
@@ -47,10 +54,11 @@ public class GenerateMatrix extends CompositeOperator<GenerateMatrix>{
 		JsonStream input = sopremoModule.getInput(0);
 		JsonStream nullInput = sopremoModule.getInput(1);
 
-		int n = 3;
-		
+		int n = this.numberOfPartitions;
+
 		// Partitioning
 		Partitioning partitioning = new Partitioning().withInputs(input);
+		partitioning.setNumberOfPartitions(n);
 		Grouping group = new Grouping().withInputs(partitioning).withGroupingKey(EvaluationExpression.KEY)
 			.withResetKey(false);
 
@@ -60,15 +68,15 @@ public class GenerateMatrix extends CompositeOperator<GenerateMatrix>{
 		// generate empty blocks (see next step)
 		final GenerateEmptyMatrix emptyMatrix = new GenerateEmptyMatrix().withInputs(nullInput);
 		emptyMatrix.setN(n);
-		
+
 		// fill-up missing block in genMatrix
 		final FillMatrix filledMatrix = new FillMatrix().withInputs(genMatrix, emptyMatrix);
-		
+
 		sopremoModule.getOutput(0).setInput(0, filledMatrix);
 
 		return sopremoModule;
 	}
-	
+
 	private static class Partitioning extends ElementaryOperator<Partitioning> {
 
 		/**
@@ -76,15 +84,32 @@ public class GenerateMatrix extends CompositeOperator<GenerateMatrix>{
 		 */
 		private static final long serialVersionUID = 5940876439025744020L;
 
+		private int numberOfPartitions;
+
+		public void setNumberOfPartitions(int number) {
+			this.numberOfPartitions = number;
+		}
+
 		@SuppressWarnings("unused")
 		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			private int numberOfPartitions;
+
 			@Override
 			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
 				JsonNode value1 = ((ArrayNode) value).get(0);
 				JsonNode value2 = ((ArrayNode) value).get(1);
-				JsonNode partition1 = ((ObjectNode) value1).get("partition");
-				JsonNode partition2 = ((ObjectNode) value2).get("partition");
-				if (partition1.compareTo(partition2) <= 0){
+				int id1 = ((IntNode) ((ObjectNode) value1).get("id")).getIntValue();
+				int id2 = ((IntNode) ((ObjectNode) value2).get("id")).getIntValue();
+				/*
+				 * for any reason, phase 3 does not like partitions with index 0
+				 * thats why, we let them run from 1 to n instead of 0 to n-1
+				 */
+				//IntNode partition1 = new IntNode(id1 != this.numberOfPartitions ? id1 % this.numberOfPartitions : id1);
+				//IntNode partition2 = new IntNode(id2 != this.numberOfPartitions ? id2 % this.numberOfPartitions : id2);
+				IntNode partition1 = new IntNode(id1 % this.numberOfPartitions);
+				IntNode partition2 = new IntNode(id2 % this.numberOfPartitions);
+				if (partition1.compareTo(partition2) <= 0) {
 					out.collect(new ArrayNode(partition1, partition2), new ArrayNode(value1, value2));
 				} else {
 					out.collect(new ArrayNode(partition2, partition1), new ArrayNode(value2, value1));
@@ -157,16 +182,16 @@ public class GenerateMatrix extends CompositeOperator<GenerateMatrix>{
 			 */
 			@Override
 			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-				for (int i=1; i<=n; i++){
-					for(int j=1; j<=i; j++){
-						out.collect(new ArrayNode(new IntNode(j),new IntNode(i)), new BinarySparseMatrix());
+				for (int i = 0; i < n; i++) {
+					for (int j = 0; j <= i; j++) {
+						out.collect(new ArrayNode(new IntNode(j), new IntNode(i)), new BinarySparseMatrix());
 					}
 				}
 
 			}
 		}
 	}
-	
+
 	@InputCardinality(min = 2, max = 2)
 	private static class FillMatrix extends ElementaryOperator<FillMatrix> {
 
@@ -186,7 +211,7 @@ public class GenerateMatrix extends CompositeOperator<GenerateMatrix>{
 			 */
 			@Override
 			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
-				if(values1.isEmpty()){
+				if (values1.isEmpty()) {
 					out.collect(key, values2.get(0));
 				} else {
 					out.collect(key, values1.get(0));

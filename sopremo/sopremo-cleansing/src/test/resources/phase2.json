@@ -1,15 +1,13 @@
 [
-	[{ "node":  11, "partition": 1 },{ "node":  12,"partition": 1 }],
-	[{ "node":  11, "partition": 1 },{ "node":  13,"partition": 1 }],
+	[{ "node":  11, "id": 1 },{ "node":  12,"id": 1 }],
+	[{ "node":  11, "id": 1 },{ "node":  13,"id": 1 }],
 	
-	[{ "node":  14, "partition": 1 },{ "node":  15,"partition": 1 }],
-	[{ "node":  14, "partition": 1 },{ "node":  26,"partition": 2 }],
+	[{ "node":  14, "id": 1 },{ "node":  15,"id": 1 }],
+	[{ "node":  14, "id": 1 },{ "node":  26,"id": 2 }],
 	
-	[{ "node":  17, "partition": 1 },{ "node":  29,"partition": 2 }],
-	[{ "node":  18, "partition": 1 },{ "node":  29,"partition": 2 }],
+	[{ "node":  17, "id": 1 },{ "node":  29,"id": 2 }],
+	[{ "node":  18, "id": 1 },{ "node":  29,"id": 2 }],
 	
-	[{ "node":  20, "partition": 2 },{ "node":  21,"partition": 2 }],
-	[{ "node":  20, "partition": 2 },{ "node":  22,"partition": 2 }],
-	
-	[{ "node":  31, "partition": 3 },{ "node":  32,"partition": 3 }]
+	[{ "node":  20, "id": 2 },{ "node":  21,"id": 2 }],
+	[{ "node":  20, "id": 2 },{ "node":  22,"id": 2 }]
 ]

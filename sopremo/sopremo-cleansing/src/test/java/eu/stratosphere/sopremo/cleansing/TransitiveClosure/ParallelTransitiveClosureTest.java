@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.cleansing.TransitiveClosure;
 
 import junit.framework.Assert;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
@@ -16,9 +15,9 @@ public class ParallelTransitiveClosureTest {
 
 	@Test
 	public void shouldDoSimplePartitioningAndFindTransitiveClosureInIt() {
-		final TransitiveClosure transitiveClosure = new TransitiveClosure();
-		// transitiveClosure.setClosureMode(ClosureMode.LINKS);
-		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
+		final TestTransitiveClosure transitiveClosure = new TestTransitiveClosure();
+		transitiveClosure.setPhase(1);
+		
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
 		String nullInput = SopremoTest.getResourcePath("null.json");
 
@@ -35,13 +34,13 @@ public class ParallelTransitiveClosureTest {
 		sopremoTestPlan.run();
 	}
 	
-	//has to be adapted (finds a connection which has to be found in phase 3)
-	@Test
-	@Ignore
+	@Test	
 	public void shouldFindTransitiveClosureWithinRowsAndColumns() {
-		final TransitiveClosure transitiveClosure = new TransitiveClosure();
-		// transitiveClosure.setClosureMode(ClosureMode.LINKS);
-		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
+		final TestTransitiveClosure transitiveClosure = new TestTransitiveClosure();
+		transitiveClosure.setPhase(2);
+		transitiveClosure.setNumberOfPartitions(2);
+
+		
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
 		String nullInput = SopremoTest.getResourcePath("null.json");
 		String input = SopremoTest.getResourcePath("phase2.json");
@@ -59,9 +58,10 @@ public class ParallelTransitiveClosureTest {
 	
 	@Test
 	public void shouldFindTransitiveClosureInWholeMatrix() {
-		final TransitiveClosure transitiveClosure = new TransitiveClosure();
-		// transitiveClosure.setClosureMode(ClosureMode.LINKS);
-		// transitiveClosure.setIdProjection(new ObjectAccess("id"));
+		final TestTransitiveClosure transitiveClosure = new TestTransitiveClosure();
+		transitiveClosure.setPhase(3);
+		transitiveClosure.setNumberOfPartitions(6);
+		
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
 		String nullInput = SopremoTest.getResourcePath("null.json");
 		String input = SopremoTest.getResourcePath("phase3.json");
@@ -73,6 +73,7 @@ public class ParallelTransitiveClosureTest {
 		sopremoTestPlan.getExpectedOutput(0).load(output);
 
 		sopremoTestPlan.trace();
+		sopremoTestPlan.toString();
 		sopremoTestPlan.run();
 	}
 

@@ -33,6 +33,12 @@ public class Phase3 extends CompositeOperator<Phase3> {
 	 * 
 	 */
 	private static final long serialVersionUID = 5629802867631098519L;
+	
+	private int numberOfPartitions = 1;
+
+	public void setNumberOfPartitions(int number) {
+		this.numberOfPartitions = number;
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -44,9 +50,8 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 1, 1);
 		JsonStream input = sopremoModule.getInput(0);
 
-		GenerateFullMatrix fullMatrix = new GenerateFullMatrix().withInputs(input);
 
-		int itCount = 3;// TODO number of N
+		int itCount = this.numberOfPartitions;// TODO number of N
 
 		ExtractRelatingBlocks xBlocks[] = new ExtractRelatingBlocks[itCount];
 		ExtractNonRelatingBlocks abBlocks[] = new ExtractNonRelatingBlocks[itCount];
@@ -59,16 +64,17 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		UnionAll itOutput[] = new UnionAll[itCount];
 
 		for (int i = 0; i < itCount; i++) {
-			JsonStream inputStream = i == 0 ? fullMatrix : itOutput[i - 1];
+			JsonStream inputStream = i == 0 ? input : itOutput[i - 1];
 
 			xBlocks[i] = new ExtractRelatingBlocks().withInputs(inputStream);
-			xBlocks[i].setIterationStep(i + 1);
+			xBlocks[i].setIterationStep(i);
+			
 			abBlocks[i] = new ExtractNonRelatingBlocks().withInputs(inputStream);
-			abBlocks[i].setIterationStep(i + 1);
+			abBlocks[i].setIterationStep(i);
 			a[i] = new TransformAKey().withInputs(abBlocks[i]);
-			a[i].setIterationStep(i + 1);
+			a[i].setIterationStep(i);
 			b[i] = new TransformBKey().withInputs(abBlocks[i]);
-			b[i].setIterationStep(i + 1);
+			b[i].setIterationStep(i);
 			x[i] = new TransformXKey().withInputs(xBlocks[i]);
 			xb[i] = new BAndXMatch().withInputs(b[i], x[i]);
 			axb[i] = new AMatch().withInputs(a[i], xb[i]);
@@ -84,34 +90,7 @@ public class Phase3 extends CompositeOperator<Phase3> {
 		return sopremoModule;
 	}
 
-	private static class GenerateFullMatrix extends ElementaryOperator<GenerateFullMatrix> {
-
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -2835910815949750884L;
-
-		@SuppressWarnings("unused")
-		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
-
-			private int iterationStep;
-
-			/*
-			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
-			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
-			 */
-			@Override
-			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-				if (!((ArrayNode) key).get(0).equals(((ArrayNode) key).get(1))) {
-					out.collect(new ArrayNode(((ArrayNode) key).get(1), ((ArrayNode) key).get(0)),
-						((BinarySparseMatrix) value).transpose());
-				}
-				out.collect(key, value);
-
-			}
-		}
-	}
+	
 
 	private static class ExtractRelatingBlocks extends ElementaryOperator<ExtractRelatingBlocks> {
 		/**

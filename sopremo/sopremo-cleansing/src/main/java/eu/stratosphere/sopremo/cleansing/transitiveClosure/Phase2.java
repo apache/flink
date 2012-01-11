@@ -40,7 +40,9 @@ public class Phase2 extends CompositeOperator<Phase2> {
 		//final ExtractMirroredMatrix mirroredMatrix = new ExtractMirroredMatrix().withInputs(computeRows);
 		//final FillMatrix fillMatrix = new FillMatrix().withInputs(computeRows, mirroredMatrix);
 		
-		sopremoModule.getOutput(0).setInput(0, computeTuples/*fillMatrix*/);
+		GenerateFullMatrix fullMatrix = new GenerateFullMatrix().withInputs(computeTuples);
+		
+		sopremoModule.getOutput(0).setInput(0, fullMatrix/*computeTuples/*fillMatrix*/);
 
 		return sopremoModule;
 	}
@@ -144,15 +146,20 @@ public class Phase2 extends CompositeOperator<Phase2> {
 				
 				//if the two blocks are in the same column, we have to bring them into the same row -> transpose
 				if(oldKeyPrimary.equals(((ArrayNode)oldKeyCurrent).get(1))){
-					current = current.transpose();
+					TransitiveClosure.warshall(current, (BinarySparseMatrix) value1, current);
+
+					//current = current.transpose();
+				} else {
+					TransitiveClosure.warshall((BinarySparseMatrix) value1, current, current);
+
 				}
 				
 				//transpose back
-				TransitiveClosure.warshall((BinarySparseMatrix) value1, current);
+				//TransitiveClosure.warshall((BinarySparseMatrix) value1, current);
 				
-				if(oldKeyPrimary.equals(((ArrayNode)oldKeyCurrent).get(1))){
-					current = current.transpose();
-				}
+//				if(oldKeyPrimary.equals(((ArrayNode)oldKeyCurrent).get(1))){
+//					current = current.transpose();
+//				}
 				
 				out.collect(oldKeyCurrent, current);
 			}
@@ -220,6 +227,35 @@ public class Phase2 extends CompositeOperator<Phase2> {
 					}
 					out.collect(key, correctMatrix);
 				}
+			}
+		}
+	}
+	
+	private static class GenerateFullMatrix extends ElementaryOperator<GenerateFullMatrix> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2835910815949750884L;
+
+		@SuppressWarnings("unused")
+		public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+
+			private int iterationStep;
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.jsondatamodel.JsonNode,
+			 * eu.stratosphere.sopremo.jsondatamodel.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+				if (!((ArrayNode) key).get(0).equals(((ArrayNode) key).get(1))) {
+					out.collect(new ArrayNode(((ArrayNode) key).get(1), ((ArrayNode) key).get(0)),
+						((BinarySparseMatrix) value).transpose());
+				}
+				out.collect(key, value);
+
 			}
 		}
 	}
