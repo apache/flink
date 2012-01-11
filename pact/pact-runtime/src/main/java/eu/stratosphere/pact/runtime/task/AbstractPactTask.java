@@ -396,8 +396,10 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			taskName = parent.getEnvironment().getTaskName();
 		}
 				
-		if (LOG.isErrorEnabled())
+		if (LOG.isErrorEnabled()) {
 			LOG.error(constructLogString("Error in PACT code", taskName, parent));
+			LOG.error(ex, ex);
+		}
 		
 		throw ex;
 	}
