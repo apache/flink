@@ -60,7 +60,7 @@ public class ParallelTransitiveClosureTest {
 	public void shouldFindTransitiveClosureInWholeMatrix() {
 		final TestTransitiveClosure transitiveClosure = new TestTransitiveClosure();
 		transitiveClosure.setPhase(3);
-		transitiveClosure.setNumberOfPartitions(6);
+		transitiveClosure.setNumberOfPartitions(3);
 		
 		final SopremoTestPlan sopremoTestPlan = new SopremoTestPlan(transitiveClosure);
 		String nullInput = SopremoTest.getResourcePath("null.json");
