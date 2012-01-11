@@ -162,6 +162,19 @@ public final class AutoCompletionCombo extends Composite implements KeyListener,
 	}
 
 	/**
+	 * Sets the given text to be displayed inside the combo box and updates the suggestions.
+	 * 
+	 * @param text
+	 *        the text to be displayed inside the combo box
+	 */
+	public void setText(final String text) {
+
+		updateSuggestions(text);
+
+		this.combo.setText(text);
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override

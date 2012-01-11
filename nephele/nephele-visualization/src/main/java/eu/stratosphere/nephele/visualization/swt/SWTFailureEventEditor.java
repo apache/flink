@@ -27,6 +27,7 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.MessageBox;
@@ -43,17 +44,12 @@ public final class SWTFailureEventEditor {
 	/**
 	 * The height of the dialog.
 	 */
-	private static final int HEIGHT = 120;
+	private static final int HEIGHT = 200;
 
 	/**
 	 * The shell for this dialog.
 	 */
 	private final Shell shell;
-
-	/**
-	 * Stores whether this editor is used to create/edit a task or an instance failure event.
-	 */
-	private final boolean isTaskEvent;
 
 	/**
 	 * The auto-completion combo box for the name.
@@ -66,32 +62,32 @@ public final class SWTFailureEventEditor {
 	private final Text interval;
 
 	/**
+	 * The radio button for task failure events.
+	 */
+	private final Button taskFailureButton;
+
+	/**
+	 * The radio button for the instance failure events.
+	 */
+	private final Button instanceFailureButton;
+
+	/**
 	 * The return value of the editor.
 	 */
 	private AbstractFailureEvent returnValue = null;
 
-	public SWTFailureEventEditor(final Shell parent, final List<String> nameSuggestions, final boolean isTaskEvent,
+	public SWTFailureEventEditor(final Shell parent, final List<String> nameSuggestions,
 			final AbstractFailureEvent failureEvent) {
-
-		this.isTaskEvent = isTaskEvent;
 
 		this.shell = new Shell(parent);
 		this.shell.setSize(WIDTH, HEIGHT);
 
 		// Determine the correct title for the window
 		String title = null;
-		if (isTaskEvent) {
-			if (failureEvent == null) {
-				title = "Create new task failure event";
-			} else {
-				title = "Edit task failure event";
-			}
+		if (failureEvent == null) {
+			title = "Create new failure event";
 		} else {
-			if (failureEvent == null) {
-				title = "Create new instance failure event";
-			} else {
-				title = "Edit instance failure event";
-			}
+			title = "Edit failure event";
 		}
 
 		this.shell.setText(title);
@@ -101,13 +97,11 @@ public final class SWTFailureEventEditor {
 		labelGridData.horizontalAlignment = GridData.BEGINNING;
 		labelGridData.grabExcessHorizontalSpace = false;
 		labelGridData.grabExcessVerticalSpace = false;
+		labelGridData.widthHint = 50;
+		labelGridData.minimumWidth = 50;
 
 		final Label nameLabel = new Label(this.shell, SWT.NONE);
-		if (isTaskEvent) {
-			nameLabel.setText("Task name:");
-		} else {
-			nameLabel.setText("Instance name:");
-		}
+		nameLabel.setText("Name:");
 		nameLabel.setLayoutData(labelGridData);
 
 		final GridData fieldGridData = new GridData();
@@ -132,6 +126,9 @@ public final class SWTFailureEventEditor {
 				}
 			}
 		});
+		if (failureEvent != null) {
+			this.name.setText(failureEvent.getName());
+		}
 
 		final Label intervalLabel = new Label(this.shell, SWT.NONE);
 		intervalLabel.setText("Interval:");
@@ -154,6 +151,39 @@ public final class SWTFailureEventEditor {
 				}
 			}
 		});
+		if (failureEvent != null) {
+			this.interval.setText(Integer.toString(failureEvent.getInterval()));
+		}
+
+		final GridData groupGridData = new GridData();
+		groupGridData.horizontalAlignment = GridData.FILL;
+		groupGridData.grabExcessHorizontalSpace = true;
+		groupGridData.grabExcessVerticalSpace = false;
+		groupGridData.horizontalSpan = 2;
+
+		final Group typeGroup = new Group(this.shell, SWT.BORDER);
+		typeGroup.setText("Event type");
+		typeGroup.setLayoutData(groupGridData);
+		typeGroup.setLayout(new GridLayout(1, true));
+
+		this.taskFailureButton = new Button(typeGroup, SWT.RADIO);
+		this.taskFailureButton.setText("Task failure");
+
+		this.instanceFailureButton = new Button(typeGroup, SWT.RADIO);
+		this.instanceFailureButton.setText("Instance failure");
+
+		if (failureEvent == null) {
+			this.taskFailureButton.setSelection(true);
+			this.instanceFailureButton.setSelection(false);
+		} else {
+			if (failureEvent instanceof VertexFailureEvent) {
+				this.taskFailureButton.setSelection(true);
+				this.instanceFailureButton.setSelection(false);
+			} else {
+				this.taskFailureButton.setSelection(false);
+				this.instanceFailureButton.setSelection(true);
+			}
+		}
 
 		final GridData buttonGridData = new GridData();
 		buttonGridData.horizontalAlignment = SWT.RIGHT;
@@ -203,15 +233,20 @@ public final class SWTFailureEventEditor {
 		});
 	}
 
+	/**
+	 * Constructs the dialog's return value from the current dialog settings.
+	 * 
+	 * @return the dialog's return value
+	 */
 	private AbstractFailureEvent assembleReturnValue() {
 
 		final String n = this.name.getText();
 		final int iv = Integer.parseInt(this.interval.getText());
 
-		if (this.isTaskEvent) {
-			return new VertexFailureEvent(iv, n);
+		if (this.taskFailureButton.getSelection()) {
+			return new VertexFailureEvent(n, iv);
 		} else {
-			return new InstanceFailureEvent(iv, n);
+			return new InstanceFailureEvent(n, iv);
 		}
 	}
 
@@ -226,11 +261,7 @@ public final class SWTFailureEventEditor {
 
 			final MessageBox messageBox = new MessageBox(this.shell, SWT.ICON_ERROR);
 			messageBox.setText("Invalid Input");
-			if (this.isTaskEvent) {
-				messageBox.setMessage("Task name must not be empty.");
-			} else {
-				messageBox.setMessage("Instance name must not be empty.");
-			}
+			messageBox.setMessage("Name must not be empty.");
 			messageBox.open();
 			this.name.setFocus();
 

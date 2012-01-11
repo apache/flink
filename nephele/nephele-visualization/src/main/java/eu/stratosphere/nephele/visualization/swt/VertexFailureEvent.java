@@ -26,35 +26,15 @@ package eu.stratosphere.nephele.visualization.swt;
 public final class VertexFailureEvent extends AbstractFailureEvent {
 
 	/**
-	 * The name of the vertex to be killed.
-	 */
-	private final String vertexName;
-
-	/**
 	 * Constructs a new vertex failure event
 	 * 
-	 * @param interval
-	 *        the interval in milliseconds until this event will occur
 	 * @param vertexName
 	 *        the name of the vertex to be killed
+	 * @param interval
+	 *        the interval in milliseconds until this event will occur
 	 */
-	VertexFailureEvent(final int interval, final String vertexName) {
-		super(interval);
+	VertexFailureEvent(final String vertexName, final int interval) {
+		super(vertexName, interval);
 
-		if (vertexName == null) {
-			throw new IllegalArgumentException("Argument vertexName must not be null");
-		}
-
-		this.vertexName = vertexName;
-	}
-
-	/**
-	 * Returns the name of the vertex to be killed.
-	 * 
-	 * @return the name of the vertex to be killed
-	 */
-	public String getVertexName() {
-
-		return this.vertexName;
 	}
 }

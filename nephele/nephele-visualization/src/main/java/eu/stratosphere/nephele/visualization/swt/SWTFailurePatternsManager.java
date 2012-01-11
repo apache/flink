@@ -29,8 +29,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.custom.CTabFolder;
-import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.MenuEvent;
 import org.eclipse.swt.events.MenuListener;
@@ -72,23 +70,19 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 
 	private static final int HEIGHT = 400;
 
-	private static final int COLUMN_WIDTH = 200;
+	private static final int ICON_COLUMN_WIDTH = 20;
+
+	private static final int TEXT_COLUMN_WIDTH = 200;
 
 	private final Shell shell;
 
 	private final Tree jobTree;
 
-	private final CTabFolder jobTabFolder;
-
-	private final CTabItem taskFailurePatternsTab;
-
-	private final Table taskFailureTable;
-
-	private final CTabItem instanceFailurePatternsTab;
-
-	private final Table instanceFailureTable;
+	private final Table failureEventTable;
 
 	private final Map<String, JobFailurePattern> failurePatterns = new HashMap<String, JobFailurePattern>();
+
+	private JobFailurePattern selectedFailurePattern = null;
 
 	SWTFailurePatternsManager(final Shell parent) {
 
@@ -127,27 +121,8 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		this.jobTree.addSelectionListener(this);
 		this.jobTree.setMenu(createTreeContextMenu());
 
-		this.jobTabFolder = new CTabFolder(horizontalSash, SWT.TOP);
-		this.jobTabFolder.setLayout(new GridLayout());
-		this.jobTabFolder.addSelectionListener(this);
-
-		this.taskFailurePatternsTab = new CTabItem(this.jobTabFolder, SWT.NONE);
-
-		this.instanceFailurePatternsTab = new CTabItem(this.jobTabFolder, SWT.NONE);
-
-		this.jobTabFolder.setSelection(this.taskFailurePatternsTab);
-
+		this.failureEventTable = createFailureEventTable(horizontalSash);
 		horizontalSash.setWeights(new int[] { 2, 8 });
-
-		// Create task failure table
-		this.taskFailureTable = createTaskOrInstanceFailureTable(true);
-		this.taskFailurePatternsTab.setText("Task Failure Patterns");
-		this.taskFailurePatternsTab.setControl(this.taskFailureTable);
-
-		// Create instance failure table
-		this.instanceFailureTable = createTaskOrInstanceFailureTable(false);
-		this.instanceFailurePatternsTab.setText("Instance Failure Patterns");
-		this.instanceFailurePatternsTab.setControl(this.instanceFailureTable);
 
 		final Composite buttonComposite = new Composite(this.shell, SWT.NONE);
 		buttonComposite.setLayout(new GridLayout(2, false));
@@ -172,21 +147,22 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		displayFailurePattern(null);
 	}
 
-	private Table createTaskOrInstanceFailureTable(final boolean isTaskTable) {
+	private Table createFailureEventTable(final Composite parent) {
 
-		final Table table = new Table(this.jobTabFolder, SWT.BORDER | SWT.MULTI);
+		final Table table = new Table(parent, SWT.BORDER | SWT.MULTI);
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
 
-		if (isTaskTable) {
-			new TableColumn(table, SWT.NONE).setText("Task name");
-		} else {
-			new TableColumn(table, SWT.NONE).setText("Instance name");
-		}
+		new TableColumn(table, SWT.NONE);
+		new TableColumn(table, SWT.NONE).setText("Task name");
 		new TableColumn(table, SWT.NONE).setText("Interval");
 
 		for (int i = 0; i < table.getColumnCount(); ++i) {
-			table.getColumn(i).setWidth(COLUMN_WIDTH);
+			if (i == 0) {
+				table.getColumn(i).setWidth(ICON_COLUMN_WIDTH);
+			} else {
+				table.getColumn(i).setWidth(TEXT_COLUMN_WIDTH);
+			}
 		}
 
 		table.addMouseListener(new MouseAdapter() {
@@ -195,24 +171,61 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 			public void mouseDoubleClick(final MouseEvent arg0) {
 
 				final TableItem ti = table.getItem(new Point(arg0.x, arg0.y));
-				if (ti == null) {
+
+				if (selectedFailurePattern == null) {
 					return;
 				}
 
 				final List<String> suggestions = new ArrayList<String>(); // TODO: Compute proper same suggestions here
 
-				final AbstractFailureEvent oldEvent = (AbstractFailureEvent) ti.getData();
+				AbstractFailureEvent oldEvent = null;
+				if (ti != null) {
+					oldEvent = (AbstractFailureEvent) ti.getData();
+				}
 
-				final SWTFailureEventEditor editor = new SWTFailureEventEditor(shell, suggestions, isTaskTable,
-						oldEvent);
+				final SWTFailureEventEditor editor = new SWTFailureEventEditor(shell, suggestions, oldEvent);
 
 				final AbstractFailureEvent newEvent = editor.showDialog();
+				if (newEvent == null) {
+					return;
+				}
 
-				
+				if (oldEvent != null) {
+					selectedFailurePattern.removeEvent(oldEvent);
+				}
+				selectedFailurePattern.addEvent(newEvent);
+
+				updateTableItem(ti, newEvent);
 			}
 		});
 
 		return table;
+	}
+
+	private void updateTableItem(TableItem ti, final AbstractFailureEvent event) {
+
+		boolean newItemCreated = false;
+
+		if (ti == null) {
+			ti = new TableItem(this.failureEventTable, SWT.NONE, this.failureEventTable.getItemCount() - 1);
+			newItemCreated = true;
+		}
+
+		if (event instanceof VertexFailureEvent) {
+			ti.setText(0, "T");
+		} else {
+			ti.setText(0, "I");
+		}
+
+		ti.setText(1, event.getName());
+		ti.setText(2, Integer.toString(event.getInterval()));
+
+		// Add new blank item if the old one has been used to create the new event
+		if (ti.getData() == null && !newItemCreated) {
+			new TableItem(this.failureEventTable, SWT.NONE);
+		}
+
+		ti.setData(event);
 	}
 
 	public void open() {
@@ -478,9 +491,9 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 
 							AbstractFailureEvent failureEvent = null;
 							if (taskFailure) {
-								failureEvent = new VertexFailureEvent(iv, name);
+								failureEvent = new VertexFailureEvent(name, iv);
 							} else {
-								failureEvent = new InstanceFailureEvent(iv, name);
+								failureEvent = new InstanceFailureEvent(name, iv);
 							}
 
 							jobFailurePattern.addEvent(failureEvent);
@@ -535,47 +548,28 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 
 	private void displayFailurePattern(final JobFailurePattern jobFailurePattern) {
 
-		// Clear old content from tables
-		this.taskFailureTable.clearAll();
-		this.instanceFailureTable.clearAll();
+		// Clear old content from event table
+		this.failureEventTable.clearAll();
 
 		if (jobFailurePattern == null) {
-			this.taskFailureTable.setEnabled(false);
-			this.instanceFailureTable.setEnabled(false);
+			this.failureEventTable.setEnabled(false);
 			return;
 		}
 
-		this.taskFailureTable.setEnabled(true);
-		this.instanceFailureTable.setEnabled(true);
+		this.failureEventTable.setEnabled(true);
 
 		final Iterator<AbstractFailureEvent> it = jobFailurePattern.iterator();
 		while (it.hasNext()) {
 
 			final AbstractFailureEvent event = it.next();
-			if (event instanceof VertexFailureEvent) {
-
-				final VertexFailureEvent vfe = (VertexFailureEvent) event;
-				final TableItem ti = new TableItem(this.instanceFailureTable, SWT.NONE);
-				ti.setText(0, vfe.getVertexName());
-				ti.setText(1, Integer.toString(vfe.getInterval()));
-				ti.setData(vfe);
-
-			} else if (event instanceof InstanceFailureEvent) {
-
-				final InstanceFailureEvent ife = (InstanceFailureEvent) event;
-				final TableItem ti = new TableItem(this.instanceFailureTable, SWT.NONE);
-				ti.setText(0, ife.getInstanceName());
-				ti.setText(1, Integer.toString(ife.getInterval()));
-				ti.setData(ife);
-
-			} else {
-				LOG.error("Encountered unknown failure event " + event.getClass());
-			}
+			final TableItem ti = new TableItem(this.failureEventTable, SWT.NONE);
+			updateTableItem(ti, event);
 		}
 
 		// Finally, add item to create new entry in both tables
-		new TableItem(this.taskFailureTable, SWT.NONE);
-		new TableItem(this.instanceFailureTable, SWT.NONE);
+		new TableItem(this.failureEventTable, SWT.NONE);
+
+		this.selectedFailurePattern = jobFailurePattern;
 	}
 
 	/**

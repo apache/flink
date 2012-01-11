@@ -24,37 +24,15 @@ package eu.stratosphere.nephele.visualization.swt;
  * @author warneke
  */
 public final class InstanceFailureEvent extends AbstractFailureEvent {
-
-	/**
-	 * The name of the instance to be killed.
-	 */
-	private final String instanceName;
-
 	/**
 	 * Constructs a new instance failure event
 	 * 
-	 * @param interval
-	 *        the interval in milliseconds until this event will occur
 	 * @param instanceName
 	 *        the name of the instance to be killed
+	 * @param interval
+	 *        the interval in milliseconds until this event will occur
 	 */
-	InstanceFailureEvent(final int interval, final String instanceName) {
-		super(interval);
-
-		if (instanceName == null) {
-			throw new IllegalArgumentException("Argument instanceName must not be null");
-		}
-
-		this.instanceName = instanceName;
-	}
-
-	/**
-	 * Returns the name of the instance to be killed.
-	 * 
-	 * @return the name of the instance to be killed
-	 */
-	public String getInstanceName() {
-
-		return this.instanceName;
+	InstanceFailureEvent(final String instanceName, final int interval) {
+		super(instanceName, interval);
 	}
 }

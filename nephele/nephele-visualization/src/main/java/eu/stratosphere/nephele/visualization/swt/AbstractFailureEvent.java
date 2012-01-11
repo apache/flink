@@ -26,6 +26,11 @@ package eu.stratosphere.nephele.visualization.swt;
 public abstract class AbstractFailureEvent implements Comparable<AbstractFailureEvent> {
 
 	/**
+	 * The name of the event.
+	 */
+	private final String name;
+
+	/**
 	 * The interval in milliseconds until this event will occur.
 	 */
 	private final int interval;
@@ -33,15 +38,22 @@ public abstract class AbstractFailureEvent implements Comparable<AbstractFailure
 	/**
 	 * Constructs a new abstract failure event.
 	 * 
+	 * @param name
+	 *        the name of the event
 	 * @param interval
 	 *        the interval in milliseconds until this event will occur
 	 */
-	AbstractFailureEvent(final int interval) {
+	AbstractFailureEvent(final String name, final int interval) {
+
+		if (name == null) {
+			throw new IllegalArgumentException("Argument name must not be null");
+		}
 
 		if (interval < 0) {
 			throw new IllegalArgumentException("Argument interval must be larger than or equal to zero");
 		}
 
+		this.name = name;
 		this.interval = interval;
 	}
 
@@ -52,6 +64,16 @@ public abstract class AbstractFailureEvent implements Comparable<AbstractFailure
 	public int compareTo(final AbstractFailureEvent o) {
 
 		return (this.interval - o.getInterval());
+	}
+
+	/**
+	 * Returns the name of this event.
+	 * 
+	 * @return the name of this event
+	 */
+	public String getName() {
+
+		return this.name;
 	}
 
 	/**
