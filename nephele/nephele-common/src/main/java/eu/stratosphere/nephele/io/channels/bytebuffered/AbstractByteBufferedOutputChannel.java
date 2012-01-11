@@ -140,6 +140,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if (!this.closeRequested) {
 			this.closeRequested = true;
 			transferEvent(new ByteBufferedChannelCloseEvent());
+			flush();
 		}
 	}
 
@@ -304,8 +305,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	@Override
 	public void transferEvent(AbstractEvent event) throws IOException, InterruptedException {
 
-		this.outputChannelBroker.transferEventToInputChannel(event);
 		flush();
+		this.outputChannelBroker.transferEventToInputChannel(event);
 	}
 
 	/**
@@ -395,8 +396,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			this.uncompressedDataBuffer.recycleBuffer();
 			this.uncompressedDataBuffer = null;
 		}
-		
-		if(this.compressor != null) {
+
+		if (this.compressor != null) {
 			this.compressor.shutdown(getID());
 		}
 	}

@@ -146,14 +146,7 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 			this.uncompressedDataBuffer = response.getUncompressedDataBuffer();
 		}
 
-		// Process events
-		final EventList eventList = transferEnvelope.getEventList();
-		if (!eventList.isEmpty()) {
-			final Iterator<AbstractEvent> it = eventList.iterator();
-			while (it.hasNext()) {
-				this.byteBufferedInputChannel.processEvent(it.next());
-			}
-		}
+		// Moved event processing to releaseConsumedReadBuffer method
 
 		return response;
 	}
@@ -178,6 +171,15 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 				} else {
 					--this.numberOfFileBuffers;
 				}
+			}
+		}
+
+		// Process events
+		final EventList eventList = transferEnvelope.getEventList();
+		if (!eventList.isEmpty()) {
+			final Iterator<AbstractEvent> it = eventList.iterator();
+			while (it.hasNext()) {
+				this.byteBufferedInputChannel.processEvent(it.next());
 			}
 		}
 
@@ -330,23 +332,23 @@ public class ByteBufferedInputChannelWrapper implements ByteBufferedInputChannel
 	public void releaseAllResources() {
 
 		final Queue<Buffer> buffersToRecycle = new ArrayDeque<Buffer>();
-		
+
 		synchronized (this.queuedEnvelopes) {
-						
-			while(!this.queuedEnvelopes.isEmpty()) {
+
+			while (!this.queuedEnvelopes.isEmpty()) {
 				final TransferEnvelope envelope = this.queuedEnvelopes.poll();
-				if(envelope.getBuffer() != null) {
+				if (envelope.getBuffer() != null) {
 					buffersToRecycle.add(envelope.getBuffer());
 				}
 			}
 		}
 
-		if(this.uncompressedDataBuffer != null) {
+		if (this.uncompressedDataBuffer != null) {
 			buffersToRecycle.add(this.uncompressedDataBuffer);
 			this.uncompressedDataBuffer = null;
 		}
-		
-		while(!buffersToRecycle.isEmpty()) {
+
+		while (!buffersToRecycle.isEmpty()) {
 			buffersToRecycle.poll().recycleBuffer();
 		}
 	}

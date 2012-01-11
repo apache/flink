@@ -33,7 +33,7 @@ import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.io.statistics.FileBaseStatistics;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
@@ -82,7 +82,7 @@ public class PropertiesPropagationTest {
 			
 			// prepare the statistics
 			DataStatistics dataStats = new DataStatistics();
-			dataStats.cacheBaseStatistics(new TextInputFormat.FileBaseStatistics(1000, 128 * 1024 * 1024, 8.0f),
+			dataStats.cacheBaseStatistics(new FileBaseStatistics(1000, 128 * 1024 * 1024, 8.0f),
 				FileDataSourceContract.getInputIdentifier(DummyInputFormat.class, IN_FILE_1));
 			
 			this.compiler = new PactCompiler(dataStats, new FixedSizeClusterCostEstimator(), dummyAddress);
