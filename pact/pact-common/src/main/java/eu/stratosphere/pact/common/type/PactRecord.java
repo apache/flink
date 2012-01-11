@@ -142,6 +142,7 @@ public final class PactRecord implements Value
 			for (int i = oldNumFields; i < numFields; i++) {
 				this.offsets[i] = NULL_INDICATOR_OFFSET;
 			}
+			markModified(oldNumFields);
 		}
 		else {
 			// decrease the number of fields
@@ -555,7 +556,7 @@ public final class PactRecord implements Value
 			return;
 		
 		final int firstModified = this.firstModifiedPos;
-		final int numFields = this.numFields;		
+		final int numFields = this.numFields;
 		final int[] offsets = this.offsets;
 		if (this.serializer == null) {
 			this.serializer = new InternalDeSerializer();
@@ -617,6 +618,8 @@ public final class PactRecord implements Value
 		}
 		
 		try {
+			int slp = serializer.position;	// track the last position of the serializer
+			
 			// now, serialize the lengths, the sparsity mask and the number of fields
 			if (numFields <= 8) {
 				// efficient handling of common case with less than eight fields
@@ -624,21 +627,32 @@ public final class PactRecord implements Value
 				for (int i = numFields - 1; i > 0; i--) {
 					mask <<= 1;
 					if (offsets[i] != NULL_INDICATOR_OFFSET) {
+						slp = serializer.position;
 						serializer.writeValLenIntBackwards(offsets[i]);
 						mask |= 0x1;
 					}
 				}
 				mask <<= 1;
-				mask |= (offsets[0] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
+				if (offsets[0] != NULL_INDICATOR_OFFSET) {
+					mask |= 0x1;	// add the non-null bit to the mask
+				} else {
+					// the first field is null, so some previous field was the first non-null field
+					serializer.position = slp;
+				}
 				serializer.writeByte(mask);
 			}
 			else {
 				// general case. offsets first (in backward order)
 				for (int i = numFields - 1; i > 0; i--) {
 					if (offsets[i] != NULL_INDICATOR_OFFSET) {
+						slp = serializer.position;
 						serializer.writeValLenIntBackwards(offsets[i]);
 					}
 				}
+				if (offsets[0] == NULL_INDICATOR_OFFSET) {
+					serializer.position = slp;
+				}
+				
 				// now the mask. we write it in chucks of 8 bit.
 				// the remainder %8 comes first 
 				int col = numFields - 1;
@@ -1488,3 +1502,4 @@ public final class PactRecord implements Value
 		}
 	};
 }
+
