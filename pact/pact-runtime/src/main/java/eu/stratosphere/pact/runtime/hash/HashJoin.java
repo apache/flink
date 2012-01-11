@@ -474,36 +474,6 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 		// release the table memory
 		releaseTable();
 		
-//		// check that the memory segment book-keeping did not go wrong
-//		if (DEBUG_CHECKS) {
-//			HashSet<MemorySegment> segSet = new HashSet<MemorySegment>();
-//			for (int i = 0; i < this.availableMemory.size(); i++) {
-//				MemorySegment seg = this.availableMemory.get(i);
-//				if (seg == null) {
-//					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
-//				}
-//				if (segSet.contains(seg)) {
-//					throw new RuntimeException("Bookkeeping error: Available Memory Segment booked twice.");
-//				}
-//				segSet.add(seg);
-//			}
-//			HashSet<MemorySegment> wbSet = new HashSet<MemorySegment>();
-//			Iterator<MemorySegment> wbIter = this.writeBehindBuffers.iterator();
-//			while (wbIter.hasNext()) {
-//				MemorySegment seg = wbIter.next();
-//				if (seg == null) {
-//					throw new RuntimeException("Bookkeeping error: null booked as Memory Segment.");
-//				}
-//				if (segSet.contains(seg)) {
-//					throw new RuntimeException("Bookkeeping error: Write-behind buffer also occurred as available memory.");
-//				}
-//				if (wbSet.contains(seg)) {
-//					throw new RuntimeException("Bookkeeping error: Write-behind buffer booked twice");
-//				}
-//				wbSet.add(seg);
-//			}			
-//		}
-		
 		// check if there are pending partitions
 		if (!this.partitionsPending.isEmpty())
 		{
@@ -809,15 +779,20 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 			// if no buffer is available, we need to spill a partition
 			MemorySegment nextSeg = getNextBuffer();
 			if (nextSeg == null) {
-				spillPartition();
-				nextSeg = getNextBuffer();
-				if (nextSeg == null) {
-					throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling partition.");
+				int spilledPartitionNum = spillPartition();
+				// if we spilled this partition, we don't need to give it a new buffer
+				if (spilledPartitionNum != partitionNumber) {
+					nextSeg = getNextBuffer();
+					if (nextSeg == null) {
+						throw new RuntimeException("Bug in HybridHashJoin: No memory became available after spilling partition.");
+					}
+					p.addBuildSideBuffer(nextSeg);
 				}
 			}
-			
-			// add the buffer to the partition.
-			p.addBuildSideBuffer(nextSeg);
+			else {
+				// add the buffer to the partition.
+				p.addBuildSideBuffer(nextSeg);
+			}
 			
 			// retry to write into the buffer
 			pointer = p.insertIntoBuildBuffer(pair);
@@ -1670,6 +1645,19 @@ public class HashJoin<K extends Key, BV extends Value, PV extends Value>
 					freeMemory.add(this.inMemoryBuffers.get(k));
 				}
 				this.inMemoryBuffers.clear();
+				return 0;
+			}
+			else if (this.probeBlockCounter == 1 && this.currentPartitionBuffer.outputView.getPosition() == PARTITION_BLOCK_HEADER_LEN) {
+				// partition is empty, no spilled buffers
+				// return the memory buffer
+				freeMemory.add(this.currentPartitionBuffer);
+				this.currentPartitionBuffer = null;
+				
+				// delete the spill files
+				this.probeSideChannel.close();
+				this.buildSideChannel.deleteChannel();
+				this.probeSideChannel.deleteChannel();
+				
 				return 0;
 			}
 			else {
