@@ -19,6 +19,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -33,9 +34,12 @@ import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.MenuEvent;
 import org.eclipse.swt.events.MenuListener;
+import org.eclipse.swt.events.MouseAdapter;
+import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -67,6 +71,8 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 	private static final int WIDTH = 800;
 
 	private static final int HEIGHT = 400;
+
+	private static final int COLUMN_WIDTH = 200;
 
 	private final Shell shell;
 
@@ -133,28 +139,13 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 
 		horizontalSash.setWeights(new int[] { 2, 8 });
 
-		gridData = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gridData.heightHint = 200;
-
-		this.taskFailureTable = new Table(this.jobTabFolder, SWT.MULTI | SWT.BORDER | SWT.VIRTUAL);
-		this.taskFailureTable.setLayoutData(gridData);
-		this.taskFailureTable.setLinesVisible(true);
-		this.taskFailureTable.setHeaderVisible(true);
-		this.taskFailureTable.setSize(200, 200);
-		new TableColumn(this.taskFailureTable, SWT.LEFT).setText("Task name");
-		new TableColumn(this.taskFailureTable, SWT.LEFT).setText("Failure time");
-
-		this.instanceFailureTable = new Table(this.jobTabFolder, SWT.MULTI | SWT.BORDER | SWT.VIRTUAL);
-		this.instanceFailureTable.setLayoutData(gridData);
-		this.instanceFailureTable.setVisible(true);
-		this.instanceFailureTable.setLinesVisible(true);
-		this.instanceFailureTable.setHeaderVisible(true);
-		new TableColumn(this.instanceFailureTable, SWT.LEFT).setText("Instance name");
-		new TableColumn(this.instanceFailureTable, SWT.LEFT).setText("Failure time");
-
+		// Create task failure table
+		this.taskFailureTable = createTaskOrInstanceFailureTable(true);
 		this.taskFailurePatternsTab.setText("Task Failure Patterns");
 		this.taskFailurePatternsTab.setControl(this.taskFailureTable);
 
+		// Create instance failure table
+		this.instanceFailureTable = createTaskOrInstanceFailureTable(false);
 		this.instanceFailurePatternsTab.setText("Instance Failure Patterns");
 		this.instanceFailurePatternsTab.setControl(this.instanceFailureTable);
 
@@ -177,11 +168,57 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 		gridData.horizontalAlignment = SWT.RIGHT;
 		closeButton.setLayoutData(gridData);
 
+		// Initialize the tables
+		displayFailurePattern(null);
+	}
+
+	private Table createTaskOrInstanceFailureTable(final boolean isTaskTable) {
+
+		final Table table = new Table(this.jobTabFolder, SWT.BORDER | SWT.MULTI);
+		table.setHeaderVisible(true);
+		table.setLinesVisible(true);
+
+		if (isTaskTable) {
+			new TableColumn(table, SWT.NONE).setText("Task name");
+		} else {
+			new TableColumn(table, SWT.NONE).setText("Instance name");
+		}
+		new TableColumn(table, SWT.NONE).setText("Interval");
+
+		for (int i = 0; i < table.getColumnCount(); ++i) {
+			table.getColumn(i).setWidth(COLUMN_WIDTH);
+		}
+
+		table.addMouseListener(new MouseAdapter() {
+
+			@Override
+			public void mouseDoubleClick(final MouseEvent arg0) {
+
+				final TableItem ti = table.getItem(new Point(arg0.x, arg0.y));
+				if (ti == null) {
+					return;
+				}
+
+				final List<String> suggestions = new ArrayList<String>(); // TODO: Compute proper same suggestions here
+
+				final AbstractFailureEvent oldEvent = (AbstractFailureEvent) ti.getData();
+
+				final SWTFailureEventEditor editor = new SWTFailureEventEditor(shell, suggestions, isTaskTable,
+						oldEvent);
+
+				final AbstractFailureEvent newEvent = editor.showDialog();
+
+				
+			}
+		});
+
+		return table;
 	}
 
 	public void open() {
 
 		this.shell.open();
+
 	}
 
 	private Menu createTreeContextMenu() {
@@ -446,7 +483,7 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 								failureEvent = new InstanceFailureEvent(iv, name);
 							}
 
-							jobFailurePattern.addOrUpdateEvent(failureEvent);
+							jobFailurePattern.addEvent(failureEvent);
 						}
 
 						continue;
@@ -498,11 +535,47 @@ public final class SWTFailurePatternsManager implements SelectionListener {
 
 	private void displayFailurePattern(final JobFailurePattern jobFailurePattern) {
 
-		final TableItem ti = new TableItem(this.taskFailureTable, SWT.LEFT);
-		ti.setText(0, "Test");
-		ti.setText(1, "Test2");
-		
-		
+		// Clear old content from tables
+		this.taskFailureTable.clearAll();
+		this.instanceFailureTable.clearAll();
+
+		if (jobFailurePattern == null) {
+			this.taskFailureTable.setEnabled(false);
+			this.instanceFailureTable.setEnabled(false);
+			return;
+		}
+
+		this.taskFailureTable.setEnabled(true);
+		this.instanceFailureTable.setEnabled(true);
+
+		final Iterator<AbstractFailureEvent> it = jobFailurePattern.iterator();
+		while (it.hasNext()) {
+
+			final AbstractFailureEvent event = it.next();
+			if (event instanceof VertexFailureEvent) {
+
+				final VertexFailureEvent vfe = (VertexFailureEvent) event;
+				final TableItem ti = new TableItem(this.instanceFailureTable, SWT.NONE);
+				ti.setText(0, vfe.getVertexName());
+				ti.setText(1, Integer.toString(vfe.getInterval()));
+				ti.setData(vfe);
+
+			} else if (event instanceof InstanceFailureEvent) {
+
+				final InstanceFailureEvent ife = (InstanceFailureEvent) event;
+				final TableItem ti = new TableItem(this.instanceFailureTable, SWT.NONE);
+				ti.setText(0, ife.getInstanceName());
+				ti.setText(1, Integer.toString(ife.getInterval()));
+				ti.setData(ife);
+
+			} else {
+				LOG.error("Encountered unknown failure event " + event.getClass());
+			}
+		}
+
+		// Finally, add item to create new entry in both tables
+		new TableItem(this.taskFailureTable, SWT.NONE);
+		new TableItem(this.instanceFailureTable, SWT.NONE);
 	}
 
 	/**

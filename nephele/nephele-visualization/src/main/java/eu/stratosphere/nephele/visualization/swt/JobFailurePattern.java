@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.visualization.swt;
 
+import java.util.Iterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -67,12 +68,12 @@ public final class JobFailurePattern {
 	}
 
 	/**
-	 * Adds or updates a failure event to this job failure pattern.
+	 * Adds a failure event to this job failure pattern.
 	 * 
 	 * @param event
-	 *        the event to be added or updated
+	 *        the event to be added
 	 */
-	public void addOrUpdateEvent(final AbstractFailureEvent event) {
+	public void addEvent(final AbstractFailureEvent event) {
 
 		if (event == null) {
 			throw new IllegalArgumentException("Argument event must not be null");
@@ -83,5 +84,30 @@ public final class JobFailurePattern {
 		}
 
 		this.events.add(event);
+	}
+
+	/**
+	 * Removes a failure event from this job failure pattern.
+	 * 
+	 * @param event
+	 *        the event to be removed
+	 */
+	public void removeEvent(final AbstractFailureEvent event) {
+
+		if (event == null) {
+			throw new IllegalArgumentException("Argument event must not be null");
+		}
+
+		this.events.remove(event);
+	}
+
+	/**
+	 * Returns an iterator to access all the events stored in this job failure pattern.
+	 * 
+	 * @return an iterator to access all the events stored in this job failure pattern
+	 */
+	public Iterator<AbstractFailureEvent> iterator() {
+
+		return this.events.iterator();
 	}
 }
