@@ -84,9 +84,7 @@ public class InputFileIterator implements Iterator<PactRecord>, Closeable {
 						return;
 					}
 
-				// TODO: replace when read works properly
-				// this.nextRecord = this.buffer[this.bufferIndex++ % 2];
-				this.nextRecord = new PactRecord();
+				this.nextRecord = this.buffer[this.bufferIndex++ % 2];
 			} while (!this.currentFormat.nextRecord(this.nextRecord));
 
 		} catch (final IOException e) {

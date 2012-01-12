@@ -26,6 +26,10 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.pact.common.type.base.PactDouble;
+import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactString;
+
 public class PrimitiveDataTypeTest {
 
 	private DataOutputStream mOut;

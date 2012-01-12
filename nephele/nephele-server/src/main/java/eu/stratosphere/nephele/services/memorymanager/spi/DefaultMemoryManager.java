@@ -992,7 +992,7 @@ public class DefaultMemoryManager implements MemoryManager
 
 		protected final int size;
 
-		public MemorySegmentDescriptor(AbstractInvokable owner, byte[] memory, int chunk, int start, int end) {
+		protected MemorySegmentDescriptor(AbstractInvokable owner, byte[] memory, int chunk, int start, int end) {
 			this.owner = owner;
 			this.memory = memory;
 			this.chunk = chunk;

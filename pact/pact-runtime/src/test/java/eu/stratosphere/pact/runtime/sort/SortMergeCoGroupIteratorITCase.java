@@ -43,7 +43,6 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.pact.runtime.test.util.TestData.RecordReaderMock;
 
 /**
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)

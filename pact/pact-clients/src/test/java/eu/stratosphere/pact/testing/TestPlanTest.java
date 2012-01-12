@@ -31,7 +31,6 @@ import java.util.regex.Pattern;
 import junit.framework.Assert;
 import junit.framework.AssertionFailedError;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
@@ -59,7 +58,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactList;
-import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
@@ -694,7 +692,7 @@ public class TestPlanTest {
 	 * Tests if a {@link TestPlan} succeeds with uninitialized expected values.
 	 */
 	@Test
-	public void shouldSuceedIfNoExpectedValues() {
+	public void shouldSucceedIfNoExpectedValues() {
 		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
@@ -743,5 +741,30 @@ public class TestPlanTest {
 			add(new PactInteger(2), new PactString("test2"));
 		testPlan.getExpectedOutput(PactInteger.class, PactString.class).setEmpty();
 		assertTestRunFails(testPlan);
+	}
+
+	/**
+	 * Tests if the outputs of two {@link TestPlan}s can be successfully compared.
+	 */
+	@Test
+	public void shouldCompareTwoTestPlans() {
+		final MapContract map = new MapContract(IdentityMap.class,
+			"Map");
+		TestPlan testPlan1 = new TestPlan(map);
+		testPlan1.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan1.run();
+		TestPlan testPlan2 = new TestPlan(map);
+		testPlan2.getInput().
+			add(new PactInteger(2), new PactString("test2")).
+			add(new PactInteger(1), new PactString("test1"));
+		testPlan2.run();
+
+		testPlan1.getActualOutput().setSchema(IntStringPair);
+		testPlan2.getActualOutput().setSchema(IntStringPair);
+		AssertUtil.assertIteratorEquals(testPlan1.getActualOutput().iterator(), 
+			testPlan2.getActualOutput().iterator(),
+			new PactRecordEqualer(IntStringPair));
 	}
 }

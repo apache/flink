@@ -454,7 +454,7 @@ public class TestPlan implements Closeable {
 	 */
 	private Plan buildPlanWithReadableSinks() {
 		final Collection<FileDataSink> existingSinks = this.getDataSinks();
-		final Collection<FileDataSink> wrappedSinks = new ArrayList<FileDataSink>();
+		final Collection<GenericDataSink> wrappedSinks = new ArrayList<GenericDataSink>();
 		for (final FileDataSink fileSink : existingSinks)
 			// need a format which is deserializable without configuration
 			if (!fileSink.getFormatClass().equals(SequentialOutputFormat.class)) {
