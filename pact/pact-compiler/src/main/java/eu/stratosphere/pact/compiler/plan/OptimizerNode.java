@@ -113,13 +113,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
 	
-	private int stubOutCardLB; // The lower bound of the stubs output cardinality
+	protected int stubOutCardLB; // The lower bound of the stubs output cardinality
 	
-	private int stubOutCardUB; // The upper bound of the stubs output cardinality
+	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
 	
-	private int[] addSet; // The set of fields added to the schema by the stub
+	protected int[] addSet; // The set of fields added to the schema by the stub
 	
-	private int[] outputSchema; // The fields are present in the output records
+	protected int[] outputSchema; // The fields are present in the output records
 
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
@@ -1125,6 +1125,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			Arrays.sort(this.addSet);
 		}
 	}
+	
+	public abstract void deriveOutputSchema();
 
 	public int[] getAddSet() {
 		return this.addSet;

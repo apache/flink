@@ -59,17 +59,17 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	// ------------- Stub Annotations
 	
-	private int[] readSet1; // set of fields of the first input that are read by the stub
+	protected int[] readSet1; // set of fields of the first input that are read by the stub
 	
-	private int[] updateSet1; // set of fields of the first input that are modified by the stub
+	protected int[] updateSet1; // set of fields of the first input that are modified by the stub
 	
-	private int[] constantSet1; // set of fields of the first input that remain constant from input to output
+	protected int[] constantSet1; // set of fields of the first input that remain constant from input to output
 	
-	private int[] readSet2; // set of fields of the first input that are read by the stub
+	protected int[] readSet2; // set of fields of the first input that are read by the stub
 	
-	private int[] updateSet2; // set of fields of the first input that are modified by the stub
+	protected int[] updateSet2; // set of fields of the first input that are modified by the stub
 	
-	private int[] constantSet2; // set of fields of the first input that remain constant from input to output
+	protected int[] constantSet2; // set of fields of the first input that remain constant from input to output
 
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
@@ -681,6 +681,31 @@ public abstract class TwoInputNode extends OptimizerNode
 				this.constantSet2 = null;
 				break;
 			}
+		}
+	}
+	
+	@Override
+	public void deriveOutputSchema() {
+		if(this.addSet == null) {
+			this.outputSchema = null;
+			return;
+		} else {
+			outputSchema = this.addSet;
+		}
+		
+		for(PactConnection pc : this.getFirstInputConnection()) {
+			if(pc.getSourcePact().outputSchema == null) {
+				this.outputSchema = null;
+				return;
+			}
+			outputSchema = FieldSetOperations.unionSets(outputSchema, pc.getSourcePact().outputSchema);
+		}
+		for(PactConnection pc : this.getSecondInputConnection()) {
+			if(pc.getSourcePact().outputSchema == null) {
+				this.outputSchema = null;
+				return;
+			}
+			outputSchema = FieldSetOperations.unionSets(outputSchema, pc.getSourcePact().outputSchema);
 		}
 	}
 	

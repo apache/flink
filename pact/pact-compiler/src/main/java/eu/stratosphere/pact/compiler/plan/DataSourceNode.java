@@ -22,6 +22,8 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.OutputSchemaProvider;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -286,6 +288,34 @@ public class DataSourceNode extends OptimizerNode
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {
 			visitor.postVisit(this);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void deriveOutputSchema() {
+		
+		// get the input format class
+		Class<InputFormat<?>> clazz = (Class<InputFormat<?>>)((GenericDataSource<? extends InputFormat<?>>)getPactContract()).getFormatClass();
+		
+		InputFormat<?> inputFormat;
+		try {
+			inputFormat = clazz.newInstance();
+			
+			if(inputFormat instanceof OutputSchemaProvider) {
+				
+				inputFormat.configure(getPactContract().getParameters());
+				this.outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
+				return;
+			} else {
+				this.outputSchema = null;
+				return;
+			}
+			
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
 		}
 	}
 

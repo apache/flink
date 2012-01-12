@@ -51,11 +51,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	// ------------- Stub Annotations
 	
-	private int[] readSet; // set of fields that are read by the stub
+	protected int[] readSet; // set of fields that are read by the stub
 	
-	private int[] updateSet; // set of fields that are modified by the stub
+	protected int[] updateSet; // set of fields that are modified by the stub
 	
-	private int[] constantSet; // set of fields that remain constant from input to output 
+	protected int[] constantSet; // set of fields that remain constant from input to output 
 
 	// ------------------------------
 	
@@ -373,6 +373,25 @@ public abstract class SingleInputNode extends OptimizerNode {
 				this.constantSet = null;
 				return;
 			}
+		}
+	}
+	
+	@Override
+	public void deriveOutputSchema() {
+
+		if(this.addSet == null) {
+			this.outputSchema = null;
+			return;
+		} else {
+			outputSchema = this.addSet;
+		}
+		
+		for(PactConnection pc : this.getInputConnections()) {
+			if(pc.getSourcePact().outputSchema == null) {
+				this.outputSchema = null;
+				return;
+			}
+			outputSchema = FieldSetOperations.unionSets(outputSchema, pc.getSourcePact().outputSchema);
 		}
 	}
 	

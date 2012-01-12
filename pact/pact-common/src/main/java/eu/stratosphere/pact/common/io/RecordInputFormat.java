@@ -1,5 +1,7 @@
 package eu.stratosphere.pact.common.io;
 
+import java.util.Arrays;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -32,7 +34,7 @@ import eu.stratosphere.pact.common.type.base.parser.FieldParser;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class RecordInputFormat extends DelimitedInputFormat {
+public class RecordInputFormat extends DelimitedInputFormat implements OutputSchemaProvider {
 
 	public static final String FILE_PARAMETER_KEY = FileInputFormat.FILE_PARAMETER_KEY;
 	
@@ -56,6 +58,7 @@ public class RecordInputFormat extends DelimitedInputFormat {
 	private FieldParser[] fieldParsers;
 	private Value[] fieldValues;
 	private int[] recordPositions;
+	private int numFields;
 		
 	private char fieldDelim;
 	
@@ -69,7 +72,7 @@ public class RecordInputFormat extends DelimitedInputFormat {
 		super.configure(config);
 		
 		// read number of fields to parse
-		int numFields = config.getInteger(NUM_FIELDS_PARAMETER, -1);
+		numFields = config.getInteger(NUM_FIELDS_PARAMETER, -1);
 		if (numFields < 1) {
 			throw new IllegalArgumentException("Invalid configuration for RecordInputFormat: " +
 					"Need to specify number of fields > 0.");
@@ -222,6 +225,24 @@ public class RecordInputFormat extends DelimitedInputFormat {
 			return -1;
 		}
 		
+	}
+
+	@Override
+	public int[] getOutputSchema() {
+		if(recordPositions == null) 
+			throw new RuntimeException("RecordInputFormat must be configured before output schema is available");
+		
+		int[] outputSchema = new int[this.numFields];
+		int j = 0;
+		
+		for(int i=0;i<recordPositions.length;i++) {
+			if(recordPositions[i] > 0) {
+				outputSchema[j++] = recordPositions[i];
+			}
+		}
+		Arrays.sort(outputSchema);
+		
+		return outputSchema;
 	}
 	
 }

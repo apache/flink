@@ -496,4 +496,9 @@ public class DataSinkNode extends OptimizerNode {
 		}
 	}
 
+	@Override
+	public void deriveOutputSchema() {
+		// DataSink has no output, do nothing
+	}
+
 }
