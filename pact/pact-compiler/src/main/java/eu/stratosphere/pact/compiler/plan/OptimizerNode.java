@@ -120,7 +120,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	protected int[] addSet; // The set of fields added to the schema by the stub
 	
 	protected int[] outputSchema; // The fields are present in the output records
-
+	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
 	private List<InterestingProperties> intProps; // the interesting properties of this node
@@ -1132,12 +1132,20 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return this.addSet;
 	}
 	
+	public int[] getStubOutCardBounds() {
+		return new int[]{this.stubOutCardLB, this.stubOutCardUB};
+	}
+	
 	public int getStubOutCardLowerBound() {
 		return this.stubOutCardLB;
 	}
 	
 	public int getStubOutCardUpperBound() {
 		return this.stubOutCardUB;
+	}
+	
+	public int[] getOutputSchema() {
+		return this.outputSchema;
 	}
 	
 	protected static final class UnclosedBranchDescriptor

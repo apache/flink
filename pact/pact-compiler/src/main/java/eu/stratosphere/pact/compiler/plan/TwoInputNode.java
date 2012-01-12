@@ -57,6 +57,10 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	private List<List<PactConnection>> inputs; // the cached list of inputs
 	
+	protected int[] keySet1; // The set of key fields for the first input (order is relevant!)
+	
+	protected int[] keySet2; // The set of key fields for the second input (order is relevant!)
+	
 	// ------------- Stub Annotations
 	
 	protected int[] readSet1; // set of fields of the first input that are read by the stub
@@ -81,6 +85,10 @@ public abstract class TwoInputNode extends OptimizerNode
 		super(pactContract);
 
 		this.inputs = new ArrayList<List<PactConnection>>(2);
+		
+		this.keySet1 = pactContract.getKeyColumnNumbers(0);
+		this.keySet2 = pactContract.getKeyColumnNumbers(1);
+		
 		readReadSetAnnotations();
 		readConstantSetAnnotations();
 	}
@@ -709,7 +717,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-	public int[] getReadSet(int input) {
+	public int[] getInputReadSet(int input) {
 		switch(input) {
 		case 0: return readSet1;
 		case 1: return readSet2;
@@ -717,7 +725,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-	public int[] getUpdateSet(int input) {
+	public int[] getInputUpdateSet(int input) {
 		switch(input) {
 		case 0: return updateSet1;
 		case 1: return updateSet2;
@@ -725,11 +733,48 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-	public int[] getConstantSet(int input) {
+	public int[] getInputConstantSet(int input) {
 		switch(input) {
 		case 0: return constantSet1;
 		case 1: return constantSet2;
 		default: throw new IndexOutOfBoundsException();
+		}
+	}
+	
+	public int[] getInputKeySet(int input) {
+		switch(input) {
+		case 0: return keySet1;
+		case 1: return keySet2;
+		default: throw new IndexOutOfBoundsException();
+		}
+	}
+	
+	public int[] getReadSet() {
+		// key set + read sets
+		if(readSet1 == null || readSet2 == null) {
+			return null;
+		}
+		int[] readSet = FieldSetOperations.unionSets(readSet1, readSet2);
+		if(keySet1 == null && keySet2 == null) {
+			return readSet;
+		} else if(keySet1 == null || keySet2 == null) {
+			throw new RuntimeException("Either both key sets must be defined or none");
+		} else {
+			int[] orderedKeySet = Arrays.copyOf(keySet1, keySet1.length);
+			Arrays.sort(orderedKeySet);
+			readSet = FieldSetOperations.unionSets(readSet, orderedKeySet);
+			orderedKeySet = Arrays.copyOf(keySet2, keySet2.length);
+			Arrays.sort(orderedKeySet);
+			readSet = FieldSetOperations.unionSets(readSet, orderedKeySet);
+			return readSet;
+		}
+	}
+	
+	public int[] getUpdateSet() {
+		if(updateSet1 == null || updateSet2 == null) {
+			return null;
+		} else {
+			return FieldSetOperations.unionSets(updateSet1, updateSet2);
 		}
 	}
 }

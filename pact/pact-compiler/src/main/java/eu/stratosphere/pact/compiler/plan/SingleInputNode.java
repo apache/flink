@@ -56,6 +56,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected int[] updateSet; // set of fields that are modified by the stub
 	
 	protected int[] constantSet; // set of fields that remain constant from input to output 
+	
+	protected int[] keySet; // The set of key fields (order is relevant!)
 
 	// ------------------------------
 	
@@ -67,6 +69,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
+		this.keySet = pactContract.getKeyColumnNumbers(0);
 		readReadSetAnnotation();
 		readConstantSetAnnotation();
 	}
@@ -405,5 +408,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	public int[] getConstantSet() {
 		return this.constantSet;
+	}
+	
+	public int[] getKeySet() {
+		return this.keySet;
 	}
 }
