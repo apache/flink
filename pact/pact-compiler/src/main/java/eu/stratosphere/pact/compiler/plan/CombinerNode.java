@@ -125,4 +125,10 @@ public class CombinerNode extends OptimizerNode {
 		}
 	}
 
+	@Override
+	public void deriveOutputSchema() {
+		// output of combiner is same as output of reduce, do nothing
+		// TODO check
+	}
+
 }

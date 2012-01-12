@@ -9,6 +9,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.junit.After;
 import org.junit.Before;
@@ -442,6 +443,30 @@ public class RecordInputFormatTest {
 		
 		assertFalse(format.nextRecord(record));
 				
+	}
+	
+	@Test
+	public void testGetOutputSchema() {
+		
+		final Configuration parameters = new Configuration();
+		parameters.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
+		parameters.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
+		parameters.setString(RecordInputFormat.RECORD_DELIMITER_PARAMETER, "\n");
+		parameters.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
+		parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
+		parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 7);
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
+		parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 1);
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 3, DecimalTextIntParser.class);
+		parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 3, 3);
+		parameters.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 4, DecimalTextIntParser.class);
+		parameters.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 4, 6);
+		
+		format.configure(parameters);
+		assertTrue(Arrays.equals(format.getOutputSchema(), new int[]{1,2,3,6,7}));
+		
 	}
 	
 	private FileInputSplit createTempFile(String content) throws IOException

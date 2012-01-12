@@ -15,30 +15,35 @@
 
 package eu.stratosphere.pact.example.relational;
 
-import java.io.IOException;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.io.RecordInputFormat;
+import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.Tuple;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
+import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -57,93 +62,21 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
+
 public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription {
-
-	/**
-	 * Serializes a PactString,PactInteger key-value-pair into a byte array.
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 *
-	 */
-	public static class StringIntOutFormat extends FileOutputFormat {
-
-		private final StringBuilder buffer = new StringBuilder();
-		private final PactString keyString = new PactString();
-		private final PactInteger valueInteger = new PactInteger();
-		
-		@Override
-		public void writeRecord(PactRecord record) throws IOException {
-			this.buffer.setLength(0);
-			this.buffer.append(record.getField(0, keyString).toString());
-			this.buffer.append('|');
-			this.buffer.append(record.getField(1, valueInteger).getValue());
-			this.buffer.append("|\n");
-			
-			byte[] bytes = this.buffer.toString().getBytes();
-			
-			this.stream.write(bytes);
-		}
-		
-	}
-	
-	/**
-	 * Map PACT implements the projection on the orders table.   
-	 */
-	public static class ProjectOrder extends MapStub {
-
-		private Tuple value = new Tuple();
-		private final PactInteger custKey = new PactInteger();
-
-		/**
-	 	 * Output Schema:
-	 	 *  Key: CUSTKEY
-	 	 *  Value: 0:ORDERKEY
-		 */
-		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
-			value = record.getField(1, value);
-			custKey.setValue((int)value.getLongValueAt(1));
-			record.clear();
-			record.setField(0, custKey);
-			out.collect(record);
-		}
-	}
-
-
-	/**
-	 * Map PACT implements the projection on the Customer table. The SameKey
-	 * OutputContract is annotated because the key does not change during
-	 * projection.
-	 *
-	 */
-	@OutputContract.Constant(0)
-	public static class ProjectCust extends MapStub {
-
-		private Tuple value = new Tuple();
-		
-		/**
-		 * Output Schema:
-		 *  Key: CUSTOMERKEY
-		 *  Value: 0:MKTSEGMENT
-		 */
-		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
-			value = record.getField(1, value);
-			PactString mktSegment = new PactString(value.getStringValueAt(6));
-			record.setField(1, mktSegment);
-			
-			out.collect(record);
-			
-		}
-	}
 
 	/**
 	 * Realizes the join between Customers and Order table.
 	 */
+	@ReadSetFirst(fields={})
+	@ReadSetSecond(fields={})
+	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Constant)
+	@ConstantSetSecond(fields={0}, setMode=ConstantSetMode.Update)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinCO extends MatchStub {
 
 		private final PactInteger oneInteger = new PactInteger(1);
-		private PactString mktSeg = new PactString();
 		
 		/**
 		 * Output Schema:
@@ -151,13 +84,10 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 *  Value: 0:PARTIAL_COUNT=1
 		 */
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out)
+		public void match(PactRecord order, PactRecord cust, Collector out)
 				throws Exception {
-			mktSeg = value2.getField(1, mktSeg);
-			value2.setField(0, mktSeg);
-			value2.setField(1, oneInteger);
-			out.collect(value2);
-			
+			cust.setField(0, oneInteger);
+			out.collect(cust);
 		}
 	}
 
@@ -168,6 +98,10 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 *
 	 */
 	@Combinable
+	@ReadSet(fields={0})
+	@ConstantSet(fields={0}, setMode=ConstantSetMode.Update)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggCO extends ReduceStub {
 
 		private final PactInteger integer = new PactInteger();
@@ -187,11 +121,11 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 
 			while (records.hasNext()) {
 				record = records.next();
-				count+=record.getField(1, integer).getValue();
+				count+=record.getField(0, integer).getValue();
 			}
 
 			integer.setValue(count);
-			record.setField(1, integer);
+			record.setField(0, integer);
 			out.collect(record);
 		}
 		
@@ -218,54 +152,61 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
-		FileDataSource orders = new FileDataSource(
-			IntTupleDataInFormat.class, ordersPath, "Orders");
-		orders.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
 		orders.setDegreeOfParallelism(noSubtasks);
-		//orders.setOutputContract(UniqueKey.class);
-		orders.getCompilerHints().setAvgNumValuesPerKey(1);
-
-		// create DataSourceContract for LineItems input
-		FileDataSource customers = new FileDataSource(
-			IntTupleDataInFormat.class, customerPath, "Customers");
-		customers.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		orders.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
+		orders.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		orders.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 1);
+		// cust id
+		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextIntParser.class);
+		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 1);
+		// compiler hints
+		orders.getCompilerHints().setAvgBytesPerRecord(5);
+		orders.getCompilerHints().setAvgNumValuesPerKey(10);
+		
+		// create DataSourceContract for Customer input
+		FileDataSource customers = new FileDataSource(RecordInputFormat.class, customerPath, "Customers");
 		customers.setDegreeOfParallelism(noSubtasks);
-		//customers.setOutputContract(UniqueKey.class);
-
-		// create MapContract for filtering Orders tuples
-		MapContract projectO = new MapContract(ProjectOrder.class, "ProjectO");
-		projectO.setDegreeOfParallelism(noSubtasks);
-		projectO.getCompilerHints().setAvgBytesPerRecord(5);
-		projectO.getCompilerHints().setAvgNumValuesPerKey(10);
-
-		// create MapContract for projecting LineItems tuples
-		MapContract projectC = new MapContract(ProjectCust.class, "ProjectC");
-		projectC.setDegreeOfParallelism(noSubtasks);
-		projectC.getCompilerHints().setAvgNumValuesPerKey(1);
-		projectC.getCompilerHints().setAvgBytesPerRecord(20);
-
+		customers.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
+		customers.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		customers.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
+		// cust id
+		customers.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextIntParser.class);
+		customers.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
+		// market segment
+		customers.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, VarLengthStringParser.class);
+		customers.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 6);
+		// compiler hints
+		customers.getCompilerHints().setAvgNumValuesPerKey(1);
+		customers.getCompilerHints().setAvgBytesPerRecord(20);
+		
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinCO = new MatchContract(JoinCO.class, PactInteger.class, 0, 0, "JoinCO");
 		joinCO.setDegreeOfParallelism(noSubtasks);
+		// compiler hints
 		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
 		// create ReduceContract for aggregating the result
-		ReduceContract aggCO = new ReduceContract(AggCO.class, PactString.class, 0, "AggCo");
+		ReduceContract aggCO = new ReduceContract(AggCO.class, PactString.class, 1, "AggCo");
 		aggCO.setDegreeOfParallelism(noSubtasks);
+		// compiler hints
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
 		aggCO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSinkContract for writing the result
-		FileDataSink result = new FileDataSink(StringIntOutFormat.class, output, "Output");
+		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, "Output");
 		result.setDegreeOfParallelism(noSubtasks);
+		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
+		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
+		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
 
 		// assemble the PACT plan
 		result.addInput(aggCO);
 		aggCO.addInput(joinCO);
-		joinCO.addFirstInput(projectO);
-		projectO.addInput(orders);
-		joinCO.addSecondInput(projectC);
-		projectC.addInput(customers);
+		joinCO.addFirstInput(orders);
+		joinCO.addSecondInput(customers);
 
 		// return the PACT plan
 		return new Plan(result, "TPCH Asterix");

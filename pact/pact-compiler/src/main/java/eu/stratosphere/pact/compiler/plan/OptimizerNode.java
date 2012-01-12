@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +32,8 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -109,8 +112,14 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	// ------------------------------------------------------------------------
 
 	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
-
-//	private final OutputContract outputContract; // the outputContract
+	
+	protected int stubOutCardLB; // The lower bound of the stubs output cardinality
+	
+	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
+	
+	protected int[] addSet; // The set of fields added to the schema by the stub
+	
+	protected int[] outputSchema; // The fields are present in the output records
 
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
@@ -171,7 +180,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.localProps = new LocalProperties();
 		this.globalProps = new GlobalProperties();
 
-//		this.outputContract = determineOutputContractFromStub();
+		this.readAddSetAnnotation();
+		this.readOutputCardBoundAnnotation();
 	}
 
 	/**
@@ -1087,7 +1097,49 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return result;
 	}
 
+	protected void readOutputCardBoundAnnotation() {
+		
+		// get readSet annotation from stub
+		OutCardBounds outCardAnnotation = pactContract.getUserCodeClass().getAnnotation(OutCardBounds.class);
+		
+		// extract addSet from annotation
+		if(outCardAnnotation == null) {
+			this.stubOutCardLB = OutCardBounds.UNKNOWN;
+			this.stubOutCardUB = OutCardBounds.UNKNOWN;
+		} else {
+			this.stubOutCardLB = outCardAnnotation.lowerBound();
+			this.stubOutCardUB = outCardAnnotation.upperBound();
+		}
+	}
+	
+	protected void readAddSetAnnotation() {
 
+		// get readSet annotation from stub
+		AddSet addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(AddSet.class);
+		
+		// extract addSet from annotation
+		if(addSetAnnotation == null) {
+			this.addSet = null;
+		} else {
+			this.addSet = addSetAnnotation.fields();
+			Arrays.sort(this.addSet);
+		}
+	}
+	
+	public abstract void deriveOutputSchema();
+
+	public int[] getAddSet() {
+		return this.addSet;
+	}
+	
+	public int getStubOutCardLowerBound() {
+		return this.stubOutCardLB;
+	}
+	
+	public int getStubOutCardUpperBound() {
+		return this.stubOutCardUB;
+	}
+	
 	protected static final class UnclosedBranchDescriptor
 	{
 		protected OptimizerNode branchingNode;

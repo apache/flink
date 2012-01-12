@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation;
 
 
 /**
@@ -27,7 +28,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
  * @param T The type of input format invoked by instances of this data source.
  */
 public class GenericDataSource<T extends InputFormat<?>> extends Contract 
-	implements OutputContractConfigurable
+	implements StubAnnotationConfigurable
 {
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Source>";
 	
@@ -62,9 +63,9 @@ public class GenericDataSource<T extends InputFormat<?>> extends Contract
 	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
 	 */
 	@Override
-	public void addOutputContract(Class<? extends Annotation> oc)
+	public void addStubAnnotation(Class<? extends Annotation> oc)
 	{
-		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
+		if (!oc.getEnclosingClass().equals(StubAnnotation.class)) {
 			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
 		}
 
@@ -75,7 +76,7 @@ public class GenericDataSource<T extends InputFormat<?>> extends Contract
 	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#getOutputContracts()
 	 */
 	@Override
-	public Class<? extends Annotation>[] getOutputContracts() {
+	public Class<? extends Annotation>[] getStubAnnotation() {
 		@SuppressWarnings("unchecked")
 		Class<? extends Annotation>[] targetArray = new Class[this.ocs.size()];
 		return (Class<? extends Annotation>[]) this.ocs.toArray(targetArray);
