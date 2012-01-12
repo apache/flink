@@ -115,20 +115,20 @@ public class StubAnnotation
 
 	/**
 	 * Specifies the update set for a stub with a single input ( {@link MapStub}, {@link ReduceStub}).
-	 * The {@link UpdateSet#setMode()} attribute specifies whether the {@link UpdateSet#fields()} attribute 
-	 * lists fields that are updated {@link UpdateSet.UpdateSetMode#Update} 
-	 * or constant (not updated) {@link UpdateSet.UpdateSetMode#Constant}. 
+	 * The {@link ConstantSet#setMode()} attribute specifies whether the {@link ConstantSet#fields()} attribute 
+	 * lists fields that are updated {@link ConstantSet.ConstantSetMode#Update} 
+	 * or constant (not updated) {@link ConstantSet.ConstantSetMode#Constant}. 
 	 * 
 	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
 	 * at the same field index <i>i</i>. 
 	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
 	 * the output record, the field must be considered to be updated.
 	 * 
-	 * It is very important the the UpdateSet contains at least all fields that are changed in order to guarantee 
-	 * correct execution of PACT programs. If the set mode is {@link UpdateSet.UpdateSetMode#Constant}, only 
+	 * It is very important the the ConstantSet contains at least all fields that are changed in order to guarantee 
+	 * correct execution of PACT programs. If the set mode is {@link ConstantSet.ConstantSetMode#Constant}, only 
 	 * those fields might be added to the field attribute which are definitely not changed!
 	 * 
-	 * If you do not specify an UpdateSet, all fields are considered to be updated.
+	 * If you do not specify an ConstantSet, all fields are considered to be updated.
 	 *
 	 */
 	@Target(ElementType.TYPE)
@@ -144,20 +144,20 @@ public class StubAnnotation
 	/**
 	 * Specifies the update set for the first input of a stub with two inputs ( {@link CrossStub}, 
 	 * {@link MatchStub}, {@link CoGroupStub}).
-	 * The {@link UpdateSetFirst#setMode()} attribute specifies whether the {@link UpdateSetFirst#fields()} 
-	 * attribute lists fields of the first input that are updated {@link UpdateSet.UpdateSetMode#Update} 
-	 * or not modified {@link UpdateSet.UpdateSetMode#Constant}. 
+	 * The {@link ConstantSetFirst#setMode()} attribute specifies whether the {@link ConstantSetFirst#fields()} 
+	 * attribute lists fields of the first input that are updated {@link ConstantSet.ConstantSetMode#Update} 
+	 * or not modified {@link ConstantSet.ConstantSetMode#Constant}. 
 	 * 
 	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
 	 * at the same field index <i>i</i>. 
 	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
 	 * the output record, the field must be considered to be updated.
 	 * 
-	 * It is very important the the UpdateSet contains at least all fields that are changed in order to guarantee 
-	 * correct execution of PACT programs. If the set mode is {@link UpdateSet.UpdateSetMode#Constant}, only 
+	 * It is very important the the ConstantSet contains at least all fields that are changed in order to guarantee 
+	 * correct execution of PACT programs. If the set mode is {@link ConstantSet.ConstantSetMode#Constant}, only 
 	 * those fields might be added to the field attribute which are definitely not changed!
 	 *
-	 * If you do not specify an UpdateSet, all fields are considered to be updated.
+	 * If you do not specify an ConstantSet, all fields are considered to be updated.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -170,20 +170,20 @@ public class StubAnnotation
 	/**
 	 * Specifies the update set for the second input of a stub with two inputs ( {@link CrossStub}, 
 	 * {@link MatchStub}, {@link CoGroupStub}).
-	 * The {@link UpdateSetSecond#setMode()} attribute specifies whether the {@link UpdateSetSecond#fields()} 
-	 * attribute lists fields of the second input that are updated {@link UpdateSet.UpdateSetMode#Update} 
-	 * or not modified {@link UpdateSet.UpdateSetMode#Constant}. 
+	 * The {@link ConstantSetSecond#setMode()} attribute specifies whether the {@link ConstantSetSecond#fields()} 
+	 * attribute lists fields of the second input that are updated {@link ConstantSet.ConstantSetMode#Update} 
+	 * or not modified {@link ConstantSet.ConstantSetMode#Constant}. 
 	 * 
 	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
 	 * at the same field index <i>i</i>. 
 	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
 	 * the output record, the field must be considered to be updated.
 	 * 
-	 * It is very important the the UpdateSet contains at least all fields that are changed in order to guarantee 
-	 * correct execution of PACT programs. If the set mode is {@link UpdateSet.UpdateSetMode#Constant}, only 
+	 * It is very important the the ConstantSet contains at least all fields that are changed in order to guarantee 
+	 * correct execution of PACT programs. If the set mode is {@link ConstantSet.ConstantSetMode#Constant}, only 
 	 * those fields might be added to the field attribute which are definitely not changed!
 	 *
-	 * If you do not specify an UpdateSet, all fields are considered to be updated.
+	 * If you do not specify an ConstantSet, all fields are considered to be updated.
 	 * 
 	 */	
 	@Target(ElementType.TYPE)
