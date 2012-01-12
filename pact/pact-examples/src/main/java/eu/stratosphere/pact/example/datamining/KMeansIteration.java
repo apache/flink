@@ -38,14 +38,14 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet.UpdateSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -349,9 +349,9 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * @author Fabian Hueske
 	 */
 	@ReadSetFirst(fields={1})
-	@UpdateSetFirst(fields={})
+	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Update)
 	@ReadSetSecond(fields={1})
-	@UpdateSetSecond(fields={}, setMode=UpdateSetMode.Constant)
+	@ConstantSetSecond(fields={}, setMode=ConstantSetMode.Constant)
 	@AddSet(fields={2,3})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class ComputeDistance extends	CrossStub
@@ -388,7 +388,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * @author Fabian Hueske
 	 */
 	@ReadSet(fields={3})
-	@UpdateSet(fields={}, setMode=UpdateSetMode.Constant)
+	@ConstantSet(fields={}, setMode=ConstantSetMode.Constant)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
@@ -480,7 +480,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 */
 	
 	@ReadSet(fields={1,2})
-	@UpdateSet(fields={1,2}, setMode=UpdateSetMode.Update)
+	@ConstantSet(fields={1,2}, setMode=ConstantSetMode.Update)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable

@@ -31,14 +31,14 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet.UpdateSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -70,8 +70,8 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@ReadSetFirst(fields={})
 	@ReadSetSecond(fields={})
-	@UpdateSetFirst(fields={}, setMode=UpdateSetMode.Constant)
-	@UpdateSetSecond(fields={0}, setMode=UpdateSetMode.Update)
+	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Constant)
+	@ConstantSetSecond(fields={0}, setMode=ConstantSetMode.Update)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinCO extends MatchStub {
@@ -99,7 +99,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@Combinable
 	@ReadSet(fields={0})
-	@UpdateSet(fields={0})
+	@ConstantSet(fields={0}, setMode=ConstantSetMode.Update)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggCO extends ReduceStub {

@@ -28,10 +28,10 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetSecond;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
@@ -82,7 +82,7 @@ public abstract class TwoInputNode extends OptimizerNode
 
 		this.inputs = new ArrayList<List<PactConnection>>(2);
 		readReadSetAnnotations();
-		readUpdateSetAnnotations();
+		readConstantSetAnnotations();
 	}
 
 	/**
@@ -624,13 +624,13 @@ public abstract class TwoInputNode extends OptimizerNode
 		} 
 	}
 	
-	protected void readUpdateSetAnnotations() {
+	protected void readConstantSetAnnotations() {
 		
 		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
 		
 		// get updateSet annotation from stub
-		UpdateSetFirst updateSet1Annotation = c.getUserCodeClass().getAnnotation(UpdateSetFirst.class);
-		UpdateSetSecond updateSet2Annotation = c.getUserCodeClass().getAnnotation(UpdateSetSecond.class);
+		ConstantSetFirst updateSet1Annotation = c.getUserCodeClass().getAnnotation(ConstantSetFirst.class);
+		ConstantSetSecond updateSet2Annotation = c.getUserCodeClass().getAnnotation(ConstantSetSecond.class);
 		
 		if(updateSet1Annotation == null) {
 			this.updateSet1 = null;

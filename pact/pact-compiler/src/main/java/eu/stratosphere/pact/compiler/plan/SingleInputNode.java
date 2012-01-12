@@ -27,8 +27,8 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
@@ -68,7 +68,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
 		readReadSetAnnotation();
-		readUpdateSetAnnotation();
+		readConstantSetAnnotation();
 	}
 
 	/**
@@ -341,12 +341,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
-	protected void readUpdateSetAnnotation() {
+	protected void readConstantSetAnnotation() {
 		
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
 		// get updateSet annotation from stub
-		UpdateSet updateSetAnnotation = c.getUserCodeClass().getAnnotation(UpdateSet.class);
+		ConstantSet updateSetAnnotation = c.getUserCodeClass().getAnnotation(ConstantSet.class);
 		
 		// extract readSet from annotation
 		if(updateSetAnnotation == null) {

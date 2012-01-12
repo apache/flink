@@ -20,7 +20,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet.UpdateSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 
 
 /**
@@ -133,11 +133,11 @@ public class StubAnnotation
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface UpdateSet
+	public @interface ConstantSet
 	{
-		public static enum UpdateSetMode {Update, Constant};	
+		public static enum ConstantSetMode {Update, Constant};	
 		
-		UpdateSetMode setMode() default UpdateSetMode.Update;
+		ConstantSetMode setMode() default ConstantSetMode.Constant;
 		int[] fields();
 	}
 	
@@ -161,9 +161,9 @@ public class StubAnnotation
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface UpdateSetFirst
+	public @interface ConstantSetFirst
 	{
-		UpdateSetMode setMode() default UpdateSetMode.Update;
+		ConstantSetMode setMode() default ConstantSetMode.Constant;
 		int[] fields();
 	}
 	
@@ -188,9 +188,9 @@ public class StubAnnotation
 	 */	
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface UpdateSetSecond
+	public @interface ConstantSetSecond
 	{
-		UpdateSetMode setMode() default UpdateSetMode.Update;
+		ConstantSetMode setMode() default ConstantSetMode.Constant;
 		int[] fields();
 	}
 	

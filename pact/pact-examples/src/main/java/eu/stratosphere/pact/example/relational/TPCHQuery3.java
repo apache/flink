@@ -37,14 +37,14 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.UpdateSet.UpdateSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -88,7 +88,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * delimiters. The parsed fields in the Pact Records are set after projection only
 	 */
 	@ReadSet(fields={2,3,4})
-	@UpdateSet(fields={0,1}, setMode=UpdateSetMode.Constant)
+	@ConstantSet(fields={0,1}, setMode=ConstantSetMode.Constant)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=0, upperBound=1)
 	public static class FilterO extends MapStub
@@ -189,8 +189,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@ReadSetFirst(fields={})
 	@ReadSetSecond(fields={})
-	@UpdateSetFirst(fields={}, setMode=UpdateSetMode.Update)
-	@UpdateSetSecond(fields={}, setMode=UpdateSetMode.Constant)
+	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Update)
+	@ConstantSetSecond(fields={}, setMode=ConstantSetMode.Constant)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinLiO extends MatchStub
@@ -223,7 +223,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Combinable
 	@ReadSet(fields={2})
-	@UpdateSet(fields={2}, setMode=UpdateSetMode.Update)
+	@ConstantSet(fields={2}, setMode=ConstantSetMode.Update)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggLiO extends ReduceStub
