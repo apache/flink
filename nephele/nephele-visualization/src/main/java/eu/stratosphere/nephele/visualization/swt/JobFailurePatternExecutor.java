@@ -15,30 +15,69 @@
 
 package eu.stratosphere.nephele.visualization.swt;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.widgets.Display;
 
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.managementgraph.ManagementGraph;
+import eu.stratosphere.nephele.managementgraph.ManagementGraphIterator;
+import eu.stratosphere.nephele.managementgraph.ManagementVertex;
+import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
+import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.util.StringUtils;
 
 public final class JobFailurePatternExecutor implements Runnable {
+
+	private static final Log LOG = LogFactory.getLog(JobFailurePatternExecutor.class);
 
 	private final Display timer;
 
 	private final JobID jobID;
 
-	private final String jobName;
+	private final ExtendedManagementProtocol jobManager;
 
-	private long offset = 0L;
+	private final Map<String, ManagementVertexID> nameToIDMap;
+
+	private final Iterator<AbstractFailureEvent> eventIterator;
+
+	private final int offset;
+
+	private AbstractFailureEvent nextEvent = null;
 
 	private boolean stopRequested = false;
 
-	private boolean executorStarted = false;
-
-	JobFailurePatternExecutor(final Display timer, final JobID jobID, final String jobName,
-			final JobFailurePattern failurePattern) {
+	JobFailurePatternExecutor(final Display timer, final ExtendedManagementProtocol jobManager,
+			final ManagementGraph managementGraph, final JobFailurePattern failurePattern, final long referenceTime) {
 
 		this.timer = timer;
-		this.jobID = jobID;
-		this.jobName = jobName;
+		this.jobManager = jobManager;
+		this.jobID = managementGraph.getJobID();
+
+		final long now = System.currentTimeMillis();
+
+		this.offset = (int) (now - referenceTime);
+
+		final Map<String, ManagementVertexID> tmpMap = new HashMap<String, ManagementVertexID>();
+		final Iterator<ManagementVertex> it = new ManagementGraphIterator(managementGraph, true);
+		while (it.hasNext()) {
+
+			final ManagementVertex vertex = it.next();
+			tmpMap.put(SWTFailurePatternsManager.getSuggestedName(vertex), vertex.getID());
+		}
+
+		this.nameToIDMap = Collections.unmodifiableMap(tmpMap);
+
+		this.eventIterator = failurePattern.iterator();
+
+		scheduleNextEvent();
 	}
 
 	/**
@@ -48,35 +87,54 @@ public final class JobFailurePatternExecutor implements Runnable {
 	public void run() {
 
 		if (this.stopRequested) {
+			LOG.info("Stopping job failure pattern executor for job " + this.jobID);
 			this.stopRequested = false;
 			return;
 		}
 
-		scheduleNextEvent();
-	}
+		LOG.info("Triggering event " + this.nextEvent.getName() + " for job " + this.jobID);
+		if (this.nextEvent instanceof VertexFailureEvent) {
 
-	public void start(final long referenceTime) {
+			// Find out the ID of the vertex to be killed
+			final ManagementVertexID vertexID = this.nameToIDMap.get(this.nextEvent.getName());
+			if (vertexID == null) {
+				LOG.error("Cannot determine ID for vertex " + this.nextEvent.getName());
+			} else {
+				try {
+					this.jobManager.cancelTask(this.jobID, vertexID);
+				} catch (IOException ioe) {
+					LOG.error(StringUtils.stringifyException(ioe));
+				}
+			}
 
-		if (this.executorStarted) {
-			throw new IllegalStateException("The executor has already been started");
+		} else {
+			try {
+				this.jobManager.killInstance(new StringRecord(this.nextEvent.getName()));
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+			}
 		}
 
-		final long now = System.currentTimeMillis();
-
-		this.executorStarted = true;
-		this.offset = now - referenceTime;
-
+		// Schedule next event
 		scheduleNextEvent();
 	}
 
 	public void stop() {
 
 		this.stopRequested = true;
-		this.executorStarted = false;
 	}
 
 	private void scheduleNextEvent() {
 
-		// TODO: Implement me
+		if (this.eventIterator.hasNext()) {
+			this.nextEvent = this.eventIterator.next();
+		} else {
+			this.nextEvent = null;
+			return;
+		}
+
+		final int interval = this.nextEvent.getInterval() - this.offset;
+
+		this.timer.timerExec(interval, this);
 	}
 }

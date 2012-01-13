@@ -302,7 +302,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		});
 
 		// Create failure patterns manager
-		this.failurePatternsManager = new SWTFailurePatternsManager(this.shell.getDisplay());
+		this.failurePatternsManager = new SWTFailurePatternsManager(this.shell.getDisplay(), jobManager);
 
 		// Launch the timer that will query for events
 		this.display.timerExec(QUERYINTERVAL * 1000, this);
@@ -451,9 +451,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				final Iterator<RecentJobEvent> it = newJobs.iterator();
 				while (it.hasNext()) {
 					final RecentJobEvent newJobEvent = it.next();
-					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable());
-					// Find a matching failure pattern and start it
-					this.failurePatternsManager.startFailurePattern(newJobEvent.getJobID(), newJobEvent.getJobName(),
+					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable(),
 						newJobEvent.getTimestamp());
 				}
 			}
@@ -527,7 +525,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		((SWTJobTabItem) control).updateView();
 	}
 
-	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable) throws IOException {
+	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable, final long referenceTime)
+			throws IOException {
 
 		synchronized (this.recentJobs) {
 
@@ -579,6 +578,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			final TreeItem jobItem = new TreeItem(jobTree, SWT.NONE);
 			jobItem.setText(jobName + " (" + jobID.toString() + ")");
 			jobItem.setData(graphVisualizationData);
+
+			// Find a matching failure pattern and start it
+			this.failurePatternsManager.startFailurePattern(jobName, managementGraph, referenceTime);
 
 			this.recentJobs.put(jobID, graphVisualizationData);
 		}
@@ -719,9 +721,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			while (mgi.hasNext()) {
 
 				final ManagementVertex vertex = mgi.next();
-				final String vertexName = (vertex.getName() != null) ? vertex.getName() : "null";
-				final String vertexNameWithIndex = vertexName + " " + (vertex.getIndexInGroup() + 1);
-				nameSuggestions.add(vertexNameWithIndex);
+				final String vertexName = SWTFailurePatternsManager.getSuggestedName(vertex);
+				nameSuggestions.add(vertexName);
 				if (vertex.getInstanceName() != null) {
 					nameSuggestions.add(vertex.getInstanceName());
 				}

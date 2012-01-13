@@ -24,7 +24,9 @@ import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
-import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.managementgraph.ManagementGraph;
+import eu.stratosphere.nephele.managementgraph.ManagementVertex;
+import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 
 public final class SWTFailurePatternsManager {
 
@@ -32,23 +34,30 @@ public final class SWTFailurePatternsManager {
 
 	private final Display display;
 
+	private final ExtendedManagementProtocol jobManager;
+
 	private Map<String, JobFailurePattern> failurePatterns = new HashMap<String, JobFailurePattern>();
 
-	public SWTFailurePatternsManager(final Display display) {
+	public SWTFailurePatternsManager(final Display display, final ExtendedManagementProtocol jobManager) {
+
 		this.display = display;
+		this.jobManager = jobManager;
 	}
 
-	public void startFailurePattern(final JobID jobID, final String jobName, final long referenceTime) {
+	public void startFailurePattern(final String jobName, final ManagementGraph managementGraph,
+			final long referenceTime) {
 
 		final JobFailurePattern failurePattern = this.failurePatterns.get(jobName);
 		if (failurePattern == null) {
-			LOG.info("No failure pattern for job " + jobName);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("No failure pattern for job " + jobName);
+			}
+			return;
 		}
 
-		final JobFailurePatternExecutor executor = new JobFailurePatternExecutor(this.display, jobID,
-			jobName, failurePattern);
+		LOG.info("Starting failure pattern for job " + jobName);
 
-		executor.start(referenceTime);
+		new JobFailurePatternExecutor(this.display, this.jobManager, managementGraph, failurePattern, referenceTime);
 	}
 
 	public void openEditor(final Shell parent, final Set<String> jobSuggestions, final Set<String> nameSuggestions) {
@@ -57,5 +66,12 @@ public final class SWTFailurePatternsManager {
 			this.failurePatterns);
 
 		editor.show();
+	}
+
+	public static String getSuggestedName(final ManagementVertex vertex) {
+
+		final String vertexName = (vertex.getName() != null) ? vertex.getName() : "null";
+
+		return vertexName + " " + (vertex.getIndexInGroup() + 1);
 	}
 }
