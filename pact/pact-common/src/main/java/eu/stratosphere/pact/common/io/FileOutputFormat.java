@@ -102,7 +102,7 @@ public abstract class FileOutputFormat<K extends Key, V extends Value> extends O
 	 * Obtains a DataOutputStream in an thread that is not interrupted.
 	 * The HDFS client is very sensitive to InterruptedExceptions.
 	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
 	 */
 	private static class OutputPathOpenThread extends Thread {
 
@@ -143,21 +143,25 @@ public abstract class FileOutputFormat<K extends Key, V extends Value> extends O
 
 				// create output file
 				synchronized (this.lock) {
-					this.lock.notifyAll();
-					
-					if (!this.canceled) {
-						this.fdos = stream;
+					if (canceled) {
+						try {stream.close(); } catch (Throwable t) {}
 					}
 					else {
-						this.fdos = null;
-						stream.close();
+						this.fdos = stream;				
 					}
+					this.lock.notifyAll();
 				}
 			}
 			catch (Exception t) {
 				synchronized (this.lock) {
-					this.canceled = true;
 					this.exception = t;
+					this.lock.notifyAll();
+				}
+			}
+			catch (Throwable t) {
+				synchronized (this.lock) {
+					this.exception = new Exception(t);
+					this.lock.notifyAll();
 				}
 			}
 		}
@@ -168,42 +172,28 @@ public abstract class FileOutputFormat<K extends Key, V extends Value> extends O
 			long start = System.currentTimeMillis();
 			long remaining = this.timeoutMillies;
 			
-			if (this.exception != null) {
-				throw this.exception;
-			}
-			if (this.fdos != null) {
-				return this.fdos;
-			}
-			
 			synchronized (this.lock) {
-				do {
-					try {
+				boolean success = false;
+				try {
+					while (this.exception == null && this.fdos == null &&
+							(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0)
+					{
 						this.lock.wait(remaining);
 					}
-					catch (InterruptedException iex) {
-						this.canceled = true;
-						if (this.fdos != null) {
-							try  {
-								this.fdos.close();
-							} catch (Throwable t) {}
-						}
-						throw new Exception("Output Path Opener was interrupted.");
-					}
-				}
-				while (this.exception == null && this.fdos == null &&
-						(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
-			
-				if (this.exception != null) {
-					if (this.fdos != null) {
-						try  {
-							this.fdos.close();
-						} catch (Throwable t) {}
-					}
-					throw this.exception;
-				}
 				
-				if (this.fdos != null) {
-					return this.fdos;
+					if (this.exception != null) {
+						throw this.exception;
+					}
+						
+					if (this.fdos != null) {
+						success = true;
+						return this.fdos;
+					}
+				}
+				finally {
+					if (!success) {
+						this.canceled = true;
+					}
 				}
 			}
 			
