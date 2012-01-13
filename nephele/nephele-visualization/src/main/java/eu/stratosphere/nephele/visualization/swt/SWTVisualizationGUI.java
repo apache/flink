@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -706,10 +705,30 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private void manageFailurePatterns() {
 
-		// TODO: Replace empty set by sensible suggestions
-		final Set<String> emptySet = Collections.emptySet();
+		final Set<String> jobSuggestions = new HashSet<String>();
+		final Set<String> nameSuggestions = new HashSet<String>();
 
-		this.failurePatternsManager.openEditor(this.shell, emptySet, emptySet);
+		final Iterator<GraphVisualizationData> it = this.recentJobs.values().iterator();
+		while (it.hasNext()) {
+
+			final GraphVisualizationData gvd = it.next();
+
+			jobSuggestions.add(gvd.getJobName());
+
+			final ManagementGraphIterator mgi = new ManagementGraphIterator(gvd.getManagementGraph(), true);
+			while (mgi.hasNext()) {
+
+				final ManagementVertex vertex = mgi.next();
+				final String vertexName = (vertex.getName() != null) ? vertex.getName() : "null";
+				final String vertexNameWithIndex = vertexName + " " + (vertex.getIndexInGroup() + 1);
+				nameSuggestions.add(vertexNameWithIndex);
+				if (vertex.getInstanceName() != null) {
+					nameSuggestions.add(vertex.getInstanceName());
+				}
+			}
+		}
+
+		this.failurePatternsManager.openEditor(this.shell, jobSuggestions, nameSuggestions);
 	}
 
 	private void logBufferUtilization() {

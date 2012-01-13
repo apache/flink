@@ -267,9 +267,9 @@ public final class SWTFailureEventTable extends Composite {
 
 		final Menu tableContextMenu = new Menu(getShell());
 
-		final MenuItem createItem = new MenuItem(tableContextMenu, SWT.PUSH);
-		createItem.setText("Create...");
-		createItem.addSelectionListener(new SelectionAdapter() {
+		final MenuItem addItem = new MenuItem(tableContextMenu, SWT.PUSH);
+		addItem.setText("Add...");
+		addItem.addSelectionListener(new SelectionAdapter() {
 
 			@Override
 			public void widgetSelected(final SelectionEvent arg0) {
