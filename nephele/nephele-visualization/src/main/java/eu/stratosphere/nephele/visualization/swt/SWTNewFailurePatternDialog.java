@@ -86,7 +86,7 @@ public final class SWTNewFailurePatternDialog {
 
 		this.shell = new Shell(parent);
 		this.shell.setSize(WIDTH, HEIGHT);
-		this.shell.setText("Create New Failure Pattern");
+		this.shell.setText("Add New Failure Pattern");
 		this.shell.setLayout(new GridLayout(1, false));
 
 		GridData gridData = new GridData();

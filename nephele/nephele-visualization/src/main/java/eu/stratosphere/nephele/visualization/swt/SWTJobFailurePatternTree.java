@@ -183,5 +183,7 @@ public final class SWTJobFailurePatternTree extends Composite {
 		final TreeItem jobFailureItem = new TreeItem(this.jobTree, SWT.NONE);
 		jobFailureItem.setText(failurePattern.getName());
 		jobFailureItem.setData(failurePattern);
+		
+		this.jobTree.setSelection(jobFailureItem);
 	}
 }

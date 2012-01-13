@@ -85,9 +85,9 @@ public final class SWTFailureEventEditor {
 		// Determine the correct title for the window
 		String title = null;
 		if (failureEvent == null) {
-			title = "Create new failure event";
+			title = "Add Failure Event";
 		} else {
-			title = "Edit failure event";
+			title = "Edit Failure Event";
 		}
 
 		this.shell.setText(title);

@@ -215,7 +215,9 @@ public final class SWTFailurePatternsEditor implements JobFailurePatternTreeList
 		if (this.jobTree.getItemCount() == 0) {
 			jobFailurePatternSelected(null);
 		} else {
-			jobFailurePatternSelected(this.jobTree.getItem(0));
+			final TreeItem ti = this.jobTree.getItem(0);
+			this.jobTree.setSelection(ti);
+			jobFailurePatternSelected(ti);
 		}
 	}
 
@@ -287,7 +289,7 @@ public final class SWTFailurePatternsEditor implements JobFailurePatternTreeList
 		} catch (Exception e) {
 
 			final MessageBox messageBox = new MessageBox(this.shell, SWT.ICON_ERROR);
-			messageBox.setText("Cannot load failure pattern");
+			messageBox.setText("Cannot Save Failure Pattern");
 			messageBox.setMessage(e.getMessage());
 			messageBox.open();
 		}
@@ -322,7 +324,7 @@ public final class SWTFailurePatternsEditor implements JobFailurePatternTreeList
 		if (this.loadedPatterns.containsKey(failurePattern.getName())) {
 
 			final MessageBox messageBox = new MessageBox(this.shell, SWT.ICON_ERROR);
-			messageBox.setText("Cannot load failure pattern");
+			messageBox.setText("Cannot Load Failure Pattern");
 			messageBox.setMessage("There is already a failure pattern loaded with the name '"
 				+ failurePattern.getName() + "'. Please remove it first.");
 			messageBox.open();
@@ -493,7 +495,7 @@ public final class SWTFailurePatternsEditor implements JobFailurePatternTreeList
 		} catch (Exception e) {
 
 			final MessageBox messageBox = new MessageBox(this.shell, SWT.ICON_ERROR);
-			messageBox.setText("Cannot load failure pattern");
+			messageBox.setText("Cannot Load Failure Pattern");
 			messageBox.setMessage(e.getMessage());
 			messageBox.open();
 			return null;
