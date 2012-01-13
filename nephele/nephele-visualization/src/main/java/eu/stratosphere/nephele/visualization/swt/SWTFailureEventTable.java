@@ -15,11 +15,14 @@
 
 package eu.stratosphere.nephele.visualization.swt;
 
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyAdapter;
 import org.eclipse.swt.events.KeyEvent;
@@ -29,9 +32,12 @@ import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
@@ -41,11 +47,21 @@ import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
 
+import eu.stratosphere.nephele.util.StringUtils;
+
 public final class SWTFailureEventTable extends Composite {
+
+	private static final Log LOG = LogFactory.getLog(SWTFailureEventTable.class);
+
+	private static final int DEFAULT_ICON_SIZE = 16;
 
 	private static final int ICON_COLUMN_WIDTH = 20;
 
 	private static final int TEXT_COLUMN_WIDTH = 200;
+
+	private static Image TASK_ICON = null;
+
+	private static Image INSTANCE_ICON = null;
 
 	private final Table failureEventTable;
 
@@ -55,6 +71,18 @@ public final class SWTFailureEventTable extends Composite {
 
 	public SWTFailureEventTable(final Composite parent, final int style, final Set<String> nameSuggestions) {
 		super(parent, SWT.NONE);
+
+		// Load images
+		synchronized (SWTFailureEventTable.class) {
+
+			if (TASK_ICON == null) {
+				TASK_ICON = loadIcon("/eu/stratosphere/nephele/visualization/swt/taskicon.png");
+			}
+
+			if (INSTANCE_ICON == null) {
+				INSTANCE_ICON = loadIcon("/eu/stratosphere/nephele/visualization/swt/nodeicon.png");
+			}
+		}
 
 		this.nameSuggestions = nameSuggestions;
 
@@ -185,6 +213,25 @@ public final class SWTFailureEventTable extends Composite {
 		this.failureEventTable.setMenu(createTableContextMenu());
 	}
 
+	private Image loadIcon(final String path) {
+
+		final Display display = getDisplay();
+		final InputStream in = getClass().getResourceAsStream(path);
+		try {
+			return new Image(display, in);
+		} catch (Exception e) {
+			LOG.warn(StringUtils.stringifyException(e));
+		}
+
+		final Image image = new Image(display, DEFAULT_ICON_SIZE, DEFAULT_ICON_SIZE);
+		final GC gc = new GC(image);
+		gc.setBackground(display.getSystemColor(SWT.COLOR_WHITE));
+		gc.fillRectangle(image.getBounds());
+		gc.dispose();
+
+		return image;
+	}
+
 	private void updateTableItem(TableItem ti, final AbstractFailureEvent event) {
 
 		boolean newItemCreated = false;
@@ -199,9 +246,9 @@ public final class SWTFailureEventTable extends Composite {
 
 		if (event != null) {
 			if (event instanceof VertexFailureEvent) {
-				ti.setText(0, "T");
+				ti.setImage(TASK_ICON);
 			} else {
-				ti.setText(0, "I");
+				ti.setImage(INSTANCE_ICON);
 			}
 
 			ti.setText(1, event.getName());
