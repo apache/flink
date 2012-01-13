@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Map;
@@ -23,11 +24,14 @@ import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
-import org.eclipse.swt.events.MenuAdapter;
-import org.eclipse.swt.events.MenuEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.FillLayout;
@@ -39,18 +43,15 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
-import org.eclipse.swt.widgets.Menu;
-import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-public final class SWTFailurePatternsEditor extends SelectionAdapter {
+public final class SWTFailurePatternsEditor implements JobFailurePatternTreeListener {
 
 	private static final int WIDTH = 800;
 
@@ -58,7 +59,7 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 
 	private final Shell shell;
 
-	private final Tree jobTree;
+	private final SWTJobFailurePatternTree jobTree;
 
 	private final SWTFailureEventTable failureEventTable;
 
@@ -103,9 +104,7 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		jobGroup.setText("Job Failure Patterns");
 		jobGroup.setLayout(new FillLayout());
 
-		this.jobTree = new Tree(jobGroup, SWT.SINGLE | SWT.BORDER);
-		this.jobTree.addSelectionListener(this);
-		this.jobTree.setMenu(createTreeContextMenu());
+		this.jobTree = new SWTJobFailurePatternTree(jobGroup, SWT.SINGLE | SWT.BORDER, this);
 
 		this.failureEventTable = new SWTFailureEventTable(horizontalSash, SWT.BORDER | SWT.SINGLE, nameSuggestions);
 		horizontalSash.setWeights(new int[] { 2, 8 });
@@ -139,7 +138,7 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 
 		final Iterator<JobFailurePattern> it = this.loadedPatterns.values().iterator();
 		while (it.hasNext()) {
-			addFailurePatternToTree(it.next());
+			this.jobTree.addFailurePatternToTree(it.next());
 		}
 
 		// Initialize the tables
@@ -170,71 +169,8 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		return this.loadedPatterns;
 	}
 
-	private Menu createTreeContextMenu() {
-
-		final Menu treeContextMenu = new Menu(this.shell);
-		final MenuItem createItem = new MenuItem(treeContextMenu, SWT.PUSH);
-		createItem.setText("Create...");
-		createItem.addSelectionListener(new SelectionAdapter() {
-
-			@Override
-			public void widgetSelected(final SelectionEvent arg0) {
-				createNewFailurePattern();
-			}
-		});
-		new MenuItem(treeContextMenu, SWT.SEPARATOR);
-		final MenuItem deleteItem = new MenuItem(treeContextMenu, SWT.PUSH);
-		deleteItem.setText("Delete...");
-		deleteItem.addSelectionListener(new SelectionAdapter() {
-
-			@Override
-			public void widgetSelected(final SelectionEvent arg0) {
-				deleteFailurePattern();
-			}
-		});
-		new MenuItem(treeContextMenu, SWT.SEPARATOR);
-		final MenuItem saveItem = new MenuItem(treeContextMenu, SWT.PUSH);
-		saveItem.setText("Save...");
-		saveItem.addSelectionListener(new SelectionAdapter() {
-
-			@Override
-			public void widgetSelected(final SelectionEvent arg0) {
-				saveFailurePattern();
-			}
-		});
-		final MenuItem loadItem = new MenuItem(treeContextMenu, SWT.PUSH);
-		loadItem.setText("Load...");
-		loadItem.addSelectionListener(new SelectionAdapter() {
-
-			@Override
-			public void widgetSelected(final SelectionEvent arg0) {
-				loadFailurePattern();
-			}
-		});
-
-		treeContextMenu.addMenuListener(new MenuAdapter() {
-
-			@Override
-			public void menuShown(final MenuEvent arg0) {
-
-				if (jobTree.getSelection().length == 0) {
-					createItem.setEnabled(true);
-					deleteItem.setEnabled(false);
-					saveItem.setEnabled(false);
-					loadItem.setEnabled(true);
-				} else {
-					createItem.setEnabled(false);
-					deleteItem.setEnabled(true);
-					saveItem.setEnabled(true);
-					loadItem.setEnabled(false);
-				}
-			}
-		});
-
-		return treeContextMenu;
-	}
-
-	private void createNewFailurePattern() {
+	@Override
+	public void addFailurePattern() {
 
 		final Set<String> takenNames = this.loadedPatterns.keySet();
 
@@ -251,19 +187,125 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 		// Add to loaded patterns
 		this.loadedPatterns.put(jobFailurePattern.getName(), jobFailurePattern);
 
-		addFailurePatternToTree(jobFailurePattern);
+		this.jobTree.addFailurePatternToTree(jobFailurePattern);
 		this.failureEventTable.showFailurePattern(jobFailurePattern);
 	}
 
-	private void deleteFailurePattern() {
-		// TODO: Implement me
+	@Override
+	public void removeFailurePattern(final TreeItem selectedItem) {
+
+		final JobFailurePattern failurePattern = (JobFailurePattern) selectedItem.getData();
+		if (failurePattern == null) {
+			return;
+		}
+
+		final MessageBox messageBox = new MessageBox(this.shell, SWT.ICON_QUESTION | SWT.YES | SWT.NO);
+		messageBox.setText("Confirm Removal");
+		messageBox
+			.setMessage("Do you really want to remove the job failure pattern '" + failurePattern.getName() + "'?");
+
+		if (messageBox.open() != SWT.YES) {
+			return;
+		}
+
+		selectedItem.dispose();
+
+		this.loadedPatterns.remove(failurePattern.getName());
+
+		if (this.jobTree.getItemCount() == 0) {
+			jobFailurePatternSelected(null);
+		} else {
+			jobFailurePatternSelected(this.jobTree.getItem(0));
+		}
 	}
 
-	private void saveFailurePattern() {
-		// TODO: Implement me
+	@Override
+	public void saveFailurePattern(final TreeItem selectedItem) {
+
+		final JobFailurePattern failurePattern = (JobFailurePattern) selectedItem.getData();
+		if (failurePattern == null) {
+			return;
+		}
+
+		final FileDialog fileDialog = new FileDialog(this.shell, SWT.SAVE);
+		fileDialog.setText("Save Failure Pattern");
+		final String[] filterExts = { "*.xml", "*.*" };
+		fileDialog.setFilterExtensions(filterExts);
+
+		final String selectedFile = fileDialog.open();
+		if (selectedFile == null) {
+			return;
+		}
+
+		final DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
+
+		try {
+			final DocumentBuilder builder = docBuilderFactory.newDocumentBuilder();
+
+			final Document doc = builder.newDocument();
+
+			// Construct the DOM tree
+			final Element root = doc.createElement("pattern");
+			doc.appendChild(root);
+
+			final Element name = doc.createElement("name");
+			root.appendChild(name);
+			name.appendChild(doc.createTextNode(failurePattern.getName()));
+
+			final Element failures = doc.createElement("failures");
+			root.appendChild(failures);
+
+			final Iterator<AbstractFailureEvent> it = failurePattern.iterator();
+			while (it.hasNext()) {
+
+				final AbstractFailureEvent event = it.next();
+
+				final Element failure = doc.createElement("failure");
+				failure.setAttribute("type", (event instanceof VertexFailureEvent) ? "task" : "instance");
+
+				final Element failureName = doc.createElement("name");
+				failureName.appendChild(doc.createTextNode(event.getName()));
+				failure.appendChild(failureName);
+
+				final Element interval = doc.createElement("interval");
+				interval.appendChild(doc.createTextNode(Integer.toString(event.getInterval())));
+				failure.appendChild(interval);
+
+				failures.appendChild(failure);
+			}
+
+			// Write the DOM tree to the chosen file
+			final DOMSource domSource = new DOMSource(doc);
+			final TransformerFactory transformerFactory = TransformerFactory.newInstance();
+
+			final FileOutputStream fos = new FileOutputStream(selectedFile);
+			final Transformer transformer = transformerFactory.newTransformer();
+			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+			transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+			transformer.transform(domSource, new StreamResult(fos));
+
+		} catch (Exception e) {
+
+			final MessageBox messageBox = new MessageBox(this.shell, SWT.ICON_ERROR);
+			messageBox.setText("Cannot load failure pattern");
+			messageBox.setMessage(e.getMessage());
+			messageBox.open();
+		}
+
 	}
 
-	private void loadFailurePattern() {
+	@Override
+	public void jobFailurePatternSelected(final TreeItem selectedItem) {
+
+		if (selectedItem == null) {
+			this.failureEventTable.showFailurePattern(null);
+		} else {
+			this.failureEventTable.showFailurePattern((JobFailurePattern) selectedItem.getData());
+		}
+	}
+
+	@Override
+	public void loadFailurePattern() {
 
 		final FileDialog fileDialog = new FileDialog(this.shell, SWT.OPEN);
 		fileDialog.setText("Load Failure Pattern");
@@ -290,15 +332,8 @@ public final class SWTFailurePatternsEditor extends SelectionAdapter {
 
 		this.loadedPatterns.put(failurePattern.getName(), failurePattern);
 
-		addFailurePatternToTree(failurePattern);
+		this.jobTree.addFailurePatternToTree(failurePattern);
 		this.failureEventTable.showFailurePattern(failurePattern);
-	}
-
-	private void addFailurePatternToTree(final JobFailurePattern failurePattern) {
-
-		final TreeItem jobFailureItem = new TreeItem(this.jobTree, SWT.NONE);
-		jobFailureItem.setText(failurePattern.getName());
-		jobFailureItem.setData(failurePattern);
 	}
 
 	private JobFailurePattern loadFailurePatternFromFile(final String filename) {

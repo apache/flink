@@ -401,7 +401,7 @@ public final class SWTFailureEventTable extends Composite {
 	public void showFailurePattern(final JobFailurePattern jobFailurePattern) {
 
 		// Clear old content from event table
-		this.failureEventTable.clearAll();
+		this.failureEventTable.removeAll();
 
 		if (jobFailurePattern == null) {
 			this.failureEventTable.setEnabled(false);
