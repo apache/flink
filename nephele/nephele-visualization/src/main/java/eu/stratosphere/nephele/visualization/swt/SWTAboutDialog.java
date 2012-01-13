@@ -35,7 +35,7 @@ public class SWTAboutDialog {
 
 	private final Color white;
 
-	private static final String ABOUT_TEXT = "This software is part of the Stratosphere project, \u00a9 2010-2011\r\n\r\n";
+	private static final String ABOUT_TEXT = "This software is part of the Stratosphere project, \u00a9 2010-2012\r\n\r\n";
 
 	private static final String URL_TEXT = "For more information, please visit <A>http://www.stratosphere.eu/</A>.\r\n";
 
