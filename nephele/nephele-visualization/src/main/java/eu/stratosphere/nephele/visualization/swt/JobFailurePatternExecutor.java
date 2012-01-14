@@ -101,7 +101,7 @@ public final class JobFailurePatternExecutor implements Runnable {
 				LOG.error("Cannot determine ID for vertex " + this.nextEvent.getName());
 			} else {
 				try {
-					this.jobManager.cancelTask(this.jobID, vertexID);
+					this.jobManager.killTask(this.jobID, vertexID);
 				} catch (IOException ioe) {
 					LOG.error(StringUtils.stringifyException(ioe));
 				}

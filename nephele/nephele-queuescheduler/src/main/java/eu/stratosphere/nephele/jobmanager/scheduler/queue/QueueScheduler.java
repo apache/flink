@@ -250,6 +250,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 	/**
 	 * {@inheritDoc}
 	 */
+	@Override
 	public void shutdown() {
 
 		synchronized (this.jobQueue) {

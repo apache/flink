@@ -396,7 +396,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		return -1;
 	}
 
-	public void cancelTask(JobID jobId, ManagementVertexID id, String vertexName) {
+	public void killTask(JobID jobId, ManagementVertexID id, String vertexName) {
 
 		final MessageBox messageBox = new MessageBox(getShell(), SWT.YES | SWT.NO | SWT.ICON_QUESTION);
 		messageBox.setText("Confirmation");
@@ -406,7 +406,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		}
 
 		try {
-			this.jobManager.cancelTask(jobId, id);
+			this.jobManager.killTask(jobId, id);
 		} catch (IOException ioe) {
 			final MessageBox errorBox = new MessageBox(getShell(), SWT.ICON_ERROR);
 			errorBox.setText("Error");

@@ -888,7 +888,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void cancelTask(final JobID jobID, final ManagementVertexID id) throws IOException {
+	public void killTask(final JobID jobID, final ManagementVertexID id) throws IOException {
 		// TODO Auto-generated method stub
 		LOG.debug("Cancelling job " + jobID);
 	}
