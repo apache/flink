@@ -315,13 +315,13 @@ public class DataSinkTask extends AbstractOutputTask
 	/**
 	 * Utility function that composes a string for logging purposes. The string includes the given message and
 	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
+	 * 
 	 * @param message The main message for the log.
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message)
 	{
-		StringBuilder bld = new StringBuilder(128);	
+		StringBuilder bld = new StringBuilder(128);
 		bld.append(message);
 		bld.append(':').append(' ');
 		bld.append(this.getEnvironment().getTaskName());
