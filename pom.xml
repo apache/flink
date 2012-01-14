@@ -356,11 +356,7 @@
 					<dependency>
 						<groupId>eu.stratosphere</groupId>
 						<artifactId>build-tools</artifactId>
-<<<<<<< HEAD
 						<version>0.2</version>
-=======
-						<version>0.1.2</version>
->>>>>>> master
 					</dependency>
 				</dependencies>
 			</plugin>
