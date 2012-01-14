@@ -28,20 +28,21 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.io.input.TextInputFormat;
-import eu.stratosphere.pact.common.io.output.TextOutputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
+import eu.stratosphere.pact.test.contracts.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.pact.test.util.TestBase;
 
 /**
@@ -101,45 +102,28 @@ public class MatchITCase extends TestBase
 
 	}
 
-	public static class MatchTestInFormat extends TextInputFormat<PactString, PactString> {
+	public static class TestMatcher extends MatchStub {
 
+		private PactString keyString = new PactString();
+		private PactString valueString = new PactString();
+		
 		@Override
-		public boolean readLine(KeyValuePair<PactString, PactString> pair, byte[] line) {
-
-			pair.setKey(new PactString(new String((char) line[0] + "")));
-			pair.setValue(new PactString(new String((char) line[2] + "")));
-
-			LOG.debug("Read in: [" + pair.getKey() + "," + pair.getValue() + "]");
-			return true;
-		}
-	}
-
-	public static class MatchTestOutFormat extends TextOutputFormat<PactString, PactInteger> {
-
-		@Override
-		public byte[] writeLine(KeyValuePair<PactString, PactInteger> pair) {
-
-			LOG.debug("Writing out: [" + pair.getKey() + "," + pair.getValue() + "]");
-
-			return (pair.getKey().toString() + " " + pair.getValue().toString() + "\n").getBytes();
-		}
-	}
-
-	public static class TestMatcher extends MatchStub<PactString, PactString, PactString, PactString, PactInteger> {
-
-		@Override
-		public void match(PactString key, PactString value1, PactString value2, Collector<PactString, PactInteger> out) {
+		public void match(PactRecord value1, PactRecord value2, Collector out)
+				throws Exception {
+			keyString = value1.getField(0, keyString);
+			keyString.setValue(""+ (Integer.parseInt(keyString.getValue())+1));
+			value1.setField(0, keyString);
+			valueString = value1.getField(1, valueString);
+			int val1 = Integer.parseInt(valueString.getValue())+2;
+			valueString = value2.getField(1, valueString);
+			int val2 = Integer.parseInt(valueString.getValue())+1;
 			
-			key.setValue(""+(Integer.parseInt(key.getValue())+1));
-			value1.setValue(""+(Integer.parseInt(value1.getValue())+2));
-			value2.setValue(""+(Integer.parseInt(value2.getValue())+1));
+			value1.setField(1, new PactInteger(val1 - val2));
 			
-			out
-					.collect(key, new PactInteger(Integer.parseInt(value1.toString())
-							- Integer.parseInt(value2.toString())));
-
-			LOG.debug("Processed: [" + key + "," + value1 + "] + [" + key + "," + value2 + "]");
+			out.collect(value1);
 			
+			LOG.debug("Processed: [" + keyString.toString() + "," + val1 + "] + " +
+					"[" + keyString.toString() + "," + val2 + "]");
 		}
 
 	}
@@ -149,18 +133,17 @@ public class MatchITCase extends TestBase
 
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
-		FileDataSourceContract<PactString, PactString> input_left = new FileDataSourceContract<PactString, PactString>(
-				MatchTestInFormat.class, pathPrefix + "/match_left");
-		input_left.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input_left = new FileDataSource(
+				ContractITCaseInputFormat.class, pathPrefix + "/match_left");
+		input_left.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_left.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
-		FileDataSourceContract<PactString, PactString> input_right = new FileDataSourceContract<PactString, PactString>(
-				MatchTestInFormat.class, pathPrefix + "/match_right");
-		input_right.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource input_right = new FileDataSource(
+				ContractITCaseInputFormat.class, pathPrefix + "/match_right");
+		input_right.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
-		MatchContract<PactString, PactString, PactString, PactString, PactInteger> testMatcher = new MatchContract<PactString, PactString, PactString, PactString, PactInteger>(
-				TestMatcher.class);
+		MatchContract testMatcher = new MatchContract(TestMatcher.class, PactString.class, 0, 0);
 		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 		testMatcher.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("MatchTest#LocalStrategy", ""));
@@ -179,13 +162,13 @@ public class MatchITCase extends TestBase
 					config.getString("MatchTest#ShipStrategy", ""));
 		}
 
-		FileDataSinkContract<PactString, PactInteger> output = new FileDataSinkContract<PactString, PactInteger>(
-				MatchTestOutFormat.class, pathPrefix + "/result.txt");
+		FileDataSink output = new FileDataSink(
+				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testMatcher);
-		testMatcher.setFirstInput(input_left);
-		testMatcher.setSecondInput(input_right);
+		output.addInput(testMatcher);
+		testMatcher.addFirstInput(input_left);
+		testMatcher.addSecondInput(input_right);
 
 		Plan plan = new Plan(output);
 

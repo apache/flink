@@ -24,8 +24,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
-import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.services.ServiceException;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -50,8 +48,6 @@ public class SpillingResettableIteratorTest {
 
 	private List<PactInteger> objects;
 
-	private RecordDeserializer<PactInteger> deserializer;
-
 
 	@Before
 	public void startup() {
@@ -66,13 +62,10 @@ public class SpillingResettableIteratorTest {
 			PactInteger tmp = new PactInteger(i);
 			this.objects.add(tmp);
 		}
-		// create the deserializer
-		this.deserializer = new DefaultRecordDeserializer<PactInteger>(PactInteger.class);
 	}
 
 	@After
 	public void shutdown() {
-		this.deserializer = null;
 		this.objects = null;
 
 		this.ioman.shutdown();
@@ -100,11 +93,11 @@ public class SpillingResettableIteratorTest {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
-		reader = new CollectionIterator<PactInteger>(objects);
+		reader = objects.iterator();
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS,
-			deserializer, memOwner);
+			reader, new PactInteger(),
+			SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -144,11 +137,11 @@ public class SpillingResettableIteratorTest {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
-		reader = new CollectionIterator<PactInteger>(objects);
+		reader = objects.iterator();
 		// create the resettable iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS * 10,
-			deserializer, memOwner);
+			reader, new PactInteger(), 
+			SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS * 10, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -184,11 +177,11 @@ public class SpillingResettableIteratorTest {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
-		reader = new CollectionIterator<PactInteger>(objects);
+		reader = objects.iterator();
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS,
-			deserializer, memOwner);
+			reader, new PactInteger(),
+			SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -220,11 +213,11 @@ public class SpillingResettableIteratorTest {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
-		reader = new CollectionIterator<PactInteger>(objects);
+		reader = objects.iterator();
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS,
-			deserializer, memOwner);
+			reader, new PactInteger(),
+			SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -254,11 +247,11 @@ public class SpillingResettableIteratorTest {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
-		reader = new CollectionIterator<PactInteger>(objects);
+		reader = objects.iterator();
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS,
-			deserializer, memOwner);
+			reader, new PactInteger(), 
+			SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -279,8 +272,6 @@ public class SpillingResettableIteratorTest {
 			Assert.assertTrue("Record read with next() does not equal expected value", record1.equals(compare));
 			Assert.assertTrue("Record read with next() does not equal record read with lastReturned()",
 				record1.equals(record2));
-			Assert.assertTrue("Records read with next() and lastReturned have same reference", record1 != record2);
-
 			cnt++;
 		}
 
@@ -298,11 +289,11 @@ public class SpillingResettableIteratorTest {
 		final AbstractInvokable memOwner = new DummyInvokable();
 
 		// create the reader
-		reader = new CollectionIterator<PactInteger>(objects);
+		reader = objects.iterator();
 		// create the resettable Iterator
 		SpillingResettableIterator<PactInteger> iterator = new SpillingResettableIterator<PactInteger>(memman, ioman,
-			reader, SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS * 10,
-			deserializer, memOwner);
+			reader, new PactInteger(),
+			SpillingResettableIterator.MIN_BUFFER_SIZE * SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS * 10, memOwner);
 		// open the iterator
 		try {
 			iterator.open();
@@ -323,8 +314,6 @@ public class SpillingResettableIteratorTest {
 			Assert.assertTrue("Record read with next() does not equal expected value", record1.equals(compare));
 			Assert.assertTrue("Record read with next() does not equal record read with lastReturned()",
 				record1.equals(record2));
-			Assert.assertTrue("Records read with next() and lastReturned have same reference", record1 != record2);
-
 			cnt++;
 		}
 
@@ -333,5 +322,4 @@ public class SpillingResettableIteratorTest {
 
 		iterator.close();
 	}
-
 }

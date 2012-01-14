@@ -16,14 +16,13 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-public class DiscardingOutputCollector<K extends Key, V extends Value> implements Collector<K, V>
+public class DiscardingOutputCollector implements Collector
 {
 	@Override
-	public void collect(K key, V value) {}
+	public void collect(PactRecord rec) {}
 
 	@Override
 	public void close() {}

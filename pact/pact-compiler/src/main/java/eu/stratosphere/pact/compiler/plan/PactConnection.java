@@ -151,7 +151,7 @@ public class PactConnection {
 	 * @return The source Node.
 	 */
 	public OptimizerNode getSourcePact() {
-		return sourcePact;
+		return this.sourcePact;
 	}
 
 	/**
@@ -160,7 +160,7 @@ public class PactConnection {
 	 * @return The target node.
 	 */
 	public OptimizerNode getTargetPact() {
-		return targetPact;
+		return this.targetPact;
 	}
 
 	/**
@@ -169,7 +169,7 @@ public class PactConnection {
 	 * @return The connection's shipping strategy.
 	 */
 	public ShipStrategy getShipStrategy() {
-		return shipStrategy;
+		return this.shipStrategy;
 	}
 
 	/**
@@ -180,7 +180,7 @@ public class PactConnection {
 	 */
 	public void setShipStrategy(ShipStrategy strategy) {
 		// adjust the ship strategy to the interesting properties, if necessary
-		if (strategy == ShipStrategy.FORWARD && sourcePact.getDegreeOfParallelism() < targetPact.getDegreeOfParallelism()) {
+		if (strategy == ShipStrategy.FORWARD && this.sourcePact.getDegreeOfParallelism() < this.targetPact.getDegreeOfParallelism()) {
 			// check, whether we have an interesting property on partitioning. if so, make sure that we use a
 			// forward strategy that preserves that partitioning by locally routing the keys correctly
 			if (this.interestingProps != null) {
@@ -202,7 +202,7 @@ public class PactConnection {
 		// TODO: replication factor must be propagated until resolved by PACT code (i.e. Match or Cross)
 		switch (strategy) {
 			case BROADCAST:
-				this.replicationFactor = targetPact.getDegreeOfParallelism();
+				this.replicationFactor = this.targetPact.getDegreeOfParallelism();
 				break;
 			case SFR:
 				throw new CompilerException("SFR Shipping Strategy not supported yet.");
@@ -223,7 +223,7 @@ public class PactConnection {
 	 * @return The collection of all interesting properties, or null, if they have not yet been set.
 	 */
 	public List<InterestingProperties> getInterestingProperties() {
-		return interestingProps;
+		return this.interestingProps;
 	}
 
 	/**
@@ -270,7 +270,7 @@ public class PactConnection {
 	 * @return TempMode of the connection
 	 */
 	public TempMode getTempMode() {
-		return tempMode;
+		return this.tempMode;
 	}
 
 	/**
@@ -298,7 +298,7 @@ public class PactConnection {
 	 * @return The global data properties of the output data.
 	 */
 	public GlobalProperties getGlobalProperties() {
-		return PactConnection.getGlobalPropertiesAfterConnection(sourcePact, targetPact, shipStrategy);
+		return PactConnection.getGlobalPropertiesAfterConnection(this.sourcePact, this.targetPact, this.shipStrategy);
 	}
 
 	/**
@@ -307,7 +307,7 @@ public class PactConnection {
 	 * @return The local data properties of the output data.
 	 */
 	public LocalProperties getLocalProperties() {
-		return PactConnection.getLocalPropertiesAfterConnection(sourcePact, targetPact, shipStrategy);
+		return PactConnection.getLocalPropertiesAfterConnection(this.sourcePact, this.targetPact, this.shipStrategy);
 	}
 
 	/*
@@ -318,26 +318,26 @@ public class PactConnection {
 		StringBuilder buf = new StringBuilder(50);
 		buf.append("Connection: ");
 
-		if (sourcePact == null) {
+		if (this.sourcePact == null) {
 			buf.append("null");
 		} else {
-			buf.append(sourcePact.getPactContract().getName());
-			buf.append('(').append(sourcePact.getPactType().name()).append(')');
+			buf.append(this.sourcePact.getPactContract().getName());
+			buf.append('(').append(this.sourcePact.getPactType().name()).append(')');
 		}
 
 		buf.append(" -> ");
 
-		if (shipStrategy != null) {
+		if (this.shipStrategy != null) {
 			buf.append('[');
-			buf.append(shipStrategy.name());
+			buf.append(this.shipStrategy.name());
 			buf.append(']').append(' ');
 		}
 
-		if (targetPact == null) {
+		if (this.targetPact == null) {
 			buf.append("null");
 		} else {
-			buf.append(targetPact.getPactContract().getName());
-			buf.append('(').append(targetPact.getPactType().name()).append(')');
+			buf.append(this.targetPact.getPactContract().getName());
+			buf.append('(').append(this.targetPact.getPactType().name()).append(')');
 		}
 
 		return buf.toString();

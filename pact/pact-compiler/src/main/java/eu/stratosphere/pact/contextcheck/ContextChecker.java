@@ -16,16 +16,12 @@
 package eu.stratosphere.pact.contextcheck;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
@@ -39,6 +35,10 @@ import eu.stratosphere.pact.common.plan.Visitor;
  */
 public class ContextChecker implements Visitor<Contract> {
 
+	/**
+	 * A set of all already visited nodes during DAG traversal. Is used
+	 * to avoid processing one node multiple times.
+	 */
 	public Set<Contract> visitedNodes = new HashSet<Contract>();
 
 	/**
@@ -57,7 +57,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 *        The PACT plan to check.
 	 */
 	public void check(Plan plan) {
-		visitedNodes.clear();
+		this.visitedNodes.clear();
 		plan.accept(this);
 	}
 
@@ -68,29 +68,23 @@ public class ContextChecker implements Visitor<Contract> {
 	public boolean preVisit(Contract node) {
 
 		// check if node was already visited
-		if (visitedNodes.contains(node)) {
+		if (this.visitedNodes.contains(node)) {
 			return false;
 		}
 
 		// apply the appropriate check method
-		if (node instanceof FileDataSinkContract<?, ?>) {
-			checkDataSink((FileDataSinkContract<?, ?>) node);
-		} else if (node instanceof MapContract<?, ?, ?, ?>) {
-			checkSingleInputContract((MapContract<?, ?, ?, ?>) node);
-		} else if (node instanceof ReduceContract<?, ?, ?, ?>) {
-			checkSingleInputContract((ReduceContract<?, ?, ?, ?>) node);
-		} else if (node instanceof MatchContract<?, ?, ?, ?, ?>) {
-			checkDualInputContract((MatchContract<?, ?, ?, ?, ?>) node);
-		} else if (node instanceof CoGroupContract<?, ?, ?, ?, ?>) {
-			checkDualInputContract((CoGroupContract<?, ?, ?, ?, ?>) node);
-		} else if (node instanceof CrossContract<?, ?, ?, ?, ?, ?>) {
-			checkDualInputContract((CrossContract<?, ?, ?, ?, ?, ?>) node);
+		if (node instanceof GenericDataSink) {
+			checkDataSink((GenericDataSink) node);
+		} else if (node instanceof SingleInputContract<?>) {
+			checkSingleInputContract((SingleInputContract<?>) node);
+		} else if (node instanceof DualInputContract<?>) {
+			checkDualInputContract((DualInputContract<?>) node);
 		}
 		// Data sources must not be checked, since correctness of input type is
 		// checked.
 
 		// mark node as visited
-		visitedNodes.add(node);
+		this.visitedNodes.add(node);
 
 		return true;
 	}
@@ -107,29 +101,14 @@ public class ContextChecker implements Visitor<Contract> {
 	 * @param dataSinkContract
 	 *        DataSinkContract that is checked.
 	 */
-	private void checkDataSink(FileDataSinkContract<?, ?> dataSinkContract) {
+	private void checkDataSink(GenericDataSink dataSinkContract) {
 
-		Contract input = dataSinkContract.getInput();
+		Contract input = dataSinkContract.getInputs().get(0);
 
 		// check if input exists
 		if (input == null) {
 			throw new MissingChildException();
 		}
-
-		ContractInspector nodeInspector = new ContractInspector(dataSinkContract);
-		ContractInspector inputInspector = new ContractInspector(input);
-
-		Class<?> nodeInKeyClass = nodeInspector.getInput1KeyClass();
-		Class<?> nodeInValueClass = nodeInspector.getInput1ValueClass();
-
-		Class<?> inputOutKeyClass = inputInspector.getOutputKeyClass();
-		Class<?> inputOutValueClass = inputInspector.getOutputValueClass();
-
-		// check for correctness of input types
-		if (!nodeInKeyClass.equals(inputOutKeyClass) || !nodeInValueClass.equals(inputOutValueClass)) {
-			throw new ChannelTypeException();
-		}
-
 	}
 
 	/**
@@ -139,27 +118,13 @@ public class ContextChecker implements Visitor<Contract> {
 	 * @param singleInputContract
 	 *        SingleInputContract that is checked.
 	 */
-	private void checkSingleInputContract(SingleInputContract<?, ?, ?, ?> singleInputContract) {
+	private void checkSingleInputContract(SingleInputContract<?> singleInputContract) {
 
-		Contract input = singleInputContract.getInput();
+		List<Contract> input = singleInputContract.getInputs();
 
 		// check if input exists
-		if (input == null) {
+		if (input.size() == 0) {
 			throw new MissingChildException();
-		}
-
-		ContractInspector nodeInspector = new ContractInspector(singleInputContract);
-		ContractInspector inputInspector = new ContractInspector(input);
-
-		Class<?> nodeInKeyClass = nodeInspector.getInput1KeyClass();
-		Class<?> nodeInValueClass = nodeInspector.getInput1ValueClass();
-
-		Class<?> inputOutKeyClass = inputInspector.getOutputKeyClass();
-		Class<?> inputOutValueClass = inputInspector.getOutputValueClass();
-
-		// check for correctness of input types
-		if (!nodeInKeyClass.equals(inputOutKeyClass) || !nodeInValueClass.equals(inputOutValueClass)) {
-			throw new ChannelTypeException();
 		}
 	}
 
@@ -170,35 +135,13 @@ public class ContextChecker implements Visitor<Contract> {
 	 * @param dualInputContract
 	 *        DualInputContract that is checked.
 	 */
-	private void checkDualInputContract(DualInputContract<?, ?, ?, ?, ?, ?> dualInputContract) {
-		Contract input1 = dualInputContract.getFirstInput();
-		Contract input2 = dualInputContract.getSecondInput();
+	private void checkDualInputContract(DualInputContract<?> dualInputContract) {
+		List<Contract> input1 = dualInputContract.getFirstInputs();
+		List<Contract> input2 = dualInputContract.getSecondInputs();
 
 		// check if input exists
-		if (input1 == null || input2 == null) {
+		if (input1.size() == 0 || input2.size() == 0) {
 			throw new MissingChildException();
-		}
-
-		ContractInspector nodeInspector = new ContractInspector(dualInputContract);
-		ContractInspector input1Inspector = new ContractInspector(input1);
-		ContractInspector input2Inspector = new ContractInspector(input2);
-
-		Class<?> nodeInKey1Class = nodeInspector.getInput1KeyClass();
-		Class<?> nodeInValue1Class = nodeInspector.getInput1ValueClass();
-
-		Class<?> nodeInKey2Class = nodeInspector.getInput2KeyClass();
-		Class<?> nodeInValue2Class = nodeInspector.getInput2ValueClass();
-
-		Class<?> input1OutKeyClass = input1Inspector.getOutputKeyClass();
-		Class<?> input1OutValueClass = input1Inspector.getOutputValueClass();
-
-		Class<?> input2OutKeyClass = input2Inspector.getOutputKeyClass();
-		Class<?> input2OutValueClass = input2Inspector.getOutputValueClass();
-
-		// check for correctness of input types
-		if (!nodeInKey1Class.equals(input1OutKeyClass) || !nodeInValue1Class.equals(input1OutValueClass)
-			|| !nodeInKey2Class.equals(input2OutKeyClass) || !nodeInValue2Class.equals(input2OutValueClass)) {
-			throw new ChannelTypeException();
 		}
 	}
 

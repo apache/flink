@@ -17,21 +17,17 @@ package eu.stratosphere.pact.test.testPrograms.tpch9;
 
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.input.TextInputFormat;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
  * Quote from the TPC-H homepage:
@@ -113,135 +109,125 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		
 		/* Create the 6 data sources: */
 		/* part: (partkey | name, mfgr, brand, type, size, container, retailprice, comment) */
-		FileDataSourceContract<PactInteger, Tuple> partInput = new FileDataSourceContract<PactInteger, Tuple>(
+		FileDataSource partInput = new FileDataSource(
 			IntTupleDataInFormat.class, this.partInputPath, "\"part\" source");
 		partInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		partInput.setDegreeOfParallelism(this.degreeOfParallelism);
-		partInput.setOutputContract(UniqueKey.class);
+		//partInput.setOutputContract(UniqueKey.class);
 		partInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* partsupp: (partkey | suppkey, availqty, supplycost, comment) */
-		FileDataSourceContract<PactInteger, Tuple> partSuppInput = new FileDataSourceContract<PactInteger, Tuple>(
+		FileDataSource partSuppInput = new FileDataSource(
 			IntTupleDataInFormat.class, this.partSuppInputPath, "\"partsupp\" source");
 		partSuppInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		partSuppInput.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* orders: (orderkey | custkey, orderstatus, totalprice, orderdate, orderpriority, clerk, shippriority, comment) */
-		FileDataSourceContract<PactInteger, Tuple> ordersInput = new FileDataSourceContract<PactInteger, Tuple>(
+		FileDataSource ordersInput = new FileDataSource(
 			IntTupleDataInFormat.class, this.ordersInputPath, "\"orders\" source");
 		ordersInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		ordersInput.setDegreeOfParallelism(this.degreeOfParallelism);
-		ordersInput.setOutputContract(UniqueKey.class);
+		//ordersInput.setOutputContract(UniqueKey.class);
 		ordersInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* lineitem: (orderkey | partkey, suppkey, linenumber, quantity, extendedprice, discount, tax, ...) */
-		FileDataSourceContract<PactInteger, Tuple> lineItemInput = new FileDataSourceContract<PactInteger, Tuple>(
+		FileDataSource lineItemInput = new FileDataSource(
 			IntTupleDataInFormat.class, this.lineItemInputPath, "\"lineitem\" source");
 		lineItemInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		lineItemInput.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* supplier: (suppkey | name, address, nationkey, phone, acctbal, comment) */
-		FileDataSourceContract<PactInteger, Tuple> supplierInput = new FileDataSourceContract<PactInteger, Tuple>(
+		FileDataSource supplierInput = new FileDataSource(
 			IntTupleDataInFormat.class, this.supplierInputPath, "\"supplier\" source");
 		supplierInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		supplierInput.setDegreeOfParallelism(this.degreeOfParallelism);
-		supplierInput.setOutputContract(UniqueKey.class);
+		//supplierInput.setOutputContract(UniqueKey.class);
 		supplierInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* nation: (nationkey | name, regionkey, comment) */
-		FileDataSourceContract<PactInteger, Tuple> nationInput = new FileDataSourceContract<PactInteger, Tuple>(
+		FileDataSource nationInput = new FileDataSource(
 			IntTupleDataInFormat.class, this.nationInputPath, "\"nation\" source");
 		nationInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		nationInput.setDegreeOfParallelism(this.degreeOfParallelism);
-		nationInput.setOutputContract(UniqueKey.class);
+		//nationInput.setOutputContract(UniqueKey.class);
 		nationInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* Filter on part's name, project values to NULL: */
-		MapContract<PactInteger, Tuple, PactInteger, PactNull> filterPart =
-			new MapContract<PactInteger, Tuple, PactInteger, PactNull>(PartFilter.class, "filterParts");
+		MapContract filterPart = new MapContract(PartFilter.class, "filterParts");
 		filterPart.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Map to change the key element of partsupp, project value to (supplycost, suppkey): */
-		MapContract<PactInteger, Tuple, PactInteger, Tuple> mapPartsupp =
-			new MapContract<PactInteger, Tuple, PactInteger, Tuple>(PartsuppMap.class, "mapPartsupp");
+		MapContract mapPartsupp = new MapContract(PartsuppMap.class, "mapPartsupp");
 		mapPartsupp.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Map to extract the year from order: */
-		MapContract<PactInteger, Tuple, PactInteger, PactInteger> mapOrder =
-			new MapContract<PactInteger, Tuple, PactInteger, PactInteger>(OrderMap.class, "mapOrder");
+		MapContract mapOrder = new MapContract(OrderMap.class, "mapOrder");
 		mapOrder.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Project value to (partkey, suppkey, quantity, price = extendedprice*(1-discount)): */
-		MapContract<PactInteger, Tuple, PactInteger, Tuple> mapLineItem =
-			new MapContract<PactInteger, Tuple, PactInteger, Tuple>(LineItemMap.class, "proj.Partsupp");
+		MapContract mapLineItem = new MapContract(LineItemMap.class, "proj.Partsupp");
 		mapLineItem.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* - change the key of supplier to nationkey, project value to suppkey */
-		MapContract<PactInteger, Tuple, PactInteger, PactInteger> mapSupplier =
-			new MapContract<PactInteger, Tuple, PactInteger, PactInteger>(SupplierMap.class, "proj.Partsupp");
+		MapContract mapSupplier = new MapContract(SupplierMap.class, "proj.Partsupp");
 		mapSupplier.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on partkey of part and partsupp: */
-		MatchContract<PactInteger, PactNull, Tuple, IntPair, PactString> partsJoin =
-			new MatchContract<PactInteger, PactNull, Tuple, IntPair, PactString>(PartJoin.class, "partsJoin");
+		MatchContract partsJoin = new MatchContract(PartJoin.class, PactInteger.class, 0, 0, "partsJoin");
 		partsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on orderkey of orders and lineitem: */
-		MatchContract<PactInteger, PactInteger, Tuple, IntPair, Tuple> orderedPartsJoin =
-			new MatchContract<PactInteger, PactInteger, Tuple, IntPair, Tuple>(OrderedPartsJoin.class,
-				"orderedPartsJoin");
+		MatchContract orderedPartsJoin =
+			new MatchContract(OrderedPartsJoin.class, PactInteger.class, 0, 0,"orderedPartsJoin");
 		orderedPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on nationkey of supplier and nation: */
-		MatchContract<PactInteger, PactInteger, Tuple, PactInteger, PactString> suppliersJoin =
-			new MatchContract<PactInteger, PactInteger, Tuple, PactInteger, PactString>(SuppliersJoin.class,
-				"suppliersJoin");
+		MatchContract suppliersJoin =
+			new MatchContract(SuppliersJoin.class, PactInteger.class, 0, 0, "suppliersJoin");
 		suppliersJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on (partkey,suppkey) of parts and orderedParts: */
-		MatchContract<IntPair, PactString, Tuple, PactInteger, StringIntPair> filteredPartsJoin =
-			new MatchContract<IntPair, PactString, Tuple, PactInteger, StringIntPair>(FilteredPartsJoin.class,
-				"filteredPartsJoin");
+		MatchContract filteredPartsJoin =
+			new MatchContract(FilteredPartsJoin.class, IntPair.class, 0, 0, "filteredPartsJoin");
 		filteredPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on suppkey of filteredParts and suppliers: */
-		MatchContract<PactInteger, StringIntPair, PactString, StringIntPair, PactString> partListJoin =
-			new MatchContract<PactInteger, StringIntPair, PactString, StringIntPair, PactString>(PartListJoin.class,
-				"partlistJoin");
+		MatchContract partListJoin =
+			new MatchContract(PartListJoin.class, PactInteger.class , 0, 0, "partlistJoin");
 		filteredPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Aggregate sum(amount) by (nation,year): */
-		ReduceContract<StringIntPair, PactString, StringIntPair, PactString> sumAmountAggregate =
-			new ReduceContract<StringIntPair, PactString, StringIntPair, PactString>(AmountAggregate.class, "groupyBy");
+		ReduceContract sumAmountAggregate =
+			new ReduceContract(AmountAggregate.class, StringIntPair.class, 0, "groupyBy");
 		sumAmountAggregate.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Connect input filters: */
-		filterPart.setInput(partInput);
-		mapPartsupp.setInput(partSuppInput);
-		mapOrder.setInput(ordersInput);
-		mapLineItem.setInput(lineItemInput);
-		mapSupplier.setInput(supplierInput);
+		filterPart.addInput(partInput);
+		mapPartsupp.addInput(partSuppInput);
+		mapOrder.addInput(ordersInput);
+		mapLineItem.addInput(lineItemInput);
+		mapSupplier.addInput(supplierInput);
 
 		/* Connect equijoins: */
-		partsJoin.setFirstInput(filterPart);
-		partsJoin.setSecondInput(mapPartsupp);
-		orderedPartsJoin.setFirstInput(mapOrder);
-		orderedPartsJoin.setSecondInput(mapLineItem);
-		suppliersJoin.setFirstInput(mapSupplier);
-		suppliersJoin.setSecondInput(nationInput);
-		filteredPartsJoin.setFirstInput(partsJoin);
-		filteredPartsJoin.setSecondInput(orderedPartsJoin);
-		partListJoin.setFirstInput(filteredPartsJoin);
-		partListJoin.setSecondInput(suppliersJoin);
+		partsJoin.addFirstInput(filterPart);
+		partsJoin.addSecondInput(mapPartsupp);
+		orderedPartsJoin.addFirstInput(mapOrder);
+		orderedPartsJoin.addSecondInput(mapLineItem);
+		suppliersJoin.addFirstInput(mapSupplier);
+		suppliersJoin.addSecondInput(nationInput);
+		filteredPartsJoin.addFirstInput(partsJoin);
+		filteredPartsJoin.addSecondInput(orderedPartsJoin);
+		partListJoin.addFirstInput(filteredPartsJoin);
+		partListJoin.addSecondInput(suppliersJoin);
 
 		/* Connect aggregate: */
-		sumAmountAggregate.setInput(partListJoin);
+		sumAmountAggregate.addInput(partListJoin);
 
 		/* Connect sink: */
-		FileDataSinkContract<StringIntPair, PactString> result = new FileDataSinkContract<StringIntPair, PactString>(
+		FileDataSink result = new FileDataSink(
 				StringIntPairStringDataOutFormat.class, this.outputPath, "Results sink");
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
-		result.setInput(sumAmountAggregate);
+		result.addInput(sumAmountAggregate);
 
 		return new Plan(result, "TPC-H query 9");
 	}

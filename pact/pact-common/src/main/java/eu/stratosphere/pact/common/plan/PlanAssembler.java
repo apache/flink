@@ -16,21 +16,18 @@
 package eu.stratosphere.pact.common.plan;
 
 /**
- * Interface that shows that the class contains the method to generate the input
- * plan.
- * 
- * @author DIMA
+ * Interface that shows that the class contains the method to generate the plan for a Pact Program.
  */
-public interface PlanAssembler {
+public interface PlanAssembler
+{
 	/**
-	 * The method which is invoked by the nephele PACs engine in order to get the
-	 * input plan.
+	 * The method which is invoked by the Pact compiler to get the program's plan, that is then compiled into an
+	 * executable schedule.
 	 * 
-	 * @param args
-	 *        array of input parameters
-	 * @return the plan to be compiled and executed
-	 * @throws IllegalArgumentException
-	 *         if an input parameter is missing or illegal
+	 * @param args The array of input parameters. Those are taken from the command line or from teh parameter line in the
+	 *             web frontend.
+	 *              
+	 * @return The plan to be compiled and executed.
 	 */
-	Plan getPlan(String... args) throws IllegalArgumentException;
+	Plan getPlan(String... args);
 }

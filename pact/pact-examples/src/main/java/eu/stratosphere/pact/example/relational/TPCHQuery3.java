@@ -17,244 +17,253 @@ package eu.stratosphere.pact.example.relational;
 
 import java.util.Iterator;
 
-import org.apache.log4j.Logger;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.contract.OutputContract.SuperKey;
-import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.io.input.TextInputFormat;
+import eu.stratosphere.pact.common.io.RecordInputFormat;
+import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactPair;
+import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextDoubleParser;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
+import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
+import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
  * Its documentation and the data generator (DBGEN) can be found
  * on http://www.tpc.org/tpch/ .This implementation is tested with
- * the DB2 data format.
- * THe PACT program implements a modified version of the query 3 of
+ * the DB2 data format.  
+ * THe PACT program implements a modified version of the query 3 of 
  * the TPC-H benchmark including one join, some filtering and an
  * aggregation.
+ * 
  * SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
  *   FROM orders, lineitem
  *   WHERE l_orderkey = o_orderkey
- *     AND o_orderstatus = "X"
+ *     AND o_orderstatus = "X" 
  *     AND YEAR(o_orderdate) > Y
  *     AND o_orderpriority LIKE "Z%"
- *   GROUP BY l_orderkey, o_shippriority;
+ * GROUP BY l_orderkey, o_shippriority;
  */
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
-	private static Logger LOGGER = Logger.getLogger(TPCHQuery3.class);
+	private static Log LOGGER = LogFactory.getLog(TPCHQuery3.class);
+	
+	public static final String YEAR_FILTER = "parameter.YEAR_FILTER";
+	public static final String PRIO_FILTER = "parameter.PRIO_FILTER";
 
 	/**
-	 * Concatenation of Integer and String. Used for concatenation of keys
-	 * after join (ORDERKEY, SHIPPRIORITY)
+	 * Map PACT implements the selection and projection on the orders table.
+	 * <p>
+	 * The records enter the map as fields of type {@link Tuple}. Tuples are created by the
+	 * input format in a very fast manner, without actual field parsing. They only index the
+	 * delimiters. The parsed fields in the Pact Records are set after projection only
 	 */
-	public static class N_IntStringPair extends PactPair<PactInteger, PactString> {
-
+	@ReadSet(fields={2,3,4})
+	@ConstantSet(fields={0,1}, setMode=ConstantSetMode.Constant)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=0, upperBound=1)
+	public static class FilterO extends MapStub
+	{
+		private String prioFilter;		// filter literal for the order priority
+		private int yearFilter;			// filter literal for the year
+		
+		// reusable variables for the fields touched in the mapper
+		private final PactString orderStatus = new PactString();
+		private final PactString orderDate = new PactString();
+		private final PactString orderPrio = new PactString();
+		
+		private final PactRecord outRecord = new PactRecord();
 		/**
-		 * Initializes a blank pair. Required for deserialization
-		 */
-		public N_IntStringPair() {
-			super();
-		}
-
-		/**
-		 * Initializes the concatenation of integer and string.
+		 * Reads the filter literals from the configuration.
 		 * 
-		 * @param first
-		 *        Integer value for concatenating
-		 * @param second
-		 *        String value for concatenating
+		 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
 		 */
-		public N_IntStringPair(PactInteger first, PactString second) {
-			super(first, second);
+		@Override
+		public void open(Configuration parameters) {
+			this.yearFilter = parameters.getInteger(YEAR_FILTER, 1990);
+			this.prioFilter = parameters.getString(PRIO_FILTER, "0");
+		}
+	
+		/**
+		 * Filters the orders table by year, orderstatus and orderpriority.
+		 *
+		 *  o_orderstatus = "X" 
+		 *  AND YEAR(o_orderdate) > Y
+		 *  AND o_orderpriority LIKE "Z"
+	 	 *  
+	 	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY
+		 */
+		@Override
+		public void map(final PactRecord record, final Collector out)
+		{
+			record.getFieldInto(2, orderStatus);
+			record.getFieldInto(3, orderDate);
+			record.getFieldInto(4, orderPrio);
+			
+			System.out.println("ODate<"+orderDate.getValue()+">");
+			
+			if (Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter
+				&& orderStatus.getValue().equals("F") && orderPrio.getValue().startsWith(this.prioFilter))
+			{
+				outRecord.setField(0,record.getField(0, PactLong.class));
+				outRecord.setField(1,record.getField(1, PactInteger.class));
+	
+				out.collect(outRecord);
+				// Output Schema - 0:ORDERKEY, 1:SHIPPRIORITYfunction
+
+			}
 		}
 	}
 
+
 	/**
-	 * Map PACT implements the filter on the orders table. The SameKey
-	 * OutputContract is annotated because the key does not change during
-	 * filtering.
+	 * Map PACT implements the projection on the LineItem table.
 	 */
-	@SameKey
-	public static class FilterO extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
-
-		private int yearFilter;
-
-		private String prioFilter;
-
-		@Override
-		public void configure(Configuration parameters) {
-			this.yearFilter = parameters.getInteger("YEAR_FILTER", 1990);
-			this.prioFilter = parameters.getString("PRIO_FILTER", "0");
-		}
-
+	public static class ProjectLi extends MapStub
+	{
+		// reusable objects for the touched fields
+		
+		private final PactLong orderKey = new PactLong();
+		private final PactDouble extendedPrice = new PactDouble();
+		private final PactRecord result = new PactRecord();
+		
 		/**
-		 * Filters the orders table by year, orderstatus and orderpriority
-		 * 
-		 * o_orderstatus = "X"
-		 *   AND YEAR(o_orderdate) > Y
-		 *   AND o_orderpriority LIKE "Z"
-		 * 
-		 * Output Schema:
-		 *   Key: ORDERKEY
-		 *   Value: 0:ORDERKEY, 1:SHIPPRIORITY
+		 * Does the projection on the LineItem table 
+		 *
+		 * Output Schema - 0:ORDERKEY, 1:null, 2:EXTENDEDPRICE
 		 */
 		@Override
-		public void map(final PactInteger oKey, final Tuple value, final Collector<PactInteger, Tuple> out) {
-
+		public void map(PactRecord record, Collector out)
+		{
+			final Tuple t = record.getField(0, Tuple.class);
+			
 			try {
-				if (Integer.parseInt(value.getStringValueAt(4).substring(0, 4)) > this.yearFilter
-					&& value.getStringValueAt(2).equals("F") && value.getStringValueAt(5).startsWith(this.prioFilter)) {
-
-					// project
-					value.project(129);
-
-					out.collect(oKey, value);
-
-					// Output Schema:
-					// KEY: ORDERKEY
-					// VALUE: 0:ORDERKEY, 1:SHIPPRIORITY
-
-				}
-			} catch (final StringIndexOutOfBoundsException e) {
-				LOGGER.error(e);
-			} catch (final Exception ex) {
-				LOGGER.error(ex);
+				this.orderKey.setValue(t.getLongValueAt(0));
+				this.extendedPrice.setValue(Double.parseDouble(t.getStringValueAt(5)));
+				
+				result.setField(0, this.orderKey);
+				result.setField(1, this.extendedPrice);
+				
+				out.collect(result);
+			}
+			catch (NumberFormatException nfe) {
+				LOGGER.error(nfe);
 			}
 		}
 	}
 
 	/**
-	 * Map PACT implements the projection on the LineItem table. The SameKey
-	 * OutputContract is annotated because the key does not change during
-	 * projection.
-	 */
-	@SameKey
-	public static class ProjectLi extends MapStub<PactInteger, Tuple, PactInteger, Tuple> {
-
-		/**
-		 * Does the projection on the LineItem table
-		 * 
-		 * Output Schema:
-		 *   Key: ORDERKEY
-		 *   Value: 0:ORDERKEY, 1:EXTENDEDPRICE
-		 */
-		@Override
-		public void map(PactInteger oKey, Tuple value, Collector<PactInteger, Tuple> out) {
-			value.project(33);
-			out.collect(oKey, value);
-		}
-	}
-
-	/**
-	 * Match PACT realizes the join between LineItem and Order table. The
+	 * Match PACT realizes the join between LineItem and Order table. The 
 	 * SuperKey OutputContract is annotated because the new key is
 	 * built of the keys of the inputs.
+	 *
 	 */
-	@SuperKey
-	public static class JoinLiO extends MatchStub<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple> {
-
+	@ReadSetFirst(fields={})
+	@ReadSetSecond(fields={})
+	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Update)
+	@ConstantSetSecond(fields={}, setMode=ConstantSetMode.Constant)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
+	public static class JoinLiO extends MatchStub
+	{
 		/**
-		 * Implements the join between LineItem and Order table on the
+		 * Implements the join between LineItem and Order table on the 
 		 * order key.
 		 * 
 		 * WHERE l_orderkey = o_orderkey
 		 * 
-		 * Output Schema:
-		 *   Key: ORDERKEY, SHIPPRIORITY
-		 *   Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
+		 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
 		 */
 		@Override
-		public void match(PactInteger oKey, Tuple oVal, Tuple liVal, Collector<N_IntStringPair, Tuple> out) {
-
-			oVal.concatenate(liVal);
-			oVal.project(11);
-
-			N_IntStringPair superKey = new N_IntStringPair(oKey, new PactString(oVal.getStringValueAt(1)));
-
-			out.collect(superKey, oVal);
+		public void match(PactRecord first, PactRecord second, Collector out)
+		{
+			// we can simply union the fields since the first input has its fields on (0, 1) and the
+			// second inputs has its fields in (0, 2). The conflicting field (0) is the key which is guaranteed
+			// to be identical anyways 
+			// <-- to do when union fields is implemented
+			first.setField(2, second.getField(1, PactDouble.class));
+			out.collect(first);
 		}
 	}
 
 	/**
-	 * Reduce PACT implements the aggregation of the results. The
+	 * Reduce PACT implements the aggregation of the results. The 
 	 * Combinable annotation is set as the partial sums can be calculated
 	 * already in the combiner
+	 *
 	 */
 	@Combinable
-	public static class AggLiO extends ReduceStub<N_IntStringPair, Tuple, PactInteger, Tuple> {
-
+	@ReadSet(fields={2})
+	@ConstantSet(fields={2}, setMode=ConstantSetMode.Update)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
+	public static class AggLiO extends ReduceStub
+	{
+		private final PactDouble extendedPrice = new PactDouble();
+		
 		/**
-		 * Does the aggregation of the query.
+		 * Does the aggregation of the query. 
 		 * 
 		 * sum(l_extendedprice) as revenue
 		 * GROUP BY l_orderkey, o_shippriority;
 		 * 
 		 * Output Schema:
-		 *   Key: ORDERKEY
-		 *   Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICESUM
+		 *  Key: ORDERKEY
+		 *  Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICESUM
+		 *
 		 */
 		@Override
-		public void reduce(N_IntStringPair oKeyShipPrio, Iterator<Tuple> values, Collector<PactInteger, Tuple> out) {
+		public void reduce(Iterator<PactRecord> values, Collector out)
+		{
+			PactRecord rec = null;
+			double partExtendedPriceSum = 0;
 
-			long partExtendedPriceSum = 0;
-
-			Tuple value = null;
 			while (values.hasNext()) {
-				value = values.next();
-				partExtendedPriceSum += ((long) Double.parseDouble(value.getStringValueAt(2)));
+				rec = values.next();
+				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
 			}
 
-			if (value != null) {
-				value.project(3);
-				value.addAttribute(partExtendedPriceSum + "");
-
-				out.collect(oKeyShipPrio.getFirst(), value);
-			}
-
+			this.extendedPrice.setValue(partExtendedPriceSum);
+			rec.setField(2, this.extendedPrice);
+			out.collect(rec);
 		}
 
 		/**
-		 * Creates partial sums on the price attribute for each data batch
+		 * Creates partial sums on the price attribute for each data batch.
 		 */
 		@Override
-		public void combine(N_IntStringPair oKeyShipPrio, Iterator<Tuple> values, Collector<N_IntStringPair, Tuple> out) {
-
-			long partExtendedPriceSum = 0;
-
-			Tuple value = null;
-			while (values.hasNext()) {
-				value = values.next();
-				partExtendedPriceSum += ((long) Double.parseDouble(value.getStringValueAt(2)));
-			}
-
-			if (value != null) {
-				value.project(3);
-				value.addAttribute(partExtendedPriceSum + "");
-
-				out.collect(oKeyShipPrio, value);
-			}
-
+		public void combine(Iterator<PactRecord> values, Collector out)
+		{
+			reduce(values, out);
 		}
 	}
 
@@ -262,85 +271,100 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(final String... args) {
-
+	public Plan getPlan(final String... args) 
+	{
 		// parse program parameters
-		int noSubtasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
-		String ordersPath = (args.length > 1 ? args[1] : "");
+		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String ordersPath    = (args.length > 1 ? args[1] : "");
 		String lineitemsPath = (args.length > 2 ? args[2] : "");
-		String output = (args.length > 3 ? args[3] : "");
+		String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
-		FileDataSourceContract<PactInteger, Tuple> orders = new FileDataSourceContract<PactInteger, Tuple>(
-			IntTupleDataInFormat.class, ordersPath, "Orders");
-		orders.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
 		orders.setDegreeOfParallelism(noSubtasks);
-		orders.setOutputContract(UniqueKey.class);
-		// set compiler hints
+		orders.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
+		orders.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		orders.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
+		// order id
+		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
+		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
+		// ship prio
+		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
+		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 7);
+		// order status
+		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, VarLengthStringParser.class);
+		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
+		// order date
+		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+3, VarLengthStringParser.class);
+		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+3, 4);
+		// order prio
+		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+4, VarLengthStringParser.class);
+		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+4, 5);
+		// compiler hints
 		orders.getCompilerHints().setAvgNumValuesPerKey(1);
+		orders.getCompilerHints().setAvgBytesPerRecord(16);
 
 		// create DataSourceContract for LineItems input
-		FileDataSourceContract<PactInteger, Tuple> lineitems = new FileDataSourceContract<PactInteger, Tuple>(
-			IntTupleDataInFormat.class, lineitemsPath, "LineItems");
-		lineitems.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
 		lineitems.setDegreeOfParallelism(noSubtasks);
-		// set compiler hints
+		lineitems.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
+		lineitems.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		lineitems.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
+		// order id
+		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
+		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
+		// extended price
+		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextDoubleParser.class);
+		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 5);
+		// compiler hints	
 		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
+		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MapContract for filtering Orders tuples
-		MapContract<PactInteger, Tuple, PactInteger, Tuple> filterO = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
-			FilterO.class, "FilterO");
+		MapContract filterO = new MapContract(FilterO.class, orders, "FilterO");
 		filterO.setDegreeOfParallelism(noSubtasks);
-		// set stub parameters
-		filterO.setParameter("YEAR_FILTER", 1993);
-		filterO.setParameter("PRIO_FILTER", "5");
-		// set compiler hints
-		filterO.getCompilerHints().setAvgBytesPerRecord(32);
+		// filter configuration
+		filterO.setParameter(YEAR_FILTER, 1993);
+		filterO.setParameter(PRIO_FILTER, "5");
+		// compiler hints
+		filterO.getCompilerHints().setAvgBytesPerRecord(16);
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
 
-		// create MapContract for projecting LineItems tuples
-		MapContract<PactInteger, Tuple, PactInteger, Tuple> projectLi = new MapContract<PactInteger, Tuple, PactInteger, Tuple>(
-			ProjectLi.class, "ProjectLi");
-		projectLi.setDegreeOfParallelism(noSubtasks);
-		// set compiler hints
-		projectLi.getCompilerHints().setAvgBytesPerRecord(48);
-		projectLi.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
-		projectLi.getCompilerHints().setAvgNumValuesPerKey(4);
-
 		// create MatchContract for joining Orders and LineItems
-		MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple> joinLiO = new MatchContract<PactInteger, Tuple, Tuple, N_IntStringPair, Tuple>(
-			JoinLiO.class, "JoinLiO");
+		MatchContract joinLiO = new MatchContract(JoinLiO.class, PactLong.class, 0, 0, filterO, lineitems, "JoinLiO");
 		joinLiO.setDegreeOfParallelism(noSubtasks);
-		// set compiler hints
-		joinLiO.getCompilerHints().setAvgBytesPerRecord(64);
+		// compiler hints
+		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
 		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
+		// fixing the strategy
+		// TODO: remove
+		joinLiO.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_BROADCAST");
+		joinLiO.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_FIRST");
 
 		// create ReduceContract for aggregating the result
-		ReduceContract<N_IntStringPair, Tuple, PactInteger, Tuple> aggLiO = new ReduceContract<N_IntStringPair, Tuple, PactInteger, Tuple>(
-			AggLiO.class, "AggLio");
+		// the reducer has a composite key, consisting of the fields 0 and 1
+		@SuppressWarnings("unchecked")
+		ReduceContract aggLiO = new ReduceContract(AggLiO.class, new Class[] {PactLong.class, PactString.class}, new int[] {0, 1}, joinLiO, "AggLio");
 		aggLiO.setDegreeOfParallelism(noSubtasks);
-		// set compiler hints
-		aggLiO.getCompilerHints().setAvgBytesPerRecord(64);
+		// compiler hints
+		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
 		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
 		aggLiO.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		// create DataSinkContract for writing the result
-		FileDataSinkContract<PactString, Tuple> result = new FileDataSinkContract<PactString, Tuple>(
-			StringTupleDataOutFormat.class, output, "Output");
+		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
 		result.setDegreeOfParallelism(noSubtasks);
-
+		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
+		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
+		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
+		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactDouble.class);
+		
 		// assemble the PACT plan
-		result.setInput(aggLiO);
-		aggLiO.setInput(joinLiO);
-		joinLiO.setFirstInput(filterO);
-		filterO.setInput(orders);
-		joinLiO.setSecondInput(projectLi);
-		projectLi.setInput(lineitems);
-
 		Plan plan = new Plan(result, "TPCH Q3");
-
-		// return the PACT plan
+		plan.setDefaultParallelism(noSubtasks);
 		return plan;
 	}
 

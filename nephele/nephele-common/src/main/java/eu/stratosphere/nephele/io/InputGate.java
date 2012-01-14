@@ -376,7 +376,6 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * at least one record available.
 	 */
 	public void notifyRecordIsAvailable(int channelIndex) {
-
 		synchronized (this.availableChannels) {
 
 			this.availableChannels.add(Integer.valueOf(channelIndex));

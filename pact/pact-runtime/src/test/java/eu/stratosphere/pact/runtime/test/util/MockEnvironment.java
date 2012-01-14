@@ -17,56 +17,53 @@ package eu.stratosphere.pact.runtime.test.util;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.serialization.KeyValuePairDeserializer;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
-public class MockEnvironment extends Environment {
 
+public class MockEnvironment extends Environment
+{
 	private MemoryManager memManager;
 
 	private IOManager ioManager;
 
 	private Configuration config;
 
-	private List<InputGate<KeyValuePair<PactInteger, PactInteger>>> inputs;
-
-	private List<OutputGate<KeyValuePair<PactInteger, PactInteger>>> outputs;
+	private List<InputGate<PactRecord>> inputs;
+	private List<OutputGate<PactRecord>> outputs;
+	
+	private final JobID jobId = new JobID();
 
 	public MockEnvironment(long memorySize) {
 		this.config = new Configuration();
-		this.inputs = new ArrayList<InputGate<KeyValuePair<PactInteger, PactInteger>>>();
-		this.outputs = new ArrayList<OutputGate<KeyValuePair<PactInteger, PactInteger>>>();
-
+		this.inputs = new ArrayList<InputGate<PactRecord>>();
+		this.outputs = new ArrayList<OutputGate<PactRecord>>();
+	
 		this.memManager = new DefaultMemoryManager(memorySize);
 		this.ioManager = new IOManager(System.getProperty("java.io.tmpdir"));
 	}
 
-	public void addInput(Iterator<KeyValuePair<PactInteger, PactInteger>> inputIterator) {
+	public void addInput(MutableObjectIterator<PactRecord> inputIterator) {
 		int id = inputs.size();
-		inputs.add(new MockInputGate<KeyValuePair<PactInteger, PactInteger>>(id, inputIterator,
-			new KeyValuePairDeserializer<PactInteger, PactInteger>(PactInteger.class, PactInteger.class)));
+		inputs.add(new MockInputGate(id, inputIterator));
 	}
-
-	public void addOutput(List<KeyValuePair<PactInteger, PactInteger>> outputList) {
+	
+	public void addOutput(List<PactRecord> outputList) {
 		int id = outputs.size();
-		@SuppressWarnings("unchecked")
-		Class<KeyValuePair<PactInteger, PactInteger>> clazz = (Class<KeyValuePair<PactInteger, PactInteger>>) (Class<?>) KeyValuePair.class;
-		outputs.add(new MockOutputGate<KeyValuePair<PactInteger, PactInteger>>(id, outputList, clazz));
+		outputs.add(new MockOutputGate(id, outputList));
 	}
 
 	@Override
@@ -103,38 +100,43 @@ public class MockEnvironment extends Environment {
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
+	
+	public JobID getJobID() {
+		return this.jobId;
+	}
 
-	private static class MockInputGate<T extends Record> extends InputGate<T> {
+	private static class MockInputGate extends InputGate<PactRecord> {
 
-		private Iterator<T> it;
+		private MutableObjectIterator<PactRecord> it;
 
-		public MockInputGate(int id, Iterator<T> it, RecordDeserializer<T> d) {
-			super(new JobID(), new GateID(), d, id, null);
+		public MockInputGate(int id, MutableObjectIterator<PactRecord> it) {
+			super(new JobID(), new GateID(), new DefaultRecordDeserializer<PactRecord>(PactRecord.class), id, null);
 			this.it = it;
 		}
 
 		@Override
-		public T readRecord(T target) throws IOException, InterruptedException {
-			if (it.hasNext()) {
-				return it.next();
+		public PactRecord readRecord(PactRecord target) throws IOException, InterruptedException {
+			
+			if (it.next(target)) {
+				return target;
 			} else {
 				return null;
 			}
 		}
 	}
-
-	private static class MockOutputGate<T extends Record> extends OutputGate<T> {
-
-		private List<T> out;
-
-		public MockOutputGate(int index, List<T> outList, Class<T> inputClass) {
-			super(new JobID(), new GateID(), inputClass, index, null, false);
+	
+	private static class MockOutputGate extends OutputGate<PactRecord> {
+		
+		private List<PactRecord> out;
+		
+		public MockOutputGate(int index, List<PactRecord> outList) {
+			super(new JobID(), new GateID(), PactRecord.class, index, null ,false);
 			this.out = outList;
 		}
 
 		@Override
-		public void writeRecord(T record) throws IOException, InterruptedException {
-			out.add(record);
+		public void writeRecord(PactRecord record) throws IOException, InterruptedException {
+			out.add(record.createCopy());
 		}
 
 	}

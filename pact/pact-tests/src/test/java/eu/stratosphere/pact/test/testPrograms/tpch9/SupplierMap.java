@@ -15,16 +15,16 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import org.apache.log4j.Logger;
-
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class SupplierMap extends MapStub<PactInteger, Tuple, PactInteger, PactInteger> {
+public class SupplierMap extends MapStub {
 	
-	private static Logger LOGGER = Logger.getLogger(SupplierMap.class);
+	private PactInteger suppKey = new PactInteger();
+	private Tuple inputTuple = new Tuple();
 	
 	/**
 	 * Project "supplier".
@@ -35,16 +35,17 @@ public class SupplierMap extends MapStub<PactInteger, Tuple, PactInteger, PactIn
 	 *
 	 */
 	@Override
-	public void map(PactInteger suppKey, Tuple inputTuple,
-			Collector<PactInteger, PactInteger> output) {
+	public void map(PactRecord record, Collector out) throws Exception {
+		suppKey = record.getField(0, suppKey);
+		inputTuple = record.getField(1, inputTuple);
 		
-		try {
-			/* Project (suppkey | name, address, nationkey, phone, acctbal, comment): */
-			PactInteger nationKey = new PactInteger(Integer.parseInt(inputTuple.getStringValueAt(3)));
-			output.collect(nationKey, suppKey);
-		} catch (final Exception ex) {
-			LOGGER.error(ex);
-		}
+		/* Project (suppkey | name, address, nationkey, phone, acctbal, comment): */
+		PactInteger nationKey = new PactInteger(Integer.parseInt(inputTuple.getStringValueAt(3)));
+		
+		record.setField(0, nationKey);
+		record.setField(1, suppKey);
+		
+		out.collect(record);
 	}
 
 }

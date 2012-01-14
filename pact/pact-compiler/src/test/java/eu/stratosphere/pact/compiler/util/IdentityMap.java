@@ -15,16 +15,17 @@
 
 package eu.stratosphere.pact.compiler.util;
 
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-
-@SameKey
-public final class IdentityMap extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+public final class IdentityMap extends MapStub
+{
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+	 */
 	@Override
-	public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
-		out.collect(key, value);
+	public void map(PactRecord record, Collector out) throws Exception {
+		out.collect(record);
 	}
 }

@@ -293,13 +293,12 @@ public abstract class AbstractScheduler implements InstanceListener {
 	@Override
 	public void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
+		if (allocatedResources == null) {
+			LOG.error("Resource to lock is null!");
+			return;
+		}
+
 		for (final AllocatedResource allocatedResource : allocatedResources) {
-
-			if (allocatedResources == null) {
-				LOG.error("Resource to lock is null!");
-				return;
-			}
-
 			if (allocatedResource.getInstance() instanceof DummyInstance) {
 				LOG.debug("Available instance is of type DummyInstance!");
 				return;

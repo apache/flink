@@ -22,7 +22,7 @@ import java.util.Set;
 
 import eu.stratosphere.nephele.types.Record;
 
-public final class MutableUnionRecordReader<T extends Record> implements RecordAvailabilityListener<T> {
+public final class MutableUnionRecordReader<T extends Record> implements RecordAvailabilityListener<T>, MutableReader<T> {
 
 	/**
 	 * The set of unclosed input gates.
@@ -64,6 +64,7 @@ public final class MutableUnionRecordReader<T extends Record> implements RecordA
 		}
 	}
 
+	@Override
 	public final boolean next(final T target) throws IOException, InterruptedException {
 
 		while (true) {
