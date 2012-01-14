@@ -100,7 +100,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		Assert.assertTrue(invalidExitCode);
 		
 		invalidExitCode = false;
-		config.setString(ExternalProcessInputFormat.ALLOWEDEXITCODES_PARAMETER_KEY,"0,2");
+		config.setString(ExternalProcessInputFormat.ALLOWEDEXITCODES_PARAMETER_KEY,"0,1,2");
 		format.configure(config);
 		try {
 			format.open(split);

@@ -281,12 +281,12 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSink triangles = new FileDataSink(EdgeListOutFormat.class, output, "Triangles");
 		triangles.setDegreeOfParallelism(noSubTasks);
 
-		triangles.setInput(closeTriads);
-		closeTriads.setSecondInput(edges);
-		closeTriads.setFirstInput(buildTriads);
-		buildTriads.setFirstInput(assignKeys);
-		buildTriads.setSecondInput(assignKeys);
-		assignKeys.setInput(edges);
+		triangles.addInput(closeTriads);
+		closeTriads.addSecondInput(edges);
+		closeTriads.addFirstInput(buildTriads);
+		buildTriads.addFirstInput(assignKeys);
+		buildTriads.addSecondInput(assignKeys);
+		assignKeys.addInput(edges);
 
 		return new Plan(triangles, "Enumerate Triangles");
 

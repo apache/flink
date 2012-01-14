@@ -18,6 +18,18 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.IOException;
 import java.util.Comparator;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
+import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
+import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -108,7 +120,7 @@ public class HistogramTask extends AbstractPactTask<Stub> {
 		countingReader = new CountingMutableObjectIterator(inputs[0]);
 		
 		// obtain grouped iterator defined by local strategy
-		switch (config.getLocalStrategy()) {
+		switch (this.config.getLocalStrategy()) {
 
 			// local strategy is NONE
 			// input is already grouped, an iterator that wraps the reader is
@@ -173,7 +185,7 @@ public class HistogramTask extends AbstractPactTask<Stub> {
 		}
 		
 		public int getCount() {
-			return count;
+			return this.count;
 		}
 
 		@Override

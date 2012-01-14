@@ -638,7 +638,7 @@ public class HashJoinITCase
 		}
 	}
 	
-	/**
+	/*
 	 * Spills build records, so that probe records are also spilled. But only so
 	 * few probe records are used that some partitions remain empty.
 	 */
@@ -652,7 +652,7 @@ public class HashJoinITCase
 		final int NUM_PROBE_KEYS = 20;
 		final int NUM_PROBE_VALS = 1;
 
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(
+		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(
 				NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
 
 		// allocate the memory for the HashTable
@@ -669,51 +669,36 @@ public class HashJoinITCase
 		// I/O manager should be unnecessary
 		IOManager ioManager = new IOManager();
 
-		HashJoin<PactInteger, PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger, PactInteger>(
-				buildInput, new RegularlyGeneratedInputGenerator(
-						NUM_PROBE_KEYS, NUM_PROBE_VALS, true),
-				PactInteger.class, PactInteger.class, PactInteger.class,
+		@SuppressWarnings("unchecked")
+		HashJoin join = new HashJoin(buildInput,
+				new RegularlyGeneratedInputGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true),
+				new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, 
 				memSegments, ioManager);
 		join.open();
 
 		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
 				* NUM_PROBE_VALS;
-		int numResults = 0;
-		final KeyValuePair<PactInteger, PactInteger> pair = 
-					new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
-		while (join.nextKey()) {
-			int numBuildValues = 0;
-			int numProbeValues = 0;
 
-			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join
-					.getProbeSideIterator();
-			while (probeIter.hasNext()) {
-				numProbeValues++;
-				probeIter.next();
+		final PactRecord record = new PactRecord();
+		int numRecordsInJoinResult = 0;
+		
+		while (join.nextRecord()) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			while (buildSide.next(record)) {
+				numRecordsInJoinResult++;
 			}
-			Assert.assertEquals(
-					"Wrong number of values from probe-side for a key",
-					NUM_PROBE_VALS, numProbeValues);
-
-			HashBucketIterator<PactInteger, PactInteger> buildSide = join
-					.getBuildSideIterator();
-			while (buildSide.next(pair)) {
-				numBuildValues++;
-			}
-
-			Assert.assertEquals(
-					"Wrong number of values from build-side for a key",
-					NUM_BUILD_VALS, numBuildValues);
-			numResults += numProbeValues * numBuildValues;
 		}
-		Assert.assertEquals("Wrong number of results", expectedNumResults,
-				numResults);
+		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
 
 		join.close();
 	}
 	
+	/*
+	 * This test validates a bug fix against former memory loss in the case where a partition was spilled
+	 * during an insert into the same.
+	 */
 	@Test
-	public void testInsertionIntoPartitionWhileSpillingRequestedForTheSame() throws IOException, MemoryAllocationException {
+	public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
 		int reqMem = 2785280;
 
 		final int NUM_BUILD_KEYS = 500000;
@@ -721,7 +706,7 @@ public class HashJoinITCase
 		final int NUM_PROBE_KEYS = 10;
 		final int NUM_PROBE_VALS = 1;
 		
-		Iterator<KeyValuePair<PactInteger, PactInteger>> buildInput = new RegularlyGeneratedInputGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
+		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
@@ -739,35 +724,24 @@ public class HashJoinITCase
 		
 		IOManager ioManager = new IOManager();
 				
-		HashJoin<PactInteger, PactInteger, PactInteger> join = new HashJoin<PactInteger, PactInteger, PactInteger>(buildInput,
-				new RegularlyGeneratedInputGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true), 
-				PactInteger.class, PactInteger.class, PactInteger.class, memSegments, ioManager);
+		@SuppressWarnings("unchecked")
+		HashJoin join = new HashJoin(buildInput, new RegularlyGeneratedInputGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true), 
+				new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
 		join.open();
 		
-		// Second probe phase with new records. This time, all remaining results are to be generated:
-		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS) * NUM_PROBE_VALS;
-		int numResults = 0;
-		final KeyValuePair<PactInteger, PactInteger> pair = new KeyValuePair<PactInteger, PactInteger>(new PactInteger(), new PactInteger());
-		while (join.nextKey()) {
-			int numBuildValues = 0;
-			int numProbeValues = 0;
-			
-			Iterator<KeyValuePair<PactInteger, PactInteger>> probeIter = join.getProbeSideIterator();
-			while (probeIter.hasNext()) {
-				numProbeValues++;
-				probeIter.next();
+		final PactRecord record = new PactRecord();
+		int numRecordsInJoinResult = 0;
+		
+		int expectedNumResults = (Math.min(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
+		* NUM_PROBE_VALS;
+		
+		while (join.nextRecord()) {
+			HashBucketIterator buildSide = join.getBuildSideIterator();
+			while (buildSide.next(record)) {
+				numRecordsInJoinResult++;
 			}
-			Assert.assertEquals("Wrong number of values from probe-side for a key", NUM_PROBE_VALS, numProbeValues);
-			
-			HashBucketIterator<PactInteger, PactInteger> buildSide = join.getBuildSideIterator();
-			while (buildSide.next(pair)) {
-				numBuildValues++;
-			}
-			
-			Assert.assertEquals("Wrong number of values from build-side for a key", NUM_BUILD_VALS, numBuildValues);
-			numResults += numProbeValues * numBuildValues;
 		}
-		Assert.assertEquals("Wrong number of results", expectedNumResults, numResults);
+		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
 		
 		join.close();
 	}

@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -38,9 +37,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class ReduceNode extends SingleInputNode {
-
-	private List<ReduceNode> cachedPlans; // a cache for the computed alternative plans
-
 	private float combinerReducingFactor = 1.0f; // the factor by which the combiner reduces the data
 
 	/**
@@ -85,7 +81,7 @@ public class ReduceNode extends SingleInputNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected ReduceNode(ReduceNode template, OptimizerNode pred, PactConnection conn, GlobalProperties globalProps,
+	protected ReduceNode(ReduceNode template, List<OptimizerNode> pred, List<PactConnection> conn, GlobalProperties globalProps,
 			LocalProperties localProps) {
 		super(template, pred, conn, globalProps, localProps);
 	}
@@ -97,6 +93,7 @@ public class ReduceNode extends SingleInputNode {
 	 * 
 	 * @return The contract.
 	 */
+	@Override
 	public ReduceContract getPactContract() {
 		return (ReduceContract) super.getPactContract();
 	}
@@ -120,14 +117,29 @@ public class ReduceNode extends SingleInputNode {
 	public boolean useExternalCombiner() {
 		if (!isCombineable()) {
 			return false;
-		} else {
-			if (this.getInputConnection().getShipStrategy() == ShipStrategy.PARTITION_HASH
-				|| this.getInputConnection().getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-				return true;
-			} else {
-				return false;
-			}
 		}
+		// else
+
+		if(this.input.get(0).getShipStrategy() == ShipStrategy.PARTITION_HASH) {
+			// test if all input connections use the same strategy
+			for(PactConnection c : this.input) {
+				if(c.getShipStrategy() != ShipStrategy.PARTITION_HASH)
+					return false;
+			}
+			return true;
+		}
+		
+		if(this.input.get(0).getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
+			// test if all input connections use the same strategy
+			for(PactConnection c : this.input) {
+				if(c.getShipStrategy() != ShipStrategy.PARTITION_RANGE)
+					return false;
+			}
+			return true;
+		}
+		
+		// strategy is neither PARTITION_HASH nor PARTITION_RANGE
+		return false;
 	}
 
 	/*
@@ -161,6 +173,60 @@ public class ReduceNode extends SingleInputNode {
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 		super.setInputs(contractToNode);
 	}
+
+// union version by mjsax
+//	/*
+//	 * (non-Javadoc)
+//	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
+//	 */
+//	@Override
+//	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+//		// check, if there is an output contract that tells us that certain properties are preserved.
+//		// if so, propagate to the child.
+//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+//		List<InterestingProperties> props = null;
+//
+//		switch (getOutputContract()) {
+//		case SameKey:
+//		case SuperKey:
+//			props = InterestingProperties.filterByOutputContract(thisNodesIntProps, getOutputContract());
+//			break;
+//		default:
+//			props = new ArrayList<InterestingProperties>();
+//			break;
+//		}
+//
+//		// add the first interesting properties: partitioned and grouped
+//		InterestingProperties ip1 = new InterestingProperties();
+//		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
+//		ip1.getLocalProperties().setKeysGrouped(true);
+//		
+//		for(PactConnection c : this.input) {
+//			Costs cost = new Costs();
+//			estimator.getHashPartitioningCost(c, cost);
+//			ip1.getMaximalCosts().addCosts(cost);
+//			cost = new Costs();
+//			estimator.getLocalSortCost(this, Collections.<PactConnection>singletonList(c), cost);
+//			ip1.getMaximalCosts().addCosts(cost);
+//		}
+//
+//		// add the second interesting properties: partitioned only
+//		InterestingProperties ip2 = new InterestingProperties();
+//		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
+//		for(PactConnection c : this.input) {
+//			Costs cost = new Costs();
+//			estimator.getHashPartitioningCost(c, cost);
+//			ip2.getMaximalCosts().addCosts(cost);
+//		}
+//
+//		InterestingProperties.mergeUnionOfInterestingProperties(props, ip1);
+//		InterestingProperties.mergeUnionOfInterestingProperties(props, ip2);
+//
+//		for(PactConnection c : this.input) {
+//			c.addAllInterestingProperties(props);
+//		}
+//	}
+// end union version
 
 	/*
 	 * (non-Javadoc)
@@ -201,54 +267,79 @@ public class ReduceNode extends SingleInputNode {
 //		InterestingProperties.mergeUnionOfInterestingProperties(props, ip2);
 //
 //		input.addAllInterestingProperties(props);
-		this.input.setNoInterestingProperties();
+	
+	
+		// by mjsax because of union
+//		this.input.setNoInterestingProperties();
+		for(PactConnection c : this.input)
+			c.setNoInterestingProperties();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact
-	 * .compiler.costs.CostEstimator)
-	 */
 	@Override
-	public List<ReduceNode> getAlternativePlans(CostEstimator estimator) {
-		// check if we have a cached version
-		if (cachedPlans != null) {
-			return cachedPlans;
-		}
+	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations,
+			CostEstimator estimator, List<OptimizerNode> outputPlans)
+	{
 
-		List<? extends OptimizerNode> inPlans = input.getSourcePact().getAlternativePlans(estimator);
-		List<ReduceNode> outputPlans = new ArrayList<ReduceNode>();
-
-		// reduce has currently only one strategy: if the data is not already partitioned, partition it by
-		// hash, sort it locally
-
-		for (OptimizerNode pred : inPlans) {
-			ShipStrategy ss = input.getShipStrategy();
-			// ShipStrategy ss2 = null;
-
-			LocalStrategy ls = getLocalStrategy();
+		for(List<OptimizerNode> predList : alternativeSubPlanCominations) {
+			// we have to check if all shipStrategies are the same or at least compatible
+			ShipStrategy ss = ShipStrategy.NONE;
+			
+			for(PactConnection c : this.input) {
+				ShipStrategy newSS = c.getShipStrategy();
+				
+				if(newSS == ShipStrategy.BROADCAST || newSS == ShipStrategy.SFR)
+					// invalid strategy: we do not produce an alternative node
+					continue;
+		
+				// as long as no ShipStrategy is set we can pick the strategy from the current connection
+				if(ss == ShipStrategy.NONE) {
+					ss = newSS;
+					continue;
+				}
+				
+				// as long as the ShipStrategy is the same everything is fine
+				if(ss == newSS)
+					continue;
+				
+				// incompatible strategies: we do not produce an alternative node
+				continue;
+			}
+			
 
 			GlobalProperties gp;
 			LocalProperties lp;
 
 			if (ss == ShipStrategy.NONE) {
-				gp = pred.getGlobalProperties();
-				lp = pred.getLocalProperties();
-
-				if (gp.getPartitioning().isPartitioned() || gp.isKeyUnique()) {
-					ss = ShipStrategy.FORWARD;
+				if(predList.size() == 1) {
+					gp = predList.get(0).getGlobalProperties();
+					lp = predList.get(0).getLocalProperties();
+	
+					if (gp.getPartitioning().isPartitioned() || gp.isKeyUnique()) {
+						ss = ShipStrategy.FORWARD;
+					} else {
+						ss = ShipStrategy.PARTITION_HASH;
+					}
+	
+					gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+					lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
 				} else {
-					ss = ShipStrategy.PARTITION_HASH;
-					// ss2 = ShipStrategy.PARTITION_RANGE;
-				}
+					// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+					gp = new GlobalProperties();
+					lp = new LocalProperties();
 
-				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
+					// as we dropped all properties we use hash strategy (forward cannot be applied)
+					ss = ShipStrategy.PARTITION_HASH;
+				}
 			} else {
-				// fixed strategy
-				gp = PactConnection.getGlobalPropertiesAfterConnection(pred, this, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(pred, this, ss);
+				if(predList.size() == 1) {
+					// fixed strategy
+					gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
+					lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
+				} else {
+					// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+					gp = new GlobalProperties();
+					lp = new LocalProperties();
+				}
 
 				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
 					// the shipping strategy is fixed to a value that does not leave us with
@@ -256,6 +347,8 @@ public class ReduceNode extends SingleInputNode {
 					continue;
 				}
 			}
+
+			LocalStrategy ls = getLocalStrategy();
 
 			// see, whether we need a local strategy
 			if (!(lp.areKeysGrouped() || lp.getKeyOrder().isOrdered() || lp.isKeyUnique())) {
@@ -283,17 +376,21 @@ public class ReduceNode extends SingleInputNode {
 			if (isCombineable() && ss != ShipStrategy.FORWARD) {
 				// this node contains the estimates for the costs of the combiner,
 				// as well as the updated size and cardinality estimates
-				OptimizerNode combiner = new CombinerNode(getPactContract(), pred, combinerReducingFactor);
-				combiner.setDegreeOfParallelism(pred.getDegreeOfParallelism());
+				int index = 0;
+				for(OptimizerNode pred : predList) {
+					OptimizerNode combiner = new CombinerNode(getPactContract(), pred, this.combinerReducingFactor);
+					combiner.setDegreeOfParallelism(pred.getDegreeOfParallelism());
 
-				estimator.costOperator(combiner);
-				pred = combiner;
+					estimator.costOperator(combiner);
+					predList.set(index, combiner); // replace reduce node with combiner node at appropriate index
+					++index;
+				}
 			}
-			// ----------------------------------------------------------------
-
-			// create a new reduce node for this input
-			ReduceNode n = new ReduceNode(this, pred, input, gp, lp);
-			n.input.setShipStrategy(ss);
+			
+			ReduceNode n = new ReduceNode(this, predList, this.input, gp, lp);
+			for(PactConnection cc : n.getInputConnections()) {
+				cc.setShipStrategy(ss);
+			}
 			n.setLocalStrategy(ls);
 
 			// compute, which of the properties survive, depending on the output contract
@@ -304,53 +401,133 @@ public class ReduceNode extends SingleInputNode {
 
 			estimator.costOperator(n);
 
-			outputPlans.add(n);
-
-			// see, if we also have another partitioning alternative
-			// if (ss2 != null) {
-			// gp = PactConnection.getGlobalPropertiesAfterConnection(pred, ss2);
-			// lp = PactConnection.getLocalPropertiesAfterConnection(pred, ss2);
-			//				
-			// // see, if we need a local strategy
-			// if (!(lp.getKeyOrder().isOrdered() || lp.isKeyUnique())) {
-			// lp.setKeyOrder(Order.ASCENDING);
-			// ls = isCombineable() ? LocalStrategy.COMBININGSORT : LocalStrategy.SORT;
-			// }
-			//				
-			// // create a new reduce node for this input
-			// n = new ReduceNode(this, pred, input, gp, lp);
-			// n.input.setShipStrategy(ss2);
-			// n.setLocalStrategy(ls);
-			//				
-			// // compute, which of the properties survive, depending on the output contract
-			// n.getGlobalProperties().getPreservedAfterContract(getOutputContract());
-			// n.getLocalProperties().getPreservedAfterContract(getOutputContract());
-			//				
-			// // compute the costs
-			// estimator.costOperator(n);
-			//				
-			// outputPlans.add(n);
-			// }
+			outputPlans.add(n);		
 		}
-
-		// check if the list does not contain any plan. That may happen, if the channels specify
-		// incompatible shipping strategies.
-		if (outputPlans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the reduce contract '"
-				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
-		}
-
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (this.getOutgoingConnections() != null && this.getOutgoingConnections().size() > 1) {
-			this.cachedPlans = outputPlans;
-		}
-
-		return outputPlans;
 	}
 	
+// union version my mjsax
+//	/**
+//	 * Computes the number of keys that are processed by the PACT.
+//	 * 
+//	 * @return the number of keys processed by the PACT.
+//	 */
+//	private long computeNumberOfProcessedKeys() {
+//		long keySum = 0;
+//		
+//		for(PactConnection c : this.input) {
+//			OptimizerNode pred = c.getSourcePact();
+//		
+//			if(pred != null) {
+//				// if one input (all of them are unioned) does not know
+//				// its record count, we a pessimistic and return "unknown" as well
+//				if(pred.estimatedKeyCardinality == -1)
+//					return -1;
+//				
+//				// Each key is processed by Map
+//				// all inputs are union -> we sum up the keyCounts
+//				keySum += pred.estimatedKeyCardinality;
+//			} 
+//		}
+//		
+//		return keySum;
+//	}
+//	
+//	/**
+//	 * Computes the number of stub calls for one processed key. 
+//	 * 
+//	 * @return the number of stub calls for one processed key.
+//	 */
+//	private double computeStubCallsPerProcessedKey() {
+//		// the stub is called once for each key.
+//		return 1;
+//	}
+//	
+//	/**
+//	 * Computes the number of stub calls.
+//	 * 
+//	 * @return the number of stub calls.
+//	 */
+//	private long computeNumberOfStubCalls() {
+//		// the stub is called once per key
+//		return computeNumberOfProcessedKeys();
+//	}
+//	
+//	/**
+//	 * Computes the width of output records
+//	 * 
+//	 * @return width of output records
+//	 */
+//	private double computeAverageRecordWidth() {
+//		CompilerHints hints = getPactContract().getCompilerHints();
+//		
+//		if(hints != null && hints.getAvgBytesPerRecord() != -1) {
+//			// use hint if available
+//			return hints.getAvgBytesPerRecord();
+//		
+//		}
+//		
+//		long outputSize = 0;
+//		long numRecords = 0;
+//		for(PactConnection c : this.input) {
+//			OptimizerNode pred = c.getSourcePact();
+//			
+//			if(pred != null) {
+//				// if one input (all of them are unioned) does not know
+//				// its output size or number of records,
+//				// we a pessimistic and return "unknown" as well
+//				if(pred.estimatedOutputSize == -1 || pred.estimatedNumRecords == -1)
+//					return -1;
+//				
+//				outputSize += pred.estimatedOutputSize;
+//				numRecords += pred.estimatedNumRecords;
+//			}
+//		}
+//		
+//		double result = outputSize / (double)numRecords;
+//		
+//		// a record must have at least one byte...
+//		if(result < 1)
+//			return 1;
+//		
+//		return result;
+//	}
+//	
+//	private void computeCombinerReducingFactor() {
+//		if(!isCombineable())
+//			return;
+//		
+//		long numRecords = 0;
+//		for(PactConnection c : this.input) {
+//			OptimizerNode pred = c.getSourcePact();
+//			if(pred != null) {
+//				// if one input (all of them are unioned) does not know
+//				// its number of records, we a pessimistic and return
+//				// (reducing factor keeps -1 [unknown])
+//				if(pred.estimatedNumRecords == -11)
+//					return;
+//				
+//				numRecords += pred.estimatedNumRecords;
+//			}
+//		}
+//		
+//		long numKeys = computeNumberOfProcessedKeys();
+//		if(numKeys == -1)
+//			return;
+//		
+//		int parallelism = getDegreeOfParallelism();
+//		if(parallelism < 1)
+//			parallelism = 32; // @parallelism
+//
+//		float inValsPerKey = numRecords / (float)numKeys;
+//		float valsPerNode = inValsPerKey / parallelism;
+//		// each node will process at least one key 
+//		if(valsPerNode < 1)
+//			valsPerNode = 1;
+//
+//		this.combinerReducingFactor = 1 / valsPerNode;
+//	}
+// end union version
+
 //	/**
 //	 * Computes the number of keys that are processed by the PACT.
 //	 * 
@@ -433,7 +610,166 @@ public class ReduceNode extends SingleInputNode {
 //			this.combinerReducingFactor = 1.0f / valsPerNode;
 //		}
 //	}
-	
+
+// union version by mjsax
+//	/*
+//	 * (non-Javadoc)
+//	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
+//	 */
+//	@Override
+//	public void computeOutputEstimates(DataStatistics statistics) {
+//		boolean allPredsAvailable = false;
+//		
+//		if(this.input != null) {
+//			for(PactConnection c : this.input) {
+//				if(c.getSourcePact() == null) {
+//					allPredsAvailable = false;
+//					break;
+//				}
+//			}
+//		}
+//
+//		CompilerHints hints = getPactContract().getCompilerHints();
+//		
+//		// special hint handling for Reduce:
+//		// In case of SameKey OutputContract, avgNumValuesPerKey and avgRecordsEmittedPerStubCall are identical, 
+//		// since the stub is called once per key
+//		if(this.getOutputContract().equals(OutputContract.SameKey)) {
+//			if(hints.getAvgNumValuesPerKey() != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+//				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerKey());
+//			}
+//			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerKey() == -1) {
+//				hints.setAvgNumValuesPerKey(hints.getAvgRecordsEmittedPerStubCall());
+//			}
+//		}
+//
+//		// check if preceding node is available
+//		if (!allPredsAvailable) {
+//			// Preceding node is not available, we take hints as given
+//			this.estimatedKeyCardinality = hints.getKeyCardinality();
+//			
+//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) >= 1 ? 
+//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+//			}
+//			
+//			if(this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
+//				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
+//						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
+//			}
+//			
+//		} else {
+//			// We have a preceding node
+//		
+//			// ############# set default estimates
+//			
+//			// default output cardinality is equal to number of stub calls
+//			this.estimatedNumRecords = this.computeNumberOfStubCalls();
+//			// default key cardinality is -1
+//			this.estimatedKeyCardinality = -1;
+//			// default output size is equal to output size of previous node
+//			long outputSize = 0;
+//			for(PactConnection c : this.input) {
+//				OptimizerNode pred = c.getSourcePact();
+//				
+//				if(pred != null) {
+//					// if one input (all of them are unioned) does not know
+//					// its output size, we a pessimistic and return "unknown" as well
+//					if(pred.estimatedOutputSize == -1) {
+//						outputSize = -1;
+//						break;
+//					}
+//					
+//					outputSize += pred.estimatedOutputSize;
+//				}
+//			}
+//			
+//			this.estimatedOutputSize = outputSize;
+//			
+//			
+//			// ############# output cardinality estimation ##############
+//			
+//			boolean outputCardEstimated = true;
+//				
+//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+//				// we have precise hints
+//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey() >= 1) ?
+//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+//			} else if(hints.getAvgRecordsEmittedPerStubCall() != 1.0) {
+//				// we know how many records are in average emitted per stub call
+//				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
+//						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
+//			} else {
+//				outputCardEstimated = false;
+//			}
+//						
+//			// ############# output key cardinality estimation ##########
+//
+//			if(hints.getKeyCardinality() != -1) {
+//				// number of keys is explicitly given by user hint
+//				this.estimatedKeyCardinality = hints.getKeyCardinality();
+//				
+//			} else if(!this.getOutputContract().equals(OutputContract.None)) {
+//				// we have an output contract which might help to estimate the number of output keys
+//				
+//				if(this.getOutputContract().equals(OutputContract.UniqueKey)) {
+//					// each output key is unique. Every record has a unique key.
+//					this.estimatedKeyCardinality = this.estimatedNumRecords;
+//					
+//				} else if(this.getOutputContract().equals(OutputContract.SameKey) || 
+//						this.getOutputContract().equals(OutputContract.SameKeyFirst) || 
+//						this.getOutputContract().equals(OutputContract.SameKeySecond)) {
+//					// we have a samekey output contract
+//					
+//					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
+//						// in average less than one record is emitted per stub call
+//						
+//						// compute the probability that at least one stub call emits a record for a given key 
+//						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
+//
+//						this.estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
+//								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
+//					} else {
+//						// in average more than one record is emitted per stub call. We assume all keys are kept.
+//						this.estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
+//					}
+//				}
+//			} else if(hints.getAvgNumValuesPerKey() != -1 && this.estimatedNumRecords != -1) {
+//				// we have a hint for the average number of records per key
+//				this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey() >= 1) ? 
+//						(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
+//			}
+//			 
+//			// try to reversely estimate output cardinality from key cardinality
+//			if(this.estimatedKeyCardinality != -1 && !outputCardEstimated) {
+//				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
+//				if(hints.getAvgNumValuesPerKey() != -1) {
+//					// we have a hint for average values per key
+//					this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey() >= 1) ?
+//							(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
+//				}
+//			}
+//				
+//			// ############# output size estimation #####################
+//
+//			double estAvgRecordWidth = this.computeAverageRecordWidth();
+//			
+//			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
+//				// we have a cardinality estimate and width estimate
+//
+//				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
+//						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
+//			}
+//			
+//			// check that the key-card is maximally as large as the number of rows
+//			if (this.estimatedKeyCardinality > this.estimatedNumRecords) {
+//				this.estimatedKeyCardinality = this.estimatedNumRecords;
+//			}
+//			
+//			this.computeCombinerReducingFactor();
+//		}
+// end union version
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)

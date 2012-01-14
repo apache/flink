@@ -40,8 +40,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  */
 public class MatchNode extends TwoInputNode {
 
-	private List<MatchNode> cachedPlans; // a cache for the computed alternative plans
-
 	/**
 	 * Creates a new MatchNode for the given contract.
 	 * 
@@ -104,8 +102,8 @@ public class MatchNode extends TwoInputNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected MatchNode(MatchNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
+	protected MatchNode(MatchNode template, List<OptimizerNode> pred1, List<OptimizerNode> pred2, List<PactConnection> conn1,
+			List<PactConnection> conn2, GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
 	}
 
@@ -116,6 +114,7 @@ public class MatchNode extends TwoInputNode {
 	 * 
 	 * @return The contract.
 	 */
+	@Override
 	public MatchContract getPactContract() {
 		return (MatchContract) super.getPactContract();
 	}
@@ -159,6 +158,42 @@ public class MatchNode extends TwoInputNode {
 		super.setInputs(contractToNode);
 	}
 
+// union version my mjsax 
+//	/*
+//	 * (non-Javadoc)
+//	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
+//	 */
+//	@Override
+//	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+//		// first, get all incoming interesting properties and see, how they can be propagated to the
+//		// children, depending on the output contract.
+//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+//
+//		List<InterestingProperties> props1 = null;
+//		List<InterestingProperties> props2 = new ArrayList<InterestingProperties>();
+//
+//		OutputContract oc = getOutputContract();
+//		if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
+//			props1 = InterestingProperties.filterByOutputContract(thisNodesIntProps, oc);
+//			props2.addAll(props1);
+//		} else {
+//			props1 = new ArrayList<InterestingProperties>();
+//		}
+//
+//		// a match is always interested in the following properties from both inputs:
+//		// 1) any-partition and order
+//		// 2) partition only
+//		for(PactConnection c : this.input1) {
+//			createInterestingProperties(c, props1, estimator);
+//			c.addAllInterestingProperties(props1);
+//		}
+//		for(PactConnection c : this.input2) {
+//			createInterestingProperties(c, props2, estimator);
+//			c.addAllInterestingProperties(props2);
+//		}
+//	}
+// end union version
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
@@ -189,9 +224,48 @@ public class MatchNode extends TwoInputNode {
 //		input1.addAllInterestingProperties(props1);
 //		input2.addAllInterestingProperties(props2);
 		
-		this.input1.setNoInterestingProperties();
-		this.input2.setNoInterestingProperties();
+		// my mjsax: union
+//		this.input1.setNoInterestingProperties();
+//		this.input2.setNoInterestingProperties();
+		for(PactConnection c: this.input1)
+			c.setNoInterestingProperties();
+		for(PactConnection c: this.input2)
+			c.setNoInterestingProperties();
 	}
+	
+// union version by mjsax
+//	/**
+//	 * Utility method that generates for the given input interesting properties about partitioning and
+//	 * order.
+//	 * 
+//	 * @param input
+//	 *        The input to generate the interesting properties for.
+//	 * @param target
+//	 *        The list to add the interesting properties to.
+//	 * @param estimator
+//	 *        The cost estimator to estimate the maximal costs for the interesting properties.
+//	 */
+//	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
+//			CostEstimator estimator) {
+//		InterestingProperties p = new InterestingProperties();
+//
+//		// partition and any order
+//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
+//		p.getLocalProperties().setKeyOrder(Order.ANY);
+//
+//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+//		Costs c = new Costs();
+//		estimator.getLocalSortCost(this, Collections.<PactConnection>singletonList(input), c);
+//		p.getMaximalCosts().addCosts(c);
+//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+//
+//		// partition only
+//		p = new InterestingProperties();
+//		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY);
+//		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
+//		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+//	}
+// union version
 
 //	/**
 //	 * Utility method that generates for the given input interesting properties about partitioning and
@@ -225,71 +299,66 @@ public class MatchNode extends TwoInputNode {
 //		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 //	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact
-	 * .compiler.costs.CostEstimator)
-	 */
 	@Override
-	public List<MatchNode> getAlternativePlans(CostEstimator estimator) {
-		// check if we have a cached version
-		if (cachedPlans != null) {
-			return cachedPlans;
-		}
+	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
+			List<List<OptimizerNode>> alternativeSubPlanCominations2, CostEstimator estimator, List<OptimizerNode> outputPlans)
+	{
 
-		List<? extends OptimizerNode> inPlans1 = input1.getSourcePact().getAlternativePlans(estimator);
-		List<? extends OptimizerNode> inPlans2 = input2.getSourcePact().getAlternativePlans(estimator);
-
-		List<MatchNode> outputPlans = new ArrayList<MatchNode>();
-
-		// go over each combination of alternative children from the two inputs
-		for (OptimizerNode pred1 : inPlans1) {
-			for (OptimizerNode pred2 : inPlans2) {
+		for(List<OptimizerNode> predList1 : alternativeSubPlanCominations1) {
+			for(List<OptimizerNode> predList2 : alternativeSubPlanCominations2) {
+				
 				// check, whether the two children have the same
 				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(pred1, pred2)) {
+				if (!areBranchCompatible(predList1, predList2)) {
 					continue;
 				}
 				
+				ShipStrategy ss1 = checkShipStrategyCompatibility(this.input1);
+				if(ss1 == null)
+					continue;
+				ShipStrategy ss2 = checkShipStrategyCompatibility(this.input2);
+				if(ss2 == null)
+					continue;
+
 				// check for self match
-				if (pred1.equals(pred2)) {
+				if (areBranchesEqual(predList1, predList2)) {
 					// we have a self match
 					
-					ShipStrategy ss1 = input1.getShipStrategy();
-					ShipStrategy ss2 = input2.getShipStrategy();
 					
 					if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && ss1.equals(ss2)) {
 						// ShipStrategy is forced on both inputs
-						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss1, estimator);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss1, estimator);
 					} else if (ss1 != ShipStrategy.NONE && ss2 == ShipStrategy.NONE) {
 						// ShipStrategy is forced on first input
-						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss1, estimator);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss1, estimator);
 					} else if (ss1 == ShipStrategy.NONE && ss2 != ShipStrategy.NONE) {
 						// ShipStrategy is forced on second input
-						createLocalAlternatives(outputPlans, pred1, pred2, ss2, ss2, estimator);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss2, ss2, estimator);
 					} else if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && !ss1.equals(ss2)) {
 						// incompatible ShipStrategies enforced
 						continue;
 					}
 					
-					GlobalProperties gp = pred1.getGlobalProperties();
+					GlobalProperties gp;
+					if(predList1.size() == 1) {
+						gp = predList1.get(0).getGlobalProperties();
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp = new GlobalProperties();
+					}
 					
 					if(gp.getPartitioning().equals(PartitionProperty.NONE)) {
 						// we need to partition
 						// TODO: include range partitioning
-						createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator);
+						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator);
 					} else {
 						// input is already partitioned
-						createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD, ShipStrategy.FORWARD, estimator);
+						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD, ShipStrategy.FORWARD, estimator);
 					}
 					
 					// check next alternative
 					continue;
 				}
-
-				ShipStrategy ss1 = input1.getShipStrategy();
-				ShipStrategy ss2 = input2.getShipStrategy();
 
 				GlobalProperties gp1;
 				GlobalProperties gp2;
@@ -298,11 +367,23 @@ public class MatchNode extends TwoInputNode {
 				// some may be fixed a priori by compiler hints
 				if (ss1 == ShipStrategy.NONE) {
 					// the first connection is free to choose for the compiler
-					gp1 = pred1.getGlobalProperties();
+
+					if(predList1.size() == 1) {
+						gp1 = predList1.get(0).getGlobalProperties();
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp1 = new GlobalProperties();
+					}
 
 					if (ss2 == ShipStrategy.NONE) {
 						// case: both are free to choose
-						gp2 = pred2.getGlobalProperties();
+					
+						if(predList2.size() == 1) {
+							gp2 = predList2.get(0).getGlobalProperties();
+						} else {
+							// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+							gp2 = new GlobalProperties();
+						}
 
 						// test, if one side is pre-partitioned
 						// if that is the case, partitioning the other side accordingly is
@@ -325,18 +406,18 @@ public class MatchNode extends TwoInputNode {
 								// 2) re-partition 1 the same way as 2
 
 								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
 										ShipStrategy.PARTITION_HASH, estimator);
 								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
 										ShipStrategy.PARTITION_RANGE, estimator);
 								}
 
 								if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
 										ShipStrategy.FORWARD, estimator);
 								} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 										ShipStrategy.FORWARD, estimator);
 								}
 
@@ -346,17 +427,17 @@ public class MatchNode extends TwoInputNode {
 						}
 
 						// create the alternative nodes. the strategies to create depend on the different
-						// combinations of pre-existing partitionings
+						// combinations of pre-existing partitions
 						if (ss1 == ShipStrategy.FORWARD) {
 							if (ss2 == ShipStrategy.FORWARD) {
 								// both are equally pre-partitioned
 								// we need not use any special shipping step
-								createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator);
+								createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 
 								// we create an additional plan with a range partitioning
 								// if this is not already a range partitioning
 								if (gp1.getPartitioning() != PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 										ShipStrategy.PARTITION_RANGE, estimator);
 								}
 							} else {
@@ -366,14 +447,14 @@ public class MatchNode extends TwoInputNode {
 								// 1) make input 2 the same partitioning as input 1
 								// 2) partition both inputs with a different partitioning function (hash <-> range)
 								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ss1,
+									createLocalAlternatives(outputPlans, predList1, predList2, ss1,
 										ShipStrategy.PARTITION_HASH, estimator);
-									// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+									// createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 									// ShipStrategy.PARTITION_RANGE, estimator);
 								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, pred1, pred2, ss1,
+									createLocalAlternatives(outputPlans, predList1, predList2, ss1,
 										ShipStrategy.PARTITION_RANGE, estimator);
-									createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+									createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
 										ShipStrategy.PARTITION_HASH, estimator);
 								} else {
 									throw new CompilerException("Invalid partitioning property for input 1 of match '"
@@ -387,14 +468,14 @@ public class MatchNode extends TwoInputNode {
 							// 1) make input 1 the same partitioning as input 2
 							// 2) partition both inputs with a different partitioning function (hash <-> range)
 							if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ss2,
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ss2,
 									estimator);
-								// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+								// createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 								// ShipStrategy.PARTITION_RANGE, estimator);
 							} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE, ss2,
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE, ss2,
 									estimator);
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
 									ShipStrategy.PARTITION_HASH, estimator);
 							} else {
 								throw new CompilerException("Invalid partitioning property for input 2 of match '"
@@ -407,21 +488,26 @@ public class MatchNode extends TwoInputNode {
 							// 2) re-partition both by range
 							// 3) broadcast the first input (forward the second)
 							// 4) broadcast the second input (forward the first)
-							createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+							createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
 								ShipStrategy.PARTITION_HASH, estimator);
 							// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
 							// ShipStrategy.PARTITION_RANGE, estimator);
 
 							// add the broadcasting strategies only, if the sizes of can be estimated
-							if (pred1.getEstimatedOutputSize() != -1 && pred2.getEstimatedOutputSize() != -1) {
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.BROADCAST,
+							if (haveValidOutputEstimates(predList1) && haveValidOutputEstimates(predList2)) {
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.BROADCAST,
 									ShipStrategy.FORWARD, estimator);
-								createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
+								createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
 									ShipStrategy.BROADCAST, estimator);
 							}
 						}
 					} else {
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+						if(predList2.size() == 1) {
+							gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);
+						} else {
+							// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+							gp2 = new GlobalProperties();
+						}
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is broadcast -> other side must be forward
@@ -461,13 +547,25 @@ public class MatchNode extends TwoInputNode {
 								+ "' for match contract '" + getPactContract().getName() + "'.");
 						}
 
-						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 					}
 
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-					gp2 = pred2.getGlobalProperties();
+
+					if(predList1.size() == 1) {
+						gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp1 = new GlobalProperties();
+					}
+
+					if(predList2.size() == 1) {
+						gp2 = predList2.get(0).getGlobalProperties();
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp2 = new GlobalProperties();
+					}
 
 					// 1) input 1 is broadcast -> other side must be forward
 					// 2) input 1 is forward -> other side must be broadcast, if forwarded side is not partitioned
@@ -505,21 +603,34 @@ public class MatchNode extends TwoInputNode {
 							+ "' for match contract '" + getPactContract().getName() + "'.");
 					}
 
-					createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator);
+					createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 				} else {
 					// both are fixed
 					// check, if they produce a valid plan
 					if ((ss1 == ShipStrategy.BROADCAST && ss2 != ShipStrategy.BROADCAST)
 						|| (ss1 != ShipStrategy.BROADCAST && ss2 == ShipStrategy.BROADCAST)) {
 						// the broadcast / not-broadcast combinations are legal
-						createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator);
+						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 					} else {
 						// they need to have an equal partitioning
-						gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+
+						if(predList1.size() == 1) {
+							gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
+						} else {
+							// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+							gp1 = new GlobalProperties();
+						}
+
+						if(predList2.size() == 1) {
+							gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);
+						} else {
+							// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+							gp2 = new GlobalProperties();
+						}
+
 						if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
 							// partitioning there and equal
-							createLocalAlternatives(outputPlans, pred1, pred2, ss1, ss2, estimator);
+							createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 						} else {
 							// no valid plan possible with that combination of shipping strategies and pre-existing
 							// properties
@@ -528,25 +639,7 @@ public class MatchNode extends TwoInputNode {
 					}
 				}
 			}
-
 		}
-
-		// check if the list does not contain any plan. That may happen, if the channels specify
-		// incompatible shipping strategies.
-		if (outputPlans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the reduce contract '"
-				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
-		}
-
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (this.getOutgoingConnections() != null && this.getOutgoingConnections().size() > 1) {
-			this.cachedPlans = outputPlans;
-		}
-
-		return outputPlans;
 	}
 
 	/**
@@ -555,10 +648,10 @@ public class MatchNode extends TwoInputNode {
 	 * 
 	 * @param target
 	 *        The list to put the alternatives in.
-	 * @param pred1
-	 *        The predecessor node for the first input.
-	 * @param pred2
-	 *        The predecessor node for the second input.
+	 * @param allPreds1
+	 *        The predecessor nodes for the first input.
+	 * @param allPreds2
+	 *        The predecessor nodes for the second input.
 	 * @param ss1
 	 *        The shipping strategy for the first input.
 	 * @param ss2
@@ -566,15 +659,30 @@ public class MatchNode extends TwoInputNode {
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createLocalAlternatives(List<MatchNode> target, OptimizerNode pred1, OptimizerNode pred2,
+	private void createLocalAlternatives(List<OptimizerNode> target, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2,
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
 	{
 		// compute the given properties of the incoming data
-		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+		GlobalProperties gp1, gp2;
+		LocalProperties lp1, lp2;
 
-		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
-		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
+		if(allPreds1.size() == 1) {
+			gp1 = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+			lp1 = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+		} else {
+			// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+			gp1 = new GlobalProperties();
+			lp1 = new LocalProperties();
+		}
+
+		if(allPreds2.size() == 1) {
+			gp2 = PactConnection.getGlobalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+			lp2 = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+		} else {
+			// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+			gp2 = new GlobalProperties();
+			lp2 = new LocalProperties();
+		}
 
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();
@@ -594,38 +702,38 @@ public class MatchNode extends TwoInputNode {
 				outLp.setKeyOrder(Order.ASCENDING);
 				outLp.setKeysGrouped(true);
 				
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, outGp, outLp, estimator);
+				createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, ls, outGp, outLp, estimator);
 			} else if (ls == LocalStrategy.HYBRIDHASH_FIRST || ls == LocalStrategy.HYBRIDHASH_SECOND
 				|| ls == LocalStrategy.MMHASH_FIRST || ls == LocalStrategy.MMHASH_SECOND) {
 				outLp.setKeyOrder(Order.NONE);
 				outLp.setKeysGrouped(false);
 				
-				createMatchAlternative(target, pred1, pred2, ss1, ss2, ls, outGp, outLp, estimator);
+				createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, ls, outGp, outLp, estimator);
 			} else if (ls == LocalStrategy.SORT_SELF_NESTEDLOOP) {
 				outLp.setKeyOrder(Order.ASCENDING);
 				outLp.setKeysGrouped(true);
 				
-				createMatchAlternative(target, pred1, null, ss1, null, ls, outGp, outLp, estimator);
+				createMatchAlternative(target, allPreds1, null, ss1, null, ls, outGp, outLp, estimator);
 			} else if (ls == LocalStrategy.SELF_NESTEDLOOP) {
 				outLp.setKeyOrder(lp1.getKeyOrder());
 				outLp.setKeysGrouped(true);
 				
-				createMatchAlternative(target, pred1, null, ss1, null, ls, outGp, outLp, estimator);
+				createMatchAlternative(target, allPreds1, null, ss1, null, ls, outGp, outLp, estimator);
 			}
 
 		} else {
-			if (!pred1.equals(pred2)) {
+			if (!areBranchesEqual(allPreds1, allPreds2)) {
 				// this is not a self match
 			
 				// create the hash strategies only, if we have estimates for the input sized
-				if (pred1.estimatedOutputSize > 0 && pred2.estimatedOutputSize > 0)
+				if (haveValidOutputEstimates(allPreds1) && haveValidOutputEstimates(allPreds2))
 				{
 					// create the hybrid-hash strategy where the first input is the building side
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, outGp.createCopy(),
+					createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.HYBRIDHASH_FIRST, outGp.createCopy(),
 						outLp.createCopy(), estimator);
 		
 					// create the hybrid-hash strategy where the second input is the building side
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.HYBRIDHASH_SECOND, outGp.createCopy(),
+					createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.HYBRIDHASH_SECOND, outGp.createCopy(),
 						outLp.createCopy(), estimator);
 				}
 	
@@ -636,19 +744,19 @@ public class MatchNode extends TwoInputNode {
 				// set local strategy according to pre-existing ordering
 				if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
 					// both inputs have ascending order
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.MERGE, outGp, outLp, estimator);
+					createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.MERGE, outGp, outLp, estimator);
 					
 				} else if (lp1.getKeyOrder() != Order.ASCENDING && lp2.getKeyOrder() == Order.ASCENDING) {
 					// input 2 has ascending order, input 1 does not
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_FIRST_MERGE, outGp, outLp, estimator);
+					createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.SORT_FIRST_MERGE, outGp, outLp, estimator);
 					
 				} else if (lp1.getKeyOrder() == Order.ASCENDING && lp2.getKeyOrder() != Order.ASCENDING) {
 					// input 1 has ascending order, input 2 does not
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_SECOND_MERGE, outGp, outLp, estimator);
+					createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.SORT_SECOND_MERGE, outGp, outLp, estimator);
 					
 				} else {
 					// none of the inputs has ascending order
-					createMatchAlternative(target, pred1, pred2, ss1, ss2, LocalStrategy.SORT_BOTH_MERGE, outGp, outLp, estimator);
+					createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.SORT_BOTH_MERGE, outGp, outLp, estimator);
 					
 				}
 				
@@ -662,12 +770,12 @@ public class MatchNode extends TwoInputNode {
 					// output will have order of input
 					outLp.setKeyOrder(lp1.getKeyOrder());
 					// self match without sorting
-					createMatchAlternative(target, pred1, null, ss1, null, LocalStrategy.SELF_NESTEDLOOP, outGp, outLp, estimator);
+					createMatchAlternative(target, allPreds1, null, ss1, null, LocalStrategy.SELF_NESTEDLOOP, outGp, outLp, estimator);
 				} else {
 					// output will be ascendingly sorted
 					outLp.setKeyOrder(Order.ASCENDING);
 					// self match with sorting
-					createMatchAlternative(target, pred1, null, ss1, null, LocalStrategy.SORT_SELF_NESTEDLOOP, outGp, outLp, estimator);
+					createMatchAlternative(target, allPreds1, null, ss1, null, LocalStrategy.SORT_SELF_NESTEDLOOP, outGp, outLp, estimator);
 				}
 				
 			}
@@ -675,6 +783,56 @@ public class MatchNode extends TwoInputNode {
 
 	}
 
+	/**
+	 * If we have multiple connection for both inputs, the branches are equal if all predecessors
+	 * per input are the same as for the other input. Ie., if the two sets (the order does not matter)
+	 * of both predecessors are equal.
+	 * 
+	 * Eg.:
+	 * allPreds1 = { A, B, C } == allPreds2 = { B, A, C }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B, C, D }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B, E }
+	 * 
+	 * @param allPreds1		All predecessors of the first input.
+	 * @param allPreds2		All predecessors of the second input.
+	 * 
+	 * @return	{@code true} if branches are equal, {@code false} otherwise.
+	 */
+	private boolean areBranchesEqual(List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2) {
+		final int size1 = allPreds1.size();
+		final int size2 = allPreds2.size();
+		
+		List<OptimizerNode> copy1 = new ArrayList<OptimizerNode>(size1);
+		List<OptimizerNode> copy2 = new ArrayList<OptimizerNode>(size2);
+		
+		for(int i = 0; i < size1; ++i)
+			copy1.add(allPreds1.get(i));
+		for(int i = 0; i < size2; ++i)
+			copy2.add(allPreds2.get(i));
+
+		outter:
+		for(int i = 0; i < copy1.size(); ++i) {
+			OptimizerNode nodeToTest = copy1.get(i);
+			
+			for(int j = i + i; j < copy2.size(); ++j) {
+				if(nodeToTest.equals(copy2.get(j))) {
+					copy1.remove(i);
+					--i;
+					copy2.remove(j);
+		
+					continue outter;
+				}
+			}
+			
+			return false;
+		}
+		
+		assert (copy1.size() == 0 && copy2.size() == 0);
+		
+		return true;
+	}
+	
 	/**
 	 * Private utility method that generates a candidate Match node, given fixed shipping strategies and a fixed
 	 * local strategy.
@@ -698,17 +856,18 @@ public class MatchNode extends TwoInputNode {
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createMatchAlternative(List<MatchNode> target, OptimizerNode pred1, OptimizerNode pred2,
+	private void createMatchAlternative(List<OptimizerNode> target, List<OptimizerNode> pred1, List<OptimizerNode> pred2,
 			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, GlobalProperties outGp, LocalProperties outLp,
-			CostEstimator estimator) {
+			CostEstimator estimator)
+	{
 		// create a new reduce node for this input
-		MatchNode n = new MatchNode(this, pred1, pred2, input1, input2, outGp, outLp);
+		MatchNode n = new MatchNode(this, pred1, pred2, this.input1, this.input2, outGp, outLp);
 
-		if(n.input1 != null) {
-			n.input1.setShipStrategy(ss1);
+		for(PactConnection c : n.input1) {
+			c.setShipStrategy(ss1);
 		}
-		if(n.input2 != null) {
-			n.input2.setShipStrategy(ss2);
+		for(PactConnection c : n.input2) {
+			c.setShipStrategy(ss2);
 		}
 		n.setLocalStrategy(ls);
 
@@ -724,6 +883,186 @@ public class MatchNode extends TwoInputNode {
 		target.add(n);
 	}
 	
+// union version by mjsax
+//	/**
+//	 * Computes the number of keys that are processed by the PACT.
+//	 * 
+//	 * @return the number of keys processed by the PACT.
+//	 */
+//	private long computeNumberOfProcessedKeys() {
+//		long numKey1 = 0;
+//		long numKey2 = 0;
+//		
+//		for(PactConnection c : this.input1) {
+//			long keys = c.getSourcePact().estimatedKeyCardinality;
+//			
+//			if(keys == -1) {
+//				numKey1 = -1;
+//				break;
+//			}
+//			
+//			numKey1 += keys;
+//		}
+//
+//		for(PactConnection c : this.input2) {
+//			long keys = c.getSourcePact().estimatedKeyCardinality;
+//			
+//			if(keys == -1) {
+//				numKey2 = -1;
+//				break;
+//			}
+//			
+//			numKey2 += keys;
+//		}<<<<<<< HEAD
+
+//		
+//		if(numKey1 == -1)
+//			// key card of 1st input unknown. Use key card of 2nd input as upper bound
+//			return numKey2;
+//		
+//		
+//		if(numKey2 == -1)
+//			// key card of 2nd input unknown. Use key card of 1st input as upper bound
+//			return numKey1;
+//
+//		// key card of both inputs known. Use minimum as upper bound
+//		return Math.min(numKey1, numKey2);
+//	}
+//	
+//	/**
+//	 * Computes the number of stub calls for one processed key. 
+//	 * 
+//	 * @return the number of stub calls for one processed key.
+//	 */
+//	private double computeStubCallsPerProcessedKey() {
+//		long numKey1 = 0;
+//		long numRecords1 = 0;
+//		long numKey2 = 0;
+//		long numRecords2 = 0;
+//		
+//		for(PactConnection c : this.input1) {
+//			OptimizerNode n = c.getSourcePact();
+//			
+//			if(n.estimatedKeyCardinality == -1 || n.estimatedNumRecords == -1) {
+//				numKey1 = -1;
+//				break;
+//			}
+//			
+//			numKey1 += n.estimatedKeyCardinality;
+//			numRecords1 += n.estimatedNumRecords;
+//		}
+//
+//		for(PactConnection c : this.input2) {
+//			OptimizerNode n = c.getSourcePact();
+//			
+//			if(n.estimatedKeyCardinality == -1 || n.estimatedNumRecords == -1) {
+//				numKey2 = -1;
+//				break;
+//			}
+//			
+//			numKey2 += n.estimatedKeyCardinality;
+//			numRecords2 += n.estimatedNumRecords;
+//		}
+//
+//		if(numKey1 == -1 && numKey2 == -1)
+//			return -1;
+//		
+//		
+//		double callsPerKey = 1;
+//		
+//		if(numKey1 != -1) {
+//			callsPerKey *= numKey1 / (double)numRecords1;
+//		}
+//		
+//		if(numKey2 != -1) {
+//			callsPerKey *= numKey2 / (double)numRecords2;
+//		}
+//
+//		return callsPerKey;
+//	}
+//	
+//	/**
+//	 * Computes the number of stub calls.
+//	 * 
+//	 * @return the number of stub calls.
+//	 */
+//	private long computeNumberOfStubCalls() {
+//		long processedKeys = computeNumberOfProcessedKeys();
+//		if(processedKeys == -1)
+//			return -1;
+//		
+//		double stubCallsPerKey = computeStubCallsPerProcessedKey();
+//		if(stubCallsPerKey == -1)
+//			return -1;
+//		
+//		return (long)(processedKeys * stubCallsPerKey);
+//	}
+//	
+//	/**
+//	 * Computes the width of output records
+//	 * 
+//	 * @return width of output records
+//	 */
+//	private double computeAverageRecordWidth() {
+//		CompilerHints hints = getPactContract().getCompilerHints();
+//
+//		if(hints.getAvgBytesPerRecord() != -1) {
+//			// use hint if available
+//			return hints.getAvgBytesPerRecord();
+//		}
+//	
+//		long outputSize = 0;
+//		long numRecords = 0;
+//		for(PactConnection c : this.input1) {
+//			OptimizerNode pred = c.getSourcePact();
+//			
+//			if(pred != null) {
+//				// if one input (all of them are unioned) does not know
+//				// its output size or number of records, we a pessimistic and return "unknown" as well
+//				if(pred.estimatedOutputSize == -1 || pred.estimatedNumRecords == -1) {
+//					outputSize = -1;
+//					break;
+//				}
+//				
+//				outputSize += pred.estimatedOutputSize;
+//				numRecords += pred.estimatedNumRecords;
+//			}
+//		}
+//
+//		double avgWidth = -1;
+//
+//		if(outputSize != -1) {
+//			avgWidth = outputSize / (double)numRecords;
+//			if(avgWidth < 1)
+//				avgWidth = 1;
+//		}
+//		
+//
+//		for(PactConnection c : this.input2) {
+//			OptimizerNode pred = c.getSourcePact();
+//			
+//			if(pred != null) {
+//				// if one input (all of them are unioned) does not know
+//				// its output size or number of records, we a pessimistic and return "unknown" as well
+//				if(pred.estimatedOutputSize == -1) {
+//					return avgWidth;
+//				}
+//				
+//				outputSize += pred.estimatedOutputSize;
+//				numRecords += pred.estimatedNumRecords;
+//			}
+//		}
+//		
+//		if(outputSize != -1) {
+//			avgWidth += outputSize / (double)numRecords;
+//			if(avgWidth < 2)
+//				avgWidth = 2;
+//		}
+//
+//		return avgWidth;
+//	}
+// end union version
+
 //	/**
 //	 * Computes the number of keys that are processed by the PACT.
 //	 * 
@@ -831,6 +1170,145 @@ public class MatchNode extends TwoInputNode {
 //		}
 //	}
 	
+// union version by mjsax
+//	/*
+//	 * (non-Javadoc)
+//	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
+//	 */
+//	@Override
+//	public void computeOutputEstimates(DataStatistics statistics) {
+//		boolean allPredsAvailable = false;
+//		
+//		if(this.input1 != null && this.input2 != null) {
+//			for(PactConnection c : this.input1) {
+//				if(c.getSourcePact() == null) {
+//					allPredsAvailable = false;
+//					break;
+//				}
+//			}
+//			
+//			if(allPredsAvailable) {
+//				for(PactConnection c : this.input2) {
+//					if(c.getSourcePact() == null) {
+//						allPredsAvailable = false;
+//						break;
+//					}
+//				}				
+//			}
+//		}
+//
+//		CompilerHints hints = getPactContract().getCompilerHints();
+//
+//		if (!allPredsAvailable) {
+//			// Preceding node is not available, we take hints as given
+//			this.estimatedKeyCardinality = hints.getKeyCardinality();
+//			
+//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) >= 1 ? 
+//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+//			}
+//			
+//			if(this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
+//				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
+//						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
+//			}
+//			
+//		} else {
+//			// We have a preceding node
+//			
+//			// ############# set default estimates
+//			
+//			// default output cardinality is equal to number of stub calls
+//			this.estimatedNumRecords = this.computeNumberOfStubCalls();
+//			// default key cardinality is -1
+//			this.estimatedKeyCardinality = -1;
+//			// default output size is equal to output size of previous node
+//			this.estimatedOutputSize = -1;
+//						
+//			
+//			// ############# output cardinality estimation ##############
+//			
+//			boolean outputCardEstimated = true;
+//				
+//			if(hints.getKeyCardinality() != -1 && hints.getAvgNumValuesPerKey() != -1) {
+//				// we have precise hints
+//				this.estimatedNumRecords = (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey() >= 1) ?
+//						(long) (hints.getKeyCardinality() * hints.getAvgNumValuesPerKey()) : 1;
+//			} else if(hints.getAvgRecordsEmittedPerStubCall() != 1.0) {
+//				// we know how many records are in average emitted per stub call
+//				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
+//						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
+//			} else {
+//				outputCardEstimated = false;
+//			}
+//						
+//			// ############# output key cardinality estimation ##########
+//
+//			if(hints.getKeyCardinality() != -1) {
+//				// number of keys is explicitly given by user hint
+//				this.estimatedKeyCardinality = hints.getKeyCardinality();
+//				
+//			} else if(!this.getOutputContract().equals(OutputContract.None)) {
+//				// we have an output contract which might help to estimate the number of output keys
+//				
+//				if(this.getOutputContract().equals(OutputContract.UniqueKey)) {
+//					// each output key is unique. Every record has a unique key.
+//					this.estimatedKeyCardinality = this.estimatedNumRecords;
+//					
+//				} else if(this.getOutputContract().equals(OutputContract.SameKey) || 
+//						this.getOutputContract().equals(OutputContract.SameKeyFirst) || 
+//						this.getOutputContract().equals(OutputContract.SameKeySecond)) {
+//					// we have a samekey output contract
+//					
+//					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
+//						// in average less than one record is emitted per stub call
+//						
+//						// compute the probability that at least one stub call emits a record for a given key 
+//						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
+//
+//						this.estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
+//								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
+//					} else {
+//						// in average more than one record is emitted per stub call. We assume all keys are kept.
+//						this.estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
+//					}
+//				}
+//			} else if(hints.getAvgNumValuesPerKey() != -1 && this.estimatedNumRecords != -1) {
+//				// we have a hint for the average number of records per key
+//				this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey() >= 1) ? 
+//						(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
+//			}
+//			 
+//			// try to reversely estimate output cardinality from key cardinality
+//			if(this.estimatedKeyCardinality != -1 && !outputCardEstimated) {
+//				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
+//				if(hints.getAvgNumValuesPerKey() != -1) {
+//					// we have a hint for average values per key
+//					this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey() >= 1) ?
+//							(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
+//				}
+//			}
+//			
+//				
+//			// ############# output size estimation #####################
+//
+//			double estAvgRecordWidth = this.computeAverageRecordWidth();
+//			
+//			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
+//				// we have a cardinality estimate and width estimate
+//
+//				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
+//						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
+//			}
+//			
+//			// check that the key-card is maximally as large as the number of rows
+//			if (this.estimatedKeyCardinality > this.estimatedNumRecords) {
+//				this.estimatedKeyCardinality = this.estimatedNumRecords;
+//			}
+//		}
+//	}
+// end union version
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)

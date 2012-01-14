@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
@@ -27,7 +30,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	/**
 	 * The input which produces the data consumed by this Pact.
 	 */
-	protected Contract input;
+	final protected List<Contract> input = new ArrayList<Contract>();
 	
 	/**
 	 * The positions of the keys in the tuple.
@@ -69,8 +72,8 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * 
 	 * @return The contract's input contract.
 	 */
-	public Contract getInput() {
-		return input;
+	public List<Contract> getInputs() {
+		return this.input;
 	}
 
 	/**
@@ -78,8 +81,39 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * 
 	 * @param input The contract will be set as input.
 	 */
+	public void addInput(Contract input) {
+		this.input.add(input);
+	}
+	
+	/**
+	 * Connects the inputs to the task wrapped in this contract
+	 * 
+	 * @param input The contracts will be set as input.
+	 */
+	public void addInputs(List<Contract> inputs) {
+		this.input.addAll(inputs);
+	}
+
+	/**
+	 * Clears all previous connections and sets the given contract as
+	 * single input of this contract.
+	 * 
+	 * @param input		The contract will be set as input.
+	 */
 	public void setInput(Contract input) {
-		this.input = input;
+		this.input.clear();
+		this.input.add(input);
+	}
+	
+	/**
+	 * Clears all previous connections and sets the given contracts as
+	 * inputs of this contract.
+	 * 
+	 * @param input		The contracts will be set as inputs.
+	 */
+	public void setInputs(List<Contract> inputs) {
+		this.input.clear();
+		this.input.addAll(inputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -119,8 +153,8 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	{
 		boolean descend = visitor.preVisit(this);	
 		if (descend) {
-			if (this.input != null) {
-				this.input.accept(visitor);
+			for(Contract c : this.input) {
+				c.accept(visitor);
 			}
 			visitor.postVisit(this);
 		}

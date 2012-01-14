@@ -646,13 +646,13 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSink result = new FileDataSink(PathOutFormat.class,output, "New Paths");
 		result.setDegreeOfParallelism(noSubTasks);
 
-		result.setInput(findShortestPaths);
-		findShortestPaths.setFirstInput(pathsInput);
-		findShortestPaths.setSecondInput(concatPaths);
-		concatPaths.setFirstInput(pathStarts);
-		pathStarts.setInput(pathsInput);
-		concatPaths.setSecondInput(pathEnds);
-		pathEnds.setInput(pathsInput);
+		result.addInput(findShortestPaths);
+		findShortestPaths.addFirstInput(pathsInput);
+		findShortestPaths.addSecondInput(concatPaths);
+		concatPaths.addFirstInput(pathStarts);
+		pathStarts.addInput(pathsInput);
+		concatPaths.addSecondInput(pathEnds);
+		pathEnds.addInput(pathsInput);
 
 		return new Plan(result, "Pairwise Shortest Paths");
 

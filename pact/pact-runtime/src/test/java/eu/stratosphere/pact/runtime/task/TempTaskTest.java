@@ -32,6 +32,7 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class TempTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(TempTaskTest.class);
@@ -45,8 +46,8 @@ public class TempTaskTest extends TaskTestBase {
 		int valCnt = 4;
 		
 		super.initEnvironment(1024*1024*1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		TempTask testTask = new TempTask();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
@@ -60,7 +61,7 @@ public class TempTaskTest extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue(outList.size() == keyCnt*valCnt);
+		Assert.assertTrue(this.outList.size() == keyCnt*valCnt);
 		
 	}
 	
@@ -68,7 +69,7 @@ public class TempTaskTest extends TaskTestBase {
 	public void testCancelTempTask() {
 		
 		super.initEnvironment(1024*1024*1);
-		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final TempTask testTask = new TempTask();
@@ -77,6 +78,7 @@ public class TempTaskTest extends TaskTestBase {
 		super.registerTask(testTask, PrevStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
