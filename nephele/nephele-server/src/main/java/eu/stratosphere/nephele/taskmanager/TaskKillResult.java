@@ -18,30 +18,30 @@ package eu.stratosphere.nephele.taskmanager;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
 /**
- * A <code>TaskCancelResult</code> is used to report the results
- * of a task cancel attempt. It contains the ID of the task to be canceled, a return code and
- * a description. In case of an error during the cancel operation the description includes an error message.
+ * A <code>TaskKillResult</code> is used to report the results
+ * of a task kill attempt. It contains the ID of the task to be killed, a return code and
+ * a description. In case of an error during the kill operation the description includes an error message.
  * 
  * @author warneke
  */
-public class TaskCancelResult extends AbstractTaskResult {
+public class TaskKillResult extends AbstractTaskResult {
 
 	/**
-	 * Constructs a new task cancel result.
+	 * Constructs a new task kill result.
 	 * 
 	 * @param vertexID
 	 *        the task ID this result belongs to
 	 * @param returnCode
-	 *        the return code of the cancel
+	 *        the return code of the kill
 	 */
-	public TaskCancelResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
+	public TaskKillResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
 		super(vertexID, returnCode);
 	}
 
 	/**
-	 * Constructs an empty task cancel result.
+	 * Constructs an empty task kill result.
 	 */
-	public TaskCancelResult() {
+	public TaskKillResult() {
 		super();
 	}
 }

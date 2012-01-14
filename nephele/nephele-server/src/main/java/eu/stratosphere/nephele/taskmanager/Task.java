@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.taskmanager;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
-import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -56,7 +55,7 @@ public class Task implements ExecutionObserver {
 	private static final Log LOG = LogFactory.getLog(Task.class);
 
 	private static final long NANO_TO_MILLISECONDS = 1000 * 1000;
-	
+
 	private final ExecutionVertexID vertexID;
 
 	private final Environment environment;
@@ -184,16 +183,36 @@ public class Task implements ExecutionObserver {
 	 */
 	public void cancelExecution() {
 
+		cancelOrKillExecution(true);
+	}
+
+	/**
+	 * Kills the task (i.e. interrupts the execution thread).
+	 */
+	public void killExecution() {
+
+		cancelOrKillExecution(false);
+	}
+
+	/**
+	 * Cancels or kills the task.
+	 * 
+	 * @param cancel
+	 *        <code>true/code> if the task shall be cancelled, <code>false</code> if it shall be killed
+	 */
+	private void cancelOrKillExecution(final boolean cancel) {
+
 		final Thread executingThread = this.environment.getExecutingThread();
 
 		if (executingThread == null) {
 			return;
 		}
 
-		this.isCanceled = true;
-
-		// Change state
-		executionStateChanged(ExecutionState.CANCELING, null);
+		if (cancel) {
+			this.isCanceled = true;
+			// Change state
+			executionStateChanged(ExecutionState.CANCELING, null);
+		}
 
 		// Request user code to shut down
 		try {
@@ -210,8 +229,14 @@ public class Task implements ExecutionObserver {
 
 			executingThread.interrupt();
 
-			if (this.executionState == ExecutionState.CANCELED) {
-				break;
+			if (cancel) {
+				if (this.executionState == ExecutionState.CANCELED) {
+					break;
+				}
+			} else {
+				if (this.executionState == ExecutionState.FAILED) {
+					break;
+				}
 			}
 
 			try {
@@ -246,18 +271,19 @@ public class Task implements ExecutionObserver {
 	 */
 	public void initialExecutionResourcesExhausted() {
 
-//		if (this.environment.getExecutingThread() != Thread.currentThread()) {
-//			throw new ConcurrentModificationException(
-//				"initialExecutionResourcesExhausted must be called from the task that executes the user code");
-//		}
+		// if (this.environment.getExecutingThread() != Thread.currentThread()) {
+		// throw new ConcurrentModificationException(
+		// "initialExecutionResourcesExhausted must be called from the task that executes the user code");
+		// }
 
 		// Construct a resource utilization snapshot
 		final long timestamp = System.currentTimeMillis();
-		//Get CPU-Usertime in percent
+		// Get CPU-Usertime in percent
 		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-		long userCPU = (threadBean.getCurrentThreadUserTime()/NANO_TO_MILLISECONDS) * 100 / (timestamp - this.startTime);
-		
-		//collect outputChannelUtilization
+		long userCPU = (threadBean.getCurrentThreadUserTime() / NANO_TO_MILLISECONDS) * 100
+			/ (timestamp - this.startTime);
+
+		// collect outputChannelUtilization
 		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
 		long totalOutputAmount = 0;
 		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
@@ -281,18 +307,20 @@ public class Task implements ExecutionObserver {
 			}
 		}
 		Boolean force = null;
-		
-		if(this.environment.getInvokable().getClass().isAnnotationPresent(Statefull.class) && !this.environment.getInvokable().getClass().isAnnotationPresent(Stateless.class) ){
-			//Don't checkpoint statefull tasks
+
+		if (this.environment.getInvokable().getClass().isAnnotationPresent(Statefull.class)
+			&& !this.environment.getInvokable().getClass().isAnnotationPresent(Stateless.class)) {
+			// Don't checkpoint statefull tasks
 			force = false;
-		}else{
-			//look for a forced decision from the user
+		} else {
+			// look for a forced decision from the user
 			ForceCheckpoint forced = this.environment.getInvokable().getClass().getAnnotation(ForceCheckpoint.class);
-			if(forced != null){
+			if (forced != null) {
 				force = forced.checkpoint();
 			}
 		}
-		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization, userCPU, force, totalInputAmount, totalOutputAmount);
+		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization, userCPU,
+			force, totalInputAmount, totalOutputAmount);
 
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();

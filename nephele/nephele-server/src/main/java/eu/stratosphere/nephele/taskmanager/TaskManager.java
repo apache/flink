@@ -421,6 +421,42 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@inheritDoc}
 	 */
 	@Override
+	public TaskKillResult killTask(final ExecutionVertexID id) throws IOException {
+
+		// Check if the task is registered with our task manager
+		Task tmpTask;
+
+		synchronized (this.runningTasks) {
+
+			tmpTask = this.runningTasks.get(id);
+
+			if (tmpTask == null) {
+				final TaskKillResult taskKillResult = new TaskKillResult(id, AbstractTaskResult.ReturnCode.ERROR);
+				taskKillResult.setDescription("No task with ID + " + id + " is currently running");
+				return taskKillResult;
+			}
+		}
+
+		final Task task = tmpTask;
+		// Execute call in a new thread so IPC thread can return immediately
+		final Thread tmpThread = new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+
+				// Finally, request user code to cancel
+				task.killExecution();
+			}
+		});
+		tmpThread.start();
+
+		return new TaskKillResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	public TaskSubmissionResult submitTask(final ExecutionVertexID id, final Configuration jobConfiguration,
 			final Environment ee, final Set<ChannelID> activeOutputChannels)
 			throws IOException {
@@ -574,7 +610,8 @@ public class TaskManager implements TaskOperationProtocol {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public SerializableArrayList<CheckpointReplayResult> replayCheckpoints(final List <ExecutionVertexID> vertexIDs) throws IOException {
+	public SerializableArrayList<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs)
+			throws IOException {
 
 		final SerializableArrayList<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
 
@@ -694,7 +731,8 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 
-		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED ||newExecutionState == ExecutionState.FAILED) {
+		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
+			|| newExecutionState == ExecutionState.FAILED) {
 
 			// In any of these states the task's thread will be terminated, so we remove the task from the running tasks
 			// map
@@ -881,16 +919,17 @@ public class TaskManager implements TaskOperationProtocol {
 
 	/**
 	 * {@inheritDoc}
-	 * @throws IOException 
+	 * 
+	 * @throws IOException
 	 */
 	@Override
 	public void restartTask(ExecutionVertexID id, Configuration jobConfiguration,
 			Environment environment, Set<ChannelID> activeOutputChannels) throws IOException {
 		Task torestart = this.runningTasks.get(id);
-		//torestart.markAsRestarting();
+		// torestart.markAsRestarting();
 		torestart.cancelExecution();
-		//unregisterTask(id,torestart);
+		// unregisterTask(id,torestart);
 		submitTask(id, jobConfiguration, environment, activeOutputChannels);
-		
+
 	}
 }
