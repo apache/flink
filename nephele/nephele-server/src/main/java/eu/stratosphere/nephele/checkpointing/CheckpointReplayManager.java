@@ -16,6 +16,8 @@
 package eu.stratosphere.nephele.checkpointing;
 
 import java.io.File;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -24,7 +26,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
-public class CheckpointReplayManager {
+public class CheckpointReplayManager implements ReplayFinishedNotifier {
 
 	private static final Log LOG = LogFactory.getLog(CheckpointReplayManager.class);
 
@@ -41,12 +43,16 @@ public class CheckpointReplayManager {
 
 	private final String checkpointDirectory;
 
+	private final ConcurrentMap<ExecutionVertexID, CheckpointReplayTask> runningReplayTasks;
+
 	public CheckpointReplayManager(final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 
 		this.checkpointDirectory = GlobalConfiguration
 			.getString(CHECKPOINT_DIRECTORY_KEY, DEFAULT_CHECKPOINT_DIRECTORY);
+
+		this.runningReplayTasks = new ConcurrentHashMap<ExecutionVertexID, CheckpointReplayTask>();
 	}
 
 	public boolean hasCompleteCheckpointAvailable(final ExecutionVertexID vertexID) {
@@ -77,12 +83,17 @@ public class CheckpointReplayManager {
 
 	public void replayCheckpoint(final ExecutionVertexID vertexID) {
 
-		final CheckpointReplayTask replayTask = new CheckpointReplayTask(vertexID, this.checkpointDirectory,
+		final CheckpointReplayTask newReplayTask = new CheckpointReplayTask(this, vertexID, this.checkpointDirectory,
 			this.transferEnvelopeDispatcher, hasCompleteCheckpointAvailable(vertexID));
 
-		replayTask.start();
+		final CheckpointReplayTask runningReplayTask = this.runningReplayTasks.put(vertexID, newReplayTask);
+		if (runningReplayTask != null) {
+			LOG.info("There is already a replay task running for task " + vertexID + ", cancelling it first...");
+			runningReplayTask.cancelAndWait();
+		}
 
 		LOG.info("Replaying checkpoint for vertex " + vertexID);
+		newReplayTask.start();
 	}
 
 	/**
@@ -92,21 +103,29 @@ public class CheckpointReplayManager {
 	 *        the vertex whose checkpoint shall be removed
 	 */
 	public void removeCheckpoint(final ExecutionVertexID vertexID) {
-			File file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID
+		File file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID
 				+ "_final");
-			if (file.exists()) {
-				file.delete();
-				return;
-			}
-			file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_0");
-			if (file.exists()) {
-				file.delete();
-			}
+		if (file.exists()) {
+			file.delete();
+			return;
+		}
+		file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_0");
+		if (file.exists()) {
+			file.delete();
+		}
 
-			file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_part");
-			if (file.exists()) {
-				file.delete();
-			}
+		file = new File(this.checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_part");
+		if (file.exists()) {
+			file.delete();
+		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void replayFinished(final ExecutionVertexID vertexID) {
+
+		this.runningReplayTasks.remove(vertexID);
+	}
 }

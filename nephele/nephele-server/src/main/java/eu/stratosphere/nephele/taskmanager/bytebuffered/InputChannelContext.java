@@ -98,7 +98,7 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 		// TODO: Fix implementation breaks compression, fix it later on
 		final BufferPairResponse response = new BufferPairResponse(null, transferEnvelope.getBuffer()); // No need to
 
-		// Moved event processing to releaseConsumedReadBuffer method																										// copy anything
+		// Moved event processing to releaseConsumedReadBuffer method // copy anything
 
 		return response;
 	}
@@ -165,7 +165,11 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		synchronized (this.queuedEnvelopes) {
 
-			if (sequenceNumber != (this.lastReceivedEnvelope + 1)) {
+			final int expectedSequenceNumber = this.lastReceivedEnvelope + 1;
+			if (sequenceNumber != expectedSequenceNumber) {
+
+				// LOG.info("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
+				// + " but received " + sequenceNumber);
 
 				final Buffer buffer = transferEnvelope.getBuffer();
 				if (buffer != null) {

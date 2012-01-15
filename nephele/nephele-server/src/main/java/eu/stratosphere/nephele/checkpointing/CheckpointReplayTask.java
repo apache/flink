@@ -29,6 +29,8 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDisp
 
 class CheckpointReplayTask extends Thread {
 
+	private final ReplayFinishedNotifier replayFinishedNotifier;
+
 	private final ExecutionVertexID vertexID;
 
 	private final String checkpointDirectory;
@@ -37,9 +39,13 @@ class CheckpointReplayTask extends Thread {
 
 	private final boolean isCheckpointComplete;
 
-	CheckpointReplayTask(final ExecutionVertexID vertexID, final String checkpointDirectory,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher, final boolean isCheckpointComplete) {
+	private volatile boolean isCanceled = false;
 
+	CheckpointReplayTask(final ReplayFinishedNotifier replayFinishedNotifier, final ExecutionVertexID vertexID,
+			final String checkpointDirectory, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			final boolean isCheckpointComplete) {
+
+		this.replayFinishedNotifier = replayFinishedNotifier;
 		this.vertexID = vertexID;
 		this.checkpointDirectory = checkpointDirectory;
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
@@ -57,28 +63,41 @@ class CheckpointReplayTask extends Thread {
 		} catch (IOException ioe) {
 			// TODO: Handle this correctly
 			ioe.printStackTrace();
+		}
+
+		// Notify the checkpoint replay manager that the replay has been finished
+		this.replayFinishedNotifier.replayFinished(this.vertexID);
+	}
+
+	void cancelAndWait() {
+
+		this.isCanceled = true;
+		interrupt();
+
+		try {
+			join();
 		} catch (InterruptedException ie) {
-			// TODO: Handle this correctly
 			ie.printStackTrace();
 		}
 	}
 
-	private void replayCheckpoint() throws IOException, InterruptedException {
+	private void replayCheckpoint() throws IOException {
 
 		final CheckpointDeserializer deserializer = new CheckpointDeserializer(this.vertexID);
 
 		int metaDataIndex = 0;
+
 		while (true) {
 
 			// Try to locate the meta data file
 			final File metaDataFile = new File(this.checkpointDirectory + File.separator
-				+ CheckpointReplayManager.METADATA_PREFIX + "_" + this.vertexID + "_" + metaDataIndex);
+					+ CheckpointReplayManager.METADATA_PREFIX + "_" + this.vertexID + "_" + metaDataIndex);
 
 			while (!metaDataFile.exists()) {
 
 				// Try to locate the final meta data file
 				final File finalMetaDataFile = new File(this.checkpointDirectory + File.separator
-					+ CheckpointReplayManager.METADATA_PREFIX + "_" + this.vertexID + "_final");
+						+ CheckpointReplayManager.METADATA_PREFIX + "_" + this.vertexID + "_final");
 
 				if (finalMetaDataFile.exists()) {
 					return;
@@ -86,33 +105,51 @@ class CheckpointReplayTask extends Thread {
 
 				if (this.isCheckpointComplete) {
 					throw new FileNotFoundException("Cannot find meta data file " + metaDataIndex
-						+ " for checkpoint of vertex " + this.vertexID);
+							+ " for checkpoint of vertex " + this.vertexID);
 				}
 
 				// Wait for the file to be created
-				Thread.sleep(100);
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					// Ignore exception
+				}
+
+				if (this.isCanceled) {
+					return;
+				}
 			}
 
-			final FileInputStream fis = new FileInputStream(metaDataFile);
-			final FileChannel fileChannel = fis.getChannel();
+			FileInputStream fis = null;
 
-			while (true) {
-				try {
-					deserializer.read(fileChannel);
+			try {
 
-					final TransferEnvelope transferEnvelope = deserializer.getFullyDeserializedTransferEnvelope();
-					if (transferEnvelope != null) {
-						this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(transferEnvelope);
+				fis = new FileInputStream(metaDataFile);
+				final FileChannel fileChannel = fis.getChannel();
+
+				while (!this.isCanceled) {
+					try {
+						deserializer.read(fileChannel);
+
+						final TransferEnvelope transferEnvelope = deserializer.getFullyDeserializedTransferEnvelope();
+						if (transferEnvelope != null) {
+							this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(transferEnvelope);
+						}
+					} catch (EOFException eof) {
+						// Close the file channel
+						fileChannel.close();
+						// Increase the index of the meta data file
+						++metaDataIndex;
+						break;
 					}
-				} catch (EOFException eof) {
-					// Close the file channel
-					fileChannel.close();
-					// Increase the index of the meta data file
-					++metaDataIndex;
-					break;
+				}
+			} catch (InterruptedException e) {
+				// Ignore exception
+			} finally {
+				if (fis != null) {
+					fis.close();
 				}
 			}
 		}
-
 	}
 }
