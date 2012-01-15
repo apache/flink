@@ -663,10 +663,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			@Override
 			public void run() {
-				final TaskCancelResult errorResult = cancelJob(eg);
-				if (errorResult != null) {
-					LOG.error("Cannot cancel job " + jobID + ": " + errorResult);
-				}
+				eg.updateJobStatus(InternalJobStatus.CANCELING, "Job canceled by user");
 			}
 		};
 		this.executorService.execute(cancelJobRunnable);
@@ -1135,9 +1132,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.error("Method 'deploy' called but list of vertices to be deployed is empty");
 			return;
 		}
-
-		// Method executionGraph field of vertex is immutable, so no need to synchronized access
-		final ExecutionGraph eg = verticesToBeDeployed.get(0).getExecutionGraph();
 
 		for (final ExecutionVertex vertex : verticesToBeDeployed) {
 
