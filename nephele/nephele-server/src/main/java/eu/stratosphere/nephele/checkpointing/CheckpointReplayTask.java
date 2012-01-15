@@ -45,6 +45,8 @@ class CheckpointReplayTask extends Thread {
 			final String checkpointDirectory, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final boolean isCheckpointComplete) {
 
+		super("Recovery task for " + vertexID);
+
 		this.replayFinishedNotifier = replayFinishedNotifier;
 		this.vertexID = vertexID;
 		this.checkpointDirectory = checkpointDirectory;
