@@ -664,6 +664,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			@Override
 			public void run() {
 				eg.updateJobStatus(InternalJobStatus.CANCELING, "Job canceled by user");
+				final TaskCancelResult cancelResult = cancelJob(eg);
+				if(cancelResult.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
+					LOG.error(cancelResult.getDescription());
+				}
 			}
 		};
 		this.executorService.execute(cancelJobRunnable);
@@ -1039,7 +1043,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		LOG.info("Status of job " + executionGraph.getJobName() + "(" + executionGraph.getJobID() + ")"
 			+ " changed to " + newJobStatus);
 
-		if (newJobStatus == InternalJobStatus.CANCELING || newJobStatus == InternalJobStatus.FAILING) {
+		if (newJobStatus == InternalJobStatus.FAILING) {
 
 			// Cancel all remaining tasks
 			cancelJob(executionGraph);
