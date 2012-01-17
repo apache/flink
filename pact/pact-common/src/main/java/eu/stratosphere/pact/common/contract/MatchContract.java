@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.List;
+
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 
@@ -93,7 +95,7 @@ public class MatchContract extends DualInputContract<MatchStub>
 
 	/**
 	 * Creates a MatchContract with the provided {@link MatchStub} implementation the default name.
-	 * It uses the given contract as its input.
+	 * It uses the given contracts as its input.
 	 * 
 	 * @param c The {@link MatchStub} implementation for this Match InputContract.
 	 * @param keyType The class of the key data type.
@@ -110,8 +112,62 @@ public class MatchContract extends DualInputContract<MatchStub>
 	}
 	
 	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key> keyType,
+					int firstKeyColumn, int secondKeyColumn,
+					List<Contract> input1, Contract input2)
+	{
+		this(c, keyType, firstKeyColumn, secondKeyColumn, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key> keyType,
+					int firstKeyColumn, int secondKeyColumn,
+					Contract input1, List<Contract> input2)
+	{
+		this(c, keyType, firstKeyColumn, secondKeyColumn, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key> keyType,
+					int firstKeyColumn, int secondKeyColumn,
+					List<Contract> input1, List<Contract> input2)
+	{
+		this(c, keyType, firstKeyColumn, secondKeyColumn, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
 	 * Creates a MatchContract with the provided {@link MatchStub} implementation and the given name.
-	 * It uses the given contract as its input.
+	 * It uses the given contracts as its input.
 	 * 
 	 * @param c The {@link MatchStub} implementation for this Match InputContract.
 	 * @param keyType The class of the key data type.
@@ -131,8 +187,71 @@ public class MatchContract extends DualInputContract<MatchStub>
 	}
 	
 	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key> keyType, 
+					int firstKeyColumn, int secondKeyColumn,
+					List<Contract> input1, Contract input2, String name)
+	{
+		this(c, keyType, firstKeyColumn, secondKeyColumn, name);
+		setFirstInputs(input1);
+		setSecondInput(input2);
+	}
+
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key> keyType, 
+					int firstKeyColumn, int secondKeyColumn,
+					Contract input1, List<Contract> input2, String name)
+	{
+		this(c, keyType, firstKeyColumn, secondKeyColumn, name);
+		setFirstInput(input1);
+		setSecondInputs(input2);
+	}
+
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyType The class of the key data type.
+	 * @param firstKeyColumn The position of the key in the first input's records.
+	 * @param secondKeyColumn The position of the key in the second input's records.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key> keyType, 
+					int firstKeyColumn, int secondKeyColumn,
+					List<Contract> input1, List<Contract> input2, String name)
+	{
+		this(c, keyType, firstKeyColumn, secondKeyColumn, name);
+		setFirstInputs(input1);
+		setSecondInputs(input2);
+	}
+
+	/**
 	 * Creates a MatchContract with the provided {@link MatchStub} implementation the default name.
-	 * It uses the given contract as its input.
+	 * It uses the given contracts as its input.
 	 * 
 	 * @param c The {@link MatchStub} implementation for this Match InputContract.
 	 * @param keyTypes The classes of the key data types.
@@ -149,8 +268,62 @@ public class MatchContract extends DualInputContract<MatchStub>
 	}
 	
 	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation the default name.
+	 * It uses the given contractys as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, 
+					Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], 
+					List<Contract> input1, Contract input2)
+	{
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, 
+					Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], 
+					Contract input1, List<Contract> input2)
+	{
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, 
+					Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], 
+					List<Contract> input1, List<Contract> input2)
+	{
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
 	 * Creates a MatchContract with the provided {@link MatchStub} implementation and the given name.
-	 * It uses the given contract as its input.
+	 * It uses the given contracts as its input.
 	 * 
 	 * @param c The {@link MatchStub} implementation for this Match InputContract.
 	 * @param keyTypes The classes of the key data types.
@@ -167,4 +340,65 @@ public class MatchContract extends DualInputContract<MatchStub>
 		setFirstInput(input1);
 		setSecondInput(input2);
 	}
+	
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], 
+			List<Contract> input1, Contract input2, String name)
+	{
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, name);
+		setFirstInputs(input1);
+		setSecondInput(input2);
+	}
+
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], 
+											Contract input1, List<Contract> input2, String name)
+	{
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, name);
+		setFirstInput(input1);
+		setSecondInputs(input2);
+	}
+
+	/**
+	 * Creates a MatchContract with the provided {@link MatchStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MatchStub} implementation for this Match InputContract.
+	 * @param keyTypes The classes of the key data types.
+	 * @param firstKeyColumns The positions of the keys in the first input's records.
+	 * @param secondKeyColumns The positions of the keys in the second input's records.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public MatchContract(Class<? extends MatchStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], 
+			List<Contract> input1, List<Contract> input2, String name)
+	{
+		this(c, keyTypes, firstKeyColumns, secondKeyColumns, name);
+		setFirstInputs(input1);
+		setSecondInputs(input2);
+	}
+
 }

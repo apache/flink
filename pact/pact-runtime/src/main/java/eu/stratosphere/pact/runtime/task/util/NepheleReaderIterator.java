@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
@@ -29,14 +29,14 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  */
 public final class NepheleReaderIterator implements MutableObjectIterator<PactRecord>
 {
-	private final MutableRecordReader<PactRecord> reader;		// the source
+	private final MutableReader<PactRecord> reader;		// the source
 
 	/**
 	 * Creates a new iterator, wrapping the given reader.
 	 * 
 	 * @param reader The reader to wrap.
 	 */
-	public NepheleReaderIterator(MutableRecordReader<PactRecord> reader)
+	public NepheleReaderIterator(MutableReader<PactRecord> reader)
 	{
 		this.reader = reader;
 	}

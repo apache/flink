@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.contextcheck;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.pact.common.contract.Contract;
@@ -34,6 +35,10 @@ import eu.stratosphere.pact.common.plan.Visitor;
  */
 public class ContextChecker implements Visitor<Contract> {
 
+	/**
+	 * A set of all already visited nodes during DAG traversal. Is used
+	 * to avoid processing one node multiple times.
+	 */
 	public Set<Contract> visitedNodes = new HashSet<Contract>();
 
 	/**
@@ -52,7 +57,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 *        The PACT plan to check.
 	 */
 	public void check(Plan plan) {
-		visitedNodes.clear();
+		this.visitedNodes.clear();
 		plan.accept(this);
 	}
 
@@ -63,7 +68,7 @@ public class ContextChecker implements Visitor<Contract> {
 	public boolean preVisit(Contract node) {
 
 		// check if node was already visited
-		if (visitedNodes.contains(node)) {
+		if (this.visitedNodes.contains(node)) {
 			return false;
 		}
 
@@ -79,7 +84,7 @@ public class ContextChecker implements Visitor<Contract> {
 		// checked.
 
 		// mark node as visited
-		visitedNodes.add(node);
+		this.visitedNodes.add(node);
 
 		return true;
 	}
@@ -98,7 +103,7 @@ public class ContextChecker implements Visitor<Contract> {
 	 */
 	private void checkDataSink(GenericDataSink dataSinkContract) {
 
-		Contract input = dataSinkContract.getInput();
+		Contract input = dataSinkContract.getInputs().get(0);
 
 		// check if input exists
 		if (input == null) {
@@ -115,10 +120,10 @@ public class ContextChecker implements Visitor<Contract> {
 	 */
 	private void checkSingleInputContract(SingleInputContract<?> singleInputContract) {
 
-		Contract input = singleInputContract.getInput();
+		List<Contract> input = singleInputContract.getInputs();
 
 		// check if input exists
-		if (input == null) {
+		if (input.size() == 0) {
 			throw new MissingChildException();
 		}
 	}
@@ -131,11 +136,11 @@ public class ContextChecker implements Visitor<Contract> {
 	 *        DualInputContract that is checked.
 	 */
 	private void checkDualInputContract(DualInputContract<?> dualInputContract) {
-		Contract input1 = dualInputContract.getFirstInput();
-		Contract input2 = dualInputContract.getSecondInput();
+		List<Contract> input1 = dualInputContract.getFirstInputs();
+		List<Contract> input2 = dualInputContract.getSecondInputs();
 
 		// check if input exists
-		if (input1 == null || input2 == null) {
+		if (input1.size() == 0 || input2.size() == 0) {
 			throw new MissingChildException();
 		}
 	}

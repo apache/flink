@@ -232,3 +232,4 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 		return retVal;
 	}
 }
+

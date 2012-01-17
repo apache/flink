@@ -13,26 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.contract;
+package eu.stratosphere.nephele.io;
 
-import java.lang.annotation.Annotation;
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * Interface defining that an output contract can be attached to an object.
+ * This interface can be implemented by a class which shall be notified by an input gate when one of the its connected
+ * input channels has at least one record available for reading.
+ * 
+ * @author warneke
+ * @param <T>
+ *        the type of record transported through the corresponding input gate
  */
-public interface OutputContractConfigurable
-{
-	/**
-	 * Adds an output contract.
-	 * 
-	 * @param clazz The class of the OutputContract to attach.
-	 */
-	public void addOutputContract(Class<? extends Annotation> clazz);
+public interface RecordAvailabilityListener<T extends Record> {
 
 	/**
-	 * Returns the output contracts that were attached to the object.
+	 * This method is called by an input gate when one of its connected input channels has at least one record available
+	 * for reading.
 	 * 
-	 * @return An array containing the classes of the attached output contracts.
+	 * @param inputGate
+	 *        the input gate which has at least one record available
 	 */
-	public Class<? extends Annotation>[] getOutputContracts();
+	void reportRecordAvailability(InputGate<T> inputGate);
 }

@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.List;
+
 import eu.stratosphere.pact.common.stubs.MapStub;
 
 
@@ -68,6 +70,17 @@ public class MapContract extends SingleInputContract<MapStub>
 	}
 	
 	/**
+	 * Creates a MapContract with the provided {@link MapStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MapStub} implementation for this Map InputContract.
+	 * @param inputs The contracts to use as the input.
+	 */
+	public MapContract(Class<? extends MapStub> c, List<Contract> inputs) {
+		this(c, inputs, DEFAULT_NAME);
+	}
+
+	/**
 	 * Creates a MapContract with the provided {@link MapStub} implementation and the given name.
 	 * It uses the given contract as its input.
 	 * 
@@ -79,4 +92,18 @@ public class MapContract extends SingleInputContract<MapStub>
 		this(c, name);
 		setInput(input);
 	}
+	
+	/**
+	 * Creates a MapContract with the provided {@link MapStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link MapStub} implementation for this Map InputContract.
+	 * @param inputs The contracts to use as the input.
+	 * @param name The name of PACT.
+	 */
+	public MapContract(Class<? extends MapStub> c, List<Contract> inputs, String name) {
+		this(c, name);
+		setInputs(inputs);
+	}
+
 }

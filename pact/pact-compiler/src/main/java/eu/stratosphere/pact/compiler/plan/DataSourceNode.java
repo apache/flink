@@ -15,12 +15,15 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.OutputSchemaProvider;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -36,7 +39,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  */
 public class DataSourceNode extends OptimizerNode
 {
-	private List<DataSourceNode> cachedPlans; // the cache in case there are multiple outputs;
+	private List<OptimizerNode> cachedPlans; // the cache in case there are multiple outputs;
 
 	/**
 	 * Creates a new DataSourceNode for the given contract.
@@ -68,6 +71,7 @@ public class DataSourceNode extends OptimizerNode
 	 * 
 	 * @return The contract.
 	 */
+	@Override
 	public GenericDataSource<?> getPactContract() {
 		return (GenericDataSource<?>) super.getPactContract();
 	}
@@ -95,8 +99,8 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
 	 */
 	@Override
-	public List<PactConnection> getIncomingConnections() {
-		return Collections.<PactConnection> emptyList();
+	public List<List<PactConnection>> getIncomingConnections() {
+		return Collections.<List<PactConnection>>emptyList();
 	}
 
 	/*
@@ -105,7 +109,7 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		// no inputs, so do nothing.
+		throw new UnsupportedOperationException("A DataSourceNode does not have any input.");
 	}
 
 	/**
@@ -113,6 +117,7 @@ public class DataSourceNode extends OptimizerNode
 	 * based on the file size and the compiler hints. The compiler hints are instantiated with
 	 * conservative default values which are used if no other values are provided.
 	 */
+	@Override
 	public void computeOutputEstimates(DataStatistics statistics)
 	{
 //		CompilerHints hints = getPactContract().getCompilerHints();
@@ -241,9 +246,9 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeAlternativePlans()
 	 */
 	@Override
-	public List<DataSourceNode> getAlternativePlans(CostEstimator estimator) {
-		if (cachedPlans != null) {
-			return cachedPlans;
+	public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
 		}
 
 		GlobalProperties gp = new GlobalProperties();
@@ -264,7 +269,8 @@ public class DataSourceNode extends OptimizerNode
 		candidate.setCosts(new Costs(0, this.estimatedOutputSize));
 
 		// since there is only a single plan for the data-source, return a list with that element only
-		List<DataSourceNode> plans = Collections.singletonList(candidate);
+		List<OptimizerNode> plans = new ArrayList<OptimizerNode>(1);
+		plans.add(candidate);
 
 		if (isBranching()) {
 			this.cachedPlans = plans;
@@ -284,4 +290,33 @@ public class DataSourceNode extends OptimizerNode
 			visitor.postVisit(this);
 		}
 	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void deriveOutputSchema() {
+		
+		// get the input format class
+		Class<InputFormat<?>> clazz = (Class<InputFormat<?>>)((GenericDataSource<? extends InputFormat<?>>)getPactContract()).getFormatClass();
+		
+		InputFormat<?> inputFormat;
+		try {
+			inputFormat = clazz.newInstance();
+			
+			if(inputFormat instanceof OutputSchemaProvider) {
+				
+				inputFormat.configure(getPactContract().getParameters());
+				this.outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
+				return;
+			} else {
+				this.outputSchema = null;
+				return;
+			}
+			
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		}
+	}
+
 }

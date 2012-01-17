@@ -32,7 +32,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings( {"javadoc", "unchecked"} )
 public class MatchTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(MatchTaskExternalITCase.class);
@@ -49,9 +49,9 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 4*2;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
@@ -72,9 +72,9 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
-		outList.clear();
+		this.outList.clear();
 
 	}
 	
@@ -156,11 +156,8 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 
 
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out)
-				throws Exception {
-
+		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception {
 			out.collect(value1);
-			
 		}
 		
 	}

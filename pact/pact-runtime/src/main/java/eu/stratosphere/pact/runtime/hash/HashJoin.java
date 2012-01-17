@@ -1677,6 +1677,19 @@ public class HashJoin
 				this.inMemoryBuffers.clear();
 				return 0;
 			}
+			else if (this.probeBlockCounter == 1 && this.currentPartitionBuffer.outputView.getPosition() == PARTITION_BLOCK_HEADER_LEN) {
+				// partition is empty, no spilled buffers
+				// return the memory buffer
+				freeMemory.add(this.currentPartitionBuffer);
+				this.currentPartitionBuffer = null;
+				
+				// delete the spill files
+				this.probeSideChannel.close();
+				this.buildSideChannel.deleteChannel();
+				this.probeSideChannel.deleteChannel();
+				
+				return 0;
+			}
 			else {
 				// flush the last probe side buffer and register this partition as pending
 				spillBuffer(this.currentPartitionBuffer, this.probeSideChannel);

@@ -623,9 +623,9 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		FileDataSource pathsInput;
 		
 		if(rdfInput) {
-			pathsInput = new FileDataSource(RDFTripleInFormat.class, paths);
+			pathsInput = new FileDataSource(RDFTripleInFormat.class, paths, "RDF Triples");
 		} else {
-			pathsInput = new FileDataSource(PathInFormat.class, paths);
+			pathsInput = new FileDataSource(PathInFormat.class, paths, "Paths");
 		}
 		pathsInput.setDegreeOfParallelism(noSubTasks);
 
@@ -643,16 +643,16 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 				new CoGroupContract(FindShortestPath.class, Edge.class, 0, 0, "Find Shortest Paths");
 		findShortestPaths.setDegreeOfParallelism(noSubTasks);
 
-		FileDataSink result = new FileDataSink(PathOutFormat.class,output);
+		FileDataSink result = new FileDataSink(PathOutFormat.class,output, "New Paths");
 		result.setDegreeOfParallelism(noSubTasks);
 
-		result.setInput(findShortestPaths);
-		findShortestPaths.setFirstInput(pathsInput);
-		findShortestPaths.setSecondInput(concatPaths);
-		concatPaths.setFirstInput(pathStarts);
-		pathStarts.setInput(pathsInput);
-		concatPaths.setSecondInput(pathEnds);
-		pathEnds.setInput(pathsInput);
+		result.addInput(findShortestPaths);
+		findShortestPaths.addFirstInput(pathsInput);
+		findShortestPaths.addSecondInput(concatPaths);
+		concatPaths.addFirstInput(pathStarts);
+		pathStarts.addInput(pathsInput);
+		concatPaths.addSecondInput(pathEnds);
+		pathEnds.addInput(pathsInput);
 
 		return new Plan(result, "Pairwise Shortest Paths");
 
