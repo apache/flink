@@ -75,11 +75,11 @@ public class TPCHQueryAsterixITCase extends TestBase {
 		"10|Customer#000000010|6LrEaV6KR6PLVcgl2ArL Q3rqzLzcT1 v2|5|15-741-346-9870|2753.54|HOUSEHOLD|es regular deposits haggle. fur|\n";
 
 	String EXPECTED_RESULT = 
-		"BUILDING|7|\n" +
-		"HOUSEHOLD|1|\n" + 
-		"AUTOMOBILE|6|\n" + 
-		"MACHINERY|2|\n" +
-		"FURNITURE|2|\n";
+		"7|BUILDING\n" +
+		"1|HOUSEHOLD\n" + 
+		"6|AUTOMOBILE\n" + 
+		"2|MACHINERY\n" +
+		"2|FURNITURE\n";
 
 	public TPCHQueryAsterixITCase(Configuration config) {
 		super(config);

@@ -37,6 +37,7 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class ReduceTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(ReduceTaskTest.class);
@@ -51,8 +52,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
@@ -70,13 +71,13 @@ public class ReduceTaskTest extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == valCnt-record.getField(0, PactInteger.class).getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -88,8 +89,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
@@ -107,13 +108,13 @@ public class ReduceTaskTest extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == valCnt-record.getField(0, PactInteger.class).getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -125,8 +126,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -149,13 +150,13 @@ public class ReduceTaskTest extends TaskTestBase {
 			expSum+=i;
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum-record.getField(0, PactInteger.class).getValue());
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -167,8 +168,8 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		ReduceTask testTask = new ReduceTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
@@ -189,7 +190,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
-		outList.clear();
+		this.outList.clear();
 				
 	}
 	
@@ -198,7 +199,7 @@ public class ReduceTaskTest extends TaskTestBase {
 	public void testCancelReduceTaskWhileSorting() {
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final ReduceTask testTask = new ReduceTask();
@@ -211,6 +212,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockReduceStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -242,7 +244,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		final int valCnt = 2;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final ReduceTask testTask = new ReduceTask();
@@ -255,6 +257,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockDelayingReduceStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -292,9 +295,9 @@ public class ReduceTaskTest extends TaskTestBase {
 				element = records.next();
 				cnt++;
 			}
-			element.getField(0, key);
-			value.setValue(cnt - key.getValue());
-			element.setField(1, value);
+			element.getField(0, this.key);
+			this.value.setValue(cnt - this.key.getValue());
+			element.setField(1, this.value);
 			out.collect(element);
 		}
 	}
@@ -317,9 +320,9 @@ public class ReduceTaskTest extends TaskTestBase {
 				
 				sum += this.value.getValue();
 			}
-			element.getField(0, key);
-			value.setValue(sum - key.getValue());
-			element.setField(1, value);
+			element.getField(0, this.key);
+			this.value.setValue(sum - this.key.getValue());
+			element.setField(1, this.value);
 			out.collect(element);
 		}
 		
@@ -330,13 +333,13 @@ public class ReduceTaskTest extends TaskTestBase {
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				element.getField(1, combineValue);
+				element.getField(1, this.combineValue);
 				
-				sum += combineValue.getValue();
+				sum += this.combineValue.getValue();
 			}
 			
-			combineValue.setValue(sum);
-			element.setField(1, combineValue);
+			this.combineValue.setValue(sum);
+			element.setField(1, this.combineValue);
 			out.collect(element);
 		}
 		
@@ -359,13 +362,13 @@ public class ReduceTaskTest extends TaskTestBase {
 				valCnt++;
 			}
 			
-			if(++cnt>=10) {
+			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			
-			element.getField(0, key);
-			value.setValue(valCnt - key.getValue());
-			element.setField(1, value);
+			element.getField(0, this.key);
+			this.value.setValue(valCnt - this.key.getValue());
+			element.setField(1, this.value);
 			out.collect(element);
 		}
 	}

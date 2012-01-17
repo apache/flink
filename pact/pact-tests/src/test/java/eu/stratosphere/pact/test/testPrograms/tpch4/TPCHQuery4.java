@@ -252,12 +252,12 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 				new ReduceContract(CountAgg.class, PactString.class, 0, "AggregateGroupBy");
 		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);
 		
-		lineFilter.setInput(lineItems);
-		ordersFilter.setInput(orders);
-		join.setFirstInput(ordersFilter);
-		join.setSecondInput(lineFilter);
-		aggregation.setInput(join);
-		result.setInput(aggregation);
+		lineFilter.addInput(lineItems);
+		ordersFilter.addInput(orders);
+		join.addFirstInput(ordersFilter);
+		join.addSecondInput(lineFilter);
+		aggregation.addInput(join);
+		result.addInput(aggregation);
 		
 			
 		return new Plan(result, "TPC-H 4");

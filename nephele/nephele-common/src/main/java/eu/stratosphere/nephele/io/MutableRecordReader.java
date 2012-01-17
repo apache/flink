@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
 
-public final class MutableRecordReader<T extends Record> extends AbstractRecordReader<T> {
+public class MutableRecordReader<T extends Record> extends AbstractRecordReader<T> implements MutableReader<T> {
 
 	/**
 	 * Constructs a new mutable record reader and registers a new input gate with the application's environment.
@@ -54,8 +54,6 @@ public final class MutableRecordReader<T extends Record> extends AbstractRecordR
 	 * 
 	 * @param taskBase
 	 *        the application that instantiated the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
 	public MutableRecordReader(final AbstractTask taskBase) {
 
@@ -104,7 +102,8 @@ public final class MutableRecordReader<T extends Record> extends AbstractRecordR
 		super(outputBase, new MutableRecordDeserializer<T>(), inputGateID, distributionPattern);
 	}
 
-	public final boolean next(final T target) throws IOException, InterruptedException {
+	@Override
+	public boolean next(final T target) throws IOException, InterruptedException {
 
 		final T record = getInputGate().readRecord(target);
 		if (record == null) {

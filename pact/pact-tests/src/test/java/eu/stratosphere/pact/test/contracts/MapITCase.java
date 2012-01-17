@@ -119,8 +119,8 @@ public class MapITCase extends TestBase
 				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
 		output.setDegreeOfParallelism(1);
 
-		output.setInput(testMapper);
-		testMapper.setInput(input);
+		output.addInput(testMapper);
+		testMapper.addInput(input);
 
 		Plan plan = new Plan(output);
 

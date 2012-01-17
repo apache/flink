@@ -24,11 +24,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.OutputContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
@@ -39,6 +37,15 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -341,9 +348,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@OutputContract.AllConstant(input = 1)
-	@OutputContract.SameField(outputField = 2, inputField = 0, input = 1)
-	@OutputContract.DerivedField(targetField = 3, sourceFields = {1, 1}, input = {0, 1})
+	@ReadSetFirst(fields={1})
+	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Update)
+	@ReadSetSecond(fields={1})
+	@ConstantSetSecond(fields={}, setMode=ConstantSetMode.Constant)
+	@AddSet(fields={2,3})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class ComputeDistance extends	CrossStub
 	{
 		private final PactDouble distance = new PactDouble();
@@ -377,6 +387,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
+	@ReadSet(fields={3})
+	@ConstantSet(fields={}, setMode=ConstantSetMode.Constant)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class FindNearestCenter extends ReduceStub
 	{
@@ -464,7 +478,11 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@OutputContract.Constant(0)
+	
+	@ReadSet(fields={1,2})
+	@ConstantSet(fields={1,2}, setMode=ConstantSetMode.Update)
+	@AddSet(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class RecomputeClusterCenter extends ReduceStub
 	{
@@ -598,12 +616,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		String output = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for data point input
-		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Read Data Points");
+		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
 		dataPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		//dataPoints.addOutputContract(OutputContract.Unique.class);
 
 		// create DataSourceContract for cluster center input
-		FileDataSource clusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Read Centers");
+		FileDataSource clusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Centers");
 		clusterPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		clusterPoints.setDegreeOfParallelism(1);
 		//clusterPoints.addOutputContract(OutputContract.Unique.class);
@@ -621,7 +639,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		recomputeClusterCenter.getCompilerHints().setAvgBytesPerRecord(36);
 
 		// create DataSinkContract for writing the new cluster positions
-		FileDataSink newClusterPoints = new FileDataSink(PointOutFormat.class, output, recomputeClusterCenter, "Write new Center Positions");
+		FileDataSink newClusterPoints = new FileDataSink(PointOutFormat.class, output, recomputeClusterCenter, "New Center Positions");
 
 		// return the PACT plan
 		Plan plan = new Plan(newClusterPoints, "KMeans Iteration");

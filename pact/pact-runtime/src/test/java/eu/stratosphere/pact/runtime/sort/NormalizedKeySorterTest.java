@@ -323,8 +323,6 @@ public class NormalizedKeySorterTest
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
-		long writeStart = System.nanoTime();
-		
 		// write the records
 		PactRecord record = new PactRecord();
 		do {
@@ -332,15 +330,8 @@ public class NormalizedKeySorterTest
 		}
 		while (sorter.write(record));
 		
-		long writeStop = System.nanoTime();
-		System.out.println("Writing took: " + (writeStop - writeStart) / 1000000 + " msec");
-		long sortStart = System.nanoTime();
-		
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
-		
-		long sortStop = System.nanoTime();
-		System.out.println("Sorting took: " + (sortStop - sortStart) / 1000000 + " msec");
 		
 		MutableObjectIterator<PactRecord> iter = sorter.getIterator();
 		PactRecord readTarget = new PactRecord();

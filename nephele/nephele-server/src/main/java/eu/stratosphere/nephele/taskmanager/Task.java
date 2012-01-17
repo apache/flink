@@ -234,10 +234,10 @@ public class Task implements ExecutionObserver {
 	 */
 	public void initialExecutionResourcesExhausted() {
 
-		if (this.environment.getExecutingThread() != Thread.currentThread()) {
-			throw new ConcurrentModificationException(
-				"initialExecutionResourcesExhausted must be called from the task that executes the user code");
-		}
+//		if (this.environment.getExecutingThread() != Thread.currentThread()) {
+//			throw new ConcurrentModificationException(
+//				"initialExecutionResourcesExhausted must be called from the task that executes the user code");
+//		}
 
 		// Construct a resource utilization snapshot
 		final long timestamp = System.currentTimeMillis();

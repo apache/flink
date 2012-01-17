@@ -66,7 +66,7 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 		sink.setGlobalOrder(new Ordering(0, Order.ASCENDING));
 		sink.getCompilerHints().setInputDistributionClass(TeraDistribution.class);
 
-		sink.setInput(source);
+		sink.addInput(source);
 
 		return new Plan(sink, "TeraSort");
 	}

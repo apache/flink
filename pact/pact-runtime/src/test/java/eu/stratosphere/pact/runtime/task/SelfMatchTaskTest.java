@@ -36,7 +36,7 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings( {"javadoc", "unchecked"} )
 public class SelfMatchTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(SelfMatchTaskTest.class);
@@ -44,14 +44,14 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
-	public void testSortSelfMatchTask() {
+	public void testSortFullSelfMatchTask() {
 
 		int keyCnt = 10;
-		int valCnt = 35;
+		int valCnt = 40;
 				
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
@@ -60,7 +60,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.getTaskConfig().setNumFilehandles(4);
 		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
 		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
-		
+				
 		super.registerTask(testTask, MockMatchStub.class);
 		
 		try {
@@ -73,11 +73,10 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt*(valCnt*valCnt);
 				
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
 		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
-		for(PactRecord record : outList) {
-			
+		for(PactRecord record : this.outList) {
 			Integer key = record.getField(0, PactInteger.class).getValue();
 			if(!keyValCntMap.containsKey(key)) {
 				keyValCntMap.put(key,1);
@@ -91,8 +90,113 @@ public class SelfMatchTaskTest extends TaskTestBase {
 				" Expected was: "+(valCnt*valCnt), keyValCntMap.get(key).intValue() == (valCnt*valCnt));
 		}
 		
-		outList.clear();
+		this.outList.clear();
+	}
+	
+	@Test
+	public void testSortInclSelfMatchTask() {
+
+		int keyCnt = 10;
+		int valCnt = 40;
+				
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 0);
+		super.addOutput(this.outList);
 		
+		SelfMatchTask testTask = new SelfMatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
+		
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		super.getTaskConfig().getStubParameters().setString(SelfMatchTask.SELFMATCH_CROSS_MODE_KEY, SelfMatchTask.CrossMode.TRIANGLE_CROSS_INCL_DIAG.toString());
+				
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expValCnt = (int)((valCnt+1) * (valCnt/2.0f));
+		int expTotCnt = (keyCnt*expValCnt);
+				
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expTotCnt, this.outList.size() == expTotCnt);
+		
+		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
+		for(PactRecord record : this.outList) {
+			
+			Integer key = record.getField(0, PactInteger.class).getValue();
+			if(!keyValCntMap.containsKey(key)) {
+				keyValCntMap.put(key,1);
+			} else {
+				keyValCntMap.put(key, keyValCntMap.get(key)+1);
+			}
+		}
+		
+		for(Integer key : keyValCntMap.keySet()) {
+			Assert.assertTrue("Invalid value count for key: "+key+". Value count was: "+keyValCntMap.get(key)+
+				" Expected was: "+expValCnt, keyValCntMap.get(key).intValue() == expValCnt);
+		}
+		
+		this.outList.clear();
+	}
+	
+	@Test
+	public void testSortExclSelfMatchTask() {
+
+		int keyCnt = 10;
+		int valCnt = 40;
+				
+		super.initEnvironment(6 * 1024 * 1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 0);
+		super.addOutput(this.outList);
+		
+		SelfMatchTask testTask = new SelfMatchTask();
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
+		
+		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		super.getTaskConfig().setNumFilehandles(4);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		super.getTaskConfig().getStubParameters().setString(SelfMatchTask.SELFMATCH_CROSS_MODE_KEY, SelfMatchTask.CrossMode.TRIANGLE_CROSS_EXCL_DIAG.toString());
+				
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expValCnt = (int)((valCnt) * ((valCnt-1.0f)/2.0f));
+		int expTotCnt = (keyCnt*expValCnt);
+				
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expTotCnt, this.outList.size() == expTotCnt);
+		
+		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
+		for(PactRecord record : this.outList) {
+			
+			Integer key = record.getField(0, PactInteger.class).getValue();
+			if(!keyValCntMap.containsKey(key)) {
+				keyValCntMap.put(key,1);
+			} else {
+				keyValCntMap.put(key, keyValCntMap.get(key)+1);
+			}
+		}
+		
+		for(Integer key : keyValCntMap.keySet()) {
+			Assert.assertTrue("Invalid value count for key: "+key+". Value count was: "+keyValCntMap.get(key)+
+				" Expected was: "+(expValCnt), keyValCntMap.get(key).intValue() == expValCnt);
+		}
+		
+		this.outList.clear();
 	}
 	
 	
@@ -103,8 +207,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int valCnt = 5;
 				
 		super.initEnvironment(3 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true), 1);
+		super.addOutput(this.outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SELF_NESTEDLOOP);
@@ -125,10 +229,10 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		
 		int expCnt = keyCnt*(valCnt*valCnt);
 				
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
 		
 		HashMap<Integer,Integer> keyValCntMap = new HashMap<Integer, Integer>(keyCnt);
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			
 			Integer key = record.getField(0, PactInteger.class).getValue();
 			
@@ -143,7 +247,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 				" Expected was "+(valCnt*valCnt), keyValCntMap.get(key) == (valCnt*valCnt));
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -154,8 +258,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		SelfMatchTask testTask = new SelfMatchTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
@@ -176,7 +280,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -184,7 +288,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	public void testCancelSelfMatchTaskWhileSorting() {
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final SelfMatchTask testTask = new SelfMatchTask();
@@ -197,6 +301,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockMatchStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -226,7 +331,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final SelfMatchTask testTask = new SelfMatchTask();
@@ -239,6 +344,7 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -265,11 +371,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 	public static class MockMatchStub extends MatchStub {
 
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out)
-				throws Exception {
-			
+		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception { 
 			out.collect(value1);
-			
 		}
 		
 	}
@@ -279,10 +382,8 @@ public class SelfMatchTaskTest extends TaskTestBase {
 		int cnt = 0;
 		
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out)
-				throws Exception {
-
-			if(++cnt>=10) {
+		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception {
+			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			

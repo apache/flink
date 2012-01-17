@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -42,8 +42,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class CoGroupNode extends TwoInputNode {
-
-	private List<CoGroupNode> cachedPlans; // a cache for the computed alternative plans
 
 	/**
 	 * Creates a new CoGroupNode for the given contract.
@@ -95,8 +93,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected CoGroupNode(CoGroupNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
+	protected CoGroupNode(CoGroupNode template, List<OptimizerNode> pred1, List<OptimizerNode> pred2, List<PactConnection> conn1,
+			List<PactConnection> conn2, GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
 	}
 
@@ -107,6 +105,7 @@ public class CoGroupNode extends TwoInputNode {
 	 * 
 	 * @return The contract.
 	 */
+	@Override
 	public CoGroupContract getPactContract() {
 		return (CoGroupContract) super.getPactContract();
 	}
@@ -144,6 +143,42 @@ public class CoGroupNode extends TwoInputNode {
 		super.setInputs(contractToNode);
 	}
 
+// union version by mjsax
+//	/*
+//	 * (non-Javadoc)
+//	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
+//	 */
+//	@Override
+//	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+//		// first, get all incoming interesting properties and see, how they can be propagated to the
+//		// children, depending on the output contract.
+//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+//
+//		List<InterestingProperties> props1 = null;
+//		List<InterestingProperties> props2 = new ArrayList<InterestingProperties>();
+//
+//		OutputContract oc = getOutputContract();
+//		if (oc == OutputContract.SameKey || oc == OutputContract.SuperKey) {
+//			props1 = InterestingProperties.filterByOutputContract(thisNodesIntProps, oc);
+//			props2.addAll(props1);
+//		} else {
+//			props1 = new ArrayList<InterestingProperties>();
+//		}
+//
+//		// a co-group is always interested in the following properties from both inputs:
+//		// 1) any-partition and order
+//		// 2) partition only
+//		for(PactConnection c : this.input1){ 
+//			createInterestingProperties(c, props1, estimator);
+//			c.addAllInterestingProperties(props1);
+//		}
+//		for(PactConnection c : this.input2){ 
+//			createInterestingProperties(c, props2, estimator);
+//			c.addAllInterestingProperties(props2);
+//		}
+//	}
+// end union version
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
@@ -161,11 +196,14 @@ public class CoGroupNode extends TwoInputNode {
 		// a co-group is always interested in the following properties from both inputs:
 		// 1) any-partition and order
 		// 2) partition only
-		createInterestingProperties(input1, props1, estimator, 0);
-		createInterestingProperties(input2, props2, estimator, 1);
-
-		input1.addAllInterestingProperties(props1);
-		input2.addAllInterestingProperties(props2);
+		for(PactConnection c : this.input1) {
+			createInterestingProperties(c, props1, estimator, 0);
+			c.addAllInterestingProperties(props1);
+		}
+		for(PactConnection c : this.input2) {
+			createInterestingProperties(c, props2, estimator, 1);
+			c.addAllInterestingProperties(props2);
+		}
 	}
 
 	/**
@@ -197,7 +235,8 @@ public class CoGroupNode extends TwoInputNode {
 
 		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		Costs c = new Costs();
-		estimator.getLocalSortCost(this, input, c);
+		//TODO
+		estimator.getLocalSortCost(this, Collections.<PactConnection>singletonList(input), c);
 		p.getMaximalCosts().addCosts(c);
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 
@@ -208,36 +247,27 @@ public class CoGroupNode extends TwoInputNode {
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact
-	 * .compiler.costs.CostEstimator)
-	 */
 	@Override
-	public List<CoGroupNode> getAlternativePlans(CostEstimator estimator) {
-		// check if we have a cached version
-		if (cachedPlans != null) {
-			return cachedPlans;
-		}
+	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
+			List<List<OptimizerNode>> alternativeSubPlanCominations2, CostEstimator estimator, List<OptimizerNode> outputPlans)
+	{
 
-		List<? extends OptimizerNode> inPlans1 = input1.getSourcePact().getAlternativePlans(estimator);
-		List<? extends OptimizerNode> inPlans2 = input2.getSourcePact().getAlternativePlans(estimator);
+		for(List<OptimizerNode> predList1 : alternativeSubPlanCominations1) {
+			for(List<OptimizerNode> predList2 : alternativeSubPlanCominations2) {
 
-		List<CoGroupNode> outputPlans = new ArrayList<CoGroupNode>();
-
-		// go over each combination of alternative children from the two inputs
-		for (OptimizerNode pred1 : inPlans1) {
-			for (OptimizerNode pred2 : inPlans2) {
 				// check, whether the two children have the same
 				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(pred1, pred2)) {
+				if (!areBranchCompatible(predList1, predList2)) {
 					continue;
 				}
 
-				ShipStrategy ss1 = input1.getShipStrategy();
-				ShipStrategy ss2 = input2.getShipStrategy();
-
+				ShipStrategy ss1 = checkShipStrategyCompatibility(this.input1);
+				if(ss1 == null)
+					continue;
+				ShipStrategy ss2 = checkShipStrategyCompatibility(this.input2);
+				if(ss2 == null)
+					continue;
+				
 				GlobalProperties gp1;
 				GlobalProperties gp2;
 
@@ -245,11 +275,23 @@ public class CoGroupNode extends TwoInputNode {
 				// some may be fixed a priori by compiler hints
 				if (ss1 == ShipStrategy.NONE) {
 					// the first connection is free to choose for the compiler
-					gp1 = pred1.getGlobalProperties();
+
+					if(predList1.size() == 1) {
+						gp1 = predList1.get(0).getGlobalProperties();
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp1 = new GlobalProperties();
+					}
 
 					if (ss2 == ShipStrategy.NONE) {
 						// case: both are free to choose
-						gp2 = pred2.getGlobalProperties();
+						
+						if(predList2.size() == 1) {
+							gp2 = predList2.get(0).getGlobalProperties();
+						} else {
+							// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+							gp2 = new GlobalProperties();
+						}
 
 						// test, if one side is pre-partitioned
 						// if that is the case, partitioning the other side accordingly is
@@ -271,15 +313,15 @@ public class CoGroupNode extends TwoInputNode {
 								// 2) re-partition 1 the same way as 2
 								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED
 									&& gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
+									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
 										ShipStrategy.PARTITION_HASH, estimator);
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 										ShipStrategy.FORWARD, estimator);
 								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED
 									&& gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.FORWARD,
+									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
 										ShipStrategy.PARTITION_RANGE, estimator);
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
 										ShipStrategy.FORWARD, estimator);
 								}
 
@@ -294,12 +336,12 @@ public class CoGroupNode extends TwoInputNode {
 							if (ss2 == ShipStrategy.FORWARD) {
 								// both are equally pre-partitioned
 								// we need not use any special shipping step
-								createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
+								createCoGroupAlternative(outputPlans, predList1, predList2, ss1, ss2, estimator);
 
 								// we create an additional plan with a range partitioning
 								// if this is not already a range partitioning
 								if (gp1.getPartitioning() != PartitionProperty.RANGE_PARTITIONED) {
-									// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+									// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 									// ShipStrategy.PARTITION_RANGE, estimator);
 								}
 							} else {
@@ -309,14 +351,14 @@ public class CoGroupNode extends TwoInputNode {
 								// 1) make input 2 the same partitioning as input 1
 								// 2) partition both inputs with a different partitioning function (hash <-> range)
 								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, pred1, pred2, ss1,
+									createCoGroupAlternative(outputPlans, predList1, predList2, ss1,
 										ShipStrategy.PARTITION_HASH, estimator);
-									// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+									// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 									// ShipStrategy.PARTITION_RANGE, estimator);
 								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, pred1, pred2, ss1,
+									createCoGroupAlternative(outputPlans, predList1, predList2, ss1,
 										ShipStrategy.PARTITION_RANGE, estimator);
-									createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
 										ShipStrategy.PARTITION_HASH, estimator);
 								} else {
 									throw new CompilerException(
@@ -331,14 +373,14 @@ public class CoGroupNode extends TwoInputNode {
 							// 1) make input 1 the same partitioning as input 2
 							// 2) partition both inputs with a different partitioning function (hash <-> range)
 							if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-								createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH, ss2,
+								createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ss2,
 									estimator);
-								// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+								// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 								// ShipStrategy.PARTITION_RANGE, estimator);
 							} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-								createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE, ss2,
+								createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE, ss2,
 									estimator);
-								createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+								createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
 									ShipStrategy.PARTITION_HASH, estimator);
 							} else {
 								throw new CompilerException("Invalid partitioning property for input 2 of CoGroup '"
@@ -349,13 +391,19 @@ public class CoGroupNode extends TwoInputNode {
 							// none has a pre-existing partitioning. create the options:
 							// 1) re-partition both by hash
 							// 2) re-partition both by range
-							createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_HASH,
+							createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
 								ShipStrategy.PARTITION_HASH, estimator);
-							// createCoGroupAlternative(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
+							// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 							// ShipStrategy.PARTITION_RANGE, estimator);
 						}
 					} else {
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+						if(predList2.size() == 1) {
+							gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);							
+						} else {
+							// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+							gp2 = new GlobalProperties();
+
+						}
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
@@ -390,13 +438,24 @@ public class CoGroupNode extends TwoInputNode {
 								+ "' for CoGroup contract '" + getPactContract().getName() + "'.");
 						}
 
-						createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
+						createCoGroupAlternative(outputPlans, predList1, predList2, ss1, ss2, estimator);
 					}
 
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-					gp2 = pred2.getGlobalProperties();
+
+					if(predList1.size() == 1) {
+						gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp1 = new GlobalProperties();
+					}
+					if(predList2.size() == 1) {
+						gp2 = predList2.get(0).getGlobalProperties();
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp2 = new GlobalProperties();
+					}
 
 					// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
 					// 2) input 1 is hash-partition -> other side must be re-partition by hash as well
@@ -430,15 +489,27 @@ public class CoGroupNode extends TwoInputNode {
 							+ "' for match contract '" + getPactContract().getName() + "'.");
 					}
 
-					createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
+					createCoGroupAlternative(outputPlans, predList1, predList2, ss1, ss2, estimator);
 				} else {
 					// both are fixed
 					// check, if they produce a valid plan. for that, we need to have an equal partitioning
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-					gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
+
+					if(predList1.size() == 1) {
+						gp1 = PactConnection.getGlobalPropertiesAfterConnection(predList1.get(0), this, ss1);
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp1 = new GlobalProperties();
+					}
+					if(predList2.size() == 1) {
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(predList2.get(0), this, ss2);
+					} else {
+						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+						gp2 = new GlobalProperties();
+					}
+					
 					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
 						// partitioning there and equal
-						createCoGroupAlternative(outputPlans, pred1, pred2, ss1, ss2, estimator);
+						createCoGroupAlternative(outputPlans, predList1, predList2, ss1, ss2, estimator);
 					} else {
 						// no valid plan possible with that combination of shipping strategies and pre-existing
 						// properties
@@ -448,23 +519,6 @@ public class CoGroupNode extends TwoInputNode {
 			}
 
 		}
-
-		// check if the list does not contain any plan. That may happen, if the channels specify
-		// incompatible shipping strategies.
-		if (outputPlans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the reduce contract '"
-				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
-		}
-
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (isBranching()) {
-			this.cachedPlans = outputPlans;
-		}
-
-		return outputPlans;
 	}
 
 	/**
@@ -473,10 +527,10 @@ public class CoGroupNode extends TwoInputNode {
 	 * 
 	 * @param target
 	 *        The list to put the alternatives in.
-	 * @param pred1
-	 *        The predecessor node for the first input.
-	 * @param pred2
-	 *        The predecessor node for the second input.
+	 * @param allPreds1
+	 *        The predecessor nodes for the first input.
+	 * @param allPreds2
+	 *        The predecessor nodes for the second input.
 	 * @param ss1
 	 *        The shipping strategy for the first input.
 	 * @param ss2
@@ -484,14 +538,30 @@ public class CoGroupNode extends TwoInputNode {
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createCoGroupAlternative(List<CoGroupNode> target, OptimizerNode pred1, OptimizerNode pred2,
-			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator) {
+	private void createCoGroupAlternative(List<OptimizerNode> target, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2,
+			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
+	{
 		// compute the given properties of the incoming data
-		GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-		GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-
-		LocalProperties lp1 = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
-		LocalProperties lp2 = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
+		GlobalProperties gp1, gp2;
+		LocalProperties lp1, lp2;
+		
+		if(allPreds1.size() == 1) {
+			gp1 = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+			lp1 = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
+		} else {
+			// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+			gp1 = new GlobalProperties();
+			lp1 = new LocalProperties();
+		}
+		
+		if(allPreds2.size() == 1) {
+			gp2 = PactConnection.getGlobalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+			lp2 = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
+		} else {
+			// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+			gp2 = new GlobalProperties();
+			lp2 = new LocalProperties();
+		}
 
 		
 		int[] keyColumns1 = getPactContract().getKeyColumnNumbers(0);
@@ -513,10 +583,11 @@ public class CoGroupNode extends TwoInputNode {
 		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFiels());
 
 		// create a new cogroup node for this input
-		CoGroupNode n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, new LocalProperties());
-
-		n.input1.setShipStrategy(ss1);
-		n.input2.setShipStrategy(ss2);
+		CoGroupNode n = new CoGroupNode(this, allPreds1, allPreds2, this.input1, this.input2, outGp, new LocalProperties());
+		for(PactConnection c : n.input1)
+			c.setShipStrategy(ss1);
+		for(PactConnection c : n.input2)
+			c.setShipStrategy(ss2);
 
 		// output will have ascending order
 		//TODO generate for both inputs and filter later on
@@ -561,10 +632,12 @@ public class CoGroupNode extends TwoInputNode {
 		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFiels());
 
 		// create a new cogroup node for this input
-		n = new CoGroupNode(this, pred1, pred2, input1, input2, outGp, new LocalProperties());
+		n = new CoGroupNode(this, allPreds1, allPreds2, input1, input2, outGp, new LocalProperties());
 
-		n.input1.setShipStrategy(ss1);
-		n.input2.setShipStrategy(ss2);
+		for(PactConnection c : n.input1)
+			c.setShipStrategy(ss1);
+		for(PactConnection c : n.input2)
+			c.setShipStrategy(ss2);
 
 		// output will have ascending order
 		//TODO generate for both inputs and filter later on
@@ -600,34 +673,52 @@ public class CoGroupNode extends TwoInputNode {
 
 		target.add(n);
 	}
-	
+
 	/**
 	 * Computes the number of keys that are processed by the PACT.
 	 * 
 	 * @return the number of keys processed by the PACT.
 	 */
-	protected long computeNumberOfProcessedKeys() {
-		OptimizerNode pred1 = input1 == null ? null : input1.getSourcePact();
-		OptimizerNode pred2 = input2 == null ? null : input2.getSourcePact();
-
-		if(pred1 != null && pred2 != null) {
-			// Match processes all keys that appear in at least one of both input sets
-			FieldSet fieldSet1 = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-			FieldSet fieldSet2 = new FieldSet(getPactContract().getKeyColumnNumbers(1));
+	private long computeNumberOfProcessedKeys() {
+		long numKey1 = 0;
+		long numKey2 = 0;
+		
+		FieldSet fieldSet1 = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+		FieldSet fieldSet2 = new FieldSet(getPactContract().getKeyColumnNumbers(1));
+		
+		for(PactConnection c : this.input1) {
+			long keys = c.getSourcePact().getEstimatedCardinality(fieldSet1);
 			
-			if(pred1.getEstimatedCardinality(fieldSet1) == -1) {
-				// key card of 1st input unknown. Use key card of 2nd input as lower bound
-				return pred2.getEstimatedCardinality(fieldSet2);
-			} else if(pred2.getEstimatedCardinality(fieldSet2) == -1) {
-				// key card of 2nd input unknown. Use key card of 1st input as lower bound
-				return pred1.getEstimatedCardinality(fieldSet1);
-			} else {
-				// key card of both inputs known. Use maximum as lower bound
-				return Math.max(pred1.getEstimatedCardinality(fieldSet1), pred2.getEstimatedCardinality(fieldSet2));
+			if(keys == -1) {
+				numKey1 = -1;
+				break;
 			}
-		} else {
-			return -1;
+			
+			numKey1 += keys;
 		}
+
+		for(PactConnection c : this.input2) {
+			long keys = c.getSourcePact().getEstimatedCardinality(fieldSet2);
+			
+			if(keys == -1) {
+				numKey2 = -1;
+				break;
+			}
+			
+			numKey2 += keys;
+		}
+		
+		if(numKey1 == -1)
+			// key card of 1st input unknown. Use key card of 2nd input as lower bound
+			return numKey2;
+		
+		
+		if(numKey2 == -1)
+			// key card of 2nd input unknown. Use key card of 1st input as lower bound
+			return numKey1;
+
+		// key card of both inputs known. Use maximum as lower bound
+		return Math.max(numKey1, numKey2);
 	}
 	
 	/**
@@ -651,8 +742,7 @@ public class CoGroupNode extends TwoInputNode {
 		// the stub is called once per key
 		return this.computeNumberOfProcessedKeys();
 	}
-	
-	
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)

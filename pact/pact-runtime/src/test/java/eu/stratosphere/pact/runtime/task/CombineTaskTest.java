@@ -37,6 +37,7 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class CombineTaskTest extends TaskTestBase {
 	
 	private static final Log LOG = LogFactory.getLog(CombineTaskTest.class);
@@ -51,8 +52,8 @@ public class CombineTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -75,13 +76,13 @@ public class CombineTaskTest extends TaskTestBase {
 			expSum+=i;
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : outList) {
+		for(PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum);
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -93,8 +94,8 @@ public class CombineTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
@@ -115,7 +116,7 @@ public class CombineTaskTest extends TaskTestBase {
 		
 		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
 				
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -124,7 +125,7 @@ public class CombineTaskTest extends TaskTestBase {
 	public void testCancelCombineTaskSorting() {
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new DelayingInfinitiveInputIterator(100));
+		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final CombineTask testTask = new CombineTask();
@@ -137,6 +138,7 @@ public class CombineTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -208,9 +210,9 @@ public class CombineTaskTest extends TaskTestBase {
 				
 				sum += this.value.getValue();
 			}
-			element.getField(0, key);
-			value.setValue(sum - key.getValue());
-			element.setField(1, value);
+			element.getField(0, this.key);
+			this.value.setValue(sum - this.key.getValue());
+			element.setField(1, this.value);
 			out.collect(element);
 		}
 		
@@ -221,17 +223,17 @@ public class CombineTaskTest extends TaskTestBase {
 			int sum = 0;
 			while (records.hasNext()) {
 				element = records.next();
-				element.getField(1, combineValue);
+				element.getField(1, this.combineValue);
 				
-				sum += combineValue.getValue();
+				sum += this.combineValue.getValue();
 			}
 			
-			if(++cnt>=10) {
+			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			
-			combineValue.setValue(sum);
-			element.setField(1, combineValue);
+			this.combineValue.setValue(sum);
+			element.setField(1, this.combineValue);
 			out.collect(element);
 		}
 		

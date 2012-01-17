@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
@@ -27,13 +30,12 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	/**
 	 * The contract producing the first input.
 	 */
-	protected Contract input1;
-	
+	final protected List<Contract> input1 = new ArrayList<Contract>();
 	/**
 	 * The contract producing the second input.
 	 */
-	protected Contract input2;
-	
+	final protected List<Contract> input2 = new ArrayList<Contract>();
+
 	/**
 	 * The positions of the keys in the tuples of the first input.
 	 */
@@ -80,8 +82,8 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * 
 	 * @return The contract's first input.
 	 */
-	public Contract getFirstInput() {
-		return input1;
+	public List<Contract> getFirstInputs() {
+		return this.input1;
 	}
 	
 	/**
@@ -89,8 +91,8 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * 
 	 * @return The contract's second input.
 	 */
-	public Contract getSecondInput() {
-		return input2;
+	public List<Contract> getSecondInputs() {
+		return this.input2;
 	}
 
 	/**
@@ -98,8 +100,8 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * 
 	 * @param input The contract will be set as the first input.
 	 */
-	public void setFirstInput(Contract input) {
-		this.input1 = input;
+	public void addFirstInput(Contract input) {
+		this.input1.add(input);
 	}
 	
 	/**
@@ -107,10 +109,48 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * 
 	 * @param input The contract will be set as the second input.
 	 */
-	public void setSecondInput(Contract input) {
-		this.input2 = input;
+	public void addSecondInput(Contract input) {
+		this.input2.add(input);
 	}
 
+	/**
+	 * Connects the first inputs to the task wrapped in this contract
+	 * 
+	 * @param inputs The contracts that is connected as the first inputs.
+	 */
+	public void addFirstInputs(List<Contract> inputs) {
+		this.input1.addAll(inputs);
+	}
+
+	/**
+	 * Connects the second inputs to the task wrapped in this contract
+	 * 
+	 * @param inputs The contracts that is connected as the second inputs.
+	 */
+	public void addSecondInputs(List<Contract> inputs) {
+		this.input2.addAll(inputs);
+	}
+	
+	/**
+	 * Clears all previous connections and connects the first input to the task wrapped in this contract
+	 * 
+	 * @param firstInput The contract that is connected as the first input.
+	 */
+	public void setFirstInput(Contract inputs) {
+		this.input1.clear();
+		this.input1.add(inputs);
+	}
+
+	/**
+	 * Clears all previous connections and connects the second input to the task wrapped in this contract
+	 * 
+	 * @param secondInput The contract that is connected as the second input.
+	 */
+	public void setSecondInput(Contract inputs) {
+		this.input2.clear();
+		this.input2.add(inputs);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
@@ -138,24 +178,37 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Accepts the visitor and applies it this instance. The visitors pre-visit method is called and, if returning 
-	 * <tt>true</tt>, the visitor is recursively applied on the single input. After the recursion returned,
-	 * the post-visit method is called.
+	 * Clears all previous connections and connects the first inputs to the task wrapped in this contract
 	 * 
-	 * @param visitor The visitor.
-	 *  
-	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 * @param inputs The contracts that is connected as the first inputs.
+	 */
+	public void setFirstInputs(List<Contract> inputs) {
+		this.input1.clear();
+		this.input1.addAll(inputs);
+	}
+
+	/**
+	 * Clears all previous connections and connects the second inputs to the task wrapped in this contract
+	 * 
+	 * @param secondInput The contracts that is connected as the second inputs.
+	 */
+	public void setSecondInputs(List<Contract> inputs) {
+		this.input2.clear();
+		this.input2.addAll(inputs);
+	}
+	
+	/**
+	 * {@inheritDoc}
 	 */
 	@Override
-	public void accept(Visitor<Contract> visitor)
-	{
+	public void accept(Visitor<Contract> visitor) {
 		boolean descend = visitor.preVisit(this);	
 		if (descend) {
-			if (this.input1 != null) {
-				this.input1.accept(visitor);
+			for(Contract c : this.input1) {
+				c.accept(visitor);
 			}
-			if (this.input2 != null) {
-				this.input2.accept(visitor);
+			for(Contract c : this.input2) {
+				c.accept(visitor);
 			}
 			visitor.postVisit(this);
 		}
