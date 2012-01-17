@@ -215,6 +215,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.id = toClone.id;
 		this.degreeOfParallelism = toClone.degreeOfParallelism;
 		this.instancesPerMachine = toClone.instancesPerMachine;
+		
+		this.stubOutCardLB = toClone.stubOutCardLB;
+		this.stubOutCardUB = toClone.stubOutCardUB;
+		this.addSet = toClone.addSet;
+		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length); 
 
 		// check, if this node branches. if yes, this candidate must be associated with
 		// the branching template node.
@@ -367,7 +372,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The list of outgoing connections.
 	 */
 	public List<PactConnection> getOutgoingConnections() {
-		return this.outgoingConnections == null ? Collections.<PactConnection> emptyList() : this.outgoingConnections;
+		
+		if(this.outgoingConnections == null) {
+			this.outgoingConnections = new ArrayList<PactConnection>();
+		}
+		return this.outgoingConnections;
 	}
 
 	/**
@@ -1127,8 +1136,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 	
 	public abstract void deriveOutputSchema();
-
-	public int[] getAddSet() {
+	
+	protected int[] getAddSet() {
 		return this.addSet;
 	}
 	

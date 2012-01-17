@@ -29,6 +29,7 @@ import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
@@ -56,6 +57,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected int[] updateSet; // set of fields that are modified by the stub
 	
 	protected int[] constantSet; // set of fields that remain constant from input to output 
+	
+	protected ConstantSetMode constantSetMode;
 	
 	protected int[] keySet; // The set of key fields (order is relevant!)
 
@@ -94,6 +97,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 			GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, globalProps, localProps);
 
+		this.readSet = template.readSet;
+		this.updateSet = template.updateSet;
+		this.constantSet = template.constantSet;
+		this.keySet = template.keySet;
+		this.constantSetMode = template.constantSetMode;
+		
 		int i = 0;
 		for(PactConnection c: conn) {
 			this.input.add(new PactConnection(c, pred.get(i++), this));
@@ -317,7 +326,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
-	protected void readReadSetAnnotation() {
+	private void readReadSetAnnotation() {
 		
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
@@ -344,7 +353,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
-	protected void readConstantSetAnnotation() {
+	private void readConstantSetAnnotation() {
 		
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
@@ -364,16 +373,19 @@ public abstract class SingleInputNode extends OptimizerNode {
 				this.updateSet = updateSetAnnotation.fields();
 				this.constantSet = null;
 				Arrays.sort(this.updateSet);
+				this.constantSetMode = ConstantSetMode.Update;
 				return;
 			case Constant:
 				// we have a constant set
 				this.updateSet = null;
 				this.constantSet = updateSetAnnotation.fields();
 				Arrays.sort(this.constantSet);
+				this.constantSetMode = ConstantSetMode.Constant;
 				return;
 			default:
 				this.updateSet = null;
 				this.constantSet = null;
+				this.constantSetMode = null;
 				return;
 			}
 		}
@@ -398,16 +410,49 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
-	public int[] getReadSet() {
+	public int[] getInputReadSet() {
 		return this.readSet;
 	}
 	
-	public int[] getUpdateSet() {
-		return this.updateSet;
+	public int[] getInputUpdateSet() {
+		
+		if(this.constantSetMode == null)
+			return null;
+
+		switch(this.constantSetMode) {
+		case Constant:
+			int[] inputSchema = this.input.get(0).getSourcePact().outputSchema;
+			if(inputSchema == null) {
+				return null;
+			} else {
+				return FieldSetOperations.setDifference(inputSchema, this.constantSet);
+			}
+		case Update:
+			return this.updateSet;
+		}
+		
+		return null;
 	}
 	
-	public int[] getConstantSet() {
-		return this.constantSet;
+	public int[] getInputConstantSet() {
+		
+		if(this.constantSetMode == null)
+			return null;
+
+		switch(this.constantSetMode) {
+		case Update:
+			int[] inputSchema = this.input.get(0).getSourcePact().outputSchema;
+			if(inputSchema == null) {
+				return null;
+			} else {
+				return FieldSetOperations.setDifference(inputSchema, this.updateSet);
+			}
+		case Constant:
+			return this.constantSet;
+		}
+		
+		return null;
+		
 	}
 	
 	public int[] getKeySet() {
