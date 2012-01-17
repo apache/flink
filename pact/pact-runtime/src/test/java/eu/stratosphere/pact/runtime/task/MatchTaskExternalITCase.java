@@ -88,8 +88,8 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 1*16;
 		
 		super.initEnvironment(4*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false));
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 1);
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
