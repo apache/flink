@@ -119,7 +119,7 @@ public class RecoveryThread extends Thread {
 				return false;
 			}
 
-			//get list of instances of consistencheckpoints
+			//get list of instances of consistent checkpoints
 			List<AbstractInstance> instances = new SerializableArrayList<AbstractInstance>();
 			for (ExecutionVertexID id : this.globalConsistentCheckpoint) {
 				AbstractInstance instance = this.job.getVertexByID(id).getAllocatedResource().getInstance();
@@ -131,15 +131,16 @@ public class RecoveryThread extends Thread {
 			while (instanceIterator.hasNext()) {
 				//replay all necessary checkpoints
 				try {
-
-					replayCheckpoints.addAll(instanceIterator.next().replayCheckpoints(this.globalConsistentCheckpoint));
+					AbstractInstance instance = instanceIterator.next();
+				
+					replayCheckpoints.addAll(instance.replayCheckpoints(this.globalConsistentCheckpoint));
 				} catch (IOException e) {
 					e.printStackTrace();
 					this.job.executionStateChanged(this.job.getJobID(), null, ExecutionState.FAILED, null);
 					return false;
 				}
 			}
-			
+			//State job to Failed if a checkpoint-replay failed
 			for(CheckpointReplayResult replayResult : replayCheckpoints ){
 				if (replayResult.getReturnCode() == ReturnCode.ERROR) {
 					LOG.info("Replay of Checkpoints return Error " + replayResult.getDescription() );

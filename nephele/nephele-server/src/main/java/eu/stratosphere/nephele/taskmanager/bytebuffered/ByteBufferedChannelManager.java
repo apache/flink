@@ -651,7 +651,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				LOG.error("Cannot report checkpoint decision for vertex " + cd.getVertexID());
 				continue;
 			}
-
+			LOG.info("reporting checkpoint decision for " + cd.getVertexID());
 			taskContext.setCheckpointDecisionAsynchronously(cd.getCheckpointDecision());
 			taskContext.reportAsynchronousEvent();
 		}

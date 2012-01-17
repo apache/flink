@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -26,7 +27,9 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 
@@ -51,6 +54,10 @@ public final class CheckpointDecisionCoordinator {
 	 * The object in charge of propagating checkpoint decisions to the respective task managers.
 	 */
 	private final CheckpointDecisionPropagator decisionPropagator;
+	
+
+	
+	private List<ExecutionVertexID> decidedVertices = new ArrayList<ExecutionVertexID>();
 
 	/**
 	 * Constructs a new checkpoint decision coordinator.
@@ -71,7 +78,6 @@ public final class CheckpointDecisionCoordinator {
 	 *        the job to register
 	 */
 	public void registerJob(final ExecutionGraph executionGraph) {
-
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
 		while (it.hasNext()) {
 			final ExecutionVertex vertex = it.next();
@@ -89,19 +95,53 @@ public final class CheckpointDecisionCoordinator {
 	 */
 	void checkpointDecisionRequired(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
 		LOG.info("Checkpoint decision for vertex " + vertex + " required");
+		synchronized (decidedVertices) {
+			if (!decidedVertices.contains(vertex.getID())) {
+				boolean checkpointDecision = getDecision(vertex, rus);
+				final ExecutionGraph graph = vertex.getExecutionGraph();
+				final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
+				List<CheckpointDecision> checkpointDecisionList = null;
 
-		boolean checkpointDecision = getDecision(vertex, rus);
-		final ExecutionGraph graph = vertex.getExecutionGraph();
-		final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
-		final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
 
-		synchronized (graph) {
-			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), checkpointDecision));
-			checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
+				synchronized (graph) {
+					ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
+					//force decision to all groupVertex members
+					for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
+						ExecutionVertex member = groupVertex.getGroupMember(i);
+						AbstractInstance instance = member.getAllocatedResource().getInstance();
+						if(checkpointDecisions.containsKey(instance)){
+							//if instance already in list append new decision
+							checkpointDecisionList = checkpointDecisions.get(instance);
+						}else{
+							//make an new list for each instance
+							checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
+						}
+						checkpointDecisionList.add(new CheckpointDecision(member.getID(), checkpointDecision));
+						checkpointDecisions.put(instance, checkpointDecisionList);
+						
+						this.decidedVertices.add(member.getID());
+					}
+				}
+
+				// Propagate checkpoint decisions
+				this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
+			}
 		}
-
-		// Propagate checkpoint decisions
-		this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
+//		LOG.info("Checkpoint decision for vertex " + vertex + " required");
+//
+//		// TODO: Provide sensible implementation here
+//		boolean checkpointDecision = getDecision(vertex, rus);
+//		final ExecutionGraph graph = vertex.getExecutionGraph();
+//		final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
+//		final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
+//
+//		synchronized (graph) {
+//			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), checkpointDecision));
+//			checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
+//		}
+//
+//		// Propagate checkpoint decisions
+//		this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
 	}
 
 	private boolean getDecision(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {

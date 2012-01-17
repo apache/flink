@@ -162,7 +162,7 @@ public abstract class AbstractInstance extends NetworkNode {
 		LibraryCacheProfileResponse response = null;
 		response = getTaskManager().getLibraryCacheProfile(request);
 
-		// Check response and transfer libaries if necesarry
+		// Check response and transfer libraries if necessary
 		for (int k = 0; k < requiredLibraries.length; k++) {
 			if (!response.isCached(k)) {
 				LibraryCacheUpdate update = new LibraryCacheUpdate(requiredLibraries[k]);
