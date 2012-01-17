@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.task.chaining;
 
 import java.util.Comparator;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -89,7 +90,11 @@ public class ChainedCombineTask implements ChainedTask
 	public void openTask() throws Exception
 	{
 		// open the stub first
-		AbstractPactTask.openUserCode(this.combiner, this.config.getStubParameters());
+		Configuration stubConfig = this.config.getStubParameters();
+		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
+		stubConfig.setInteger("pact.parallel.task.count", this.parent.getEnvironment().getCurrentNumberOfSubtasks());
+		stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
+		AbstractPactTask.openUserCode(this.combiner, stubConfig);
 		
 		// ----------------- Set up the asynchonous sorter -------------------------
 		

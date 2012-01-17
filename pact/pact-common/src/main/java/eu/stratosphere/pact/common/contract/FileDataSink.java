@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.List;
+
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 
 /**
@@ -69,6 +71,18 @@ public class FileDataSink extends GenericDataSink
 	}
 	
 	/**
+	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation the default name,
+	 * writing to the file indicated by the given path. It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link FileOutputFormat} implementation used to encode the data.
+	 * @param filePath The path to the file to write the contents to.
+	 * @param input The contracts to use as the input.
+	 */
+	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, List<Contract> input) {
+		this(c, filePath, input, DEFAULT_NAME);
+	}
+
+	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation and the given name,
 	 * writing to the file indicated by the given path. It uses the given contract as its input.
 	 * 
@@ -79,7 +93,21 @@ public class FileDataSink extends GenericDataSink
 	 */
 	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, Contract input, String name) {
 		this(c, filePath, name);
-		setInput(input);
+		addInput(input);
+	}
+
+	/**
+	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation and the given name,
+	 * writing to the file indicated by the given path. It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link FileOutputFormat} implementation used to encode the data.
+	 * @param filePath The path to the file to write the contents to.
+	 * @param input The contracts to use as the input.
+	 * @param name The given name for the sink, used in plans, logs and progress messages.
+	 */
+	public FileDataSink(Class<? extends FileOutputFormat> c, String filePath, List<Contract> input, String name) {
+		this(c, filePath, name);
+		addInputs(input);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -91,7 +119,7 @@ public class FileDataSink extends GenericDataSink
 	 */
 	public String getFilePath()
 	{
-		return filePath;
+		return this.filePath;
 	}
 	
 	/* (non-Javadoc)
@@ -101,4 +129,5 @@ public class FileDataSink extends GenericDataSink
 	public String toString() {
 		return this.filePath;
 	}
+	
 }

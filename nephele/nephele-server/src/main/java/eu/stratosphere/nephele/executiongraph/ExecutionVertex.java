@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
+import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
@@ -124,18 +125,18 @@ public final class ExecutionVertex {
 	/**
 	 * The current checkpoint state of this vertex.
 	 */
-	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(CheckpointState.NONE);
-	
+
 	/**
 	 * Number of times this vertex may be restarted
 	 */
-	private int retries = 3; //TODO make this configurable
+	private int retries = 3; // TODO make this configurable
+
+	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(CheckpointState.NONE);
 
 	/**
 	 * The execution pipeline this vertex is part of.
 	 */
 	private final AtomicReference<ExecutionPipeline> executionPipeline = new AtomicReference<ExecutionPipeline>(null);
-
 
 	/**
 	 * Create a new execution vertex and instantiates its environment.
@@ -329,7 +330,8 @@ public final class ExecutionVertex {
 			return false;
 		}
 
-		if(this.executionState.get() == ExecutionState.FAILED){
+		// TODO: Improve thread-safety here
+		if (this.executionState.get() == ExecutionState.FAILED) {
 			this.retries--;
 		}
 		// Notify the listener objects
@@ -589,6 +591,39 @@ public final class ExecutionVertex {
 	}
 
 	/**
+	 * Kills and removes the task represented by this vertex from the instance it is currently running on. If the
+	 * corresponding task is not in the state <code>RUNNING</code>, this call will be ignored. If the call has been
+	 * executed
+	 * successfully, the task will change the state <code>FAILED</code>.
+	 * 
+	 * @return the result of the task kill attempt
+	 */
+	public TaskKillResult killTask() {
+
+		final ExecutionState state = this.executionState.get();
+
+		if (state != ExecutionState.RUNNING) {
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			result.setDescription("Vertex " + this.toString() + " is in state " + state);
+			return result;
+		}
+
+		if (this.allocatedResource == null) {
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
+			return result;
+		}
+		
+		try {
+			return this.allocatedResource.getInstance().killTask(this.vertexID);
+		} catch (IOException e) {
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			result.setDescription(StringUtils.stringifyException(e));
+			return result;
+		}
+	}
+
+	/**
 	 * Cancels and removes the task represented by this vertex
 	 * from the instance it is currently running on. If the task
 	 * is not currently running, its execution state is simply
@@ -661,7 +696,7 @@ public final class ExecutionVertex {
 	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
 	 */
 	public boolean hasRetriesLeft() {
-		if(this.retries < 0){
+		if (this.retries < 0) {
 			return false;
 		}
 		return true;

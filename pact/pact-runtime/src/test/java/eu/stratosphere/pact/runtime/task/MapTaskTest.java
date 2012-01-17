@@ -33,6 +33,7 @@ import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class MapTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
@@ -45,11 +46,11 @@ public class MapTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		outList = new ArrayList<PactRecord>();
+		this.outList = new ArrayList<PactRecord>();
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		MapTask testTask = new MapTask();
 		
@@ -62,7 +63,7 @@ public class MapTaskTest extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue(outList.size() == keyCnt*valCnt);
+		Assert.assertTrue(this.outList.size() == keyCnt*valCnt);
 		
 	}
 	
@@ -72,11 +73,11 @@ public class MapTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		outList = new ArrayList<PactRecord>();
+		this.outList = new ArrayList<PactRecord>();
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		MapTask testTask = new MapTask();
 		
@@ -98,7 +99,7 @@ public class MapTaskTest extends TaskTestBase {
 	public void testCancelMapTask() {
 		
 		super.initEnvironment(1);
-		super.addInput(new InfiniteInputIterator());
+		super.addInput(new InfiniteInputIterator(), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final MapTask testTask = new MapTask();
@@ -106,6 +107,7 @@ public class MapTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockMapStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -144,7 +146,7 @@ public class MapTaskTest extends TaskTestBase {
 		
 		@Override
 		public void map(PactRecord record, Collector out) throws Exception {
-			if(++cnt>=10) {
+			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			out.collect(record);

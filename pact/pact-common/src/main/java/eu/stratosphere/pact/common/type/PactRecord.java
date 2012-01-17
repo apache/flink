@@ -142,6 +142,7 @@ public final class PactRecord implements Value
 			for (int i = oldNumFields; i < numFields; i++) {
 				this.offsets[i] = NULL_INDICATOR_OFFSET;
 			}
+			markModified(oldNumFields);
 		}
 		else {
 			// decrease the number of fields
@@ -393,18 +394,37 @@ public final class PactRecord implements Value
 	 */
 	public void addField(Value value)
 	{
-		int pos = this.numFields;
+		final int pos = this.numFields;
 		setNumFields(pos + 1);
 		internallySetField(pos, value);
 	}
 	
 	/**
-	 * @param position
-	 * @param value
+	 * Inserts a field into the record at the specified position.
+	 * 
+	 * @param position Position of the new field in the record.
+	 * @param value Value to be inserted.
+	 * 
+	 * @throws IndexOutOfBoundsException Thrown, when the position is not between 0 (inclusive) and the
+	 *                                   number of fields (exclusive).
 	 */
 	public void insertField(int position, Value value)
 	{
-		throw new UnsupportedOperationException();
+		// range check
+		if (position < 0 || position > this.numFields) {
+			throw new IndexOutOfBoundsException();
+		}
+		final int oldNumFields = this.numFields;
+		setNumFields(oldNumFields + 1);
+
+		// shift the offsets, lengths and fields in order to make space for the new field
+		final int len = oldNumFields - position;
+		System.arraycopy(this.offsets, position, this.offsets, position + 1, len);
+		System.arraycopy(this.lengths, position, this.lengths, position + 1, len);
+		System.arraycopy(this.fields, position, this.fields, position + 1, len);
+
+		// Set the field at given position to given value and mark as modified
+		internallySetField(position, value);
 	}
 	
 	private final void internallySetField(int fieldNum, Value value)
@@ -423,32 +443,157 @@ public final class PactRecord implements Value
 		this.modified = true;
 	}
 	
-	public void removeField(int field) {
-		throw new UnsupportedOperationException();
+	/**
+	 * Removes the field at the given position.
+	 * 
+	 * @param field The index number of the field to be removed.
+	 * @throws IndexOutOfBoundsException Thrown, when the position is not between 0 (inclusive) and the
+	 *                                   number of fields (exclusive).
+	 */
+	public void removeField(int field)
+	{
+		// range check
+		if (field < 0 || field >= this.numFields) {
+			throw new IndexOutOfBoundsException();
+		}
+		int lastIndex = this.numFields - 1;		
+
+		if (field < lastIndex) {
+			int len = lastIndex - field;
+			System.arraycopy(this.offsets, field + 1, this.offsets, field, len);
+			System.arraycopy(this.lengths, field + 1, this.lengths, field, len);
+			System.arraycopy(this.fields, field + 1, this.fields, field, len);
+			markModified(field);
+		}
+		this.offsets[lastIndex] = NULL_INDICATOR_OFFSET;
+		this.lengths[lastIndex] = 0;
+		this.fields[lastIndex] = null;
+
+		setNumFields(lastIndex);
 	}
 	
-	public void project(long mask) {
-		throw new UnsupportedOperationException();
+	/**
+	 * Projects (deletes) the record using the given bit mask. The bits correspond to the individual columns:
+	 * <code>(1 == keep, 0 == delete)</code>.
+	 * <p>
+	 * <b>Only use when record has not more than 64 fields!</b>
+	 * 
+	 * @param mask The bitmask used for the projection. The i-th bit corresponds to the i-th
+	 *             field in the record, starting with the least significant bit.
+	 */
+	public void project(long mask)
+	{
+		final int oldNumFields = this.numFields;
+		int index = 0;
+
+		for (int i = 0; i < oldNumFields; i++) {
+			if ((mask & 0x1L) == 0) {
+				this.removeField(index);
+			}
+			else {
+				index++;
+			}
+			mask >>>= 1;
+		}
 	}
 	
-	public void project(long[] mask) {
-		throw new UnsupportedOperationException();
+	/**
+	 * Projects (deletes) the record using the given bit mask. The bits correspond to the individual columns:
+	 * <code>(1 == keep, 0 == delete)</code>.
+	 * 
+	 * @param mask The bit masks used for the projection. The i-th bit in the n-th mask corresponds to the
+	 *             <code>(n * 64) + i</code>-th field in the record, starting with the least significant bit.
+	 */
+	public void project(long[] mask)
+	{
+		long curMask = 0;
+		int offset = 0;
+		long tmp = 0;
+		int len = 0;
+		int index = 0;
+		int oldNumFields = this.numFields;
+
+		for (int k = 0; k < mask.length; k++) {
+			curMask = mask[k];
+			offset = k * Long.SIZE;
+			len = ((offset + Long.SIZE) < oldNumFields) ? Long.SIZE : oldNumFields - offset;
+
+			for (int l = 0; l < len; l++) {
+				tmp = (1L << l) & curMask;
+
+				if (tmp == 0) {
+					this.removeField(index);
+				}
+				else {
+					index++;
+				}
+			}
+		}
 	}
 	
-	public void setNull(int field) {
-		throw new UnsupportedOperationException();
+	/**
+	 * Sets the field at the given position to <code>null</code>.
+	 * 
+	 * @param field The field index.
+	 * @throws IndexOutOfBoundsException Thrown, when the position is not between 0 (inclusive) and the
+	 *                                   number of fields (exclusive).
+	 */
+	public void setNull(int field)
+	{
+		// range check
+		if (field < 0 || field >= this.numFields) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		internallySetField(field, null);
 	}
 	
-	public void setNull(long fields) {
-		throw new UnsupportedOperationException();
+	/**
+	 * Sets the fields to <code>null</code> using the given bit mask.
+	 * The bits correspond to the individual columns: <code>(1 == nullify, 0 == keep)</code>.
+	 * 
+	 * @param mask Bit mask, where the i-th least significant bit represents the i-th field in the record.
+	 */
+	public void setNull(long mask)
+	{
+		long tmp = 0;
+
+		for (int i = 0; i < this.numFields; i++) {
+			tmp = (1L << i) & mask;
+
+			if (tmp != 0) {
+				internallySetField(i, null);
+			}
+		}
 	}
-	
-	public void setNull(long[] fields) {
-		throw new UnsupportedOperationException();
-	}
-	
-	public void concatenate(PactRecord record) {
-		throw new UnsupportedOperationException();
+
+	/**
+	 * Sets the fields to <code>null</code> using the given bit mask.
+	 * The bits correspond to the individual columns: <code>(1 == nullify, 0 == keep)</code>.
+	 * 
+	 * @param mask Bit mask, where the i-th least significant bit in the n-th bit mask represents the
+	 *             <code>(n*64) + i</code>-th field in the record.
+	 */
+	public void setNull(long[] mask)
+	{
+		long curMask = 0;
+		long tmp = 0;
+		int offset = 0;
+		int len = 0;
+
+		for (int k = 0; k < mask.length; k++) {
+			curMask = mask[k];
+			offset = k * Long.SIZE;
+			len = ((offset + Long.SIZE) < this.numFields) ? Long.SIZE : this.numFields - offset;
+
+			for (int l = 0; l < len; l++) {
+				tmp = (1L << l) & curMask;
+
+				if (tmp != 0) {
+					internallySetField(offset + l, null);
+				}
+			}
+		}
 	}
 	
 	/**
@@ -461,6 +606,10 @@ public final class PactRecord implements Value
 			this.firstModifiedPos = Integer.MAX_VALUE;
 			this.modified = true;
 		}
+	}
+	
+	public void concatenate(PactRecord record) {
+		throw new UnsupportedOperationException();
 	}
 	
 	/**
@@ -555,7 +704,7 @@ public final class PactRecord implements Value
 			return;
 		
 		final int firstModified = this.firstModifiedPos;
-		final int numFields = this.numFields;		
+		final int numFields = this.numFields;
 		final int[] offsets = this.offsets;
 		if (this.serializer == null) {
 			this.serializer = new InternalDeSerializer();
@@ -617,6 +766,8 @@ public final class PactRecord implements Value
 		}
 		
 		try {
+			int slp = serializer.position;	// track the last position of the serializer
+			
 			// now, serialize the lengths, the sparsity mask and the number of fields
 			if (numFields <= 8) {
 				// efficient handling of common case with less than eight fields
@@ -624,21 +775,32 @@ public final class PactRecord implements Value
 				for (int i = numFields - 1; i > 0; i--) {
 					mask <<= 1;
 					if (offsets[i] != NULL_INDICATOR_OFFSET) {
+						slp = serializer.position;
 						serializer.writeValLenIntBackwards(offsets[i]);
 						mask |= 0x1;
 					}
 				}
 				mask <<= 1;
-				mask |= (offsets[0] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
+				if (offsets[0] != NULL_INDICATOR_OFFSET) {
+					mask |= 0x1;	// add the non-null bit to the mask
+				} else {
+					// the first field is null, so some previous field was the first non-null field
+					serializer.position = slp;
+				}
 				serializer.writeByte(mask);
 			}
 			else {
 				// general case. offsets first (in backward order)
 				for (int i = numFields - 1; i > 0; i--) {
 					if (offsets[i] != NULL_INDICATOR_OFFSET) {
+						slp = serializer.position;
 						serializer.writeValLenIntBackwards(offsets[i]);
 					}
 				}
+				if (offsets[0] == NULL_INDICATOR_OFFSET) {
+					serializer.position = slp;
+				}
+				
 				// now the mask. we write it in chucks of 8 bit.
 				// the remainder %8 comes first 
 				int col = numFields - 1;
@@ -1488,3 +1650,4 @@ public final class PactRecord implements Value
 		}
 	};
 }
+

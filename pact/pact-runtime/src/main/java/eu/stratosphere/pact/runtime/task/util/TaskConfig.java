@@ -101,6 +101,19 @@ public class TaskConfig
 
 	private static final String NUM_INPUTS = "pact.inputs.number";
 
+	/*
+	 * If one input has multiple predecessors (bag union), multiple
+	 * inputs must be grouped together. For a map or reduce there is
+	 * one group and "pact.size.inputGroup.1" will be equal to
+	 * "pact.inputs.number"
+	 * 
+	 * In the case of a dual input pact (eg. match) there might be
+	 * 2 predecessors for the first group and one for the second group.
+	 * Hence, "pact.inputs.number" would be 3, "pact.size.inputGroup.1"
+	 * would be 2, and "pact.size.inputGroup.2" would be 1.
+	 */
+	private static final String INPUT_GROUP_SIZE = "pact.size.inputGroup.";
+
 	private static final String NUM_OUTPUTS = "pact.outputs.number";
 
 	private static final String SIZE_MEMORY = "pact.memory.size";
@@ -132,13 +145,13 @@ public class TaskConfig
 	// --------------------------------------------------------------------------------------------
 
 	public void setStubClass(Class<?> stubClass) {
-		config.setString(STUB_CLASS, stubClass.getName());
+		this.config.setString(STUB_CLASS, stubClass.getName());
 	}
 
 	public <T> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl)
-	throws ClassNotFoundException, ClassCastException
+		throws ClassNotFoundException, ClassCastException
 	{
-		String stubClassName = config.getString(STUB_CLASS, null);
+		String stubClassName = this.config.getString(STUB_CLASS, null);
 		if (stubClassName == null) {
 			throw new IllegalStateException("stub class missing");
 		}
@@ -173,10 +186,13 @@ public class TaskConfig
 	//                                   Input Shipping
 	// --------------------------------------------------------------------------------------------
 
-	public void addInputShipStrategy(ShipStrategy strategy) {
-		int inputCnt = config.getInteger(NUM_INPUTS, 0);
-		config.setString(INPUT_SHIP_STRATEGY + (inputCnt++), strategy.name());
-		config.setInteger(NUM_INPUTS, inputCnt);
+	public void addInputShipStrategy(ShipStrategy strategy, int groupIndex) {
+		int inputCnt = this.config.getInteger(NUM_INPUTS, 0);
+		this.config.setString(INPUT_SHIP_STRATEGY + (inputCnt++), strategy.name());
+		this.config.setInteger(NUM_INPUTS, inputCnt);
+
+		String grp = INPUT_GROUP_SIZE + groupIndex;
+		this.config.setInteger(grp, this.config.getInteger(grp, 0)+1);
 	}
 	
 	public int getNumInputs() {
@@ -184,11 +200,11 @@ public class TaskConfig
 	}
 
 	public ShipStrategy getInputShipStrategy(int inputId) {
-		int inputCnt = config.getInteger(NUM_INPUTS, -1);
+		int inputCnt = this.config.getInteger(NUM_INPUTS, -1);
 		if (!(inputId < inputCnt)) {
 			return null;
 		}
-		return ShipStrategy.valueOf(config.getString(INPUT_SHIP_STRATEGY + inputId, ""));
+		return ShipStrategy.valueOf(this.config.getString(INPUT_SHIP_STRATEGY + inputId, ""));
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -280,7 +296,7 @@ public class TaskConfig
 
 	public void addOutputShipStrategy(ShipStrategy strategy)
 	{
-		int outputCnt = config.getInteger(NUM_OUTPUTS, 0);		
+		int outputCnt = this.config.getInteger(NUM_OUTPUTS, 0);
 		this.config.setString(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.name());
 		outputCnt++;
 		this.config.setInteger(NUM_OUTPUTS, outputCnt);
@@ -301,7 +317,7 @@ public class TaskConfig
 	}
 	
 	public int getNumOutputs() {
-		return config.getInteger(NUM_OUTPUTS, -1);
+		return this.config.getInteger(NUM_OUTPUTS, -1);
 	}
 
 	public ShipStrategy getOutputShipStrategy(int outputId)
@@ -367,13 +383,16 @@ public class TaskConfig
 	//                       Parameters to configure the memory and I/O behavior
 	// --------------------------------------------------------------------------------------------
 
+	public int getGroupSize(int groupIndex) {
+		return this.config.getInteger(INPUT_GROUP_SIZE + groupIndex, -1);
+	}
 	/**
 	 * Sets the amount of memory dedicated to the task's input preparation (sorting / hashing).
 	 * 
 	 * @param memSize The memory size in bytes.
 	 */
 	public void setMemorySize(long memorySize) {
-		config.setLong(SIZE_MEMORY, memorySize);
+		this.config.setLong(SIZE_MEMORY, memorySize);
 	}
 
 	/**
@@ -386,7 +405,7 @@ public class TaskConfig
 			throw new IllegalArgumentException();
 		}
 		
-		config.setInteger(NUM_FILEHANDLES, numFileHandles);
+		this.config.setInteger(NUM_FILEHANDLES, numFileHandles);
 	}
 	
 	/**
@@ -400,7 +419,7 @@ public class TaskConfig
 			throw new IllegalArgumentException();
 		}
 		
-		config.setFloat(SORT_SPILLING_THRESHOLD, threshold);
+		this.config.setFloat(SORT_SPILLING_THRESHOLD, threshold);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -412,7 +431,7 @@ public class TaskConfig
 	 * @return The memory size in bytes.
 	 */
 	public long getMemorySize() {
-		return config.getLong(SIZE_MEMORY, -1);
+		return this.config.getLong(SIZE_MEMORY, -1);
 	}
 
 	/**
@@ -421,7 +440,7 @@ public class TaskConfig
 	 * @return Maximum number of open files.
 	 */
 	public int getNumFilehandles() {
-		return config.getInteger(NUM_FILEHANDLES, -1);
+		return this.config.getInteger(NUM_FILEHANDLES, -1);
 	}
 	
 	/**
@@ -433,7 +452,7 @@ public class TaskConfig
 	 * @return The threshold that triggers spilling to disk of sorted intermediate results.
 	 */
 	public float getSortSpillingTreshold() {
-		return config.getFloat(SORT_SPILLING_THRESHOLD, 0.7f);
+		return this.config.getFloat(SORT_SPILLING_THRESHOLD, 0.7f);
 	}
 	
 	// --------------------------------------------------------------------------------------------

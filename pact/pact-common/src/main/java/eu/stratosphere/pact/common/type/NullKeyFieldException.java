@@ -17,7 +17,7 @@ package eu.stratosphere.pact.common.type;
 
 
 /**
- * An exception specifying that a required key field was not (null) set in a record.
+ * An exception specifying that a required key field was not set in a record, i.e. was <code>null</code>.
  */
 public class NullKeyFieldException extends RuntimeException
 {

@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.List;
+
 import eu.stratosphere.pact.common.stubs.CrossStub;
 
 
@@ -55,7 +57,7 @@ public class CrossContract extends DualInputContract<CrossStub>
 
 	/**
 	 * Creates a CrossContract with the provided {@link CrossStub} implementation the default name.
-	 * It uses the given contract as its input.
+	 * It uses the given contracts as its input.
 	 * 
 	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
 	 * @param input1 The contract to use as the first input.
@@ -66,8 +68,44 @@ public class CrossContract extends DualInputContract<CrossStub>
 	}
 	
 	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, List<Contract> input1, Contract input2) {
+		this(c, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, Contract input1, List<Contract> input2) {
+		this(c, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, List<Contract> input1, List<Contract> input2) {
+		this(c, input1, input2, DEFAULT_NAME);
+	}
+
+	/**
 	 * Creates a CrossContract with the provided {@link CrossStub} implementation and the given name.
-	 * It uses the given contract as its input.
+	 * It uses the given contracts as its input.
 	 * 
 	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
 	 * @param input1 The contract to use as the first input.
@@ -79,4 +117,50 @@ public class CrossContract extends DualInputContract<CrossStub>
 		setFirstInput(input1);
 		setSecondInput(input2);
 	}
+	
+	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contract to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, List<Contract> input1, Contract input2, String name) {
+		this(c, name);
+		setFirstInputs(input1);
+		setSecondInput(input2);
+	}
+
+	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param input1 The contract to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, Contract input1, List<Contract> input2, String name) {
+		this(c, name);
+		setFirstInput(input1);
+		setSecondInputs(input2);
+	}
+
+	/**
+	 * Creates a CrossContract with the provided {@link CrossStub} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link CrossStub} implementation for this Cross InputContract.
+	 * @param input1 The contracts to use as the first input.
+	 * @param input2 The contracts to use as the second input.
+	 * @param name The name of PACT.
+	 */
+	public CrossContract(Class<? extends CrossStub> c, List<Contract> input1, List<Contract> input2, String name) {
+		this(c, name);
+		setFirstInputs(input1);
+		setSecondInputs(input2);
+	}
+
 }

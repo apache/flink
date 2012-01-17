@@ -116,6 +116,7 @@ import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
+import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
@@ -662,9 +663,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			@Override
 			public void run() {
-				final TaskCancelResult errorResult = cancelJob(eg);
-				if (errorResult != null) {
-					LOG.error("Cannot cancel job " + jobID + ": " + errorResult);
+				eg.updateJobStatus(InternalJobStatus.CANCELING, "Job canceled by user");
+				final TaskCancelResult cancelResult = cancelJob(eg);
+				if(cancelResult.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
+					LOG.error(cancelResult.getDescription());
 				}
 			}
 		};
@@ -888,9 +890,36 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void cancelTask(final JobID jobID, final ManagementVertexID id) throws IOException {
-		// TODO Auto-generated method stub
-		LOG.debug("Cancelling job " + jobID);
+	public void killTask(final JobID jobID, final ManagementVertexID id) throws IOException {
+
+		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
+		if (eg == null) {
+			LOG.error("Cannot find execution graph for job " + jobID);
+			return;
+		}
+
+		final ExecutionVertex vertex = eg.getVertexByID(ExecutionVertexID.fromManagementVertexID(id));
+		if (vertex == null) {
+			LOG.error("Cannot find execution vertex with ID " + id);
+			return;
+		}
+
+		LOG.info("Killing task " + vertex + " of job " + jobID);
+
+		final Runnable runnable = new Runnable() {
+
+			@Override
+			public void run() {
+
+				final TaskKillResult result = vertex.killTask();
+				if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+					LOG.error(result.getDescription());
+				}
+			}
+		};
+
+		// Hand it over to the executor service
+		this.executorService.execute(runnable);
 	}
 
 	/**
@@ -1014,7 +1043,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		LOG.info("Status of job " + executionGraph.getJobName() + "(" + executionGraph.getJobID() + ")"
 			+ " changed to " + newJobStatus);
 
-		if (newJobStatus == InternalJobStatus.CANCELING || newJobStatus == InternalJobStatus.FAILING) {
+		if (newJobStatus == InternalJobStatus.FAILING) {
 
 			// Cancel all remaining tasks
 			cancelJob(executionGraph);
@@ -1030,6 +1059,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			// Unregister job for Nephele's monitoring, optimization components, and dynamic input split assignment
 			unregisterJob(executionGraph);
 		}
+
 		if (newJobStatus == InternalJobStatus.RECOVERING) {
 			try {
 				RecoveryThread recoverythread = new RecoveryThread(executionGraph);
@@ -1039,7 +1069,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 
 		}
-
 	}
 
 	/**
@@ -1107,9 +1136,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.error("Method 'deploy' called but list of vertices to be deployed is empty");
 			return;
 		}
-
-		// Method executionGraph field of vertex is immutable, so no need to synchronized access
-		final ExecutionGraph eg = verticesToBeDeployed.get(0).getExecutionGraph();
 
 		for (final ExecutionVertex vertex : verticesToBeDeployed) {
 

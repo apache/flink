@@ -19,7 +19,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
 /**
  * A <code>TaskCancelResult</code> is used to report the results
- * of a task cancel. It contains the ID of the task to be canceled, a return code and
+ * of a task cancel attempt. It contains the ID of the task to be canceled, a return code and
  * a description. In case of an error during the cancel operation the description includes an error message.
  * 
  * @author warneke
@@ -34,7 +34,7 @@ public class TaskCancelResult extends AbstractTaskResult {
 	 * @param returnCode
 	 *        the return code of the cancel
 	 */
-	public TaskCancelResult(ExecutionVertexID vertexID, ReturnCode returnCode) {
+	public TaskCancelResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
 		super(vertexID, returnCode);
 	}
 

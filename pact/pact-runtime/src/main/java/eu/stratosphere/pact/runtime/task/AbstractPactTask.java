@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
@@ -42,8 +43,8 @@ import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubExceptio
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * The abstract base class for all Pact tasks. Encapsulated common behavior and implements the main life-cycle
@@ -163,7 +164,11 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			
 			// open stub implementation
 			try {
-				this.stub.open(this.config.getStubParameters());
+				Configuration stubConfig = this.config.getStubParameters();
+				stubConfig.setInteger("pact.parallel.task.id", this.getEnvironment().getIndexInSubtaskGroup());
+				stubConfig.setInteger("pact.parallel.task.count", this.getEnvironment().getCurrentNumberOfSubtasks());
+				stubConfig.setString("pact.parallel.task.name", this.getEnvironment().getTaskName());
+				this.stub.open(stubConfig);
 				stubOpen = true;
 			}
 			catch (Throwable t) {
@@ -271,7 +276,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 		
 		for (int i = 0; i < numInputs; i++)
 		{
-			final ShipStrategy shipStrategy = config.getInputShipStrategy(i);
+			final ShipStrategy shipStrategy = this.config.getInputShipStrategy(i);
 			DistributionPattern dp = null;
 			
 			switch (shipStrategy)
@@ -292,7 +297,17 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 					i + ": " + shipStrategy.name());
 			}
 			
-			inputs[i] = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, dp));
+			final int groupSize = this.config.getGroupSize(i+1);
+			if(groupSize < 2) {
+				inputs[i] = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, dp));
+			} else {
+				@SuppressWarnings("unchecked")
+				MutableRecordReader<PactRecord>[] readers = new MutableRecordReader[groupSize];
+				for(int j = 0; j < groupSize; ++j) {
+					readers[j] = new MutableRecordReader<PactRecord>(this, dp);
+				}
+				inputs[i] = new NepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers));
+			}
 		}
 		this.inputs = inputs;
 	}
@@ -381,8 +396,10 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			taskName = parent.getEnvironment().getTaskName();
 		}
 				
-		if (LOG.isErrorEnabled())
+		if (LOG.isErrorEnabled()) {
 			LOG.error(constructLogString("Error in PACT code", taskName, parent));
+			LOG.error(ex, ex);
+		}
 		
 		throw ex;
 	}
@@ -483,10 +500,10 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			// the collector of the first in the chain is the collector for the nephele task
 			return previous;
 		}
-		else {
-			// instantiate the output collector the default way from this configuration
-			return getOutputCollector(nepheleTask , config, cl, numOutputs);
-		}
+		// else 
+
+		// instantiate the output collector the default way from this configuration
+		return getOutputCollector(nepheleTask , config, cl, numOutputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------

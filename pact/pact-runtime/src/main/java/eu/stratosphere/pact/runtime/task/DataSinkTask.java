@@ -29,6 +29,14 @@ import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+import eu.stratosphere.nephele.io.Reader;
+import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.UnionRecordReader;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
@@ -315,13 +323,13 @@ public class DataSinkTask extends AbstractOutputTask
 	/**
 	 * Utility function that composes a string for logging purposes. The string includes the given message and
 	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
+	 * 
 	 * @param message The main message for the log.
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message)
 	{
-		StringBuilder bld = new StringBuilder(128);	
+		StringBuilder bld = new StringBuilder(128);
 		bld.append(message);
 		bld.append(':').append(' ');
 		bld.append(this.getEnvironment().getTaskName());

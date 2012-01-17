@@ -97,18 +97,8 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		// TODO: Fix implementation breaks compression, fix it later on
 		final BufferPairResponse response = new BufferPairResponse(null, transferEnvelope.getBuffer()); // No need to
-																										// copy anything
 
-		// Process events
-		final EventList eventList = transferEnvelope.getEventList();
-		if (eventList != null) {
-			if (!eventList.isEmpty()) {
-				final Iterator<AbstractEvent> it = eventList.iterator();
-				while (it.hasNext()) {
-					this.byteBufferedInputChannel.processEvent(it.next());
-				}
-			}
-		}
+		// Moved event processing to releaseConsumedReadBuffer method // copy anything
 
 		return response;
 	}
@@ -125,6 +115,17 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 			}
 
 			transferEnvelope = this.queuedEnvelopes.poll();
+		}
+
+		// Process events
+		final EventList eventList = transferEnvelope.getEventList();
+		if (eventList != null) {
+			if (!eventList.isEmpty()) {
+				final Iterator<AbstractEvent> it = eventList.iterator();
+				while (it.hasNext()) {
+					this.byteBufferedInputChannel.processEvent(it.next());
+				}
+			}
 		}
 
 		final Buffer consumedBuffer = transferEnvelope.getBuffer();
@@ -164,7 +165,11 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 		synchronized (this.queuedEnvelopes) {
 
-			if (sequenceNumber != (this.lastReceivedEnvelope + 1)) {
+			final int expectedSequenceNumber = this.lastReceivedEnvelope + 1;
+			if (sequenceNumber != expectedSequenceNumber) {
+
+				// LOG.info("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
+				// + " but received " + sequenceNumber);
 
 				final Buffer buffer = transferEnvelope.getBuffer();
 				if (buffer != null) {

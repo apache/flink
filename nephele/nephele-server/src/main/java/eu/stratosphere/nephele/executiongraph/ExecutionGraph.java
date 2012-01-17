@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -117,7 +118,8 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * The current status of the job which is represented by this execution graph.
 	 */
-	private volatile InternalJobStatus jobStatus = InternalJobStatus.CREATED;
+	private final AtomicReference<InternalJobStatus> jobStatus = new AtomicReference<InternalJobStatus>(
+		InternalJobStatus.CREATED);
 
 	/**
 	 * The error description of the first task which causes this job to fail.
@@ -1204,88 +1206,79 @@ public class ExecutionGraph implements ExecutionListener {
 		return true;
 	}
 
-	/**
-	 * Checks and updates the current execution status of the
-	 * job which is represented by this execution graph.
-	 * 
-	 * @param latestStateChange
-	 *        the latest execution state change which occurred
-	 */
-	public void checkAndUpdateJobStatus(final ExecutionState latestStateChange) {
+	// TODO: Make this static
+	private InternalJobStatus determineNewJobStatus(final ExecutionGraph eg,
+			final ExecutionState latestStateChange) {
 
-		switch (this.jobStatus) {
+		final InternalJobStatus currentJobStatus = eg.getJobStatus();
+
+		switch (currentJobStatus) {
 		case CREATED:
-			if (jobHasScheduledStatus()) {
-				this.jobStatus = InternalJobStatus.SCHEDULED;
+			if (eg.jobHasScheduledStatus()) {
+				return InternalJobStatus.SCHEDULED;
 			} else if (latestStateChange == ExecutionState.CANCELED) {
-				if (jobHasFailedOrCanceledStatus()) {
-					this.jobStatus = InternalJobStatus.CANCELED;
+				if (eg.jobHasFailedOrCanceledStatus()) {
+					return InternalJobStatus.CANCELED;
 				}
 			}
 			break;
 		case SCHEDULED:
 			if (latestStateChange == ExecutionState.RUNNING) {
-				this.jobStatus = InternalJobStatus.RUNNING;
-				return;
+				return InternalJobStatus.RUNNING;
 			} else if (latestStateChange == ExecutionState.CANCELED) {
-				if (jobHasFailedOrCanceledStatus()) {
-					this.jobStatus = InternalJobStatus.CANCELED;
+				if (eg.jobHasFailedOrCanceledStatus()) {
+					return InternalJobStatus.CANCELED;
 				}
 			}
 			break;
 		case RUNNING:
 			if (latestStateChange == ExecutionState.CANCELING || latestStateChange == ExecutionState.CANCELED) {
-				this.jobStatus = InternalJobStatus.CANCELING;
-				return;
+				return InternalJobStatus.CANCELING;
 			}
 			if (latestStateChange == ExecutionState.FAILED) {
 
-				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
+				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
 				while (it.hasNext()) {
 
 					final ExecutionVertex vertex = it.next();
-					if (vertex.getExecutionState() == ExecutionState.FAILED ) {
-						if (!vertex.hasRetriesLeft()){
-							System.out.println(" Vertex failed finally" );
-							this.jobStatus = InternalJobStatus.FAILING;
-							return;
-						}else{
-							this.jobStatus = InternalJobStatus.RECOVERING;
-							return;
+					if (vertex.getExecutionState() == ExecutionState.FAILED) {
+						if (!vertex.hasRetriesLeft()) {
+							System.out.println(" Vertex failed finally");
+							return InternalJobStatus.FAILING;
+						} else {
+							return InternalJobStatus.RECOVERING;
 						}
 					}
 				}
 			}
 			if (latestStateChange == ExecutionState.RECOVERING) {
-				this.jobStatus = InternalJobStatus.RECOVERING;
-				return;
+				return InternalJobStatus.RECOVERING;
 			}
-			if (jobHasFinishedStatus()) {
-				this.jobStatus = InternalJobStatus.FINISHED;
+			if (eg.jobHasFinishedStatus()) {
+				return InternalJobStatus.FINISHED;
 			}
 			break;
 		case RECOVERING:
 			if (latestStateChange == ExecutionState.RERUNNING) {
-				if(this.recovering.isEmpty()){
-					this.jobStatus = InternalJobStatus.RUNNING;
-					break;
+				if (this.recovering.isEmpty()) {
+					return InternalJobStatus.RUNNING;
 				}
 			}
-			if (latestStateChange == ExecutionState.FAILED){
+			if (latestStateChange == ExecutionState.FAILED) {
 				LOG.info("Another Failed Vertex while recovering");
 			}
 			break;
 		case FAILING:
-			if (jobHasFailedOrCanceledStatus()) {
-				this.jobStatus = InternalJobStatus.FAILED;
+			if (eg.jobHasFailedOrCanceledStatus()) {
+				return InternalJobStatus.FAILED;
 			}
 			break;
 		case FAILED:
 			LOG.error("Received update of execute state in job status FAILED");
 			break;
 		case CANCELING:
-			if (jobHasFailedOrCanceledStatus()) {
-				this.jobStatus = InternalJobStatus.CANCELED;
+			if (eg.jobHasFailedOrCanceledStatus()) {
+				return InternalJobStatus.CANCELED;
 			}
 			break;
 		case CANCELED:
@@ -1295,6 +1288,8 @@ public class ExecutionGraph implements ExecutionListener {
 			LOG.error("Received update of execute state in job status FINISHED");
 			break;
 		}
+
+		return currentJobStatus;
 	}
 
 	/**
@@ -1304,7 +1299,8 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @return the current status of the job
 	 */
 	public InternalJobStatus getJobStatus() {
-		return this.jobStatus;
+
+		return this.jobStatus.get();
 	}
 
 	/**
@@ -1314,13 +1310,11 @@ public class ExecutionGraph implements ExecutionListener {
 	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
 			final ExecutionState newExecutionState, String optionalMessage) {
 
-		final InternalJobStatus oldStatus = this.jobStatus;
-
 		if (newExecutionState == ExecutionState.RERUNNING) {
 			this.recovering.remove(getVertexByID(vertexID));
 		}
 
-		checkAndUpdateJobStatus(newExecutionState);
+		final InternalJobStatus newJobStatus = determineNewJobStatus(this, newExecutionState);
 
 		if (newExecutionState == ExecutionState.FINISHED) {
 			// It is worth checking if the current stage has complete
@@ -1337,30 +1331,45 @@ public class ExecutionGraph implements ExecutionListener {
 				}
 			}
 		}
-		if (newExecutionState == ExecutionState.FAILED && this.jobStatus == InternalJobStatus.RECOVERING){
-            LOG.info("RECOVERING");
-           //FIXME (marrus) see if we even need that
-            if(!this.recovering.contains(vertexID)){
-            	this.recovering.add(this.getVertexByID(vertexID));
-            }
-   }
-
-		if (this.jobStatus != oldStatus) {
-
-			// The task caused the entire job to fail, save the error description
-			if (this.jobStatus == InternalJobStatus.FAILING) {
-				this.errorDescription = optionalMessage;
+		if (newExecutionState == ExecutionState.FAILED && newJobStatus == InternalJobStatus.RECOVERING) {
+			LOG.info("RECOVERING");
+			// FIXME (marrus) see if we even need that
+			if (!this.recovering.contains(vertexID)) {
+				this.recovering.add(this.getVertexByID(vertexID));
 			}
+		}
 
-			// If this is the final failure state change, reuse the saved error description
-			if (this.jobStatus == InternalJobStatus.FAILED) {
-				optionalMessage = this.errorDescription;
-			}
+		updateJobStatus(newJobStatus, optionalMessage);
+	}
 
-			final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
-			while (it.hasNext()) {
-				it.next().jobStatusHasChanged(this, this.jobStatus, optionalMessage);
-			}
+	/**
+	 * Updates the job status to given status and triggers the execution of the {@link JobStatusListener} objects.
+	 * 
+	 * @param newJobStatus
+	 *        the new job status
+	 * @param optionalMessage
+	 *        an optional message providing details on the reasons for the state change
+	 */
+	public void updateJobStatus(final InternalJobStatus newJobStatus, String optionalMessage) {
+
+		// Check if the new job status equals the old one
+		if (this.jobStatus.getAndSet(newJobStatus) == newJobStatus) {
+			return;
+		}
+
+		// The task caused the entire job to fail, save the error description
+		if (newJobStatus == InternalJobStatus.FAILING) {
+			this.errorDescription = optionalMessage;
+		}
+
+		// If this is the final failure state change, reuse the saved error description
+		if (newJobStatus == InternalJobStatus.FAILED) {
+			optionalMessage = this.errorDescription;
+		}
+
+		final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
+		while (it.hasNext()) {
+			it.next().jobStatusHasChanged(this, newJobStatus, optionalMessage);
 		}
 	}
 

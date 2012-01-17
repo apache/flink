@@ -76,6 +76,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final NetworkConnectionManager networkConnectionManager;
 
+	private final RecentlyRemovedChannelIDSet recentlyRemovedChannelIDSet = new RecentlyRemovedChannelIDSet();
+
 	private final ChannelLookupProtocol channelLookupService;
 
 	private final InstanceConnectionInfo localConnectionInfo;
@@ -226,6 +228,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		final Environment environment = task.getEnvironment();
 
+		// Mark all channel IDs to be recently removed
+		this.recentlyRemovedChannelIDSet.add(environment);
+
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<?> outputGate = environment.getOutputGate(i);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
@@ -360,9 +365,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				final ChannelContext cc = this.registeredChannels.get(localReceiver);
 				if (cc == null) {
-					//TODO: Make this more robust, for example by introducing a separate map for failed channel IDs.
-					LOG.warn("Cannot find channel context for local receiver " + localReceiver);
-					continue;
+
+					if (this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
+						continue;
+					} else {
+						throw new IOException("Cannot find channel context for local receiver " + localReceiver);
+					}
 				}
 
 				if (!cc.isInputChannel()) {
@@ -395,10 +403,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private boolean processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
 			final TransferEnvelopeReceiverList receiverList) {
-
-
-		//System.out.println("Received envelope without buffer with event list size "
-		//	+ transferEnvelope.getEventList().size());
 
 		// No need to copy anything
 		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
@@ -679,5 +683,13 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.networkConnectionManager.registerSpillingQueueWithNetworkConnection(remoteReceivers.get(0), spillingQueue);
 
 		return true;
+	}
+
+	/**
+	 * Triggers the clean-up method of the canceled channel ID set.
+	 */
+	public void cleanUpRecentlyRemovedChannelIDSet() {
+
+		this.recentlyRemovedChannelIDSet.cleanup();
 	}
 }

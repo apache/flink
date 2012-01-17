@@ -13,26 +13,35 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.contract;
+package eu.stratosphere.nephele.taskmanager;
 
-import java.lang.annotation.Annotation;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 
 /**
- * Interface defining that an output contract can be attached to an object.
+ * A <code>TaskKillResult</code> is used to report the results
+ * of a task kill attempt. It contains the ID of the task to be killed, a return code and
+ * a description. In case of an error during the kill operation the description includes an error message.
+ * 
+ * @author warneke
  */
-public interface OutputContractConfigurable
-{
-	/**
-	 * Adds an output contract.
-	 * 
-	 * @param clazz The class of the OutputContract to attach.
-	 */
-	public void addOutputContract(Class<? extends Annotation> clazz);
+public class TaskKillResult extends AbstractTaskResult {
 
 	/**
-	 * Returns the output contracts that were attached to the object.
+	 * Constructs a new task kill result.
 	 * 
-	 * @return An array containing the classes of the attached output contracts.
+	 * @param vertexID
+	 *        the task ID this result belongs to
+	 * @param returnCode
+	 *        the return code of the kill
 	 */
-	public Class<? extends Annotation>[] getOutputContracts();
+	public TaskKillResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
+		super(vertexID, returnCode);
+	}
+
+	/**
+	 * Constructs an empty task kill result.
+	 */
+	public TaskKillResult() {
+		super();
+	}
 }

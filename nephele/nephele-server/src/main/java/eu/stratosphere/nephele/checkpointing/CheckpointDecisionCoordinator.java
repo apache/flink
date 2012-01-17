@@ -95,6 +95,7 @@ public final class CheckpointDecisionCoordinator {
 	 */
 	void checkpointDecisionRequired(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
 		LOG.info("Checkpoint decision for vertex " + vertex + " required");
+
 		synchronized (decidedVertices) {
 			if (!decidedVertices.contains(vertex.getID())) {
 				boolean checkpointDecision = getDecision(vertex, rus);
