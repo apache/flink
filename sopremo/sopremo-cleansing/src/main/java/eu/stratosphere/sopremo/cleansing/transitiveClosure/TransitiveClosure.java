@@ -30,23 +30,45 @@ public class TransitiveClosure extends CompositeOperator<TransitiveClosure> {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
 		JsonStream input = sopremoModule.getInput(0);
 		JsonStream nullInput = sopremoModule.getInput(1);
-
+		
+		Phase1[] phase1 = new Phase1[this.numberOfPartitions];
+		Phase2[] phase2 = new Phase2[this.numberOfPartitions];
+		Phase3[] phase3 = new Phase3[this.numberOfPartitions];
+		UnionAll itOutput[] = new UnionAll[this.numberOfPartitions];
+		
 		// Preprocessing
 		final GenerateMatrix filledMatrix = new GenerateMatrix().withInputs(input, nullInput);
 		filledMatrix.setNumberOfPartitions(this.numberOfPartitions);
 
+		for (int i = 0; i < this.numberOfPartitions; i++) {
+			JsonStream inputStream = i == 0 ? filledMatrix : phase3[i - 1];
+
+			// compute transitive Closure P1
+			phase1[i] = new Phase1().withInputs(inputStream);
+			phase1[i].setIterationStep(i);
+			
+			// compute transitive Closure P2
+			phase2[i] = new Phase2().withInputs(phase1[i]);
+			phase2[i].setIterationStep(i);
+			
+			// compute transitive Closure P3
+			phase3[i] = new Phase3().withInputs(phase2[i]);
+			phase3[i].setNumberOfPartitions(i);
+
+		}
+		
 		// compute transitive Closure P1
-		final Phase1 phase1 = new Phase1().withInputs(filledMatrix);
+//		final Phase1 phase1 = new Phase1().withInputs(filledMatrix);
 
 		// compute transitive Closure P2
-		final Phase2 phase2 = new Phase2().withInputs(phase1, filledMatrix);
+//		final Phase2 phase2 = new Phase2().withInputs(phase1, filledMatrix);
 
 		// compute transitive Closure P3
-		final Phase3 phase3 = new Phase3().withInputs(new UnionAll().withInputs(phase1, phase2));
-		phase3.setNumberOfPartitions(this.numberOfPartitions);
+//		final Phase3 phase3 = new Phase3().withInputs(new UnionAll().withInputs(phase1, phase2));
+//		phase3.setNumberOfPartitions(this.numberOfPartitions);
 
 		// emit Results as Links
-		final EmitMatrix result = new EmitMatrix().withInputs(/* new UnionAll().withInputs(phase1, phase2) */phase3);
+		final EmitMatrix result = new EmitMatrix().withInputs(/* new UnionAll().withInputs(phase1, phase2) */phase3[this.numberOfPartitions -1]);
 
 		sopremoModule.getOutput(0).setInput(0, result);
 

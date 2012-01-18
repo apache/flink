@@ -25,7 +25,6 @@ import eu.stratosphere.sopremo.cleansing.transitiveClosure.Phase1;
 import eu.stratosphere.sopremo.cleansing.transitiveClosure.Phase2;
 import eu.stratosphere.sopremo.cleansing.transitiveClosure.Phase3;
 
-
 @InputCardinality(min = 2, max = 2)
 public class TestTransitiveClosure extends CompositeOperator<TestTransitiveClosure> {
 
@@ -33,7 +32,7 @@ public class TestTransitiveClosure extends CompositeOperator<TestTransitiveClosu
 	 * 
 	 */
 	private static final long serialVersionUID = -6206345352285312621L;
-	
+
 	private int numberOfPartitions = 1;
 
 	public void setNumberOfPartitions(int number) {
@@ -54,24 +53,35 @@ public class TestTransitiveClosure extends CompositeOperator<TestTransitiveClosu
 		final GenerateMatrix filledMatrix = new GenerateMatrix().withInputs(input, nullInput);
 		filledMatrix.setNumberOfPartitions(this.numberOfPartitions);
 
-		
-		// compute transitive Closure P1
-		final Phase1 phase1 = new Phase1().withInputs(filledMatrix);
+		Phase1[] phase1 = new Phase1[this.numberOfPartitions];
+		Phase2[] phase2 = new Phase2[this.numberOfPartitions];
+		Phase3[] phase3 = new Phase3[this.numberOfPartitions];
+		UnionAll itOutput[] = new UnionAll[this.numberOfPartitions];
 
-		// compute transitive Closure P2
-		final Phase2 phase2 = new Phase2().withInputs(phase1, filledMatrix);
+		for (int i = 0; i < this.numberOfPartitions; i++) {
+			JsonStream inputStream = i == 0 ? filledMatrix : phase3[i - 1];
 
-		// compute transitive Closure P3
-		final Phase3 phase3 = new Phase3().withInputs(new UnionAll().withInputs(phase1, phase2));
-		phase3.setNumberOfPartitions(this.numberOfPartitions);
+			// compute transitive Closure P1
+			phase1[i] = new Phase1().withInputs(inputStream);
+			phase1[i].setIterationStep(i);
+
+			// compute transitive Closure P2
+			phase2[i] = new Phase2().withInputs(phase1[i]);
+			phase2[i].setIterationStep(i);
+
+			// compute transitive Closure P3
+			phase3[i] = new Phase3().withInputs(phase2[i]);
+			phase3[i].setNumberOfPartitions(i);
+
+		}
 
 		// emit Results as Links
 		final EmitMatrix result;
 		if (this.phase == 1) {
-			 result = new EmitMatrix().withInputs(phase1);
+			result = new EmitMatrix().withInputs(phase1);
 		} else {
 			if (this.phase == 2) {
-				result = new EmitMatrix().withInputs(new UnionAll().withInputs(phase1, phase2));
+				result = new EmitMatrix().withInputs(phase2);
 			} else {
 				result = new EmitMatrix().withInputs(phase3);
 			}
