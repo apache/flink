@@ -129,8 +129,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			record.getFieldInto(3, orderDate);
 			record.getFieldInto(4, orderPrio);
 			
-			System.out.println("ODate<"+orderDate.getValue()+">");
-			
 			if (Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter
 				&& orderStatus.getValue().equals("F") && orderPrio.getValue().startsWith(this.prioFilter))
 			{
@@ -140,43 +138,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 				out.collect(outRecord);
 				// Output Schema - 0:ORDERKEY, 1:SHIPPRIORITYfunction
 
-			}
-		}
-	}
-
-
-	/**
-	 * Map PACT implements the projection on the LineItem table.
-	 */
-	public static class ProjectLi extends MapStub
-	{
-		// reusable objects for the touched fields
-		
-		private final PactLong orderKey = new PactLong();
-		private final PactDouble extendedPrice = new PactDouble();
-		private final PactRecord result = new PactRecord();
-		
-		/**
-		 * Does the projection on the LineItem table 
-		 *
-		 * Output Schema - 0:ORDERKEY, 1:null, 2:EXTENDEDPRICE
-		 */
-		@Override
-		public void map(PactRecord record, Collector out)
-		{
-			final Tuple t = record.getField(0, Tuple.class);
-			
-			try {
-				this.orderKey.setValue(t.getLongValueAt(0));
-				this.extendedPrice.setValue(Double.parseDouble(t.getStringValueAt(5)));
-				
-				result.setField(0, this.orderKey);
-				result.setField(1, this.extendedPrice);
-				
-				out.collect(result);
-			}
-			catch (NumberFormatException nfe) {
-				LOGGER.error(nfe);
 			}
 		}
 	}
@@ -191,7 +152,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	@ReadSetSecond(fields={})
 	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Update)
 	@ConstantSetSecond(fields={}, setMode=ConstantSetMode.Constant)
-	@AddSet(fields={})
+	@AddSet(fields={5})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinLiO extends MatchStub
 	{
@@ -204,14 +165,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
 		 */
 		@Override
-		public void match(PactRecord first, PactRecord second, Collector out)
+		public void match(PactRecord order, PactRecord lineitem, Collector out)
 		{
 			// we can simply union the fields since the first input has its fields on (0, 1) and the
 			// second inputs has its fields in (0, 2). The conflicting field (0) is the key which is guaranteed
 			// to be identical anyways 
 			// <-- to do when union fields is implemented
-			first.setField(2, second.getField(1, PactDouble.class));
-			out.collect(first);
+			order.setField(5, lineitem.getField(1, PactDouble.class));
+			out.collect(order);
 		}
 	}
 
@@ -222,8 +183,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	@Combinable
-	@ReadSet(fields={2})
-	@ConstantSet(fields={2}, setMode=ConstantSetMode.Update)
+	@ReadSet(fields={5})
+	@ConstantSet(fields={2,5}, setMode=ConstantSetMode.Update)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggLiO extends ReduceStub
@@ -249,7 +210,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 			while (values.hasNext()) {
 				rec = values.next();
-				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
+				partExtendedPriceSum += rec.getField(5, PactDouble.class).getValue();
 			}
 
 			this.extendedPrice.setValue(partExtendedPriceSum);
@@ -263,7 +224,17 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		@Override
 		public void combine(Iterator<PactRecord> values, Collector out)
 		{
-			reduce(values, out);
+			PactRecord rec = null;
+			double partExtendedPriceSum = 0;
+
+			while (values.hasNext()) {
+				rec = values.next();
+				partExtendedPriceSum += rec.getField(5, PactDouble.class).getValue();
+			}
+
+			this.extendedPrice.setValue(partExtendedPriceSum);
+			rec.setField(5, this.extendedPrice);
+			out.collect(rec);
 		}
 	}
 
