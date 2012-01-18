@@ -27,10 +27,31 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.parser.FieldParser;
 
 
 /**
+ * This is an Outputformat to serialize {@link PactRecord}s into ASCII text. 
+ * The output is structured by record delimiters and field delimiters as common in CSV files.
+ * Record delimiter separate records from each other ('\n' is common).
+ * Field delimiters separate fields within a record. 
+ * Record and field delimiters can be configured using the RecordOutputFormat {@link Configuration}.
  * 
+ * The number of fields to serialize must be configured as well.  
+ * For each field the type of the {@link Value} must be specified using the {@link RecordOutputFormat#FIELD_TYPE_PARAMETER_PREFIX} config key
+ * and an index running from 0 to the number of fields.
+ *  
+ * The position within the {@link PactRecord} can be configured for each field using the 
+ * {@link RecordOutputFormat#RECORD_POSITION_PARAMETER_PREFIX} config key.
+ * Either all {@link PactRecord} postions must be configured or none. If none is configured, the index of the config key is used.
+ * 
+ * @see Value
+ * @see Configuration
+ * @see PactRecord
+ * 
+ * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ *
  */
 public class RecordOutputFormat extends FileOutputFormat
 {
