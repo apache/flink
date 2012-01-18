@@ -26,6 +26,7 @@ import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
 import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan.ActualOutput;
 import eu.stratosphere.util.ConversionIterator;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
@@ -252,6 +253,10 @@ public class SopremoTestPlan {
 			for (final KeyValuePair<Key, Value> keyValuePair : actualOutput)
 				this.add((JsonNode) keyValuePair.getValue());
 			actualOutput.close();
+		}
+
+		public void assertEquals(ActualOutput expectedValues) {
+			this.getPairs().assertEquals(expectedValues.getPairs());
 		}
 	}
 
