@@ -97,7 +97,7 @@ public class AsynchonousPartialSorterITCase {
 
 	private static final int NUM_PAIRS = 100;
 
-	public static final int MEMORY_SIZE = 1024 * 1024 * 256;
+	public static final int MEMORY_SIZE = 1024 * 1024 * 32;
 	
 	private final AbstractTask parentTask = new DummyInvokable();
 
@@ -149,7 +149,7 @@ public class AsynchonousPartialSorterITCase {
 		LOG.debug("Initializing sortmerger...");
 		@SuppressWarnings("unchecked")
 		SortMerger merger = new AsynchronousPartialSorter(
-			memoryManager, ioManager, 256 * 1024 * 1024, new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class}, source, parentTask);
+			memoryManager, ioManager, 32 * 1024 * 1024, new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class}, source, parentTask);
 
 		// check order
 		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
@@ -192,7 +192,7 @@ public class AsynchonousPartialSorterITCase {
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			merger = new ExceptionThrowingAsynchronousPartialSorter(
-				memoryManager, ioManager, 256 * 1024 * 1024, new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class}, source, parentTask);
+				memoryManager, ioManager, 32 * 1024 * 1024, new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class}, source, parentTask);
 	
 			// check order
 			MutableObjectIterator<PactRecord> iterator = merger.getIterator();
