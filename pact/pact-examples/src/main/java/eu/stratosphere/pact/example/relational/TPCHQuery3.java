@@ -88,7 +88,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * delimiters. The parsed fields in the Pact Records are set after projection only
 	 */
 	@ReadSet(fields={2,3,4})
-	@ConstantSet(fields={0,1}, setMode=ConstantSetMode.Constant)
+	@ConstantSet(fields={2,3,4}, setMode=ConstantSetMode.Update)
 	@AddSet(fields={})
 	@OutCardBounds(lowerBound=0, upperBound=1)
 	public static class FilterO extends MapStub
@@ -101,7 +101,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		private final PactString orderDate = new PactString();
 		private final PactString orderPrio = new PactString();
 		
-		private final PactRecord outRecord = new PactRecord();
 		/**
 		 * Reads the filter literals from the configuration.
 		 * 
@@ -132,10 +131,11 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			if (Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter
 				&& orderStatus.getValue().equals("F") && orderPrio.getValue().startsWith(this.prioFilter))
 			{
-				outRecord.setField(0,record.getField(0, PactLong.class));
-				outRecord.setField(1,record.getField(1, PactInteger.class));
+				record.setNull(2);
+				record.setNull(3);
+				record.setNull(4);
 	
-				out.collect(outRecord);
+				out.collect(record);
 				// Output Schema - 0:ORDERKEY, 1:SHIPPRIORITYfunction
 
 			}
@@ -328,6 +328,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		result.setDegreeOfParallelism(noSubtasks);
 		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
 		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+		result.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
 		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
 		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
 		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
