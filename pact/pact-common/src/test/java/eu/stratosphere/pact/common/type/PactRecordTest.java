@@ -283,6 +283,42 @@ public class PactRecordTest {
 //	}
 
 	@Test
+	public void testUpdateBinaryRepresentations() {
+		// TODO: this is not an extensive test of updateBinaryRepresentation()
+		// and should be extended!
+		
+		PactRecord r = new PactRecord();
+		
+		PactInteger i1 = new PactInteger(1);
+		PactInteger i2 = new PactInteger(2);
+
+		try {		
+			r.setField(1, i1);
+			r.setField(3, i2);
+			
+			r.setNumFields(5);
+			
+			r.updateBinaryRepresenation();
+			
+			i1 = new PactInteger(3);
+			i2 = new PactInteger(4);
+			
+			r.setField(7, i1);
+			r.setField(8, i2);
+			
+			r.updateBinaryRepresenation();
+	
+			assertTrue(r.getField(1, PactInteger.class).getValue() == 1);
+			assertTrue(r.getField(3, PactInteger.class).getValue() == 2);
+			assertTrue(r.getField(7, PactInteger.class).getValue() == 3);
+			assertTrue(r.getField(8, PactInteger.class).getValue() == 4);
+		} catch(RuntimeException re) {
+			fail("Error updating binary representation: " + re.getMessage());
+		}
+
+	}
+	
+	@Test
 	public void testDeSerialization() {
 		PactString origValue1 = new PactString("Hello World!");
 		PactInteger origValue2 = new PactInteger(1337);
