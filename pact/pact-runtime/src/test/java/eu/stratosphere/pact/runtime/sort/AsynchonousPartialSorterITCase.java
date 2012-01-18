@@ -26,6 +26,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -137,6 +138,7 @@ public class AsynchonousPartialSorterITCase {
 
 	// TODO does not validate the partial order (transitions between windows) (en)
 	@Test
+	@Ignore
 	public void testSort() throws Exception {
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
@@ -179,6 +181,7 @@ public class AsynchonousPartialSorterITCase {
 	
 	@SuppressWarnings("unchecked")
 	@Test
+	@Ignore
 	public void testExceptionForwarding() throws IOException {
 		SortMerger merger = null;
 		try	{
