@@ -740,7 +740,7 @@ public final class PactRecord implements Value
 					}
 				}
 				catch (Exception e) {
-					throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
+					throw new RuntimeException("Error in data type serialization: " + e.getMessage(), e); 
 				}
 			}
 			else {
@@ -766,7 +766,7 @@ public final class PactRecord implements Value
 					}
 				}
 				catch (Exception e) {
-					throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
+					throw new RuntimeException("Error in data type serialization: " + e.getMessage(), e); 
 				}
 				
 				this.serializationSwitchBuffer = this.binaryData;
