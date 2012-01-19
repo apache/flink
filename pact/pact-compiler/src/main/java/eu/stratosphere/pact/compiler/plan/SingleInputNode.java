@@ -24,7 +24,6 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
@@ -339,18 +338,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 			return;
 		} else {
 			this.readSet = readSetAnnotation.fields();
+			Arrays.sort(this.readSet);
 		}
 
-		if(c instanceof ReduceContract) {
-			// merge read and key sets
-			int[] keySet = c.getKeyColumnNumbers(0);
-			Arrays.sort(keySet);
-			Arrays.sort(this.readSet);
-			this.readSet = FieldSetOperations.unionSets(keySet, this.readSet);
-			
-		} else {
-			Arrays.sort(this.readSet);
-		}
 	}
 	
 	private void readConstantSetAnnotation() {
@@ -410,49 +400,24 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
+	public ConstantSetMode getInputConstantSetMode() {
+		
+		return constantSetMode;
+	}
+	
 	public int[] getInputReadSet() {
+		
 		return this.readSet;
 	}
 	
 	public int[] getInputUpdateSet() {
 		
-		if(this.constantSetMode == null)
-			return null;
-
-		switch(this.constantSetMode) {
-		case Constant:
-			int[] inputSchema = this.input.get(0).getSourcePact().outputSchema;
-			if(inputSchema == null) {
-				return null;
-			} else {
-				return FieldSetOperations.setDifference(inputSchema, this.constantSet);
-			}
-		case Update:
-			return this.updateSet;
-		}
-		
-		return null;
+		return this.updateSet;
 	}
 	
 	public int[] getInputConstantSet() {
 		
-		if(this.constantSetMode == null)
-			return null;
-
-		switch(this.constantSetMode) {
-		case Update:
-			int[] inputSchema = this.input.get(0).getSourcePact().outputSchema;
-			if(inputSchema == null) {
-				return null;
-			} else {
-				return FieldSetOperations.setDifference(inputSchema, this.updateSet);
-			}
-		case Constant:
-			return this.constantSet;
-		}
-		
-		return null;
-		
+		return this.constantSet;
 	}
 	
 	public int[] getKeySet() {

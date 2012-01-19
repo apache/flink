@@ -47,7 +47,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * representation is used by the optimizer to determine the algorithms to be used
  * and to create the Nephele schedule for the runtime system.
  * 
- * @author Fabian Hüske (fabian.hueske@tu-berlin.de)
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * @author Stephan Ewen (stephan.ewen@tu -berlin.de)
  */
 public abstract class OptimizerNode implements Visitable<OptimizerNode>
@@ -1137,7 +1137,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	public abstract void deriveOutputSchema();
 	
-	protected int[] getAddSet() {
+	public int[] getAddSet() {
 		return this.addSet;
 	}
 	

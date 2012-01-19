@@ -23,10 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
@@ -631,21 +629,6 @@ public abstract class TwoInputNode extends OptimizerNode
 			this.readSet2 = readSet2Annotation.fields();
 			Arrays.sort(this.readSet2);
 		}
-
-		if(c instanceof MatchContract || c instanceof CoGroupContract) {
-			// merge read and key sets
-			if(this.readSet1 != null) {
-				int[] keySet1 = c.getKeyColumnNumbers(0);
-				Arrays.sort(keySet1);
-				this.readSet1 = FieldSetOperations.unionSets(keySet1, this.readSet1);
-			}
-			
-			if(this.readSet2 != null) {
-				int[] keySet2 = c.getKeyColumnNumbers(1);
-				Arrays.sort(keySet2);
-				this.readSet2 = FieldSetOperations.unionSets(keySet2, this.readSet1);
-			}
-		} 
 	}
 	
 	private void readConstantSetAnnotation() {
@@ -747,86 +730,26 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
+	public ConstantSetMode getInputConstantSetMode(int input) {
+		switch(input) {
+		case 0: return constantSet1Mode;
+		case 1: return constantSet2Mode;
+		default: throw new IndexOutOfBoundsException();
+		}
+	}
+	
 	public int[] getInputUpdateSet(int input) {
 		switch(input) {
-		case 0: 
-			
-			if(this.constantSet1Mode == null)
-				return null;
-
-			switch(this.constantSet1Mode) {
-			case Constant:
-				int[] inputSchema = this.input1.get(0).getSourcePact().outputSchema;
-				if(inputSchema == null) {
-					return null;
-				} else {
-					return FieldSetOperations.setDifference(inputSchema, this.constantSet1);
-				}
-			case Update:
-				return this.updateSet1;
-			}
-			
-			return null;
-		case 1: 
-			
-			if(this.constantSet2Mode == null)
-				return null;
-	
-			switch(this.constantSet2Mode) {
-			case Constant:
-				int[] inputSchema = this.input2.get(0).getSourcePact().outputSchema;
-				if(inputSchema == null) {
-					return null;
-				} else {
-					return FieldSetOperations.setDifference(inputSchema, this.constantSet2);
-				}
-			case Update:
-				return this.updateSet2;
-			}
-			
-			return null;
-		
+		case 0: return updateSet1;
+		case 1: return updateSet2;
 		default: throw new IndexOutOfBoundsException();
 		}
 	}
 	
 	public int[] getInputConstantSet(int input) {
 		switch(input) {
-		case 0: 
-			if(this.constantSet1Mode == null)
-				return null;
-
-			switch(this.constantSet1Mode) {
-			case Update:
-				int[] inputSchema = this.input1.get(0).getSourcePact().outputSchema;
-				if(inputSchema == null) {
-					return null;
-				} else {
-					return FieldSetOperations.setDifference(inputSchema, this.updateSet1);
-				}
-			case Constant:
-				return this.constantSet1;
-			}
-			
-			return null;
-			
-		case 1: 
-			if(this.constantSet2Mode == null)
-				return null;
-
-			switch(this.constantSet2Mode) {
-			case Update:
-				int[] inputSchema = this.input2.get(0).getSourcePact().outputSchema;
-				if(inputSchema == null) {
-					return null;
-				} else {
-					return FieldSetOperations.setDifference(inputSchema, this.updateSet2);
-				}
-			case Constant:
-				return this.constantSet2;
-			}
-			
-			return null;
+		case 0: return constantSet1;
+		case 1: return constantSet2;
 		default: throw new IndexOutOfBoundsException();
 		}
 	}
