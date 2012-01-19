@@ -66,6 +66,16 @@ public class MulticastManager implements ChannelLookupProtocol {
 	// If set to false, arrangement of the same set of receiver nodes is guaranteed to be the same
 	private final boolean randomized;
 
+	// Indicates if the tree should be constructed with a given topology stored in a file
+	private final boolean usehardcodedtree;
+
+	// File containing the hard-coded tree topology, if desired
+	// Should contain node names (eg hostnames) with corresponding children per line
+	// eg: a line "vm1.local vm2.local vm3.local"
+	// would result in vm1.local connecting to vm2.local and vm3.local as children
+	// no further checking for connectivity of the given topology is done!
+	private final String hardcodedtreefilepath;
+
 	// Indicates the desired branching of the generated multicast-tree. 0 means unicast transmisison, 1 sequential tree
 	// 2 binomial tree, 3+ clustered tree
 	private final int treebranching;
@@ -84,6 +94,8 @@ public class MulticastManager implements ChannelLookupProtocol {
 		this.topologyaware = GlobalConfiguration.getBoolean("multicast.topologyaware", false);
 		this.usepenalties = GlobalConfiguration.getBoolean("multicast.usepenalties", false);
 		this.penaltyfilepath = GlobalConfiguration.getString("multicast.penaltyfile", null);
+		this.usehardcodedtree = GlobalConfiguration.getBoolean("multicast.usehardcodedtree", false);
+		this.hardcodedtreefilepath = GlobalConfiguration.getString("multicast.hardcodedtreefile", null);
 	}
 
 	/**
@@ -126,6 +138,16 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			// receivers up and running.. create tree
 			LinkedList<TreeNode> treenodes = extractTreeNodes(caller, jobID, sourceChannelID, this.randomized);
+
+			// first check, if we want to use a hard-coded tree topology...
+			if (this.usehardcodedtree) {
+				cachedTrees.put(sourceChannelID, createHardCodedTree(treenodes));
+
+				System.out.println("==RETURNING ENTRY TO " + caller + " ==");
+				System.out.println(cachedTrees.get(sourceChannelID).getConnectionInfo(caller));
+				System.out.println("==END ENTRY==");
+				return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
+			}
 
 			// if we want to use penalties, we now load the penalties from the harddisk
 			if (this.usepenalties && this.penaltyfilepath != null) {
@@ -217,7 +239,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 					closestnode = n;
 				}
 			}
-		}else if(this.usepenalties){
+		} else if (this.usepenalties) {
 			System.out.println("polling node with lowest penalty...");
 			int actualpenalty = Integer.MAX_VALUE;
 			for (TreeNode n : nodes) {
@@ -350,6 +372,61 @@ public class MulticastManager implements ChannelLookupProtocol {
 			table.addConnectionInfo(actualnode.getConnectionInfo(), actualentry);
 		}
 		return table;
+	}
+
+	private MulticastForwardingTable createHardCodedTree(LinkedList<TreeNode> nodes) {
+		MulticastForwardingTable table = new MulticastForwardingTable();
+
+		try {
+
+			FileInputStream fstream = new FileInputStream(this.hardcodedtreefilepath);
+			DataInputStream in = new DataInputStream(fstream);
+			BufferedReader br = new BufferedReader(new InputStreamReader(in));
+			String strLine;
+
+			while ((strLine = br.readLine()) != null) {
+
+				String[] values = strLine.split(" ");
+				String actualhostname = values[0];
+
+				for (TreeNode n : nodes) {
+
+					if (n.toString().equals(actualhostname)) {
+						// we found the node.. now connect it
+						ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse
+							.createReceiverFoundAndReady();
+
+						// add all local targets
+						for (ChannelID id : n.getLocalTargets()) {
+							System.out.println("local target: " + id);
+							actualentry.addLocalTarget(id);
+						}
+
+						// now check if there are any nodes that we want as child nodes...
+						// iterate through all entries in current line, starting from index 1..
+						for (int i = 1; i < values.length; i++) {
+							for (TreeNode childn : nodes) {
+								if (childn.toString().equals(values[i])) {
+									// we found a child node.. connect it!
+									actualentry.addRemoteTarget(childn.getConnectionInfo());
+								}
+							}
+						}
+
+						table.addConnectionInfo(n.getConnectionInfo(), actualentry);
+
+					}
+				}
+
+			}
+
+			in.close();
+		} catch (Exception e) {
+			System.err.println("Error reading hard-coded topology file for the multicast tree: " + e.getMessage());
+		}
+
+		return table;
+
 	}
 
 	/**
