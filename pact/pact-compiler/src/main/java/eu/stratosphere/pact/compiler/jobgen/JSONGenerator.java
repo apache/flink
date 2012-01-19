@@ -321,7 +321,12 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			this.jsonString.append(",\n\t\t\"global_properties\": [\n");
 
 			addProperty(jsonString, "Key-Partitioning", gp.getPartitioning().name(), true);
-			addProperty(jsonString, "Key-Order", gp.getOrdering().getOrder(0).name(), false);
+			if (gp.getOrdering() != null) {
+				addProperty(jsonString, "Key-Order", gp.getOrdering().getOrder(0).name(), false);	
+			}
+			else {
+				addProperty(jsonString, "Key-Order", "none", false);
+			}
 //			addProperty(jsonString, "Key-Uniqueness", gp.isKeyUnique() ? "unique" : "not unique", false);
 			addProperty(jsonString, "Key-Uniqueness", "not unique", false);
 
@@ -334,7 +339,12 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 			this.jsonString.append(",\n\t\t\"local_properties\": [\n");
 
-			addProperty(jsonString, "Key-Order", lp.getOrdering().getOrder(0).name(), true);
+			if (lp.getOrdering() != null) {
+				addProperty(jsonString, "Key-Order", lp.getOrdering().getOrder(0).name(), true);	
+			}
+			else {
+				addProperty(jsonString, "Key-Order", "none", true);
+			}
 //			addProperty(jsonString, "Key-Uniqueness", lp.isKeyUnique() ? "unique" : "not unique", false);
 			addProperty(jsonString, "Key-Uniqueness", "not unique", false);
 			addProperty(jsonString, "Key-Grouping", lp.isGrouped() ? "grouped" : "not grouped", false);

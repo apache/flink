@@ -188,8 +188,8 @@ public class ReduceNode extends SingleInputNode {
 		// check, if there is an output contract that tells us that certain properties are preserved.
 		// if so, propagate to the child.
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props = InterestingProperties.filterByKeepSet(thisNodesIntProps,
-			getKeepSet(0));
+		List<InterestingProperties> props = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+			getConstantSet(0));
 
 		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
 		
@@ -264,7 +264,7 @@ public class ReduceNode extends SingleInputNode {
 					gp = predList.get(0).getGlobalProperties();
 					lp = predList.get(0).getLocalProperties();
 	
-					if (gp.getPartitioning().isPartitioned()) { //|| gp.isKeyUnique()) {
+					if (partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) { //|| gp.isKeyUnique()) {
 						ss = ShipStrategy.FORWARD;
 					} else {
 						ss = ShipStrategy.PARTITION_HASH;
@@ -292,7 +292,7 @@ public class ReduceNode extends SingleInputNode {
 				}
 
 //				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
-				if (!(gp.getPartitioning().isPartitioned())) {
+				if (!(partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned())) {
 					// the shipping strategy is fixed to a value that does not leave us with
 					// the necessary properties. this candidate cannot produce a valid child
 					continue;
@@ -300,10 +300,14 @@ public class ReduceNode extends SingleInputNode {
 			}
 			
 			FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-			boolean localStrategyNeeded = !lp.getOrdering().groupsFieldSet(keySet);
+
+			boolean localStrategyNeeded = false;
+			if (lp.getOrdering() == null || lp.getOrdering().groupsFieldSet(keySet) == false) {
+				localStrategyNeeded = true;
+			}
 
 			if (localStrategyNeeded && lp.isGrouped() == true) {
-				localStrategyNeeded = !lp.getGroupedFields().containsAll(keySet);
+				localStrategyNeeded = !lp.getGroupedFields().equals(keySet);
 			}
 			
 
@@ -359,8 +363,8 @@ public class ReduceNode extends SingleInputNode {
 			n.setLocalStrategy(ls);
 
 			// compute, which of the properties survive, depending on the output contract
-			n.getGlobalProperties().filterByKeepSet(getKeepSet(0));
-			n.getLocalProperties().filterByKeepSet(getKeepSet(0));
+			n.getGlobalProperties().filterByConstantSet(getConstantSet(0));
+			n.getLocalProperties().filterByConstantSet(getConstantSet(0));
 
 			estimator.costOperator(n);
 
@@ -473,6 +477,16 @@ public class ReduceNode extends SingleInputNode {
 		super.computeOutputEstimates(statistics);
 		// check if preceding node is available
 		this.computeCombinerReducingFactor();
+	}
+	
+	
+	public boolean partitioningIsOnRightFields(GlobalProperties gp) {
+		FieldSet partitionedFields = gp.getPartitionedFiels();
+		if (partitionedFields == null || partitionedFields.isEmpty()) {
+			return false;
+		}
+		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+		return keyFields.containsAll(partitionedFields);
 	}
 
 }

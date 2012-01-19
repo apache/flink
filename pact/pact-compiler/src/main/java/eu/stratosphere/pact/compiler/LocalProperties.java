@@ -16,8 +16,8 @@
 package eu.stratosphere.pact.compiler;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
-import eu.stratosphere.pact.common.contract.KeepSet;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
 
@@ -162,13 +162,13 @@ public final class LocalProperties implements Cloneable {
 //		return nonTrivial;
 //	}
 	
-	public boolean filterByKeepSet(KeepSet keepSet) {
+	public boolean filterByConstantSet(int[] constantSet) {
 		
 		// check, whether the local order is preserved
 		if (ordering != null) {
 			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (keepSet.isKept(involvedIndexes.get(i)) == false) {
+				if (constantSet == null || Arrays.binarySearch(constantSet, involvedIndexes.get(i)) < 0) {
 					ordering = ordering.createNewOrderingUpToIndex(i);
 					break;
 				}
@@ -176,12 +176,17 @@ public final class LocalProperties implements Cloneable {
 		}
 		
 		// check, whether the local key grouping is preserved
-		for (Integer index : this.groupedFields) {
-			if (keepSet.isKept(index) == false) {
-				this.groupedFields = null;
-				this.grouped = false;
-				break;
-			}
+		if (this.groupedFields != null) {
+			for (Integer index : this.groupedFields) {
+				if (constantSet == null || Arrays.binarySearch(constantSet, index) < 0) {
+					this.groupedFields = null;
+					this.grouped = false;
+					break;
+				}
+			}	
+		}
+		else {
+			this.grouped = false;
 		}
 		
 		
@@ -265,7 +270,8 @@ public final class LocalProperties implements Cloneable {
 
 		LocalProperties other = (LocalProperties) obj;
 		if (this.ordering == other.ordering // && this.keyUnique == other.keyUnique
-			&& this.grouped == other.grouped && this.groupedFields.equals(other.groupedFields)) {
+			&& this.grouped == other.grouped && 
+			(this.groupedFields == other.groupedFields || (this.groupedFields != null && this.groupedFields.equals(other.groupedFields)))) {
 			return true;
 		} else {
 			return false;

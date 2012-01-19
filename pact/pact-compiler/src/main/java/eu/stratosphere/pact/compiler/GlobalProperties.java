@@ -16,8 +16,8 @@
 package eu.stratosphere.pact.compiler;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
-import eu.stratosphere.pact.common.contract.KeepSet;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
 
@@ -183,24 +183,26 @@ public final class GlobalProperties implements Cloneable
 //		return nonTrivial;
 //	}
 	
-	public boolean filterByKeepSet(KeepSet keepSet) {
+	public boolean filterByConstantSet(int[] constantSet) {
 		
 		//check if partitioning survives
-		for (Integer index : partitionedFields) {
-			if (keepSet.isKept(index) == false) {
-				partitionedFields.remove(index);
+		if (partitionedFields != null) {
+			for (Integer index : partitionedFields.toArray(new Integer[0])) {
+				if (constantSet == null || Arrays.binarySearch(constantSet, index) < 0) {
+					partitionedFields.remove(index);
+				}
 			}
-		}
-		
-		if (partitionedFields.size() == 0) {
-			partitioning = PartitionProperty.NONE;
+			
+			if (partitionedFields.size() == 0) {
+				partitioning = PartitionProperty.NONE;
+			}	
 		}
 		
 		// check, whether the global order is preserved
 		if (ordering != null) {
 			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (keepSet.isKept(involvedIndexes.get(i)) == false) {
+				if (constantSet == null || Arrays.binarySearch(constantSet, involvedIndexes.get(i)) < 0) {
 					ordering = ordering.createNewOrderingUpToIndex(i);
 					break;
 				}
@@ -230,14 +232,19 @@ public final class GlobalProperties implements Cloneable
 		}
 		
 		FieldSet otherPartitionedFields = other.getPartitionedFiels();
-		if (this.partitionedFields.size() > otherPartitionedFields.size()) {
-			return false;
-		}
-		
-		for (Integer fieldIndex : this.partitionedFields) {
-			if (otherPartitionedFields.contains(fieldIndex) == false) {
+		if (this.partitionedFields != null) {
+			if (other.partitionedFields == null) {
 				return false;
 			}
+			if (this.partitionedFields.size() > otherPartitionedFields.size()) {
+				return false;
+			}
+			
+			for (Integer fieldIndex : this.partitionedFields) {
+				if (otherPartitionedFields.contains(fieldIndex) == false) {
+					return false;
+				}
+			}	
 		}
 		
 		return this.ordering.isMetBy(other.getOrdering());
@@ -292,8 +299,8 @@ public final class GlobalProperties implements Cloneable
 		}
 
 		GlobalProperties other = (GlobalProperties) obj;
-		if (ordering.equals(other.getOrdering()) && partitioning == other.getPartitioning() && partitionedFields.equals(other.getPartitionedFiels())) {
-		//if (keyOrder == other.keyOrder && keyUnique == other.keyUnique && partitioning == other.partitioning) {
+		if ((ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
+				&& partitioning == other.getPartitioning() && partitionedFields.equals(other.getPartitionedFiels())) {
 			return true;
 		} else {
 			return false;

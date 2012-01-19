@@ -256,10 +256,10 @@ public class CrossNode extends TwoInputNode {
 		// if so, propagate to the child.
 		
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props1 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
-			getKeepSet(0));
-		List<InterestingProperties> props2 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
-				getKeepSet(1));
+		List<InterestingProperties> props1 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+			getConstantSet(0));
+		List<InterestingProperties> props2 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+				getConstantSet(1));
 	
 		for(PactConnection c : this.input1) {
 			if (props1.isEmpty() == false) {
@@ -487,8 +487,8 @@ public class CrossNode extends TwoInputNode {
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByKeepSet(getKeepSet(0));
-		n.getLocalProperties().filterByKeepSet(getKeepSet(0));
+		n.getGlobalProperties().filterByConstantSet(getConstantSet(0));
+		n.getLocalProperties().filterByConstantSet(getConstantSet(0));
 		
 		// compute the costs
 		estimator.costOperator(n);
@@ -525,8 +525,8 @@ public class CrossNode extends TwoInputNode {
 //		n.getGlobalProperties().filterByOutputContract(getOutputContract());
 //		n.getLocalProperties().filterByOutputContract(getOutputContract());
 		
-		n.getGlobalProperties().filterByKeepSet(getKeepSet(1));
-		n.getLocalProperties().filterByKeepSet(getKeepSet(1));
+		n.getGlobalProperties().filterByConstantSet(getConstantSet(1));
+		n.getLocalProperties().filterByConstantSet(getConstantSet(1));
 		
 		// compute the costs
 		estimator.costOperator(n);

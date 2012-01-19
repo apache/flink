@@ -812,4 +812,5 @@ public abstract class TwoInputNode extends OptimizerNode
 
 		return avgWidth;
 	}
+
 }

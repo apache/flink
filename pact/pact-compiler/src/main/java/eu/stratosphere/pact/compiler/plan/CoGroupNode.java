@@ -188,10 +188,10 @@ public class CoGroupNode extends TwoInputNode {
 		// first, get all incoming interesting properties and see, how they can be propagated to the
 		// children, depending on the output contract.
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props1 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
-			getKeepSet(0));
-		List<InterestingProperties> props2 = InterestingProperties.filterByKeepSet(thisNodesIntProps,
-				getKeepSet(1));
+		List<InterestingProperties> props1 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+			getConstantSet(0));
+		List<InterestingProperties> props2 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+				getConstantSet(1));
 
 		// a co-group is always interested in the following properties from both inputs:
 		// 1) any-partition and order
@@ -296,37 +296,41 @@ public class CoGroupNode extends TwoInputNode {
 						// test, if one side is pre-partitioned
 						// if that is the case, partitioning the other side accordingly is
 						// the cheapest thing to do
-						if (gp1.getPartitioning().isComputablyPartitioned()) {
+						if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning().isComputablyPartitioned()) {
 							ss1 = ShipStrategy.FORWARD;
 						}
-
-						if (gp2.getPartitioning().isComputablyPartitioned()) {
+						if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning().isComputablyPartitioned()) {
 							// input is partitioned
 							// check, whether that partitioning is the same as the one of input one!
-							if ((!gp1.getPartitioning().isComputablyPartitioned())
-								|| gp1.getPartitioning() == gp2.getPartitioning()) {
+							if (!partitioningIsOnRightFields(gp1, 0)) {
 								ss2 = ShipStrategy.FORWARD;
-							} else {
-								// both sides are partitioned, but in an incompatible way
-								// 2 alternatives:
-								// 1) re-partition 2 the same way as 1
-								// 2) re-partition 1 the same way as 2
-								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED
-									&& gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
-										ShipStrategy.PARTITION_HASH, estimator);
-									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
-										ShipStrategy.FORWARD, estimator);
-								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED
-									&& gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
-										ShipStrategy.PARTITION_RANGE, estimator);
-									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
-										ShipStrategy.FORWARD, estimator);
+							}
+							else {
+								if (!gp1.getPartitioning().isComputablyPartitioned()
+										|| gp1.getPartitioning() == gp2.getPartitioning()) {
+									ss2 = ShipStrategy.FORWARD;
+								} else {
+									// both sides are partitioned, but in an incompatible way
+									// 2 alternatives:
+									// 1) re-partition 2 the same way as 1
+									// 2) re-partition 1 the same way as 2
+									if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED
+										&& gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+										createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
+											ShipStrategy.PARTITION_HASH, estimator);
+										createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
+											ShipStrategy.FORWARD, estimator);
+									} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED
+										&& gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+										createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.FORWARD,
+											ShipStrategy.PARTITION_RANGE, estimator);
+										createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
+											ShipStrategy.FORWARD, estimator);
+									}
+	
+									// do not go through the remaining logic of the loop!
+									continue;
 								}
-
-								// do not go through the remaining logic of the loop!
-								continue;
 							}
 						}
 
@@ -350,12 +354,12 @@ public class CoGroupNode extends TwoInputNode {
 								// add two plans:
 								// 1) make input 2 the same partitioning as input 1
 								// 2) partition both inputs with a different partitioning function (hash <-> range)
-								if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+								if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
 									createCoGroupAlternative(outputPlans, predList1, predList2, ss1,
 										ShipStrategy.PARTITION_HASH, estimator);
 									// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 									// ShipStrategy.PARTITION_RANGE, estimator);
-								} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+								} else if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
 									createCoGroupAlternative(outputPlans, predList1, predList2, ss1,
 										ShipStrategy.PARTITION_RANGE, estimator);
 									createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
@@ -372,12 +376,12 @@ public class CoGroupNode extends TwoInputNode {
 							// add two plans:
 							// 1) make input 1 the same partitioning as input 2
 							// 2) partition both inputs with a different partitioning function (hash <-> range)
-							if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
 								createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ss2,
 									estimator);
 								// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 								// ShipStrategy.PARTITION_RANGE, estimator);
-							} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+							} else if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
 								createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE, ss2,
 									estimator);
 								createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH,
@@ -411,7 +415,7 @@ public class CoGroupNode extends TwoInputNode {
 						// 3) input 2 is range-partition -> other side must be re-partition by range as well
 						switch (ss2) {
 						case FORWARD:
-							if (gp2.getPartitioning().isPartitioned()) {
+							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning().isPartitioned()) {
 								// adapt to the partitioning
 								if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
 									ss1 = ShipStrategy.PARTITION_HASH;
@@ -426,11 +430,11 @@ public class CoGroupNode extends TwoInputNode {
 							}
 							break;
 						case PARTITION_HASH:
-							ss1 = (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+							ss1 = (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 								: ShipStrategy.PARTITION_HASH;
 							break;
 						case PARTITION_RANGE:
-							ss1 = (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
+							ss1 = (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
 								: ShipStrategy.PARTITION_RANGE;
 							break;
 						default:
@@ -462,7 +466,7 @@ public class CoGroupNode extends TwoInputNode {
 					// 3) input 1 is range-partition -> other side must be re-partition by range as well
 					switch (ss1) {
 					case FORWARD:
-						if (gp1.getPartitioning().isPartitioned()) {
+						if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning().isPartitioned()) {
 							// adapt to the partitioning
 							if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
 								ss2 = ShipStrategy.PARTITION_HASH;
@@ -477,11 +481,11 @@ public class CoGroupNode extends TwoInputNode {
 						}
 						break;
 					case PARTITION_HASH:
-						ss2 = (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+						ss2 = (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 							: ShipStrategy.PARTITION_HASH;
 						break;
 					case PARTITION_RANGE:
-						ss2 = (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
+						ss2 = (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
 							: ShipStrategy.PARTITION_RANGE;
 						break;
 					default:
@@ -506,8 +510,8 @@ public class CoGroupNode extends TwoInputNode {
 						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
 						gp2 = new GlobalProperties();
 					}
-					
-					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning()) {
+					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
+							partitioningIsOnRightFields(gp1, 0) && partitioningIsOnRightFields(gp2, 1)) {
 						// partitioning there and equal
 						createCoGroupAlternative(outputPlans, predList1, predList2, ss1, ss2, estimator);
 					} else {
@@ -615,8 +619,8 @@ public class CoGroupNode extends TwoInputNode {
 		}
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByKeepSet(getKeepSet(0));
-		n.getLocalProperties().filterByKeepSet(getKeepSet(0));
+		n.getGlobalProperties().filterByConstantSet(getConstantSet(0));
+		n.getLocalProperties().filterByConstantSet(getConstantSet(0));
 		
 		// compute the costs
 		estimator.costOperator(n);
@@ -665,8 +669,8 @@ public class CoGroupNode extends TwoInputNode {
 		}
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByKeepSet(getKeepSet(1));
-		n.getLocalProperties().filterByKeepSet(getKeepSet(1));
+		n.getGlobalProperties().filterByConstantSet(getConstantSet(1));
+		n.getLocalProperties().filterByConstantSet(getConstantSet(1));
 		
 		// compute the costs
 		estimator.costOperator(n);
@@ -763,5 +767,14 @@ public class CoGroupNode extends TwoInputNode {
 //			}
 //		}
 		super.computeOutputEstimates(statistics);
+	}
+	
+	public boolean partitioningIsOnRightFields(GlobalProperties gp, int inputNum) {
+		FieldSet partitionedFields = gp.getPartitionedFiels();
+		if (partitionedFields == null || partitionedFields.isEmpty()) {
+			return false;
+		}
+		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(inputNum));
+		return keyFields.containsAll(partitionedFields);
 	}
 }

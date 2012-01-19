@@ -134,4 +134,8 @@ public class CombinerNode extends OptimizerNode {
 		// TODO check
 	}
 
+	@Override
+	public int[] getConstantSet(int inputNum) {
+		return null;
+	}
 }

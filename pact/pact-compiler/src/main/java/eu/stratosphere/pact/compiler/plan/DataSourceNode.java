@@ -342,4 +342,8 @@ public class DataSourceNode extends OptimizerNode
 		}
 	}
 
+	@Override
+	public int[] getConstantSet(int inputNum) {
+		return null;
+	}
 }

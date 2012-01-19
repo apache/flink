@@ -469,4 +469,9 @@ public class DataSinkNode extends OptimizerNode {
 		// DataSink has no output, do nothing
 	}
 
+	@Override
+	public int[] getConstantSet(int inputNum) {
+		return null;
+	}
+	
 }

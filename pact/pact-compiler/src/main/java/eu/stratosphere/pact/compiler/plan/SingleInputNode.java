@@ -448,4 +448,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 		
 		return result;
 	}
+	
+	@Override
+	public int[] getConstantSet(int inputNum) {
+		switch (inputNum) {
+			case 0: return getConstantSet();
+			default: throw new RuntimeException("Input number out of bounds");
+		}
+	}
 }
