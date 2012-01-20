@@ -137,4 +137,8 @@ public class CombinerNode extends OptimizerNode {
 	public int[] getInputConstantSet(int inputNum) {
 		return null;
 	}
+	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		return false;
+	}
 }

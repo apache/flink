@@ -474,4 +474,8 @@ public class DataSinkNode extends OptimizerNode {
 		return null;
 	}
 	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		return false;
+	}
+	
 }

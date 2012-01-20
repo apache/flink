@@ -1390,4 +1390,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			return this.joinedPathsVector;
 		}
 	}
+	
+	public abstract boolean isFieldKept(int input, int fieldNumber);
 }

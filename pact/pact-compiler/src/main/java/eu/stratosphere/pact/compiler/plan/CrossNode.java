@@ -257,9 +257,9 @@ public class CrossNode extends TwoInputNode {
 		
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
 		List<InterestingProperties> props1 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
-			getInputConstantSet(0));
+			this, 0);
 		List<InterestingProperties> props2 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
-				getInputConstantSet(1));
+				this, 1);
 	
 		for(PactConnection c : this.input1) {
 			if (props1.isEmpty() == false) {
@@ -487,8 +487,8 @@ public class CrossNode extends TwoInputNode {
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByConstantSet(getInputConstantSet(0));
-		n.getLocalProperties().filterByConstantSet(getInputConstantSet(0));
+		n.getGlobalProperties().filterByNodesConstantSet(this, 0);
+		n.getLocalProperties().filterByNodesConstantSet(this, 0);
 		
 		// compute the costs
 		estimator.costOperator(n);
@@ -525,8 +525,8 @@ public class CrossNode extends TwoInputNode {
 //		n.getGlobalProperties().filterByOutputContract(getOutputContract());
 //		n.getLocalProperties().filterByOutputContract(getOutputContract());
 		
-		n.getGlobalProperties().filterByConstantSet(getInputConstantSet(1));
-		n.getLocalProperties().filterByConstantSet(getInputConstantSet(1));
+		n.getGlobalProperties().filterByNodesConstantSet(this, 1);
+		n.getLocalProperties().filterByNodesConstantSet(this, 1);
 		
 		// compute the costs
 		estimator.costOperator(n);

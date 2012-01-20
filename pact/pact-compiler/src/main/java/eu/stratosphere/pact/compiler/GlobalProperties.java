@@ -16,10 +16,10 @@
 package eu.stratosphere.pact.compiler;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 
 /**
  * This class represents global properties of the data. Global properties are properties that
@@ -183,12 +183,12 @@ public final class GlobalProperties implements Cloneable
 //		return nonTrivial;
 //	}
 	
-	public boolean filterByConstantSet(int[] constantSet) {
+	public boolean filterByNodesConstantSet(OptimizerNode node, int input) {
 		
 		//check if partitioning survives
 		if (partitionedFields != null) {
 			for (Integer index : partitionedFields.toArray(new Integer[0])) {
-				if (constantSet == null || Arrays.binarySearch(constantSet, index) < 0) {
+				if (node.isFieldKept(input, index) == false) {
 					partitionedFields.remove(index);
 				}
 			}
@@ -202,7 +202,7 @@ public final class GlobalProperties implements Cloneable
 		if (ordering != null) {
 			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (constantSet == null || Arrays.binarySearch(constantSet, involvedIndexes.get(i)) < 0) {
+				if (node.isFieldKept(input, i) == false) {
 					ordering = ordering.createNewOrderingUpToIndex(i);
 					break;
 				}

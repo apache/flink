@@ -469,6 +469,22 @@ public abstract class SingleInputNode extends OptimizerNode {
 			default: throw new RuntimeException("Input number out of bounds");
 		}
 	}
+	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+		
+		switch (constantSetMode) {
+		case Constant:
+			return (constantSet != null && Arrays.binarySearch(constantSet, fieldNumber) >= 0);
+		case Update:
+			return (updateSet == null || Arrays.binarySearch(updateSet, fieldNumber) < 0);
+		default:
+				return false;
+		}
+	}
 		
 		
 	public int[] getKeySet() {

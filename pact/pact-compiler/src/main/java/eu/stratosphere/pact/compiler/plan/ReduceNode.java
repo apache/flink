@@ -189,7 +189,7 @@ public class ReduceNode extends SingleInputNode {
 		// if so, propagate to the child.
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
 		List<InterestingProperties> props = InterestingProperties.filterByConstantSet(thisNodesIntProps,
-			getInputConstantSet(0));
+			this, 0);
 
 		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
 		
@@ -363,8 +363,8 @@ public class ReduceNode extends SingleInputNode {
 			n.setLocalStrategy(ls);
 
 			// compute, which of the properties survive, depending on the output contract
-			n.getGlobalProperties().filterByConstantSet(getInputConstantSet(0));
-			n.getLocalProperties().filterByConstantSet(getInputConstantSet(0));
+			n.getGlobalProperties().filterByNodesConstantSet(this, 0);
+			n.getLocalProperties().filterByNodesConstantSet(this, 0);
 
 			estimator.costOperator(n);
 

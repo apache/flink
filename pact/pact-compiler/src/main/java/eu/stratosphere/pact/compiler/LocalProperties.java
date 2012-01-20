@@ -16,10 +16,10 @@
 package eu.stratosphere.pact.compiler;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
@@ -162,13 +162,13 @@ public final class LocalProperties implements Cloneable {
 //		return nonTrivial;
 //	}
 	
-	public boolean filterByConstantSet(int[] constantSet) {
+	public boolean filterByNodesConstantSet(OptimizerNode node, int input) {
 		
 		// check, whether the local order is preserved
 		if (ordering != null) {
 			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (constantSet == null || Arrays.binarySearch(constantSet, involvedIndexes.get(i)) < 0) {
+				if (node.isFieldKept(input, i) == false) {
 					ordering = ordering.createNewOrderingUpToIndex(i);
 					break;
 				}
@@ -178,7 +178,7 @@ public final class LocalProperties implements Cloneable {
 		// check, whether the local key grouping is preserved
 		if (this.groupedFields != null) {
 			for (Integer index : this.groupedFields) {
-				if (constantSet == null || Arrays.binarySearch(constantSet, index) < 0) {
+				if (node.isFieldKept(input, index) == false) {
 					this.groupedFields = null;
 					this.grouped = false;
 					break;

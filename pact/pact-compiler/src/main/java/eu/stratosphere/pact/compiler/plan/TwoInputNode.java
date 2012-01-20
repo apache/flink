@@ -837,4 +837,36 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		
+		ConstantSetMode constantSetMode;
+		int[] constantSet;
+		int[] updateSet;
+		
+		switch (input) {
+		case 0: 
+			constantSetMode = constantSet1Mode;
+			constantSet = constantSet1;
+			updateSet = updateSet1;
+			break;
+		case 1:
+			constantSetMode = constantSet2Mode;
+			constantSet = constantSet2;
+			updateSet = updateSet2;
+			break;
+		default:
+			throw new IndexOutOfBoundsException();
+		}
+		
+		
+		switch (constantSetMode) {
+		case Constant:
+			return (constantSet != null && Arrays.binarySearch(constantSet, fieldNumber) >= 0);
+		case Update:
+			return (updateSet == null || Arrays.binarySearch(updateSet, fieldNumber) < 0);
+		default:
+				return false;
+		}
+	}
+	
 }

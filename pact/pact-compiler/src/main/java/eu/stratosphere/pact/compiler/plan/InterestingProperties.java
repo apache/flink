@@ -310,12 +310,12 @@ public class InterestingProperties implements Cloneable {
 	
 	
 	public static final List<InterestingProperties> filterByConstantSet(List<InterestingProperties> props,
-			int[] constantSet) {
+			OptimizerNode node, int input) {
 		List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
 		
 		for (InterestingProperties p : props) {
-			boolean nonTrivial = p.getGlobalProperties().filterByConstantSet(constantSet);
-			nonTrivial |= p.getLocalProperties().filterByConstantSet(constantSet);
+			boolean nonTrivial = p.getGlobalProperties().filterByNodesConstantSet(node, input);
+			nonTrivial |= p.getLocalProperties().filterByNodesConstantSet(node, input);
 
 			if (nonTrivial) {
 				preserved.add(p);
