@@ -295,7 +295,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 			this.closableManager.add(sortMerger);
 
 			// obtain and return a grouped iterator from the sort-merger
-			return new UnmutableRecordIterator(sortMerger.getIterator());
+			return new ImmutableRecordIterator(sortMerger.getIterator());
 		} catch (final MemoryAllocationException mae) {
 			throw new RuntimeException(
 				"MemoryManager is not able to provide the required amount of memory for ReduceTask",
