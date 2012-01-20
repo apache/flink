@@ -859,6 +859,7 @@ public class PactCompiler {
 			// now compute the output estimates
 			if (this.computeEstimates) {
 				n.computeOutputEstimates(this.statistics);
+				n.deriveOutputSchema();
 			}
 		}
 
