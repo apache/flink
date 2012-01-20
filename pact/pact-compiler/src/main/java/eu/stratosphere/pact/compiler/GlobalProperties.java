@@ -247,7 +247,7 @@ public final class GlobalProperties implements Cloneable
 			}	
 		}
 		
-		return this.ordering.isMetBy(other.getOrdering());
+		return (this.ordering == null || this.ordering.isMetBy(other.getOrdering()));
 
 //		// check the order
 //		// if this one request no order, everything is good

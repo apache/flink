@@ -364,7 +364,7 @@ public class PactConnection {
 		for (List<PactConnection> connections : target.getIncomingConnections()) {
 			boolean isThisConnection = false;
 			for (PactConnection connection : connections) {
-				if (connection.getSourcePact().equals(source)) {
+				if (connection.getSourcePact().getId() == source.getId()) {
 					if (target.getPactContract() instanceof AbstractPact<?>) {
 						keyFields = new FieldSet(((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum));
 					}

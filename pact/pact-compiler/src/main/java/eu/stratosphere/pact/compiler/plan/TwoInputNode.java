@@ -56,8 +56,6 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	final protected List<PactConnection> input2 = new ArrayList<PactConnection>(); // The second input edge
 
-	private List<List<PactConnection>> inputs; // the cached list of inputs
-	
 	// ------------- Stub Annotations
 	
 	protected int[] readSet1; // set of fields of the first input that are read by the stub
@@ -81,7 +79,6 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		this.inputs = new ArrayList<List<PactConnection>>(2);
 		readReadSetAnnotations();
 		readConstantSetAnnotations();
 	}
@@ -111,7 +108,6 @@ public abstract class TwoInputNode extends OptimizerNode
 	{
 		super(template, globalProps, localProps);
 
-		this.inputs = new ArrayList<List<PactConnection>>(2);
 		int i = 0;
 		
 		if(pred1 != null) {
@@ -119,7 +115,6 @@ public abstract class TwoInputNode extends OptimizerNode
 				PactConnection cc = new PactConnection(c, pred1.get(i++), this); 
 				this.input1.add(cc);
 			}
-			this.inputs.add(this.input1);
 		}
 		
 		if(pred2 != null) {
@@ -128,7 +123,6 @@ public abstract class TwoInputNode extends OptimizerNode
 				PactConnection cc = new PactConnection(c, pred2.get(i++), this); 
 				this.input2.add(cc);
 			}
-			this.inputs.add(this.input2);
 		}
 
 		// merge the branchPlan maps according the the template's uncloseBranchesStack
@@ -240,7 +234,10 @@ public abstract class TwoInputNode extends OptimizerNode
 	 */
 	@Override
 	public List<List<PactConnection>> getIncomingConnections() {
-		return this.inputs;
+		ArrayList<List<PactConnection>> inputs = new ArrayList<List<PactConnection>>(2);
+		inputs.add(0, input1);
+		inputs.add(1, input2);
+		return inputs;
 	}
 
 	/*

@@ -230,7 +230,7 @@ public final class LocalProperties implements Cloneable {
 			return false;
 		}
 		// check the order
-		return this.ordering.isMetBy(other.getOrdering());
+		return (this.ordering == null || this.ordering.isMetBy(other.getOrdering()));
 		
 //		return this.keyUnique == other.keyUnique;
 	}
