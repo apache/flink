@@ -116,7 +116,7 @@ public class MapNode extends SingleInputNode {
 		
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
 		List<InterestingProperties> props = InterestingProperties.filterByConstantSet(thisNodesIntProps,
-			getConstantSet(0));
+			getInputConstantSet(0));
 		
 		for(PactConnection c : this.input) {
 			if (!props.isEmpty()) {
@@ -178,8 +178,8 @@ public class MapNode extends SingleInputNode {
 		
 			// now, the properties (copied from the inputs) are filtered by the
 			// output contracts
-			nMap.getGlobalProperties().filterByConstantSet(getConstantSet(0));
-			nMap.getLocalProperties().filterByConstantSet(getConstantSet(0));
+			nMap.getGlobalProperties().filterByConstantSet(getInputConstantSet(0));
+			nMap.getLocalProperties().filterByConstantSet(getInputConstantSet(0));
 
 			// copy the cumulative costs and set the costs of the map itself to zero
 			estimator.costOperator(nMap);

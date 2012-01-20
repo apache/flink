@@ -22,6 +22,7 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -78,73 +79,83 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 
 	}
 	
-//	@Test
-//	public void testExternalHash1MatchTask() {
-//
-//		int keyCnt1 = 32768;
-//		int valCnt1 = 4;
-//		
-//		int keyCnt2 = 65536;
-//		int valCnt2 = 1;
-//		
-//		super.initEnvironment(1*1024*1024);
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
-//		super.addOutput(outList);
-//		
-//		MatchTask testTask = new MatchTask();
-//		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-//		super.getTaskConfig().setIOBufferSize(1);
-//		
-//		super.registerTask(testTask, MockMatchStub.class);
-//		
-//		try {
-//			testTask.invoke();
-//		} catch (Exception e) {
-//			LOG.debug(e);
-//		}
-//		
-//		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-//		
-//		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
-//		
-//		outList.clear();
-//		
-//	}
-//	
-//	@Test
-//	public void testExternalHash2MatchTask() {
-//
-//		int keyCnt1 = 32768;
-//		int valCnt1 = 4;
-//		
-//		int keyCnt2 = 65536;
-//		int valCnt2 = 1;
-//		
-//		super.initEnvironment(1*1024*1024);
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1));
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2));
-//		super.addOutput(outList);
-//		
-//		MatchTask testTask = new MatchTask();
-//		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-//		super.getTaskConfig().setIOBufferSize(1);
-//		
-//		super.registerTask(testTask, MockMatchStub.class);
-//		
-//		try {
-//			testTask.invoke();
-//		} catch (Exception e) {
-//			LOG.debug(e);
-//		}
-//		
-//		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-//		
-//		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
-//		
-//		outList.clear();
-//		
-//	}
+	@Ignore
+	@Test
+	public void testExternalHash1MatchTask() {
+
+		int keyCnt1 = 32768;
+		int valCnt1 = 4*16;
+		
+		int keyCnt2 = 65536;
+		int valCnt2 = 1*16;
+		
+		super.initEnvironment(4*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setMemorySize(4*1024*1024);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
+	
+	@Ignore
+	@Test
+	public void testExternalHash2MatchTask() {
+
+		int keyCnt1 = 32768;
+		int valCnt1 = 4*16;
+		
+		int keyCnt2 = 65536;
+		int valCnt2 = 1*16;
+		
+		super.initEnvironment(4*1024*1024);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addOutput(outList);
+		
+		MatchTask testTask = new MatchTask();
+		super.getTaskConfig().setMemorySize(4*1024*1024);
+		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		super.registerTask(testTask, MockMatchStub.class);
+		
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			LOG.debug(e);
+		}
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
+		
+		outList.clear();
+		
+	}
 	
 	public static class MockMatchStub extends MatchStub {
 

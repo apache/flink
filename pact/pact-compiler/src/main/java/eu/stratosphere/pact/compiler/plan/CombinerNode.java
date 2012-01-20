@@ -131,11 +131,10 @@ public class CombinerNode extends OptimizerNode {
 	@Override
 	public void deriveOutputSchema() {
 		// output of combiner is same as output of reduce, do nothing
-		// TODO check
 	}
 
 	@Override
-	public int[] getConstantSet(int inputNum) {
+	public int[] getInputConstantSet(int inputNum) {
 		return null;
 	}
 }

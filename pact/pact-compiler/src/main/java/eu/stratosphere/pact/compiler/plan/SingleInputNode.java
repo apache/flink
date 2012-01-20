@@ -25,11 +25,11 @@ import java.util.Map;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
@@ -57,6 +57,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected int[] updateSet; // set of fields that are modified by the stub
 	
 	protected int[] constantSet; // set of fields that remain constant from input to output 
+	
+	protected ConstantSetMode constantSetMode;
+	
+	protected int[] keySet; // The set of key fields (order is relevant!)
 
 	// ------------------------------
 	
@@ -68,6 +72,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
+		this.keySet = pactContract.getKeyColumnNumbers(0);
 		readReadSetAnnotation();
 		readConstantSetAnnotation();
 	}
@@ -92,6 +97,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 			GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, globalProps, localProps);
 
+		this.readSet = template.readSet;
+		this.updateSet = template.updateSet;
+		this.constantSet = template.constantSet;
+		this.keySet = template.keySet;
+		this.constantSetMode = template.constantSetMode;
+		
 		int i = 0;
 		for(PactConnection c: conn) {
 			this.input.add(new PactConnection(c, pred.get(i++), this));
@@ -315,7 +326,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
-	protected void readReadSetAnnotation() {
+	private void readReadSetAnnotation() {
 		
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
@@ -328,21 +339,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 			return;
 		} else {
 			this.readSet = readSetAnnotation.fields();
+			Arrays.sort(this.readSet);
 		}
 
-		if(c instanceof ReduceContract) {
-			// merge read and key sets
-			int[] keySet = c.getKeyColumnNumbers(0);
-			Arrays.sort(keySet);
-			Arrays.sort(this.readSet);
-			this.readSet = FieldSetOperations.unionSets(keySet, this.readSet);
-			
-		} else {
-			Arrays.sort(this.readSet);
-		}
 	}
 	
-	protected void readConstantSetAnnotation() {
+	private void readConstantSetAnnotation() {
 		
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
@@ -362,16 +364,19 @@ public abstract class SingleInputNode extends OptimizerNode {
 				this.updateSet = updateSetAnnotation.fields();
 				this.constantSet = null;
 				Arrays.sort(this.updateSet);
+				this.constantSetMode = ConstantSetMode.Update;
 				return;
 			case Constant:
 				// we have a constant set
 				this.updateSet = null;
 				this.constantSet = updateSetAnnotation.fields();
 				Arrays.sort(this.constantSet);
+				this.constantSetMode = ConstantSetMode.Constant;
 				return;
 			default:
 				this.updateSet = null;
 				this.constantSet = null;
+				this.constantSetMode = null;
 				return;
 			}
 		}
@@ -396,15 +401,23 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
-	public int[] getReadSet() {
+	public ConstantSetMode getInputConstantSetMode() {
+		
+		return constantSetMode;
+	}
+	
+	public int[] getInputReadSet() {
+		
 		return this.readSet;
 	}
 	
-	public int[] getUpdateSet() {
+	public int[] getInputUpdateSet() {
+		
 		return this.updateSet;
 	}
 	
 	public int[] getConstantSet() {
+		
 		return this.constantSet;
 	}
 	
@@ -450,10 +463,15 @@ public abstract class SingleInputNode extends OptimizerNode {
 	}
 	
 	@Override
-	public int[] getConstantSet(int inputNum) {
+	public int[] getInputConstantSet(int inputNum) {
 		switch (inputNum) {
 			case 0: return getConstantSet();
 			default: throw new RuntimeException("Input number out of bounds");
 		}
+	}
+		
+		
+	public int[] getKeySet() {
+		return this.keySet;
 	}
 }

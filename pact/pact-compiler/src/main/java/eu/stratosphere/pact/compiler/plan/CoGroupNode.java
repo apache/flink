@@ -189,9 +189,9 @@ public class CoGroupNode extends TwoInputNode {
 		// children, depending on the output contract.
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
 		List<InterestingProperties> props1 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
-			getConstantSet(0));
+			getInputConstantSet(0));
 		List<InterestingProperties> props2 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
-				getConstantSet(1));
+				getInputConstantSet(1));
 
 		// a co-group is always interested in the following properties from both inputs:
 		// 1) any-partition and order
@@ -619,8 +619,8 @@ public class CoGroupNode extends TwoInputNode {
 		}
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByConstantSet(getConstantSet(0));
-		n.getLocalProperties().filterByConstantSet(getConstantSet(0));
+		n.getGlobalProperties().filterByConstantSet(getInputConstantSet(0));
+		n.getLocalProperties().filterByConstantSet(getInputConstantSet(0));
 		
 		// compute the costs
 		estimator.costOperator(n);
@@ -669,8 +669,8 @@ public class CoGroupNode extends TwoInputNode {
 		}
 
 		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByConstantSet(getConstantSet(1));
-		n.getLocalProperties().filterByConstantSet(getConstantSet(1));
+		n.getGlobalProperties().filterByConstantSet(getInputConstantSet(1));
+		n.getLocalProperties().filterByConstantSet(getInputConstantSet(1));
 		
 		// compute the costs
 		estimator.costOperator(n);

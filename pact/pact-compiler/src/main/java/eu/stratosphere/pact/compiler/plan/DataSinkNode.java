@@ -470,7 +470,7 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	@Override
-	public int[] getConstantSet(int inputNum) {
+	public int[] getInputConstantSet(int inputNum) {
 		return null;
 	}
 	

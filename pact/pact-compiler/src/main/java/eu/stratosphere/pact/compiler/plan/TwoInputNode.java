@@ -24,15 +24,14 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
@@ -56,6 +55,10 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	final protected List<PactConnection> input2 = new ArrayList<PactConnection>(); // The second input edge
 
+	protected int[] keySet1; // The set of key fields for the first input (order is relevant!)
+	
+	protected int[] keySet2; // The set of key fields for the second input (order is relevant!)
+	
 	// ------------- Stub Annotations
 	
 	protected int[] readSet1; // set of fields of the first input that are read by the stub
@@ -64,12 +67,16 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	protected int[] constantSet1; // set of fields of the first input that remain constant from input to output
 	
+	protected ConstantSetMode constantSet1Mode;
+	
 	protected int[] readSet2; // set of fields of the first input that are read by the stub
 	
 	protected int[] updateSet2; // set of fields of the first input that are modified by the stub
 	
 	protected int[] constantSet2; // set of fields of the first input that remain constant from input to output
 
+	protected ConstantSetMode constantSet2Mode;
+	
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
@@ -79,8 +86,11 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		readReadSetAnnotations();
-		readConstantSetAnnotations();
+		this.keySet1 = pactContract.getKeyColumnNumbers(0);
+		this.keySet2 = pactContract.getKeyColumnNumbers(1);
+		
+		readReadSetAnnotation();
+		readConstantSetAnnotation();
 	}
 
 	/**
@@ -107,6 +117,17 @@ public abstract class TwoInputNode extends OptimizerNode
 			List<PactConnection> conn2, GlobalProperties globalProps, LocalProperties localProps)
 	{
 		super(template, globalProps, localProps);
+		
+		this.readSet1 = template.readSet1;
+		this.readSet2 = template.readSet2;
+		this.updateSet1 = template.updateSet1;
+		this.updateSet2 = template.updateSet2;
+		this.constantSet1 = template.constantSet1;
+		this.constantSet2 = template.constantSet2;
+		this.constantSet1Mode = template.constantSet1Mode;
+		this.constantSet2Mode = template.constantSet2Mode;
+		this.keySet1 = template.keySet1;
+		this.keySet2 = template.keySet2;
 
 		int i = 0;
 		
@@ -596,7 +617,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-	protected void readReadSetAnnotations() {
+	private void readReadSetAnnotation() {
 		
 		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
 		
@@ -618,24 +639,9 @@ public abstract class TwoInputNode extends OptimizerNode
 			this.readSet2 = readSet2Annotation.fields();
 			Arrays.sort(this.readSet2);
 		}
-
-		if(c instanceof MatchContract || c instanceof CoGroupContract) {
-			// merge read and key sets
-			if(this.readSet1 != null) {
-				int[] keySet1 = c.getKeyColumnNumbers(0);
-				Arrays.sort(keySet1);
-				this.readSet1 = FieldSetOperations.unionSets(keySet1, this.readSet1);
-			}
-			
-			if(this.readSet2 != null) {
-				int[] keySet2 = c.getKeyColumnNumbers(1);
-				Arrays.sort(keySet2);
-				this.readSet2 = FieldSetOperations.unionSets(keySet2, this.readSet1);
-			}
-		} 
 	}
 	
-	protected void readConstantSetAnnotations() {
+	private void readConstantSetAnnotation() {
 		
 		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
 		
@@ -654,16 +660,19 @@ public abstract class TwoInputNode extends OptimizerNode
 				this.updateSet1 = updateSet1Annotation.fields();
 				this.constantSet1 = null;
 				Arrays.sort(this.updateSet1);
+				this.constantSet1Mode = ConstantSetMode.Update;
 				break;
 			case Constant:
 				// we have a constant set
 				this.updateSet1 = null;
 				this.constantSet1 = updateSet1Annotation.fields();
 				Arrays.sort(this.constantSet1);
+				this.constantSet1Mode = ConstantSetMode.Constant;
 				break;
 			default:
 				this.updateSet1 = null;
 				this.constantSet1 = null;
+				this.constantSet1Mode = null;
 				break;
 			}
 			
@@ -680,16 +689,19 @@ public abstract class TwoInputNode extends OptimizerNode
 				this.updateSet2 = updateSet2Annotation.fields();
 				this.constantSet2 = null;
 				Arrays.sort(this.updateSet2);
+				this.constantSet2Mode = ConstantSetMode.Update;
 				break;
 			case Constant:
 				// we have a constant set
 				this.updateSet2 = null;
 				this.constantSet2 = updateSet2Annotation.fields();
 				Arrays.sort(this.constantSet2);
+				this.constantSet2Mode = ConstantSetMode.Constant;
 				break;
 			default:
 				this.updateSet2 = null;
 				this.constantSet2 = null;
+				this.constantSet2Mode = null;
 				break;
 			}
 		}
@@ -720,7 +732,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-	public int[] getReadSet(int input) {
+	public int[] getInputReadSet(int input) {
 		switch(input) {
 		case 0: return readSet1;
 		case 1: return readSet2;
@@ -728,7 +740,15 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-	public int[] getUpdateSet(int input) {
+	public ConstantSetMode getInputConstantSetMode(int input) {
+		switch(input) {
+		case 0: return constantSet1Mode;
+		case 1: return constantSet2Mode;
+		default: throw new IndexOutOfBoundsException();
+		}
+	}
+	
+	public int[] getInputUpdateSet(int input) {
 		switch(input) {
 		case 0: return updateSet1;
 		case 1: return updateSet2;
@@ -736,14 +756,13 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-	public int[] getConstantSet(int input) {
+	public int[] getInputConstantSet(int input) {
 		switch(input) {
 		case 0: return constantSet1;
 		case 1: return constantSet2;
 		default: throw new IndexOutOfBoundsException();
 		}
 	}
-	
 	
 	
 	/**
@@ -810,4 +829,12 @@ public abstract class TwoInputNode extends OptimizerNode
 		return avgWidth;
 	}
 
+	public int[] getInputKeySet(int input) {
+		switch(input) {
+		case 0: return keySet1;
+		case 1: return keySet2;
+		default: throw new IndexOutOfBoundsException();
+		}
+	}
+	
 }

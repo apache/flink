@@ -712,7 +712,16 @@ public final class PactRecord implements Value
 		final InternalDeSerializer serializer = this.serializer;
 		
 		if (numFields > 0) {
-			int offset = firstModified <= 0 ? 0 : this.offsets[firstModified - 1] + this.lengths[firstModified - 1];
+			int offset = 0;
+			if(firstModified > 0) {
+				// search backwards for first non-null field
+				for(int i=firstModified-1; i>=0; i--) {
+					if(this.offsets[i] != NULL_INDICATOR_OFFSET) {
+						offset = this.offsets[i] + this.lengths[i];
+						break;
+					}
+				}
+			}
 			serializer.position = offset;
 			
 			// for efficiency, we treat the typical pattern that modifications are at the end as a special case
@@ -731,7 +740,7 @@ public final class PactRecord implements Value
 					}
 				}
 				catch (Exception e) {
-					throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
+					throw new RuntimeException("Error in data type serialization: " + e.getMessage(), e); 
 				}
 			}
 			else {
@@ -757,7 +766,7 @@ public final class PactRecord implements Value
 					}
 				}
 				catch (Exception e) {
-					throw new RuntimeException("Error in data type serialization: " + e.getMessage()); 
+					throw new RuntimeException("Error in data type serialization: " + e.getMessage(), e); 
 				}
 				
 				this.serializationSwitchBuffer = this.binaryData;
