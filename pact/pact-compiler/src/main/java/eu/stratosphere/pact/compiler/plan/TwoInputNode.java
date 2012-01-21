@@ -858,6 +858,9 @@ public abstract class TwoInputNode extends OptimizerNode
 			throw new IndexOutOfBoundsException();
 		}
 		
+		if (constantSetMode == null) {
+			return false;
+		}
 		
 		switch (constantSetMode) {
 		case Constant:

@@ -476,6 +476,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new IndexOutOfBoundsException();
 		}
 		
+		if (constantSetMode == null) {
+			return false;
+		}
+		
 		switch (constantSetMode) {
 		case Constant:
 			return (constantSet != null && Arrays.binarySearch(constantSet, fieldNumber) >= 0);

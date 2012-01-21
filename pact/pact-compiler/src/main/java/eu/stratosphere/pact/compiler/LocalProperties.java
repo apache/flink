@@ -223,11 +223,12 @@ public final class LocalProperties implements Cloneable {
 						return false;
 					}
 				}
+				groupingFulfilled = true;
 			}
-		}
-
-		if (groupingFulfilled == false) {
-			return false;
+			
+			if (groupingFulfilled == false) {
+				return false;
+			}
 		}
 		// check the order
 		return (this.ordering == null || this.ordering.isMetBy(other.getOrdering()));
@@ -296,7 +297,14 @@ public final class LocalProperties implements Cloneable {
 	 */
 	@Override
 	public LocalProperties clone() throws CloneNotSupportedException {
-		return (LocalProperties) super.clone();
+		LocalProperties newProps = (LocalProperties) super.clone();
+		if (this.ordering != null) {
+			newProps.ordering = this.ordering.clone();	
+		}
+		if (this.groupedFields != null) {
+			newProps.groupedFields = (FieldSet) this.groupedFields.clone();	
+		}
+		return newProps;
 	}
 
 	/**

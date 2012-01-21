@@ -48,8 +48,8 @@ public class InterestingProperties implements Cloneable {
 	 * properties and a maximal cost of infinite.
 	 */
 	public InterestingProperties() {
-		// instantiate the maximal costs to the possible maximum
-		this.maximalCosts = new Costs(Long.MAX_VALUE, Long.MAX_VALUE);
+		// instantiate the maximal costs to 0
+		this.maximalCosts = new Costs(0, 0);
 
 		this.globalProps = new GlobalProperties();
 		this.localProps = new LocalProperties();
@@ -314,11 +314,18 @@ public class InterestingProperties implements Cloneable {
 		List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
 		
 		for (InterestingProperties p : props) {
-			boolean nonTrivial = p.getGlobalProperties().filterByNodesConstantSet(node, input);
-			nonTrivial |= p.getLocalProperties().filterByNodesConstantSet(node, input);
+			GlobalProperties preservedGp = p.getGlobalProperties().createCopy();
+			LocalProperties preservedLp = p.getLocalProperties().createCopy();
+			boolean nonTrivial = preservedGp.filterByNodesConstantSet(node, input);
+			nonTrivial |= preservedLp.filterByNodesConstantSet(node, input);
 
 			if (nonTrivial) {
-				preserved.add(p);
+				try {
+					preserved.add(new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp));
+				} catch (CloneNotSupportedException cnse) {
+					// should never happen, but propagate just in case
+					throw new RuntimeException(cnse);
+				}
 			}
 		}
 

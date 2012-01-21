@@ -82,4 +82,12 @@ public class Ordering {
 		}
 		return newOrdering;
 	}
+	
+	@SuppressWarnings("unchecked")
+	public Ordering clone() {
+		Ordering newOrdering = new Ordering();
+		newOrdering.indexes = (ArrayList<Integer>) this.indexes.clone();
+		newOrdering.orders = (ArrayList<Order>) this.orders.clone();
+		return this;
+	}
 }

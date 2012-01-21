@@ -236,15 +236,13 @@ public final class GlobalProperties implements Cloneable
 			if (other.partitionedFields == null) {
 				return false;
 			}
-			if (this.partitionedFields.size() > otherPartitionedFields.size()) {
+			if (this.partitionedFields.size() < otherPartitionedFields.size()) {
 				return false;
 			}
 			
-			for (Integer fieldIndex : this.partitionedFields) {
-				if (otherPartitionedFields.contains(fieldIndex) == false) {
-					return false;
-				}
-			}	
+			if (this.partitionedFields.containsAll(otherPartitionedFields) == false) {
+				return false;
+			}
 		}
 		
 		return (this.ordering == null || this.ordering.isMetBy(other.getOrdering()));
@@ -322,7 +320,14 @@ public final class GlobalProperties implements Cloneable
 	 * @see java.lang.Object#clone()
 	 */
 	public GlobalProperties clone() throws CloneNotSupportedException {
-		return (GlobalProperties) super.clone();
+		GlobalProperties newProps = (GlobalProperties) super.clone();
+		if (this.ordering != null) {
+			newProps.ordering = this.ordering.clone();	
+		}
+		if (this.partitionedFields != null) {
+			newProps.partitionedFields = (FieldSet) this.partitionedFields.clone();	
+		}
+		return newProps;
 	}
 
 	/**
