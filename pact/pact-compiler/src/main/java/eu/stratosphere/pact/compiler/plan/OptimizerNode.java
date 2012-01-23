@@ -47,7 +47,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * representation is used by the optimizer to determine the algorithms to be used
  * and to create the Nephele schedule for the runtime system.
  * 
- * @author Fabian Hüske (fabian.hueske@tu-berlin.de)
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * @author Stephan Ewen (stephan.ewen@tu -berlin.de)
  */
 public abstract class OptimizerNode implements Visitable<OptimizerNode>
@@ -120,7 +120,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	protected int[] addSet; // The set of fields added to the schema by the stub
 	
 	protected int[] outputSchema; // The fields are present in the output records
-
+	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
 	private List<InterestingProperties> intProps; // the interesting properties of this node
@@ -215,6 +215,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.id = toClone.id;
 		this.degreeOfParallelism = toClone.degreeOfParallelism;
 		this.instancesPerMachine = toClone.instancesPerMachine;
+		
+		this.stubOutCardLB = toClone.stubOutCardLB;
+		this.stubOutCardUB = toClone.stubOutCardUB;
+		this.addSet = toClone.addSet;
+		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length); 
 
 		// check, if this node branches. if yes, this candidate must be associated with
 		// the branching template node.
@@ -367,7 +372,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return The list of outgoing connections.
 	 */
 	public List<PactConnection> getOutgoingConnections() {
-		return this.outgoingConnections == null ? Collections.<PactConnection> emptyList() : this.outgoingConnections;
+		
+		if(this.outgoingConnections == null) {
+			this.outgoingConnections = new ArrayList<PactConnection>();
+		}
+		return this.outgoingConnections;
 	}
 
 	/**
@@ -1127,9 +1136,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 	
 	public abstract void deriveOutputSchema();
-
+	
 	public int[] getAddSet() {
 		return this.addSet;
+	}
+	
+	public int[] getStubOutCardBounds() {
+		return new int[]{this.stubOutCardLB, this.stubOutCardUB};
 	}
 	
 	public int getStubOutCardLowerBound() {
@@ -1138,6 +1151,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	public int getStubOutCardUpperBound() {
 		return this.stubOutCardUB;
+	}
+	
+	public int[] getOutputSchema() {
+		return this.outputSchema;
 	}
 	
 	protected static final class UnclosedBranchDescriptor

@@ -356,7 +356,7 @@ public class PactRecordTest {
 			fail("Error updating binary representation: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testDeSerialization() {
 		PactString origValue1 = new PactString("Hello World!");

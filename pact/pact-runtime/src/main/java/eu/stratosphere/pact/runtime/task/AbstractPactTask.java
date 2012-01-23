@@ -167,7 +167,9 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 				Configuration stubConfig = this.config.getStubParameters();
 				stubConfig.setInteger("pact.parallel.task.id", this.getEnvironment().getIndexInSubtaskGroup());
 				stubConfig.setInteger("pact.parallel.task.count", this.getEnvironment().getCurrentNumberOfSubtasks());
-				stubConfig.setString("pact.parallel.task.name", this.getEnvironment().getTaskName());
+				if(this.getEnvironment().getTaskName() != null) {
+					stubConfig.setString("pact.parallel.task.name", this.getEnvironment().getTaskName());
+				}
 				this.stub.open(stubConfig);
 				stubOpen = true;
 			}
