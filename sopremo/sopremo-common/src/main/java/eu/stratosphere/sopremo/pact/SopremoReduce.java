@@ -4,42 +4,19 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
-public abstract class SopremoReduce<IK extends JsonNode, IV extends JsonNode, OK extends JsonNode, OV extends JsonNode>
-		extends ReduceStub<JsonNode, JsonNode, JsonNode, JsonNode> {
+public abstract class SopremoReduce extends ReduceStub {
 	private EvaluationContext context;
-
-	@Override
-	public Class<JsonNode> getInKeyType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getInValueType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getOutKeyType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getOutValueType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
 
 	@Override
 	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
-		this.context.setTaskId(parameters.getInteger(AbstractTask.TASK_ID, 0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 

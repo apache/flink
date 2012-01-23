@@ -1,22 +1,18 @@
 package eu.stratosphere.sopremo.pact;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.CrossStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.JsonNode;
 
-public abstract class SopremoCross<IK1 extends JsonNode, IV1 extends JsonNode, IK2 extends JsonNode, IV2 extends JsonNode, OK extends Key, OV extends JsonNode>
-		extends
-		CrossStub<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+public abstract class SopremoCross extends CrossStub {
 	private EvaluationContext context;
 
 	@Override
 	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
-		this.context.setTaskId(parameters.getInteger(AbstractTask.TASK_ID, 0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 

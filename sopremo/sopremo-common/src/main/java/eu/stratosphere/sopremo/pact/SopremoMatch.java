@@ -1,50 +1,17 @@
 package eu.stratosphere.sopremo.pact;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stub.Collector;
 import eu.stratosphere.pact.common.stub.MatchStub;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.JsonNode;
 
-public abstract class SopremoMatch<IK extends JsonNode, IV1 extends JsonNode, IV2 extends JsonNode, OK extends JsonNode, OV extends JsonNode>
-		extends MatchStub<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+public abstract class SopremoMatch extends MatchStub {
 	private EvaluationContext context;
-
-	@Override
-	public Class<JsonNode> getFirstInKeyType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getSecondInKeyType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getFirstInValueType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getSecondInValueType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getOutKeyType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getOutValueType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
 
 	@Override
 	public void configure(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
-		this.context.setTaskId(parameters.getInteger(AbstractTask.TASK_ID, 0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 

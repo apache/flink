@@ -144,8 +144,8 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		super.initVerifier(equalVerifier);
 		equalVerifier.
 			withPrefabValues(TestPairs.class,
-				new TestPairs<Key, Value>().add(PactNull.getInstance(), new PactString("red")),
-				new TestPairs<Key, Value>().add(PactNull.getInstance(), new PactString("black"))).
+				new TestPairs().add(PactNull.getInstance(), new PactString("red")),
+				new TestPairs().add(PactNull.getInstance(), new PactString("black"))).
 			withPrefabValues(SopremoTestPlan.ActualOutput.class,
 				new SopremoTestPlan.ActualOutput(0).addValue(0),
 				new SopremoTestPlan.ActualOutput(1).addValue(1)).
@@ -186,12 +186,9 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		 */
 		private static final long serialVersionUID = -4747731771822553359L;
 
-		public static class Implementation
-				extends
-				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+		public static class Implementation extends SopremoCross {
 			@Override
-			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
-					final JsonNode value2, final JsonCollector out) {
+			protected void cross(final JsonNode value1, final JsonNode value2, final JsonCollector out) {
 				out.collect(JsonUtil.asArray(key1, key2), JsonUtil.asArray(value1, value2));
 			}
 		}
@@ -203,12 +200,10 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		 */
 		private static final long serialVersionUID = 6764940997115103382L;
 
-		public static class Implementation
-				extends
-				SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+		public static class Implementation extends SopremoMap {
 			@Override
-			protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-				out.collect(key, value);
+			protected void map(final JsonNode value, final JsonCollector out) {
+				out.collect(value);
 			}
 		}
 	}

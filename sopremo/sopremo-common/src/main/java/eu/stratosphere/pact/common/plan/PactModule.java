@@ -20,7 +20,9 @@ import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
@@ -41,7 +43,7 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
  * PactModule.
  */
 public class PactModule extends
-		GraphModule<Contract, FileDataSourceContract<?, ?>, FileDataSinkContract<?, ?>> implements
+		GraphModule<Contract, FileDataSource, FileDataSink> implements
 		Visitable<Contract> {
 	/**
 	 * Initializes a PactModule having the given name, number of inputs, and
@@ -55,13 +57,13 @@ public class PactModule extends
 	 *        the number of outputs.
 	 */
 	public PactModule(final String name, final int numberOfInputs, final int numberOfOutputs) {
-		super(name, new FileDataSourceContract[numberOfInputs], new FileDataSinkContract[numberOfOutputs],
+		super(name, new FileDataSource[numberOfInputs], new FileDataSink[numberOfOutputs],
 			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new FileDataSourceContract<JsonNode, JsonNode>(
+			this.inputNodes[index] = new FileDataSource(
 				JsonInputFormat.class, String.format("%s %d", name, index));
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new FileDataSinkContract<JsonNode, JsonNode>(
+			this.outputNodes[index] = new FileDataSink(
 				JsonOutputFormat.class, String.format("%s %d", name, index));
 	}
 

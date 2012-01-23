@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.io.JsonGenerator;
 import eu.stratosphere.sopremo.type.JsonNode;
 
@@ -27,16 +28,11 @@ import eu.stratosphere.sopremo.type.JsonNode;
  * 
  * @author Arvid Heise
  */
-public class JsonOutputFormat extends FileOutputFormat<JsonNode, JsonNode> {
+public class JsonOutputFormat extends FileOutputFormat {
 
 	private JsonGenerator generator;
 
 	public static final String PARAMETER_ENCODING = "Encoding";
-
-	public JsonOutputFormat() {
-		this.keyClass = JsonNode.class;
-		this.valueClass = JsonNode.class;
-	}
 
 	@Override
 	public void close() throws IOException {
@@ -53,8 +49,12 @@ public class JsonOutputFormat extends FileOutputFormat<JsonNode, JsonNode> {
 		this.generator.writeStartArray();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
+	 */
 	@Override
-	public void writeRecord(final KeyValuePair<JsonNode, JsonNode> pair) throws IOException {
+	public void writeRecord(PactRecord record) throws IOException {
 		this.generator.writeTree(SopremoUtil.unwrap(pair.getValue()));
 	}
 

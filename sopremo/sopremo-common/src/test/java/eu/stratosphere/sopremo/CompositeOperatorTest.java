@@ -10,8 +10,6 @@ import java.util.List;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.pact.common.plan.ContractNavigator;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.pact.JsonCollector;

@@ -26,7 +26,8 @@ import org.apache.log4j.Level;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.util.StringUtils;
-import eu.stratosphere.pact.common.stub.Stub;
+import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
@@ -46,10 +47,7 @@ public class SopremoUtil {
 		};
 	};
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static final Class<JsonNode> WRAPPER_TYPE = (Class) JsonNodeWrapper.class;
-
-	static void configureStub(final Stub<?, ?> stub, final Configuration parameters) {
+	static void configureStub(final Stub stub, final Configuration parameters) {
 		for (final Field stubField : stub.getClass().getDeclaredFields())
 			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0)
 				if (parameters.getString(stubField.getName(), null) != null)
@@ -237,5 +235,17 @@ public class SopremoUtil {
 		if (node instanceof JsonNodeWrapper)
 			return node;
 		return new JsonNodeWrapper(node);
+	}
+
+	/**
+	 * @param value
+	 * @return
+	 */
+	public static PactRecord jsonToRecord(JsonNode value) {
+		return null;
+	}
+	
+	public static JsonNode recordToJson(PactRecord record) {
+		return null;		
 	}
 }

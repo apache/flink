@@ -1,18 +1,18 @@
 package eu.stratosphere.sopremo.pact;
 
-import eu.stratosphere.pact.common.stub.Collector;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 public class JsonCollector {
-	private final Collector<JsonNode, JsonNode> collector;
+	private final Collector collector;
 
-	public JsonCollector(final Collector<JsonNode, JsonNode> collector) {
+	public JsonCollector(final Collector collector) {
 		this.collector = collector;
 	}
 
-	public void collect(final JsonNode key, final JsonNode value) {
+	public void collect(final JsonNode value) {
 		if (SopremoUtil.LOG.isTraceEnabled())
-			SopremoUtil.LOG.trace(String.format(" to %s/%s", key, value));
-		this.collector.collect(SopremoUtil.wrap(key), SopremoUtil.wrap(value));
+			SopremoUtil.LOG.trace(String.format(" to %s", value));
+		this.collector.collect(SopremoUtil.jsonToRecord(value));
 	}
 }

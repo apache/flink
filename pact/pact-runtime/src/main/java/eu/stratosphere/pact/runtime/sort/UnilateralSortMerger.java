@@ -373,12 +373,12 @@ public class UnilateralSortMerger implements SortMerger
 		final CircularQueues circularQueues = new CircularQueues();
 		
 		this.sortBuffers = new ArrayList<NormalizedKeySorter<?>>(numSortBuffers);
+		final PactRecordAccessors accessors = new PactRecordAccessors(keyPositions, keyClasses);
 		
 		// allocate the sort buffers and fill empty queue with them
 		for (int i = 0; i < numSortBuffers; i++)
 		{
 			final List<MemorySegment> sortSegments = memoryManager.allocateStrict(parentTask, numSegmentsPerSortBuffer, SORT_MEM_SEGMENT_SIZE);
-			final PactRecordAccessors accessors = new PactRecordAccessors(keyPositions, keyClasses);
 			final NormalizedKeySorter<PactRecord> buffer = new NormalizedKeySorter<PactRecord>(accessors, sortSegments);
 			this.sortBuffers.add(buffer);
 
