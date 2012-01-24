@@ -34,9 +34,10 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -391,12 +392,33 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 
 	/**
-	 * Gets the output contract declared on the user function that is wrapped in the PACT of this node.
+	 * Gets the constant set mode declared on the user function that is wrapped in the PACT of this node.
 	 * 
-	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
+	 * @return The declared constant set mode, or null, if none was declared.
+	 */
+	public abstract ConstantSetMode getInputConstantSetMode(int inputNum);
+	
+	/**
+	 * Gets the constant set declared on the user function that is wrapped in the PACT of this node.
+	 * 
+	 * @return The declared constant set, or null, if none was declared.
 	 */
 	public abstract int[] getInputConstantSet(int inputNum);
-
+	
+	/**
+	 * Gets the update set declared on the user function that is wrapped in the PACT of this node.
+	 * 
+	 * @return The declared update set, or null, if none was declared.
+	 */
+	public abstract int[] getInputUpdateSet(int inputNum);
+	
+	/**
+	 * Gets the read set declared on the user function that is wrapped in the PACT of this node.
+	 * 
+	 * @return The declared read set, or null, if none was declared.
+	 */
+	public abstract int[] getInputReadSet(int inputNum);
+	
 	/**
 	 * Gets the degree of parallelism for the contract represented by this optimizer node.
 	 * The degree of parallelism denotes how many parallel instances of the user function will be

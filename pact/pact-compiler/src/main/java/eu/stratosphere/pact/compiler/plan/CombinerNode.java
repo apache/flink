@@ -22,6 +22,7 @@ import java.util.Map;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -133,8 +134,39 @@ public class CombinerNode extends OptimizerNode {
 		// output of combiner is same as output of reduce, do nothing
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
+	public ConstantSetMode getInputConstantSetMode(int inputNum) {
+		return null;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
 	@Override
 	public int[] getInputConstantSet(int inputNum) {
+		return null;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
+	public int[] getInputUpdateSet(int inputNum) {
+		return null;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
+	public int[] getInputReadSet(int inputNum) {
 		return null;
 	}
 	

@@ -25,6 +25,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
@@ -469,8 +470,39 @@ public class DataSinkNode extends OptimizerNode {
 		// DataSink has no output, do nothing
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
+	public ConstantSetMode getInputConstantSetMode(int inputNum) {
+		return null;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
 	@Override
 	public int[] getInputConstantSet(int inputNum) {
+		return null;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
+	public int[] getInputUpdateSet(int inputNum) {
+		return null;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
+	public int[] getInputReadSet(int inputNum) {
 		return null;
 	}
 	

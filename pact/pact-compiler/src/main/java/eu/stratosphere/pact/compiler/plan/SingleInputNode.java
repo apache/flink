@@ -401,24 +401,55 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
-	public ConstantSetMode getInputConstantSetMode() {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSetMode(int)
+	 */
+	@Override
+	public ConstantSetMode getInputConstantSetMode(int inputNum) {
 		
-		return constantSetMode;
+		switch (inputNum) {
+			case 0: return this.constantSetMode;
+			default: throw new RuntimeException("Input number out of bounds");
+		}
 	}
 	
-	public int[] getInputReadSet() {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputReadSet(int)
+	 */
+	@Override
+	public int[] getInputReadSet(int inputNum) {
 		
-		return this.readSet;
+		switch (inputNum) {
+			case 0: return this.readSet;
+			default: throw new RuntimeException("Input number out of bounds");
+		}
 	}
 	
-	public int[] getInputUpdateSet() {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputUpdateSet(int)
+	 */
+	@Override
+	public int[] getInputUpdateSet(int inputNum) {
 		
-		return this.updateSet;
+		switch (inputNum) {
+			case 0: return this.updateSet;
+			default: throw new RuntimeException("Input number out of bounds");
+		}
 	}
 	
-	public int[] getConstantSet() {
-		
-		return this.constantSet;
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
+	public int[] getInputConstantSet(int inputNum) {
+		switch (inputNum) {
+			case 0: return this.constantSet;
+			default: throw new RuntimeException("Input number out of bounds");
+		}
 	}
 	
 	/**
@@ -460,14 +491,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 			return 1;
 		
 		return result;
-	}
-	
-	@Override
-	public int[] getInputConstantSet(int inputNum) {
-		switch (inputNum) {
-			case 0: return getConstantSet();
-			default: throw new RuntimeException("Input number out of bounds");
-		}
 	}
 	
 	public boolean isFieldKept(int input, int fieldNumber) {

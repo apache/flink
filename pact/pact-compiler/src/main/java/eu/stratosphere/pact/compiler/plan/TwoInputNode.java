@@ -732,6 +732,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
 	public int[] getInputReadSet(int input) {
 		switch(input) {
 		case 0: return readSet1;
@@ -740,6 +745,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
 	public ConstantSetMode getInputConstantSetMode(int input) {
 		switch(input) {
 		case 0: return constantSet1Mode;
@@ -748,6 +758,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
 	public int[] getInputUpdateSet(int input) {
 		switch(input) {
 		case 0: return updateSet1;
@@ -756,6 +771,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
+	 */
+	@Override
 	public int[] getInputConstantSet(int input) {
 		switch(input) {
 		case 0: return constantSet1;
