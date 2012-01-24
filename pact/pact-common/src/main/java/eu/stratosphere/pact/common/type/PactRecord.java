@@ -788,14 +788,18 @@ public final class PactRecord implements Value
 				// the remainder %8 comes first 
 				int col = numFields - 1;
 				int mask = 0;
-				for (int i = numFields & 0x7; i > 0; i--, col--) {
-					mask <<= 1;
-					mask |= (offsets[col] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
+				int i = numFields & 0x7;
+				
+				if (i > 0) {
+					for (; i > 0; i--, col--) {
+						mask <<= 1;
+						mask |= (offsets[col] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
+					}
+					serializer.writeByte(mask);
 				}
-				serializer.writeByte(mask);
 				
 				// now the eight-bit chunks
-				for (int i = numFields >>> 3; i > 0; i--) {
+				for (i = numFields >>> 3; i > 0; i--) {
 					mask = 0;
 					for (int k = 0; k < 8; k++, col--) {
 						mask <<= 1;
