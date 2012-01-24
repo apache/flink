@@ -20,12 +20,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation indicate a state-full Task
+ * This annotation can be used to indicate a stateful task.
+ * 
  * @author marrus
- *
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface Statefull {
+public @interface Stateful {
 
 }
