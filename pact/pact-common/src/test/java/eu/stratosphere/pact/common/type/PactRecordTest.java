@@ -74,148 +74,148 @@ public class PactRecordTest {
 		assertTrue("The value of the third field has changed", recVal3.equals(this.origVal3));
 	}
 
-	@Test
-	public void testInsertField() {
-		PactRecord record = null;
-		int oldLen = 0;
+//	@Test
+//	public void testInsertField() {
+//		PactRecord record = null;
+//		int oldLen = 0;
+//
+//		// Create filled record and insert in the middle
+//		record = new PactRecord(this.origVal1, this.origVal3);
+//		record.insertField(1, this.origVal2);
+//
+//		assertTrue(record.getNumFields() == 3);
+//
+//		PactString recVal1 = record.getField(0, PactString.class);
+//		PactDouble recVal2 = record.getField(1, PactDouble.class);
+//		PactInteger recVal3 = record.getField(2, PactInteger.class);
+//
+//		assertTrue(recVal1.getValue().equals(this.origVal1.getValue()));
+//		assertTrue(recVal2.getValue() == this.origVal2.getValue());
+//		assertTrue(recVal3.getValue() == this.origVal3.getValue());
+//
+//		record = this.generateFilledDenseRecord(100);
+//
+//		// Insert field at the first position of the record
+//		oldLen = record.getNumFields();
+//		record.insertField(0, this.origVal1);
+//		assertTrue(record.getNumFields() == oldLen + 1);
+//		assertTrue(this.origVal1.equals(record.getField(0, PactString.class)));
+//
+//		// Insert field at the end of the record
+//		oldLen = record.getNumFields();
+//		record.insertField(oldLen, this.origVal2);
+//		assertTrue(record.getNumFields() == oldLen + 1);
+//		assertTrue(this.origVal2 == record.getField(oldLen, PactDouble.class));
+//
+//		// Insert several random fields into the record
+//		for (int i = 0; i < 100; i++) {
+//			int pos = rand.nextInt(record.getNumFields());
+//			PactInteger val = new PactInteger(rand.nextInt());
+//			record.insertField(pos, val);
+//			assertTrue(val.getValue() == record.getField(pos, PactInteger.class).getValue());
+//		}
+//	}
 
-		// Create filled record and insert in the middle
-		record = new PactRecord(this.origVal1, this.origVal3);
-		record.insertField(1, this.origVal2);
+//	@Test
+//	public void testRemoveField() {		
+//		PactRecord record = null;
+//		int oldLen = 0;
+//
+//		// Create filled record and remove field from the middle
+//		record = new PactRecord(this.origVal1, this.origVal2);
+//		record.addField(this.origVal3);
+//		record.removeField(1);
+//
+//		assertTrue(record.getNumFields() == 2);
+//
+//		PactString recVal1 = record.getField(0, PactString.class);
+//		PactInteger recVal2 = record.getField(1, PactInteger.class);
+//
+//		assertTrue(recVal1.getValue().equals(this.origVal1.getValue()));
+//		assertTrue(recVal2.getValue() == this.origVal3.getValue());
+//
+//		record = this.generateFilledDenseRecord(100);
+//
+//		// Remove field from the first position of the record
+//		oldLen = record.getNumFields();
+//		record.removeField(0);
+//		assertTrue(record.getNumFields() == oldLen - 1);
+//
+//		// Remove field from the end of the record
+//		oldLen = record.getNumFields();
+//		record.removeField(oldLen - 1);
+//		assertTrue(record.getNumFields() == oldLen - 1);
+//
+//		// Insert several random fields into the record
+//		record = this.generateFilledDenseRecord(100);
+//
+//		for (int i = 0; i < 100; i++) {
+//			oldLen = record.getNumFields();
+//			int pos = rand.nextInt(record.getNumFields());
+//			record.removeField(pos);
+//			assertTrue(record.getNumFields() == oldLen - 1);
+//		}
+//	}
 
-		assertTrue(record.getNumFields() == 3);
+//	@Test
+//	public void testProjectLong() {		
+//		PactRecord record = new PactRecord();
+//		long mask = 0;
+//
+//		record.addField(this.origVal1);
+//		record.addField(this.origVal2);
+//		record.addField(this.origVal3);
+//
+//		// Keep all fields
+//		mask = 7L;
+//		record.project(mask);
+//		assertTrue(record.getNumFields() == 3);
+//		assertTrue(this.origVal1.getValue().equals(record.getField(0, PactString.class).getValue()));
+//		assertTrue(this.origVal2.getValue() == record.getField(1, PactDouble.class).getValue());
+//		assertTrue(this.origVal3.getValue() == record.getField(2, PactInteger.class).getValue());
+//
+//		// Keep the first and the last field
+//		mask = 5L; // Keep the first and the third/ last column
+//		record.project(mask);
+//		assertTrue(record.getNumFields() == 2);
+//		assertTrue(this.origVal1.getValue().equals(record.getField(0, PactString.class).getValue()));
+//		assertTrue(this.origVal3.getValue() == record.getField(1, PactInteger.class).getValue());
+//
+//		// Keep no fields
+//		mask = 0L;
+//		record.project(mask);
+//		assertTrue(record.getNumFields() == 0);
+//
+//		// Keep random fields
+//		record = this.generateFilledDenseRecord(64);
+//		mask = this.generateRandomBitmask(64);
+//
+//		record.project(mask);
+//		assertTrue(record.getNumFields() == Long.bitCount(mask));
+//	}
 
-		PactString recVal1 = record.getField(0, PactString.class);
-		PactDouble recVal2 = record.getField(1, PactDouble.class);
-		PactInteger recVal3 = record.getField(2, PactInteger.class);
-
-		assertTrue(recVal1.getValue().equals(this.origVal1.getValue()));
-		assertTrue(recVal2.getValue() == this.origVal2.getValue());
-		assertTrue(recVal3.getValue() == this.origVal3.getValue());
-
-		record = this.generateFilledDenseRecord(100);
-
-		// Insert field at the first position of the record
-		oldLen = record.getNumFields();
-		record.insertField(0, this.origVal1);
-		assertTrue(record.getNumFields() == oldLen + 1);
-		assertTrue(this.origVal1.equals(record.getField(0, PactString.class)));
-
-		// Insert field at the end of the record
-		oldLen = record.getNumFields();
-		record.insertField(oldLen, this.origVal2);
-		assertTrue(record.getNumFields() == oldLen + 1);
-		assertTrue(this.origVal2 == record.getField(oldLen, PactDouble.class));
-
-		// Insert several random fields into the record
-		for (int i = 0; i < 100; i++) {
-			int pos = rand.nextInt(record.getNumFields());
-			PactInteger val = new PactInteger(rand.nextInt());
-			record.insertField(pos, val);
-			assertTrue(val.getValue() == record.getField(pos, PactInteger.class).getValue());
-		}
-	}
-
-	@Test
-	public void testRemoveField() {		
-		PactRecord record = null;
-		int oldLen = 0;
-
-		// Create filled record and remove field from the middle
-		record = new PactRecord(this.origVal1, this.origVal2);
-		record.addField(this.origVal3);
-		record.removeField(1);
-
-		assertTrue(record.getNumFields() == 2);
-
-		PactString recVal1 = record.getField(0, PactString.class);
-		PactInteger recVal2 = record.getField(1, PactInteger.class);
-
-		assertTrue(recVal1.getValue().equals(this.origVal1.getValue()));
-		assertTrue(recVal2.getValue() == this.origVal3.getValue());
-
-		record = this.generateFilledDenseRecord(100);
-
-		// Remove field from the first position of the record
-		oldLen = record.getNumFields();
-		record.removeField(0);
-		assertTrue(record.getNumFields() == oldLen - 1);
-
-		// Remove field from the end of the record
-		oldLen = record.getNumFields();
-		record.removeField(oldLen - 1);
-		assertTrue(record.getNumFields() == oldLen - 1);
-
-		// Insert several random fields into the record
-		record = this.generateFilledDenseRecord(100);
-
-		for (int i = 0; i < 100; i++) {
-			oldLen = record.getNumFields();
-			int pos = rand.nextInt(record.getNumFields());
-			record.removeField(pos);
-			assertTrue(record.getNumFields() == oldLen - 1);
-		}
-	}
-
-	@Test
-	public void testProjectLong() {		
-		PactRecord record = new PactRecord();
-		long mask = 0;
-
-		record.addField(this.origVal1);
-		record.addField(this.origVal2);
-		record.addField(this.origVal3);
-
-		// Keep all fields
-		mask = 7L;
-		record.project(mask);
-		assertTrue(record.getNumFields() == 3);
-		assertTrue(this.origVal1.getValue().equals(record.getField(0, PactString.class).getValue()));
-		assertTrue(this.origVal2.getValue() == record.getField(1, PactDouble.class).getValue());
-		assertTrue(this.origVal3.getValue() == record.getField(2, PactInteger.class).getValue());
-
-		// Keep the first and the last field
-		mask = 5L; // Keep the first and the third/ last column
-		record.project(mask);
-		assertTrue(record.getNumFields() == 2);
-		assertTrue(this.origVal1.getValue().equals(record.getField(0, PactString.class).getValue()));
-		assertTrue(this.origVal3.getValue() == record.getField(1, PactInteger.class).getValue());
-
-		// Keep no fields
-		mask = 0L;
-		record.project(mask);
-		assertTrue(record.getNumFields() == 0);
-
-		// Keep random fields
-		record = this.generateFilledDenseRecord(64);
-		mask = this.generateRandomBitmask(64);
-
-		record.project(mask);
-		assertTrue(record.getNumFields() == Long.bitCount(mask));
-	}
-
-	@Test
-	public void testProjectLongArray() {
-		PactRecord record = this.generateFilledDenseRecord(256);
-		long[] mask = {1L, 1L, 1L, 1L};
-
-		record.project(mask);
-		assertTrue(record.getNumFields() == 4);
-
-		record = this.generateFilledDenseRecord(612);
-		mask = new long[10];
-		int numBits = 0;
-
-		for (int i = 0; i < mask.length; i++) {
-			int offset = i * Long.SIZE;
-			int numFields = ((offset + Long.SIZE) < record.getNumFields()) ? Long.SIZE : record.getNumFields() - offset;
-			mask[i] = this.generateRandomBitmask(numFields);
-			numBits += Long.bitCount(mask[i]);
-		}
-
-		record.project(mask);
-		assertTrue(record.getNumFields() == numBits);
-	}
+//	@Test
+//	public void testProjectLongArray() {
+//		PactRecord record = this.generateFilledDenseRecord(256);
+//		long[] mask = {1L, 1L, 1L, 1L};
+//
+//		record.project(mask);
+//		assertTrue(record.getNumFields() == 4);
+//
+//		record = this.generateFilledDenseRecord(612);
+//		mask = new long[10];
+//		int numBits = 0;
+//
+//		for (int i = 0; i < mask.length; i++) {
+//			int offset = i * Long.SIZE;
+//			int numFields = ((offset + Long.SIZE) < record.getNumFields()) ? Long.SIZE : record.getNumFields() - offset;
+//			mask[i] = this.generateRandomBitmask(numFields);
+//			numBits += Long.bitCount(mask[i]);
+//		}
+//
+//		record.project(mask);
+//		assertTrue(record.getNumFields() == numBits);
+//	}
 
 	@Test
 	public void testSetNullInt() {
@@ -281,41 +281,80 @@ public class PactRecordTest {
 //	@Test
 //	public void testUnion() {
 //	}
-
+	
 	@Test
 	public void testUpdateBinaryRepresentations() {
 		// TODO: this is not an extensive test of updateBinaryRepresentation()
 		// and should be extended!
-		
+
 		PactRecord r = new PactRecord();
-		
+
 		PactInteger i1 = new PactInteger(1);
 		PactInteger i2 = new PactInteger(2);
 
-		try {		
+		try {
 			r.setField(1, i1);
 			r.setField(3, i2);
-			
+
 			r.setNumFields(5);
-			
+
 			r.updateBinaryRepresenation();
-			
+
 			i1 = new PactInteger(3);
 			i2 = new PactInteger(4);
-			
+
 			r.setField(7, i1);
 			r.setField(8, i2);
-			
+
 			r.updateBinaryRepresenation();
-	
+
 			assertTrue(r.getField(1, PactInteger.class).getValue() == 1);
 			assertTrue(r.getField(3, PactInteger.class).getValue() == 2);
 			assertTrue(r.getField(7, PactInteger.class).getValue() == 3);
 			assertTrue(r.getField(8, PactInteger.class).getValue() == 4);
-		} catch(RuntimeException re) {
+		} catch (RuntimeException re) {
 			fail("Error updating binary representation: " + re.getMessage());
 		}
 
+		// Tests an update where modified and unmodified fields are interleaved
+		r = new PactRecord();
+
+		for (int i = 0; i < 8; i++) {
+			r.setField(i, new PactInteger(i));
+		}
+
+		try {
+			// serialize and deserialize to remove all buffered info
+			r.write(out);
+			r = new PactRecord();
+			r.read(in);
+
+			r.setField(1, new PactInteger(10));
+			r.setField(4, new PactString("Some long value"));
+			r.setField(5, new PactString("An even longer value"));
+			r.setField(10, new PactInteger(10));
+
+			r.write(out);
+			r = new PactRecord();
+			r.read(in);
+
+			assertTrue(r.getField(0, PactInteger.class).getValue() == 0);
+			assertTrue(r.getField(1, PactInteger.class).getValue() == 10);
+			assertTrue(r.getField(2, PactInteger.class).getValue() == 2);
+			assertTrue(r.getField(3, PactInteger.class).getValue() == 3);
+			assertTrue(r.getField(4, PactString.class).getValue().equals("Some long value"));
+			assertTrue(r.getField(5, PactString.class).getValue().equals("An even longer value"));
+			assertTrue(r.getField(6, PactInteger.class).getValue() == 6);
+			assertTrue(r.getField(7, PactInteger.class).getValue() == 7);
+			assertTrue(r.getField(8, PactInteger.class) == null);
+			assertTrue(r.getField(9, PactInteger.class) == null);
+			assertTrue(r.getField(10, PactInteger.class).getValue() == 10);
+
+		} catch (RuntimeException re) {
+			fail("Error updating binary representation: " + re.getMessage());
+		} catch (IOException e) {
+			fail("Error updating binary representation: " + e.getMessage());
+		}
 	}
 	
 	@Test
