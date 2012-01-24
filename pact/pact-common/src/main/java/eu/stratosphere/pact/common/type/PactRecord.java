@@ -691,7 +691,7 @@ public final class PactRecord implements Value
 	public void updateBinaryRepresenation()
 	{
 		// check whether the binary state is in sync
-		final int firstModified = this.firstModifiedPos;
+		final int firstModified = this.firstModifiedPos < 0 ? 0 : this.firstModifiedPos;
 		if (firstModified == Integer.MAX_VALUE)
 			return;
 		
