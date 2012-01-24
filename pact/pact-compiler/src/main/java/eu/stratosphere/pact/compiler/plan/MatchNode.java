@@ -170,9 +170,9 @@ public class MatchNode extends TwoInputNode {
 		// first, get all incoming interesting properties and see, how they can be propagated to the
 		// children, depending on the output contract.
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props1 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+		List<InterestingProperties> props1 = InterestingProperties.filterByNodesConstantSet(thisNodesIntProps,
 			this, 0);
-		List<InterestingProperties> props2 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+		List<InterestingProperties> props2 = InterestingProperties.filterByNodesConstantSet(thisNodesIntProps,
 				this, 1);
 		
 

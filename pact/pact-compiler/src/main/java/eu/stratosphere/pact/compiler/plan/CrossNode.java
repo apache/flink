@@ -256,9 +256,9 @@ public class CrossNode extends TwoInputNode {
 		// if so, propagate to the child.
 		
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props1 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+		List<InterestingProperties> props1 = InterestingProperties.filterByNodesConstantSet(thisNodesIntProps,
 			this, 0);
-		List<InterestingProperties> props2 = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+		List<InterestingProperties> props2 = InterestingProperties.filterByNodesConstantSet(thisNodesIntProps,
 				this, 1);
 	
 		for(PactConnection c : this.input1) {

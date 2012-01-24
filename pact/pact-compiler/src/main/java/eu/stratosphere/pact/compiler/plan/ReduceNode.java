@@ -188,7 +188,7 @@ public class ReduceNode extends SingleInputNode {
 		// check, if there is an output contract that tells us that certain properties are preserved.
 		// if so, propagate to the child.
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+		List<InterestingProperties> props = InterestingProperties.filterByNodesConstantSet(thisNodesIntProps,
 			this, 0);
 
 		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));

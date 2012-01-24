@@ -309,7 +309,7 @@ public class InterestingProperties implements Cloneable {
 //	}
 	
 	
-	public static final List<InterestingProperties> filterByConstantSet(List<InterestingProperties> props,
+	public static final List<InterestingProperties> filterByNodesConstantSet(List<InterestingProperties> props,
 			OptimizerNode node, int input) {
 		List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
 		
