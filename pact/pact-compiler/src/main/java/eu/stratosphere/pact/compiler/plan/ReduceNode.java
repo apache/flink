@@ -198,6 +198,9 @@ public class ReduceNode extends SingleInputNode {
 		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields);
 		ip1.getLocalProperties().setGrouped(true, keyFields);
 		
+		ip1.getMaximalCosts().setNetworkCost(0);
+		ip1.getMaximalCosts().setSecondaryStorageCost(0);
+		
 		for(PactConnection c : this.input) {
 			Costs cost = new Costs();
 			estimator.getHashPartitioningCost(c, cost);
@@ -210,6 +213,9 @@ public class ReduceNode extends SingleInputNode {
 		// add the second interesting properties: partitioned only
 		InterestingProperties ip2 = new InterestingProperties();
 		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields);
+		
+		ip2.getMaximalCosts().setNetworkCost(0);
+		ip2.getMaximalCosts().setSecondaryStorageCost(0);
 		
 		for(PactConnection c : this.input) {
 			Costs cost = new Costs();

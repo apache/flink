@@ -48,8 +48,8 @@ public class InterestingProperties implements Cloneable {
 	 * properties and a maximal cost of infinite.
 	 */
 	public InterestingProperties() {
-		// instantiate the maximal costs to 0
-		this.maximalCosts = new Costs(0, 0);
+		// instantiate the maximal costs to the possible maximum
+		this.maximalCosts = new Costs(Long.MAX_VALUE, Long.MAX_VALUE);
 
 		this.globalProps = new GlobalProperties();
 		this.localProps = new LocalProperties();
