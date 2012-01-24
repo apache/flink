@@ -190,7 +190,7 @@ public final class LocalProperties implements Cloneable {
 		}
 		
 		
-		return isTrivial();
+		return !isTrivial();
 		
 	}
 
