@@ -713,14 +713,14 @@ public final class PactRecord implements Value
 			}
 			
 			serializer.memory = this.switchBuffer != null ? this.switchBuffer : new byte[numFields * 8];
-			serializer.position = offset;
+			serializer.position = 0;
 			
 			// we assume that changed and unchanged fields are interleaved and serialize into another array
-			if (offset > 0) {
-				// copy the first unchanged portion as one
-				System.arraycopy(this.binaryData, 0, serializer.memory, 0, offset);
-			}
 			try {
+				if (offset > 0) {
+					// copy the first unchanged portion as one
+					serializer.write(this.binaryData, 0, offset);
+				}
 				// copy field by field
 				for (int i = firstModified; i < numFields; i++) {
 					final int co = offsets[i];
