@@ -38,6 +38,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -402,7 +403,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * @param allocatedResource
 	 *        the allocated resource to check the assignment for
 	 */
-	public void checkAndReleaseAllocatedResource(ExecutionGraph executionGraph, AllocatedResource allocatedResource) {
+	public void checkAndReleaseAllocatedResource(final ExecutionGraph executionGraph,
+			final AllocatedResource allocatedResource) {
 
 		if (allocatedResource == null) {
 			LOG.error("Resource to lock is null!");
@@ -420,8 +422,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 			return;
 		}
 
-		boolean instanceCanBeReleased = true;
-		final Iterator<ExecutionVertex> it = assignedVertices.iterator();
+		boolean resourceCanBeReleased = true;
+		Iterator<ExecutionVertex> it = assignedVertices.iterator();
 		while (it.hasNext()) {
 			final ExecutionVertex vertex = it.next();
 			final ExecutionState state = vertex.getExecutionState();
@@ -429,12 +431,26 @@ public abstract class AbstractScheduler implements InstanceListener {
 			if (state != ExecutionState.CREATED && state != ExecutionState.FINISHED
 					&& state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
 
-				instanceCanBeReleased = false;
+				resourceCanBeReleased = false;
 				break;
 			}
 		}
 
-		if (instanceCanBeReleased) {
+		if (resourceCanBeReleased) {
+
+			final DummyInstance dummyInstance = DummyInstance.createDummyInstance(allocatedResource.getInstance()
+				.getType());
+			final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
+				allocatedResource.getInstanceType(), new AllocationID());
+
+			// Assign vertices back to a dummy resource in case we need the resource information once more for another
+			// execution.
+			it = assignedVertices.iterator();
+			while (it.hasNext()) {
+				final ExecutionVertex vertex = it.next();
+				vertex.setAllocatedResource(dummyResource);
+			}
+
 			LOG.info("Releasing instance " + allocatedResource.getInstance());
 			try {
 				getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph

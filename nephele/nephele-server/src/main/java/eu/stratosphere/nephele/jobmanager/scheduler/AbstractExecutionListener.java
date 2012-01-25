@@ -91,11 +91,11 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 			this.scheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
 		}
 
-		// In case of an error, check if vertex can be rescheduled
+		// In case of an error, check if the vertex shall be recovered
 		if (newExecutionState == ExecutionState.FAILED) {
-			if (this.executionVertex.hasRetriesLeft()) {
-				// Reschedule vertex
-				this.executionVertex.updateExecutionState(ExecutionState.SCHEDULED);
+			if (this.executionVertex.decrementRetriesLeftAndCheck()) {
+
+				RecoveryLogic.recover(this.executionVertex, this.scheduler.getVerticesToBeRestarted());
 			}
 		}
 
@@ -215,13 +215,13 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		 * }
 		 */
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public int getPriority() {
-		
+
 		return 0;
 	}
 }
