@@ -159,6 +159,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @param jobConfiguration
 	 * @throws IOException
 	 */
+	@Deprecated
 	void restartTask(ExecutionVertexID executionVertexID, Configuration jobConfiguration, Environment environment,
 			Set<ChannelID> activeOutputChannels) throws IOException;
 }
