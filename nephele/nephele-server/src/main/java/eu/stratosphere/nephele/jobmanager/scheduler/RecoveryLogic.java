@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.util.SerializableArrayList;
@@ -112,7 +113,11 @@ public final class RecoveryLogic {
 		}
 
 		// Restart failed vertex
-		failedVertex.updateExecutionState(ExecutionState.SCHEDULED);
+		if (failedVertex.getAllocatedResource().getInstance() instanceof DummyInstance) {
+			failedVertex.updateExecutionState(ExecutionState.CREATED);
+		} else {
+			failedVertex.updateExecutionState(ExecutionState.ASSIGNED);
+		}
 
 		return true;
 	}
