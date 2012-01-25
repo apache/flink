@@ -27,6 +27,15 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 public interface ExecutionListener {
 
 	/**
+	 * Returns the priority of the execution listener object. If multiple execution listener objects are registered for
+	 * a given vertex, the priority determines in which order they will be called. Priorities are expressed as
+	 * non-negative integer values. The lower the integer value, the higher the call priority.
+	 * 
+	 * @return the priority of this execution listener
+	 */
+	int getPriority();
+
+	/**
 	 * Called when the execution state of the associated task has changed.
 	 * 
 	 * @param jobID

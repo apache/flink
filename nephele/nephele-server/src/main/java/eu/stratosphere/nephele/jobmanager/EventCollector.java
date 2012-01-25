@@ -170,6 +170,15 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			// Nothing to do here
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public int getPriority() {
+
+			return 20;
+		}
+
 	}
 
 	/**

@@ -17,6 +17,8 @@ package eu.stratosphere.nephele.executiongraph;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -112,10 +114,9 @@ public final class ExecutionVertex {
 	private final CopyOnWriteArrayList<CheckpointStateListener> checkpointStateListeners = new CopyOnWriteArrayList<CheckpointStateListener>();
 
 	/**
-	 * A list of {@link ExecutionListener} objects to be notified about state changes of the vertex's
-	 * checkpoint.
+	 * A map of {@link ExecutionListener} objects to be notified about the state changes of a vertex.
 	 */
-	private final CopyOnWriteArrayList<ExecutionListener> executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
+	private final ConcurrentMap<Integer, ExecutionListener> executionListeners = new ConcurrentSkipListMap<Integer, ExecutionListener>();
 
 	/**
 	 * The current execution state of the task represented by this vertex
@@ -310,7 +311,7 @@ public final class ExecutionVertex {
 		}
 
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
 				optionalMessage);
@@ -335,7 +336,7 @@ public final class ExecutionVertex {
 			this.retries--;
 		}
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, update,
 				null);
@@ -366,7 +367,7 @@ public final class ExecutionVertex {
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID,
 				resourceUtilizationSnapshot);
@@ -613,7 +614,7 @@ public final class ExecutionVertex {
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
-		
+
 		try {
 			return this.allocatedResource.getInstance().killTask(this.vertexID);
 		} catch (IOException e) {
@@ -759,7 +760,19 @@ public final class ExecutionVertex {
 	 */
 	public void registerExecutionListener(final ExecutionListener executionListener) {
 
-		this.executionListeners.addIfAbsent(executionListener);
+		final Integer priority = Integer.valueOf(executionListener.getPriority());
+
+		if (priority.intValue() < 0) {
+			LOG.error("Priority for execution listener " + executionListener.getClass() + " must be non-negative.");
+			return;
+		}
+
+		final ExecutionListener previousValue = this.executionListeners.putIfAbsent(priority, executionListener);
+
+		if (previousValue != null) {
+			LOG.error("Cannot register " + executionListener.getClass() + " as an execution listener. Priority "
+				+ priority.intValue() + " is already taken.");
+		}
 	}
 
 	/**

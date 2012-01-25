@@ -215,4 +215,13 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		 * }
 		 */
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getPriority() {
+		
+		return 0;
+	}
 }

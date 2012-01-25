@@ -1534,4 +1534,13 @@ public class ExecutionGraph implements ExecutionListener {
 
 		return this.stages.iterator();
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getPriority() {
+
+		return 1;
+	}
 }
