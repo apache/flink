@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -90,6 +91,11 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * Stores whether task merging is allowed.
 	 */
 	private final boolean allowTaskMerging;
+
+	/**
+	 * Stores the vertices to be restarted once they have switched to the <code>CANCELED</code> state.
+	 */
+	private final Map<ExecutionVertexID, ExecutionVertex> verticesToBeRestarted = new ConcurrentHashMap<ExecutionVertexID, ExecutionVertex>();
 
 	/**
 	 * Constructs a new abstract scheduler.
@@ -473,11 +479,21 @@ public abstract class AbstractScheduler implements InstanceListener {
 	}
 
 	/**
+	 * Returns a map of vertices to be restarted once they have switched to their <code>CANCELED</code> state.
+	 * 
+	 * @return the map of vertices to be restarted
+	 */
+	Map<ExecutionVertexID, ExecutionVertex> getVerticesToBeRestarted() {
+
+		return this.verticesToBeRestarted;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
-		
-		//TODO: Don't forget to synchronize on stage here
+
+		// TODO: Don't forget to synchronize on stage here
 	}
 }

@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -124,14 +125,14 @@ public final class ExecutionVertex {
 	private final AtomicEnum<ExecutionState> executionState = new AtomicEnum<ExecutionState>(ExecutionState.CREATED);
 
 	/**
-	 * The current checkpoint state of this vertex.
+	 * Stores the number of times the vertex may be still be started before the corresponding task is considered to be
+	 * failed.
 	 */
+	private final AtomicInteger retriesLeft;
 
 	/**
-	 * Number of times this vertex may be restarted
+	 * The current checkpoint state of this vertex.
 	 */
-	private int retries = 3; // TODO make this configurable
-
 	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(CheckpointState.NONE);
 
 	/**
@@ -191,6 +192,8 @@ public final class ExecutionVertex {
 		this.executionGraph = executionGraph;
 		this.groupVertex = groupVertex;
 		this.environment = environment;
+
+		this.retriesLeft = new AtomicInteger(2); // TODO: Make this configurable
 
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
@@ -331,10 +334,6 @@ public final class ExecutionVertex {
 			return false;
 		}
 
-		// TODO: Improve thread-safety here
-		if (this.executionState.get() == ExecutionState.FAILED) {
-			this.retries--;
-		}
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
@@ -696,11 +695,23 @@ public final class ExecutionVertex {
 	 * 
 	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
 	 */
+	@Deprecated
 	public boolean hasRetriesLeft() {
-		if (this.retries < 0) {
+		if (this.retriesLeft.get() <= 0) {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Decrements the number of retries left and checks whether another attempt to run the task is possible.
+	 * 
+	 * @return <code>true</code>if the task represented by this vertex can be started at least once more,
+	 *         <code>false/<code> otherwise
+	 */
+	public boolean decrementRetriesLeftAndCheck() {
+
+		return (this.retriesLeft.decrementAndGet() > 0);
 	}
 
 	/**
