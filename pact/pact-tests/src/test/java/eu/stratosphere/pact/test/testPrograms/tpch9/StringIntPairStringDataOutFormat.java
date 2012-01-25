@@ -16,16 +16,34 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import eu.stratosphere.pact.common.io.TextOutputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import java.io.IOException;
+
+import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
 
-public class StringIntPairStringDataOutFormat extends TextOutputFormat<StringIntPair, PactString> {
+public class StringIntPairStringDataOutFormat extends FileOutputFormat {
 
+	private final StringBuilder buffer = new StringBuilder();
+	private StringIntPair key = new StringIntPair();
+	private PactString value = new PactString();
+	
 	@Override
-	public byte[] writeLine(KeyValuePair<StringIntPair, PactString> pair) {
-		StringIntPair key = pair.getKey();
-		return (key.getFirst().toString() + "|" + key.getSecond().toString() + "|" + pair.getValue().toString() + "\n").getBytes();
+	public void writeRecord(PactRecord record) throws IOException {
+		key = record.getField(0, key);
+		value = record.getField(1, value);
+		
+		this.buffer.setLength(0);
+		this.buffer.append(key.getFirst().toString());
+		this.buffer.append('|');
+		this.buffer.append(key.getSecond().toString());
+		this.buffer.append('|');
+		this.buffer.append(value.toString());
+		this.buffer.append('\n');
+		
+		byte[] bytes = this.buffer.toString().getBytes();
+		
+		this.stream.write(bytes);
 	}
 
 }

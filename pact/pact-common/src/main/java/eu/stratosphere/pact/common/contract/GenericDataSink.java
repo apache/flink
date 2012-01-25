@@ -15,28 +15,26 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
 /**
  * Contract for nodes which act as data sinks, storing the data they receive somewhere instead of sending it to another
  * contract. The way the data is stored is handled by the {@link OutputFormat}.
  * 
- * @see OutputFormat;
- * 
- * @param T The type of output format invoked by instances of this data source.
  */
-public class GenericDataSink<KT extends Key, VT extends Value> extends Contract 
+public class GenericDataSink extends Contract 
 {
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Sink>";
 
 	// --------------------------------------------------------------------------------------------
 	
-	protected final Class<? extends OutputFormat<KT, VT>> clazz;
+	protected final Class<? extends OutputFormat> clazz;
 
-	private Contract input;
+	private List<Contract> input = new ArrayList<Contract>();
 
 	private Order globalOrder = Order.NONE;
 
@@ -50,7 +48,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * 
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c) {
+	public GenericDataSink(Class<? extends OutputFormat> c) {
 		this(c, DEFAULT_NAME);
 	}
 	
@@ -61,7 +59,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c, String name) {
+	public GenericDataSink(Class<? extends OutputFormat> c, String name) {
 		super(name);
 		this.clazz = c;
 	}
@@ -73,10 +71,21 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c, Contract input) {
+	public GenericDataSink(Class<? extends OutputFormat> c, Contract input) {
 		this(c, input, DEFAULT_NAME);
 	}
 	
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param input The contracts to use as the input.
+	 */
+	public GenericDataSink(Class<? extends OutputFormat> c, List<Contract> input) {
+		this(c, input, DEFAULT_NAME);
+	}
+
 	/**
 	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
 	 * It uses the given contract as its input.
@@ -85,9 +94,22 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat<KT, VT>> c, Contract input, String name) {
+	public GenericDataSink(Class<? extends OutputFormat> c, Contract input, String name) {
 		this(c, name);
-		setInput(input);
+		addInput(input);
+	}
+
+	/**
+	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
+	 * It uses the given contracts as its input.
+	 * 
+	 * @param c The {@link OutputFormat} implementation used to sink the data.
+	 * @param input The contracts to use as the input.
+	 * @param name The given name for the sink, used in plans, logs and progress messages.
+	 */
+	public GenericDataSink(Class<? extends OutputFormat> c, List<Contract> input, String name) {
+		this(c, name);
+		addInputs(input);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -97,8 +119,8 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * 
 	 * @return the contract's input contract.
 	 */
-	public Contract getInput() {
-		return input;
+	public List<Contract> getInputs() {
+		return this.input;
 	}
 
 	/**
@@ -106,10 +128,41 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * 
 	 * @param input the contract's input contract
 	 */
-	public void setInput(Contract input) {
-		this.input = input;
+	public void addInput(Contract input) {
+		this.input.add(input);
 	}
 
+	/**
+	 * Connects the inputs to the task wrapped in this contract
+	 * 
+	 * @param input The contracts will be set as input.
+	 */
+	public void addInputs(List<Contract> inputs) {
+		this.input.addAll(inputs);
+	}
+
+	/**
+	 * Clears all previous connections and sets the given contract as
+	 * single input of this contract.
+	 * 
+	 * @param input		The contract will be set as input.
+	 */
+	public void setInput(Contract input) {
+		this.input.clear();
+		this.input.add(input);
+	}
+	
+	/**
+	 * Clears all previous connections and sets the given contracts as
+	 * inputs of this contract.
+	 * 
+	 * @param input		The contracts will be set as inputs.
+	 */
+	public void setInputs(List<Contract> inputs) {
+		this.input.clear();
+		this.input.addAll(inputs);
+	}
+	
 	/**
 	 * Gets the order, in which the data sink writes its data globally. By default, this is <tt>NONE</tt>.
 	 * 
@@ -117,7 +170,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 *         if the sink writes it data with a globally ascending (resp. descending) order.
 	 */
 	public Order getGlobalOrder() {
-		return globalOrder;
+		return this.globalOrder;
 	}
 	
 	/**
@@ -140,7 +193,7 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 *         if the sink writes it data with a local ascending (resp. descending) order.
 	 */
 	public Order getLocalOrder() {
-		return localOrder;
+		return this.localOrder;
 	}
 	
 	/**
@@ -159,22 +212,22 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	 * 
 	 * @return The output format class.
 	 */
-	public Class<? extends OutputFormat<KT, VT>> getFormatClass()
+	public Class<? extends OutputFormat> getFormatClass()
 	{
-		return clazz;
+		return this.clazz;
 	}
 	
 	/**
-	 * Gets the class describing the input format.
+	 * Gets the class describing the output format.
 	 * <p>
 	 * This method is basically identical to {@link #getFormatClass()}.
 	 * 
-	 * @return The class describing the input format.
+	 * @return The class describing the output format.
 	 * 
 	 * @see eu.stratosphere.pact.common.contract.Contract#getUserCodeClass()
 	 */
 	@Override
-	public Class<?> getUserCodeClass()
+	public Class<? extends OutputFormat> getUserCodeClass()
 	{
 		return this.clazz;
 	}
@@ -196,10 +249,20 @@ public class GenericDataSink<KT extends Key, VT extends Value> extends Contract
 	{
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
-			if (input != null) {
-				input.accept(visitor);
+			for(Contract c : this.input) {
+				c.accept(visitor);
 			}
 			visitor.postVisit(this);
 		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return this.name;
 	}
 }

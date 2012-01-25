@@ -1,7 +1,0 @@
-testudf = javaudf("eu.stratosphere.simple.jaql.ExpressionTest.udfTest");
-
-$input = read 'input.json';
-
-$result = project $input into { squared: testudf($input) };
-
-write $result to 'output.json'; 

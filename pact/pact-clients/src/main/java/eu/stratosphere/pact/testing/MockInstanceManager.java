@@ -15,11 +15,13 @@
 
 package eu.stratosphere.pact.testing;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
@@ -27,6 +29,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
@@ -101,17 +104,6 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public void requestInstance(final JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
-			List<String> splitAffinityList) throws InstanceException {
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				MockInstanceManager.this.instanceListener.resourceAllocated(jobID, MockInstanceManager.this.allocatedResource);
-			}
-		}).start();
-	}
-
-	@Override
 	public void setInstanceListener(final InstanceListener instanceListener) {
 		this.instanceListener = instanceListener;
 	}
@@ -123,6 +115,50 @@ class MockInstanceManager implements InstanceManager {
 	@Override
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 		return TYPE_DESCRIPTIONS;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.instance.InstanceManager#requestInstance(eu.stratosphere.nephele.jobgraph.JobID,
+	 * eu.stratosphere.nephele.configuration.Configuration, eu.stratosphere.nephele.instance.InstanceRequestMap,
+	 * java.util.List)
+	 */
+	@Override
+	public void requestInstance(final JobID jobID, Configuration conf, InstanceRequestMap instanceRequestMap,
+			List<String> splitAffinityList) throws InstanceException {
+
+		final InstanceListener il = this.instanceListener;
+
+		final Runnable runnable = new Runnable() {
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void run() {
+				il.resourcesAllocated(jobID, Arrays.asList(MockInstanceManager.this.allocatedResource));
+			}
+		};
+
+		ConcurrentUtil.invokeLater(runnable);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.instance.InstanceManager#getInstanceByName(java.lang.String)
+	 */
+	@Override
+	public AbstractInstance getInstanceByName(String name) {
+		return this.allocatedResource.getInstance();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.nephele.instance.InstanceManager#cancelPendingRequests(eu.stratosphere.nephele.jobgraph.JobID)
+	 */
+	@Override
+	public void cancelPendingRequests(JobID jobID) {
 	}
 
 }

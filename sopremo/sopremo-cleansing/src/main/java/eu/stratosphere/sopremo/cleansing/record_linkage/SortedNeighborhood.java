@@ -4,10 +4,14 @@ import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 public class SortedNeighborhood extends MultiPassPartitioning {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6014392203571189742L;
 
 	public SortedNeighborhood(final EvaluationExpression partitionKey) {
 		super(partitionKey);
@@ -19,14 +23,14 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 
 	@Override
 	protected Operator<?> createSinglePassInterSource(EvaluationExpression[] partitionKeys,
-			ComparativeExpression similarityCondition, RecordLinkageInput input1, RecordLinkageInput input2) {
-		return new SinglePassInterSource(partitionKeys, similarityCondition).withInputs(input1, input2);
+			EvaluationExpression duplicateCondition, RecordLinkageInput input1, RecordLinkageInput input2) {
+		return new SinglePassInterSource(partitionKeys, duplicateCondition).withInputs(input1, input2);
 	}
 
 	@Override
 	protected Operator<?> createSinglePassIntraSource(EvaluationExpression partitionKey,
-			ComparativeExpression similarityCondition, RecordLinkageInput input) {
-		return new SinglePassIntraSource(partitionKey, similarityCondition).withInputs(input);
+			EvaluationExpression duplicateCondition, RecordLinkageInput input) {
+		return new SinglePassIntraSource(partitionKey, duplicateCondition).withInputs(input);
 	}
 
 	@InputCardinality(min = 2, max = 2)
@@ -36,13 +40,13 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 		 */
 		private static final long serialVersionUID = 1855028898709562743L;
 
-		private final ComparativeExpression similarityCondition;
+		private final EvaluationExpression duplicateCondition;
 
 		private final EvaluationExpression[] partitionKeys;
 
 		public SinglePassInterSource(final EvaluationExpression[] partitionKeys,
-				final ComparativeExpression similarityCondition) {
-			this.similarityCondition = similarityCondition;
+				final EvaluationExpression duplicateCondition) {
+			this.duplicateCondition = duplicateCondition;
 			this.partitionKeys = partitionKeys;
 		}
 
@@ -67,8 +71,8 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 			return this.partitionKeys;
 		}
 
-		public ComparativeExpression getSimilarityCondition() {
-			return this.similarityCondition;
+		public EvaluationExpression getDuplicateCondition() {
+			return this.duplicateCondition;
 		}
 	}
 
@@ -79,13 +83,13 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 		 */
 		private static final long serialVersionUID = 1107448583115047415L;
 
-		private final ComparativeExpression similarityCondition;
+		private final EvaluationExpression duplicateCondition;
 
 		private final EvaluationExpression partitionKey;
 
 		public SinglePassIntraSource(final EvaluationExpression partitionKey,
-				final ComparativeExpression similarityCondition) {
-			this.similarityCondition = similarityCondition;
+				final EvaluationExpression duplicateCondition) {
+			this.duplicateCondition = duplicateCondition;
 			this.partitionKey = partitionKey;
 		}
 
@@ -103,8 +107,8 @@ public class SortedNeighborhood extends MultiPassPartitioning {
 			return this.partitionKey;
 		}
 
-		public ComparativeExpression getSimilarityCondition() {
-			return this.similarityCondition;
+		public EvaluationExpression getDuplicateCondition() {
+			return this.duplicateCondition;
 		}
 	}
 }

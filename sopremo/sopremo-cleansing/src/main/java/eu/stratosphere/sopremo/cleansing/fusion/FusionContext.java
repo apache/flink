@@ -1,7 +1,8 @@
 package eu.stratosphere.sopremo.cleansing.fusion;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class FusionContext extends EvaluationContext {
 	/**
@@ -9,7 +10,7 @@ public class FusionContext extends EvaluationContext {
 	 */
 	private static final long serialVersionUID = -3830001019910981066L;
 
-	private JsonNode[] contextNodes;
+	private ArrayNode contextNodes;
 
 	private int[] sourceIndexes;
 
@@ -19,7 +20,7 @@ public class FusionContext extends EvaluationContext {
 		super(context);
 	}
 
-	public JsonNode[] getContextNodes() {
+	public ArrayNode getContextNodes() {
 		return this.contextNodes;
 	}
 
@@ -31,11 +32,11 @@ public class FusionContext extends EvaluationContext {
 		return this.weights;
 	}
 
-	public void setContextNodes(final JsonNode[] contextNode) {
-		if (contextNode == null)
+	public void setContextNodes(final JsonNode[] contextNodes) {
+		if (contextNodes == null)
 			throw new NullPointerException("contextNode must not be null");
 
-		this.contextNodes = contextNode;
+		this.contextNodes = new ArrayNode(contextNodes);
 	}
 
 	public void setSourceIndexes(final int[] sourceIndexes) {

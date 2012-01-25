@@ -4,9 +4,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, iterating = true)
 public class ElementInSetExpression extends BooleanExpression {
@@ -63,7 +63,7 @@ public class ElementInSetExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.elementExpr).append(this.quantor == Quantor.EXISTS_NOT_IN ? " \u2209 " : " \u2208 ")
 			.append(this.setExpr);
 	}
@@ -99,37 +99,21 @@ public class ElementInSetExpression extends BooleanExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
-		result = prime * result + (this.elementExpr == null ? 0 : this.elementExpr.hashCode());
-		result = prime * result + (this.quantor == null ? 0 : this.quantor.hashCode());
-		result = prime * result + (this.setExpr == null ? 0 : this.setExpr.hashCode());
+		int result = super.hashCode();
+		result = prime * result +  this.elementExpr.hashCode();
+		result = prime * result +  this.quantor.hashCode();
+		result = prime * result +  this.setExpr.hashCode();
 		return result;
 	}
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
+		if (!super.equals(obj))
 			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-
 		final ElementInSetExpression other = (ElementInSetExpression) obj;
-		if (this.elementExpr == null) {
-			if (other.elementExpr != null)
-				return false;
-		} else if (!this.elementExpr.equals(other.elementExpr))
-			return false;
-		if (this.quantor != other.quantor)
-			return false;
-		if (this.setExpr == null) {
-			if (other.setExpr != null)
-				return false;
-		} else if (!this.setExpr.equals(other.setExpr))
-			return false;
-
-		return true;
+		return this.quantor == other.quantor
+				&& this.elementExpr.equals(other.elementExpr) 
+				&& this.setExpr.equals(other.setExpr);
 	}
 
 }

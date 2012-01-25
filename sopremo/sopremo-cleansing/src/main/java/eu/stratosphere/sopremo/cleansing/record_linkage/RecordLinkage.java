@@ -5,10 +5,10 @@ import java.util.Map;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 
 public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends CompositeOperator<Self> {
 
@@ -17,9 +17,8 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 	 */
 	private static final long serialVersionUID = -4477302065457442491L;
 
-	private EvaluationExpression similarityExpression = new ConstantExpression(1);
-
-	private double threshold = 0;
+	private BooleanExpression duplicateCondition = new ComparativeExpression(new InputSelection(0),
+		BinaryOperator.EQUAL, new InputSelection(1));
 
 	private RecordLinkageAlgorithm algorithm = new Naive();
 
@@ -37,9 +36,9 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 			return false;
 		final RecordLinkage<?> other = (RecordLinkage<?>) obj;
 
-		return this.linkageMode == other.linkageMode && this.threshold == other.threshold &&
-			this.algorithm.equals(other.algorithm) && this.similarityExpression.equals(other.similarityExpression) &&
-			this.recordLinkageInputs.equals(other.recordLinkageInputs);
+		return this.linkageMode == other.linkageMode && this.algorithm.equals(other.algorithm)
+			&& this.duplicateCondition.equals(other.duplicateCondition)
+			&& this.recordLinkageInputs.equals(other.recordLinkageInputs);
 	}
 
 	public RecordLinkageAlgorithm getAlgorithm() {
@@ -50,17 +49,8 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 		return this.linkageMode;
 	}
 
-	protected ComparativeExpression getSimilarityCondition() {
-		return new ComparativeExpression(this.similarityExpression, BinaryOperator.GREATER_EQUAL,
-			new ConstantExpression(this.threshold));
-	}
-
-	public EvaluationExpression getSimilarityExpression() {
-		return this.similarityExpression;
-	}
-
-	public double getThreshold() {
-		return this.threshold;
+	public BooleanExpression getDuplicateCondition() {
+		return this.duplicateCondition;
 	}
 
 	@Override
@@ -69,10 +59,7 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 		int result = super.hashCode();
 		result = prime * result + this.linkageMode.hashCode();
 		result = prime * result + this.algorithm.hashCode();
-		result = prime * result + this.similarityExpression.hashCode();
-		long temp;
-		temp = Double.doubleToLongBits(this.threshold);
-		result = prime * result + (int) (temp ^ temp >>> 32);
+		result = prime * result + this.duplicateCondition.hashCode();
 		result = prime * result + this.recordLinkageInputs.hashCode();
 		return result;
 	}
@@ -84,6 +71,18 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 		this.algorithm = algorithm;
 	}
 
+	public void setDuplicateCondition(BooleanExpression duplicateCondition) {
+		if (duplicateCondition == null)
+			throw new NullPointerException("duplicateCondition must not be null");
+
+		this.duplicateCondition = duplicateCondition;
+	}
+
+	public Self withDuplicateCondition(BooleanExpression duplicateCondition) {
+		this.setDuplicateCondition(duplicateCondition);
+		return this.self();
+	}
+
 	public void setLinkageMode(LinkageMode linkageMode) {
 		if (linkageMode == null)
 			throw new NullPointerException("linkageMode must not be null");
@@ -91,38 +90,14 @@ public abstract class RecordLinkage<Self extends RecordLinkage<Self>> extends Co
 		this.linkageMode = linkageMode;
 	}
 
-	public void setSimilarityExpression(EvaluationExpression similarityExpression) {
-		if (similarityExpression == null)
-			throw new NullPointerException("similarityExpression must not be null");
-
-		this.similarityExpression = similarityExpression;
-	}
-
-	public void setThreshold(double threshold) {
-		if (threshold < 0 || threshold > 1)
-			throw new IllegalArgumentException("threshold must be in [0;1]");
-
-		this.threshold = threshold;
-	}
-
 	public Self withAlgorithm(RecordLinkageAlgorithm algorithm) {
 		this.setAlgorithm(algorithm);
-		return self();
+		return this.self();
 	}
 
 	public Self withLinkageMode(LinkageMode linkageMode) {
 		this.setLinkageMode(linkageMode);
-		return self();
-	}
-
-	public Self withSimilarityExpression(EvaluationExpression evaluationExpression) {
-		this.setSimilarityExpression(evaluationExpression);
-		return self();
-	}
-
-	public Self withThreshold(double threshold) {
-		this.setThreshold(threshold);
-		return self();
+		return this.self();
 	}
 
 	public RecordLinkageInput getRecordLinkageInput(final int index) {

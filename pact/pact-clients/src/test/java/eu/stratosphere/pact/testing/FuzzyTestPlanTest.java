@@ -3,9 +3,9 @@ package eu.stratosphere.pact.testing;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
@@ -20,10 +20,17 @@ public class FuzzyTestPlanTest {
 	 * 
 	 * @author Arvid Heise
 	 */
-	public static class DoubleTruncatingMap extends MapStub<Key, PactDouble, Key, PactDouble> {
+	public static class DoubleTruncatingMap extends MapStub {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord,
+		 * eu.stratosphere.pact.common.stubs.Collector)
+		 */
 		@Override
-		public void map(Key key, PactDouble value, Collector<Key, PactDouble> out) {
-			out.collect(key, new PactDouble((int) (value.getValue() * 100) / 100d));
+		public void map(PactRecord record, Collector out) throws Exception {
+			PactDouble value = record.getField(1, PactDouble.class);
+			value.setValue((int) (value.getValue() * 100) / 100d);
+			out.collect(record);
 		}
 	};
 
@@ -32,13 +39,12 @@ public class FuzzyTestPlanTest {
 	 */
 	@Test
 	public void shouldFailInaccurateDoublesWithoutDelta() {
-		final MapContract<Key, PactDouble, Key, PactDouble> map = new MapContract<Key, PactDouble, Key, PactDouble>(
-			DoubleTruncatingMap.class, "Map");
+		final MapContract map = new MapContract(			DoubleTruncatingMap.class, "Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactDouble(1.2345)).
 			add(new PactInteger(2), new PactDouble(2.3456));
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactDouble.class).
 			add(new PactInteger(1), new PactDouble(1.2345)).
 			add(new PactInteger(2), new PactDouble(2.3456));
 		TestPlanTest.assertTestRunFails(testPlan);
@@ -49,14 +55,13 @@ public class FuzzyTestPlanTest {
 	 */
 	@Test
 	public void shouldMatchInaccurateDoublesWithDelta() {
-		final MapContract<Key, PactDouble, Key, PactDouble> map = new MapContract<Key, PactDouble, Key, PactDouble>(
-			DoubleTruncatingMap.class, "Map");
+		final MapContract map = new MapContract(			DoubleTruncatingMap.class, "Map");
 		TestPlan testPlan = new TestPlan(map);
-		testPlan.setAllowedPactDoubleDelta(0.01);
+		testPlan.setAllowedPactDoubleDelta(0.01, 1);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactDouble(1.2345)).
 			add(new PactInteger(2), new PactDouble(2.3456));
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactDouble.class).
 			add(new PactInteger(1), new PactDouble(1.2345)).
 			add(new PactInteger(2), new PactDouble(2.3456));
 		testPlan.run();
@@ -67,14 +72,13 @@ public class FuzzyTestPlanTest {
 	 */
 	@Test
 	public void shouldMatchInaccurateDoublesWithDeltaAndSameKey() {
-		final MapContract<Key, PactDouble, Key, PactDouble> map = new MapContract<Key, PactDouble, Key, PactDouble>(
-			DoubleTruncatingMap.class, "Map");
+		final MapContract map = new MapContract(DoubleTruncatingMap.class, "Map");
 		TestPlan testPlan = new TestPlan(map);
-		testPlan.setAllowedPactDoubleDelta(0.01);
+		testPlan.setAllowedPactDoubleDelta(0.01, 1);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactDouble(1.2345)).
 			add(new PactInteger(1), new PactDouble(2.3456));
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactDouble.class).
 			add(new PactInteger(1), new PactDouble(1.2345)).
 			add(new PactInteger(1), new PactDouble(2.3456));
 		testPlan.run();

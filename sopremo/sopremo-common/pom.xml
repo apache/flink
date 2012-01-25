@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>sopremo</artifactId>
 		<groupId>eu.stratosphere</groupId>
-        <version>0.1.1</version>
+        <version>0.2</version>
 	</parent>
 
 	<artifactId>sopremo-common</artifactId>
@@ -39,13 +39,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>nl.jqno.equalsverifier</groupId>
-			<artifactId>equalsverifier</artifactId>
-			<version>1.0.1</version>
-			<type>jar</type>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 		    <groupId>it.unimi.dsi</groupId>
 		    <artifactId>fastutil</artifactId>
 		    <version>6.3</version>
@@ -58,9 +51,9 @@
 			<version>2.0</version>
 		</dependency>
 		<dependency>
-			<groupId>commons-beanutils</groupId>
-			<artifactId>commons-beanutils</artifactId>
-			<version>1.8.3</version>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.0.1</version>
 		</dependency>
 	</dependencies>
 

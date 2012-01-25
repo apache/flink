@@ -37,33 +37,29 @@ import org.junit.internal.ArrayComparisonFailure;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.io.TextOutputFormat;
-import eu.stratosphere.pact.common.stub.CoGroupStub;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.CrossStub;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.CrossStub;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactList;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.common.type.base.PactPair;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
-
 
 /**
  * Tests {@link TestPlan}.
@@ -71,60 +67,36 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * @author Arvid Heise
  */
 public class TestPlanTest {
-	/**
-	 * Pair of {@link PactInteger}s.
-	 * 
-	 * @author Arvid Heise
-	 */
-	public static final class IntPair extends PactPair<PactInteger, PactInteger> {
-		/**
-		 * Initializes IntPair.
-		 */
-		public IntPair() {
-		}
-
-		private IntPair(PactInteger first, PactInteger second) {
-			super(first, second);
-		}
-
-		private IntPair(int first, int second) {
-			super(new PactInteger(first), new PactInteger(second));
-		}
-	}
-
-	/**
-	 * Pair of {@link PactString}s.
-	 * 
-	 * @author Arvid Heise
-	 */
-	public static final class StringPair extends PactPair<PactString, PactString> {
-		/**
-		 * Initializes StringPair.
-		 */
-		public StringPair() {
-		}
-
-		private StringPair(PactString first, PactString second) {
-			super(first, second);
-		}
-
-		private StringPair(String first, String second) {
-			super(new PactString(first), new PactString(second));
-		}
-	}
+	@SuppressWarnings("unchecked")
+	private static final Class<? extends Value>[] IntStringPair = new Class[] { PactInteger.class, PactString.class };
 
 	/**
 	 * (int1, string1) x (int2, string2) -&gt; ((int1, int2), (string1, string2))
 	 * 
 	 * @author Arvid Heise
 	 */
-	public static final class CartesianProduct extends
-			CrossStub<PactInteger, PactString, PactInteger, PactString, IntPair, StringPair> {
+	public static final class CartesianProduct extends CrossStub {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord,
+		 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+		 */
 		@Override
-		public void cross(PactInteger key1, PactString value1, PactInteger key2, PactString value2,
-				Collector<IntPair, StringPair> out) {
-			out.collect(new IntPair(key1, key2), new StringPair(value1, value2));
+		public void cross(PactRecord record1, PactRecord record2, Collector out) {
+			out.collect(makeRecord(
+				record1.getField(0, PactInteger.class),
+				record2.getField(0, PactInteger.class),
+				record1.getField(1, PactString.class),
+				record2.getField(1, PactString.class)));
 		}
+
+	}
+
+	private static PactRecord makeRecord(Value... values) {
+		PactRecord record = new PactRecord();
+		for (int index = 0; index < values.length; index++)
+			record.setField(index, values[index]);
+		return record;
 	}
 
 	/**
@@ -132,17 +104,21 @@ public class TestPlanTest {
 	 * 
 	 * @author Arvid Heise
 	 */
-	public static final class AppendingCoGroup extends
-			CoGroupStub<PactInteger, PactString, PactString, PactInteger, StringList> {
+	public static final class AppendingCoGroup extends CoGroupStub {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.CoGroupStub#coGroup(java.util.Iterator, java.util.Iterator,
+		 * eu.stratosphere.pact.common.stubs.Collector)
+		 */
 		@Override
-		public void coGroup(PactInteger key, Iterator<PactString> values1, Iterator<PactString> values2,
-				Collector<PactInteger, StringList> out) {
+		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector out) {
 			StringList values = new StringList();
-			while (values1.hasNext())
-				values.add(new PactString(values1.next().getValue()));
-			while (values2.hasNext())
-				values.add(new PactString(values2.next().getValue()));
-			out.collect(key, values);
+			PactRecord lastRecord = null;
+			while (records1.hasNext())
+				values.add(new PactString((lastRecord = records1.next()).getField(1, PactString.class)));
+			while (records2.hasNext())
+				values.add(new PactString((lastRecord = records2.next()).getField(1, PactString.class)));
+			out.collect(new PactRecord(lastRecord.getField(0, PactInteger.class), values));
 		}
 	}
 
@@ -151,11 +127,32 @@ public class TestPlanTest {
 	 * 
 	 * @author Arvid Heise
 	 */
-	public static final class Join extends
-			MatchStub<PactInteger, PactString, PactString, StringPair, PactInteger> {
+	public static final class Join extends MatchStub {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.MatchStub#match(eu.stratosphere.pact.common.type.PactRecord,
+		 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+		 */
 		@Override
-		public void match(PactInteger key, PactString value1, PactString value2, Collector<StringPair, PactInteger> out) {
-			out.collect(new StringPair(new PactString(value1.getValue()), new PactString(value2.getValue())), key);
+		public void match(PactRecord record1, PactRecord record2, Collector out) throws Exception {
+			out.collect(makeRecord(record1.getField(0, PactInteger.class),
+				record1.getField(1, PactString.class),
+				record2.getField(1, PactString.class)));
+		}
+	}
+
+	/**
+	 * @author Arvid Heise
+	 */
+	public static final class ErroneousPact extends MapStub {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord,
+		 * eu.stratosphere.pact.common.stubs.Collector)
+		 */
+		@Override
+		public void map(PactRecord record, Collector out) throws Exception {
+			throw new IllegalStateException();
 		}
 	}
 
@@ -164,14 +161,21 @@ public class TestPlanTest {
 	 * 
 	 * @author Arvid Heise
 	 */
-	public static final class AppendingReduce extends
-			ReduceStub<PactInteger, PactString, PactInteger, StringList> {
+	public static final class AppendingReduce extends ReduceStub {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.ReduceStub#reduce(java.util.Iterator,
+		 * eu.stratosphere.pact.common.stubs.Collector)
+		 */
+		@SuppressWarnings("null")
 		@Override
-		public void reduce(PactInteger key, Iterator<PactString> values, Collector<PactInteger, StringList> out) {
-			StringList list = new StringList();
-			while (values.hasNext())
-				list.add(new PactString(values.next().getValue()));
-			out.collect(key, list);
+		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+			StringList result = new StringList();
+			PactRecord lastRecord = null;
+			while (records.hasNext())
+				result.add(new PactString((lastRecord = records.next()).getField(1, PactString.class)));
+			PactInteger id = lastRecord.getField(0, PactInteger.class);
+			out.collect(new PactRecord(id, result));
 		}
 	}
 
@@ -197,28 +201,21 @@ public class TestPlanTest {
 	 * Converts a input string (a line) into a KeyValuePair with the string
 	 * being the key and the value being a zero Integer.
 	 */
-	public static class IntegerInFormat extends TextInputFormat<PactNull, PactInteger> {
+	public static class IntegerInFormat extends TextInputFormat {
 		@Override
 		public boolean reachedEnd() {
 			return super.reachedEnd();
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.io.TextInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord,
+		 * byte[], int)
+		 */
 		@Override
-		public boolean readLine(KeyValuePair<PactNull, PactInteger> pair, byte[] line) {
-			pair.setValue(new PactInteger(Integer.valueOf(new String(line))));
+		public boolean readRecord(PactRecord target, byte[] line, int numBytes) {
+			target.setField(0, new PactInteger(Integer.valueOf(new String(line))));
 			return true;
-		}
-
-	}
-
-	/**
-	 * Writes a (Null,Integer)-KeyValuePair to a string. The output format is:
-	 * "&lt;value&gt;\n"
-	 */
-	public static class IntegerOutFormat extends TextOutputFormat<PactNull, PactInteger> {
-		@Override
-		public byte[] writeLine(KeyValuePair<PactNull, PactInteger> pair) {
-			return String.format("%d\n", pair.getValue().getValue()).getBytes();
 		}
 
 	}
@@ -228,17 +225,19 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void completeTestPasses() {
-		final FileDataSourceContract<PactNull, PactInteger> read = createInput(IntegerInFormat.class,
+		final FileDataSource read = createInput(IntegerInFormat.class,
 			"TestPlan/test.txt");
 
-		final MapContract<Key, Value, Key, Value> map =
-			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
+		final MapContract map =
+			new MapContract(IdentityMap.class, "Map");
 		map.setInput(read);
 
-		FileDataSinkContract<Key, Value> output = createOutput(map, SequentialOutputFormat.class);
+		FileDataSink output = createOutput(map, SequentialOutputFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.run();
+		testPlan.getInput().setSchema(PactInteger.class);
+		// testPlan.getActualOutput().setSchema(PactInteger.class);
 		assertEquals("input and output should be equal in identity map", testPlan.getInput(), testPlan
 			.getActualOutput());
 	}
@@ -248,7 +247,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void adhocInputAndOutputShouldTransparentlyWork() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
@@ -256,17 +255,18 @@ public class TestPlanTest {
 			add(new PactInteger(2), new PactString("test2"));
 		testPlan.run();
 
+		testPlan.getInput().setSchema(IntStringPair);
 		assertEquals("input and output should be equal in identity map", testPlan.getInput(), testPlan
 			.getActualOutput());
 
 		// explicitly check output
-		Iterator<KeyValuePair<Key, Value>> outputIterator = testPlan.getActualOutput().iterator();
-		Iterator<KeyValuePair<Key, Value>> inputIterator = testPlan.getInput().iterator();
+		Iterator<PactRecord> outputIterator = testPlan.getActualOutput().iterator();
+		Iterator<PactRecord> inputIterator = testPlan.getInput().iterator();
 		for (int index = 0; index < 2; index++) {
 			assertTrue("too few actual output values", outputIterator.hasNext());
 			assertTrue("too few input values", outputIterator.hasNext());
 			try {
-				assertEquals(inputIterator.next(), outputIterator.next());
+				assertTrue(PactRecordEqualer.recordsEqual(inputIterator.next(), outputIterator.next(), IntStringPair));
 			} catch (AssertionFailedError e) {
 				throw new ArrayComparisonFailure("Could not verify output values", e, index);
 			}
@@ -280,17 +280,21 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() {
-		final FileDataSourceContract<PactNull, PactInteger> read = createInput(IntegerInFormat.class,
+		final FileDataSource read = createInput(IntegerInFormat.class,
 			"TestPlan/test.txt");
 
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		map.setInput(read);
 
-		FileDataSinkContract<PactNull, PactInteger> output = createOutput(map, IntegerOutFormat.class);
+		FileDataSink output = createOutput(map, RecordOutputFormat.class);
+		output.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+		output.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
+		output.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
 
 		TestPlan testPlan = new TestPlan(output);
-		testPlan.getExpectedOutput(output).fromFile(IntegerInFormat.class, getResourcePath("TestPlan/test.txt"));
+		testPlan.getExpectedOutput(output, IntStringPair).fromFile(IntegerInFormat.class,
+			getResourcePath("TestPlan/test.txt"));
 		testPlan.run();
 	}
 
@@ -310,15 +314,41 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
+		testPlan.run();
+	}
+
+	/**
+	 * Tests if a {@link TestPlan} succeeds with values having the same key.
+	 */
+	@Test
+	public void shouldMatchValuesWithSameKey() {
+		final MapContract map = new MapContract(IdentityMap.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		// randomize values
+		testPlan.getInput().
+			add(new PactInteger(2), new PactString("test3")).
+			add(new PactInteger(1), new PactString("test2")).
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test1")).
+			add(new PactInteger(1), new PactString("test3")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2")).
+			add(new PactInteger(1), new PactString("test3")).
+			add(new PactInteger(1), new PactString("test2")).
+			add(new PactInteger(2), new PactString("test3"));
 		testPlan.run();
 	}
 
@@ -327,8 +357,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void crossShouldBeSupported() {
-		CrossContract<PactInteger, PactString, PactInteger, PactString, IntPair, StringPair> crossContract = new CrossContract<PactInteger, PactString, PactInteger, PactString, IntPair, StringPair>(
-			CartesianProduct.class);
+		CrossContract crossContract = new CrossContract(CartesianProduct.class);
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		testPlan.getInput(0).
@@ -338,11 +367,11 @@ public class TestPlanTest {
 			add(new PactInteger(3), new PactString("test3")).
 			add(new PactInteger(4), new PactString("test4"));
 
-		testPlan.getExpectedOutput().
-			add(new IntPair(1, 3), new StringPair("test1", "test3")).
-			add(new IntPair(1, 4), new StringPair("test1", "test4")).
-			add(new IntPair(2, 3), new StringPair("test2", "test3")).
-			add(new IntPair(2, 4), new StringPair("test2", "test4"));
+		testPlan.getExpectedOutput(PactInteger.class, PactInteger.class, PactString.class, PactString.class).
+			add(new PactInteger(1), new PactInteger(3), new PactString("test1"), new PactString("test3")).
+			add(new PactInteger(1), new PactInteger(4), new PactString("test1"), new PactString("test4")).
+			add(new PactInteger(2), new PactInteger(3), new PactString("test2"), new PactString("test3")).
+			add(new PactInteger(2), new PactInteger(4), new PactString("test2"), new PactString("test4"));
 		testPlan.run();
 	}
 
@@ -351,8 +380,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void coGroupShouldBeSupported() {
-		CoGroupContract<PactInteger, PactString, PactString, PactInteger, StringList> crossContract =
-			new CoGroupContract<PactInteger, PactString, PactString, PactInteger, StringList>(AppendingCoGroup.class);
+		CoGroupContract crossContract = new CoGroupContract(AppendingCoGroup.class, PactInteger.class, 0, 0);
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		testPlan.getInput(0).
@@ -363,7 +391,7 @@ public class TestPlanTest {
 			add(new PactInteger(1), new PactString("test4")).
 			add(new PactInteger(3), new PactString("test5"));
 
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, StringList.class).
 			add(new PactInteger(1), new StringList("test1", "test2", "test4")).
 			add(new PactInteger(2), new StringList("test3")).
 			add(new PactInteger(3), new StringList("test5"));
@@ -375,8 +403,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void matchShouldBeSupported() {
-		MatchContract<PactInteger, PactString, PactString, StringPair, PactInteger> crossContract =
-			new MatchContract<PactInteger, PactString, PactString, StringPair, PactInteger>(Join.class);
+		MatchContract crossContract = new MatchContract(Join.class, PactInteger.class, 0, 0);
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		testPlan.getInput(0).
@@ -387,9 +414,9 @@ public class TestPlanTest {
 			add(new PactInteger(1), new PactString("test4")).
 			add(new PactInteger(3), new PactString("test5"));
 
-		testPlan.getExpectedOutput().
-			add(new StringPair("test1", "test4"), new PactInteger(1)).
-			add(new StringPair("test2", "test4"), new PactInteger(1));
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class, PactString.class).
+			add(new PactInteger(1), new PactString("test1"), new PactString("test4")).
+			add(new PactInteger(1), new PactString("test2"), new PactString("test4"));
 		testPlan.run();
 	}
 
@@ -398,8 +425,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void reduceShouldBeSupported() {
-		ReduceContract<PactInteger, PactString, PactInteger, StringList> crossContract =
-			new ReduceContract<PactInteger, PactString, PactInteger, StringList>(AppendingReduce.class);
+		ReduceContract crossContract = new ReduceContract(AppendingReduce.class, PactInteger.class, 0);
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		testPlan.getInput().
@@ -409,7 +435,7 @@ public class TestPlanTest {
 			add(new PactInteger(1), new PactString("test4")).
 			add(new PactInteger(3), new PactString("test5"));
 
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, StringList.class).
 			add(new PactInteger(1), new StringList("test1", "test2", "test4")).
 			add(new PactInteger(2), new StringList("test3")).
 			add(new PactInteger(3), new StringList("test5"));
@@ -419,26 +445,24 @@ public class TestPlanTest {
 	/**
 	 * Tests a {@link TestPlan} with a {@link CrossContract}.
 	 */
-	@SuppressWarnings("unchecked")
 	@Test
 	public void settingValuesShouldWorkWithSourceContracts() {
-		CrossContract<PactInteger, PactString, PactInteger, PactString, IntPair, StringPair> crossContract = new CrossContract<PactInteger, PactString, PactInteger, PactString, IntPair, StringPair>(
-			CartesianProduct.class);
+		CrossContract crossContract = new CrossContract(CartesianProduct.class);
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		// first and second input are added in TestPlan
-		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getFirstInput()).
+		testPlan.getInput((GenericDataSource<?>) crossContract.getFirstInputs().get(0)).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getInput((FileDataSourceContract<PactInteger, PactString>) crossContract.getSecondInput()).
+		testPlan.getInput((GenericDataSource<?>) crossContract.getSecondInputs().get(0)).
 			add(new PactInteger(3), new PactString("test3")).
 			add(new PactInteger(4), new PactString("test4"));
 
-		testPlan.getExpectedOutput().
-			add(new IntPair(1, 3), new StringPair("test1", "test3")).
-			add(new IntPair(1, 4), new StringPair("test1", "test4")).
-			add(new IntPair(2, 3), new StringPair("test2", "test3")).
-			add(new IntPair(2, 4), new StringPair("test2", "test4"));
+		testPlan.getExpectedOutput(PactInteger.class, PactInteger.class, PactString.class, PactString.class).
+			add(new PactInteger(1), new PactInteger(3), new PactString("test1"), new PactString("test3")).
+			add(new PactInteger(1), new PactInteger(4), new PactString("test1"), new PactString("test4")).
+			add(new PactInteger(2), new PactInteger(3), new PactString("test2"), new PactString("test3")).
+			add(new PactInteger(2), new PactInteger(4), new PactString("test2"), new PactString("test4"));
 		testPlan.run();
 	}
 
@@ -447,13 +471,13 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void degreeOfParallelismShouldBeConfigurable() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
 		testPlan.setDegreeOfParallelism(2);
@@ -472,12 +496,10 @@ public class TestPlanTest {
 	 *        the output format
 	 * @return the {@link FileDataSinkContract} for the temporary file
 	 */
-	private <K extends Key, V extends Value> FileDataSinkContract<K, V> createOutput(final Contract input,
-			final Class<? extends FileOutputFormat<K, V>> outputFormatClass) {
+	private FileDataSink createOutput(final Contract input, final Class<? extends FileOutputFormat> outputFormatClass) {
 		try {
-			final FileDataSinkContract<K, V> out = new FileDataSinkContract<K, V>(outputFormatClass, File
-				.createTempFile(
-					"output", null).toURI().toString(), "Output");
+			final FileDataSink out = new FileDataSink(outputFormatClass, File.createTempFile(
+				"output", null).toURI().toString(), "Output");
 			out.setInput(input);
 			return out;
 		} catch (IOException e) {
@@ -487,7 +509,7 @@ public class TestPlanTest {
 	}
 
 	/**
-	 * Creates an {@link FileDataSourceContract} contract for the specified resource file in the temporary folder for
+	 * Creates an {@link FileDataSource} contract for the specified resource file in the temporary folder for
 	 * arbitrary key/value pairs coming from the given input
 	 * contract.
 	 * 
@@ -495,9 +517,8 @@ public class TestPlanTest {
 	 *        the input from which the values are read
 	 * @return the {@link FileDataSinkContract} for the temporary file
 	 */
-	private <K extends Key, V extends Value> FileDataSourceContract<K, V> createInput(
-			Class<? extends FileInputFormat<K, V>> inputFormat, String resource) {
-		final FileDataSourceContract<K, V> read = new FileDataSourceContract<K, V>(inputFormat,
+	private FileDataSource createInput(Class<? extends FileInputFormat> inputFormat, String resource) {
+		final FileDataSource read = new FileDataSource(inputFormat,
 			getResourcePath(resource),
 			"Input");
 		return read;
@@ -509,14 +530,20 @@ public class TestPlanTest {
 	 * (String,Integer)-KeyValuePair is emitted where the Token is the key and
 	 * an Integer(1) is the value.
 	 */
-	public static class TokenizeLine extends MapStub<PactString, PactInteger, PactString, PactInteger> {
+	public static class TokenizeLine extends MapStub {
 		private static Pattern WORD_PATTERN = Pattern.compile("\\w+");
 
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord,
+		 * eu.stratosphere.pact.common.stubs.Collector)
+		 */
 		@Override
-		public void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
-			Matcher matcher = WORD_PATTERN.matcher(key.getValue());
+		public void map(PactRecord record, Collector out) throws Exception {
+			PactString line = record.getField(0, PactString.class);
+			Matcher matcher = WORD_PATTERN.matcher(line.getValue());
 			while (matcher.find())
-				out.collect(new PactString(matcher.group().toLowerCase()), new PactInteger(1));
+				out.collect(new PactRecord(new PactString(matcher.group(0).toLowerCase()), new PactInteger(1)));
 		}
 	}
 
@@ -525,20 +552,21 @@ public class TestPlanTest {
 	 * occurences of a given token (word) is computed and emitted. The key is
 	 * not modified, hence a SameKey OutputContract is attached to this class.
 	 */
-	@SameKey
 	@Combinable
-	public static class CountWords extends ReduceStub<PactString, PactInteger, PactString, PactInteger> {
+	public static class CountWords extends ReduceStub {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.ReduceStub#reduce(java.util.Iterator,
+		 * eu.stratosphere.pact.common.stubs.Collector)
+		 */
 		@Override
-		public void reduce(PactString key, Iterator<PactInteger> values, Collector<PactString, PactInteger> out) {
-			int sum = 0;
-			while (values.hasNext())
-				sum += values.next().getValue();
-			out.collect(key, new PactInteger(sum));
-		}
-
-		@Override
-		public void combine(PactString key, Iterator<PactInteger> values, Collector<PactString, PactInteger> out) {
-			this.reduce(key, values, out);
+		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+			PactRecord result = records.next().createCopy();
+			int sum = result.getField(1, PactInteger.class).getValue();
+			while (records.hasNext())
+				sum += records.next().getField(1, PactInteger.class).getValue();
+			result.setField(1, new PactInteger(sum));
+			out.collect(result);
 		}
 	}
 
@@ -547,12 +575,8 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void complexTestPassesWithExpectedValues() {
-		final MapContract<PactString, PactInteger, PactString, PactInteger> tokenize = new MapContract<PactString, PactInteger, PactString, PactInteger>(
-			TokenizeLine.class,
-			"Map");
-		final ReduceContract<PactString, PactInteger, PactString, PactInteger> summing = new ReduceContract<PactString, PactInteger, PactString, PactInteger>(
-			CountWords.class,
-			"Map");
+		final MapContract tokenize = new MapContract(TokenizeLine.class, "Map");
+		final ReduceContract summing = new ReduceContract(CountWords.class, PactString.class, 0, "Reduce");
 		summing.setInput(tokenize);
 
 		TestPlan testPlan = new TestPlan(summing);
@@ -562,7 +586,7 @@ public class TestPlanTest {
 			"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
 			"Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." };
 		for (String line : lines)
-			testPlan.getInput().add(new PactString(line), new PactInteger(1));
+			testPlan.getInput().add(new PactString(line));
 
 		String[] singleWords = { "voluptate", "veniam", "velit", "ullamco", "tempor", "sunt", "sit", "sint", "sed",
 			"reprehenderit", "quis", "qui", "proident", "pariatur", "officia", "occaecat", "nulla", "nostrud", "non",
@@ -571,8 +595,10 @@ public class TestPlanTest {
 			"eiusmod", "ea", "duis", "do", "deserunt", "cupidatat", "culpa", "consequat", "consectetur", "commodo",
 			"cillum", "aute", "anim", "amet", "aliquip", "aliqua", "adipisicing", "ad" };
 		for (String singleWord : singleWords)
-			testPlan.getExpectedOutput().add(new PactString(singleWord), new PactInteger(1));
-		testPlan.getExpectedOutput().add(new PactString("ut"), new PactInteger(3)).
+			testPlan.getExpectedOutput(PactString.class, PactInteger.class).
+				add(new PactString(singleWord), new PactInteger(1));
+		testPlan.getExpectedOutput(PactString.class, PactInteger.class).
+			add(new PactString("ut"), new PactInteger(3)).
 			add(new PactString("in"), new PactInteger(3)).
 			add(new PactString("dolore"), new PactInteger(2)).
 			add(new PactString("dolor"), new PactInteger(2));
@@ -584,13 +610,13 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfExpectedAndActualValuesDiffer() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test3"));
 		assertTestRunFails(testPlan);
@@ -601,13 +627,13 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfTooManyValues() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).
 			add(new PactInteger(1), new PactString("test1"));
 		assertTestRunFails(testPlan);
 	}
@@ -617,16 +643,32 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfTooFewValues() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2")).
 			add(new PactInteger(3), new PactString("test3"));
+		assertTestRunFails(testPlan);
+	}
+
+	/**
+	 * Tests if a {@link TestPlan} fails there are too many values.
+	 */
+	@Test
+	public void shouldFailIfPactThrowsException() {
+		final MapContract map = new MapContract(ErroneousPact.class,
+			"Map");
+		TestPlan testPlan = new TestPlan(map);
+		testPlan.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).
+			setEmpty();
 		assertTestRunFails(testPlan);
 	}
 
@@ -650,8 +692,8 @@ public class TestPlanTest {
 	 * Tests if a {@link TestPlan} succeeds with uninitialized expected values.
 	 */
 	@Test
-	public void shouldSuceedIfNoExpectedValues() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+	public void shouldSucceedIfNoExpectedValues() {
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
@@ -664,34 +706,8 @@ public class TestPlanTest {
 	 * Tests if a {@link TestPlan} succeeds with values having the same key.
 	 */
 	@Test
-	public void shouldMatchValuesWithSameKey() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
-			"Map");
-		TestPlan testPlan = new TestPlan(map);
-		testPlan.getInput().
-			add(new PactInteger(1), new PactString("test1")).
-			add(new PactInteger(1), new PactString("test2")).
-			add(new PactInteger(1), new PactString("test3")).
-			add(new PactInteger(2), new PactString("test1")).
-			add(new PactInteger(2), new PactString("test2")).
-			add(new PactInteger(2), new PactString("test3"));
-		// randomize values
-		testPlan.getExpectedOutput().
-			add(new PactInteger(1), new PactString("test1")).
-			add(new PactInteger(2), new PactString("test1")).
-			add(new PactInteger(2), new PactString("test2")).
-			add(new PactInteger(1), new PactString("test3")).
-			add(new PactInteger(1), new PactString("test2")).
-			add(new PactInteger(2), new PactString("test3"));
-		testPlan.run();
-	}
-
-	/**
-	 * Tests if a {@link TestPlan} succeeds with values having the same key.
-	 */
-	@Test
 	public void shouldFailWithEqualValuesWithSameKey() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
@@ -702,7 +718,7 @@ public class TestPlanTest {
 			add(new PactInteger(2), new PactString("test2")).
 			add(new PactInteger(2), new PactString("test3"));
 		// randomize values
-		testPlan.getExpectedOutput().
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2")).
@@ -717,13 +733,38 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfNonEmptyExpectedValues() {
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
+		final MapContract map = new MapContract(IdentityMap.class,
 			"Map");
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactString("test1")).
 			add(new PactInteger(2), new PactString("test2"));
-		testPlan.getExpectedOutput().setEmpty();
+		testPlan.getExpectedOutput(PactInteger.class, PactString.class).setEmpty();
 		assertTestRunFails(testPlan);
+	}
+
+	/**
+	 * Tests if the outputs of two {@link TestPlan}s can be successfully compared.
+	 */
+	@Test
+	public void shouldCompareTwoTestPlans() {
+		final MapContract map = new MapContract(IdentityMap.class,
+			"Map");
+		TestPlan testPlan1 = new TestPlan(map);
+		testPlan1.getInput().
+			add(new PactInteger(1), new PactString("test1")).
+			add(new PactInteger(2), new PactString("test2"));
+		testPlan1.run();
+		TestPlan testPlan2 = new TestPlan(map);
+		testPlan2.getInput().
+			add(new PactInteger(2), new PactString("test2")).
+			add(new PactInteger(1), new PactString("test1"));
+		testPlan2.run();
+
+		testPlan1.getActualOutput().setSchema(IntStringPair);
+		testPlan2.getActualOutput().setSchema(IntStringPair);
+		AssertUtil.assertIteratorEquals(testPlan1.getActualOutput().iterator(), 
+			testPlan2.getActualOutput().iterator(),
+			new PactRecordEqualer(IntStringPair));
 	}
 }

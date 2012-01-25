@@ -28,11 +28,11 @@
 		<value>-1</value>
 	</property>
 	
-	<!-- The default number of parallel instances of the user function that are assigned to
-	     a single computing instance. -->
+	<!-- The maximum number of parallel instances of the user function that are assigned to
+	     a single computing instance. If set to -1, than no limit exists. -->
 	<property>
-		<key>pact.parallelization.intra-node-degree</key>
-		<value>1</value>
+		<key>pact.parallelization.max-intra-node-degree</key>
+		<value>-1</value>
 	</property>
 
 	<!-- An optional hard limit in the number of machines to use. A program will never use

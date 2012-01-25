@@ -5,20 +5,20 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class AggregationExpressionTest extends EvaluableExpressionTest<AggregationExpression> {
 	@Override
 	protected AggregationExpression createDefaultInstance(final int index) {
-		return new AggregationExpression(BuiltinFunctions.SUM, new ConstantExpression(index));
+		return new AggregationExpression(DefaultFunctions.SUM, new ConstantExpression(index));
 	}
 
 	@Test
 	public void testFunctionAndExpression() {
-		final AggregationFunction func = BuiltinFunctions.SUM;
+		final AggregationFunction func = DefaultFunctions.SUM;
 		final ConstantExpression expr = new ConstantExpression(1);
 		final AggregationExpression aggregation = new AggregationExpression(func, expr);
 		Assert.assertEquals(func, aggregation.getFunction());
@@ -27,7 +27,7 @@ public class AggregationExpressionTest extends EvaluableExpressionTest<Aggregati
 
 	@Test
 	public void shouldAggregate() {
-		final JsonNode result = new AggregationExpression(BuiltinFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
+		final JsonNode result = new AggregationExpression(DefaultFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
 			this.context);
 		Assert.assertEquals(new DoubleNode(3.0), result);
 	}

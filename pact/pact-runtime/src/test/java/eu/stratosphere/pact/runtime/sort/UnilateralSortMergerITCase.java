@@ -16,46 +16,47 @@
 package eu.stratosphere.pact.runtime.sort;
 
 import java.util.Comparator;
-import java.util.Iterator;
 
 import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
-import eu.stratosphere.pact.runtime.test.util.TestData.Generator.CreationMode;
+import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
+import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 
 /**
  * @author Erik Nijkamp
+ * @author Stephan Ewen
  */
-public class UnilateralSortMergerITCase {
+public class UnilateralSortMergerITCase
+{
 	private static final Log LOG = LogFactory.getLog(UnilateralSortMergerITCase.class);
 
 	private static final long SEED = 649180756312423613L;
 
 	private static final int KEY_MAX = Integer.MAX_VALUE;
 
-	private static final int VALUE_LENGTH = 118;
+	private static final int VALUE_LENGTH = 114;
+	
+	private static final Value VAL = new Value("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
-	private static final int NUM_PAIRS = 50000;
+	private static final int NUM_PAIRS = 200000;
 
-	public static final int MEMORY_SIZE = 1024 * 1024 * 256;
+	private static final int MEMORY_SIZE = 1024 * 1024 * 78;
 	
 	private final AbstractTask parentTask = new DummyInvokable();
 
@@ -63,14 +64,7 @@ public class UnilateralSortMergerITCase {
 
 	private MemoryManager memoryManager;
 
-	@BeforeClass
-	public static void beforeClass() {
-		
-	}
-
-	@AfterClass
-	public static void afterClass() {
-	}
+	// --------------------------------------------------------------------------------------------
 
 	@Before
 	public void beforeTest() {
@@ -93,220 +87,205 @@ public class UnilateralSortMergerITCase {
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	@Test
-	public void testSort() throws Exception {
-		// serialization
-		final SerializationFactory<TestData.Key> keySerialization = new WritableSerializationFactory<TestData.Key>(
-			TestData.Key.class);
-		final SerializationFactory<TestData.Value> valSerialization = new WritableSerializationFactory<TestData.Value>(
-			TestData.Value.class);
-
+	public void testInMemorySort() throws Exception
+	{
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-
-		// reader
-		MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>> reader = new MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>>();
+		
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
 
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
-		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
-			memoryManager, ioManager, 16 * 1024 * 1024, 1024 * 1024 * 4, 1, 2, keySerialization, valSerialization,
-			keyComparator, reader, parentTask, 0.7f);
+		
+		@SuppressWarnings("unchecked")
+		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 2,
+			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
+			source, this.parentTask, 0.9f);
 
 		// emit data
-		LOG.debug("Emitting data...");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
-			ValueMode.FIX_LENGTH);
-		for (int i = 0; i < NUM_PAIRS; i++) {
-			reader.emit(generator.next());
-		}
-		reader.close();
+		LOG.debug("Reading and sorting data...");
 
 		// check order
-		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 		
 		LOG.debug("Checking results...");
-		int pairsEmitted = 0;
-		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
-		while (iterator.hasNext()) {
+		int pairsEmitted = 1;
+
+		PactRecord rec1 = new PactRecord();
+		PactRecord rec2 = new PactRecord();
+		
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
+			final Key k1 = rec1.getField(0, TestData.Key.class);
+			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
-			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
-			if (pair1 != null && pair2 != null) {
-				Assert.assertTrue(keyComparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
-			}
-			pair1 = pair2;
+			
+			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
+			
+			PactRecord tmp = rec1;
+			rec1 = rec2;
+			k1.setKey(k2.getKey());
+			
+			rec2 = tmp;
 		}
 		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 		
 		merger.close();
-	}
-
-	@Test
-	public void testSortInMemory() throws Exception {
-		// serialization
-		final SerializationFactory<TestData.Key> keySerialization = new WritableSerializationFactory<TestData.Key>(
-			TestData.Key.class);
-		final SerializationFactory<TestData.Value> valSerialization = new WritableSerializationFactory<TestData.Value>(
-			TestData.Value.class);
-
-		// comparator
-		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-
-		// reader
-		MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>> reader = new MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>>();
-		
-		// merge iterator
-		LOG.debug("initializing sortmerger");
-		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
-			memoryManager, ioManager, 40 * 1024 * 1024, 1024 * 1024 * 1, 10, 2, keySerialization, valSerialization,
-			keyComparator, reader, parentTask, 0.7f);
-
-		// emit data
-		LOG.debug("emitting data");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
-			ValueMode.FIX_LENGTH);
-		for (int i = 0; i < NUM_PAIRS; i++) {
-			reader.emit(generator.next());
-		}
-		reader.close();
-
-		// check order
-		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
-		
-		LOG.debug("checking results");
-		int pairsEmitted = 0;
-		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
-		while (iterator.hasNext()) {
-			pairsEmitted++;
-			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
-			if (pair1 != null && pair2 != null) {
-				if (keyComparator.compare(pair1.getKey(), pair2.getKey()) > 0) {
-					Assert.fail();
-				}
-			}
-			pair1 = pair2;
-		}
-		merger.close();
-		
-		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 	}
 	
 	@Test
-	public void testSortTenBuffers() throws Exception {
-		// serialization
-		final SerializationFactory<TestData.Key> keySerialization = new WritableSerializationFactory<TestData.Key>(
-			TestData.Key.class);
-		final SerializationFactory<TestData.Value> valSerialization = new WritableSerializationFactory<TestData.Value>(
-			TestData.Value.class);
-
+	public void testInMemorySortUsing10Buffers() throws Exception
+	{
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-
-		// reader
-		MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>> reader = new MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>>();
+		
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
 
 		// merge iterator
-		LOG.debug("initializing sortmerger");
-		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
-			memoryManager, ioManager, 1024 * 1024 * 42, 1024 * 1024 * 2, 10, 2, keySerialization, valSerialization,
-			keyComparator, reader, parentTask, 0.7f);
+		LOG.debug("Initializing sortmerger...");
+		
+		@SuppressWarnings("unchecked")
+		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 1 * 1024 * 1024, 10, 2,
+			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
+			source, this.parentTask, 0.9f);
 
 		// emit data
-		LOG.debug("emitting data");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
-			ValueMode.FIX_LENGTH);
-		for (int i = 0; i < NUM_PAIRS * 10; i++) {
-			reader.emit(generator.next());
-		}
-		reader.close();
+		LOG.debug("Reading and sorting data...");
 
 		// check order
-		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 		
-		LOG.debug("checking results");
-		int pairsEmitted = 0;
-		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
-		while (iterator.hasNext()) {
+		LOG.debug("Checking results...");
+		int pairsEmitted = 1;
+
+		PactRecord rec1 = new PactRecord();
+		PactRecord rec2 = new PactRecord();
+		
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
+			final Key k1 = rec1.getField(0, TestData.Key.class);
+			final Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
-			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
-			if (pair1 != null && pair2 != null) {
-				Assert.assertTrue(keyComparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
-			}
-			pair1 = pair2;
+			
+			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
+			
+			PactRecord tmp = rec1;
+			rec1 = rec2;
+			k1.setKey(k2.getKey());
+			
+			rec2 = tmp;
 		}
-		Assert.assertTrue(NUM_PAIRS * 10 == pairsEmitted);
+		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
+		
 		merger.close();
 	}
 
 	@Test
-	public void testSortHugeAmountOfPairs() throws Exception {
+	public void testSpillingSort() throws Exception
+	{
+		// comparator
+		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+		
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
+
+		// merge iterator
+		LOG.debug("Initializing sortmerger...");
+		
+		@SuppressWarnings("unchecked")
+		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 16 * 1024 * 1024, 64,
+			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
+			source, this.parentTask, 0.7f);
+
+		// emit data
+		LOG.debug("Reading and sorting data...");
+
+		// check order
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
+		
+		LOG.debug("Checking results...");
+		int pairsEmitted = 1;
+
+		PactRecord rec1 = new PactRecord();
+		PactRecord rec2 = new PactRecord();
+		
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
+			final Key k1 = rec1.getField(0, TestData.Key.class);
+			final Key k2 = rec2.getField(0, TestData.Key.class);
+			pairsEmitted++;
+			
+			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
+			
+			PactRecord tmp = rec1;
+			rec1 = rec2;
+			k1.setKey(k2.getKey());
+			
+			rec2 = tmp;
+		}
+		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
+		
+		merger.close();
+	}
+
+	@Test
+	public void testSpillingSortWithIntermediateMerge() throws Exception
+	{
 		// amount of pairs
 		final int PAIRS = 10000000;
-
-		// serialization
-		final SerializationFactory<TestData.Key> keySerialization = new WritableSerializationFactory<TestData.Key>(
-			TestData.Key.class);
-		final SerializationFactory<TestData.Value> valSerialization = new WritableSerializationFactory<TestData.Value>(
-			TestData.Value.class);
 
 		// comparator
 		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
 
-		// reader
-		MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>> reader = new MockRecordReader<KeyValuePair<TestData.Key, TestData.Value>>();
-
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, PAIRS);
+		
 		// merge iterator
-		LOG.debug("initializing sortmerger");
-		SortMerger<TestData.Key, TestData.Value> merger = new UnilateralSortMerger<TestData.Key, TestData.Value>(
-			memoryManager, ioManager, 1024 * 1024 * 64, 16, keySerialization, valSerialization,
-			keyComparator, reader, parentTask, 0.7f);
-
+		LOG.debug("Initializing sortmerger...");
+		
+		@SuppressWarnings("unchecked")
+		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 1024 * 1024 * 64, 16, 
+			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
+			source, this.parentTask, 0.7f);
+		
 		// emit data
-		long start = System.currentTimeMillis();
-		LOG.debug("emitting data");
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
-			ValueMode.RANDOM_LENGTH, CreationMode.MUTABLE);
-		long bytesWritten = 0;
-		for (int i = 1; i <= PAIRS; i++) {
-			if (i % (PAIRS / 20) == 0 || i == PAIRS) {
-				long mb = bytesWritten / 1024 / 1024;
-				LOG.debug("emitted " + (int) (100.0 * i / PAIRS) + "% (" + i + " pairs, " + mb + " mb)");
-			}
-			KeyValuePair<TestData.Key, TestData.Value> pair = generator.next();
-			bytesWritten += generator.sizeOf(pair);
-			reader.emit(pair);
-		}
-		reader.close();
+		LOG.debug("Emitting data...");
 
 		// check order
-		Iterator<KeyValuePair<TestData.Key, TestData.Value>> iterator = merger.getIterator();
+		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
 		
-		LOG.debug("checking results");
-		int pairsEmitted = 0;
-		KeyValuePair<TestData.Key, TestData.Value> pair1 = null;
-		while (iterator.hasNext()) {
-			// check
-			pairsEmitted++;
-			KeyValuePair<TestData.Key, TestData.Value> pair2 = iterator.next();
-			if (pair1 != null && pair2 != null) {
-				Assert.assertTrue(keyComparator.compare(pair1.getKey(), pair2.getKey()) <= 0);
-			}
-			pair2 = pair1;
+		LOG.debug("Checking results...");
+		int pairsRead = 1;
+		int nextStep = PAIRS / 20;
 
+		PactRecord rec1 = new PactRecord();
+		PactRecord rec2 = new PactRecord();
+		
+		Assert.assertTrue(iterator.next(rec1));
+		while (iterator.next(rec2)) {
+			final Key k1 = rec1.getField(0, TestData.Key.class);
+			final Key k2 = rec2.getField(0, TestData.Key.class);
+			pairsRead++;
+			
+			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
+			
+			PactRecord tmp = rec1;
+			rec1 = rec2;
+			k1.setKey(k2.getKey());
+			rec2 = tmp;
+			
 			// log
-			if (pairsEmitted % (PAIRS / 20) == 0 || pairsEmitted == PAIRS - 1) {
-				LOG.debug("checked " + (int) (100.0 * pairsEmitted / PAIRS) + "% (" + pairsEmitted + " pairs)");
+			if (pairsRead == nextStep) {
+				nextStep += PAIRS / 20;
 			}
+			
 		}
-		Assert.assertTrue(PAIRS == pairsEmitted);
+		Assert.assertEquals("Not all pairs were read back in.", PAIRS, pairsRead);
 		merger.close();
-
-		// throughput
-		long end = System.currentTimeMillis();
-		long diff = end - start;
-		long secs = diff / 1000;
-		long mb = bytesWritten / 1024 / 1024;
-		LOG.debug("sorting a workload of " + PAIRS + " pairs (" + mb + "mb)  took " + secs + " seconds -> " + (1.0 * mb)
-			/ secs + "mb/s");
 	}
 }

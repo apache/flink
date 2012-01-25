@@ -3,12 +3,11 @@ package eu.stratosphere.sopremo.cleansing.fusion;
 import java.util.Set;
 import java.util.TreeSet;
 
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
-public class MergeDistinctRule extends FusionRule {
+public class MergeDistinctRule extends ConflictResolution {
 	/**
 	 * 
 	 */
@@ -22,7 +21,7 @@ public class MergeDistinctRule extends FusionRule {
 	@Override
 	public JsonNode fuse(final JsonNode[] values, final double[] weights, final FusionContext context) {
 		final ArrayNode array = new ArrayNode();
-		final Set<JsonNode> distinctValues = new TreeSet<JsonNode>(JsonNodeComparator.INSTANCE);
+		final Set<JsonNode> distinctValues = new TreeSet<JsonNode>();
 		for (final JsonNode value : values)
 			if (value != NullNode.getInstance())
 				distinctValues.add(value);

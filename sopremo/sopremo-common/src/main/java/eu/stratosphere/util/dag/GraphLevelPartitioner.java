@@ -25,7 +25,7 @@ import eu.stratosphere.util.IdentityList;
  */
 public class GraphLevelPartitioner {
 
-	private static <Node> void gatherNodes(final List<Node> nodes, final Navigator<Node> navigator, final Node node) {
+	private static <Node> void gatherNodes(final List<Node> nodes, final ConnectionNavigator<Node> navigator, final Node node) {
 		if (!nodes.contains(node))
 			if (node != null) {
 				nodes.add(node);
@@ -48,7 +48,7 @@ public class GraphLevelPartitioner {
 	 *         if the graph contains cycles
 	 */
 	public static <Node> List<Level<Node>> getLevels(final Iterable<? extends Node> startNodes,
-			final Navigator<Node> navigator) {
+			final ConnectionNavigator<Node> navigator) {
 		return getLevels(startNodes.iterator(), navigator);
 	}
 
@@ -66,7 +66,7 @@ public class GraphLevelPartitioner {
 	 *         if the graph contains cycles
 	 */
 	public static <Node> List<Level<Node>> getLevels(final Iterator<? extends Node> startNodes,
-			final Navigator<Node> navigator) {
+			final ConnectionNavigator<Node> navigator) {
 
 		final List<Node> remainingNodes = new IdentityList<Node>();
 		while (startNodes.hasNext())
@@ -106,12 +106,12 @@ public class GraphLevelPartitioner {
 	 * @throws IllegalStateException
 	 *         if the graph contains cycles
 	 */
-	public static <Node> List<Level<Node>> getLevels(final Node[] startNodes, final Navigator<Node> navigator) {
+	public static <Node> List<Level<Node>> getLevels(final Node[] startNodes, final ConnectionNavigator<Node> navigator) {
 		return getLevels(Arrays.asList(startNodes).iterator(), navigator);
 	}
 
 	private static <Node> boolean isIndependent(final Node node, final Collection<Node> usedNodes,
-			final Navigator<Node> navigator) {
+			final ConnectionNavigator<Node> navigator) {
 		for (final Object input : navigator.getConnectedNodes(node))
 			if (!usedNodes.contains(input))
 				return false;
@@ -131,7 +131,7 @@ public class GraphLevelPartitioner {
 
 		private final List<Node> levelNodes;
 
-		private Level(final List<Node> nodes, final Navigator<Node> navigator) {
+		private Level(final List<Node> nodes, final ConnectionNavigator<Node> navigator) {
 			this.levelNodes = nodes;
 
 			// initializes all outgoing links

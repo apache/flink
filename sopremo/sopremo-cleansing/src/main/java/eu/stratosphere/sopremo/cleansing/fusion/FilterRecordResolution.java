@@ -1,8 +1,8 @@
 package eu.stratosphere.sopremo.cleansing.fusion;
 
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
-public class FilterRecordResolution extends FusionRule {
+public class FilterRecordResolution extends ConflictResolution {
 	/**
 	 * 
 	 */

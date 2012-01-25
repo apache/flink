@@ -1,51 +1,93 @@
 package eu.stratosphere.sopremo;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import eu.stratosphere.sopremo.function.FunctionRegistry;
+import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Provides additional context to the evaluation of {@link Evaluable}s, such as access to all registered functions.
  * 
  * @author Arvid Heise
  */
-public class EvaluationContext implements SerializableSopremoType {
+public class EvaluationContext extends AbstractSopremoType implements SerializableSopremoType {
 	private static final long serialVersionUID = 7701485388451926506L;
 
-	private final FunctionRegistry functionRegistry;
+	private final Bindings bindings = new Bindings();
+
+	private final MethodRegistry functionRegistry;
 
 	private int inputCounter = 0;
 
-	private final LinkedList<String> operatorStack = new LinkedList<String>();
+	private final LinkedList<Operator<?>> operatorStack = new LinkedList<Operator<?>>();
 
-	public LinkedList<String> getOperatorStack() {
+	private Schema[] inputSchemas, outputSchemas;
+
+	private Schema schema;
+
+	public LinkedList<Operator<?>> getOperatorStack() {
 		return this.operatorStack;
 	}
 
+	public Bindings getBindings() {
+		return this.bindings;
+	}
+
+	public void addScope() {
+		this.bindings.addScope();
+	}
+
+	public void removeScope() {
+		this.bindings.removeScope();
+	}
+
 	public String operatorTrace() {
-		final Iterator<String> descendingIterator = this.operatorStack.descendingIterator();
-		final StringBuilder builder = new StringBuilder(descendingIterator.next());
+		final Iterator<Operator<?>> descendingIterator = this.operatorStack.descendingIterator();
+		final StringBuilder builder = new StringBuilder(descendingIterator.next().getName());
 		while (descendingIterator.hasNext())
-			builder.append("->").append(descendingIterator.next());
+			builder.append("->").append(descendingIterator.next().getName());
 		return builder.toString();
 	}
 
-	public void pushOperator(final String e) {
+	public Operator<?> getCurrentOperator() {
+		return this.operatorStack.peek();
+	}
+
+	public void pushOperator(final Operator<?> e) {
 		this.operatorStack.push(e);
 	}
 
-	public String popOperator() {
+	public Operator<?> popOperator() {
 		return this.operatorStack.pop();
 	}
 
+	/**
+	 * Initializes EvaluationContext.
+	 */
 	public EvaluationContext() {
-		this.functionRegistry = new FunctionRegistry();
+		this(0, 0);
+	}
+
+	public EvaluationContext(int numInputs, int numOutputs) {
+		this.functionRegistry = new MethodRegistry(this.bindings);
+		setInputsAndOutputs(numInputs, numOutputs);
+	}
+
+	public void setInputsAndOutputs(int numInputs, int numOutputs) {
+		this.inputSchemas = new Schema[numInputs];
+		Arrays.fill(this.inputSchemas, new Schema.Default());
+		this.outputSchemas = new Schema[numOutputs];
+		Arrays.fill(this.outputSchemas, new Schema.Default());
 	}
 
 	public EvaluationContext(final EvaluationContext context) {
-		this.functionRegistry = context.functionRegistry;
+		this(context.inputSchemas.length, context.outputSchemas.length);
+		this.bindings.putAll(context.bindings);
 		this.inputCounter = context.inputCounter;
+		this.inputSchemas = context.inputSchemas.clone();
+		this.outputSchemas = context.outputSchemas.clone();
 	}
 
 	/**
@@ -53,7 +95,7 @@ public class EvaluationContext implements SerializableSopremoType {
 	 * 
 	 * @return the FunctionRegistry
 	 */
-	public FunctionRegistry getFunctionRegistry() {
+	public MethodRegistry getFunctionRegistry() {
 		return this.functionRegistry;
 	}
 
@@ -63,6 +105,26 @@ public class EvaluationContext implements SerializableSopremoType {
 
 	public void increaseInputCounter() {
 		this.inputCounter++;
+	}
+
+	/**
+	 * Returns the inputSchemas.
+	 * 
+	 * @return the inputSchemas
+	 */
+	public Schema getInputSchema(int index) {
+		return this.schema;
+//		return this.inputSchemas[index];
+	}
+
+	/**
+	 * Returns the outputSchemas.
+	 * 
+	 * @return the outputSchemas
+	 */
+	public Schema getOutputSchema(int index) {
+		return this.schema;
+//		return this.outputSchemas[index];
 	}
 
 	private int taskId;
@@ -75,4 +137,21 @@ public class EvaluationContext implements SerializableSopremoType {
 		this.taskId = taskId;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("Context @ ").append(this.operatorStack).append("\n").
+			append("Bindings: ");
+		this.bindings.toString(builder);
+	}
+
+	/**
+	 * @param schema
+	 */
+	public void setSchema(Schema schema) {
+		this.schema = schema;
+	}
 }

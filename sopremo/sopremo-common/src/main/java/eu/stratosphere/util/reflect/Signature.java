@@ -1,15 +1,14 @@
 package eu.stratosphere.util.reflect;
 
+import java.io.Serializable;
 import java.util.Arrays;
-
-import eu.stratosphere.sopremo.SerializableSopremoType;
 
 /**
  * General signature of a method that handles exactly the specified argument types.
  * 
  * @author Arvid Heise
  */
-public class Signature implements SerializableSopremoType {
+public class Signature implements Serializable {
 	/**
 	 * Constant that is returned by {@link #getDistance(MethodSignature)} if the given actual signature is incompatible
 	 * with the declared signature.
@@ -86,10 +85,21 @@ public class Signature implements SerializableSopremoType {
 		return result;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 */
+	public void toString(StringBuilder builder) {
+		builder.append("(").append(Arrays.toString(this.parameterTypes)).append(")");
+	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
 	@Override
 	public String toString() {
-		final StringBuilder builder = new StringBuilder();
-		builder.append("(").append(Arrays.toString(this.parameterTypes)).append(")");
+		StringBuilder builder = new StringBuilder();
+		toString(builder);
 		return builder.toString();
 	}
 

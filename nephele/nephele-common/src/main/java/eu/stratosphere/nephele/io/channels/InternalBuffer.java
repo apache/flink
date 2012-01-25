@@ -35,5 +35,9 @@ public interface InternalBuffer extends ReadableByteChannel, WritableByteChannel
 
 	boolean isBackedByMemory();
 
-	InternalBuffer duplicate();
+	InternalBuffer duplicate() throws IOException, InterruptedException;
+	
+	boolean isInWriteMode();
+	
+	void copyToBuffer(Buffer destinationBuffer) throws IOException;
 }

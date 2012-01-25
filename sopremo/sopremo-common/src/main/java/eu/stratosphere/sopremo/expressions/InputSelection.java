@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 1, maxNodes = OptimizerHints.UNBOUND)
 public class InputSelection extends EvaluationExpression {
@@ -20,9 +20,10 @@ public class InputSelection extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.index == ((InputSelection) obj).index;
+		final InputSelection other = (InputSelection) obj;
+		return this.index == other.index;
 	}
 
 	@Override
@@ -54,11 +55,11 @@ public class InputSelection extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return 37 + this.index;
+		return 37 * super.hashCode() + this.index;
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		super.toString(builder);
 		builder.append("in").append(this.index);
 	}

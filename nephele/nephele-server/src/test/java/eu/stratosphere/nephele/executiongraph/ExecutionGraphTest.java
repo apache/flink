@@ -19,7 +19,6 @@ import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,12 +35,14 @@ import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
+import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
@@ -93,19 +94,19 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
-				List<String> splitAffinityList) throws InstanceException {
+		public void requestInstance(final JobID jobID, final Configuration conf,
+				final InstanceRequestMap instanceRequestMap,
+				final List<String> splitAffinityList) throws InstanceException {
 
 			throw new IllegalStateException("requestInstance called on TestInstanceManager");
 		}
-		
-		
 
 		/**
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void releaseAllocatedResource(JobID jobID, Configuration conf, AllocatedResource allocatedResource)
+		public void releaseAllocatedResource(final JobID jobID, final Configuration conf,
+				final AllocatedResource allocatedResource)
 				throws InstanceException {
 
 			throw new IllegalStateException("releaseAllocatedResource called on TestInstanceManager");
@@ -115,8 +116,8 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public InstanceType getSuitableInstanceType(int minNumComputeUnits, int minNumCPUCores, int minMemorySize,
-				int minDiskCapacity, int maxPricePerHour) {
+		public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
+				final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
 
 			throw new IllegalStateException("getSuitableInstanceType called on TestInstanceManager");
 		}
@@ -125,8 +126,8 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo,
-				HardwareDescription hardwareDescription) {
+		public void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
+				final HardwareDescription hardwareDescription) {
 
 			throw new IllegalStateException("reportHeartBeat called on TestInstanceManager");
 		}
@@ -135,7 +136,7 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public InstanceType getInstanceTypeByName(String instanceTypeName) {
+		public InstanceType getInstanceTypeByName(final String instanceTypeName) {
 
 			if (this.defaultInstanceType.getIdentifier().equals(instanceTypeName)) {
 				return this.defaultInstanceType;
@@ -154,7 +155,7 @@ public class ExecutionGraphTest {
 		}
 
 		@Override
-		public NetworkTopology getNetworkTopology(JobID jobID) {
+		public NetworkTopology getNetworkTopology(final JobID jobID) {
 
 			throw new IllegalStateException("getNetworkTopology called on TestInstanceManager");
 		}
@@ -163,7 +164,7 @@ public class ExecutionGraphTest {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void setInstanceListener(InstanceListener instanceListener) {
+		public void setInstanceListener(final InstanceListener instanceListener) {
 
 			throw new IllegalStateException("setInstanceListener called on TestInstanceManager");
 		}
@@ -186,40 +187,25 @@ public class ExecutionGraphTest {
 			throw new IllegalStateException("shutdown called on TestInstanceManager");
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public AbstractInstance getInstanceByName(final String name) {
+			throw new IllegalStateException("getInstanceByName called on TestInstanceManager");
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void cancelPendingRequests(final JobID jobID) {
+			throw new IllegalStateException("cancelPendingRequests called on TestInstanceManager");
+		}
+
 	}
 
 	private static final InstanceManager INSTANCE_MANAGER = new TestInstanceManager();
-
-	/*
-	 * private static final class TestInstanceListener implements InstanceListener {
-	 * int nrAvailable = 0;
-	 * final Map<JobID, List<AllocatedResource>> resourcesOfJobs = new HashMap<JobID, List<AllocatedResource>>();
-	 * @Override
-	 * public void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
-	 * --nrAvailable;
-	 * assertTrue(nrAvailable >= 0);
-	 * final List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
-	 * assertTrue(resourcesOfJob != null);
-	 * assertTrue(resourcesOfJob.contains(allocatedResource));
-	 * resourcesOfJob.remove(allocatedResource);
-	 * if (resourcesOfJob.isEmpty()) {
-	 * this.resourcesOfJobs.remove(jobID);
-	 * }
-	 * }
-	 * @Override
-	 * public void resourceAllocated(JobID jobID, AllocatedResource allocatedResource) {
-	 * assertTrue(nrAvailable >= 0);
-	 * ++nrAvailable;
-	 * List<AllocatedResource> resourcesOfJob = this.resourcesOfJobs.get(jobID);
-	 * if (resourcesOfJob == null) {
-	 * resourcesOfJob = new ArrayList<AllocatedResource>();
-	 * this.resourcesOfJobs.put(jobID, resourcesOfJob);
-	 * }
-	 * assertFalse(resourcesOfJob.contains(allocatedResource));
-	 * resourcesOfJob.add(allocatedResource);
-	 * }
-	 * }
-	 */
 
 	/*
 	 * input1 -> task1 -> output1
@@ -267,19 +253,13 @@ public class ExecutionGraphTest {
 
 			final ExecutionGraph eg = new ExecutionGraph(jg, INSTANCE_MANAGER);
 
-			// Set all instances to SCHEDULED before conducting the instance test
-			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
-			while (it.hasNext()) {
-				it.next().setExecutionState(ExecutionState.SCHEDULED);
-			}
-
 			// test all methods of ExecutionGraph
-			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 			final ExecutionStage executionStage = eg.getCurrentExecutionStage();
-			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
-			assertEquals(1, requiredInstances.size());
-			assertEquals(1,
-				(int) requiredInstances.get(INSTANCE_MANAGER.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
+			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
+			assertEquals(1, instanceRequestMap.size());
+			assertEquals(1, (int) instanceRequestMap.getMaximumNumberOfInstances(INSTANCE_MANAGER
+					.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
 
 			assertEquals(jobID, eg.getJobID());
 			assertEquals(0, eg.getIndexOfCurrentExecutionStage());
@@ -500,18 +480,14 @@ public class ExecutionGraphTest {
 
 			// now convert job graph to execution graph
 			final ExecutionGraph eg = new ExecutionGraph(jg, INSTANCE_MANAGER);
-			// Set all instances to SCHEDULED before conducting the instance test
-			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
-			while (it.hasNext()) {
-				it.next().setExecutionState(ExecutionState.SCHEDULED);
-			}
 
 			// test instance types in ExecutionGraph
-			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 			final ExecutionStage executionStage = eg.getCurrentExecutionStage();
-			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
-			assertEquals(1, requiredInstances.size());
-			assertEquals(1, (int) requiredInstances.get(INSTANCE_MANAGER.getDefaultInstanceType()));
+			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
+			assertEquals(1, instanceRequestMap.size());
+			assertEquals(1,
+				(int) instanceRequestMap.getMaximumNumberOfInstances(INSTANCE_MANAGER.getDefaultInstanceType()));
 
 			// stage0
 			ExecutionStage es = eg.getStage(0);
@@ -635,18 +611,14 @@ public class ExecutionGraphTest {
 			LibraryCacheManager.register(jobID, new String[0]);
 
 			final ExecutionGraph eg = new ExecutionGraph(jg, INSTANCE_MANAGER);
-			// Set all instances to SCHEDULED before conducting the instance test
-			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
-			while (it.hasNext()) {
-				it.next().setExecutionState(ExecutionState.SCHEDULED);
-			}
 
 			// test instance types in ExecutionGraph
-			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 			final ExecutionStage executionStage = eg.getCurrentExecutionStage();
-			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
-			assertEquals(1, requiredInstances.size());
-			assertEquals(2, (int) requiredInstances.get(INSTANCE_MANAGER.getDefaultInstanceType()));
+			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
+			assertEquals(1, instanceRequestMap.size());
+			assertEquals(2,
+				(int) instanceRequestMap.getMaximumNumberOfInstances(INSTANCE_MANAGER.getDefaultInstanceType()));
 
 			// stage0
 			final ExecutionStage es = eg.getStage(0);
@@ -890,37 +862,37 @@ public class ExecutionGraphTest {
 
 			// now convert job graph to execution graph
 			final ExecutionGraph eg = new ExecutionGraph(jg, INSTANCE_MANAGER);
-			// Set all instances to SCHEDULED before conducting the instance test
-			Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
-			while (it.hasNext()) {
-				it.next().setExecutionState(ExecutionState.SCHEDULED);
-			}
 
 			// test instance types in ExecutionGraph
-			final Map<InstanceType, Integer> requiredInstances = new HashMap<InstanceType, Integer>();
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
 			ExecutionStage executionStage = eg.getCurrentExecutionStage();
-			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
-			assertEquals(1, requiredInstances.size());
+			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
+			assertEquals(1, instanceRequestMap.size());
 			assertEquals(4,
-				(int) requiredInstances.get(INSTANCE_MANAGER.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
+				(int) instanceRequestMap.getMaximumNumberOfInstances(INSTANCE_MANAGER
+					.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
 			// Fake transition to next stage by triggering execution state changes manually
-			it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(), true, true);
+			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
+				true, true);
+
 			while (it.hasNext()) {
 				final ExecutionVertex ev = it.next();
-				ev.setExecutionState(ExecutionState.SCHEDULED);
-				ev.setExecutionState(ExecutionState.ASSIGNING);
-				ev.setExecutionState(ExecutionState.ASSIGNED);
-				ev.setExecutionState(ExecutionState.READY);
-				ev.setExecutionState(ExecutionState.RUNNING);
-				ev.setExecutionState(ExecutionState.FINISHING);
-				ev.setExecutionState(ExecutionState.FINISHED);
+				ev.updateExecutionState(ExecutionState.SCHEDULED);
+				ev.updateExecutionState(ExecutionState.ASSIGNED);
+				ev.updateExecutionState(ExecutionState.READY);
+				ev.updateExecutionState(ExecutionState.STARTING);
+				ev.updateExecutionState(ExecutionState.RUNNING);
+				ev.updateExecutionState(ExecutionState.FINISHING);
+				ev.updateExecutionState(ExecutionState.FINISHED);
 			}
-			requiredInstances.clear();
+			instanceRequestMap.clear();
 			executionStage = eg.getCurrentExecutionStage();
-			executionStage.collectRequiredInstanceTypes(requiredInstances, ExecutionState.SCHEDULED);
-			assertEquals(1, requiredInstances.size());
+			assertEquals(1, executionStage.getStageNumber());
+			executionStage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
+			assertEquals(1, instanceRequestMap.size());
 			assertEquals(8,
-				(int) requiredInstances.get(INSTANCE_MANAGER.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
+				(int) instanceRequestMap.getMaximumNumberOfInstances(INSTANCE_MANAGER
+					.getInstanceTypeByName(DEFAULT_INSTANCE_TYPE_NAME)));
 		} catch (GraphConversionException e) {
 			fail(e.getMessage());
 		} catch (JobGraphDefinitionException e) {
@@ -1047,6 +1019,106 @@ public class ExecutionGraphTest {
 				.equals(inputGroupVertex.getGroupMember(2).getAllocatedResource()));
 			assertFalse(inputGroupVertex.getGroupMember(2).getAllocatedResource()
 				.equals(inputGroupVertex.getGroupMember(3).getAllocatedResource()));
+
+		} catch (GraphConversionException e) {
+			fail(e.getMessage());
+		} catch (JobGraphDefinitionException e) {
+			fail(e.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+			if (inputFile1 != null) {
+				inputFile1.delete();
+			}
+			if (jobID != null) {
+				try {
+					LibraryCacheManager.unregister(jobID);
+				} catch (IOException e) {
+				}
+			}
+		}
+	}
+
+	/**
+	 * This test checks the correctness of the instance sharing API. In particular, the test checks the behavior of the
+	 * instance sharing as reported broken in ticket #198
+	 */
+	@Test
+	public void testInstanceSharing() {
+
+		final int degreeOfParallelism = 4;
+		File inputFile1 = null;
+		JobID jobID = null;
+
+		try {
+
+			inputFile1 = ServerTestUtils.createInputFile(0);
+
+			// create job graph
+			final JobGraph jg = new JobGraph("Instance Sharing Test Job");
+			jobID = jg.getJobID();
+
+			// input vertex
+			final JobFileInputVertex input1 = new JobFileInputVertex("Input 1", jg);
+			input1.setFileInputClass(FileLineReader.class);
+			input1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath()));
+			input1.setNumberOfSubtasks(degreeOfParallelism);
+
+			// forward vertex 1
+			final JobTaskVertex forward1 = new JobTaskVertex("Forward 1", jg);
+			forward1.setTaskClass(ForwardTask1Input1Output.class);
+			forward1.setNumberOfSubtasks(degreeOfParallelism);
+
+			// forward vertex 2
+			final JobTaskVertex forward2 = new JobTaskVertex("Forward 2", jg);
+			forward2.setTaskClass(ForwardTask1Input1Output.class);
+			forward2.setNumberOfSubtasks(degreeOfParallelism);
+
+			// forward vertex 3
+			final JobTaskVertex forward3 = new JobTaskVertex("Forward 3", jg);
+			forward3.setTaskClass(ForwardTask1Input1Output.class);
+			forward3.setNumberOfSubtasks(degreeOfParallelism);
+
+			// output vertex
+			final JobFileOutputVertex output1 = new JobFileOutputVertex("Output 1", jg);
+			output1.setFileOutputClass(FileLineWriter.class);
+			output1.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			output1.setNumberOfSubtasks(degreeOfParallelism);
+
+			// connect vertices
+			input1.connectTo(forward1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			forward1.connectTo(forward2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			forward2.connectTo(forward3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			forward3.connectTo(output1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+			// setup instance sharing
+			input1.setVertexToShareInstancesWith(forward1);
+			forward1.setVertexToShareInstancesWith(forward2);
+			forward2.setVertexToShareInstancesWith(forward3);
+			forward3.setVertexToShareInstancesWith(output1);
+
+			LibraryCacheManager.register(jobID, new String[0]);
+
+			// now convert job graph to execution graph
+			final ExecutionGraph eg = new ExecutionGraph(jg, INSTANCE_MANAGER);
+
+			// Check number of stages
+			assertEquals(1, eg.getNumberOfStages());
+
+			// Check number of vertices in stage
+			final ExecutionStage stage = eg.getStage(0);
+			assertEquals(5, stage.getNumberOfStageMembers());
+
+			// Check number of required instances
+			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
+			stage.collectRequiredInstanceTypes(instanceRequestMap, ExecutionState.CREATED);
+
+			// First, we expect all required instances to be of the same type
+			assertEquals(1, instanceRequestMap.size());
+
+			final int numberOfRequiredInstances = instanceRequestMap.getMinimumNumberOfInstances(INSTANCE_MANAGER
+				.getDefaultInstanceType());
+			assertEquals(degreeOfParallelism, numberOfRequiredInstances);
 
 		} catch (GraphConversionException e) {
 			fail(e.getMessage());

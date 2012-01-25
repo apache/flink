@@ -2,8 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY)
 public class ConstantExpression extends EvaluationExpression {
@@ -23,21 +22,18 @@ public class ConstantExpression extends EvaluationExpression {
 		this.constant = JsonUtil.OBJECT_MAPPER.valueToTree(constant);
 	}
 
-	public int asInt() {
-		if (this.constant instanceof NumericNode)
-			return ((NumericNode) this.constant).getIntValue();
-		return Integer.parseInt(this.constant.toString());
-	}
 
-	public String asString() {
-		return this.constant.toString();
-	}
+public JsonNode getConstant() {
+	return constant;
+}
+
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.constant.equals(((ConstantExpression) obj).constant);
+		final ConstantExpression other = (ConstantExpression) obj;
+		return this.constant.equals(other.constant);
 	}
 
 	@Override
@@ -47,11 +43,11 @@ public class ConstantExpression extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return 41 + this.constant.hashCode();
+		return  41 * super.hashCode() + this.constant.hashCode();
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		if (this.constant instanceof CharSequence)
 			builder.append("\'").append(this.constant).append("\'");
 		else

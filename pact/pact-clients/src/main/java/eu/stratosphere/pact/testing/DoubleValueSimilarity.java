@@ -1,5 +1,6 @@
 package eu.stratosphere.pact.testing;
 
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 
 /**
@@ -9,8 +10,10 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
  * 
  * @author Arvid Heise
  */
-public class DoubleValueSimilarity implements FuzzyTestValueSimilarity<PactDouble> {
+public class DoubleValueSimilarity implements FuzzyTestValueSimilarity {
 	private double delta;
+
+	private int valueIndex;
 
 	/**
 	 * Initializes DoubleValueSimilarity with the given threshold.
@@ -18,8 +21,9 @@ public class DoubleValueSimilarity implements FuzzyTestValueSimilarity<PactDoubl
 	 * @param delta
 	 *        the threshold defining the maximum allowed difference.
 	 */
-	public DoubleValueSimilarity(double delta) {
+	public DoubleValueSimilarity(double delta, int valueIndex) {
 		this.delta = delta;
+		this.valueIndex = valueIndex;
 	}
 
 	/**
@@ -32,10 +36,12 @@ public class DoubleValueSimilarity implements FuzzyTestValueSimilarity<PactDoubl
 	}
 
 	@Override
-	public double getDistance(PactDouble value1, PactDouble value2) {
-		if (Double.compare(value1.getValue(), value2.getValue()) == 0)
+	public double getDistance(PactRecord record1, PactRecord record2) {
+		double value1 = record1.getField(this.valueIndex, PactDouble.class).getValue();
+		double value2 = record2.getField(this.valueIndex, PactDouble.class).getValue();
+		if (Double.compare(value1, value2) == 0)
 			return 0;
-		double diff = Math.abs(value1.getValue() - value2.getValue());
+		double diff = Math.abs(value1 - value2);
 		if (diff <= this.delta)
 			return diff;
 		return NO_MATCH;

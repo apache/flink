@@ -15,21 +15,21 @@
 
 package eu.stratosphere.pact.common;
 
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Trivial PACT stub which emits the pairs without modifications.
  * 
  * @author Arvid Heise
  */
-@SameKey
-public class IdentityMap extends MapStub<Key, Value, Key, Value> {
+public class IdentityMap extends MapStub {
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+	 */
 	@Override
-	public void map(final Key key, final Value value, final Collector<Key, Value> out) {
-		out.collect(key, value);
+	public void map(PactRecord record, Collector out) throws Exception {
+		out.collect(record);
 	}
 }

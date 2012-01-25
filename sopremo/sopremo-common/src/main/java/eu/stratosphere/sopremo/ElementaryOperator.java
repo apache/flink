@@ -3,15 +3,27 @@ package eu.stratosphere.sopremo;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.IdentityMap;
+import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.MatchContract;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.pact.common.stub.Stub;
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.Schema;
+import eu.stratosphere.util.IdentityList;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
@@ -79,12 +91,26 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		final Contract contract = this.getContract();
+		final Contract contract = this.getContract(context.getInputSchema(0));
 		this.configureContract(contract, contract.getParameters(), context);
-		final Contract[] inputs = ContractUtil.getInputs(contract);
-		final PactModule module = new PactModule(this.toString(), inputs.length, 1);
-		ContractUtil.setInputs(contract, module.getInputs());
-		module.getOutput(0).setInput(contract);
+
+		final List<List<Contract>> inputLists = ContractUtil.getInputs(contract);
+		final List<Contract> distinctInputs = new IdentityList<Contract>();
+		for (List<Contract> inputs : inputLists) {
+			// assume at least one input for each contract input slot
+			if (inputs.isEmpty())
+				inputs.add(new MapContract(IdentityMap.class));
+			for (Contract input : inputs)
+				if (!distinctInputs.contains(input))
+					distinctInputs.add(input);
+		}
+		final PactModule module = new PactModule(this.toString(), distinctInputs.size(), 1);
+		for (List<Contract> inputs : inputLists)
+			for (int index = 0; index < inputs.size(); index++)
+				inputs.set(index, module.getInput(distinctInputs.indexOf(inputs.get(index))));
+		ContractUtil.setInputs(contract, inputLists);
+
+		module.getOutput(0).addInput(contract);
 		return module;
 	}
 
@@ -112,8 +138,8 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 */
 	protected void configureContract(final Contract contract, final Configuration stubConfiguration,
 			final EvaluationContext context) {
-		context.pushOperator(this.getName());
-		SopremoUtil.setContext(stubConfiguration, context);
+		context.pushOperator(this);
+		SopremoUtil.serialize(stubConfiguration, SopremoUtil.CONTEXT, context);
 		context.popOperator();
 
 		for (final Field stubField : contract.getUserCodeClass().getDeclaredFields())
@@ -137,19 +163,32 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 * 
 	 * @return the contract representing this operator
 	 */
-	protected Contract getContract() {
-		final Class<? extends Stub<?, ?>> stubClass = this.getStubClass();
+	@SuppressWarnings("unchecked")
+	protected Contract getContract(Schema globalSchema) {
+		final Class<? extends Stub> stubClass = this.getStubClass();
 		if (stubClass == null)
 			throw new IllegalStateException("no implementing stub found");
 		final Class<? extends Contract> contractClass = ContractUtil.getContractClass(stubClass);
 		if (contractClass == null)
 			throw new IllegalStateException("no associated contract found");
 		try {
+
+			if (contractClass == ReduceContract.class)
+				return new ReduceContract((Class<? extends ReduceStub>) stubClass, JsonNodeWrapper.class, 0,
+					this.toString());
+			else if (contractClass == CoGroupContract.class)
+				return new CoGroupContract((Class<? extends CoGroupStub>) stubClass, JsonNodeWrapper.class, 0, 0,
+					this.toString());
+			else if (contractClass == MatchContract.class)
+				return new MatchContract((Class<? extends MatchStub>) stubClass, JsonNodeWrapper.class, 0, 0,
+					this.toString());
 			return ReflectUtil.newInstance(contractClass, stubClass, this.toString());
 		} catch (final Exception e) {
 			throw new IllegalStateException("Cannot create contract from stub " + stubClass, e);
 		}
 	}
+
+	// protected abstract Schema getKeyFields();
 
 	/**
 	 * Returns the stub class that represents the functionality of this operator.<br>
@@ -159,10 +198,10 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 * @return the stub class
 	 */
 	@SuppressWarnings("unchecked")
-	protected Class<? extends Stub<?, ?>> getStubClass() {
+	protected Class<? extends Stub> getStubClass() {
 		for (final Class<?> stubClass : this.getClass().getDeclaredClasses())
 			if ((stubClass.getModifiers() & Modifier.STATIC) != 0 && Stub.class.isAssignableFrom(stubClass))
-				return (Class<? extends Stub<?, ?>>) stubClass;
+				return (Class<? extends Stub>) stubClass;
 		return null;
 	}
 }

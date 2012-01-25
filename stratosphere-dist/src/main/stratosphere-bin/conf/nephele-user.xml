@@ -39,9 +39,24 @@
                 <value>6122</value>
         </property>
 
+        <!--  ========================================================================
+	                               Memory, Buffers and Directories
+	      ======================================================================== -->
+
+        <!--  The directories for temporary files. Add a colon (:) separated list for multiple directories -->
+        <property>
+                <key>taskmanager.tmp.dirs</key>
+                <value>/tmp</value>
+        </property>
+
+        <!-- The number of network buffers used by the TaskManager -->
+        <property>
+                <key>channel.network.numberOfBuffers</key>
+                <value>2048</value>
+        </property>
 
         <!--  ========================================================================
-	                           Instance and Memory Management 
+	                                   Instances
 	      ======================================================================== -->
 	      
 	<!-- Definition of the standard instance type. This definition describes the instances in 

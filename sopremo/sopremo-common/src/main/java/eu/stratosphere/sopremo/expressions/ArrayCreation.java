@@ -5,8 +5,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Creates an array of the given expressions.
@@ -20,7 +20,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = 1681947333740209285L;
 
-	private final EvaluationExpression[] elements;
+	private EvaluationExpression[] elements;
 
 	/**
 	 * Initializes ArrayCreation to create an array of the given expressions.
@@ -42,11 +42,16 @@ public class ArrayCreation extends ContainerExpression {
 		this.elements = elements.toArray(new EvaluationExpression[elements.size()]);
 	}
 
+	public int size() {
+		return this.elements.length;
+	}
+
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return Arrays.equals(this.elements, ((ArrayCreation) obj).elements);
+		final ArrayCreation other = (ArrayCreation) obj;
+		return Arrays.equals(this.elements, other.elements);
 	}
 
 	@Override
@@ -59,7 +64,7 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public int hashCode() {
-		return 53 + Arrays.hashCode(this.elements);
+		return 53 * super.hashCode() + Arrays.hashCode(this.elements);
 	}
 
 	@Override
@@ -67,8 +72,26 @@ public class ArrayCreation extends ContainerExpression {
 		return Arrays.asList(this.elements).iterator();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
+	 */
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public List<? extends EvaluationExpression> getChildren() {
+		return Arrays.asList(this.elements);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
+	 */
+	@Override
+	public void setChildren(List<? extends EvaluationExpression> children) {
+		this.elements = children.toArray(this.elements);
+	}
+
+	@Override
+	public void toString(final StringBuilder builder) {
 		builder.append(Arrays.toString(this.elements));
 	}
 }

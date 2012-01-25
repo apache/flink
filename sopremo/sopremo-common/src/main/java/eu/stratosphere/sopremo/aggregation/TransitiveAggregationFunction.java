@@ -1,8 +1,7 @@
 package eu.stratosphere.sopremo.aggregation;
 
-import java.io.ByteArrayOutputStream;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public abstract class TransitiveAggregationFunction extends AggregationFunction {
 	/**
@@ -33,8 +32,6 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 
 	@Override
 	public void initialize() {
-		final ByteArrayOutputStream cloneBuffer = new ByteArrayOutputStream();
-		final JsonNode cloner = this.initialAggregate.clone();
-		this.aggregate = cloner;
+		this.aggregate = this.initialAggregate.clone();
 	}
 }

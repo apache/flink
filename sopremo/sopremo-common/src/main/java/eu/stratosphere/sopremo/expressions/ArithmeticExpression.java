@@ -8,14 +8,14 @@ import java.util.Map;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.NumberCoercer;
-import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
-import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode.TYPES;
-import eu.stratosphere.sopremo.jsondatamodel.LongNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for
@@ -32,8 +32,44 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	private final ArithmeticExpression.ArithmeticOperator operator;
 
-	private final EvaluationExpression op1, op2;
+	private EvaluationExpression firstOperand, secondOperand;
 
+	public EvaluationExpression getFirstOperand() {
+		return this.firstOperand;
+	}
+
+	public void setFirstOperand(EvaluationExpression firstOperand) {
+		if (firstOperand == null)
+			throw new NullPointerException("firstOperand must not be null");
+
+		this.firstOperand = firstOperand;
+	}
+
+	/**
+	 * Sets the second operand to the specified value.
+	 * 
+	 * @param secondOperand
+	 *        the operand to set
+	 */
+	public void setSecondOperand(EvaluationExpression secondOperand) {
+		if (secondOperand == null)
+			throw new NullPointerException("second operand must not be null");
+
+		this.secondOperand = secondOperand;
+	}
+
+	/**
+	 * Returns the second operand.
+	 * 
+	 * @return the second operand
+	 */
+	public EvaluationExpression getSecondOperand() {
+		return this.secondOperand;
+	}
+
+	public ArithmeticExpression.ArithmeticOperator getOperator() {
+		return operator;
+	}
 	/**
 	 * Initializes Arithmetic with two {@link EvaluationExpression}s and an {@link ArithmeticOperator} in infix
 	 * notation.
@@ -43,42 +79,47 @@ public class ArithmeticExpression extends EvaluationExpression {
 	 * @param operator
 	 *        the operator
 	 * @param op2
-	 *        the second operand
+	 *        the 
 	 */
 	public ArithmeticExpression(final EvaluationExpression op1, final ArithmeticOperator operator,
 			final EvaluationExpression op2) {
 		this.operator = operator;
-		this.op1 = op1;
-		this.op2 = op2;
+		this.firstOperand = op1;
+		this.secondOperand = op2;
 	}
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.op1.equals(((ArithmeticExpression) obj).op1)
-			&& this.operator.equals(((ArithmeticExpression) obj).operator)
-			&& this.op2.equals(((ArithmeticExpression) obj).op2);
+		ArithmeticExpression other = (ArithmeticExpression) obj;
+		return this.firstOperand.equals(other .firstOperand)
+			&& this.operator.equals(other.operator)
+			&& this.secondOperand.equals(other.secondOperand);
 	}
 
 	@Override
 	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		return this.operator.evaluate((NumericNode) this.op1.evaluate(node, context),
-			(NumericNode) this.op2.evaluate(node, context));
+		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, context),
+			(NumericNode) this.secondOperand.evaluate(node, context));
 	}
 
 	@Override
 	public int hashCode() {
-		return ((59 + this.op1.hashCode()) * 59 + this.operator.hashCode()) * 59 + this.op2.hashCode();
+		int result = super.hashCode();
+		result = 59 * result + this.firstOperand.hashCode();
+		result = 59 * result + this.operator.hashCode();
+		result = 59 * result + this.secondOperand.hashCode();
+		return result;
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
-		builder.append(this.op1);
+	public void toString(final StringBuilder builder) {
+		builder.append(this.firstOperand);
 		builder.append(' ');
 		builder.append(this.operator);
 		builder.append(' ');
-		builder.append(this.op2);
+		builder.append(this.secondOperand);
 	}
 
 	/**
@@ -186,19 +227,19 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		private final String sign;
 
-		private final Map<JsonNode.TYPES, NumberEvaluator> typeEvaluators = new EnumMap<JsonNode.TYPES, NumberEvaluator>(
-			JsonNode.TYPES.class);
+		private final Map<JsonNode.Type, NumberEvaluator> typeEvaluators = new EnumMap<JsonNode.Type, NumberEvaluator>(
+			JsonNode.Type.class);
 
 		private ArithmeticOperator(final String sign, final NumberEvaluator integerEvaluator,
 				final NumberEvaluator longEvaluator,
 				final NumberEvaluator doubleEvaluator, final NumberEvaluator bigIntegerEvaluator,
 				final NumberEvaluator bigDecimalEvaluator) {
 			this.sign = sign;
-			this.typeEvaluators.put(JsonNode.TYPES.IntNode, integerEvaluator);
-			this.typeEvaluators.put(JsonNode.TYPES.LongNode, longEvaluator);
-			this.typeEvaluators.put(JsonNode.TYPES.DoubleNode, doubleEvaluator);
-			this.typeEvaluators.put(JsonNode.TYPES.BigIntegerNode, bigIntegerEvaluator);
-			this.typeEvaluators.put(JsonNode.TYPES.DecimalNode, bigDecimalEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.IntNode, integerEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.LongNode, longEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.DoubleNode, doubleEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.BigIntegerNode, bigIntegerEvaluator);
+			this.typeEvaluators.put(JsonNode.Type.DecimalNode, bigDecimalEvaluator);
 		}
 
 		/**
@@ -211,7 +252,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 * @return the result of the operation
 		 */
 		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			final TYPES widerType = NumberCoercer.INSTANCE.getWiderType(left,
+			final Type widerType = NumberCoercer.INSTANCE.getWiderType(left,
 				right);
 			return this.typeEvaluators.get(widerType).evaluate(left, right);
 		}

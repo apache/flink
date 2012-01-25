@@ -42,39 +42,43 @@ public class TestInstanceListener implements InstanceListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void resourceAllocated(JobID jobID, AllocatedResource allocatedResource) {
+	public synchronized void resourcesAllocated(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
-		List<AllocatedResource> allocatedResources = this.resourcesOfJobs.get(jobID);
-		if (allocatedResources == null) {
-			allocatedResources = new ArrayList<AllocatedResource>();
-			this.resourcesOfJobs.put(jobID, allocatedResources);
+		List<AllocatedResource> allocatedResourcesOfJob = this.resourcesOfJobs.get(jobID);
+		if (allocatedResourcesOfJob == null) {
+			allocatedResourcesOfJob = new ArrayList<AllocatedResource>();
+			this.resourcesOfJobs.put(jobID, allocatedResourcesOfJob);
 		}
 
-		if (allocatedResources.contains(allocatedResource)) {
-			throw new IllegalStateException("Resource " + allocatedResource.getAllocationID()
-				+ " is already allocated by job " + jobID);
-		}
+		for (final AllocatedResource allocatedResource : allocatedResources) {
+			if (allocatedResourcesOfJob.contains(allocatedResource)) {
+				throw new IllegalStateException("Resource " + allocatedResource.getAllocationID()
+					+ " is already allocated by job " + jobID);
+			}
 
-		allocatedResources.add(allocatedResource);
+			allocatedResourcesOfJob.add(allocatedResource);
+		}
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public synchronized void allocatedResourceDied(JobID jobID, AllocatedResource allocatedResource) {
+	public synchronized void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
-		List<AllocatedResource> allocatedResources = this.resourcesOfJobs.get(jobID);
-		if (allocatedResources == null) {
+		List<AllocatedResource> allocatedResourcesOfJob = this.resourcesOfJobs.get(jobID);
+		if (allocatedResourcesOfJob == null) {
 			throw new IllegalStateException("Unable to find allocated resources for job with ID " + jobID);
 		}
 
-		if (!allocatedResources.remove(allocatedResource)) {
-			throw new IllegalStateException("Resource " + allocatedResource.getAllocationID()
-				+ " is not assigned to job " + jobID);
+		for (final AllocatedResource allocatedResource : allocatedResources) {
+			if (!allocatedResourcesOfJob.remove(allocatedResource)) {
+				throw new IllegalStateException("Resource " + allocatedResource.getAllocationID()
+					+ " is not assigned to job " + jobID);
+			}
 		}
 
-		if (allocatedResources.isEmpty()) {
+		if (allocatedResourcesOfJob.isEmpty()) {
 			this.resourcesOfJobs.remove(jobID);
 		}
 	}

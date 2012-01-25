@@ -9,10 +9,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.type.Schema;
 import eu.stratosphere.util.dag.DependencyAwareGraphTraverser;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
@@ -63,11 +64,6 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	public PactModule asPactModule(final EvaluationContext context) {
 		return PactModule.valueOf(this.getName(), this.assemblePact(context));
 	}
-
-	//
-	// public SopremoModule asElementary() {
-	// return SopremoModule.valueOf(getName(), new ElementaryAssembler().assemble());
-	// }
 
 	/**
 	 * Assembles the Pacts of the contained Sopremo operators and returns a list of all Pact sinks. These sinks may
@@ -173,12 +169,12 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	private class PactAssembler {
 		private final Map<Operator<?>, PactModule> modules = new IdentityHashMap<Operator<?>, PactModule>();
 
-		private final Map<Operator<?>, Contract[]> operatorOutputs = new IdentityHashMap<Operator<?>, Contract[]>();
+		private final Map<Operator<?>, List<List<Contract>>> operatorOutputs = new IdentityHashMap<Operator<?>, List<List<Contract>>>();
 
 		private final EvaluationContext context;
 
 		public PactAssembler(final EvaluationContext context) {
-			this.context = context;
+			this.context = new EvaluationContext(context);
 		}
 
 		public Collection<Contract> assemble() {
@@ -197,10 +193,15 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				final PactModule module = operatorModule.getValue();
 
 				for (final Contract contract : module.getReachableNodes()) {
-					final Contract[] inputs = ContractUtil.getInputs(contract);
-					for (int index = 0; index < inputs.length; index++)
-						inputs[index] = this.findOutputtingPactInOperator(operator, inputs[index]);
-					ContractUtil.setInputs(contract, inputs);
+					final List<List<Contract>> inputLists = ContractUtil.getInputs(contract);
+					for (int listIndex = 0; listIndex < inputLists.size(); listIndex++) {
+						List<Contract> connectedInputs = new ArrayList<Contract>();
+						List<Contract> inputs = inputLists.get(listIndex);
+						for (int inputIndex = 0; inputIndex < inputs.size(); inputIndex++)
+							this.addOutputtingPactInOperator(operator, inputs.get(inputIndex), connectedInputs);
+						inputLists.set(listIndex, connectedInputs);
+					}
+					ContractUtil.setInputs(contract, inputLists);
 				}
 			}
 		}
@@ -210,12 +211,13 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
+						// TODO: set schema
 						final PactModule module = node.asPactModule(PactAssembler.this.context);
 						PactAssembler.this.modules.put(node, module);
-						final FileDataSinkContract<?, ?>[] outputStubs = module.getOutputs();
-						final Contract[] outputContracts = new Contract[outputStubs.length];
+						final FileDataSink[] outputStubs = module.getOutputs();
+						final List<List<Contract>> outputContracts = new ArrayList<List<Contract>>();
 						for (int index = 0; index < outputStubs.length; index++)
-							outputContracts[index] = outputStubs[index].getInput();
+							outputContracts.add(outputStubs[index].getInputs());
 						PactAssembler.this.operatorOutputs.put(node, outputContracts);
 					}
 				});
@@ -224,34 +226,41 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				module.validate();
 		}
 
-		private Contract findOutputtingPactInOperator(final Operator<?> operator, final Contract o) {
+		private void addOutputtingPactInOperator(final Operator<?> operator, final Contract o,
+				final List<Contract> connectedInputs) {
 			int inputIndex = -1;
-			final FileDataSourceContract<?, ?>[] inputPacts = this.modules.get(operator).getInputs();
+			final FileDataSource[] inputPacts = this.modules.get(operator).getInputs();
 			for (int index = 0; index < inputPacts.length; index++)
 				if (inputPacts[index] == o) {
 					inputIndex = index;
 					break;
 				}
 
-			if (inputIndex >= operator.getInputs().size() || inputIndex == -1)
-				return o;
+			if (inputIndex >= operator.getInputs().size() || inputIndex == -1) {
+				connectedInputs.add(o);
+				return;
+			}
+
 			Operator<?>.Output inputSource = operator.getInputs().get(inputIndex).getSource();
-			Contract outputtingContract = this.operatorOutputs.get(inputSource.getOperator())[inputSource.getIndex()];
-			if (outputtingContract instanceof FileDataSourceContract<?, ?>
-				&& !(inputSource.getOperator() instanceof Source))
-				outputtingContract = this.findOutputtingPactInOperator(inputSource.getOperator(), outputtingContract);
-			return outputtingContract;
+			List<Contract> outputtingContracts = this.operatorOutputs.get(inputSource.getOperator()).get(
+				inputSource.getIndex());
+			for (Contract outputtingContract : outputtingContracts) {
+				if (outputtingContract instanceof FileDataSource && !(inputSource.getOperator() instanceof Source))
+					this.addOutputtingPactInOperator(inputSource.getOperator(), outputtingContract, connectedInputs);
+				else
+					connectedInputs.add(outputtingContract);
+			}
 		}
 
 		private List<Contract> findPACTSinks() {
 			final List<Contract> pactSinks = new ArrayList<Contract>();
 			for (final Operator<?> sink : SopremoModule.this.getAllOutputs()) {
-				final FileDataSinkContract<?, ?>[] outputs = this.modules.get(sink).getAllOutputs();
-				for (final FileDataSinkContract<?, ?> outputStub : outputs) {
-					Contract output = outputStub;
-					if (!(sink instanceof Sink))
-						output = outputStub.getInput();
-					pactSinks.add(output);
+				final FileDataSink[] outputs = this.modules.get(sink).getAllOutputs();
+				for (final FileDataSink outputStub : outputs) {
+					if (sink instanceof Sink)
+						pactSinks.add(outputStub);
+					else
+						pactSinks.addAll(outputStub.getInputs());
 				}
 			}
 			return pactSinks;
@@ -265,9 +274,6 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	private class ElementaryAssembler {
 		private final Map<Operator<?>, SopremoModule> modules = new IdentityHashMap<Operator<?>, SopremoModule>();
 
-		// private final Map<Operator<?>, JsonStream[]> operatorOutputs = new IdentityHashMap<Operator<?>,
-		// JsonStream[]>();
-
 		public ElementaryAssembler() {
 		}
 
@@ -276,16 +282,6 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 
 			this.connectModules();
 
-			// Operator<?>[] outputs = getOutputs().clone();
-			// List<Operator<?>> internal = new ArrayList<Operator<?>>(internalOutputNodes);
-			// for (int i = 0; i < outputs.length; i++) {
-			// outputs[i] = toElementary(outputs[i]);
-			// }
-			//
-			// SopremoModule elementary = SopremoModule.valueOf(getName(), outputs);
-			// for (int i = 0; i < internal.size(); i++) {
-			// elementary.addInternalOutput((Sink) toElementary(internal.get(i)));
-			// }
 			return SopremoModule.this;
 		}
 
@@ -296,7 +292,6 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					public void nodeTraversed(final Operator<?> node) {
 						SopremoModule elementaryModule = node.toElementaryOperators();
 						ElementaryAssembler.this.modules.put(node, elementaryModule);
-						// modules.put(node, new SopremoModule("test " + node.hashCode(), 0, 0));
 					}
 				});
 		}
@@ -315,7 +310,6 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 						inputModule.getOutput(inputSource.getIndex()).getInput(0));
 				}
 
-				// final Source[] moduleInputs = module.getInputs();
 				DependencyAwareGraphTraverser.INSTANCE.traverse(module.getAllOutputs(),
 					OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 						@Override
@@ -330,58 +324,15 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 							innerNode.setInputs(innerNodeInputs);
 						}
 					});
-				// }
 			}
 		}
-		// }
-		//
+	}
 
-		// public Collection<Operator<?>> assemble() {
-		//
-		// final List<Operator<?>> pactSinks = this.findPACTSinks();
-		//
-		// return pactSinks;
-		// }
-		//
-		// private void connectModules() {
-		// for (final Entry<Operator<?>, SopremoModule> operatorModule : this.modules.entrySet()) {
-		//
-		// for (final Operator<?> op : module.getReachableNodes()) {
-		// final List<Output> inputs = op.getInputs();
-		// for (int index = 0; index < inputs.size(); index++)
-		// inputs.set(index, this.findOutputtingOperatorInModule(operator, inputs.get(index)));
-		// op.setInputs(inputs);
-		// }
-		// }
-		// }
-		//
-		//
-		// private Output findOutputtingOperatorInModule(final Operator<?> operator, final Output output) {
-		// int inputIndex = -1;
-		// final Source[] inputs = this.modules.get(operator).getInputs();
-		// for (int index = 0; index < inputs.length; index++)
-		// if (inputs[index].getOutputs().contains(output)) {
-		// inputIndex = index;
-		// break;
-		// }
-		//
-		// if (inputIndex >= operator.getInputs().size() || inputIndex == -1)
-		// return output;
-		// final Output input = operator.getInputs().get(inputIndex);
-		// Output outputtingContract = this.operatorOutputs.get(input.getOperator())[input.getIndex()];
-		// if (outputtingContract.getOperator() instanceof Source && !(input.getOperator() instanceof Source))
-		// outputtingContract = this.findOutputtingOperatorInModule(input.getOperator(), outputtingContract);
-		// return outputtingContract;
-		// }
-		//
-		// private List<Operator<?>> findPACTSinks() {
-		// final List<Operator<?>> pactSinks = new ArrayList<Operator<?>>();
-		// for (final Operator<?> sink : SopremoModule.this.getAllOutputs()) {
-		// final Sink[] outputs = this.modules.get(sink).getAllOutputs();
-		// pactSinks.addAll(Arrays.asList(outputs));
-		// }
-		// return pactSinks;
-		// }
-		// }
+	/**
+	 * @return
+	 */
+	public Schema getSchema() {
+		// TODO: infer global schema
+		return new Schema.Default();
 	}
 }

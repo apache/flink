@@ -2,6 +2,7 @@ package eu.stratosphere.util.reflect;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 public class DynamicMethod<ReturnType> extends DynamicInvokable<Method, Object, ReturnType> {
 
@@ -47,6 +48,14 @@ public class DynamicMethod<ReturnType> extends DynamicInvokable<Method, Object, 
 	protected ReturnType invokeDirectly(Method method, Object context, Object[] params) throws IllegalAccessException,
 			InvocationTargetException {
 		return (ReturnType) method.invoke(context, params);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.util.reflect.DynamicInvokable#needsInstance(java.lang.reflect.Member)
+	 */
+	@Override
+	protected boolean needsInstance(Method member) {
+		return (member.getModifiers() & Modifier.STATIC) == 0;
 	}
 
 	@Override

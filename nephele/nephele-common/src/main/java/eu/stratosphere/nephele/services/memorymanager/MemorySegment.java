@@ -633,5 +633,4 @@ public class MemorySegment
 		putLong(index, Double.doubleToLongBits(value));
 		return this;
 	}
-	
 }

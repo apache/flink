@@ -5,6 +5,7 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
 public abstract class JsonNodeTest<T extends JsonNode> {
@@ -34,7 +35,7 @@ public abstract class JsonNodeTest<T extends JsonNode> {
 
 	@Test
 	public void testTypeNumber() {
-		Assert.assertNotNull("every JsonNode must have a TypeNumber", this.node.getTypePos());
+		Assert.assertNotNull("every JsonNode must have a TypeNumber", this.node.getType().ordinal());
 	}
 
 	@Test

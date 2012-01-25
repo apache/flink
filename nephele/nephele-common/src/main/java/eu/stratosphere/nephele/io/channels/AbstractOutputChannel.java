@@ -41,7 +41,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 public abstract class AbstractOutputChannel<T extends Record> extends AbstractChannel {
 
 	private OutputGate<T> outputGate = null;
-
+	
 	/**
 	 * Creates a new output channel object.
 	 * 
@@ -85,10 +85,10 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	 * to the channel. The channel is finally closed when all remaining data that may exist in internal buffers
 	 * are written to the channel.
 	 * 
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while requesting the channel to close
 	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while requesting the channel to close
+	 *         thrown if the thread is interrupted while requesting the close operation
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while requesting the close operation
 	 */
 	public abstract void requestClose() throws IOException, InterruptedException;
 
@@ -185,5 +185,16 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	public void channelCapacityExhausted() {
 		// Forward call to output gate
 		this.outputGate.channelCapacityExhausted(this.getChannelIndex());
+	}
+
+	/**
+	 * Returns <code>true</code> if this channel is connected to an output gate which operates in broadcast mode,
+	 * <code>false</code> otherwise.
+	 * 
+	 * @return <code>true</code> if the connected output gate operates in broadcase mode, <code>false</code> otherwise
+	 */
+	public boolean isBroadcastChannel() {
+
+		return this.outputGate.isBroadcast();
 	}
 }

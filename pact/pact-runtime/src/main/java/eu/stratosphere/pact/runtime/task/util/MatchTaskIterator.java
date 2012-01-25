@@ -19,10 +19,8 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
 
 
 /**
@@ -33,7 +31,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */
-public interface MatchTaskIterator<IK extends Key, IV1 extends Value, IV2 extends Value>
+public interface MatchTaskIterator
 {
 	/**
 	 * General-purpose open method. Initializes the internal strategy (for example triggers the
@@ -56,10 +54,12 @@ public interface MatchTaskIterator<IK extends Key, IV1 extends Value, IV2 extend
 	 * Moves the internal pointer to the next key that both inputs share. It calls the match stub with the
 	 * cross product of all values that share the same key.
 	 * 
+	 * @param matchFunction The match stub containing the match function which is called with the keys.
+	 * @param collector The collector to pass the match function.
 	 * @return True, if a next key exists, false if no more keys exist.
-	 * @throws IOException Thrown, if an I/O error occurs while retrieving the records for the next key.
+	 * @throws Exception Exceptions from the user code are forwarded.
 	 */
-	<OK extends Key, OV extends Value> boolean callWithNextKey(MatchStub<IK, IV1, IV2, OK, OV> matchFunction, Collector<OK, OV> collector) throws IOException;
+	boolean callWithNextKey(MatchStub matchFunction, Collector collector) throws Exception;
 	
 	/**
 	 * Aborts the matching process. This extra abort method is supplied, because a significant time may pass while

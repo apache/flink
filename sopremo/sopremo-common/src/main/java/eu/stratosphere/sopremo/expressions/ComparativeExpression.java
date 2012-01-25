@@ -2,11 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.NumberCoercer;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
-import eu.stratosphere.sopremo.pact.JsonNodeComparator;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NumericNode;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
 public class ComparativeExpression extends BooleanExpression {
@@ -28,11 +26,7 @@ public class ComparativeExpression extends BooleanExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final ComparativeExpression other = (ComparativeExpression) obj;
 		return this.binaryOperator == other.binaryOperator && this.expr1.equals(other.expr1)
@@ -64,7 +58,7 @@ public class ComparativeExpression extends BooleanExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 47;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.binaryOperator.hashCode();
 		result = prime * result + this.expr1.hashCode();
 		result = prime * result + this.expr2.hashCode();
@@ -72,7 +66,7 @@ public class ComparativeExpression extends BooleanExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.expr1).append(this.binaryOperator).append(this.expr2);
 	}
 
@@ -146,23 +140,16 @@ public class ComparativeExpression extends BooleanExpression {
 
 		public boolean evaluate(final JsonNode e1, final JsonNode e2) {
 			if (e1.getClass() != e2.getClass()) {
-				if (e1 instanceof NumericNode && e2 instanceof NumericNode) {
-					final JsonNode.TYPES widerType = NumberCoercer.INSTANCE.getWiderType(e1, e2);
-					return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(
-						NumberCoercer.INSTANCE.coerce((NumericNode) e1, widerType),
-						NumberCoercer.INSTANCE.coerce((NumericNode) e2, widerType),
-						NumberCoercer.INSTANCE.getImplementationType(widerType)));
-				}
+				if (e1 instanceof NumericNode && e2 instanceof NumericNode)
+					return this.isTrue(e1.compareTo(e2));
 
 				throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));
 			}
 
-			return this.isTrue(JsonNodeComparator.INSTANCE.compareStrict(e1, e2, e1.getClass()));
+			return this.isTrue(e1.compareToSameType(e2));
 		}
 
-		public boolean isTrue(final int comparisonResult) {
-			return false;
-		}
+		public abstract boolean isTrue(final int comparisonResult);
 
 		//
 		// public boolean evaluateComparable(final T e1, final T e2) {

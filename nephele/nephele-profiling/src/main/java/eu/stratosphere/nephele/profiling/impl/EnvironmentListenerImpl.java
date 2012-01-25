@@ -21,7 +21,9 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.jobgraph.JobID;
 
 public class EnvironmentListenerImpl implements ExecutionListener {
 
@@ -29,35 +31,36 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 
 	private final TaskManagerProfilerImpl taskManagerProfiler;
 
-	private final ExecutionVertexID executionVertexID;
+	private final Environment environment;
 
-	public EnvironmentListenerImpl(TaskManagerProfilerImpl taskManagerProfiler, ExecutionVertexID id,
-			Environment environment, long timerInterval) {
+	public EnvironmentListenerImpl(final TaskManagerProfilerImpl taskManagerProfiler, final Environment environment) {
 
 		this.taskManagerProfiler = taskManagerProfiler;
-		this.executionVertexID = id;
+		this.environment = environment;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void executionStateChanged(Environment ee, ExecutionState newExecutionState, String optionalMessage) {
+	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
+			final ExecutionState newExecutionState, final String optionalMessage) {
 
 		switch (newExecutionState) {
 		case RUNNING:
-			this.taskManagerProfiler.registerMainThreadForCPUProfiling(ee, ee.getExecutingThread(),
-				this.executionVertexID);
+			this.taskManagerProfiler.registerMainThreadForCPUProfiling(this.environment,
+				this.environment.getExecutingThread(), vertexID);
 			break;
 		case FINISHING:
 		case FINISHED:
 		case CANCELING:
 		case CANCELED:
 		case FAILED:
-			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(ee, ee.getExecutingThread());
+			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(this.environment,
+				this.environment.getExecutingThread());
 			break;
 		default:
-			LOG.error("Unexpected state transition to " + newExecutionState + " for vertex " + this.executionVertexID);
+			LOG.error("Unexpected state transition to " + newExecutionState + " for vertex " + vertexID);
 			break;
 		}
 	}
@@ -66,27 +69,36 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(Environment ee, Thread userThread) {
+	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 
 		// Make sure the user thread is not the task's main thread
-		if (ee.getExecutingThread() == userThread) {
+		if (this.environment.getExecutingThread() == userThread) {
 			return;
 		}
 
-		this.taskManagerProfiler.unregisterUserThreadFromCPUProfiling(ee, userThread);
+		this.taskManagerProfiler.unregisterUserThreadFromCPUProfiling(this.environment, userThread);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(Environment ee, Thread userThread) {
+	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 
 		// Make sure the user thread is not the task's main thread
-		if (ee.getExecutingThread() == userThread) {
+		if (this.environment.getExecutingThread() == userThread) {
 			return;
 		}
 
-		this.taskManagerProfiler.registerUserThreadForCPUProfiling(ee, userThread);
+		this.taskManagerProfiler.registerUserThreadForCPUProfiling(this.environment, userThread);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
+			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+		// Nothing to do here
 	}
 }

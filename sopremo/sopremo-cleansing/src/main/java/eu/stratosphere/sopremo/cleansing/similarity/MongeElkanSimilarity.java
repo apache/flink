@@ -3,9 +3,10 @@ package eu.stratosphere.sopremo.cleansing.similarity;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class MongeElkanSimilarity extends EvaluationExpression {
 	/**
@@ -35,21 +36,20 @@ public class MongeElkanSimilarity extends EvaluationExpression {
 		double sum = 0;
 		for (JsonNode leftValue : (ArrayNode) leftValues) {
 			double max = 0;
-			for (JsonNode rightValue : (ArrayNode) rightValues) {
+			for (JsonNode rightValue : (ArrayNode) rightValues)
 				max = Math.max(max,
-					((DoubleNode) baseMeasure.evaluate(JsonUtil.asArray(leftValue, rightValue), context))
+					((DoubleNode) this.baseMeasure.evaluate(JsonUtil.asArray(leftValue, rightValue), context))
 						.getDoubleValue());
-			}
 			sum += max;
 		}
 
-		return DoubleNode.valueOf(sum / ((ArrayNode)leftValues).size());
+		return DoubleNode.valueOf(sum / ((ArrayNode) leftValues).size());
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.baseMeasure.hashCode();
 		result = prime * result + this.leftExpression.hashCode();
 		result = prime * result + this.rightExpression.hashCode();
@@ -58,11 +58,7 @@ public class MongeElkanSimilarity extends EvaluationExpression {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		MongeElkanSimilarity other = (MongeElkanSimilarity) obj;
 		return this.baseMeasure.equals(other.baseMeasure) && this.leftExpression.equals(other.leftExpression)
@@ -70,7 +66,7 @@ public class MongeElkanSimilarity extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(StringBuilder builder) {
+	public void toString(StringBuilder builder) {
 		builder.append("monge elkan of").append(this.baseMeasure);
 	}
 }

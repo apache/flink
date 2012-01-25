@@ -59,8 +59,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 	private boolean brokerAggreedToCloseChannel = false;
 
-	private T bufferedRecord = null;
-
 	/**
 	 * The Decompressor-Object to decompress incoming data
 	 */
@@ -102,13 +100,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * @throws ExecutionFailureException
 	 *         if the record cannot be deserialized
 	 */
-	private T deserializeNextRecord() throws IOException {
-
-		if (this.bufferedRecord != null) {
-			final T record = this.bufferedRecord;
-			this.bufferedRecord = null;
-			return record;
-		}
+	private T deserializeNextRecord(final T target) throws IOException {
 
 		if (this.uncompressedDataBuffer == null) {
 
@@ -130,12 +122,10 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			}
 		}
 
-		final T nextRecord = this.deserializationBuffer.readData(this.uncompressedDataBuffer);
+		final T nextRecord = this.deserializationBuffer.readData(target, this.uncompressedDataBuffer);
 
 		if (this.uncompressedDataBuffer.remaining() == 0) {
 			releasedConsumedReadBuffer();
-			this.bufferedRecord = nextRecord;
-			return null;
 		}
 
 		return nextRecord;
@@ -163,13 +153,13 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * {@inheritDoc}
 	 */
 	@Override
-	public T readRecord() throws IOException {
+	public T readRecord(final T target) throws IOException {
 
 		if (isClosed()) {
 			throw new EOFException();
 		}
 
-		return deserializeNextRecord();
+		return deserializeNextRecord(target);
 	}
 
 	/**
@@ -180,7 +170,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 		// TODO: check for decompressor
 
-		if (this.bufferedRecord != null || this.uncompressedDataBuffer != null) {
+		if (this.uncompressedDataBuffer != null) {
 			return false;
 		}
 
@@ -221,7 +211,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 						}
 						this.synchronisationObject.wait(500);
 					}
-					this.bufferedRecord = null;
 				}
 			}
 		}
@@ -230,7 +219,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		 * Send close event to indicate the input channel has successfully
 		 * processed all data it is interested in.
 		 */
-		if (getType() == ChannelType.NETWORK) {
+		final ChannelType type = getType();
+		if (type == ChannelType.NETWORK || type == ChannelType.INMEMORY) {
 			transferEvent(new ByteBufferedChannelCloseEvent());
 		}
 	}
@@ -308,5 +298,24 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		if (this.decompressor != null) {
 			this.decompressor.shutdown(getID());
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void activate() throws IOException, InterruptedException {
+
+		transferEvent(new ByteBufferedChannelActivateEvent());
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public long getAmountOfDataTransmitted() {
+
+		// TODO: Implement me
+		return 0L;
 	}
 }

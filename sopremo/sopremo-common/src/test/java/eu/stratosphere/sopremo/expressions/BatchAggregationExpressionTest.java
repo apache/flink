@@ -6,25 +6,25 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class BatchAggregationExpressionTest extends EvaluableExpressionTest<BatchAggregationExpression> {
 	@Override
 	protected BatchAggregationExpression createDefaultInstance(final int index) {
 		switch (index) {
 		case 0:
-			return new BatchAggregationExpression(BuiltinFunctions.AVERAGE);
+			return new BatchAggregationExpression(DefaultFunctions.AVERAGE);
 		case 1:
-			return new BatchAggregationExpression(BuiltinFunctions.COUNT);
+			return new BatchAggregationExpression(DefaultFunctions.COUNT);
 		case 2:
-			return new BatchAggregationExpression(BuiltinFunctions.FIRST);
+			return new BatchAggregationExpression(DefaultFunctions.FIRST);
 		default:
-			return new BatchAggregationExpression(BuiltinFunctions.ALL);
+			return new BatchAggregationExpression(DefaultFunctions.ALL);
 		}
 
 	}
@@ -38,9 +38,9 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 
 	@Test
 	public void should() {
-		final BatchAggregationExpression batch = new BatchAggregationExpression(BuiltinFunctions.SUM);
-		batch.add(BuiltinFunctions.AVERAGE);
-		batch.add(BuiltinFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
+		batch.add(DefaultFunctions.AVERAGE);
+		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final JsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), this.context);
 		final JsonNode[] expected = { new IntNode(1 + 2 + 3 + 4 + 5),

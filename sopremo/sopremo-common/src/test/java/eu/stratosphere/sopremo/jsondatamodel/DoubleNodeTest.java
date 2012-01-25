@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
+import eu.stratosphere.sopremo.type.DoubleNode;
 import junit.framework.Assert;
 
 public class DoubleNodeTest extends JsonNodeTest<DoubleNode> {

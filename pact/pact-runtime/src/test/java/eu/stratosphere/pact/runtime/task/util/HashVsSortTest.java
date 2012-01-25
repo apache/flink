@@ -22,14 +22,13 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
@@ -40,7 +39,6 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.pact.runtime.test.util.TestData.RecordReaderMock;
 
 
 public class HashVsSortTest {
@@ -98,6 +96,7 @@ public class HashVsSortTest {
 			memoryManager = null;
 		}
 	}
+	
 	@Test
 	public void testSortBothMerge() {
 		try {
@@ -105,23 +104,24 @@ public class HashVsSortTest {
 			Generator generator1 = new Generator(SEED1, INPUT_1_SIZE / 10, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			Generator generator2 = new Generator(SEED2, INPUT_2_SIZE, 100, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 
-			Reader<KeyValuePair<TestData.Key, TestData.Value>> reader1 = new RecordReaderMock(generator1, INPUT_1_SIZE);
-			Reader<KeyValuePair<TestData.Key, TestData.Value>> reader2 = new RecordReaderMock(generator2, INPUT_2_SIZE);
+			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
+			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
-				new NoOpMatcher();
+			final MatchStub matcher = new NoOpMatcher();
 			
-			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
+			final Collector collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
+			input1.reset();
+			input2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new SortMergeMatchIterator<TestData.Key, TestData.Value, TestData.Value>(
-						memoryManager, ioManager, reader1, reader2, TestData.Key.class,
-						TestData.Value.class, TestData.Value.class,
+			@SuppressWarnings("unchecked")
+			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
+						memoryManager, ioManager, input1, input2, 
+						new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
 			long start = System.nanoTime();
@@ -152,10 +152,9 @@ public class HashVsSortTest {
 			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
-				new NoOpMatcher();
+			final MatchStub matcher =new NoOpMatcher();
 			
-			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
+			final Collector collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -164,10 +163,10 @@ public class HashVsSortTest {
 			input2.reset();
 	
 			// compare with iterator values
-			BuildFirstHashMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new BuildFirstHashMatchIterator<TestData.Key, TestData.Value, TestData.Value>(input1, input2,
-						TestData.Key.class, TestData.Value.class, TestData.Value.class, this.memoryManager, ioManager,
-						this.parentTask, MEMORY_SIZE);
+			@SuppressWarnings("unchecked")
+			BuildFirstHashMatchIterator iterator = 
+				new BuildFirstHashMatchIterator(input1, input2, new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
+					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
 	
 			long start = System.nanoTime();
 			
@@ -197,10 +196,9 @@ public class HashVsSortTest {
 			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value> matcher =
-				new NoOpMatcher();
+			final MatchStub matcher = new NoOpMatcher();
 			
-			final Collector<TestData.Key, TestData.Value> collector = new DiscardingOutputCollector<TestData.Key, TestData.Value>();
+			final Collector collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -209,10 +207,10 @@ public class HashVsSortTest {
 			input2.reset();
 	
 			// compare with iterator values
-			BuildSecondHashMatchIterator<TestData.Key, TestData.Value, TestData.Value> iterator = 
-				new BuildSecondHashMatchIterator<TestData.Key, TestData.Value, TestData.Value>(input1, input2,
-						TestData.Key.class, TestData.Value.class, TestData.Value.class, this.memoryManager, ioManager,
-						this.parentTask, MEMORY_SIZE);
+			@SuppressWarnings("unchecked")
+			BuildSecondHashMatchIterator iterator = 
+				new BuildSecondHashMatchIterator(input1, input2, new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
+						this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
 	
 			long start = System.nanoTime();
 			
@@ -234,10 +232,10 @@ public class HashVsSortTest {
 	}
 	
 	
-	private static final class NoOpMatcher extends MatchStub<TestData.Key, TestData.Value, TestData.Value, TestData.Key, TestData.Value>
+	private static final class NoOpMatcher extends MatchStub
 	{
 		@Override
-		public void match(TestData.Key key, TestData.Value value1, TestData.Value value2, Collector<TestData.Key, TestData.Value> out) {}
+		public void match(PactRecord rec1, PactRecord rec2, Collector out) {}
 		
 	}
 }

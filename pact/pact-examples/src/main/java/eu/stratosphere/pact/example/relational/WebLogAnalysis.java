@@ -15,31 +15,28 @@
 
 package eu.stratosphere.pact.example.relational;
 
+import java.io.IOException;
 import java.util.Iterator;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.OutputContract.SameKey;
-import eu.stratosphere.pact.common.contract.OutputContract.UniqueKey;
-import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.pact.common.stub.CoGroupStub;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.stub.MatchStub;
-import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.util.StringTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
-import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
  * Implements the following relational OLAP query as PACT program:
@@ -81,6 +78,43 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  * @author Fabian Hueske
  */
 public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
+	
+	/**
+	 * Converts a input line, assuming to contain a string, into a record that has a single field,
+	 * which is a {@link PactString}, containing that line.
+	 */
+	public static class LineInFormat extends DelimitedInputFormat
+	{
+		private final PactString string = new PactString();
+		
+		@Override
+		public boolean readRecord(PactRecord record, byte[] line, int numBytes)
+		{
+			this.string.setValueAscii(line, 0, numBytes);
+			record.setField(0, this.string);
+			return true;
+		}
+	}
+	
+	// TODO JAVADOC !!!
+	public static class WebLogAnalysisOutFormat extends FileOutputFormat {
+		
+		private final StringBuilder buffer = new StringBuilder();
+
+		@Override
+		public void writeRecord(PactRecord record) throws IOException {
+			buffer.setLength(0);
+			buffer.append(record.getField(1, PactInteger.class).toString());
+			buffer.append('|');
+			buffer.append(record.getField(0, PactString.class).toString());
+			buffer.append('|');
+			buffer.append(record.getField(2, PactInteger.class).toString());
+			buffer.append('|');
+			buffer.append('\n');
+			byte[] bytes = this.buffer.toString().getBytes();
+			this.stream.write(bytes);
+		}
+	}
 
 	/**
 	 * MapStub that filters for documents that contain a certain set of
@@ -89,23 +123,29 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	 * (key of the input set is equal to the key of the output set).
 	 * 
 	 * @author Fabian Hueske
+	 * @author Christoph Bruecke
 	 */
-	@SameKey
-	public static class FilterDocs extends MapStub<PactString, Tuple, PactString, PactNull> {
+	// TODO annotate with SameKey
+	public static class FilterDocs extends MapStub {
 		
-		private static final Log LOG = LogFactory.getLog(FilterDocs.class);
-		
+		private static final Log LOG = LogFactory.getLog(FilterDocs.class);		
 		private static final String[] KEYWORDS = { " editors ", " oscillations ", " convection " };
+		
+		private final PactString string = new PactString();
+		private final PactString url = new PactString();
 
 		/**
 		 * Filters for documents that contain all of the given keywords and emit their keys.
 		 */
 		@Override
-		public void map(PactString url, Tuple docRecord, Collector<PactString, PactNull> out) {
+		public void map(PactRecord record, Collector out) throws Exception {
+			this.string.setValue(record.getField(0, PactString.class));
+			String[] fields = this.string.getValue().split("\\|");
+			this.url.setValue(fields[0]);
 			
 			// FILTER
 			// Only collect the document if all keywords are contained
-			String docText = docRecord.getStringValueAt(1);
+			String docText = fields[1];
 			boolean allContained = true;
 			for (String kw : KEYWORDS) {
 				if (!docText.contains(kw)) {
@@ -115,9 +155,10 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 			}
 
 			if (allContained) {
-				out.collect(url, new PactNull());
+				record.setField(0, this.url);
+				out.collect(record);
 				
-				LOG.debug("Emit key: "+url);
+				LOG.debug("Emit key: " + url);
 			}
 		}
 	}
@@ -126,30 +167,39 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	 * MapStub that filters for records where the rank exceeds a certain threshold.
 	 * 
 	 * @author Fabian Hueske
+	 * @author Christoph Bruecke
 	 */
-	public static class FilterRanks extends MapStub<PactString, Tuple, PactString, Tuple> {
+	public static class FilterRanks extends MapStub {
 		
 		private static final Log LOG = LogFactory.getLog(FilterRanks.class);
-
-		private static final int rankFilter = 50;
+		private static final int RANKFILTER = 50;
+		
+		private final PactInteger rank = new PactInteger();
+		private final PactString url = new PactString();
+		private final PactInteger avgDuration = new PactInteger();
 
 		/**
 		 * Filters for records of the rank relation where the rank is greater
 		 * than the given threshold. The key is set to the URL of the record.
 		 */
 		@Override
-		public void map(PactString key, Tuple rankRecord, Collector<PactString, Tuple> out) {
+		public void map(PactRecord record, Collector out) throws Exception {
+			//PactInteger rank = record.getField(0, PactInteger.class);
+			String[] fields = record.getField(0, PactString.class).getValue().split("\\|");
+			this.rank.setValue(Integer.valueOf(fields[0]));
+			this.url.setValue(fields[1]);
+			this.avgDuration.setValue(Integer.valueOf(fields[2]));
 			
-			// Extract rank from record 
-			int rank = (int) rankRecord.getLongValueAt(0);
-			if (rank > rankFilter) {
-				
+			if (this.rank.getValue() > RANKFILTER) {
 				// create new key and emit key-value-pair
-				PactString url = new PactString(rankRecord.getStringValueAt(1));
-				out.collect(url, rankRecord);
+				record.setNumFields(3);
+				record.setField(0, this.url);
+				record.setField(1, this.rank);
+				record.setField(2, this.avgDuration);
+				out.collect(record);
 	
-				LOG.debug("Emit: "+url+" , "+rankRecord);
-			}
+				LOG.debug("Emit: " + this.url.getValue() + " , " + this.rank.getValue() + "," + this.avgDuration.getValue());
+			}			
 		}
 	}
 
@@ -158,29 +208,34 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	 * (from the date string) is equal to a certain value.
 	 * 
 	 * @author Fabian Hueske
+	 * @author Christoph Bruecke
 	 */
-	public static class FilterVisits extends MapStub<PactString, Tuple, PactString, PactNull> {
+	public static class FilterVisits extends MapStub {
 
-		private static final Log LOG = LogFactory.getLog(FilterVisits.class);
+		private static final Log LOG = LogFactory.getLog(FilterVisits.class);		
+		private static final int YEARFILTER = 2010;
 		
-		private static final int yearFilter = 2010;
+		private final PactString url = new PactString();
 
 		/**
 		 * Filters for records of the visits relation where the year of visit is equal to a
 		 * specified value. The URL of all visit records passing the filter is emitted.
 		 */
 		@Override
-		public void map(PactString key, Tuple visitRecord, Collector<PactString, PactNull> out) {
+		public void map(PactRecord record, Collector out) throws Exception {
+			String[] fields = record.getField(0, PactString.class).getValue().split("\\|");
+			this.url.setValue(fields[1]);
 			
 			// Parse date string with the format YYYY-MM-DD and extract the year
-			int year = Integer.parseInt(visitRecord.getStringValueAt(2).substring(0,4));
-			if (year == yearFilter) {
+			String dateString = fields[2];
+			int year = Integer.parseInt(dateString.substring(0,4)); 
+			
+			if (year == YEARFILTER) {
+				record.setNumFields(1);
+				record.setField(0, this.url);
+				out.collect(record);
 				
-				// Extract the URL from the record and emit it
-				PactString url = new PactString(visitRecord.getStringValueAt(1));
-				out.collect(url, new PactNull());
-				
-				LOG.debug("Emit key: "+url);
+				LOG.debug("Emit: " + this.url + "(year == " + year + ")");
 			}
 		}
 	}
@@ -191,9 +246,10 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	 * the output is the same (URL).
 	 * 
 	 * @author Fabian Hueske
+	 * @author Christoph Bruecke
 	 */
-	@SameKey
-	public static class JoinDocRanks extends MatchStub<PactString, Tuple, PactNull, PactString, Tuple> {
+	// TODO annotate with SameKey
+	public static class JoinDocRanks extends MatchStub {
 
 		/**
 		 * Collects all entries from the documents and ranks relation where the
@@ -201,10 +257,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * the attributes of the ranks relation.
 		 */
 		@Override
-		public void match(PactString url, Tuple ranks, PactNull docs, Collector<PactString, Tuple> out) {
-			
-			// emit the key and the rank value
-			out.collect(url, ranks);
+		public void match(PactRecord document, PactRecord rank, Collector out) throws Exception {
+			out.collect(rank);	
 		}
 	}
 
@@ -214,21 +268,21 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 	 * Otherwise, no pair is emitted.
 	 * 
 	 * @author Fabian Hueske
+	 * @author Christoph Bruecke
 	 */
-	@SameKey
-	public static class AntiJoinVisits extends CoGroupStub<PactString, PactNull, Tuple, PactString, Tuple> {
+	public static class AntiJoinVisits extends CoGroupStub {
 
 		/**
 		 * If the visit iterator is empty, all pairs of the rank iterator are emitted.
 		 * Otherwise, no pair is emitted. 
 		 */
 		@Override
-		public void coGroup(PactString url, Iterator<PactNull> visits, Iterator<Tuple> ranks, Collector<PactString, Tuple> out) {
+		public void coGroup(Iterator<PactRecord> ranks, Iterator<PactRecord> visits, Collector out) {
 			// Check if there is a entry in the visits relation
 			if (!visits.hasNext()) {
 				while (ranks.hasNext()) {
 					// Emit all rank pairs
-					out.collect(url, ranks.next());
+					out.collect(ranks.next());
 				}
 			}
 		}
@@ -248,74 +302,55 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		String output      = (args.length > 4 ? args[4] : "");
 
 		// Create DataSourceContract for documents relation
-		FileDataSourceContract<PactString, Tuple> docs = new FileDataSourceContract<PactString, Tuple>(
-				StringTupleDataInFormat.class, docsInput, "Documents");
-		docs.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource docs = new FileDataSource(LineInFormat.class, docsInput, "Docs Input");
 		docs.setDegreeOfParallelism(noSubTasks);
-		docs.setOutputContract(UniqueKey.class);
+		// TODO set Unique Key contract
+		// docs.setOutputContract(UniqueKey.class);
 
 		// Create DataSourceContract for ranks relation
-		FileDataSourceContract<PactString, Tuple> ranks = new FileDataSourceContract<PactString, Tuple>(
-				StringTupleDataInFormat.class, ranksInput, "Ranks");
-		ranks.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource ranks = new FileDataSource(LineInFormat.class, ranksInput, "Ranks input");
 		ranks.setDegreeOfParallelism(noSubTasks);
 
 		// Create DataSourceContract for visits relation
-		FileDataSourceContract<PactString, Tuple> visits = new FileDataSourceContract<PactString, Tuple>(
-				StringTupleDataInFormat.class, visitsInput, "Visits");
-		visits.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
+		FileDataSource visits = new FileDataSource(LineInFormat.class, visitsInput, "Visits input:q");
 		visits.setDegreeOfParallelism(noSubTasks);
 
 		// Create MapContract for filtering the entries from the documents
 		// relation
-		MapContract<PactString, Tuple, PactString, PactNull> filterDocs = new MapContract<PactString, Tuple, PactString, PactNull>(
-				FilterDocs.class, "Filter Docs");
+		MapContract filterDocs = new MapContract(FilterDocs.class, docs, "Filter Docs");
 		filterDocs.setDegreeOfParallelism(noSubTasks);
 		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
 		filterDocs.getCompilerHints().setAvgNumValuesPerKey(1.0f);
 
 		// Create MapContract for filtering the entries from the ranks relation
-		MapContract<PactString, Tuple, PactString, Tuple> filterRanks = new MapContract<PactString, Tuple, PactString, Tuple>(
-				FilterRanks.class, "Filter Ranks");
+		MapContract filterRanks = new MapContract(FilterRanks.class, ranks, "Filter Ranks");
 		filterRanks.setDegreeOfParallelism(noSubTasks);
 		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
 		filterRanks.getCompilerHints().setAvgNumValuesPerKey(1.0f);
 
 		// Create MapContract for filtering the entries from the visits relation
-		MapContract<PactString, Tuple, PactString, PactNull> filterVisits = new MapContract<PactString, Tuple, PactString, PactNull>(
-				FilterVisits.class, "Filter Visits");
+		MapContract filterVisits = new MapContract(FilterVisits.class, visits, "Filter Visits");
 		filterVisits.setDegreeOfParallelism(noSubTasks);
 		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
 		filterVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.2f);
 
 		// Create MatchContract to join the filtered documents and ranks
 		// relation
-		MatchContract<PactString, Tuple, PactNull, PactString, Tuple> joinDocsRanks = new MatchContract<PactString, Tuple, PactNull, PactString, Tuple>(
-				JoinDocRanks.class, "Join DocRanks");
+		MatchContract joinDocsRanks = new MatchContract(JoinDocRanks.class, PactString.class, 0, 0, filterDocs,
+				filterRanks, "Join Docs Ranks");
 		joinDocsRanks.setDegreeOfParallelism(noSubTasks);
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
-		CoGroupContract<PactString, PactNull, Tuple, PactString, Tuple> antiJoinVisits = new CoGroupContract<PactString, PactNull, Tuple, PactString, Tuple>(
-				AntiJoinVisits.class, "Antijoin DocsVisits");
+		CoGroupContract antiJoinVisits = new CoGroupContract(AntiJoinVisits.class, PactString.class, 0, 0, joinDocsRanks, 
+				filterVisits, "Antijoin DocsVisits");
 		antiJoinVisits.setDegreeOfParallelism(noSubTasks);
 		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
-		FileDataSinkContract<PactString, Tuple> result = new FileDataSinkContract<PactString, Tuple>(
-				StringTupleDataOutFormat.class, output, "Result");
+		FileDataSink result = new FileDataSink(WebLogAnalysisOutFormat.class, output, antiJoinVisits, "Result");
 		result.setDegreeOfParallelism(noSubTasks);
-
-		// Assemble plan
-		filterDocs.setInput(docs);
-		filterRanks.setInput(ranks);
-		filterVisits.setInput(visits);
-		joinDocsRanks.setFirstInput(filterRanks);
-		joinDocsRanks.setSecondInput(filterDocs);
-		antiJoinVisits.setFirstInput(filterVisits);
-		antiJoinVisits.setSecondInput(joinDocsRanks);
-		result.setInput(antiJoinVisits);
 
 		// Return the PACT plan
 		return new Plan(result, "Weblog Analysis");

@@ -21,12 +21,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Reads the key/value pairs from the native format which is deserialable without configuration. The type parameter can
@@ -39,15 +34,14 @@ import eu.stratosphere.pact.common.util.ReflectionUtil;
  *        the type of the value to read
  * @see SequentialOutputFormat
  */
-public class SequentialInputFormat<K extends Key, V extends Value> extends FileInputFormat<K, V>
+public class SequentialInputFormat extends FileInputFormat
 {
-	
+
 	private DataInputStream dataInputStream;
 
 	public SequentialInputFormat() {
 	}
-	
-	
+
 	@Override
 	public void close() throws IOException {
 		super.close();
@@ -60,39 +54,19 @@ public class SequentialInputFormat<K extends Key, V extends Value> extends FileI
 		super.configure(parameters);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public KeyValuePair<K, V> createPair() {
-		return new KeyValuePair(PactNull.getInstance(), PactNull.getInstance());
-	}
-
-	@Override
-	public boolean nextRecord(final KeyValuePair<K, V> pair) throws IOException {
+	public boolean nextRecord(final PactRecord record) throws IOException {
 		if (this.dataInputStream.available() == 0)
 			return false;
-		try {
-			pair.setKey(ReflectionUtil.newInstance((Class<K>) Class.forName(this.dataInputStream.readUTF())));
-		} catch (final ClassNotFoundException e) {
-			throw new IOException("Cannot resolve key type " + e);
-		}
-		try {
-			pair.setValue(ReflectionUtil.newInstance((Class<V>) Class.forName(this.dataInputStream.readUTF())));
-		} catch (final ClassNotFoundException e) {
-			throw new IOException("Cannot resolve value type " + e);
-		}
-
-		pair.read(this.dataInputStream);
+		record.read(this.dataInputStream);
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public void open(FileInputSplit split) throws IOException
-	{
+	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-		
-		this.dataInputStream = new DataInputStream(this.stream);
 
+		this.dataInputStream = new DataInputStream(this.stream);
 	}
 
 	@Override
@@ -100,8 +74,8 @@ public class SequentialInputFormat<K extends Key, V extends Value> extends FileI
 		return this.dataInputStream.available() == 0;
 	}
 
-
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.InputFormat#getStatistics()
 	 */
 	@Override

@@ -5,14 +5,14 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
-import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode.TYPES;
-import eu.stratosphere.sopremo.jsondatamodel.LongNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 public final class NumberCoercer {
 	// private static final int NUMBER_TYPES_COUNT = JsonNode.TYPES.values().length;
@@ -24,7 +24,7 @@ public final class NumberCoercer {
 
 	// private final NumberType[][] typeCoerceMatrix = new NumberType[NUMBER_TYPES_COUNT][NUMBER_TYPES_COUNT];
 	//
-	private final Map<JsonNode.TYPES, Coercer> coercers = new EnumMap<JsonNode.TYPES, Coercer>(JsonNode.TYPES.class);
+	private final Map<JsonNode.Type, Coercer> coercers = new EnumMap<JsonNode.Type, Coercer>(JsonNode.Type.class);
 
 	//
 	private final Map<Class<? extends JsonNode>, Coercer> classCoercers = new IdentityHashMap<Class<? extends JsonNode>, Coercer>();
@@ -57,38 +57,38 @@ public final class NumberCoercer {
 		// this.typeCoerceMatrix[leftIndex][rightIndex] = widestTypes.get(coerceIndex);
 		// }
 
-		this.coercers.put(JsonNode.TYPES.IntNode, new Coercer() {
+		this.coercers.put(JsonNode.Type.IntNode, new Coercer() {
 			@Override
 			public NumericNode coerce(final JsonNode node) {
 				return IntNode.valueOf(((NumericNode) node).getIntValue());
 			}
 		});
-		this.coercers.put(JsonNode.TYPES.LongNode, new Coercer() {
+		this.coercers.put(JsonNode.Type.LongNode, new Coercer() {
 			@Override
 			public NumericNode coerce(final JsonNode node) {
 				return LongNode.valueOf(((NumericNode) node).getLongValue());
 			}
 		});
-		this.coercers.put(JsonNode.TYPES.DoubleNode, new Coercer() {
+		this.coercers.put(JsonNode.Type.DoubleNode, new Coercer() {
 			@Override
 			public NumericNode coerce(final JsonNode node) {
 				return DoubleNode.valueOf(((NumericNode) node).getDoubleValue());
 			}
 		});
-		this.coercers.put(JsonNode.TYPES.BigIntegerNode, new Coercer() {
+		this.coercers.put(JsonNode.Type.BigIntegerNode, new Coercer() {
 			@Override
 			public NumericNode coerce(final JsonNode node) {
 				return BigIntegerNode.valueOf(((NumericNode) node).getBigIntegerValue());
 			}
 		});
-		this.coercers.put(JsonNode.TYPES.DecimalNode, new Coercer() {
+		this.coercers.put(JsonNode.Type.DecimalNode, new Coercer() {
 			@Override
 			public NumericNode coerce(final JsonNode node) {
 				return DecimalNode.valueOf(((NumericNode) node).getDecimalValue());
 			}
 		});
 
-		for (final Entry<JsonNode.TYPES, Coercer> entry : this.coercers.entrySet())
+		for (final Entry<JsonNode.Type, Coercer> entry : this.coercers.entrySet())
 			this.classCoercers.put(
 				/* this.implementationTypes.get( */this.getImplementationType(entry.getKey())/* ) */, entry.getValue());
 	}
@@ -100,8 +100,8 @@ public final class NumberCoercer {
 		return (T) this.classCoercers.get(targetType).coerce(node);
 	}
 
-	public NumericNode coerce(final NumericNode node, final JsonNode.TYPES targetType) {
-		if (node.getTypePos() == targetType.ordinal())
+	public NumericNode coerce(final NumericNode node, final JsonNode.Type targetType) {
+		if (node.getType() == targetType)
 			return node;
 		return this.coercers.get(targetType).coerce(node);
 	}
@@ -123,11 +123,11 @@ public final class NumberCoercer {
 	// return this.typeCoerceMatrix[leftType.ordinal()][rightType.ordinal()];
 	// }
 
-	public TYPES getWiderType(final JsonNode leftType, final JsonNode rightType) {
-		return leftType.getTypePos() >= rightType.getTypePos() ? leftType.getType() : rightType.getType();
+	public Type getWiderType(final JsonNode leftType, final JsonNode rightType) {
+		return leftType.getType().ordinal() >= rightType.getType().ordinal() ? leftType.getType() : rightType.getType();
 	}
 
-	public Class<? extends JsonNode> getImplementationType(final JsonNode.TYPES type) {
+	public Class<? extends JsonNode> getImplementationType(final JsonNode.Type type) {
 		return type.getClazz();
 	}
 

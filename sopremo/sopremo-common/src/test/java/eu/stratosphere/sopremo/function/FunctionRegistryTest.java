@@ -8,15 +8,15 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 public class FunctionRegistryTest {
-	private FunctionRegistry registry;
+	private MethodRegistry registry;
 
 	private EvaluationContext context;
 
@@ -43,13 +43,13 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertEquals("should have been 2 functions", 2, this.registry.getRegisteredFunctions().size());
-		for (final Function function : this.registry.getRegisteredFunctions().values())
-			Assert.assertEquals("should have been a java function", JavaFunction.class, function.getClass());
+		for (final JsonMethod function : this.registry.getRegisteredFunctions().values())
+			Assert.assertEquals("should have been a java function", JavaMethod.class, function.getClass());
 
 		Assert.assertEquals("should have been 5 count signatures", 5,
-			((JavaFunction) this.registry.getFunction("count"))
+			((JavaMethod) this.registry.getFunction("count"))
 				.getSignatures().size());
-		Assert.assertEquals("should have been 1 sum signatures", 1, ((JavaFunction) this.registry.getFunction("sum"))
+		Assert.assertEquals("should have been 1 sum signatures", 1, ((JavaMethod) this.registry.getFunction("sum"))
 			.getSignatures().size());
 	}
 
@@ -65,7 +65,8 @@ public class FunctionRegistryTest {
 	public void shouldInvokeArrayJavaFunctionForArrayNode() {
 		this.registry.register(JavaFunctions.class);
 
-		Assert.assertSame(ARRAY_NODE, this.registry.evaluate("count", JsonUtil.asArray(new ArrayNode()), this.context));
+		Assert.assertSame(ARRAY_NODE,
+			this.registry.evaluate("count", JsonUtil.asArray(new ArrayNode()), this.context));
 	}
 
 	@Test
@@ -93,7 +94,7 @@ public class FunctionRegistryTest {
 		this.registry.register(JavaFunctions.class);
 
 		Assert.assertSame(GENERIC_NODE,
-			this.registry.evaluate("count", new ObjectNode(), this.context));
+			this.registry.evaluate("count", JsonUtil.asArray(new ObjectNode()), this.context));
 	}
 
 	@Test

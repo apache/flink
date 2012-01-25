@@ -24,21 +24,21 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings("javadoc")
 public class MapTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList;
+	List<PactRecord> outList;
 		
 	@Test
 	public void testMapTask() {
@@ -46,11 +46,11 @@ public class MapTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+		this.outList = new ArrayList<PactRecord>();
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		MapTask testTask = new MapTask();
 		
@@ -63,7 +63,7 @@ public class MapTaskTest extends TaskTestBase {
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue(outList.size() == keyCnt*valCnt);
+		Assert.assertTrue(this.outList.size() == keyCnt*valCnt);
 		
 	}
 	
@@ -73,11 +73,11 @@ public class MapTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+		this.outList = new ArrayList<PactRecord>();
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		MapTask testTask = new MapTask();
 		
@@ -99,7 +99,7 @@ public class MapTaskTest extends TaskTestBase {
 	public void testCancelMapTask() {
 		
 		super.initEnvironment(1);
-		super.addInput(new InfiniteInputIterator());
+		super.addInput(new InfiniteInputIterator(), 1);
 		super.addOutput(new NirvanaOutputList());
 		
 		final MapTask testTask = new MapTask();
@@ -107,6 +107,7 @@ public class MapTaskTest extends TaskTestBase {
 		super.registerTask(testTask, MockMapStub.class);
 		
 		Thread taskRunner = new Thread() {
+			@Override
 			public void run() {
 				try {
 					testTask.invoke();
@@ -130,25 +131,25 @@ public class MapTaskTest extends TaskTestBase {
 				
 	}
 	
-	public static class MockMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockMapStub extends MapStub {
 
 		@Override
-		public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
-			out.collect(key, value);
+		public void map(PactRecord record, Collector out) throws Exception {
+			out.collect(record);
 		}
 		
 	}
 	
-	public static class MockFailingMapStub extends MapStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockFailingMapStub extends MapStub {
 
 		int cnt = 0;
 		
 		@Override
-		public void map(PactInteger key, PactInteger value, Collector<PactInteger, PactInteger> out) {
-			if(++cnt>=10) {
+		public void map(PactRecord record, Collector out) throws Exception {
+			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
-			out.collect(key, value);
+			out.collect(record);
 		}
 		
 	}

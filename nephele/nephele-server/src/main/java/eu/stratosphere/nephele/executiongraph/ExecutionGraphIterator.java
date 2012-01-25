@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.types.Record;
  * traverse an execution graph and visit every reachable vertex exactly once. The order
  * in which the vertices are visited corresponds to the order of their discovery in a depth first
  * search.
+ * <p>
  * This class is not thread-safe.
  * 
  * @author warneke
@@ -110,7 +111,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 		 * @param currentChannel
 		 *        the channel index to use to visit the next vertex
 		 */
-		public TraversalEntry(ExecutionVertex executionVertex, int currentGate, int currentChannel) {
+		public TraversalEntry(final ExecutionVertex executionVertex, final int currentGate, final int currentChannel) {
 			this.executionVertex = executionVertex;
 			this.currentGate = currentGate;
 			this.currentChannel = currentChannel;
@@ -175,7 +176,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	 *        <code>true</code> if the graph should be traversed in correct order, <code>false</code> to traverse it in
 	 *        reverse order
 	 */
-	public ExecutionGraphIterator(ExecutionGraph executionGraph, boolean forward) {
+	public ExecutionGraphIterator(final ExecutionGraph executionGraph, final boolean forward) {
 		this(executionGraph, forward ? 0 : (executionGraph.getNumberOfStages() - 1), false, forward);
 	}
 
@@ -193,8 +194,8 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	 *        <code>true</code> if the graph should be traversed in correct order, <code>false</code> to traverse it in
 	 *        reverse order
 	 */
-	public ExecutionGraphIterator(ExecutionGraph executionGraph, int startStage, boolean confinedToStage,
-			boolean forward) {
+	public ExecutionGraphIterator(final ExecutionGraph executionGraph, final int startStage,
+			final boolean confinedToStage, final boolean forward) {
 
 		this.executionGraph = executionGraph;
 		this.forward = forward;
@@ -238,7 +239,8 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	 *        <code>true</code> if the graph should be traversed in correct order, <code>false</code> to reverse it in
 	 *        reverse order
 	 */
-	public ExecutionGraphIterator(ExecutionGraph executionGraph, ExecutionVertex startVertex, boolean forward) {
+	public ExecutionGraphIterator(final ExecutionGraph executionGraph, final ExecutionVertex startVertex,
+			final boolean forward) {
 
 		this.executionGraph = executionGraph;
 		this.forward = forward;
@@ -345,7 +347,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	 *        reverse order
 	 * @return a candidate vertex which could potentially be visited next
 	 */
-	private ExecutionVertex getCandidateVertex(TraversalEntry te, boolean forward) {
+	private ExecutionVertex getCandidateVertex(final TraversalEntry te, final boolean forward) {
 
 		if (forward) {
 
@@ -412,7 +414,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 		return null;
 	}
 
-	private boolean currentGateLeadsToOtherStage(TraversalEntry te, boolean forward) {
+	private boolean currentGateLeadsToOtherStage(final TraversalEntry te, final boolean forward) {
 
 		final ExecutionGroupVertex groupVertex = te.getExecutionVertex().getGroupVertex();
 
@@ -446,7 +448,8 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	 */
 	@Override
 	public void remove() {
-		// According to the Iterator documentation this method is optional.
+		
+		throw new UnsupportedOperationException("The method remove is not implemented for this type of iterator");
 	}
 
 }

@@ -3,9 +3,9 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 /**
  * Merges several arrays by taking the first non-null value for each respective array.
@@ -42,7 +42,7 @@ public class ArrayMerger extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append("[*]+...+[*]");
 	}
 

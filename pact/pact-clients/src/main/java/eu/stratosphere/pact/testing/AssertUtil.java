@@ -35,16 +35,16 @@ public class AssertUtil {
 	 * @param expectedIterator
 	 * @param actualIterator
 	 */
-	public static void assertIteratorEquals(String message, Iterator<?> expectedIterator, Iterator<?> actualIterator) {
+	public static <T> void assertIteratorEquals(String message, Iterator<? extends T> expectedIterator,
+			Iterator<? extends T> actualIterator, Equaler<T> equaler) {
 
 		int index = 0;
 		for (; actualIterator.hasNext() && expectedIterator.hasNext(); index++) {
-			final Object expected = expectedIterator.next(), actual = actualIterator.next();
-			try {
-				Assert.assertEquals(expected, actual);
-			} catch (final AssertionFailedError e) {
-				throw new ArrayComparisonFailure(message, e, index);
-			}
+			final T expected = expectedIterator.next(), actual = actualIterator.next();
+			if (!equaler.equal(expected, actual))
+				throw new ArrayComparisonFailure(message,
+					new AssertionFailedError(Assert.format(message, expected, actual)),
+					index);
 		}
 
 		if (expectedIterator.hasNext())
@@ -59,8 +59,9 @@ public class AssertUtil {
 	 * @param expectedIterator
 	 * @param actualIterator
 	 */
-	public static void assertIteratorEquals(Iterator<?> expectedIterator, Iterator<?> actualIterator) {
-		assertIteratorEquals(null, expectedIterator, actualIterator);
+	public static <T> void assertIteratorEquals(Iterator<? extends T> expectedIterator,
+			Iterator<? extends T> actualIterator, Equaler<T> equaler) {
+		assertIteratorEquals(null, expectedIterator, actualIterator, equaler);
 	}
 
 }

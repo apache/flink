@@ -17,12 +17,12 @@ import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 @Name(verb = "group")
 public class Grouping extends MultiSourceOperator<Grouping> {
@@ -57,8 +57,6 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
-			return false;
-		if (this.getClass() != obj.getClass())
 			return false;
 		final Grouping other = (Grouping) obj;
 		return this.resultProjection.equals(other.resultProjection);

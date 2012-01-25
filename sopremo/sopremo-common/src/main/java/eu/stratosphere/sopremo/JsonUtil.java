@@ -11,11 +11,11 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectMapper;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JavaToJsonMapper;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
  * Provides a set of utility functions and objects to handle json data.
@@ -27,7 +27,7 @@ public class JsonUtil {
 	 * A general purpose {@link ObjectMapper}. No state of this mapper should be changed. If a specifically configured
 	 * ObjectMapper is needed, a new instance should be created.
 	 */
-	public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+	public static final JavaToJsonMapper OBJECT_MAPPER = new JavaToJsonMapper();
 
 	// /**
 	// * A general purpose {@link JsonNodeFactory}. No state of this node factory should be changed. If a specifically
@@ -109,7 +109,7 @@ public class JsonUtil {
 		return new ArrayNode(streamNodes);
 	}
 
-	public static PathExpression createPath(final List<String> parts) {
+	public static EvaluationExpression createPath(final List<String> parts) {
 		final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
 		for (int index = 0; index < parts.size(); index++) {
 			EvaluationExpression segment;
@@ -132,10 +132,10 @@ public class JsonUtil {
 				segment = new ObjectAccess(part);
 			fragments.add(segment);
 		}
-		return new PathExpression(fragments);
+		return PathExpression.wrapIfNecessary(fragments);
 	}
 
-	public static PathExpression createPath(final String... parts) {
+	public static EvaluationExpression createPath(final String... parts) {
 		return createPath(Arrays.asList(parts));
 	}
 

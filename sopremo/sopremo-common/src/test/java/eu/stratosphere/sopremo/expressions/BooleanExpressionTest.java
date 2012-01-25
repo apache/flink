@@ -7,10 +7,10 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
 
 @Ignore
-public abstract class BooleanExpressionTest<T extends BooleanExpression> extends SopremoTest<T> {
+public abstract class BooleanExpressionTest<T extends BooleanExpression> extends EvaluableExpressionTest<T> {
 
 	protected static UnaryExpression TRUE = new UnaryExpression(new ConstantExpression(BooleanNode.TRUE));
 

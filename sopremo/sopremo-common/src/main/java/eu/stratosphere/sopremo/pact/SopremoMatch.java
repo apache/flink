@@ -1,50 +1,32 @@
 package eu.stratosphere.sopremo.pact;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MatchStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.Schema;
 
-public abstract class SopremoMatch<IK extends JsonNode, IV1 extends JsonNode, IV2 extends JsonNode, OK extends JsonNode, OV extends JsonNode>
-		extends MatchStub<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+public abstract class SopremoMatch extends MatchStub {
 	private EvaluationContext context;
 
-	@Override
-	public Class<JsonNode> getFirstInKeyType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
+	private Schema inputSchema1, inputSchema2;
 
-	@Override
-	public Class<JsonNode> getSecondInKeyType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
+	private JsonCollector collector;
 
-	@Override
-	public Class<JsonNode> getFirstInValueType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
+	private JsonNode cachedInput1, cachedInput2;
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
+	 */
 	@Override
-	public Class<JsonNode> getSecondInValueType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getOutKeyType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public Class<JsonNode> getOutValueType() {
-		return SopremoUtil.WRAPPER_TYPE;
-	}
-
-	@Override
-	public void configure(final Configuration parameters) {
-		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
-		this.context.setTaskId(parameters.getInteger(AbstractTask.TASK_ID, 0));
+	public void open(Configuration parameters) throws Exception {
+		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
+		this.inputSchema1 = this.context.getInputSchema(0);
+		this.inputSchema2 = this.context.getInputSchema(1);
+		this.collector = new JsonCollector(this.context.getOutputSchema(0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 
@@ -52,20 +34,26 @@ public abstract class SopremoMatch<IK extends JsonNode, IV1 extends JsonNode, IV
 		return this.context;
 	}
 
-	protected abstract void match(JsonNode key, JsonNode value1, JsonNode value2, JsonCollector out);
+	protected abstract void match(JsonNode value1, JsonNode value2, JsonCollector out);
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.MatchStub#match(eu.stratosphere.pact.common.type.PactRecord,
+	 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+	 */
 	@Override
-	public void match(final JsonNode key, final JsonNode value1, final JsonNode value2,
-			final Collector<JsonNode, JsonNode> out) {
+	public void match(PactRecord record1, PactRecord record2, Collector out) throws Exception {
 		this.context.increaseInputCounter();
+		this.collector.setCollector(out);
+		JsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);
+		JsonNode input2 = this.inputSchema2.recordToJson(record2, this.cachedInput2);
 		if (SopremoUtil.LOG.isTraceEnabled())
-			SopremoUtil.LOG.trace(String.format("%s %s/%s/%s", this.getContext().operatorTrace(), key, value1, value2));
+			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), input1, input2));
 		try {
-			this.match(SopremoUtil.unwrap(key), SopremoUtil.unwrap(value1), SopremoUtil.unwrap(value2),
-				new JsonCollector(out));
+			this.match(input1, input2, this.collector);
 		} catch (final RuntimeException e) {
-			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v/v %s/%s/%s: %s", this.getContext()
-				.operatorTrace(), key, value1, value2, e));
+			SopremoUtil.LOG.error(String.format("Error occurred @ %s with %s/%s: %s", this.getContext()
+				.operatorTrace(), input1, input2, e));
 			throw e;
 		}
 	}

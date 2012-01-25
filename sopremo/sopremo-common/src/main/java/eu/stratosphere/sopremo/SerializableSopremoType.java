@@ -8,5 +8,5 @@ import java.io.Serializable;
  * 
  * @author Arvid Heise
  */
-public interface SerializableSopremoType extends Serializable {
+public interface SerializableSopremoType extends Serializable, SopremoType {
 }

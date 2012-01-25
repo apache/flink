@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class AggregationExpression extends EvaluationExpression {
 	/**
@@ -43,7 +43,7 @@ public class AggregationExpression extends EvaluationExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + (this.function == null ? 0 : this.function.hashCode());
 		result = prime * result + (this.preprocessing == null ? 0 : this.preprocessing.hashCode());
 		return result;
@@ -51,28 +51,14 @@ public class AggregationExpression extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final AggregationExpression other = (AggregationExpression) obj;
-		if (this.function == null) {
-			if (other.function != null)
-				return false;
-		} else if (!this.function.equals(other.function))
-			return false;
-		if (this.preprocessing == null) {
-			if (other.preprocessing != null)
-				return false;
-		} else if (!this.preprocessing.equals(other.preprocessing))
-			return false;
-		return true;
+		return this.function.equals(other.function) && this.preprocessing.equals(other.preprocessing);
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		super.toString(builder);
 		builder.append('.');
 		this.function.toString(builder);

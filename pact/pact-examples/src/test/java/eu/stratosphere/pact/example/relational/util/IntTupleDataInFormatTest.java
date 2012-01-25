@@ -18,7 +18,7 @@ package eu.stratosphere.pact.example.relational.util;
 import org.eclipse.jdt.internal.core.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
 public class IntTupleDataInFormatTest {
@@ -43,16 +43,16 @@ public class IntTupleDataInFormatTest {
 		int[] expectedAttrCnt = {6,2,3,3,3,5,5};
 
 		IntTupleDataInFormat inFormat = new IntTupleDataInFormat();
-		KeyValuePair<PactInteger, Tuple> pair = new KeyValuePair<PactInteger, Tuple>();		
+		PactRecord rec = new PactRecord();	
 		
 		for(int i = 0; i < testTuples.length; i++) {
 			
-			String testTuple = testTuples[i];
+			byte[] tupleBytes = testTuples[i].getBytes();
 			
-			inFormat.readLine(pair, testTuple.getBytes());
+			inFormat.readRecord(rec, tupleBytes, tupleBytes.length);
 			
-			Assert.isTrue(pair.getKey().getValue() == expectedKeys[i], "Expected Key: "+expectedKeys[i]+" != Returned Key: "+pair.getKey().getValue());
-			Assert.isTrue(pair.getValue().getNumberOfColumns() == expectedAttrCnt[i], "Expected Attr Cnt: "+expectedAttrCnt[i]+" != Returned Attr Cnt: "+pair.getValue().getNumberOfColumns());
+			Assert.isTrue(rec.getField(0, PactInteger.class).equals(new PactInteger(expectedKeys[i])) , "Expected Key: "+expectedKeys[i]+" != Returned Key: "+rec.getField(0, PactInteger.class));
+			Assert.isTrue(rec.getField(1, Tuple.class).getNumberOfColumns() == expectedAttrCnt[i], "Expected Attr Cnt: "+expectedAttrCnt[i]+" != Returned Attr Cnt: "+rec.getField(1, Tuple.class));
 		}
 
 	}

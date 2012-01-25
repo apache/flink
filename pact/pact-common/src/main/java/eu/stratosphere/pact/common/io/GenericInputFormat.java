@@ -15,51 +15,23 @@
 
 package eu.stratosphere.pact.common.io;
 
-
-import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType1;
-import static eu.stratosphere.pact.common.util.ReflectionUtil.getTemplateType2;
-
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.GenericInputSplit;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
 
 /**
  * Generic base class for all inputs that are not based on files. 
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public abstract class GenericInputFormat<K extends Key, V extends Value> implements InputFormat<GenericInputSplit, K, V>
-{
-	/**
-	 * The input key type class.
-	 */
-	protected Class<K> keyClass;
-
-	/**
-	 * The input value type class.
-	 */
-	protected Class<V> valueClass;
-	
+public abstract class GenericInputFormat implements InputFormat<GenericInputSplit>
+{	
 	/**
 	 * The partition of this split.
 	 */
 	protected int partitionNumber;
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Default constructor initializing the input data types.
-	 */
-	protected GenericInputFormat()
-	{
-		this.keyClass = getTemplateType1(getClass());
-		this.valueClass = getTemplateType2(getClass());
-	}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -112,7 +84,7 @@ public abstract class GenericInputFormat<K extends Key, V extends Value> impleme
 	@Override
 	public void open(GenericInputSplit split) throws IOException
 	{
-		this.partitionNumber = split.getSplitNumber();		
+		this.partitionNumber = split.getSplitNumber();
 	}
 
 	/* (non-Javadoc)
@@ -123,25 +95,4 @@ public abstract class GenericInputFormat<K extends Key, V extends Value> impleme
 	{
 		// nothing by default 	
 	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.InputFormat#createPair()
-	 */
-	@Override
-	public KeyValuePair<K, V> createPair()
-	{
-		try {
-			return new KeyValuePair<K, V>(
-					this.keyClass.newInstance(),
-					this.valueClass.newInstance());
-		}
-		catch (IllegalAccessException iaex) {
-			throw new RuntimeException("Could not access key or value class, or their default (nullary) constructor.");
-		}
-		catch (InstantiationException iex) {
-			throw new RuntimeException("Could not instantiate key or value class. " +
-					"Type classes are abstract, or the nullary constructor is missing.");
-		}
-	}
-
 }

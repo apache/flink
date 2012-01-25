@@ -41,7 +41,7 @@ import eu.stratosphere.pact.test.util.FileWriter;
  */
 public class NepheleMiniCluster {
 
-	private static final boolean DEFAULT_VISUALIZER_ENABLED = false;
+	private static final boolean DEFAULT_VISUALIZER_ENABLED = true;
 
 	private static final Log LOG = LogFactory.getLog(NepheleMiniCluster.class);
 
@@ -55,8 +55,7 @@ public class NepheleMiniCluster {
 
 	private JobManager jobManager;
 
-	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir)
-																									throws Exception {
+	public NepheleMiniCluster(String nepheleConfigDir, String hdfsConfigDir) throws Exception {
 		this(nepheleConfigDir, hdfsConfigDir, DEFAULT_VISUALIZER_ENABLED);
 	}
 
@@ -77,7 +76,7 @@ public class NepheleMiniCluster {
 		Configuration configuration = jobGraph.getJobConfiguration();
 
 		// local ip as job manager (localhost or 127.0.0.1 does not work)
-		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, getLocalIpAddress());
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 
 		// terminate job logic is broken
 		configuration.setBoolean(ConfigConstants.JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY, false);
@@ -121,12 +120,9 @@ public class NepheleMiniCluster {
 					"        <value>" + hdfsConfigDir + "/hadoop-site.xml</value>",
 					"    </property>",
 					"    <property>",
-					"        <key>servicenetwork</key>",
-					"        <value>" + getLocalIpAddress() + "</value>",
-					"    </property>",
-					"    <property>",
 					"        <key>" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY + "</key>",
-					"        <value>" + getLocalIpAddress() + "</value>",
+					"        <value>localhost</value>",
+//					"        <value>" + getLocalIpAddress() + "</value>",
 					"    </property>",
 					"    <property>",
 					"        <key>" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + "</key>",
@@ -147,10 +143,6 @@ public class NepheleMiniCluster {
 					"    <property>",
 					"        <key>jobmanager.visualization.enable</key>",
 					"        <value>" + (visualizerEnabled ? "true" : "false") + "</value>",
-					"    </property>",
-					"    <property>",
-					"        <key>channel.network.allowSpilling</key>",
-					"        <value>true</value>",
 					"    </property>",
 				"</configuration>")
 			.close()
@@ -213,6 +205,7 @@ public class NepheleMiniCluster {
 	// Network utility methods
 	// ------------------------------------------------------------------------
 
+	@SuppressWarnings("unused")
 	private static String getLocalIpAddress() throws SocketException, Exception {
 		String IPv4 = System.getProperty("java.net.preferIPv4Stack");
 		return getIPInterfaceAddress("true".equals(IPv4)).getAddress().getHostAddress();

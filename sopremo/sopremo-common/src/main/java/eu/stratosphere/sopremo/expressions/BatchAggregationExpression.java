@@ -6,8 +6,8 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Batch aggregates one stream of {@link JsonNode} with several {@link AggregationFunction}s.
@@ -88,30 +88,21 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + (this.partials == null ? 0 : this.partials.hashCode());
 		return result;
 	}
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final BatchAggregationExpression other = (BatchAggregationExpression) obj;
-		if (this.partials == null) {
-			if (other.partials != null)
-				return false;
-		} else if (!this.partials.equals(other.partials))
-			return false;
-		return true;
+		return this.partials.equals(other.partials);
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append("batch");
 	}
 }

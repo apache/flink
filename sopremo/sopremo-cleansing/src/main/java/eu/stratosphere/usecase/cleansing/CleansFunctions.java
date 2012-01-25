@@ -1,142 +1,137 @@
 package eu.stratosphere.usecase.cleansing;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicLong;
 
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import uk.ac.shef.wit.simmetrics.similaritymetrics.InterfaceStringMetric;
+import uk.ac.shef.wit.simmetrics.similaritymetrics.JaccardSimilarity;
+import uk.ac.shef.wit.simmetrics.similaritymetrics.JaroWinkler;
+import eu.stratosphere.sopremo.BuiltinProvider;
+import eu.stratosphere.sopremo.ConstantRegistryCallback;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.TypeCoercer;
-import eu.stratosphere.sopremo.aggregation.AggregationFunction;
-import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.FunctionRegistryCallback;
+import eu.stratosphere.sopremo.cleansing.fusion.BeliefResolution;
+import eu.stratosphere.sopremo.cleansing.scrubbing.NonNullRule;
+import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
+import eu.stratosphere.sopremo.expressions.MethodCall;
+import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
+import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.function.Callable;
+import eu.stratosphere.sopremo.function.MacroBase;
+import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
-public class CleansFunctions extends BuiltinFunctions {
-	public static JsonNode length(final TextNode node) {
-		return IntNode.valueOf(node.getTextValue().length());
+public class CleansFunctions implements BuiltinProvider, ConstantRegistryCallback, FunctionRegistryCallback {
+	private static AtomicLong Id = new AtomicLong();
+
+	@Override
+	public void registerConstants(EvaluationContext context) {
+		context.getBindings().set("required", new NonNullRule());
+		// bindings.set("required", new NonNullRule());
 	}
 
-	private static Map<String, Class<? extends JsonNode>> typeNameToType = new HashMap<String, Class<? extends JsonNode>>();
-
-	static {
-		typeNameToType.put("string", TextNode.class);
-		typeNameToType.put("text", TextNode.class);
-		typeNameToType.put("int", IntNode.class);
+	@Override
+	public void registerFunctions(MethodRegistry registry) {
+		registry.register(new SimmetricMacro("jaccard", new JaccardSimilarity()));
+		registry.register(new SimmetricMacro("jaroWinkler", new JaroWinkler()));
+		registry.register(new VoteMacro());
 	}
 
-	public static JsonNode coerce(JsonNode input, TextNode type) {
-		return TypeCoercer.INSTANCE.coerce(input, typeNameToType.get(type));
+	public static JsonNode generateId(TextNode prefix) {
+		return TextNode.valueOf(prefix.getTextValue() + Id.incrementAndGet());
 	}
 
-	public static JsonNode average(NumericNode... inputs) {
-		double sum = 0;
-		
-		for (NumericNode numericNode : inputs) {
-			sum += ((DoubleNode)numericNode).getDoubleValue();
-		}
-		
-		return DoubleNode.valueOf(sum / inputs.length);
+	public static JsonNode removeVowels(TextNode node) {
+		return DefaultFunctions.replace(node, TextNode.valueOf("(?i)[aeiou]"), TextNode.valueOf(""));
 	}
 
-	public static JsonNode trim(TextNode input) {
-		return TextNode.valueOf(input.getTextValue().trim());
-	}
-
-	public static JsonNode split(TextNode input, TextNode splitString) {
-		String[] split = input.getTextValue().split(splitString.getTextValue());
-		ArrayNode splitNode = new ArrayNode();
-		for (String string : split) 
-			splitNode.add(TextNode.valueOf(string));
-		return splitNode;
-	}
-
-	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
-		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
-		Matcher matcher = compiledPattern.matcher(input.getTextValue());
-
-		if (!matcher.find())
-			return defaultValue;
-
-		if (matcher.groupCount() == 0)
-			return TextNode.valueOf(matcher.group(0));
-
-		if (matcher.groupCount() == 1)
-			return TextNode.valueOf(matcher.group(1));
+	public static JsonNode longest(ArrayNode values) {
+		JsonNode longest = values.get(0);
+		int longestLength = ((TextNode) longest).getJavaValue().length();
 
 		ArrayNode result = new ArrayNode();
-		for (int index = 1; index <= matcher.groupCount(); index++)
-			result.add(TextNode.valueOf(matcher.group(index)));
+		for (int index = 1; index < values.size(); index++) {
+			JsonNode node = values.get(1);
+			int length = ((TextNode) node).getJavaValue().length();
+
+			if (longestLength > length) {
+				result.clear();
+				longestLength = length;
+			}
+			if (longestLength == length)
+				result.add(node);
+		}
 		return result;
 	}
 
-	public static JsonNode extract(TextNode input, TextNode pattern) {
-		return extract(input, pattern, NullNode.getInstance());
+	public static JsonNode first(ArrayNode values) {
+		return values.subList(0, 1);
 	}
 
-	public static JsonNode replace(TextNode input, TextNode search, TextNode replace) {
-		return TextNode.valueOf(input.getTextValue().replaceAll(search.getTextValue(), replace.getTextValue()));
-	}
-
-	public static JsonNode filter(ArrayNode input, JsonNode... elementsToFilter) {
-		ArrayNode output = new ArrayNode();
-		HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
-		for (int index = 0; index < input.size(); index++)
-			if (!filterSet.contains(input.get(index)))
-				output.add(input.get(index));
-		return output;
-	}
-
-	//
-	// public static JsonNode group(ArrayNode array, TextNode elementName) {
-	// return extract(input, pattern, NullNode.getInstance());
-	// }
-	//
-	// public static JsonNode aggregate(ArrayNode array, EvaluationExpression groupingExpression, EvaluationExpression
-	// aggregation) {
-	// final List<CompactArrayNode> nodes = new ArrayList<CompactArrayNode>();
-	// for (final JsonNode jsonNode : array)
-	// nodes.add(JsonUtil.asArray(groupingExpression.evaluate(jsonNode, null)));
-	// Collections.sort(nodes, JsonNodeComparator.INSTANCE);
-	// final ArrayNode arrayNode = new ArrayNode(null);
-	// arrayNode.addAll(nodes);
-	// return arrayNode;
-	// }
-
-	public static final AggregationFunction MIN = new TransitiveAggregationFunction("min", NullNode.getInstance()) {
+	/**
+	 * @author Arvid Heise
+	 */
+	private static class SimmetricMacro extends MacroBase {
 		/**
 		 * 
 		 */
-		private static final long serialVersionUID = -8124401653435722884L;
+		private static final long serialVersionUID = -2086644180411129824L;
 
-		@Override
-		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
-			if (aggregate.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(node, aggregate))
-				return node;
-			return aggregate;
+		private InterfaceStringMetric metric;
+
+		/**
+		 * Initializes SimmetricMacro.
+		 * 
+		 * @param name
+		 * @param metric
+		 */
+		public SimmetricMacro(String name, InterfaceStringMetric metric) {
+			super(name);
+			this.metric = metric;
 		}
-	};
 
-	public static final AggregationFunction MAX = new TransitiveAggregationFunction("max", NullNode.getInstance()) {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.function.Callable#call(java.lang.Object,
+		 * eu.stratosphere.sopremo.EvaluationContext)
+		 */
+		@Override
+		public EvaluationExpression call(EvaluationExpression[] params, EvaluationContext context) {
+			if (params.length > 1)
+				return new SimmetricFunction(this.metric, params[0], params[1]);
+			return new SimmetricFunction(this.metric, params[0], params[0]);
+		}
+	}
+
+	private static class VoteMacro extends MacroBase {
 		/**
 		 * 
 		 */
-		private static final long serialVersionUID = -1735264603829085865L;
+		private static final long serialVersionUID = -2673091978964835311L;
 
-		@Override
-		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
-			if (aggregate.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(aggregate, node))
-				return node;
-			return aggregate;
+		/**
+		 * Initializes CleansFunctions.VoteMacro.
+		 */
+		public VoteMacro() {
+			super("vote");
 		}
-	};
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.function.Callable#call(java.lang.Object,
+		 * eu.stratosphere.sopremo.EvaluationContext)
+		 */
+		@Override
+		public EvaluationExpression call(EvaluationExpression[] params, EvaluationContext context) {
+			for (int index = 0; index < params.length; index++)
+				if (params[index] instanceof MethodPointerExpression)
+					params[index] = new MethodCall(((MethodPointerExpression) params[index]).getFunctionName(),
+						EvaluationExpression.VALUE);
+			return new BeliefResolution(params);
+		}
+
+	}
 }

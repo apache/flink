@@ -2,32 +2,35 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
-public class PathExpression extends ContainerExpression {
+public class PathExpression extends ContainerExpression implements Cloneable {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -4663949354781572815L;
 
-	private final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
+	private LinkedList<EvaluationExpression> fragments;
 
 	public PathExpression(final EvaluationExpression... fragments) {
 		this(Arrays.asList(fragments));
 	}
 
 	public PathExpression(final List<? extends EvaluationExpression> fragments) {
-		for (final EvaluationExpression evaluableExpression : fragments)
-			if (evaluableExpression instanceof PathExpression)
-				this.fragments.addAll(((PathExpression) evaluableExpression).fragments);
-			else
-				this.fragments.add(evaluableExpression);
+		this(normalize(fragments));
+	}
+
+	private PathExpression(LinkedList<EvaluationExpression> fragments) {
+		this.fragments = fragments;
 	}
 
 	public void add(final EvaluationExpression fragment) {
@@ -35,12 +38,13 @@ public class PathExpression extends ContainerExpression {
 	}
 
 	@Override
+	public PathExpression clone() {
+		return new PathExpression(fragments);
+	}
+
+	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final PathExpression other = (PathExpression) obj;
 		return this.fragments.equals(other.fragments);
@@ -69,7 +73,7 @@ public class PathExpression extends ContainerExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.fragments.hashCode();
 		return result;
 	}
@@ -85,12 +89,30 @@ public class PathExpression extends ContainerExpression {
 		return this.fragments.iterator();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
+	 */
+	@Override
+	public List<EvaluationExpression> getChildren() {
+		return Collections.unmodifiableList(this.fragments);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
+	 */
+	@Override
+	public void setChildren(List<? extends EvaluationExpression> children) {
+		this.fragments = normalize(children);
+	}
+
 	@Override
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
 		super.replace(toReplace, replaceFragment);
 
-		final PathExpression pathToFind = this.wrapAsPath(toReplace);
-		final PathExpression replacePath = this.wrapAsPath(replaceFragment);
+		final PathExpression pathToFind = this.ensurePathExpression(toReplace);
+		final PathExpression replacePath = this.ensurePathExpression(replaceFragment);
 		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
 		final int findSize = pathToFind.fragments.size();
 		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
@@ -106,19 +128,34 @@ public class PathExpression extends ContainerExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
-		for (final EvaluationExpression fragment : this.fragments)
+	public void toString(final StringBuilder builder) {
+		for (final EvaluationExpression fragment : this.fragments) {
 			fragment.toString(builder);
+			builder.append(" ");
+		}
 	}
 
-	private PathExpression wrapAsPath(final EvaluationExpression expression) {
+	public static PathExpression ensurePathExpression(final EvaluationExpression expression) {
 		if (expression instanceof PathExpression)
 			return (PathExpression) expression;
 		return new PathExpression(expression);
 	}
 
-	public static EvaluationExpression valueOf(List<EvaluationExpression> expressions) {
-		switch (expressions.size()) {
+	private static LinkedList<EvaluationExpression> normalize(List<? extends EvaluationExpression> fragments) {
+		LinkedList<EvaluationExpression> linkedList = new LinkedList<EvaluationExpression>();
+
+		for (EvaluationExpression fragment : fragments)
+			if (fragment instanceof PathExpression)
+				linkedList.addAll(((PathExpression) fragment).fragments);
+			else if (!canIgnore(fragment))
+				linkedList.add(fragment);
+				
+		return linkedList;
+	}
+
+	public static EvaluationExpression wrapIfNecessary(List<EvaluationExpression> expressions) {
+		LinkedList<EvaluationExpression> normalized = normalize(expressions);
+		switch (normalized.size()) {
 		case 0:
 			return EvaluationExpression.VALUE;
 
@@ -126,12 +163,12 @@ public class PathExpression extends ContainerExpression {
 			return expressions.get(0);
 
 		default:
-			return new PathExpression(expressions);
+			return new PathExpression(normalized);
 		}
 	}
 
-	public static EvaluationExpression valueOf(EvaluationExpression... expressions) {
-		return valueOf(Arrays.asList(expressions));
+	public static EvaluationExpression wrapIfNecessary(EvaluationExpression... expressions) {
+		return wrapIfNecessary(Arrays.asList(expressions));
 	}
 
 	@Override
@@ -143,6 +180,7 @@ public class PathExpression extends ContainerExpression {
 		fragments.get(fragments.size() - 1).set(node, value, context);
 		return node;
 	}
+
 	//
 	// public static class Writable extends PathExpression implements WritableEvaluable {
 	//
@@ -172,4 +210,28 @@ public class PathExpression extends ContainerExpression {
 	// }
 	//
 	// }
+
+	/**
+	 * 
+	 */
+	public void removeLast() {
+		fragments.removeLast();
+	}
+
+	public void add(int index, EvaluationExpression fragment) {
+		if (!canIgnore(fragment))
+			fragments.add(index, fragment);
+	}
+
+	private static boolean canIgnore(EvaluationExpression fragment) {
+		return fragment == EvaluationExpression.VALUE;
+	}
+
+	public PathExpression subPath(int start, int end) {
+		if(start < 0)
+			start = fragments.size() + 1 + start;
+		if(end < 0)
+			end = fragments.size() + 1 + end;
+		return new PathExpression(fragments.subList(start, end));
+	}
 }

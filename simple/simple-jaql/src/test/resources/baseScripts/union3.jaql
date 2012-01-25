@@ -1,6 +1,0 @@
-$users1 = read 'users1.json';
-$users2 = read 'users2.json';
-
-$allUsers = union $users1 on format(firstName + lastName), $users2 on name;
-  
-write $allUsers to 'allUsers.json';

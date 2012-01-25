@@ -46,6 +46,14 @@ public class DynamicConstructor<DeclaringClass> extends
 	public DeclaringClass invoke(Object... params) {
 		return super.invoke(null, params);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.util.reflect.DynamicInvokable#needsInstance(java.lang.reflect.Member)
+	 */
+	@Override
+	protected boolean needsInstance(Constructor<DeclaringClass> member) {
+		return false;
+	}
 
 	@Override
 	protected Constructor<DeclaringClass> findMember(Class<DeclaringClass> clazz, Class<?>[] parameterTypes)

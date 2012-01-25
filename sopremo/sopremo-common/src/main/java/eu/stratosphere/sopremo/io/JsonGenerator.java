@@ -4,11 +4,11 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.StringWriter;
+import java.io.Writer;
 
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class JsonGenerator {
 
@@ -16,11 +16,11 @@ public class JsonGenerator {
 
 	boolean isFirst = true;
 
-	public JsonGenerator(FSDataOutputStream stream) {
+	public JsonGenerator(OutputStream stream) {
 		this.writer = new BufferedWriter(new OutputStreamWriter(stream));
 	}
 
-	public JsonGenerator(StringWriter writer) {
+	public JsonGenerator(Writer writer) {
 		this.writer = new BufferedWriter(writer);
 	}
 

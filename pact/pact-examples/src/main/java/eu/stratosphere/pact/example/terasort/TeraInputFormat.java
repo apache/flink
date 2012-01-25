@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.example.terasort;
 
-import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * This class is responsible for converting a line from the input file to a key-value pair. Lines which do not match the
@@ -24,22 +24,23 @@ import eu.stratosphere.pact.common.type.KeyValuePair;
  * 
  * @author warneke
  */
-public final class TeraInputFormat extends TextInputFormat<TeraKey, TeraValue> {
+public final class TeraInputFormat extends DelimitedInputFormat {
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean readLine(KeyValuePair<TeraKey, TeraValue> pair, byte[] record) {
+	public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
 
-		if (record.length != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
+		if (numBytes != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
 			return false;
 		}
 
 		final TeraKey key = new TeraKey(record);
 		final TeraValue value = new TeraValue(record);
-		pair.setKey(key);
-		pair.setValue(value);
+		
+		target.setField(0, key);
+		target.setField(1, value);
 
 		return true;
 	}

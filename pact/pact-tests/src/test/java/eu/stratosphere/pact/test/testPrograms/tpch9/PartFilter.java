@@ -15,17 +15,17 @@
 
 package eu.stratosphere.pact.test.testPrograms.tpch9;
 
-import org.apache.log4j.Logger;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.*;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
-public class PartFilter extends MapStub<PactInteger, Tuple, PactInteger, PactNull> {
+public class PartFilter extends MapStub {
 
-	private static String COLOR = "green";
+	private final Tuple inputTuple = new Tuple();
 	
-	private static Logger LOGGER = Logger.getLogger(PartFilter.class);
+	private static String COLOR = "green";
 	
 	/**
 	 * Filter and project "part".
@@ -37,15 +37,12 @@ public class PartFilter extends MapStub<PactInteger, Tuple, PactInteger, PactNul
 	 *
 	 */
 	@Override
-	public void map(PactInteger partKey, Tuple inputTuple,
-			Collector<PactInteger, PactNull> output) {
-		
-		try {
-			if(inputTuple.getStringValueAt(1).indexOf(COLOR) != -1)
-				output.collect(partKey, new PactNull());
-		} catch (final Exception ex) {
-			LOGGER.error(ex);
+	public void map(PactRecord record, Collector out) throws Exception
+	{
+		Tuple inputTuple = record.getField(1, this.inputTuple);
+		if (inputTuple.getStringValueAt(1).indexOf(COLOR) != -1) {
+			record.setField(1, PactNull.getInstance());
+			out.collect(record);
 		}
 	}
-
 }

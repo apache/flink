@@ -24,6 +24,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -317,89 +320,89 @@ public class JobManagerITCase {
 		}
 	}
 
-	/**
-	 * Tests the Nephele execution when an exception occurs. In particular, it is tested if the information that is
-	 * wrapped by the exception is correctly passed on to the client.
-	 */
-	@Test
-	public void testExecutionWithException() {
-
-		final String exceptionClassName = ExceptionTask.class.getSimpleName();
-		File inputFile = null;
-		File outputFile = null;
-		File jarFile = null;
-
-		try {
-
-			inputFile = ServerTestUtils.createInputFile(0);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-				+ ServerTestUtils.getRandomFilename());
-			jarFile = ServerTestUtils.createJarFile(exceptionClassName);
-
-			// Create job graph
-			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
-
-			// input vertex
-			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
-
-			// task vertex 1
-			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
-			t1.setTaskClass(ExceptionTask.class);
-
-			// output vertex
-			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
-
-			t1.setVertexToShareInstancesWith(i1);
-			o1.setVertexToShareInstancesWith(i1);
-
-			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-
-			// add jar
-			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
-
-			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
-
-			try {
-				jobClient.submitJobAndWait();
-			} catch (JobExecutionException e) {
-				// Check if the correct error message is encapsulated in the exception
-				if (e.getMessage() == null) {
-					fail("JobExecutionException does not contain an error message");
-				}
-				if (!e.getMessage().contains(ExceptionTask.ERROR_MESSAGE)) {
-					fail("JobExecutionException does not contain the expected error message");
-				}
-
-				return;
-			}
-
-			fail("Expected exception but did not receive it");
-
-		} catch (JobGraphDefinitionException jgde) {
-			fail(jgde.getMessage());
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		} finally {
-
-			// Remove temporary files
-			if (inputFile != null) {
-				inputFile.delete();
-			}
-			if (outputFile != null) {
-				outputFile.delete();
-			}
-			if (jarFile != null) {
-				jarFile.delete();
-			}
-		}
-	}
+//	/**
+//	 * Tests the Nephele execution when an exception occurs. In particular, it is tested if the information that is
+//	 * wrapped by the exception is correctly passed on to the client.
+//	 */
+//	@Test
+//	public void testExecutionWithException() {
+//
+//		final String exceptionClassName = ExceptionTask.class.getSimpleName();
+//		File inputFile = null;
+//		File outputFile = null;
+//		File jarFile = null;
+//
+//		try {
+//
+//			inputFile = ServerTestUtils.createInputFile(0);
+//			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+//				+ ServerTestUtils.getRandomFilename());
+//			jarFile = ServerTestUtils.createJarFile(exceptionClassName);
+//
+//			// Create job graph
+//			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
+//
+//			// input vertex
+//			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+//			i1.setFileInputClass(FileLineReader.class);
+//			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+//
+//			// task vertex 1
+//			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
+//			t1.setTaskClass(ExceptionTask.class);
+//
+//			// output vertex
+//			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+//			o1.setFileOutputClass(FileLineWriter.class);
+//			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+//
+//			t1.setVertexToShareInstancesWith(i1);
+//			o1.setVertexToShareInstancesWith(i1);
+//
+//			// connect vertices
+//			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+//			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+//
+//			// add jar
+//			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
+//
+//			// Create job client and launch job
+//			final JobClient jobClient = new JobClient(jg, configuration);
+//
+//			try {
+//				jobClient.submitJobAndWait();
+//			} catch (JobExecutionException e) {
+//				// Check if the correct error message is encapsulated in the exception
+//				if (e.getMessage() == null) {
+//					fail("JobExecutionException does not contain an error message");
+//				}
+//				if (!e.getMessage().contains(ExceptionTask.ERROR_MESSAGE)) {
+//					fail("JobExecutionException does not contain the expected error message");
+//				}
+//
+//				return;
+//			}
+//
+//			fail("Expected exception but did not receive it");
+//
+//		} catch (JobGraphDefinitionException jgde) {
+//			fail(jgde.getMessage());
+//		} catch (IOException ioe) {
+//			fail(ioe.getMessage());
+//		} finally {
+//
+//			// Remove temporary files
+//			if (inputFile != null) {
+//				inputFile.delete();
+//			}
+//			if (outputFile != null) {
+//				outputFile.delete();
+//			}
+//			if (jarFile != null) {
+//				jarFile.delete();
+//			}
+//		}
+//	}
 
 	/**
 	 * Tests the Nephele execution when a runtime exception during the registration of the input/output gates occurs.
@@ -496,7 +499,7 @@ public class JobManagerITCase {
 	 * @param limit
 	 *        the upper bound for the sequence of numbers to be generated
 	 */
-	private void test(int limit) {
+	private void test(final int limit) {
 
 		try {
 
@@ -714,6 +717,159 @@ public class JobManagerITCase {
 			// Remove temporary files
 			if (inputFile != null) {
 				inputFile.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+		}
+	}
+
+	/**
+	 * Tests the correctness of the union record reader with non-empty inputs.
+	 */
+	@Test
+	public void testUnionWithNonEmptyInput() {
+		testUnion(1000000);
+	}
+
+	/**
+	 * Tests the correctness of the union record reader with empty inputs.
+	 */
+	@Test
+	public void testUnionWithEmptyInput() {
+		testUnion(0);
+	}
+
+	/**
+	 * Tests the correctness of the union reader for different input sizes.
+	 * 
+	 * @param limit
+	 *        the upper bound for the sequence of numbers to be generated
+	 */
+	private void testUnion(final int limit) {
+
+		File inputFile1 = null;
+		File inputFile2 = null;
+		File outputFile = null;
+		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "unionWithEmptyInput.jar");
+
+		try {
+
+			inputFile1 = ServerTestUtils.createInputFile(limit);
+			inputFile2 = ServerTestUtils.createInputFile(limit);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+								+ ServerTestUtils.getRandomFilename());
+
+			// Create required jar file
+			JarFileCreator jfc = new JarFileCreator(jarFile);
+			jfc.addClass(UnionTask.class);
+			jfc.createJarFile();
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Union job " + limit);
+
+			// input vertex 1
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+			i1.setFileInputClass(FileLineReader.class);
+			i1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath().toString()));
+
+			// input vertex 2
+			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
+			i2.setFileInputClass(FileLineReader.class);
+			i2.setFilePath(new Path("file://" + inputFile2.getAbsolutePath().toString()));
+
+			// union task
+			final JobTaskVertex u1 = new JobTaskVertex("Union", jg);
+			u1.setTaskClass(UnionTask.class);
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			i1.setVertexToShareInstancesWith(o1);
+			i2.setVertexToShareInstancesWith(o1);
+			u1.setVertexToShareInstancesWith(o1);
+
+			// connect vertices
+			i1.connectTo(u1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			i2.connectTo(u1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			u1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+			// add jar
+			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+
+			// Create job client and launch job
+			final JobClient jobClient = new JobClient(jg, configuration);
+
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+				fail(e.getMessage());
+			}
+
+			// Finally, check the output
+			final Map<Integer, Integer> expectedNumbers = new HashMap<Integer, Integer>();
+			final Integer two = Integer.valueOf(2);
+			for (int i = 0; i < limit; ++i) {
+				expectedNumbers.put(Integer.valueOf(i), two);
+			}
+
+			final BufferedReader bufferedReader = new BufferedReader(new FileReader(outputFile));
+			String line = bufferedReader.readLine();
+			while (line != null) {
+
+				final Integer number = Integer.valueOf(Integer.parseInt(line));
+				Integer val = expectedNumbers.get(number);
+				if (val == null) {
+					fail("Found unexpected number in union output: " + number);
+				} else {
+					val = Integer.valueOf(val.intValue() - 1);
+					if (val.intValue() < 0) {
+						fail(val + " occurred more than twice in union output");
+					}
+					if (val.intValue() == 0) {
+						expectedNumbers.remove(number);
+					} else {
+						expectedNumbers.put(number, val);
+					}
+				}
+
+				line = bufferedReader.readLine();
+			}
+
+			bufferedReader.close();
+
+			if (!expectedNumbers.isEmpty()) {
+				final StringBuilder str = new StringBuilder();
+				str.append("The following numbers have not been found in the union output:\n");
+				final Iterator<Map.Entry<Integer, Integer>> it = expectedNumbers.entrySet().iterator();
+				while (it.hasNext()) {
+					final Map.Entry<Integer, Integer> entry = it.next();
+					str.append(entry.getKey().toString());
+					str.append(" (");
+					str.append(entry.getValue().toString());
+					str.append("x)\n");
+				}
+
+				fail(str.toString());
+			}
+
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile1 != null) {
+				inputFile1.delete();
+			}
+			if (inputFile2 != null) {
+				inputFile2.delete();
 			}
 			if (outputFile != null) {
 				outputFile.delete();

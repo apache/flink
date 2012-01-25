@@ -22,12 +22,12 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.io.JsonParseException;
 import eu.stratosphere.sopremo.io.JsonParser;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.type.Schema;
+
+import static eu.stratosphere.sopremo.pact.IOConstants.*;
 
 /**
  * Reads json files with Jackson. The resulting key/value pair consists of an id and a {@link PactJsonObject}. The id is
@@ -35,7 +35,7 @@ import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
  * 
  * @author Arvid Heise
  */
-public class JsonInputFormat extends FileInputFormat<JsonNode, JsonNode> {
+public class JsonInputFormat extends FileInputFormat {
 
 	// private boolean array;
 
@@ -45,9 +45,9 @@ public class JsonInputFormat extends FileInputFormat<JsonNode, JsonNode> {
 
 	private Charset encoding;
 
-	public static final String PARAMETER_ENCODING = "Encoding";
+	private Schema schema;
 
-	private void checkEnd() throws IOException, JsonParseException {
+	private void checkEnd() {
 		// if (this.array && this.parser.nextToken() == JsonToken.END_ARRAY || !this.array
 		// && this.parser.nextToken() == null)
 		this.end = this.parser.checkEnd();
@@ -63,21 +63,18 @@ public class JsonInputFormat extends FileInputFormat<JsonNode, JsonNode> {
 	public void configure(final Configuration parameters) {
 		super.configure(parameters);
 
-		final String encoding = parameters.getString(PARAMETER_ENCODING, null);
-		if (encoding != null)
-			this.encoding = Charset.forName(encoding);
+		this.schema = SopremoUtil.deserialize(parameters, SCHEMA, Schema.class);
+		this.encoding = Charset.forName(parameters.getString(ENCODING, "utf-8"));
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.InputFormat#nextRecord(eu.stratosphere.pact.common.type.PactRecord)
+	 */
 	@Override
-	public KeyValuePair<JsonNode, JsonNode> createPair() {
-		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), new ObjectNode());
-	}
-
-	@Override
-	public boolean nextRecord(final KeyValuePair<JsonNode, JsonNode> pair) throws IOException {
+	public boolean nextRecord(PactRecord record) throws IOException {
 		if (!this.end) {
-			pair.setKey(SopremoUtil.wrap(pair.getKey()));
-			pair.setValue(SopremoUtil.wrap(this.parser.readValueAsTree()));
+			this.schema.jsonToRecord(this.parser.readValueAsTree(), record);
 			this.checkEnd();
 			return true;
 		}

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -12,9 +13,9 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.io.JsonParser;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> {
 
@@ -121,8 +122,8 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 	@Override
 	protected void initVerifier(final EqualsVerifier<PathExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
-		equalVerifier.withPrefabValues(List.class,
-			new ArrayList<Object>(),
-			new ArrayList<Object>(Arrays.asList(new ObjectAccess("field"))));
+		equalVerifier.withPrefabValues(LinkedList.class,
+			new LinkedList<Object>(),
+			new LinkedList<Object>(Arrays.asList(new ObjectAccess("field"))));
 	}
 }

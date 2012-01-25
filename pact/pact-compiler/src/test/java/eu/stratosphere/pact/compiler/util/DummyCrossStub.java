@@ -15,17 +15,19 @@
 
 package eu.stratosphere.pact.compiler.util;
 
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.CrossStub;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.CrossStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-public class DummyCrossStub extends CrossStub<PactInteger, PactInteger, PactInteger, PactInteger, PactInteger, PactInteger> {
+public class DummyCrossStub extends CrossStub {
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+	 */
 	@Override
-	public void cross(PactInteger key1, PactInteger value1, PactInteger key2, PactInteger value2,
-			Collector<PactInteger, PactInteger> out) {
-		out.collect(key1, value1);
-		out.collect(key2, value2);
+	public void cross(PactRecord record1, PactRecord record2, Collector out) {
+		out.collect(record1);
+		out.collect(record2);
 	}
 
 }

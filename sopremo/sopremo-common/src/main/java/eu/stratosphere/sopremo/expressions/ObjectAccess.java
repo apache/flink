@@ -2,9 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
  * Returns the value of an attribute of one or more Json nodes.
@@ -40,9 +40,10 @@ public class ObjectAccess extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.field.equals(((ObjectAccess) obj).field);
+		final ObjectAccess other = (ObjectAccess) obj;
+		return this.field.equals(other.field);
 	}
 
 	/**
@@ -65,7 +66,7 @@ public class ObjectAccess extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return 43 + this.field.hashCode();
+		return 43 * super.hashCode() + this.field.hashCode();
 	}
 
 	@Override
@@ -77,7 +78,7 @@ public class ObjectAccess extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append('.').append(this.field);
 	}
 }

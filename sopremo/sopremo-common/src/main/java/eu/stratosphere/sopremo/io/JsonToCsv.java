@@ -1,0 +1,212 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+package eu.stratosphere.sopremo.io;
+
+import java.io.Serializable;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map.Entry;
+
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
+import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.expressions.ArrayAccess;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.Schema;
+
+/**
+ * @author Arvid Heise
+ */
+public class JsonToCsv {
+	/**
+	 * 
+	 */
+	private static final List<EvaluationExpression> AUTO = new ArrayList<EvaluationExpression>();
+
+	private List<EvaluationExpression> extractionExpressions = AUTO;
+
+	private EvaluationContext context = new EvaluationContext();
+
+	private String separator = ";";
+
+	public EvaluationContext getContext() {
+		return this.context;
+	}
+
+	public String getSeparator() {
+		return this.separator;
+	}
+
+	public void setSeparator(String separator) {
+		if (separator == null)
+			throw new NullPointerException("separator must not be null");
+
+		this.separator = separator;
+	}
+
+	public List<EvaluationExpression> getExtractionExpressions() {
+		return this.extractionExpressions;
+	}
+
+	public void setContext(EvaluationContext context) {
+		if (context == null)
+			throw new NullPointerException("context must not be null");
+
+		this.context = context;
+	}
+
+	public void setExtractionExpressions(List<EvaluationExpression> extractionExpressions) {
+		if (extractionExpressions == null)
+			throw new NullPointerException("extractionExpressions must not be null");
+
+		this.extractionExpressions = extractionExpressions;
+	}
+
+	public static FileDataSink convert(String sourceFile, JsonToCsv jsonToCsv,
+			String targetFile) {
+		PactModule sourceModule = new Source(sourceFile).asPactModule(jsonToCsv.getContext());
+		Contract source = sourceModule.getOutput(0).getInputs().get(0);
+
+		MapContract jsonToString = new MapContract(JsonToString.class);
+		jsonToString.getParameters().setString("separator", jsonToCsv.getSeparator());
+		SopremoUtil.serialize(jsonToString.getParameters(), SopremoUtil.CONTEXT, jsonToCsv.getContext());
+		SopremoUtil.serialize(jsonToString.getParameters(), "extractionExpressions",
+			(Serializable) jsonToCsv.getExtractionExpressions());
+		jsonToString.setInput(source);
+
+		FileDataSink target = new FileDataSink(StringOutputFormat.class, targetFile);
+		target.setInput(jsonToString);
+
+		return target;
+	}
+
+	public static class StringOutputFormat extends DelimitedOutputFormat {
+		private Charset cs = Charset.defaultCharset();
+
+		private PactString string = new PactString();
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.pact.common.io.DelimitedOutputFormat#serializeRecord(eu.stratosphere.pact.common.type.PactRecord
+		 * , byte[])
+		 */
+		@Override
+		public int serializeRecord(PactRecord record, byte[] target) throws Exception {
+			record.getFieldInto(0, this.string);
+			ByteBuffer line = this.cs.encode(this.string.getValue());
+
+			int length = line.limit() + 1;
+			if (length > target.length)
+				return -length;
+
+			line.get(target);
+			target[length - 1] = '\n';
+			return length;
+		}
+	}
+
+	public static class JsonToString extends MapStub {
+
+		private List<EvaluationExpression> extractionExpressions;
+
+		private EvaluationContext context;
+
+		private String separator;
+
+		private JsonNode node;
+
+		private PactString resultString = new PactString();
+
+		private PactRecord resultRecord = new PactRecord(this.resultString);
+
+		private Schema schema;
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
+		 */
+		@SuppressWarnings("unchecked")
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+
+			this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+			this.extractionExpressions = (List<EvaluationExpression>) SopremoUtil.deserialize(parameters,
+				"extractionExpressions", Serializable.class);
+			this.schema = this.context.getInputSchema(0);
+			this.separator = parameters.getString("separator", ";");
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord,
+		 * eu.stratosphere.pact.common.stubs.Collector)
+		 */
+		@Override
+		public void map(PactRecord record, Collector out) throws Exception {
+			StringBuilder string = new StringBuilder();
+
+			this.node = this.schema.recordToJson(record, this.node);
+			if (this.extractionExpressions.isEmpty())
+				this.discoverEntries(this.node, new LinkedList<EvaluationExpression>());
+			for (EvaluationExpression expr : this.extractionExpressions)
+				string.append(expr.evaluate(this.node, this.context)).append(this.separator);
+
+			string.setLength(string.length() - 1);
+			this.resultString.setValue(string.toString());
+
+			out.collect(this.resultRecord);
+		}
+
+		/**
+		 * @param value
+		 */
+		private void discoverEntries(JsonNode value, LinkedList<EvaluationExpression> path) {
+			if (value instanceof ObjectNode)
+				for (Entry<String, JsonNode> entry : ((ObjectNode) value).getEntries()) {
+					path.push(new ObjectAccess(entry.getKey()));
+					this.discoverEntries(entry.getValue(), path);
+					path.pop();
+				}
+			else if (value instanceof ArrayNode)
+				for (int index = 0; index < ((ArrayNode) value).size(); index++) {
+					path.push(new ArrayAccess(index));
+					this.discoverEntries(((ArrayNode) value).get(index), path);
+					path.pop();
+				}
+			else
+				this.extractionExpressions.add(PathExpression.wrapIfNecessary(path));
+		}
+	}
+}

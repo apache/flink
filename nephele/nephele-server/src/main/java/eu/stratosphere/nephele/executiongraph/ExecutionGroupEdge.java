@@ -20,6 +20,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
 /**
  * An execution group edge represents an edge between two execution group vertices.
+ * <p>
  * This class is thread-safe.
  * 
  * @author warneke
@@ -44,12 +45,12 @@ public class ExecutionGroupEdge {
 	/**
 	 * The channel type to be used between the execution vertices of the two connected group vertices.
 	 */
-	private ChannelType channelType;
+	private volatile ChannelType channelType;
 
 	/**
 	 * The compression level to be used between the execution vertices of the two connected group vertices.
 	 */
-	private CompressionLevel compressionLevel;
+	private volatile CompressionLevel compressionLevel;
 
 	/**
 	 * The group vertex connected to this edge.
@@ -93,9 +94,10 @@ public class ExecutionGroupEdge {
 	 * @param userDefinedCompressionLevel
 	 *        <code>true</code> if the compression level has been specified by the user, <code>false</code> otherwise
 	 */
-	public ExecutionGroupEdge(ExecutionGraph executionGraph, ExecutionGroupVertex sourceVertex, int indexOfOutputGate,
-			ExecutionGroupVertex targetVertex, int indexOfInputGate, ChannelType channelType,
-			boolean userDefinedChannelType, CompressionLevel compressionLevel, boolean userDefinedCompressionLevel) {
+	public ExecutionGroupEdge(final ExecutionGraph executionGraph, final ExecutionGroupVertex sourceVertex,
+			final int indexOfOutputGate, final ExecutionGroupVertex targetVertex, final int indexOfInputGate,
+			final ChannelType channelType, final boolean userDefinedChannelType,
+			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel) {
 		this.executionGraph = executionGraph;
 		this.sourceVertex = sourceVertex;
 		this.indexOfOutputGate = indexOfOutputGate;
@@ -112,7 +114,7 @@ public class ExecutionGroupEdge {
 	 * 
 	 * @return the channel type assigned to this edge
 	 */
-	public synchronized ChannelType getChannelType() {
+	public ChannelType getChannelType() {
 		return this.channelType;
 	}
 
@@ -124,7 +126,7 @@ public class ExecutionGroupEdge {
 	 * @throws GraphConversionException
 	 *         thrown if the new channel type violates a user setting
 	 */
-	public synchronized void changeChannelType(ChannelType newChannelType) throws GraphConversionException {
+	void changeChannelType(final ChannelType newChannelType) throws GraphConversionException {
 
 		if (!this.channelType.equals(newChannelType) && this.userDefinedChannelType) {
 			throw new GraphConversionException("Cannot overwrite user defined channel type");
@@ -133,31 +135,6 @@ public class ExecutionGroupEdge {
 		this.executionGraph.unwire(this.sourceVertex, this.indexOfOutputGate, this.targetVertex, this.indexOfInputGate);
 		this.executionGraph.wire(this.sourceVertex, this.indexOfOutputGate, this.targetVertex, this.indexOfInputGate,
 			newChannelType, this.compressionLevel);
-
-		//TODO: This code breaks graphs which have multiple edges with different channel between a pair of vertices
-		// It should probably be removed
-		// Make sure update is applied to all edges connecting the two vertices
-		/*
-		 * final List<ExecutionGroupEdge> edges = this.getSourceVertex().getForwardEdges(this.getTargetVertex());
-		 * final Iterator<ExecutionGroupEdge> it = edges.iterator();
-		 * while (it.hasNext()) {
-		 * final ExecutionGroupEdge edge = it.next();
-		 * // Update channel type
-		 * CompressionLevel cl = null;
-		 * synchronized(edge) {
-		 * System.out.println("Chaning channel2 type from " + edge.channelType + " to " + newChannelType);
-		 * edge.channelType = newChannelType;
-		 * cl = edge.compressionLevel;
-		 * }
-		 * this.executionGraph.unwire(edge.sourceVertex, edge.indexOfOutputGate, edge.targetVertex,
-		 * edge.indexOfInputGate);
-		 * }
-		 */
-
-		// Changing the channels may require to reassign the stages
-		this.executionGraph.repairStages();
-		// It may also be necessary to repair the instance assignment
-		this.executionGraph.repairInstanceAssignment();
 	}
 
 	/**
@@ -174,7 +151,7 @@ public class ExecutionGroupEdge {
 	 * 
 	 * @return the compression level assigned to this edge
 	 */
-	public synchronized CompressionLevel getCompressionLevel() {
+	public CompressionLevel getCompressionLevel() {
 		return this.compressionLevel;
 	}
 
@@ -186,8 +163,7 @@ public class ExecutionGroupEdge {
 	 * @throws GraphConversionException
 	 *         thrown if the new compression level violates a user setting
 	 */
-	public synchronized void changeCompressionLevel(CompressionLevel newCompressionLevel)
-			throws GraphConversionException {
+	void changeCompressionLevel(final CompressionLevel newCompressionLevel) throws GraphConversionException {
 
 		if (!this.compressionLevel.equals(newCompressionLevel)) {
 

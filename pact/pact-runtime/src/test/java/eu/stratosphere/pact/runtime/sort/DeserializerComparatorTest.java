@@ -22,12 +22,13 @@ import java.util.Comparator;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.services.iomanager.Deserializer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
-import eu.stratosphere.nephele.services.iomanager.SerializationFactory;
-import eu.stratosphere.nephele.services.iomanager.Serializer;
-import eu.stratosphere.pact.runtime.serialization.WritableSerializationFactory;
+import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.sort.DeserializerComparator;
 import eu.stratosphere.pact.runtime.test.util.TestData;
+import eu.stratosphere.pact.runtime.util.KeyComparator;
 
 /**
  * @author Erik Nijkamp
@@ -35,30 +36,149 @@ import eu.stratosphere.pact.runtime.test.util.TestData;
 public class DeserializerComparatorTest {
 
 	@Test
-	public void testCompare() throws Exception {
+	public void testCompareSingleKeyAt0() throws Exception
+	{
 		// initialize comparator
-		SerializationFactory<TestData.Key> keySerialization = new WritableSerializationFactory<TestData.Key>(
-			TestData.Key.class);
-		Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-		Deserializer<TestData.Key> keyDeserializer = keySerialization.getDeserializer();
-		Serializer<TestData.Key> keySerializer = keySerialization.getSerializer();
-		RawComparator rawComparator = new DeserializerComparator<TestData.Key>(keyDeserializer, keyComparator);
+		Comparator<Key> keyComparator = new KeyComparator();
+		
+		@SuppressWarnings("unchecked")
+		RawComparator rawComparator = new DeserializerComparator(new int[]{0}, 
+			new Class[]{TestData.Key.class}, new Comparator[]{keyComparator});
 
 		// sample data
 		TestData.Key key1 = new TestData.Key(10);
+		TestData.Value val1 = new TestData.Value("Some-test-value-here.");
+		PactRecord rec1 = new PactRecord(key1, val1);
+		
 		TestData.Key key2 = new TestData.Key(20);
-
+		TestData.Value val2 = new TestData.Value("Another-magic-test-value.");
+		PactRecord rec2 = new PactRecord(key2, val2);
+		
 		// serialize
 		ByteArrayOutputStream buffer1 = new ByteArrayOutputStream();
 		DataOutputStream dataOutput1 = new DataOutputStream(buffer1);
-		keySerializer.open(dataOutput1);
-		keySerializer.serialize(key1);
+		rec1.write(dataOutput1);
 		byte[] key1bytes = buffer1.toByteArray();
 
 		ByteArrayOutputStream buffer2 = new ByteArrayOutputStream();
 		DataOutputStream dataOutput2 = new DataOutputStream(buffer2);
-		keySerializer.open(dataOutput2);
-		keySerializer.serialize(key2);
+		rec2.write(dataOutput2);
+		byte[] key2bytes = buffer2.toByteArray();
+
+		// assertion
+		Assert.assertTrue(rawComparator.compare(key1bytes, key2bytes, 0, 0) < 0);
+		Assert.assertTrue(rawComparator.compare(key2bytes, key1bytes, 0, 0) > 0);
+		Assert.assertTrue(rawComparator.compare(key1bytes, key1bytes, 0, 0) == 0);
+	}
+	
+	@Test
+	public void testCompareSingleKeyAt1() throws Exception
+	{
+		// initialize comparator
+		Comparator<Key> keyComparator = new KeyComparator();
+		
+		@SuppressWarnings("unchecked")
+		RawComparator rawComparator = new DeserializerComparator(new int[]{1}, 
+			new Class[]{TestData.Key.class}, new Comparator[]{keyComparator});
+
+		// sample data
+		TestData.Key key1 = new TestData.Key(10);
+		TestData.Value val1 = new TestData.Value("Some-test-value-here.");
+		PactRecord rec1 = new PactRecord(val1, key1);
+		
+		TestData.Key key2 = new TestData.Key(20);
+		TestData.Value val2 = new TestData.Value("Another-magic-test-value.");
+		PactRecord rec2 = new PactRecord(val2, key2);
+		
+		// serialize
+		ByteArrayOutputStream buffer1 = new ByteArrayOutputStream();
+		DataOutputStream dataOutput1 = new DataOutputStream(buffer1);
+		rec1.write(dataOutput1);
+		byte[] key1bytes = buffer1.toByteArray();
+
+		ByteArrayOutputStream buffer2 = new ByteArrayOutputStream();
+		DataOutputStream dataOutput2 = new DataOutputStream(buffer2);
+		rec2.write(dataOutput2);
+		byte[] key2bytes = buffer2.toByteArray();
+
+		// assertion
+		Assert.assertTrue(rawComparator.compare(key1bytes, key2bytes, 0, 0) < 0);
+		Assert.assertTrue(rawComparator.compare(key2bytes, key1bytes, 0, 0) > 0);
+		Assert.assertTrue(rawComparator.compare(key1bytes, key1bytes, 0, 0) == 0);
+	}
+	
+	@Test
+	public void testCompareCompositeKey() throws Exception
+	{
+		// initialize comparator
+		Comparator<Key> keyComparator = new KeyComparator();
+		
+		@SuppressWarnings("unchecked")
+		RawComparator rawComparator = new DeserializerComparator(new int[]{2, 0}, 
+			new Class[]{TestData.Key.class, PactInteger.class}, new Comparator[]{keyComparator, keyComparator});
+
+		// sample data
+		PactInteger int1 = new PactInteger(18);
+		TestData.Key key1 = new TestData.Key(10);
+		TestData.Value val1 = new TestData.Value("Some-test-value-here.");
+		PactRecord rec1 = new PactRecord(int1, val1);
+		rec1.setField(2, key1);
+		
+		PactInteger int2 = new PactInteger(20);
+		TestData.Key key2 = new TestData.Key(11);
+		TestData.Value val2 = new TestData.Value("Another-magic-test-value.");
+		PactRecord rec2 = new PactRecord(int2, val2);
+		rec2.setField(2, key2);
+		
+		// serialize
+		ByteArrayOutputStream buffer1 = new ByteArrayOutputStream();
+		DataOutputStream dataOutput1 = new DataOutputStream(buffer1);
+		rec1.write(dataOutput1);
+		byte[] key1bytes = buffer1.toByteArray();
+
+		ByteArrayOutputStream buffer2 = new ByteArrayOutputStream();
+		DataOutputStream dataOutput2 = new DataOutputStream(buffer2);
+		rec2.write(dataOutput2);
+		byte[] key2bytes = buffer2.toByteArray();
+
+		// assertion
+		Assert.assertTrue(rawComparator.compare(key1bytes, key2bytes, 0, 0) < 0);
+		Assert.assertTrue(rawComparator.compare(key2bytes, key1bytes, 0, 0) > 0);
+		Assert.assertTrue(rawComparator.compare(key1bytes, key1bytes, 0, 0) == 0);
+	}
+	
+	@Test
+	public void testCompareCompositeKey2() throws Exception
+	{
+		// initialize comparator
+		Comparator<Key> keyComparator = new KeyComparator();
+		
+		@SuppressWarnings("unchecked")
+		RawComparator rawComparator = new DeserializerComparator(new int[]{2, 0}, 
+			new Class[]{TestData.Key.class, PactInteger.class}, new Comparator[]{keyComparator, keyComparator});
+
+		// sample data
+		PactInteger int1 = new PactInteger(18);
+		TestData.Key key1 = new TestData.Key(11);
+		TestData.Value val1 = new TestData.Value("Some-test-value-here.");
+		PactRecord rec1 = new PactRecord(int1, val1);
+		rec1.setField(2, key1);
+		
+		PactInteger int2 = new PactInteger(20);
+		TestData.Key key2 = new TestData.Key(11);
+		TestData.Value val2 = new TestData.Value("Another-magic-test-value.");
+		PactRecord rec2 = new PactRecord(int2, val2);
+		rec2.setField(2, key2);
+		
+		// serialize
+		ByteArrayOutputStream buffer1 = new ByteArrayOutputStream();
+		DataOutputStream dataOutput1 = new DataOutputStream(buffer1);
+		rec1.write(dataOutput1);
+		byte[] key1bytes = buffer1.toByteArray();
+
+		ByteArrayOutputStream buffer2 = new ByteArrayOutputStream();
+		DataOutputStream dataOutput2 = new DataOutputStream(buffer2);
+		rec2.write(dataOutput2);
 		byte[] key2bytes = buffer2.toByteArray();
 
 		// assertion

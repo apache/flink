@@ -1,3 +1,4 @@
+#!/bin/bash
 ########################################################################################################################
 # 
 #  Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
@@ -12,8 +13,6 @@
 #  specific language governing permissions and limitations under the License.
 # 
 ########################################################################################################################
-
-#!/bin/bash
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -38,5 +37,5 @@ $NEPHELE_BIN_DIR/nephele-jobmanager.sh stop
 while read line
 do
 	HOST=$( extractHostName $line)
-	ssh $NEPHELE_SSH_OPTS $HOST nohup /bin/bash $NEPHELE_BIN_DIR/nephele-taskmanager.sh stop &
+	ssh -n $NEPHELE_SSH_OPTS $HOST -- "nohup /bin/bash $NEPHELE_BIN_DIR/nephele-taskmanager.sh stop &"
 done < $HOSTLIST

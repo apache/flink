@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -31,38 +30,35 @@ import java.util.Map;
 import junit.framework.Assert;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
+import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
+import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
-import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
-import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
@@ -78,7 +74,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * The primary resource to test one or more implemented PACT stubs. It is
  * created in a unit tests and performs the following operations.
  * <ul>
- * <li>Adds {@link FileDataSourceContract}s and {@link FileDataSinkContract}s if not explicitly specified,
+ * <li>Adds {@link GenericDataSource<?>}s and {@link GenericDataSink}s if not explicitly specified,
  * <li>locally runs the PACT stubs,
  * <li>checks the results against the pairs as specified in {@link #getExpectedOutput()}, and
  * <li>provides comfortable access to the results with {@link #getActualOutput()}. <br>
@@ -90,10 +86,10 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * <b>Test complete plan<br>
  * <code><pre>
  *    // build plan
- *    FileDataSourceContract&lt;Key, Value&gt; source = ...;
+ *    GenericDataSource<?>&lt;Key, Value&gt; source = ...;
  *    MapContract&lt;Key, Value, Key, Value&gt; map = new MapContract&lt;Key, Value, Key, Value&gt;(IdentityMap.class, "Map");
  *    map.setInput(source);    
- *    FileDataSinkContract&lt;Key, Value&gt; output = ...;
+ *    GenericDataSink&lt;Key, Value&gt; output = ...;
  *    output.setInput(map);
  *    // configure test
  *    TestPlan testPlan = new TestPlan(output);
@@ -123,20 +119,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * @author Arvid Heise
  */
 
-public class TestPlan implements Closeable, DeploymentManager {
-
-	private final class MockInputSplitProvider implements InputSplitProvider {
-		private ExecutionVertex vertex;
-
-		public MockInputSplitProvider(ExecutionVertex vertex) {
-			this.vertex = vertex;
-		}
-
-		@Override
-		public InputSplit getNextInputSplit() {
-			return TestPlan.this.inputSplitManager.getNextInputSplit(this.vertex);
-		}
-	}
+public class TestPlan implements Closeable {
 
 	private static final class CostEstimator extends
 			FixedSizeClusterCostEstimator {
@@ -160,65 +143,80 @@ public class TestPlan implements Closeable, DeploymentManager {
 			this.executionVertex = executionVertex;
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.nephele.execution.ExecutionListener#executionStateChanged(eu.stratosphere.nephele.jobgraph
+		 * .JobID, eu.stratosphere.nephele.executiongraph.ExecutionVertexID,
+		 * eu.stratosphere.nephele.execution.ExecutionState, java.lang.String)
+		 */
 		@Override
-		public void executionStateChanged(final Environment environment,
-				final ExecutionState newExecutionState,
-				final String optionalMessage) {
-			if (newExecutionState == ExecutionState.FAILED) {
+		public void executionStateChanged(JobID jobID, ExecutionVertexID vertexID, ExecutionState newExecutionState,
+				String optionalMessage) {
+			if (newExecutionState == ExecutionState.FAILED)
 				this.executionError = optionalMessage == null ? "FAILED" : optionalMessage;
-
-				// close output channels for proper shutdown
-				for (int i = 0; i < environment.getNumberOfOutputGates(); i++) {
-					try {
-						environment.getOutputGate(i).requestClose();
-					} catch (IOException e) {
-						e.printStackTrace();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			}
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.nephele.execution.ExecutionListener#userThreadStarted(eu.stratosphere.nephele.jobgraph.JobID,
+		 * eu.stratosphere.nephele.executiongraph.ExecutionVertexID, java.lang.Thread)
+		 */
 		@Override
-		public void userThreadFinished(final Environment ee,
-				final Thread userThread) {
+		public void userThreadStarted(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.nephele.execution.ExecutionListener#userThreadFinished(eu.stratosphere.nephele.jobgraph.JobID
+		 * , eu.stratosphere.nephele.executiongraph.ExecutionVertexID, java.lang.Thread)
+		 */
 		@Override
-		public void userThreadStarted(final Environment ee,
-				final Thread userThread) {
+		public void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
 		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.nephele.execution.ExecutionListener#initialExecutionResourcesExhausted(eu.stratosphere.nephele
+		 * .jobgraph.JobID, eu.stratosphere.nephele.executiongraph.ExecutionVertexID,
+		 * eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot)
+		 */
+		@Override
+		public void initialExecutionResourcesExhausted(JobID jobID, ExecutionVertexID vertexID,
+				ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+		}
+
 	}
 
 	private static final InstanceTypeDescription MOCK_INSTANCE_DESCRIPTION = InstanceTypeDescriptionFactory.construct(
 		MockInstanceManager.DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1);
 
-	private static FileDataSinkContract<?, ?> ALL_SINKS = null;
+	private static GenericDataSink ALL_SINKS = null;
 
-	private final Map<FileDataSinkContract<?, ?>, TestPairs<?, ?>> actualOutputs = new IdentityHashMap<FileDataSinkContract<?, ?>, TestPairs<?, ?>>();
+	private final Map<GenericDataSink, TestRecords> actualOutputs = new IdentityHashMap<GenericDataSink, TestRecords>();
 
 	private final Contract[] contracts;
 
 	private int degreeOfParallelism = 1;
 
-	private final Map<FileDataSinkContract<?, ?>, TestPairs<?, ?>> expectedOutputs = new IdentityHashMap<FileDataSinkContract<?, ?>, TestPairs<?, ?>>();
+	private final Map<GenericDataSink, TestRecords> expectedOutputs = new IdentityHashMap<GenericDataSink, TestRecords>();
 
-	private final Map<FileDataSourceContract<?, ?>, TestPairs<?, ?>> inputs = new IdentityHashMap<FileDataSourceContract<?, ?>, TestPairs<?, ?>>();
+	private final Map<GenericDataSource<?>, TestRecords> inputs = new IdentityHashMap<GenericDataSource<?>, TestRecords>();
 
-	private final List<FileDataSinkContract<?, ?>> sinks = new ArrayList<FileDataSinkContract<?, ?>>();
+	private final List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 
-	private final List<FileDataSourceContract<?, ?>> sources = new ArrayList<FileDataSourceContract<?, ?>>();
+	private final List<FileDataSource> sources = new ArrayList<FileDataSource>();
 
-	private final Map<FileDataSinkContract<?, ?>, FuzzyTestValueSimilarity<?>> fuzzySimilarity = new HashMap<FileDataSinkContract<?, ?>, FuzzyTestValueSimilarity<?>>();
+	private final Map<GenericDataSink, FuzzyTestValueSimilarity> fuzzySimilarity = new HashMap<GenericDataSink, FuzzyTestValueSimilarity>();
 
-	private final Map<FileDataSinkContract<?, ?>, FuzzyTestValueMatcher<?>> fuzzyMatchers = new HashMap<FileDataSinkContract<?, ?>, FuzzyTestValueMatcher<?>>();
-
-	private InputSplitManager inputSplitManager = new InputSplitManager();
+	private final Map<GenericDataSink, FuzzyTestValueMatcher> fuzzyMatchers = new HashMap<GenericDataSink, FuzzyTestValueMatcher>();
 
 	/**
 	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
-	 * {@link FileDataSinkContract}s. However, it
+	 * {@link GenericDataSink}s. However, it
 	 * is also possible to add arbitrary Contracts, to which FileDataSinkContracts
 	 * are automatically added.
 	 * 
@@ -229,7 +227,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 		if (contracts.length == 0)
 			throw new IllegalArgumentException();
 
-		this.fuzzyMatchers.put(ALL_SINKS, new EqualityValueMatcher<Value>());
+		this.fuzzyMatchers.put(ALL_SINKS, new EqualityValueMatcher());
 
 		final Configuration config = new Configuration();
 		config.setString(PactConfigConstants.DEFAULT_INSTANCE_TYPE_KEY,
@@ -243,7 +241,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 
 	/**
 	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
-	 * {@link FileDataSinkContract}s. However, it
+	 * {@link GenericDataSink}s. However, it
 	 * is also possible to add arbitrary Contracts, to which FileDataSinkContracts
 	 * are automatically added.
 	 * 
@@ -255,11 +253,11 @@ public class TestPlan implements Closeable, DeploymentManager {
 	}
 
 	/**
-	 * Returns all {@link FileDataSinkContract}s of this test plan.
+	 * Returns all {@link GenericDataSink}s of this test plan.
 	 * 
 	 * @return the sinks
 	 */
-	public List<FileDataSinkContract<?, ?>> getSinks() {
+	public List<FileDataSink> getSinks() {
 		return this.sinks;
 	}
 
@@ -270,9 +268,9 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @param delta
 	 *        the delta that the actual value is allowed to differ from the expected value.
 	 */
-	public void setAllowedPactDoubleDelta(double delta) {
-		this.setFuzzyValueMatcher(new NaiveFuzzyValueMatcher<PactDouble>());
-		this.setFuzzyValueSimilarity(new DoubleValueSimilarity(delta));
+	public void setAllowedPactDoubleDelta(double delta, int valueIndex) {
+		this.setFuzzyValueMatcher(new NaiveFuzzyValueMatcher());
+		this.setFuzzyValueSimilarity(new DoubleValueSimilarity(delta, valueIndex));
 	}
 
 	/**
@@ -285,8 +283,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @param similarity
 	 *        the similarity measure to use
 	 */
-	public <V extends Value> void setFuzzyValueSimilarity(FileDataSinkContract<?, ? extends V> sink,
-			FuzzyTestValueSimilarity<V> similarity) {
+	public void setFuzzyValueSimilarity(GenericDataSink sink, FuzzyTestValueSimilarity similarity) {
 		this.fuzzySimilarity.put(sink, similarity);
 	}
 
@@ -296,7 +293,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @param similarity
 	 *        the similarity measure to use
 	 */
-	public void setFuzzyValueSimilarity(FuzzyTestValueSimilarity<?> similarity) {
+	public void setFuzzyValueSimilarity(FuzzyTestValueSimilarity similarity) {
 		this.fuzzySimilarity.put(ALL_SINKS, similarity);
 	}
 
@@ -306,7 +303,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @param sink
 	 *        the data sink
 	 */
-	public void removeFuzzyValueSimilarity(FileDataSinkContract<?, ?> sink) {
+	public void removeFuzzyValueSimilarity(GenericDataSink sink) {
 		this.fuzzySimilarity.remove(sink);
 	}
 
@@ -320,12 +317,11 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 *        the value type
 	 * @return the similarity measure
 	 */
-	@SuppressWarnings("unchecked")
-	public <V extends Value> FuzzyTestValueSimilarity<V> getFuzzySimilarity(FileDataSinkContract<?, ? extends V> sink) {
-		FuzzyTestValueSimilarity<?> matcher = this.fuzzySimilarity.get(sink);
+	public FuzzyTestValueSimilarity getFuzzySimilarity(GenericDataSink sink) {
+		FuzzyTestValueSimilarity matcher = this.fuzzySimilarity.get(sink);
 		if (matcher == null)
 			matcher = this.fuzzySimilarity.get(ALL_SINKS);
-		return (FuzzyTestValueSimilarity<V>) matcher;
+		return matcher;
 	}
 
 	/**
@@ -333,7 +329,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * 
 	 * @return the similarity measure
 	 */
-	public FuzzyTestValueSimilarity<?> getFuzzySimilarity() {
+	public FuzzyTestValueSimilarity getFuzzySimilarity() {
 		return this.fuzzySimilarity.get(ALL_SINKS);
 	}
 
@@ -347,8 +343,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @param matcher
 	 *        the global matcher to use
 	 */
-	public <V extends Value> void setFuzzyValueMatcher(FileDataSinkContract<?, ? extends V> sink,
-			FuzzyTestValueMatcher<V> matcher) {
+	public void setFuzzyValueMatcher(GenericDataSink sink, FuzzyTestValueMatcher matcher) {
 		this.fuzzyMatchers.put(sink, matcher);
 	}
 
@@ -358,7 +353,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @param matcher
 	 *        the global matcher to use
 	 */
-	public void setFuzzyValueMatcher(FuzzyTestValueMatcher<?> matcher) {
+	public void setFuzzyValueMatcher(FuzzyTestValueMatcher matcher) {
 		this.fuzzyMatchers.put(ALL_SINKS, matcher);
 	}
 
@@ -368,7 +363,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @param sink
 	 *        the data sink
 	 */
-	public void removeFuzzyValueMatcher(FileDataSinkContract<?, ?> sink) {
+	public void removeFuzzyValueMatcher(GenericDataSink sink) {
 		this.fuzzyMatchers.remove(sink);
 	}
 
@@ -382,12 +377,11 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 *        the value type
 	 * @return the global matcher
 	 */
-	@SuppressWarnings("unchecked")
-	public <V extends Value> FuzzyTestValueMatcher<V> getFuzzyMatcher(FileDataSinkContract<?, ? extends V> sink) {
-		FuzzyTestValueMatcher<?> matcher = this.fuzzyMatchers.get(sink);
+	public FuzzyTestValueMatcher getFuzzyMatcher(GenericDataSink sink) {
+		FuzzyTestValueMatcher matcher = this.fuzzyMatchers.get(sink);
 		if (matcher == null)
 			matcher = this.fuzzyMatchers.get(ALL_SINKS);
-		return (FuzzyTestValueMatcher<V>) matcher;
+		return matcher;
 	}
 
 	/**
@@ -395,7 +389,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * 
 	 * @return the global matcher
 	 */
-	public FuzzyTestValueMatcher<?> getFuzzyMatcher() {
+	public FuzzyTestValueMatcher getFuzzyMatcher() {
 		return this.fuzzyMatchers.get(ALL_SINKS);
 	}
 
@@ -405,7 +399,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @return the allowed delta
 	 */
 	public double getAllowedPactDoubleDelta() {
-		FuzzyTestValueSimilarity<?> matcher = this.fuzzySimilarity.get(ALL_SINKS);
+		FuzzyTestValueSimilarity matcher = this.fuzzySimilarity.get(ALL_SINKS);
 		if (matcher instanceof DoubleValueSimilarity)
 			return ((DoubleValueSimilarity) matcher).getDelta();
 		return 0;
@@ -435,19 +429,17 @@ public class TestPlan implements Closeable, DeploymentManager {
 
 				@Override
 				public boolean preVisit(final Contract visitable) {
-					if (visitable instanceof FileDataSinkContract<?, ?>
+					if (visitable instanceof FileDataSink
 						&& !TestPlan.this.sinks.contains(visitable))
-						TestPlan.this.sinks
-							.add((FileDataSinkContract<?, ?>) visitable);
-					if (visitable instanceof FileDataSourceContract<?, ?>
+						TestPlan.this.sinks.add((FileDataSink) visitable);
+					if (visitable instanceof FileDataSource
 						&& !TestPlan.this.sources.contains(visitable))
-						TestPlan.this.sources
-							.add((FileDataSourceContract<?, ?>) visitable);
+						TestPlan.this.sources.add((FileDataSource) visitable);
 					return true;
 				}
 			});
 
-		for (FileDataSourceContract<?, ?> source : this.sources)
+		for (FileDataSource source : this.sources)
 			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath());
 	}
 
@@ -461,30 +453,32 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * one {@link SequentialOutputFormat}.
 	 */
 	private Plan buildPlanWithReadableSinks() {
-		final Collection<FileDataSinkContract<?, ?>> existingSinks = this
-			.getDataSinks();
-		final Collection<FileDataSinkContract<?, ?>> wrappedSinks = new ArrayList<FileDataSinkContract<?, ?>>();
-		for (final FileDataSinkContract<?, ?> FileDataSinkContract : existingSinks)
+		final Collection<FileDataSink> existingSinks = this.getDataSinks();
+		final Collection<GenericDataSink> wrappedSinks = new ArrayList<GenericDataSink>();
+		for (final FileDataSink fileSink : existingSinks)
 			// need a format which is deserializable without configuration
-			if (!FileDataSinkContract.getFormatClass().equals(SequentialOutputFormat.class)) {
+			if (!fileSink.getFormatClass().equals(SequentialOutputFormat.class)) {
+				TestRecords expectedValues = this.expectedOutputs.get(fileSink);
+				// but only if we need to check for values anyways
+				if (expectedValues == null)
+					continue;
 
-				final FileDataSinkContract<Key, Value> safeSink = createDefaultSink(FileDataSinkContract.getName());
+				final FileDataSink safeSink = createDefaultSink(fileSink.getName());
 
-				safeSink.setInput(FileDataSinkContract.getInput());
+				safeSink.setInputs(fileSink.getInputs());
 
-				wrappedSinks.add(FileDataSinkContract);
+				wrappedSinks.add(fileSink);
 				wrappedSinks.add(safeSink);
 
-				this.expectedOutputs.put(safeSink, this.getExpectedOutput(FileDataSinkContract));
-				this.actualOutputs.put(safeSink, this.getActualOutput(FileDataSinkContract));
-				this.getActualOutput(FileDataSinkContract)
-					.fromFile(SequentialInputFormat.class, safeSink.getFilePath());
+				this.expectedOutputs.put(safeSink, expectedValues);
+				this.actualOutputs.put(safeSink, this.getActualOutput(fileSink));
+				this.getActualOutput(fileSink).fromFile(SequentialInputFormat.class, safeSink.getFilePath());
 
 			} else {
-				wrappedSinks.add(FileDataSinkContract);
-				this.getActualOutput(FileDataSinkContract).fromFile(
+				wrappedSinks.add(fileSink);
+				this.getActualOutput(fileSink).fromFile(
 					SequentialInputFormat.class,
-					FileDataSinkContract.getFilePath());
+					fileSink.getFilePath());
 			}
 
 		return new Plan(wrappedSinks);
@@ -503,13 +497,11 @@ public class TestPlan implements Closeable, DeploymentManager {
 			@Override
 			public boolean preVisit(final Contract visitable) {
 				int degree = TestPlan.this.getDegreeOfParallelism();
-				if (visitable instanceof FileDataSourceContract<?, ?>)
+				if (visitable instanceof GenericDataSource<?>)
 					degree = 1;
-				else if (degree > 1 && visitable instanceof FileDataSinkContract)
+				else if (degree > 1 && visitable instanceof FileDataSink)
 					try {
-						Path path = new Path(
-							((FileDataSinkContract<?, ?>) visitable)
-								.getFilePath());
+						Path path = new Path(((FileDataSink) visitable).getFilePath());
 
 						final FileSystem fs = path.getFileSystem();
 
@@ -530,14 +522,14 @@ public class TestPlan implements Closeable, DeploymentManager {
 
 	/**
 	 * Returns the first output {@link TestPairs} of the TestPlan. If multiple
-	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getActualOutput(FileDataSinkContract)}
+	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getActualOutput(GenericDataSink)}
 	 * method to unambiguously get
 	 * the values.<br>
 	 * The values are only meaningful after a {@link #run()}.
 	 * 
 	 * @return the first output of the TestPlan
 	 */
-	public TestPairs<Key, Value> getActualOutput() {
+	public TestRecords getActualOutput() {
 		return this.getActualOutput(0);
 	}
 
@@ -557,19 +549,17 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @return the output {@link TestPairs} of the TestPlan associated with the
 	 *         given sink
 	 */
-	@SuppressWarnings("unchecked")
-	public <K extends Key, V extends Value> TestPairs<K, V> getActualOutput(
-			final FileDataSinkContract<K, V> sink) {
-		TestPairs<K, V> values = (TestPairs<K, V>) this.actualOutputs.get(sink);
+	public TestRecords getActualOutput(final FileDataSink sink) {
+		TestRecords values = this.actualOutputs.get(sink);
 		if (values == null)
-			this.actualOutputs.put(sink, values = new TestPairs<K, V>());
+			this.actualOutputs.put(sink, values = new TestRecords());
 		return values;
 	}
 
 	/**
 	 * Returns the output {@link TestPairs} associated with the <i>i</i>th
 	 * output of the TestPlan. If multiple contracts are tested in the TestPlan,
-	 * it is recommended to use the {@link #getActualOutput(FileDataSinkContract)} method to unambiguously get the
+	 * it is recommended to use the {@link #getActualOutput(GenericDataSink)} method to unambiguously get the
 	 * values.<br>
 	 * The values are only meaningful after a {@link #run()}.
 	 * 
@@ -577,17 +567,15 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 *        the number of the output.
 	 * @return the <i>i</i>th output of the TestPlan
 	 */
-	@SuppressWarnings("unchecked")
-	public TestPairs<Key, Value> getActualOutput(final int number) {
-		return (TestPairs<Key, Value>) this.getActualOutput(this.getDataSinks()
-			.get(number));
+	public TestRecords getActualOutput(final int number) {
+		return this.getActualOutput(this.getDataSinks().get(number));
 	}
 
-	private List<FileDataSinkContract<?, ?>> getDataSinks() {
+	private List<FileDataSink> getDataSinks() {
 		return this.sinks;
 	}
 
-	private List<? extends FileDataSourceContract<?, ?>> getDataSources() {
+	private List<? extends GenericDataSource<?>> getDataSources() {
 		return this.sources;
 	}
 
@@ -611,8 +599,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 		final JobGraph jobGraph = new JobGraphGenerator()
 			.compileJobGraph(optimizedPlan);
 		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
-		final ExecutionGraph eg = new ExecutionGraph(jobGraph, MockInstanceManager.INSTANCE);
-		return eg;
+		return new ExecutionGraph(jobGraph, MockInstanceManager.INSTANCE);
 	}
 
 	private OptimizedPlan compile(final Plan plan) {
@@ -626,22 +613,21 @@ public class TestPlan implements Closeable, DeploymentManager {
 		// PactConnection.class.getDeclaredField("shipStrategy");
 		// declaredField.setAccessible(true);
 		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
-			for (final PactConnection pactConnection : node
-				.getIncomingConnections())
-				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
-				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
-			for (final PactConnection pactConnection : node
-				.getOutgoingConnections())
+			for (final List<PactConnection> pactConnections : node.getIncomingConnections())
+				for (PactConnection pactConnection : pactConnections)
+					// declaredField.set(pactConnection, ShipStrategy.FORWARD);
+					pactConnection.setShipStrategy(ShipStrategy.FORWARD);
+			for (final PactConnection pactConnection : node.getOutgoingConnections())
 				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
 				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
 		}
 	}
 
 	private void initAdhocInputs() throws IOException {
-		for (final FileDataSourceContract<?, ?> FileDataSourceContract : this.sources) {
-			final TestPairs<?, ?> input = this.getInput(FileDataSourceContract);
+		for (final FileDataSource source : this.sources) {
+			final TestRecords input = this.getInput(source);
 			if (input.isAdhoc())
-				input.saveToFile(FileDataSourceContract.getFilePath());
+				input.saveToFile(source.getFilePath());
 		}
 	}
 
@@ -693,13 +679,25 @@ public class TestPlan implements Closeable, DeploymentManager {
 	/**
 	 * Returns the first expected output {@link TestPairs} of the TestPlan. If
 	 * multiple contracts are tested in the TestPlan, it is recommended to use
-	 * the {@link #getExpectedOutput(FileDataSinkContract)} method to unambiguously
+	 * the {@link #getExpectedOutput(GenericDataSink)} method to unambiguously
 	 * set the values.
 	 * 
 	 * @return the first expected output of the TestPlan
 	 */
-	public TestPairs<Key, Value> getExpectedOutput() {
-		return this.getExpectedOutput(0);
+	public TestRecords getExpectedOutput(Class<? extends Value> firstFieldType, Class<?>... otherFieldTypes) {
+		return this.getExpectedOutput(0, firstFieldType, otherFieldTypes);
+	}
+
+	/**
+	 * Returns the first expected output {@link TestPairs} of the TestPlan. If
+	 * multiple contracts are tested in the TestPlan, it is recommended to use
+	 * the {@link #getExpectedOutput(GenericDataSink)} method to unambiguously
+	 * set the values.
+	 * 
+	 * @return the first expected output of the TestPlan
+	 */
+	public TestRecords getExpectedOutput(Class<? extends Value>[] schema) {
+		return this.getExpectedOutput(0, schema);
 	}
 
 	/**
@@ -717,20 +715,40 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @return the expected output {@link TestPairs} of the TestPlan associated
 	 *         with the given sink
 	 */
-	@SuppressWarnings("unchecked")
-	public <K extends Key, V extends Value> TestPairs<K, V> getExpectedOutput(
-			final FileDataSinkContract<K, V> sink) {
-		TestPairs<K, V> values = (TestPairs<K, V>) this.expectedOutputs
-			.get(sink);
-		if (values == null)
-			this.expectedOutputs.put(sink, values = new TestPairs<K, V>());
+	public TestRecords getExpectedOutput(final FileDataSink sink, Class<? extends Value> firstFieldType,
+			Class<?>... otherFieldTypes) {
+		return this.getExpectedOutput(sink, SchemaUtils.combineSchema(firstFieldType, otherFieldTypes));
+	}
+
+	/**
+	 * Returns the expected output {@link TestPairs} of the TestPlan associated
+	 * with the given sink. This is the recommended method to set expected
+	 * output pairs for more complex TestPlans.
+	 * 
+	 * @param <K>
+	 *        the type of the key
+	 * @param <V>
+	 *        the type of the value
+	 * @param sink
+	 *        the sink of which the associated expected output TestPairs
+	 *        should be returned
+	 * @return the expected output {@link TestPairs} of the TestPlan associated
+	 *         with the given sink
+	 */
+	public TestRecords getExpectedOutput(final FileDataSink sink, Class<? extends Value>[] schema) {
+		TestRecords values = this.expectedOutputs.get(sink);
+		if (values == null) {
+			this.expectedOutputs.put(sink, values = new TestRecords(schema));
+			TestRecords actualOutput = this.getActualOutput(sink);
+			actualOutput.setSchema(values.getSchema());
+		}
 		return values;
 	}
 
 	/**
 	 * Returns the expected output {@link TestPairs} associated with the
 	 * <i>i</i>th expected output of the TestPlan. If multiple contracts are
-	 * tested in the TestPlan, it is recommended to use the {@link #getExpectedOutput(FileDataSinkContract)} method to
+	 * tested in the TestPlan, it is recommended to use the {@link #getExpectedOutput(GenericDataSink)} method to
 	 * unambiguously set
 	 * the values.
 	 * 
@@ -738,23 +756,35 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 *        the number of the expected output.
 	 * @return the <i>i</i>th expected output of the TestPlan
 	 */
-	@SuppressWarnings("unchecked")
-	public TestPairs<Key, Value> getExpectedOutput(final int number) {
-		return (TestPairs<Key, Value>) this
-			.getExpectedOutput(new ArrayList<FileDataSinkContract<?, ?>>(this
-				.getDataSinks()).get(number));
+	public TestRecords getExpectedOutput(final int number, Class<? extends Value> firstFieldType,
+			Class<?>... otherFieldTypes) {
+		return this.getExpectedOutput(this.getDataSinks().get(number), firstFieldType, otherFieldTypes);
+	}
+
+	/**
+	 * Returns the expected output {@link TestPairs} associated with the
+	 * <i>i</i>th expected output of the TestPlan. If multiple contracts are
+	 * tested in the TestPlan, it is recommended to use the {@link #getExpectedOutput(GenericDataSink)} method to
+	 * unambiguously set
+	 * the values.
+	 * 
+	 * @param number
+	 *        the number of the expected output.
+	 * @return the <i>i</i>th expected output of the TestPlan
+	 */
+	public TestRecords getExpectedOutput(final int number, Class<? extends Value>[] schema) {
+		return this.getExpectedOutput(this.getDataSinks().get(number), schema);
 	}
 
 	/**
 	 * Returns the first input {@link TestPairs} of the TestPlan. If multiple
-	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getInput(FileDataSourceContract)}
-	 * method
+	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getInput(GenericDataSource<?>)} method
 	 * to unambiguously set the
 	 * values.
 	 * 
 	 * @return the first input of the TestPlan
 	 */
-	public TestPairs<Key, Value> getInput() {
+	public TestRecords getInput() {
 		return this.getInput(0);
 	}
 
@@ -773,29 +803,25 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 * @return the input {@link TestPairs} of the TestPlan associated with the
 	 *         given source
 	 */
-	@SuppressWarnings("unchecked")
-	public <K extends Key, V extends Value> TestPairs<K, V> getInput(
-			final FileDataSourceContract<K, V> source) {
-		TestPairs<K, V> values = (TestPairs<K, V>) this.inputs.get(source);
+	public TestRecords getInput(final GenericDataSource<?> source) {
+		TestRecords values = this.inputs.get(source);
 		if (values == null)
-			this.inputs.put(source, values = new TestPairs<K, V>());
+			this.inputs.put(source, values = new TestRecords());
 		return values;
 	}
 
 	/**
 	 * Returns the input {@link TestPairs} associated with the <i>i</i>th input
 	 * of the TestPlan. If multiple contracts are tested in the TestPlan, it is
-	 * recommended to use the {@link #getInput(FileDataSourceContract)} method to
+	 * recommended to use the {@link #getInput(GenericDataSource<?>)} method to
 	 * unambiguously set the values.
 	 * 
 	 * @param number
 	 *        the number of the input.
 	 * @return the <i>i</i>th input of the TestPlan
 	 */
-	@SuppressWarnings("unchecked")
-	public TestPairs<Key, Value> getInput(final int number) {
-		return (TestPairs<Key, Value>) this.getInput(this.getDataSources().get(
-			number));
+	public TestRecords getInput(final int number) {
+		return this.getInput(this.getDataSources().get(number));
 	}
 
 	private LocalScheduler localScheduler;
@@ -809,10 +835,13 @@ public class TestPlan implements Closeable, DeploymentManager {
 		this.errorHandlers.clear();
 		try {
 			ExecutionGraph eg = this.getExecutionGraph();
-			this.localScheduler = new LocalScheduler(this, MockInstanceManager.INSTANCE);
-			this.inputSplitManager.registerJob(eg);
+			addErrorHandler(eg);
+			this.localScheduler = new LocalScheduler(MockDeployManager.INSTANCE, MockInstanceManager.INSTANCE);
+			MockTaskManager.INSTANCE.addJobGraph(eg);
+			eg.registerJobStatusListener(MockJobManager.INSTANCE);
 			this.localScheduler.schedulJob(eg);
 			this.execute(eg);
+
 		} catch (final Exception e) {
 			Assert.fail("plan scheduling: " + StringUtils.stringifyException(e));
 		}
@@ -833,6 +862,16 @@ public class TestPlan implements Closeable, DeploymentManager {
 		}
 	}
 
+	protected void addErrorHandler(ExecutionGraph eg) {
+		ExecutionGraphIterator executionGraphIterator = new ExecutionGraphIterator(eg, true);
+		while (executionGraphIterator.hasNext()) {
+			ExecutionVertex executionVertex = executionGraphIterator.next();
+			ExecutionExceptionHandler errorHandler = new ExecutionExceptionHandler(executionVertex);
+			executionVertex.registerExecutionListener(errorHandler);
+			this.errorHandlers.add(errorHandler);
+		}
+	}
+
 	/**
 	 * Sets the degreeOfParallelism to the specified value.
 	 * 
@@ -843,20 +882,19 @@ public class TestPlan implements Closeable, DeploymentManager {
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void validateResults() {
-		for (final FileDataSinkContract sinkContract : this.getDataSinks())
+		for (final FileDataSink sinkContract : this.getDataSinks()) {
+			TestRecords expectedValues = this.expectedOutputs.get(sinkContract);
 			// need a format which is deserializable without configuration
 			if (sinkContract.getFormatClass() == SequentialOutputFormat.class
-				&& this.getExpectedOutput(sinkContract).isInitialized()) {
-				final TestPairs<Key, Value> actualValues = new TestPairs<Key, Value>();
+				&& expectedValues != null
+				&& expectedValues.isInitialized()) {
+				final TestRecords actualValues = new TestRecords();
 				actualValues.fromFile(SequentialInputFormat.class,
 					sinkContract.getFilePath());
 
-				final TestPairs<Key, Value> expectedValues = this.getExpectedOutput(sinkContract);
-
-				FuzzyTestValueMatcher<Value> fuzzyMatcher = this.getFuzzyMatcher(sinkContract);
-				FuzzyTestValueSimilarity<Value> fuzzySimilarity = this.getFuzzySimilarity(sinkContract);
+				FuzzyTestValueMatcher fuzzyMatcher = this.getFuzzyMatcher(sinkContract);
+				FuzzyTestValueSimilarity fuzzySimilarity = this.getFuzzySimilarity(sinkContract);
 				try {
 					actualValues.assertEquals(expectedValues, fuzzyMatcher, fuzzySimilarity);
 				} catch (AssertionError e) {
@@ -866,6 +904,7 @@ public class TestPlan implements Closeable, DeploymentManager {
 					throw assertionError;
 				}
 			}
+		}
 	}
 
 	/**
@@ -876,9 +915,8 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 *        the name of the sink
 	 * @return the created sink
 	 */
-	public static FileDataSinkContract<Key, Value> createDefaultSink(final String name) {
-		return new FileDataSinkContract<Key, Value>(SequentialOutputFormat.class,
-			getTestPlanFile("output"), name);
+	public static FileDataSink createDefaultSink(final String name) {
+		return new FileDataSink(SequentialOutputFormat.class, getTestPlanFile("output"), name);
 	}
 
 	/**
@@ -889,10 +927,8 @@ public class TestPlan implements Closeable, DeploymentManager {
 	 *        the name of the source
 	 * @return the created source
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static FileDataSourceContract<Key, Value> createDefaultSource(final String name) {
-		return new FileDataSourceContract(SequentialInputFormat.class,
-			getTestPlanFile("input"), name);
+	public static FileDataSource createDefaultSource(final String name) {
+		return new FileDataSource(SequentialInputFormat.class, getTestPlanFile("input"), name);
 	}
 
 	static String getTestPlanFile(final String prefix) {
@@ -914,41 +950,16 @@ public class TestPlan implements Closeable, DeploymentManager {
 	public void close() throws IOException {
 		ClosableManager closableManager = new ClosableManager();
 
-		for (TestPairs<?, ?> pairs : this.inputs.values())
+		for (TestRecords pairs : this.inputs.values())
 			closableManager.add(pairs);
-		for (TestPairs<?, ?> pairs : this.actualOutputs.values())
+		for (TestRecords pairs : this.actualOutputs.values())
 			closableManager.add(pairs);
-		for (TestPairs<?, ?> pairs : this.expectedOutputs.values())
+		for (TestRecords pairs : this.expectedOutputs.values())
 			closableManager.add(pairs);
 
 		closableManager.close();
 	}
 
 	List<ExecutionExceptionHandler> errorHandlers = new ArrayList<TestPlan.ExecutionExceptionHandler>();
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void deploy(final JobID jobID, final AbstractInstance instance,
-			final List<ExecutionVertex> verticesToBeDeployed) {
-		final Iterator<ExecutionVertex> it = verticesToBeDeployed.iterator();
-		while (it.hasNext()) {
-
-			final ExecutionVertex executionVertex = it.next();
-
-			ExecutionExceptionHandler executionListener = new ExecutionExceptionHandler(executionVertex);
-			final Environment environment = executionVertex.getEnvironment();
-			environment.registerExecutionListener(executionListener);
-			environment.setInputSplitProvider(new MockInputSplitProvider(executionVertex));
-			this.errorHandlers.add(executionListener);
-
-			final TaskSubmissionResult submissionResult = executionVertex
-				.startTask();
-
-			if (submissionResult.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR)
-				Assert.fail(submissionResult.getDescription() + " @ " + executionVertex);
-		}
-	}
 
 }

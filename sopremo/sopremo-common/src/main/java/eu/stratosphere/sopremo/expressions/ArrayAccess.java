@@ -1,9 +1,9 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 /**
  * Returns one or more elements of an array.<br>
@@ -66,9 +66,10 @@ public class ArrayAccess extends EvaluationExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj == null || this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
-		return this.startIndex == ((ArrayAccess) obj).startIndex && this.endIndex == ((ArrayAccess) obj).endIndex;
+		ArrayAccess other = (ArrayAccess) obj;
+		return this.startIndex == other.startIndex && this.endIndex == other.endIndex;
 	}
 
 	@Override
@@ -115,7 +116,7 @@ public class ArrayAccess extends EvaluationExpression {
 
 	@Override
 	public int hashCode() {
-		return (47 + this.startIndex) * 47 + this.endIndex;
+		return (47 * super.hashCode() + this.startIndex) * 47 + this.endIndex;
 	}
 
 	/**
@@ -143,7 +144,7 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append('[');
 		if (this.isSelectingAll())
 			builder.append('*');

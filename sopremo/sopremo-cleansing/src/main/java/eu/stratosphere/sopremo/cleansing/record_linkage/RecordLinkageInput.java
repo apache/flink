@@ -1,11 +1,17 @@
 package eu.stratosphere.sopremo.cleansing.record_linkage;
 
+import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.Operator.Output;
+import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public class RecordLinkageInput implements JsonStream, Cloneable {
+public class RecordLinkageInput extends AbstractSopremoType implements JsonStream, Cloneable, SerializableSopremoType {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5483136396336038650L;
+
 	/**
 	 * 
 	 */
@@ -72,9 +78,9 @@ public class RecordLinkageInput implements JsonStream, Cloneable {
 	}
 
 	@Override
-	public String toString() {
-		return String.format("RecordLinkageInput [index=%s, idProjection=%s, resultProjection=%s]", this.index,
-			this.idProjection, this.resultProjection);
+	public void toString(StringBuilder builder) {
+		builder.append(String.format("RecordLinkageInput [index=%s, idProjection=%s, resultProjection=%s]", this.index,
+			this.idProjection, this.resultProjection));
 	}
 
 	@Override

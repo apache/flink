@@ -27,19 +27,20 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
+@SuppressWarnings( {"javadoc", "unchecked"} )
 public class CombineTaskExternalITCase extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(CombineTaskExternalITCase.class);
 	
-	List<KeyValuePair<PactInteger,PactInteger>> outList = new ArrayList<KeyValuePair<PactInteger,PactInteger>>();
+	List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testSingleLevelMergeCombineTask() {
@@ -48,13 +49,15 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -73,23 +76,27 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
 		HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
-		for (KeyValuePair<PactInteger,PactInteger> pair : outList) {
-			PactInteger prevVal = aggMap.get(pair.getKey());
+		for (PactRecord record : this.outList) {
+			PactInteger key = new PactInteger();
+			PactInteger value = new PactInteger();
+			record.getField(0, key);
+			record.getField(1, value);
+			PactInteger prevVal = aggMap.get(key);
 			if (prevVal != null) {
-				aggMap.put(pair.getKey(), new PactInteger(prevVal.getValue() + pair.getValue().getValue()));
+				aggMap.put(key, new PactInteger(prevVal.getValue() + value.getValue()));
 			}
 			else {
-				aggMap.put(pair.getKey(), pair.getValue());
+				aggMap.put(key, value);
 			}
 		}
 		
-		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
 		for (PactInteger integer : aggMap.values()) {
 			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
@@ -100,13 +107,15 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-		super.addOutput(outList);
+		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addOutput(this.outList);
 		
 		CombineTask testTask = new CombineTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
+		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
+		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -125,13 +134,18 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
 		HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
-		for (KeyValuePair<PactInteger,PactInteger> pair : outList) {
-			PactInteger prevVal = aggMap.get(pair.getKey());
+		for (PactRecord record : this.outList) {
+			PactInteger key = new PactInteger();
+			PactInteger value = new PactInteger();
+			record.getField(0, key);
+			record.getField(1, value);
+			
+			PactInteger prevVal = aggMap.get(key);
 			if (prevVal != null) {
-				aggMap.put(pair.getKey(), new PactInteger(prevVal.getValue() + pair.getValue().getValue()));
+				aggMap.put(key, new PactInteger(prevVal.getValue() + value.getValue()));
 			}
 			else {
-				aggMap.put(pair.getKey(), pair.getValue());
+				aggMap.put(key, value);
 			}
 		}
 		
@@ -141,31 +155,50 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
 		}
 		
-		outList.clear();
+		this.outList.clear();
 		
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceStub<PactInteger, PactInteger, PactInteger, PactInteger> {
+	public static class MockCombiningReduceStub extends ReduceStub {
+
+		private final PactInteger key = new PactInteger();
+		private final PactInteger value = new PactInteger();
+		private final PactInteger combineValue = new PactInteger();
 
 		@Override
-		public void reduce(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+		public void reduce(Iterator<PactRecord> records, Collector out)
+				throws Exception {
+			PactRecord element = null;
 			int sum = 0;
-			while(values.hasNext()) {
-				sum+=values.next().getValue();
+			while (records.hasNext()) {
+				element = records.next();
+				element.getField(1, this.value);
+				
+				sum += this.value.getValue();
 			}
-			out.collect(key, new PactInteger(sum-key.getValue()));			
+			element.getField(0, this.key);
+			this.value.setValue(sum - this.key.getValue());
+			element.setField(1, this.value);
+			out.collect(element);
 		}
 		
 		@Override
-		public void combine(PactInteger key, Iterator<PactInteger> values, Collector<PactInteger, PactInteger> out) {
+		public void combine(Iterator<PactRecord> records, Collector out)
+				throws Exception {
+			PactRecord element = null;
 			int sum = 0;
-			while(values.hasNext()) {
-				sum+=values.next().getValue();
+			while (records.hasNext()) {
+				element = records.next();
+				element.getField(1, this.combineValue);
+				
+				sum += this.combineValue.getValue();
 			}
-			out.collect(key, new PactInteger(sum));
+			
+			this.combineValue.setValue(sum);
+			element.setField(1, this.combineValue);
+			out.collect(element);
 		}
-		
 	}
 	
 }

@@ -1,10 +1,10 @@
 package eu.stratosphere.sopremo.cleansing.fusion;
 
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
-public class MergeRule extends FusionRule {
+public class MergeRule extends ConflictResolution {
 	/**
 	 * 
 	 */

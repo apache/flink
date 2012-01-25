@@ -19,8 +19,7 @@ import java.lang.annotation.Annotation;
 
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.stubs.StubAnnotation;
 
 
 /**
@@ -28,16 +27,12 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @param T The type of input format invoked by instances of this data source.
  */
-public class GenericDataSource<K extends Key, V extends Value> extends Contract 
-	implements OutputContractConfigurable
+public class GenericDataSource<T extends InputFormat<?>> extends Contract 
+	implements StubAnnotationConfigurable
 {
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Source>";
 	
-	
-	protected final Class<? extends InputFormat<?, K, V>> clazz;
-	
-	protected Class<? extends Annotation> oc;		// the output contract class
-	
+	protected final Class<? extends T> clazz;
 
 	/**
 	 * Creates a new instance for the given file using the given input format.
@@ -45,7 +40,7 @@ public class GenericDataSource<K extends Key, V extends Value> extends Contract
 	 * @param clazz The Class for the specific input format
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public GenericDataSource(Class<? extends InputFormat<?, K, V>> clazz, String name)
+	public GenericDataSource(Class<? extends T> clazz, String name)
 	{
 		super(name);
 		this.clazz = clazz;
@@ -56,35 +51,35 @@ public class GenericDataSource<K extends Key, V extends Value> extends Contract
 	 * 
 	 * @param clazz The Class for the specific input format
 	 */
-	public GenericDataSource(Class<? extends InputFormat<?, K, V>> clazz)
+	public GenericDataSource(Class<? extends T> clazz)
 	{
 		super(DEFAULT_NAME);
 		this.clazz = clazz;
 	}
 
 	// --------------------------------------------------------------------------------------------
-
+	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.OutputContractConfigurable#setOutputContract(java.lang.Class)
+	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#addOutputContract(java.lang.Class)
 	 */
 	@Override
-	public void setOutputContract(Class<? extends Annotation> oc)
+	public void addStubAnnotation(Class<? extends Annotation> oc)
 	{
-		if (!oc.getEnclosingClass().equals(OutputContract.class)) {
+		if (!oc.getEnclosingClass().equals(StubAnnotation.class)) {
 			throw new IllegalArgumentException("The given annotation does not describe an output contract.");
 		}
 
-		this.oc = oc;
-		
+		this.ocs.add(oc);
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.OutputContractConfigurable#getOutputContract()
+	 * @see eu.stratosphere.pact.common.recordcontract.OutputContractConfigurable#getOutputContracts()
 	 */
 	@Override
-	public Class<? extends Annotation> getOutputContract()
-	{
-		return this.oc;
+	public Class<? extends Annotation>[] getStubAnnotation() {
+		@SuppressWarnings("unchecked")
+		Class<? extends Annotation>[] targetArray = new Class[this.ocs.size()];
+		return (Class<? extends Annotation>[]) this.ocs.toArray(targetArray);
 	}
 	
 	/**
@@ -92,7 +87,7 @@ public class GenericDataSource<K extends Key, V extends Value> extends Contract
 	 * 
 	 * @return The class describing the input format.
 	 */
-	public Class<? extends InputFormat<?, K, V>> getFormatClass()
+	public Class<? extends T> getFormatClass()
 	{
 		return this.clazz;
 	}
@@ -113,7 +108,7 @@ public class GenericDataSource<K extends Key, V extends Value> extends Contract
 	}
 
 	// --------------------------------------------------------------------------------------------
-
+	
 	/**
 	 * Accepts the visitor and applies it this instance. Since the data sources have no inputs, no recursive descend
 	 * happens. The visitors pre-visit method is called and, if returning <tt>true</tt>, the post-visit method is called.
@@ -128,6 +123,12 @@ public class GenericDataSource<K extends Key, V extends Value> extends Contract
 			visitor.postVisit(this);
 		}
 	}
-
-
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	public String toString()
+	{
+		return this.name;
+	}
 }

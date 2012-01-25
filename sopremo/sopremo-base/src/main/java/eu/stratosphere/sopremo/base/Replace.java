@@ -15,16 +15,17 @@ import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
+import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.NumericNode;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.NumericNode;
 
 @InputCardinality(min = 2, max = 2)
 @Name(verb = "replace")
@@ -37,7 +38,7 @@ public class Replace extends CompositeOperator<Replace> {
 
 	private EvaluationExpression replaceExpression = EvaluationExpression.VALUE;
 
-	public final static EvaluationExpression FILTER_RECORDS = new EvaluationExpression() {
+	public final static EvaluationExpression FILTER_RECORDS = new SingletonExpression("<filter>") {
 		/**
 		 * 
 		 */
@@ -48,14 +49,9 @@ public class Replace extends CompositeOperator<Replace> {
 			throw new EvaluationException("Tag expression");
 		}
 
-		private Object readResolve() {
+		protected Object readResolve() {
 			return FILTER_RECORDS;
 		}
-
-		@Override
-		protected void toString(StringBuilder builder) {
-			builder.append("<filter>");
-		};
 	};
 
 	private EvaluationExpression dictionaryKeyExtraction = EvaluationExpression.KEY,
@@ -172,11 +168,22 @@ public class Replace extends CompositeOperator<Replace> {
 		return result;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.Operator#toString(java.lang.StringBuilder)
+	 */
 	@Override
-	public String toString() {
+	public void toString(StringBuilder builder) {
+		builder.append(getName());
 		if (isArrayElementsReplacement())
-			return String.format("%s all %s default %s", getName(), getReplaceExpression(), getDefaultExpression());
-		return String.format("%s %s default %s", getName(), getReplaceExpression(), getDefaultExpression());
+			builder.append(" all ");
+		getReplaceExpression().toString(builder);
+		if (getInput(1) != null) {
+			builder.append(" with ");
+			getDictionary().toString(builder);
+		}
+		builder.append(" default ");
+		getDefaultExpression().toString(builder);
 	}
 
 	public boolean isArrayElementsReplacement() {
@@ -228,6 +235,11 @@ public class Replace extends CompositeOperator<Replace> {
 
 	public Replace withDictionaryKeyExtraction(EvaluationExpression dictionaryKeyExtraction) {
 		this.setDictionaryKeyExtraction(dictionaryKeyExtraction);
+		return this;
+	}
+
+	public Replace withDefaultExpression(EvaluationExpression defaultExpression) {
+		this.setDefaultExpression(defaultExpression);
 		return this;
 	}
 
@@ -309,7 +321,7 @@ public class Replace extends CompositeOperator<Replace> {
 					JsonNode value = valueIterator.next();
 					final JsonNode index = ((ArrayNode) value).get(0);
 					JsonNode replacement = replaceValue != null ? replaceValue :
-						defaultExpression.evaluate(
+						this.defaultExpression.evaluate(
 							((ArrayNode) ((ArrayNode) value).get(1)).get(((IntNode) index).getIntValue()), context);
 					out.collect(((ArrayNode) value).get(1), JsonUtil.asArray(index, replacement));
 				}

@@ -15,43 +15,68 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
-import java.io.IOException;
 import java.util.Comparator;
 
-import eu.stratosphere.nephele.services.iomanager.Deserializer;
 import eu.stratosphere.nephele.services.iomanager.RawComparator;
+import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.NullKeyFieldException;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 
-public final class DeserializerComparator<T> implements RawComparator
+/**
+ * A special raw comparator that deserializes the data into Pact Records, obtains their relevant fields, and
+ * applies comparators to them. 
+ *
+ * @author Stephan Ewen
+ */
+public final class DeserializerComparator implements RawComparator
 {
-	private final DataInputBuffer buffer = new DataInputBuffer();
+	private final PactRecord deserializer1;
+	
+	private final PactRecord deserializer2;
+	
+	private final int[] keyPositions;
+	
+	private final Key[] keyHolders1;
+	
+	private final Key[] keyHolders2;
+	
+	private final Comparator<Key>[] comparators;
 
-	private final Deserializer<T> deserializer;
-
-	private final Comparator<T> comparator;
-
-	private T key1;
-
-	private T key2;
-
-	public DeserializerComparator(Deserializer<T> deserializer, Comparator<T> comparator)
-			throws IOException
+	public DeserializerComparator(int[] keyPositions, Class<? extends Key>[] keyTypes, Comparator<Key>[] comparators)
 	{
-		this.comparator = comparator;
-		this.deserializer = deserializer;
-		this.deserializer.open(buffer);
+		this.deserializer1 = new PactRecord();
+		this.deserializer2 = new PactRecord();
+		
+		this.keyPositions = keyPositions;	
+		this.keyHolders1 = new Key[keyTypes.length];
+		this.keyHolders2 = new Key[keyTypes.length];
+		
+		for (int i = 0; i < keyTypes.length; i++) {
+			if (keyTypes[i] == null) {
+				throw new NullPointerException("Key type " + i + " is null.");
+			}
+			this.keyHolders1[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
+			this.keyHolders2[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
+		}
+		
+		this.comparators = comparators;
 	}
 
-	public int compare(byte[] keyBytes1, byte[] keyBytes2, int startKey1, int startKey2) {
-		try {
-			buffer.reset(keyBytes1, startKey1, keyBytes1.length - startKey1);
-			key1 = deserializer.deserialize(key1);
-
-			buffer.reset(keyBytes2, startKey2, keyBytes2.length - startKey2);
-			key2 = deserializer.deserialize(key2);
-
-			return comparator.compare(key1, key2);
-		} catch (IOException ioe) {
-			throw new RuntimeException(ioe);
+	public int compare(byte[] keyBytes1, byte[] keyBytes2, int startKey1, int startKey2)
+	{
+		if (!(this.deserializer1.readBinary(this.keyPositions, this.keyHolders1, keyBytes1, startKey1) &
+		      this.deserializer2.readBinary(this.keyPositions, this.keyHolders2, keyBytes2, startKey2) ))
+		{
+			throw new NullKeyFieldException();
 		}
+		
+		for (int i = 0; i < this.comparators.length; i++) {
+			int val = this.comparators[i].compare(this.keyHolders1[i], this.keyHolders2[i]);
+			if (val != 0) {
+				return val;
+			}
+		}
+		return 0;
 	}
 }

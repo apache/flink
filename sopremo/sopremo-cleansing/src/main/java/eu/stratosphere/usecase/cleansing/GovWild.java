@@ -12,7 +12,7 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
-import eu.stratosphere.sopremo.BuiltinFunctions;
+import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
@@ -28,8 +28,8 @@ import eu.stratosphere.sopremo.cleansing.record_linkage.LinkageMode;
 import eu.stratosphere.sopremo.cleansing.record_linkage.Naive;
 import eu.stratosphere.sopremo.cleansing.scrubbing.BlackListRule;
 import eu.stratosphere.sopremo.cleansing.scrubbing.NonNullRule;
-import eu.stratosphere.sopremo.cleansing.scrubbing.PatternValidationExpression;
-import eu.stratosphere.sopremo.cleansing.scrubbing.SchemaMapping;
+import eu.stratosphere.sopremo.cleansing.scrubbing.PatternValidationRule;
+import eu.stratosphere.sopremo.cleansing.scrubbing.EntityExtraction;
 import eu.stratosphere.sopremo.cleansing.scrubbing.Scrubbing;
 import eu.stratosphere.sopremo.cleansing.similarity.SimmetricFunction;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
@@ -38,25 +38,28 @@ import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.BatchAggregationExpression;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.FunctionCall;
+import eu.stratosphere.sopremo.expressions.GenerateExpression;
+import eu.stratosphere.sopremo.expressions.GroupingExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.TernaryExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
-import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
 import eu.stratosphere.sopremo.pact.CsvInputFormat;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 @SuppressWarnings("unused")
 public class GovWild implements PlanAssembler, PlanAssemblerDescription {
@@ -144,10 +147,11 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		//
 		// Sink earmarkFundOut = new Sink(SequentialOutputFormat.class, String.format("%s/Result.json", outputDir),
 		// selection);
-		SopremoPlan sopremoPlan = new SopremoPlan(this.sinks);
-		sopremoPlan.getContext().getFunctionRegistry().register(BuiltinFunctions.class);
+		SopremoPlan sopremoPlan = new SopremoPlan();
+		sopremoPlan.getContext().getFunctionRegistry().register(DefaultFunctions.class);
 		sopremoPlan.getContext().getFunctionRegistry()
 			.register(eu.stratosphere.usecase.cleansing.CleansFunctions.class);
+		sopremoPlan.setSinks(this.sinks);
 		Plan pactPlan = sopremoPlan.asPactPlan();
 		pactPlan.setMaxNumberMachines(this.noSubTasks);
 		return pactPlan;
@@ -160,7 +164,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			persons = new Source(String.format("%s/Persons.json", this.outputDir));
 
 		Operator<?> selection = new Selection().
-			withCondition(new ComparativeExpression(new FunctionCall("count", new ArrayAccess(0)),
+			withCondition(new ComparativeExpression(new MethodCall("count", new ArrayAccess(0)),
 				BinaryOperator.EQUAL, new ConstantExpression(0))).
 			withInputs(persons);
 
@@ -183,8 +187,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// ObjectAccess("lastName"), new ConstantExpression(0), new ConstantExpression(2)));
 		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(new Naive()).
-			withSimilarityExpression(simmFunction).
-			withThreshold(0.8).
+			withDuplicateCondition(this.getDuplicateCondition(simmFunction, 0.8)).
 			withLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT).
 			withInputs(this.inputs[CONGRESS][LEGAL_ENTITY], this.inputs[EARMARK][LEGAL_ENTITY]);
 
@@ -205,8 +208,8 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			return;
 		}
 
-		EvaluationExpression firstName = new FunctionCall("format", new ObjectAccess("firstName"));
-		FunctionCall simmFunction = new FunctionCall("average",
+		EvaluationExpression firstName = new MethodCall("format", new ObjectAccess("firstName"));
+		MethodCall simmFunction = new MethodCall("average",
 			new SimmetricFunction(new JaccardSimilarity(), new PathExpression(new InputSelection(0), firstName),
 				new PathExpression(new InputSelection(1), firstName)),
 			new SimmetricFunction(new JaroWinkler(), new PathExpression(new InputSelection(0), new ObjectAccess(
@@ -217,8 +220,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		DisjunctPartitioning partitioning = new DisjunctPartitioning(new ObjectAccess("lastName"));
 		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(partitioning).
-			withSimilarityExpression(simmFunction).
-			withThreshold(0.6).
+			withDuplicateCondition(this.getDuplicateCondition(simmFunction, 0.6)).
 			withLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT).
 			withInputs(this.inputs[CONGRESS][PERSON], this.inputs[EARMARK][PERSON]);
 
@@ -228,6 +230,12 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		this.cluster[EARMARK][PERSON] = recordLinkage;
 		this.sinks.add(new Sink(this.getInternalOutputFormat(),
 			String.format("%s/PersonCluster1.json", this.outputDir)).withInputs(recordLinkage));
+	}
+
+	private BooleanExpression getDuplicateCondition(EvaluationExpression similarityFunction,
+			double threshold) {
+		return new ComparativeExpression(similarityFunction, BinaryOperator.GREATER_EQUAL,
+			new ConstantExpression(threshold));
 	}
 
 	private void clusterLegalEntity2(boolean simulate) {
@@ -253,18 +261,17 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			new TernaryExpression(
 				new AndExpression(new ObjectAccess("addresses"),
 					new ComparativeExpression(new ConstantExpression(2), BinaryOperator.LESS_EQUAL,
-						new FunctionCall("length", new PathExpression(new ObjectAccess("addresses"),
+						new MethodCall("length", new PathExpression(new ObjectAccess("addresses"),
 							new ArrayAccess(0), new ObjectAccess("zipCode"))))),
-				new FunctionCall("substring", new PathExpression(new ObjectAccess("addresses"), new ArrayAccess(0),
+				new MethodCall("substring", new PathExpression(new ObjectAccess("addresses"), new ArrayAccess(0),
 					new ObjectAccess("zipCode")), new ConstantExpression(0), new ConstantExpression(2)),
 				new ConstantExpression("")),
-			new FunctionCall("extract", new ConstantExpression("([^ ])*"),
+			new MethodCall("extract", new ConstantExpression("([^ ])*"),
 				new PathExpression(new ObjectAccess("names"), new ArrayAccess(0))));
 
 		InterSourceRecordLinkage recordLinkage = new InterSourceRecordLinkage().
 			withAlgorithm(partitioning).
-			withSimilarityExpression(simmFunction).
-			withThreshold(0.8).
+			withDuplicateCondition(this.getDuplicateCondition(simmFunction, 0.8)).
 			withLinkageMode(LinkageMode.ALL_CLUSTERS_FLAT).
 			withInputs(this.fused[EARMARK][LEGAL_ENTITY], this.inputs[SPENDING][LEGAL_ENTITY]);
 
@@ -285,12 +292,12 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		Selection links = new Selection().
 			withInputs(this.cluster[EARMARK][PERSON]).
-			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+			withCondition(new ComparativeExpression(new MethodCall("count", EvaluationExpression.VALUE),
 				BinaryOperator.GREATER, new ConstantExpression(1)));
 
 		Selection earmarksOnly = new Selection().
 			withInputs(this.cluster[EARMARK][PERSON]).
-			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+			withCondition(new ComparativeExpression(new MethodCall("count", EvaluationExpression.VALUE),
 				BinaryOperator.EQUAL, new ConstantExpression(1)));
 
 		ObjectCreation merge = new ObjectCreation();
@@ -317,20 +324,20 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		Selection links = new Selection().
 			withInputs(this.cluster[EARMARK][LEGAL_ENTITY]).
-			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+			withCondition(new ComparativeExpression(new MethodCall("count", EvaluationExpression.VALUE),
 				BinaryOperator.GREATER, new ConstantExpression(1)));
 
 		Selection earmarksOnly = new Selection().
 			withInputs(this.cluster[EARMARK][LEGAL_ENTITY]).
-			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+			withCondition(new ComparativeExpression(new MethodCall("count", EvaluationExpression.VALUE),
 				BinaryOperator.EQUAL, new ConstantExpression(1)));
 
 		ObjectCreation merge = new ObjectCreation();
 		merge.addMapping(new ObjectCreation.CopyFields(new InputSelection(1)));
-		merge.addMapping("names", new FunctionCall("distinct", new FunctionCall("unionAll",
+		merge.addMapping("names", new MethodCall("distinct", new MethodCall("unionAll",
 			new PathExpression(new InputSelection(0), new ObjectAccess("names")),
 			new PathExpression(new InputSelection(1), new ObjectAccess("names")))));
-		merge.addMapping("addresses", new FunctionCall("distinct", new FunctionCall("unionAll",
+		merge.addMapping("addresses", new MethodCall("distinct", new MethodCall("unionAll",
 			new PathExpression(new InputSelection(0), new ObjectAccess("addresses")),
 			new PathExpression(new InputSelection(1), new ObjectAccess("addresses")))));
 		// merge.addMapping("funds", new PathExpression(new ArrayAccess(1), new ObjectAccess("enactedFunds")));
@@ -357,20 +364,20 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		Selection links = new Selection().
 			withInputs(this.cluster[SPENDING][LEGAL_ENTITY]).
-			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+			withCondition(new ComparativeExpression(new MethodCall("count", EvaluationExpression.VALUE),
 				BinaryOperator.GREATER, new ConstantExpression(1)));
 
 		Selection oneSourceOnly = new Selection().
 			withInputs(this.cluster[SPENDING][LEGAL_ENTITY]).
-			withCondition(new ComparativeExpression(new FunctionCall("count", EvaluationExpression.VALUE),
+			withCondition(new ComparativeExpression(new MethodCall("count", EvaluationExpression.VALUE),
 				BinaryOperator.EQUAL, new ConstantExpression(1)));
 
 		ObjectCreation merge = new ObjectCreation();
 		merge.addMapping(new ObjectCreation.CopyFields(new InputSelection(1)));
-		merge.addMapping("names", new FunctionCall("distinct", new FunctionCall("unionAll",
+		merge.addMapping("names", new MethodCall("distinct", new MethodCall("unionAll",
 			new PathExpression(new InputSelection(0), new ObjectAccess("names")),
 			new PathExpression(new InputSelection(1), new ObjectAccess("names")))));
-		merge.addMapping("addresses", new FunctionCall("distinct", new FunctionCall("unionAll",
+		merge.addMapping("addresses", new MethodCall("distinct", new MethodCall("unionAll",
 			new PathExpression(new InputSelection(0), new ObjectAccess("addresses")),
 			new PathExpression(new InputSelection(1), new ObjectAccess("addresses")))));
 		// merge.addMapping("funds", new PathExpression(new ArrayAccess(1), new ObjectAccess("enactedFunds")));
@@ -401,59 +408,59 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		ObjectCreation projection = new ObjectCreation();
 		projection.addMapping("id", new GenerateExpression("congressPerson%s"));
 		projection.addMapping("firstName",
-			new FunctionCall("extract", new ObjectAccess("memberName"), new ConstantExpression(", (.+)")));
+			new MethodCall("extract", new ObjectAccess("memberName"), new ConstantExpression(", (.+)")));
 		projection.addMapping("lastName",
-			new FunctionCall("camelCase",
-				new FunctionCall("extract", new ObjectAccess("memberName"), new ConstantExpression("(.*),"))));
+			new MethodCall("camelCase",
+				new MethodCall("extract", new ObjectAccess("memberName"), new ConstantExpression("(.*),"))));
 
 		ObjectCreation birthDate = new ObjectCreation();
 		birthDate.addMapping("year",
-			new FunctionCall("extract", new ObjectAccess("birthDeath"), new ConstantExpression("([0-9]{0,4})-")));
+			new MethodCall("extract", new ObjectAccess("birthDeath"), new ConstantExpression("([0-9]{0,4})-")));
 		projection.addMapping("birthDate", birthDate);
 
 		ObjectCreation deathDate = new ObjectCreation();
 		deathDate.addMapping("year",
-			new FunctionCall("extract", new ObjectAccess("birthDeath"), new ConstantExpression("-([0-9]{0,4})")));
+			new MethodCall("extract", new ObjectAccess("birthDeath"), new ConstantExpression("-([0-9]{0,4})")));
 		projection.addMapping("deathDate", deathDate);
 
 		// TODO: filter party = " " and congress = 0
 		ObjectCreation partyProjection = new ObjectCreation();
-		partyProjection.addMapping("legalEntity", new FunctionCall("format", new ConstantExpression(
+		partyProjection.addMapping("legalEntity", new MethodCall("format", new ConstantExpression(
 			"congressLegalEntity%s"), new PathExpression(new ArrayAccess(0), new ObjectAccess("party"))));
 		partyProjection.addMapping("startYear",
-			this.coerce(IntNode.class, new AggregationExpression(CleansFunctions.MIN, new FunctionCall(
+			this.coerce(IntNode.class, new AggregationExpression(DefaultFunctions.MIN, new MethodCall(
 				"extract", new ObjectAccess("number"), new ConstantExpression("\\(([0-9]{0,4})-")))));
 		partyProjection.addMapping("endYear",
-			this.coerce(IntNode.class, new AggregationExpression(CleansFunctions.MAX, new FunctionCall(
+			this.coerce(IntNode.class, new AggregationExpression(DefaultFunctions.MAX, new MethodCall(
 				"extract", new ObjectAccess("number"), new ConstantExpression("-([0-9]{0,4})")))));
 		partyProjection.addMapping("congresses",
-			new ArrayProjection(this.coerce(IntNode.class, new FunctionCall("extract", new ObjectAccess(
+			new ArrayProjection(this.coerce(IntNode.class, new MethodCall("extract", new ObjectAccess(
 				"number"), new ConstantExpression("([0-9]+)\\(")))));
-		AggExpression parties = new AggExpression(new ObjectAccess("party"), partyProjection);
+		GroupingExpression parties = new GroupingExpression(new ObjectAccess("party"), partyProjection);
 
 		ObjectCreation stateProjections = new ObjectCreation();
-		stateProjections.addMapping("legalEntity", new FunctionCall("format", new ConstantExpression(
+		stateProjections.addMapping("legalEntity", new MethodCall("format", new ConstantExpression(
 			"congressLegalEntity%s"), new PathExpression(new ArrayAccess(0), new ObjectAccess("state"))));
-		stateProjections.addMapping("positions", new FunctionCall("distinct", new AggregationExpression(
-			BuiltinFunctions.ALL, new ObjectAccess("position"))));
+		stateProjections.addMapping("positions", new MethodCall("distinct", new AggregationExpression(
+			DefaultFunctions.ALL, new ObjectAccess("position"))));
 		stateProjections.addMapping("startYear",
-			this.coerce(IntNode.class, new AggregationExpression(CleansFunctions.MIN, new FunctionCall(
+			this.coerce(IntNode.class, new AggregationExpression(DefaultFunctions.MIN, new MethodCall(
 				"extract", new ObjectAccess("number"), new ConstantExpression("\\(([0-9]{0,4})-")))));
 		stateProjections.addMapping("endYear",
-			this.coerce(IntNode.class, new AggregationExpression(CleansFunctions.MAX, new FunctionCall(
+			this.coerce(IntNode.class, new AggregationExpression(DefaultFunctions.MAX, new MethodCall(
 				"extract", new ObjectAccess("number"), new ConstantExpression("-([0-9]{0,4})")))));
 		stateProjections.addMapping("congresses",
-			new AggregationExpression(BuiltinFunctions.ALL, this.coerce(IntNode.class, new FunctionCall(
+			new AggregationExpression(DefaultFunctions.ALL, this.coerce(IntNode.class, new MethodCall(
 				"extract", new ObjectAccess("number"), new ConstantExpression("([0-9]+)\\(")))));
-		AggExpression congresses = new AggExpression(new ObjectAccess("state"), stateProjections);
+		GroupingExpression congresses = new GroupingExpression(new ObjectAccess("state"), stateProjections);
 
-		projection.addMapping("employment", new PathExpression(new ObjectAccess("congresses"), new FunctionCall(
+		projection.addMapping("employment", new PathExpression(new ObjectAccess("congresses"), new MethodCall(
 			"unionAll", parties, congresses)));
 
 		ObjectCreation relative = new ObjectCreation();
-		relative.addMapping("id", new FunctionCall("extract", EvaluationExpression.VALUE, new ConstantExpression(
+		relative.addMapping("id", new MethodCall("extract", EvaluationExpression.VALUE, new ConstantExpression(
 			"of (.*)")));
-		relative.addMapping("type", new FunctionCall("extract", EvaluationExpression.VALUE, new ConstantExpression(
+		relative.addMapping("type", new MethodCall("extract", EvaluationExpression.VALUE, new ConstantExpression(
 			"(.*) of")));
 		relative.addMapping("complete", EvaluationExpression.VALUE);
 		// // projection.addMapping("relatives",
@@ -465,22 +472,22 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// new PathExpression(
 		// new FunctionCall("extract", new ObjectAccess("biography"), new
 		// ConstantExpression(".*?,.*?, (?:\\((.*?)\\))*"), new ConstantExpression("")) ));
-		FunctionCall relativeExtraction = new FunctionCall("extract", new ObjectAccess("biography"),
+		MethodCall relativeExtraction = new MethodCall("extract", new ObjectAccess("biography"),
 			new ConstantExpression("^[^,]+,[^,]+, +\\((.*?)\\)"), new ConstantExpression(""));
-		FunctionCall relativeWithoutAnd = new FunctionCall("replace", relativeExtraction, new ConstantExpression(
+		MethodCall relativeWithoutAnd = new MethodCall("replace", relativeExtraction, new ConstantExpression(
 			"(?:,|;)? and "), new ConstantExpression(", "));
-		FunctionCall commaSplit = new FunctionCall("split", relativeWithoutAnd, new ConstantExpression("(?:,|;) "));
-		EvaluationExpression trimmedSplit = new PathExpression(commaSplit, new ArrayProjection(new FunctionCall(
+		MethodCall commaSplit = new MethodCall("split", relativeWithoutAnd, new ConstantExpression("(?:,|;) "));
+		EvaluationExpression trimmedSplit = new PathExpression(commaSplit, new ArrayProjection(new MethodCall(
 			"trim", EvaluationExpression.VALUE)));
 		projection.addMapping("relatives",
 			new PathExpression(
-				new FunctionCall("filter", trimmedSplit, new ConstantExpression("")),
+				new MethodCall("filter", trimmedSplit, new ConstantExpression("")),
 				new ArrayProjection(relative)));
 		// //
 		if (this.scrubbed[CONGRESS] == null)
 			this.scrubCongress(true);
-		SchemaMapping congressMapping = new SchemaMapping().
-			withProjection(projection).
+		Projection congressMapping = new Projection().
+			withValueTransformation(projection).
 			withInputs(this.scrubbed[CONGRESS]);
 
 		// new Lookup(congressMapping, congressMapping);
@@ -499,8 +506,8 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 	private Operator<?> mapCongressStates() {
 		ObjectCreation projection = new ObjectCreation();
 		BatchAggregationExpression batch = new BatchAggregationExpression();
-		EvaluationExpression first = batch.add(BuiltinFunctions.FIRST);
-		projection.addMapping("id", new FunctionCall("format", new ConstantExpression("congressLegalEntity%s"), first));
+		EvaluationExpression first = batch.add(DefaultFunctions.FIRST);
+		projection.addMapping("id", new MethodCall("format", new ConstantExpression("congressLegalEntity%s"), first));
 		projection.addMapping("names", new ArrayCreation(first));
 
 		ObjectCreation address = new ObjectCreation();
@@ -524,8 +531,8 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		ObjectCreation projection = new ObjectCreation();
 		BatchAggregationExpression batch = new BatchAggregationExpression();
-		EvaluationExpression first = batch.add(BuiltinFunctions.FIRST);
-		projection.addMapping("id", new FunctionCall("format", new ConstantExpression("congressLegalEntity%s"), first));
+		EvaluationExpression first = batch.add(DefaultFunctions.FIRST);
+		projection.addMapping("id", new MethodCall("format", new ConstantExpression("congressLegalEntity%s"), first));
 		projection.addMapping("names", new ArrayCreation(first));
 
 		ArraySplit valueSplitter = new ArraySplit().
@@ -558,8 +565,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	private EvaluationExpression coerce(Class<? extends JsonNode> type, EvaluationExpression expression) {
-		return new PathExpression(expression, new TernaryExpression(EvaluationExpression.VALUE, new CoerceExpression(
-			type)));
+		return new TernaryExpression(EvaluationExpression.VALUE, new CoerceExpression(type, expression));
 		// return expression;
 	}
 
@@ -574,16 +580,16 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		ObjectCreation fundProjection = new ObjectCreation();
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
-		fundProjection.addMapping("id", new FunctionCall("format", new ConstantExpression("spendings%s"),
-			new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess("UniqueTransactionID"))));
-		fundProjection.addMapping("amount", batch.add(BuiltinFunctions.SUM, new TernaryExpression(new ObjectAccess(
+		fundProjection.addMapping("id", new MethodCall("format", new ConstantExpression("spendings%s"),
+			new PathExpression(batch.add(DefaultFunctions.FIRST), new ObjectAccess("UniqueTransactionID"))));
+		fundProjection.addMapping("amount", batch.add(DefaultFunctions.SUM, new TernaryExpression(new ObjectAccess(
 			"DollarsObligated"), this.coerce(DecimalNode.class, new ObjectAccess("DollarsObligated")),
 			new ConstantExpression(0))));
 		fundProjection.addMapping("currency", new ConstantExpression("USD"));
 		ObjectCreation date = new ObjectCreation();
-		date.addMapping("year", batch.add(BuiltinFunctions.FIRST, new ObjectAccess("FiscalYear")));
+		date.addMapping("year", batch.add(DefaultFunctions.FIRST, new ObjectAccess("FiscalYear")));
 		fundProjection.addMapping("date", date);
-		fundProjection.addMapping("subject", new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess(
+		fundProjection.addMapping("subject", new PathExpression(batch.add(DefaultFunctions.FIRST), new ObjectAccess(
 			"ProductorServiceCode")));
 
 		if (this.scrubbed[SPENDING] == null)
@@ -610,15 +616,15 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		ObjectCreation fundProjection = new ObjectCreation();
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
-		fundProjection.addMapping("id", new FunctionCall("format", new ConstantExpression("earmark%s"),
-			new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess("earmarkId"))));
-		fundProjection.addMapping("amount", batch.add(BuiltinFunctions.SUM, new TernaryExpression(new ObjectAccess(
+		fundProjection.addMapping("id", new MethodCall("format", new ConstantExpression("earmark%s"),
+			new PathExpression(batch.add(DefaultFunctions.FIRST), new ObjectAccess("earmarkId"))));
+		fundProjection.addMapping("amount", batch.add(DefaultFunctions.SUM, new TernaryExpression(new ObjectAccess(
 			"amount"), new ObjectAccess("amount"), new ConstantExpression(0))));
 		fundProjection.addMapping("currency", new ConstantExpression("USD"));
 		ObjectCreation date = new ObjectCreation();
-		date.addMapping("year", batch.add(BuiltinFunctions.FIRST, new ObjectAccess("enactedYear")));
+		date.addMapping("year", batch.add(DefaultFunctions.FIRST, new ObjectAccess("enactedYear")));
 		fundProjection.addMapping("date", date);
-		fundProjection.addMapping("subject", new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess(
+		fundProjection.addMapping("subject", new PathExpression(batch.add(DefaultFunctions.FIRST), new ObjectAccess(
 			"shortDescription")));
 
 		if (this.scrubbed[EARMARK] == null)
@@ -637,7 +643,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 	private Operator<?> mapEarmarkStates() {
 		ObjectCreation projection = new ObjectCreation();
 		PathExpression name = new PathExpression(new ArrayAccess(0), new ObjectAccess("sponsorStateCode"));
-		projection.addMapping("id", new FunctionCall("format", new ConstantExpression("congressLegalEntity%s"), name));
+		projection.addMapping("id", new MethodCall("format", new ConstantExpression("congressLegalEntity%s"), name));
 		projection.addMapping("names", new ArrayCreation(name));
 
 		ObjectCreation address = new ObjectCreation();
@@ -681,29 +687,29 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 
-		projection.addMapping("names", new ArrayCreation(new PathExpression(batch.add(BuiltinFunctions.FIRST),
+		projection.addMapping("names", new ArrayCreation(new PathExpression(batch.add(DefaultFunctions.FIRST),
 			new ObjectAccess("recipient"))));
 		projection.addMapping("id", new GenerateExpression("earmarkReceiver%s"));
 
 		ObjectCreation funds = new ObjectCreation();
-		funds.addMapping("fund", new FunctionCall("format", new ConstantExpression("earmark%s"), new ObjectAccess(
+		funds.addMapping("fund", new MethodCall("format", new ConstantExpression("earmark%s"), new ObjectAccess(
 			"earmarkId")));
 		funds.addMapping("amount", new ObjectAccess("currentContractValue"));
 		funds.addMapping("currency", new ConstantExpression("USD"));
-		projection.addMapping("receivedFunds", batch.add(BuiltinFunctions.ALL, funds));
+		projection.addMapping("receivedFunds", batch.add(DefaultFunctions.ALL, funds));
 
 		ObjectCreation address = new ObjectCreation();
-		address.addMapping("street", new FunctionCall("trim",
-			new FunctionCall("format", new ConstantExpression("%s %s"), new ObjectAccess("recipientStreet1"),
+		address.addMapping("street", new MethodCall("trim",
+			new MethodCall("format", new ConstantExpression("%s %s"), new ObjectAccess("recipientStreet1"),
 				new ObjectAccess("recipientStreet2"))));
 		address.addMapping("city", new ObjectAccess("recipientCity"));
 		address.addMapping("zipCode", new ObjectAccess("recipientZipcode"));
-		address.addMapping("state", new FunctionCall("camelCase", new ObjectAccess("sponsorStateCode")));
+		address.addMapping("state", new MethodCall("camelCase", new ObjectAccess("sponsorStateCode")));
 		address.addMapping("country", new ObjectAccess("recipientCountry"));
-		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(BuiltinFunctions.ALL, address)));
+		projection.addMapping("addresses", new MethodCall("distinct", batch.add(DefaultFunctions.ALL, address)));
 
 		projection.addMapping("phones",
-			new FunctionCall("distinct", batch.add(BuiltinFunctions.ALL, new ObjectAccess("phone"))));
+			new MethodCall("distinct", batch.add(DefaultFunctions.ALL, new ObjectAccess("phone"))));
 		// TODO: add recipientType, recipientTypeOther
 
 		ComparativeExpression recipientCondition = new ComparativeExpression(new ObjectAccess("recordType"),
@@ -732,26 +738,26 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 
 		projection.addMapping("id", new GenerateExpression("earmarkPerson%s"));
-		PathExpression first = new PathExpression(batch.add(BuiltinFunctions.FIRST),
+		PathExpression first = new PathExpression(batch.add(DefaultFunctions.FIRST),
 			new ObjectAccess("sponsorFirstName"));
-		PathExpression middle = new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess(
+		PathExpression middle = new PathExpression(batch.add(DefaultFunctions.FIRST), new ObjectAccess(
 			"sponsorMiddleName"));
 		projection.addMapping("firstName",
-			new TernaryExpression(middle, new FunctionCall("format", new ConstantExpression("%s %s"), first, middle),
+			new TernaryExpression(middle, new MethodCall("format", new ConstantExpression("%s %s"), first, middle),
 				first));
-		projection.addMapping("lastName", new PathExpression(batch.add(BuiltinFunctions.FIRST), new TernaryExpression(
+		projection.addMapping("lastName", new PathExpression(batch.add(DefaultFunctions.FIRST), new TernaryExpression(
 			new ObjectAccess("sponsorLastName"), new ObjectAccess("sponsorLastName"), new ObjectAccess(
 				"sponsorFirstName"))));
 
-		projection.addMapping("enactedFunds", batch.add(BuiltinFunctions.SORT, new FunctionCall("format",
+		projection.addMapping("enactedFunds", batch.add(DefaultFunctions.SORT, new MethodCall("format",
 			new ConstantExpression("earmark%s"), new ObjectAccess("earmarkId"))));
 
 		ObjectCreation address = new ObjectCreation();
 		address.addMapping("state", new ObjectAccess("sponsorStateCode"));
-		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(BuiltinFunctions.ALL, address)));
+		projection.addMapping("addresses", new MethodCall("distinct", batch.add(DefaultFunctions.ALL, address)));
 
 		ObjectCreation employment = new ObjectCreation();
-		employment.addMapping("legalEntity", new FunctionCall("format",
+		employment.addMapping("legalEntity", new MethodCall("format",
 			new ConstantExpression("congressLegalEntity%s"), new ObjectAccess("sponsorStateCode")));
 		employment.addMapping("startYear", new ConstantExpression(2008));
 		employment.addMapping("endYear", new ConstantExpression(2008));
@@ -782,7 +788,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		EvaluationExpression[] realNames = new EvaluationExpression[8];
 		for (int index = 0; index < realNames.length; index++)
 			realNames[index] = new ObjectAccess(String.format("REALNAME_%d", index + 1));
-		EvaluationExpression filteredNames = new FunctionCall("filter", new ArrayCreation(realNames),
+		EvaluationExpression filteredNames = new MethodCall("filter", new ArrayCreation(realNames),
 			new ConstantExpression(null), new ConstantExpression(""));
 		Projection nickNamesToRealNames = new Projection().
 			withInputs(nickNames).
@@ -794,7 +800,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 	private Operator<?> mapSpendingAgencies() {
 		ObjectCreation projection = new ObjectCreation();
 		PathExpression name = new PathExpression(new ArrayAccess(0), new ObjectAccess("ContractingAgency"));
-		projection.addMapping("id", new FunctionCall("format", new ConstantExpression("spendingLegalEntity%s"), name));
+		projection.addMapping("id", new MethodCall("format", new ConstantExpression("spendingLegalEntity%s"), name));
 		projection.addMapping("name", name);
 
 		Grouping grouping = new Grouping().
@@ -833,24 +839,24 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// new ObjectAccess("RecipientOrContractorName"),
 		// new ObjectAccess("VendorName"));
 		//
-		projection.addMapping("name", new PathExpression(batch.add(BuiltinFunctions.FIRST), new ObjectAccess(
+		projection.addMapping("name", new PathExpression(batch.add(DefaultFunctions.FIRST), new ObjectAccess(
 			"ParentRecipientOrCompanyName")));
 		projection.addMapping("id", new GenerateExpression("spendingReceiver%s"));
 
 		ObjectCreation funds = new ObjectCreation();
-		funds.addMapping("fund", new FunctionCall("format", new ConstantExpression("spendings%s"), new ObjectAccess(
+		funds.addMapping("fund", new MethodCall("format", new ConstantExpression("spendings%s"), new ObjectAccess(
 			"UniqueTransactionID")));
 		funds.addMapping("amount", this.coerce(DecimalNode.class, new ObjectAccess("DollarsObligated")));
 		funds.addMapping("currency", new ConstantExpression("USD"));
-		projection.addMapping("receivedFunds", batch.add(BuiltinFunctions.ALL, funds));
+		projection.addMapping("receivedFunds", batch.add(DefaultFunctions.ALL, funds));
 
 		ObjectCreation address = new ObjectCreation();
 		address.addMapping("street", new ObjectAccess("RecipientAddressLine123"));
 		address.addMapping("city", new ObjectAccess("RecipientCity"));
 		address.addMapping("zipCode", new ObjectAccess("RecipientZipCode"));
-		address.addMapping("state", new FunctionCall("camelCase", new ObjectAccess("RecipientState")));
+		address.addMapping("state", new MethodCall("camelCase", new ObjectAccess("RecipientState")));
 		// address.addMapping("country", new ObjectAccess("vendorCountry"));
-		projection.addMapping("addresses", new FunctionCall("distinct", batch.add(BuiltinFunctions.ALL, address)));
+		projection.addMapping("addresses", new MethodCall("distinct", batch.add(DefaultFunctions.ALL, address)));
 
 		Grouping grouping = new Grouping().
 			withInputs(this.scrubbed[SPENDING]).
@@ -896,7 +902,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		// scrubbed = new Lookup(new ObjectAccess("sponsorFirstName"), new Source(getInternalInputFormat(), ));
 		// validation.addRule(new RangeRule(new ObjectAccess("memberName")));
 
-		ComparativeExpression hasReceiver = new ComparativeExpression(new FunctionCall("length", new ObjectAccess(
+		ComparativeExpression hasReceiver = new ComparativeExpression(new MethodCall("length", new ObjectAccess(
 			"ParentRecipientOrCompanyName")), BinaryOperator.GREATER, new ConstantExpression(1));
 		this.scrubbed[SPENDING] = new Selection().
 			withInputs(spending).
@@ -940,13 +946,12 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		if (this.joinedCongress == null)
 			this.joinCongress(true);
 		Scrubbing scrubbedCongress = new Scrubbing().withInputs(this.joinedCongress);
-		scrubbedCongress.addRule(new NonNullRule(new ObjectAccess("memberName")));
-		scrubbedCongress.addRule(new NonNullRule(TextNode.valueOf("none"), new ObjectAccess("biography")));
-		scrubbedCongress.addRule(new PatternValidationExpression(Pattern.compile("[0-9]+\\(.*"), new ObjectAccess(
-			"congresses"), new ArrayAccess(-1), new ObjectAccess("number")));
-		scrubbedCongress
-			.addRule(new BlackListRule(Arrays.asList(TextNode.valueOf("NA")), TextNode.valueOf(""), new ObjectAccess(
-				"congress"), new ArrayProjection(new ObjectAccess("position"))));
+		scrubbedCongress.addRule(new NonNullRule(), new ObjectAccess("memberName"));
+		scrubbedCongress.addRule(new NonNullRule(TextNode.valueOf("none")), new ObjectAccess("biography"));
+		scrubbedCongress.addRule(new PatternValidationRule(Pattern.compile("[0-9]+\\(.*")), new ObjectAccess(
+			"congresses"), new ArrayAccess(-1), new ObjectAccess("number"));
+		scrubbedCongress.addRule(new BlackListRule(Arrays.asList(TextNode.valueOf("NA")), TextNode.valueOf("")),
+			new ObjectAccess("congress"), new ArrayProjection(new ObjectAccess("position")));
 		this.scrubbed[CONGRESS] = scrubbedCongress;
 
 		this.sinks.add(new Sink(this.getInternalOutputFormat(),
@@ -973,7 +978,7 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 			new PathExpression(new InputSelection(0), new ArrayAccess(0), new ObjectAccess("memberName")));
 		resultProjection.addMapping("birthDeath",
 			new PathExpression(new InputSelection(0), new ArrayAccess(0), new ObjectAccess("birthDeath")));
-		resultProjection.addMapping("congresses", new FunctionCall("sort", new FunctionCall("distinct",
+		resultProjection.addMapping("congresses", new MethodCall("sort", new MethodCall("distinct",
 			new PathExpression(new InputSelection(0), new ArrayProjection(congressProjection)))));
 		resultProjection.addMapping("biography", new PathExpression(new InputSelection(1), new ArrayAccess(0),
 			new ObjectAccess("biography", true)));
@@ -1022,18 +1027,18 @@ public class GovWild implements PlanAssembler, PlanAssemblerDescription {
 		return JsonOutputFormat.class;
 	}
 
-//	public static class InputFo extends SequentialInputFormat<JsonNode.JsonNode, JsonNode> {
-//	};
-//	
-//	public static class OutputFo extends SequentialOutputFormat {
-//		public OutputFo() {
-//			try {
-//				Field declaredField = SequentialOutputFormat.class.getDeclaredField("typesWritten");
-//				declaredField.setAccessible(true);
-//				declaredField.setBoolean(this, true);
-//			} catch ( Exception e) {
-//				throw new RuntimeException(e);
-//			}
-//		}		
-//	};
+	// public static class InputFo extends SequentialInputFormat<JsonNode.JsonNode, JsonNode> {
+	// };
+	//
+	// public static class OutputFo extends SequentialOutputFormat {
+	// public OutputFo() {
+	// try {
+	// Field declaredField = SequentialOutputFormat.class.getDeclaredField("typesWritten");
+	// declaredField.setAccessible(true);
+	// declaredField.setBoolean(this, true);
+	// } catch ( Exception e) {
+	// throw new RuntimeException(e);
+	// }
+	// }
+	// };
 }

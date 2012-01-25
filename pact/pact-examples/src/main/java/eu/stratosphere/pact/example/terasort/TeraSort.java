@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.example.terasort;
 
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
@@ -54,18 +54,18 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 		final String output = (args.length > 2 ? args[2] : "");
 
 		// This task will read the input data and generate the key/value pairs
-		final FileDataSourceContract<TeraKey, TeraValue> source = new FileDataSourceContract<TeraKey, TeraValue>(
-				TeraInputFormat.class, input, "Data Source");
+		final FileDataSource source = 
+				new FileDataSource(TeraInputFormat.class, input, "Data Source");
 		source.setDegreeOfParallelism(noSubTasks);
 
 		// This task writes the sorted data back to disk
-		final FileDataSinkContract<TeraKey, TeraValue> sink = new FileDataSinkContract<TeraKey, TeraValue>(
-			TeraOutputFormat.class, output, "Data Sink");
+		final FileDataSink sink = 
+				new FileDataSink(TeraOutputFormat.class, output, "Data Sink");
 		sink.setDegreeOfParallelism(noSubTasks);
 		sink.setGlobalOrder(Order.ASCENDING);
 		sink.getCompilerHints().setInputDistributionClass(TeraDistribution.class);
 
-		sink.setInput(source);
+		sink.addInput(source);
 
 		return new Plan(sink, "TeraSort");
 	}

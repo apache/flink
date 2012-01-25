@@ -1,6 +1,0 @@
-$oldUsers = read 'oldUsers.json';
-$currentUsers = read 'currentUsers.json';
-
-$newUsers = difference $currentUsers on $currentUsers.id, $oldUsers on $oldUsers.id;
-  
-write $newUsers to 'newUsers.json';

@@ -2,6 +2,8 @@ package eu.stratosphere.sopremo.jsondatamodel;
 
 import java.math.BigDecimal;
 
+import eu.stratosphere.sopremo.type.DecimalNode;
+
 import junit.framework.Assert;
 
 public class DecimalNodeTest extends JsonNodeTest<DecimalNode> {

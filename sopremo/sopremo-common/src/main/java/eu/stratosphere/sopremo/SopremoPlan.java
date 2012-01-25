@@ -2,9 +2,11 @@ package eu.stratosphere.sopremo;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
@@ -16,28 +18,9 @@ public class SopremoPlan {
 
 	private EvaluationContext context = new EvaluationContext();
 
-	/**
-	 * Initializes SopremoPlan using the given list of {@link Sink}s.
-	 * 
-	 * @param sinks
-	 *        the sinks of the Sopremo plan
-	 */
-	public SopremoPlan(final Collection<Sink> sinks) {
+	public SopremoPlan() {
 		this.module = new SopremoModule("plan", 0, 0);
-		for (final Sink sink : sinks)
-			this.module.addInternalOutput(sink);
-
-		this.context.getFunctionRegistry().register(BuiltinFunctions.class);
-	}
-
-	/**
-	 * Initializes SopremoPlan using the given list of {@link Sink}s.
-	 * 
-	 * @param sinks
-	 *        the sinks of the Sopremo plan
-	 */
-	public SopremoPlan(final Sink... sinks) {
-		this(Arrays.asList(sinks));
+		this.context.getFunctionRegistry().register(DefaultFunctions.class);
 	}
 
 	/**
@@ -50,9 +33,20 @@ public class SopremoPlan {
 		return new Plan((Collection) this.module.assemblePact(this.context));
 	}
 
+	public void setSinks(Sink... sinks) {
+		this.setSinks(Arrays.asList(sinks));
+	}
+
+	public void setSinks(List<Sink> sinks) {
+		for (Sink sink : sinks)
+			this.module.addInternalOutput(sink);
+		this.context.setSchema(this.module.getSchema());
+	}
+
 	/**
-	 * Assembles the Pacts of the contained Sopremo operators and returns a list of all Pact sinks. These sinks may
-	 * either be directly a {@link FileDataSinkContract} or an unconnected {@link Contract}.
+	 * Assembles the Pacts of the contained Sopremo operators and returns a list
+	 * of all Pact sinks. These sinks may either be directly a {@link FileDataSinkContract} or an unconnected
+	 * {@link Contract}.
 	 * 
 	 * @return a list of Pact sinks
 	 */
@@ -61,7 +55,8 @@ public class SopremoPlan {
 	}
 
 	/**
-	 * Returns all operators that are either (internal) {@link Sink}s or included in the reference graph.
+	 * Returns all operators that are either (internal) {@link Sink}s or
+	 * included in the reference graph.
 	 * 
 	 * @return all operators in this module
 	 */
@@ -94,5 +89,29 @@ public class SopremoPlan {
 	@Override
 	public String toString() {
 		return this.module.toString();
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.module.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		SopremoPlan other = (SopremoPlan) obj;
+		return this.module.equals(other.module);
+	}
+
+	public List<Operator<?>> getUnmatchingOperators(SopremoPlan other) {
+		return this.module.getUnmatchingNodes(other.module);
 	}
 }

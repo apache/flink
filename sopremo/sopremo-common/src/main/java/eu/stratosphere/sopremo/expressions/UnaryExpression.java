@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY)
 public class UnaryExpression extends BooleanExpression {
@@ -27,14 +27,16 @@ public class UnaryExpression extends BooleanExpression {
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final UnaryExpression other = (UnaryExpression) obj;
 		return this.expr.equals(other.expr) && this.negate == other.negate;
+	}
+
+	public static BooleanExpression wrap(EvaluationExpression expression) {
+		if (expression instanceof BooleanExpression)
+			return (BooleanExpression) expression;
+		return new UnaryExpression(expression);
 	}
 
 	@Override
@@ -48,14 +50,14 @@ public class UnaryExpression extends BooleanExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 31;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + this.expr.hashCode();
 		result = prime * result + (this.negate ? 1231 : 1237);
 		return result;
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		if (this.negate)
 			builder.append("!");
 		builder.append(this.expr);

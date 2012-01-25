@@ -2,9 +2,10 @@ package eu.stratosphere.sopremo.function;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
-public class SopremoFunction extends Function {
+public class SopremoFunction extends JsonMethod implements Inlineable {
 	/**
 	 * 
 	 */
@@ -17,8 +18,23 @@ public class SopremoFunction extends Function {
 		this.definition = definition;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.function.Inlineable#getDefinition(eu.stratosphere.sopremo.expressions.EvaluationExpression
+	 * [])
+	 */
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		return this.definition.evaluate(node, context);
+	public EvaluationExpression getDefinition() {
+		return this.definition;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
+	 */
+	@Override
+	public JsonNode call(ArrayNode params, EvaluationContext context) {
+		return this.definition.evaluate(params, context);
 	}
 }

@@ -6,9 +6,9 @@ import nl.jqno.equalsverifier.Warning;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.jsondatamodel.DoubleNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class ConstantExpressionTest extends EvaluableExpressionTest<ConstantExpression> {
 
@@ -26,22 +26,8 @@ public class ConstantExpressionTest extends EvaluableExpressionTest<ConstantExpr
 
 	@Test
 	public void shouldCastNumericNodeCorrectly() {
-		final int result = new ConstantExpression(IntNode.valueOf(42)).asInt();
+		final Object result = new ConstantExpression(IntNode.valueOf(42)).getConstant().getJavaValue();
 
 		Assert.assertEquals(42, result);
-	}
-
-	@Test
-	public void should() {
-		final int result = new ConstantExpression(DoubleNode.valueOf(42.0)).asInt();
-
-		Assert.assertEquals(42, result);
-	}
-
-	@Test
-	public void shouldReturnCorrectStringRepresentation() {
-		final String result = new ConstantExpression(IntNode.valueOf(42)).asString();
-
-		Assert.assertEquals("42", result);
 	}
 }

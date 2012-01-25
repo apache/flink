@@ -13,16 +13,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.sopremo.jsondatamodel.ArrayNode;
-import eu.stratosphere.sopremo.jsondatamodel.BigIntegerNode;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.DecimalNode;
-import eu.stratosphere.sopremo.jsondatamodel.IntNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
-import eu.stratosphere.sopremo.jsondatamodel.LongNode;
-import eu.stratosphere.sopremo.jsondatamodel.NullNode;
-import eu.stratosphere.sopremo.jsondatamodel.ObjectNode;
-import eu.stratosphere.sopremo.jsondatamodel.TextNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 @RunWith(Parameterized.class)
 public class JsonParserTest {
@@ -41,7 +41,7 @@ public class JsonParserTest {
 
 	// @Test
 	// public void shouldParse() throws IOException{
-	// JsonNode result = new JsonParser(this.value).readValueAsTree();
+	// JsonNode<?> result = new JsonParser(this.value).readValueAsTree();
 	// Assert.assertEquals(this.expectedResult, result);
 	// }
 
@@ -83,16 +83,16 @@ public class JsonParserTest {
 				"[42, [23, [[24, \"Test\"], 12, \"17\"]]]",
 
 				new ArrayNode().add(IntNode.valueOf(23)).add(
-					new ArrayNode().add(new ArrayNode().add(IntNode.valueOf(24)).add(TextNode.valueOf("Test")))
-						.add(IntNode.valueOf(12)).add(TextNode.valueOf("17"))), 2 },
+					new ArrayNode().add(new ArrayNode().add(IntNode.valueOf(24)).add(TextNode.valueOf("Test"))).add(
+						IntNode.valueOf(12)).add(TextNode.valueOf("17"))), 2 },
 			{ "[{\"key1\" : 42}, 42]", IntNode.valueOf(42), 2 },
 			{ "{\"key1\" : 42}", new ObjectNode().put("key1", IntNode.valueOf(42)), 1 },
 			{ "{\"key1\" : null}", new ObjectNode().put("key1", NullNode.getInstance()), 1 },
 			{
 				"[{\"key1\" : [1,3,\"Hello\"], \"key2\": {\"key3\": 23}}]",
 				new ObjectNode().put("key1",
-					new ArrayNode().add(IntNode.valueOf(1)).add(IntNode.valueOf(3)).add(TextNode.valueOf("Hello")))
-					.put("key2", new ObjectNode().put("key3", IntNode.valueOf(23))), 1 },
+					new ArrayNode().add(IntNode.valueOf(1)).add(IntNode.valueOf(3)).add(TextNode.valueOf("Hello"))).put(
+					"key2", new ObjectNode().put("key3", IntNode.valueOf(23))), 1 },
 			{ "[1 ,2 ,3, 4 , null]", NullNode.getInstance(), 5 }
 
 		});

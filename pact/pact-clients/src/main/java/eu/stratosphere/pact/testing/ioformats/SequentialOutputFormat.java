@@ -19,9 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Stores the key/value pairs in a native format which is deserialable without configuration. Currently, the assumption
@@ -30,16 +28,12 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Arvid Heise
  * @see SequentialInputFormat
  */
-public class SequentialOutputFormat extends FileOutputFormat<Key, Value>
-{
+public class SequentialOutputFormat extends FileOutputFormat {
 	private DataOutputStream dataOutputStream;
 
 	public SequentialOutputFormat() {
-		super.keyClass = Key.class;
-		super.valueClass = Value.class;
 	}
-	
-	
+
 	@Override
 	public void close() throws IOException {
 		this.dataOutputStream.close();
@@ -56,10 +50,12 @@ public class SequentialOutputFormat extends FileOutputFormat<Key, Value>
 		this.dataOutputStream = new DataOutputStream(this.stream);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
+	 */
 	@Override
-	public void writeRecord(final KeyValuePair<Key, Value> pair) throws IOException {
-		this.dataOutputStream.writeUTF(pair.getKey().getClass().getName());
-		this.dataOutputStream.writeUTF(pair.getValue().getClass().getName());
-		pair.write(this.dataOutputStream);
+	public void writeRecord(PactRecord record) throws IOException {
+		record.write(this.dataOutputStream);
 	}
 }

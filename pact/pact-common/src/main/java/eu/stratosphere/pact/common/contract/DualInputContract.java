@@ -15,140 +15,202 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stub.DualInputStub;
+import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
- * Contract for all tasks that have two inputs.
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+ * Abstract contract superclass for for all contracts that have two inputs, like "match" or "cross".
  */
-public abstract class DualInputContract<IK1 extends Key, IV1 extends Value, IK2 extends Key, IV2 extends Value, OK extends Key, OV extends Value>
-		extends AbstractPact<OK, OV, DualInputStub<IK1, IV1, IK2, IV2, OK, OV>>
+public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 {
-	// first input contract of this contract 
-	protected Contract firstInput;
-	// second input contract of this contract
-	protected Contract secondInput;
+	/**
+	 * The contract producing the first input.
+	 */
+	final protected List<Contract> input1 = new ArrayList<Contract>();
+	/**
+	 * The contract producing the second input.
+	 */
+	final protected List<Contract> input2 = new ArrayList<Contract>();
 
 	/**
-	 * Creates a new contract using the given stub and the given name
-	 * 
-	 * @param clazz
-	 *        the stub class that is represented by this contract
-	 * @param name
-	 *        name for the task represented by this contract
+	 * The positions of the keys in the tuples of the first input.
 	 */
-	public DualInputContract(Class<? extends DualInputStub<IK1, IV1, IK2, IV2, OK, OV>> clazz, String name) {
-		super(clazz, name);
+	private final int[] keyFields1;
+	
+	/**
+	 * The positions of the keys in the tuples of the first input.
+	 */
+	private final int[] keyFields2;
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
+	 * 
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param stubClass The class containing the user function.
+	 */
+	protected DualInputContract(Class<? extends T> stubClass, String name)
+	{
+		super(stubClass, name);
+		this.keyFields1 = this.keyFields2 = new int[0];
+	}
+	
+	/**
+	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
+	 * This constructor is specialized only for Pacts that require no keys for their processing.
+	 * 
+	 * @param name The given name for the Pact, used in plans, logs and progress messages.
+	 * @param keyTypes The classes of the data types that act as keys in this stub.
+	 * @param stubClass The class containing the user function.
+	 */
+	protected DualInputContract(Class<? extends T> stubClass, Class<? extends Key>[] keyTypes, int[] keyPositions1, int[] keyPositions2, String name)
+	{
+		super(stubClass, keyTypes, name);
+		this.keyFields1 = keyPositions1;
+		this.keyFields2 = keyPositions2;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns the first input, or null, if none is set.
+	 * 
+	 * @return The contract's first input.
+	 */
+	public List<Contract> getFirstInputs() {
+		return this.input1;
+	}
+	
+	/**
+	 * Returns the second input, or null, if none is set.
+	 * 
+	 * @return The contract's second input.
+	 */
+	public List<Contract> getSecondInputs() {
+		return this.input2;
 	}
 
 	/**
-	 * Returns the class type of the first input key
+	 * Connects the first input to the task wrapped in this contract.
 	 * 
-	 * @return The class of the first input key.
+	 * @param input The contract will be set as the first input.
 	 */
-	public Class<? extends Key> getFirstInputKeyClass() {
-		return ReflectionUtil.getTemplateType1(this.getClass());
+	public void addFirstInput(Contract input) {
+		this.input1.add(input);
+	}
+	
+	/**
+	 * Connects the second input to the task wrapped in this contract.
+	 * 
+	 * @param input The contract will be set as the second input.
+	 */
+	public void addSecondInput(Contract input) {
+		this.input2.add(input);
 	}
 
 	/**
-	 * Returns the class type of the first input value
+	 * Connects the first inputs to the task wrapped in this contract
 	 * 
-	 * @return The class of the first input value.
+	 * @param inputs The contracts that is connected as the first inputs.
 	 */
-	public Class<? extends Value> getFirstInputValueClass() {
-		return ReflectionUtil.getTemplateType2(this.getClass());
+	public void addFirstInputs(List<Contract> inputs) {
+		this.input1.addAll(inputs);
 	}
 
 	/**
-	 * Returns the class type of the second input key
+	 * Connects the second inputs to the task wrapped in this contract
 	 * 
-	 * @return The class of the second input key.
+	 * @param inputs The contracts that is connected as the second inputs.
 	 */
-	public Class<? extends Key> getSecondInputKeyClass() {
-		return ReflectionUtil.getTemplateType3(this.getClass());
+	public void addSecondInputs(List<Contract> inputs) {
+		this.input2.addAll(inputs);
 	}
-
+	
 	/**
-	 * Returns the class type of the second input value
-	 * 
-	 * @return The type of the second input value.
-	 */
-	public Class<? extends Value> getSecondInputValueClass() {
-		return ReflectionUtil.getTemplateType4(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the output key
-	 * 
-	 * @return The class of the output key.
-	 */
-	public Class<? extends Key> getOutputKeyClass() {
-		return ReflectionUtil.getTemplateType5(this.getClass());
-	}
-
-	/**
-	 * Returns the class type of the output value
-	 * 
-	 * @return The class of the output value.
-	 */
-	public Class<? extends Value> getOutputValueClass() {
-		return ReflectionUtil.getTemplateType6(this.getClass());
-	}
-
-	/**
-	 * Returns the first input or null if none is set
-	 * 
-	 * @return The contract's first input contract.
-	 */
-	public Contract getFirstInput() {
-		return firstInput;
-	}
-
-	/**
-	 * Returns the second input or null if none is set
-	 * 
-	 * @return The contract's second input contract.
-	 */
-	public Contract getSecondInput() {
-		return secondInput;
-	}
-
-	/**
-	 * Connects the first input to the task wrapped in this contract
+	 * Clears all previous connections and connects the first input to the task wrapped in this contract
 	 * 
 	 * @param firstInput The contract that is connected as the first input.
 	 */
-	public void setFirstInput(Contract firstInput) {
-		this.firstInput = firstInput;
+	public void setFirstInput(Contract inputs) {
+		this.input1.clear();
+		this.input1.add(inputs);
 	}
 
 	/**
-	 * Connects the second input to the task wrapped in this contract
+	 * Clears all previous connections and connects the second input to the task wrapped in this contract
 	 * 
 	 * @param secondInput The contract that is connected as the second input.
 	 */
-	public void setSecondInput(Contract secondInput) {
-		this.secondInput = secondInput;
+	public void setSecondInput(Contract inputs) {
+		this.input2.clear();
+		this.input2.add(inputs);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getNumberOfInputs()
+	 */
+	@Override
+	public int getNumberOfInputs() {
+		return 2;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getKeyColumnNumbers(int)
+	 */
+	@Override
+	public int[] getKeyColumnNumbers(int inputNum) {
+		if (inputNum == 0) {
+			return this.keyFields1;
+		}
+		else if (inputNum == 1) {
+			return this.keyFields2;
+		}
+		else throw new IndexOutOfBoundsException();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Clears all previous connections and connects the first inputs to the task wrapped in this contract
+	 * 
+	 * @param inputs The contracts that is connected as the first inputs.
+	 */
+	public void setFirstInputs(List<Contract> inputs) {
+		this.input1.clear();
+		this.input1.addAll(inputs);
+	}
+
+	/**
+	 * Clears all previous connections and connects the second inputs to the task wrapped in this contract
+	 * 
+	 * @param secondInput The contracts that is connected as the second inputs.
+	 */
+	public void setSecondInputs(List<Contract> inputs) {
+		this.input2.clear();
+		this.input2.addAll(inputs);
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void accept(Visitor<Contract> visitor) {
-		if (visitor.preVisit(this)) {
-			if (firstInput != null)
-				firstInput.accept(visitor);
-			if (secondInput != null)
-				secondInput.accept(visitor);
+		boolean descend = visitor.preVisit(this);	
+		if (descend) {
+			for(Contract c : this.input1) {
+				c.accept(visitor);
+			}
+			for(Contract c : this.input2) {
+				c.accept(visitor);
+			}
 			visitor.postVisit(this);
 		}
 	}
-
 }

@@ -2,8 +2,7 @@ package eu.stratosphere.sopremo.cleansing.scrubbing;
 
 import java.util.List;
 
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 public class WhiteListRule extends ValidationRule {
 	/**
@@ -14,16 +13,14 @@ public class WhiteListRule extends ValidationRule {
 	private List<JsonNode> possibleValues;
 
 	@SuppressWarnings("unchecked")
-	public WhiteListRule(List<? extends JsonNode> possibleValues, EvaluationExpression... targetPath) {
-		super(targetPath);
+	public WhiteListRule(List<? extends JsonNode> possibleValues) {
 		this.possibleValues = (List<JsonNode>) possibleValues;
 	}
 
 	@SuppressWarnings("unchecked")
-	public WhiteListRule(List<? extends JsonNode> possibleValues, JsonNode defaultValue, EvaluationExpression targetPath) {
-		super(targetPath);
+	public WhiteListRule(List<? extends JsonNode> possibleValues, JsonNode defaultValue) {
 		this.possibleValues = (List<JsonNode>) possibleValues;
-		setValueCorrection(new DefaultValueCorrection(defaultValue));
+		this.setValueCorrection(new DefaultValueCorrection(defaultValue));
 	}
 
 	@Override

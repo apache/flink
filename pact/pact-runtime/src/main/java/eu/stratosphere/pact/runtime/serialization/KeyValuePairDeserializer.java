@@ -39,8 +39,6 @@ public class KeyValuePairDeserializer<K extends Key, V extends Value> implements
 
 	private Class<V> valueClass;
 
-	private final Class<KeyValuePair<K, V>> recordType = getKeyValuePairClass();
-
 	public KeyValuePairDeserializer() {
 	}
 
@@ -49,16 +47,8 @@ public class KeyValuePairDeserializer<K extends Key, V extends Value> implements
 		this.valueClass = valueClass;
 	}
 
-	
-	private Class<KeyValuePair<K, V>> getKeyValuePairClass()
-	{
-		@SuppressWarnings("unchecked")
-		Class<KeyValuePair<K, V>> clazz = (Class<KeyValuePair<K, V>>) (Class<?>) KeyValuePair.class;
-		return clazz;
-	}
-
 	@Override
-	public KeyValuePair<K, V> deserialize(DataInput in) {
+	public KeyValuePair<K, V> deserialize(KeyValuePair<K, V> target, DataInput in) {
 		try {
 			KeyValuePair<K, V> pair = getInstance();
 			pair.read(in);
@@ -66,11 +56,6 @@ public class KeyValuePairDeserializer<K extends Key, V extends Value> implements
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	@Override
-	public Class<KeyValuePair<K, V>> getRecordType() {
-		return recordType;
 	}
 
 	@SuppressWarnings("unchecked")

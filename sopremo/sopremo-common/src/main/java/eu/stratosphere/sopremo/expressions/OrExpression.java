@@ -4,8 +4,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.jsondatamodel.BooleanNode;
-import eu.stratosphere.sopremo.jsondatamodel.JsonNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY)
 public class OrExpression extends BooleanExpression {
@@ -19,16 +19,14 @@ public class OrExpression extends BooleanExpression {
 	public OrExpression(final EvaluationExpression... expressions) {
 		if (expressions.length == 0)
 			throw new IllegalArgumentException();
-		this.expressions = expressions;
+		this.expressions = new EvaluationExpression[expressions.length];
+		for (int index = 0; index < expressions.length; index++)
+			this.expressions[index] = UnaryExpression.wrap(expressions[index]);
 	}
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
+		if (!super.equals(obj))
 			return false;
 		final OrExpression other = (OrExpression) obj;
 		return Arrays.equals(this.expressions, other.expressions);
@@ -49,13 +47,13 @@ public class OrExpression extends BooleanExpression {
 	@Override
 	public int hashCode() {
 		final int prime = 41;
-		int result = 1;
+		int result = super.hashCode();
 		result = prime * result + Arrays.hashCode(this.expressions);
 		return result;
 	}
 
 	@Override
-	protected void toString(final StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.expressions[0]);
 		for (int index = 1; index < this.expressions.length; index++)
 			builder.append(" OR ").append(this.expressions[index]);

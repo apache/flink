@@ -9,8 +9,8 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.ArraySplit;
 import eu.stratosphere.sopremo.base.Difference;
-import eu.stratosphere.sopremo.base.Replace;
 import eu.stratosphere.sopremo.base.Projection;
+import eu.stratosphere.sopremo.base.Replace;
 import eu.stratosphere.sopremo.base.UnionAll;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
@@ -41,7 +41,7 @@ public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLin
 		for (int index = 0, size = inputs.size(); index < size; index++)
 			inputs.get(index).setSource(module.getInput(index).getSource());
 
-		Operator<?> duplicatePairs = this.getAlgorithm().getDuplicatePairStream(this.getSimilarityCondition(), inputs);
+		Operator<?> duplicatePairs = this.getAlgorithm().getDuplicatePairStream(this.getDuplicateCondition(), inputs);
 
 		if (this.getLinkageMode() == LinkageMode.LINKS_ONLY) {
 			module.getOutput(0).setInput(0, duplicatePairs);
@@ -123,11 +123,11 @@ public class InterSourceRecordLinkage extends RecordLinkage<InterSourceRecordLin
 			}
 		else {
 			ArraySplit allTuples = new ArraySplit().
-					withInputs(closure).
+				withInputs(closure).
 				withArrayPath(EvaluationExpression.VALUE).
 				withKeyProjection(new ArrayAccess(0)).
 				withValueProjection(EvaluationExpression.NULL);
-			
+
 			for (int index = 0; index < originalInputs.size(); index++) {
 				RecordLinkageInput recordLinkageInput = originalInputs.get(index);
 				Difference singleRecords = new Difference().
