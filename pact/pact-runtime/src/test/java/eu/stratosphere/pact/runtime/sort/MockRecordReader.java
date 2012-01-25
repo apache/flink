@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.sort;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 

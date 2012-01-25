@@ -45,7 +45,6 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-@SuppressWarnings("javadoc")
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(LibraryCacheManager.class)
 @PowerMockIgnore("org.apache.log4j.*")

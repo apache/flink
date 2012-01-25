@@ -27,7 +27,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.parser.FieldParser;
 
 
 /**
@@ -67,6 +66,7 @@ public class RecordOutputFormat extends FileOutputFormat
 	
 	public static final String LENIENT_PARSING = "outputformat.lenient.parsing";
 	
+	@SuppressWarnings("unused")
 	private static final Log LOG = LogFactory.getLog(RecordOutputFormat.class);
 	
 	// --------------------------------------------------------------------------------------------
