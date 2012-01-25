@@ -1,6 +1,8 @@
 package eu.stratosphere.util.reflect;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,7 +59,7 @@ public class ReflectUtil {
 	 * @return the boxing class or type if the given class is not a primitive
 	 */
 	public static Class<?> getClassForPrimtive(final Class<?> type) {
-		return type.isPrimitive() ? BoxingClasses.get(type)  : type;
+		return type.isPrimitive() ? BoxingClasses.get(type) : type;
 	}
 
 	/**
@@ -200,7 +202,7 @@ public class ReflectUtil {
 		return getDynamicClass(type).newInstance(params);
 	}
 
-	public static synchronized <T> DynamicClass<T> getDynamicClass(Class<T> clazz) {
+	public static synchronized <T> DynamicClass<T> getDynamicClass(final Class<T> clazz) {
 		@SuppressWarnings("unchecked")
 		DynamicClass<T> dynamicClass = (DynamicClass<T>) CACHED_CLASSES.get(clazz);
 		if (dynamicClass == null)
@@ -208,11 +210,12 @@ public class ReflectUtil {
 		return dynamicClass;
 	}
 
-	public static synchronized List<Method> getMethods(Class<?> clazz, String name, int... modifierBitsets) {
-		ArrayList<Method> methods = new ArrayList<Method>();
-		for (Method method : clazz.getMethods())
-			if ((name == null || method.getName().equals(name))) {
-				for (int modifiers : modifierBitsets)
+	public static synchronized List<Method> getMethods(final Class<?> clazz, final String name,
+			final int... modifierBitsets) {
+		final ArrayList<Method> methods = new ArrayList<Method>();
+		for (final Method method : clazz.getMethods())
+			if (name == null || method.getName().equals(name)) {
+				for (final int modifiers : modifierBitsets)
 					if ((method.getModifiers() & modifiers) != modifiers)
 						continue;
 				methods.add(method);

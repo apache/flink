@@ -12,7 +12,6 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -42,14 +41,16 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 				TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
 			IntNode.valueOf(30)))).getMapping(1);
 
-		Assert.assertEquals(new ObjectCreation.FieldAssignment("age", new ConstantExpression(IntNode.valueOf(30))), mapping);
+		Assert.assertEquals(new ObjectCreation.FieldAssignment("age", new ConstantExpression(IntNode.valueOf(30))),
+			mapping);
 	}
 
 	@Test
 	public void shouldAddMappings() {
 
-		final ObjectCreation object = new ObjectCreation(new ObjectCreation.FieldAssignment("name", new ConstantExpression(
-			TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
+		final ObjectCreation object = new ObjectCreation(new ObjectCreation.FieldAssignment("name",
+			new ConstantExpression(
+				TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
 			IntNode.valueOf(30))));
 
 		object.addMapping("birthday", new ConstantExpression(TextNode.valueOf("01.01.2000")));
@@ -61,7 +62,8 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 
 	@Test
 	public void shouldEvaluateMappings() {
-		final ObjectCreation.FieldAssignment mapping = new ObjectCreation.FieldAssignment("testname", new InputSelection(0));
+		final ObjectCreation.FieldAssignment mapping = new ObjectCreation.FieldAssignment("testname",
+			new InputSelection(0));
 		final ObjectNode result = createObjectNode("fieldname", "test");
 
 		mapping.evaluate(result, createArrayNode("1", "2"), this.context);

@@ -27,8 +27,8 @@ public abstract class AbstractSopremoType implements SopremoType {
 		return toString(this);
 	}
 
-	public static String toString(SopremoType type) {
-		StringBuilder builder = new StringBuilder();
+	public static String toString(final SopremoType type) {
+		final StringBuilder builder = new StringBuilder();
 		type.toString(builder);
 		return builder.toString();
 	}

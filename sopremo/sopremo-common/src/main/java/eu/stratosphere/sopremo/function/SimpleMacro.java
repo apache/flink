@@ -16,7 +16,7 @@ public abstract class SimpleMacro<In extends EvaluationExpression> extends Macro
 	 * @param name
 	 * @param definition
 	 */
-	public SimpleMacro(String name) {
+	public SimpleMacro(final String name) {
 		super(name);
 	}
 
@@ -33,8 +33,8 @@ public abstract class SimpleMacro<In extends EvaluationExpression> extends Macro
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression call(EvaluationExpression[] params, EvaluationContext context) {
-		return call((In) params[0], context);
+	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationContext context) {
+		return this.call((In) params[0], context);
 	}
 
 	/**

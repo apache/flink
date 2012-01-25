@@ -255,7 +255,7 @@ public class SopremoTestPlan {
 			actualOutput.close();
 		}
 
-		public void assertEquals(ActualOutput expectedValues) {
+		public void assertEquals(final ActualOutput expectedValues) {
 			this.getPairs().assertEquals(expectedValues.getPairs());
 		}
 	}
@@ -280,8 +280,9 @@ public class SopremoTestPlan {
 		}
 
 
-		public void load(String path) {
+		public void load(final String path) {
 			this.pairs.fromFile(JsonInputFormat.class, path);
+		}
 
 		public C addObject(final Object... fields) {
 			return this.add(JsonUtil.createObjectNode(fields));
@@ -335,7 +336,7 @@ public class SopremoTestPlan {
 		}
 
 		public Iterator<JsonNode> iterator() {
-			RecordToJsonIterator iterator = new RecordToJsonIterator(schema);
+			final RecordToJsonIterator iterator = new RecordToJsonIterator(this.schema);
 			iterator.setIterator(this.pairs.iterator());
 			return iterator;
 		}

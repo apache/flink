@@ -2,8 +2,8 @@ package eu.stratosphere.util;
 
 public class StringUtil {
 
-	public static String camelCase(String input) {
-		char[] chars = input.toCharArray();
+	public static String camelCase(final String input) {
+		final char[] chars = input.toCharArray();
 
 		boolean capitalize = true;
 		for (int index = 0; index < chars.length; index++)
@@ -18,20 +18,20 @@ public class StringUtil {
 		return new String(chars);
 	}
 
-	public static String lowerFirstChar(String input) {
+	public static String lowerFirstChar(final String input) {
 		if (input.isEmpty())
 			return input;
 
-		char[] chars = input.toCharArray();
+		final char[] chars = input.toCharArray();
 		chars[0] = Character.toLowerCase(chars[0]);
 		return new String(chars);
 	}
 
-	public static String upperFirstChar(String input) {
+	public static String upperFirstChar(final String input) {
 		if (input.isEmpty())
 			return input;
 
-		char[] chars = input.toCharArray();
+		final char[] chars = input.toCharArray();
 		chars[0] = Character.toUpperCase(chars[0]);
 		return new String(chars);
 	}

@@ -34,7 +34,7 @@ public class Sink extends ElementaryOperator<Sink> {
 		return this.outputFormat;
 	}
 
-	public void setOutputFormat(Class<? extends FileOutputFormat> outputFormat) {
+	public void setOutputFormat(final Class<? extends FileOutputFormat> outputFormat) {
 		if (outputFormat == null)
 			throw new NullPointerException("outputFormat must not be null");
 

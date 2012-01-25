@@ -29,7 +29,7 @@ public class ComparativeExpressionParameterizedTest {
 
 	private final BooleanNode ExpectedResult;
 
-	private EvaluationContext context = new EvaluationContext();
+	private final EvaluationContext context = new EvaluationContext();
 
 	public ComparativeExpressionParameterizedTest(final JsonNode expr1, final BinaryOperator op, final JsonNode expr2,
 			final BooleanNode ExpectedResult) {

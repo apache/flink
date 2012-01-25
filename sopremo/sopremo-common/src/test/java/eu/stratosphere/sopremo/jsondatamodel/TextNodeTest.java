@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.jsondatamodel;
 
-import eu.stratosphere.sopremo.type.TextNode;
 import junit.framework.Assert;
+import eu.stratosphere.sopremo.type.TextNode;
 
 public class TextNodeTest extends JsonNodeTest<TextNode> {
 

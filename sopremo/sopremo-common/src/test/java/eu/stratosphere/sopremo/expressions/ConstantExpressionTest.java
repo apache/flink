@@ -6,7 +6,6 @@ import nl.jqno.equalsverifier.Warning;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 

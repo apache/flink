@@ -14,12 +14,12 @@ public class Bindings extends AbstractSopremoType implements SerializableSopremo
 	 */
 	private static final long serialVersionUID = -5361273437492630123L;
 
-	private LinkedList<Map<String, Object>> bindings = new LinkedList<Map<String, Object>>();
+	private final LinkedList<Map<String, Object>> bindings = new LinkedList<Map<String, Object>>();
 
 	public static enum BindingConstraint {
 		NON_NULL {
 			@Override
-			public Object process(Object input, Class<?> expectedType) {
+			public Object process(final Object input, final Class<?> expectedType) {
 				if (input == null)
 					throw new IllegalArgumentException("Unknown variable");
 				return input;
@@ -27,7 +27,7 @@ public class Bindings extends AbstractSopremoType implements SerializableSopremo
 		},
 		AUTO_FUNCTION_POINTER {
 			@Override
-			public Object process(Object input, Class<?> expectedType) {
+			public Object process(final Object input, final Class<?> expectedType) {
 				if (!expectedType.isInstance(input) && input instanceof JsonMethod)
 					return new MethodPointerExpression(((JsonMethod) input).getName());
 				return input;
@@ -38,17 +38,17 @@ public class Bindings extends AbstractSopremoType implements SerializableSopremo
 	}
 
 	public Bindings() {
-		addScope();
+		this.addScope();
 	}
 
 	public void addScope() {
 		this.bindings.addLast(new HashMap<String, Object>());
 	}
 
-	public Object get(String name) {
-		Iterator<Map<String, Object>> iterator = this.bindings.descendingIterator();
+	public Object get(final String name) {
+		final Iterator<Map<String, Object>> iterator = this.bindings.descendingIterator();
 		while (iterator.hasNext()) {
-			Object binding = iterator.next().get(name);
+			final Object binding = iterator.next().get(name);
 			if (binding != null)
 				return binding;
 		}
@@ -56,10 +56,10 @@ public class Bindings extends AbstractSopremoType implements SerializableSopremo
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> T get(String name, Class<T> expectedType, BindingConstraint... constraints) {
-		Object value = get(name);
+	public <T> T get(final String name, final Class<T> expectedType, final BindingConstraint... constraints) {
+		Object value = this.get(name);
 
-		for (BindingConstraint contraint : constraints)
+		for (final BindingConstraint contraint : constraints)
 			value = contraint.process(value, expectedType);
 
 		if (value == null)
@@ -72,15 +72,15 @@ public class Bindings extends AbstractSopremoType implements SerializableSopremo
 	}
 
 	public Map<String, Object> getAll() {
-		return getAll(Object.class);
+		return this.getAll(Object.class);
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> Map<String, T> getAll(Class<T> expectedType) {
-		Map<String, T> combinedBindings = new HashMap<String, T>();
-		Iterator<Map<String, Object>> iterator = this.bindings.descendingIterator();
+	public <T> Map<String, T> getAll(final Class<T> expectedType) {
+		final Map<String, T> combinedBindings = new HashMap<String, T>();
+		final Iterator<Map<String, Object>> iterator = this.bindings.descendingIterator();
 		while (iterator.hasNext())
-			for (Map.Entry<String, Object> binding : iterator.next().entrySet())
+			for (final Map.Entry<String, Object> binding : iterator.next().entrySet())
 				if (!combinedBindings.containsKey(binding.getKey()) && expectedType.isInstance(binding.getValue()))
 					combinedBindings.put(binding.getKey(), (T) binding.getValue());
 		return combinedBindings;
@@ -90,11 +90,11 @@ public class Bindings extends AbstractSopremoType implements SerializableSopremo
 		this.bindings.removeLast();
 	}
 
-	public void set(String name, Object binding) {
-		set(name, binding, 0);
+	public void set(final String name, final Object binding) {
+		this.set(name, binding, 0);
 	}
 
-	public void set(String name, Object binding, int scopeLevel) {
+	public void set(final String name, final Object binding, final int scopeLevel) {
 		this.bindings.get(this.bindings.size() - 1 - scopeLevel).put(name, binding);
 	}
 
@@ -103,11 +103,11 @@ public class Bindings extends AbstractSopremoType implements SerializableSopremo
 	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.getAll().toString());
 	}
 
-	public void putAll(Bindings bindings) {
+	public void putAll(final Bindings bindings) {
 		this.bindings.addAll(bindings.bindings);
 	}
 }

@@ -60,17 +60,19 @@ public abstract class SopremoTest<T> {
 	protected void initVerifier(final EqualsVerifier<T> equalVerifier) {
 		final BitSet blackBitSet = new BitSet();
 		blackBitSet.set(1);
-		ArrayList<Object> redList = new ArrayList<Object>();
+		final ArrayList<Object> redList = new ArrayList<Object>();
 		redList.add(null);
-		ArrayList<Object> blackList = new ArrayList<Object>(redList);
+		final ArrayList<Object> blackList = new ArrayList<Object>(redList);
 		blackList.add(null);
-		Map<Object, Object> blackMap = new HashMap<Object, Object>();
+		final Map<Object, Object> blackMap = new HashMap<Object, Object>();
 		blackMap.put("test", null);
 
-		equalVerifier.suppress(Warning.NULL_FIELDS)
+		equalVerifier
+			.suppress(Warning.NULL_FIELDS)
 			.suppress(Warning.NONFINAL_FIELDS)
 			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet)
-			.withPrefabValues(Set.class, new HashSet<Object>(), new HashSet<Object>(Arrays.asList( ExpressionTag.RETAIN)))
+			.withPrefabValues(Set.class, new HashSet<Object>(),
+				new HashSet<Object>(Arrays.asList(ExpressionTag.RETAIN)))
 			.withPrefabValues(List.class, redList, blackList)
 			.withPrefabValues(Map.class, new HashMap<Object, Object>(), blackMap)
 			.usingGetClass();

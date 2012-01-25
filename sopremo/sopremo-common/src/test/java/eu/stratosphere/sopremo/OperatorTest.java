@@ -206,7 +206,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		final Operator<?> fixture = new OpImpl(0).withInputs(input1, input2);
 
 		final Operator<?> newInput = new OpImpl(2);
-		List<JsonStream> inputs = new ArrayList<JsonStream>();
+		final List<JsonStream> inputs = new ArrayList<JsonStream>();
 		inputs.add(newInput);
 		fixture.setInputs(inputs);
 
@@ -238,12 +238,12 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		final Operator<?> input2 = new OpImpl(1);
 		final Operator<?> fixture = new OpImpl(0).withInputs(input1, input2);
 
-		List<JsonStream> newInputs = new ArrayList<JsonStream>();
+		final List<JsonStream> newInputs = new ArrayList<JsonStream>();
 		newInputs.add(null);
 		fixture.setInputs(newInputs);
 
 		assertEquals(1, fixture.getInputs().size());
-		List<JsonStream> expectedInputs = new ArrayList<JsonStream>();
+		final List<JsonStream> expectedInputs = new ArrayList<JsonStream>();
 		expectedInputs.add(null);
 		assertEquals(expectedInputs, fixture.getInputs());
 	}

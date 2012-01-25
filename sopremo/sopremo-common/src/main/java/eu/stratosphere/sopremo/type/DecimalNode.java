@@ -125,7 +125,7 @@ public class DecimalNode extends NumericNode {
 	}
 
 	@Override
-	public int compareToSameType(JsonNode other) {
+	public int compareToSameType(final JsonNode other) {
 		return this.value.compareTo(((DecimalNode) other).value);
 	}
 }

@@ -25,6 +25,7 @@ import java.nio.charset.Charset;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.io.JsonGenerator;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.Schema;
@@ -57,7 +58,7 @@ public class JsonOutputFormat extends FileOutputFormat {
 	 * eu.stratosphere.pact.common.io.FileOutputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public void configure(Configuration parameters) {
+	public void configure(final Configuration parameters) {
 		super.configure(parameters);
 		this.schema = SopremoUtil.deserialize(parameters, SCHEMA, Schema.class);
 		this.encoding = Charset.forName(parameters.getString(ENCODING, "utf-8"));
@@ -76,7 +77,7 @@ public class JsonOutputFormat extends FileOutputFormat {
 	 * @see eu.stratosphere.pact.common.io.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public void writeRecord(PactRecord record) throws IOException {
+	public void writeRecord(final PactRecord record) throws IOException {
 		this.generator.writeTree(this.node = this.schema.recordToJson(record, this.node));
 	}
 

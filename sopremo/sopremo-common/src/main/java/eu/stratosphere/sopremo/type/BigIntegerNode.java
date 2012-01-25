@@ -22,7 +22,7 @@ public class BigIntegerNode extends NumericNode {
 	public BigIntegerNode() {
 		this.value = BigInteger.ZERO;
 	}
-	
+
 	@Override
 	public BigInteger getJavaValue() {
 		return this.value;
@@ -123,7 +123,7 @@ public class BigIntegerNode extends NumericNode {
 	}
 
 	@Override
-	public int compareToSameType(JsonNode other) {
+	public int compareToSameType(final JsonNode other) {
 		return this.value.compareTo(((BigIntegerNode) other).value);
 	}
 }

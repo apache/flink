@@ -64,11 +64,11 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @param numberOfOutputs
 	 *        the number of outputs
 	 */
-	public Operator(int numberOfOutputs) {
+	public Operator(final int numberOfOutputs) {
 		this.setNumberOfOutputs(numberOfOutputs);
-		InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
+		final InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
 		this.setNumberOfInputs(inputs.min(), inputs.max());
-		OutputCardinality outputs = ReflectUtil.getAnnotation(this.getClass(), OutputCardinality.class);
+		final OutputCardinality outputs = ReflectUtil.getAnnotation(this.getClass(), OutputCardinality.class);
 		this.setNumberOfOutputs(outputs.min(), outputs.max());
 		this.name = this.getClass().getSimpleName();
 	}
@@ -86,7 +86,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	public Operator<Self> clone() {
 		try {
 			@SuppressWarnings("unchecked")
-			Operator<Self> clone = (Operator<Self>) super.clone();
+			final Operator<Self> clone = (Operator<Self>) super.clone();
 			clone.inputs = new ArrayList<JsonStream>(this.inputs);
 			clone.outputs = new ArrayList<JsonStream>(this.outputs);
 			return clone;
@@ -200,7 +200,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	}
 
 	@Override
-	public Image getIcon(int iconKind) {
+	public Image getIcon(final int iconKind) {
 		return this.getBeanInfo().getIcon(iconKind);
 	}
 
@@ -217,7 +217,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	}
 
 	protected JsonStream getSafeInput(final int inputIndex) {
-		JsonStream input = this.getInput(inputIndex);
+		final JsonStream input = this.getInput(inputIndex);
 		if (input == null)
 			throw new IllegalStateException("inputs must be set first");
 		return input;
@@ -296,9 +296,9 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @return the output at the given position
 	 */
 	public JsonStream getOutput(final int index) {
-		checkSize(index, this.maxOutputs, this.outputs);
+		this.checkSize(index, this.maxOutputs, this.outputs);
 		JsonStream output = this.outputs.get(index);
-		if(output == null)
+		if (output == null)
 			this.outputs.set(index, output = new Output(index));
 		return output;
 	}
@@ -343,13 +343,13 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 *        the new input
 	 */
 	public void setInput(final int index, final JsonStream input) {
-		checkSize(index, this.maxInputs, this.inputs);
+		this.checkSize(index, this.maxInputs, this.inputs);
 
-		checkInput(input);
+		this.checkInput(input);
 		this.inputs.set(index, input == null ? null : input.getSource());
 	}
-	
-	private void checkSize(int index, int max, List<?> list) {
+
+	private void checkSize(final int index, final int max, final List<?> list) {
 		if (index >= max)
 			throw new IndexOutOfBoundsException();
 		CollectionUtil.ensureSize(list, index + 1);
@@ -362,7 +362,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 *        the new inputs
 	 */
 	public void setInputs(final JsonStream... inputs) {
-		setInputs(Arrays.asList(inputs));
+		this.setInputs(Arrays.asList(inputs));
 	}
 
 	protected void checkInput(final JsonStream input) {
@@ -385,7 +385,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 
 		this.inputs.clear();
 		for (final JsonStream input : inputs) {
-			checkInput(input);
+			this.checkInput(input);
 			this.inputs.add(input == null ? null : input.getSource());
 		}
 	}
@@ -419,7 +419,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		return this.self();
 	}
 
-	protected void setNumberOfInputs(int min, int max) {
+	protected void setNumberOfInputs(final int min, final int max) {
 		if (min > max)
 			throw new IllegalArgumentException();
 		if (min < 0 || max < 0)
@@ -429,7 +429,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		CollectionUtil.ensureSize(this.inputs, this.minInputs);
 	}
 
-	protected void setNumberOfOutputs(int min, int max) {
+	protected void setNumberOfOutputs(final int min, final int max) {
 		if (min > max)
 			throw new IllegalArgumentException();
 		if (min < 0 || max < 0)
@@ -439,7 +439,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		CollectionUtil.ensureSize(this.outputs, this.minOutputs);
 	}
 
-	protected void setNumberOfInputs(int num) {
+	protected void setNumberOfInputs(final int num) {
 		this.setNumberOfInputs(num, num);
 	}
 
@@ -471,8 +471,9 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	}
 
 	public SopremoModule toElementaryOperators() {
-		SopremoModule module = new SopremoModule(this.getName(), this.getInputs().size(), this.getOutputs().size());
-		Operator<Self> clone = this.clone();
+		final SopremoModule module = new SopremoModule(this.getName(), this.getInputs().size(), this.getOutputs()
+			.size());
+		final Operator<Self> clone = this.clone();
 		for (int index = 0; index < this.getInputs().size(); index++)
 			clone.setInput(index, module.getInput(index));
 		for (int index = 0; index < this.getOutputs().size(); index++)
@@ -485,7 +486,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.getName());
 	}
 
@@ -506,12 +507,12 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 
 		public static final String INPUT = "flag.input";
 
-		private BeanDescriptor classDescriptor;
+		private final BeanDescriptor classDescriptor;
 
 		private PropertyDescriptor[] properties;
 
 		@SuppressWarnings("rawtypes")
-		public Info(Class<? extends Operator> clazz) {
+		public Info(final Class<? extends Operator> clazz) {
 			this.classDescriptor = new BeanDescriptor(clazz);
 			this.setNames(this.classDescriptor, clazz.getAnnotation(Name.class));
 
@@ -519,11 +520,11 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		}
 
 		@SuppressWarnings("rawtypes")
-		private void findProperties(Class<? extends Operator> clazz) {
-			List<PropertyDescriptor> properties = new ArrayList<PropertyDescriptor>();
+		private void findProperties(final Class<? extends Operator> clazz) {
+			final List<PropertyDescriptor> properties = new ArrayList<PropertyDescriptor>();
 			try {
-				for (PropertyDescriptor descriptor : Introspector.getBeanInfo(clazz, 0).getPropertyDescriptors()) {
-					Method writeMethod = descriptor instanceof IndexedPropertyDescriptor ?
+				for (final PropertyDescriptor descriptor : Introspector.getBeanInfo(clazz, 0).getPropertyDescriptors()) {
+					final Method writeMethod = descriptor instanceof IndexedPropertyDescriptor ?
 						((IndexedPropertyDescriptor) descriptor).getIndexedWriteMethod() :
 						descriptor.getWriteMethod();
 					Property propertyDescription;
@@ -536,7 +537,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 						this.setNames(descriptor, writeMethod.getAnnotation(Name.class));
 					}
 				}
-			} catch (IntrospectionException e) {
+			} catch (final IntrospectionException e) {
 				e.printStackTrace();
 			}
 			this.properties = properties.toArray(new PropertyDescriptor[properties.size()]);
@@ -562,14 +563,14 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 			return this.properties;
 		}
 
-		private void setNames(FeatureDescriptor description, Name annotation) {
+		private void setNames(final FeatureDescriptor description, final Name annotation) {
 			if (annotation != null) {
 				description.setValue(NAME_NOUNS, annotation.noun());
 				description.setValue(NAME_VERB, annotation.verb());
 				description.setValue(NAME_ADJECTIVE, annotation.adjective());
 				description.setValue(NAME_PREPOSITION, annotation.preposition());
 			} else {
-				String[] empty = new String[0];
+				final String[] empty = new String[0];
 				description.setValue(NAME_NOUNS, empty);
 				description.setValue(NAME_VERB, empty);
 				description.setValue(NAME_ADJECTIVE, empty);
@@ -589,7 +590,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		 * 
 		 */
 		private static final long serialVersionUID = 602797343864078577L;
-		
+
 		private final int index;
 
 		private Output(final int index) {
@@ -642,7 +643,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		}
 
 		@Override
-		public void toString(StringBuilder builder) {
+		public void toString(final StringBuilder builder) {
 			builder.append(this.getOperator()).append('@').append(this.index);
 		}
 	}

@@ -7,17 +7,17 @@ public abstract class SingletonExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = 4108217673663116837L;
 
-	private String textualRepresentation;
-	
+	private final String textualRepresentation;
+
 	/**
 	 * Initializes SingletonExpression.
 	 */
-	public SingletonExpression(String textualRepresentation) {
+	public SingletonExpression(final String textualRepresentation) {
 		this.textualRepresentation = textualRepresentation;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		return obj == this;
 	}
 
@@ -27,12 +27,13 @@ public abstract class SingletonExpression extends EvaluationExpression {
 	}
 
 	protected abstract Object readResolve();
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		super.toString(builder);
 		builder.append(this.textualRepresentation);
 	}

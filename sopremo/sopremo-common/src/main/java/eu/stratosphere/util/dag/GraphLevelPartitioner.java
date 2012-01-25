@@ -25,7 +25,8 @@ import eu.stratosphere.util.IdentityList;
  */
 public class GraphLevelPartitioner {
 
-	private static <Node> void gatherNodes(final List<Node> nodes, final ConnectionNavigator<Node> navigator, final Node node) {
+	private static <Node> void gatherNodes(final List<Node> nodes, final ConnectionNavigator<Node> navigator,
+			final Node node) {
 		if (!nodes.contains(node))
 			if (node != null) {
 				nodes.add(node);

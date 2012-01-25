@@ -114,9 +114,9 @@ public class OperatorInfo<Op extends Operator<Op>> {
 		}
 
 		public boolean isFlag() {
-			return getType() == Boolean.TYPE;
+			return this.getType() == Boolean.TYPE;
 		}
-		
+
 		/**
 		 * Returns the name.
 		 * 
@@ -132,10 +132,10 @@ public class OperatorInfo<Op extends Operator<Op>> {
 		public Class<?> getType() {
 			return this.descriptor.getPropertyType();
 		}
-		
+
 		@Override
 		public String toString() {
-			return name;
+			return this.name;
 		}
 	}
 

@@ -14,6 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.pact;
 
+import static eu.stratosphere.sopremo.pact.IOConstants.ENCODING;
+import static eu.stratosphere.sopremo.pact.IOConstants.SCHEMA;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
@@ -23,11 +26,10 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.io.JsonParseException;
 import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.type.Schema;
-
-import static eu.stratosphere.sopremo.pact.IOConstants.*;
 
 /**
  * Reads json files with Jackson. The resulting key/value pair consists of an id and a {@link PactJsonObject}. The id is
@@ -72,7 +74,7 @@ public class JsonInputFormat extends FileInputFormat {
 	 * @see eu.stratosphere.pact.common.io.InputFormat#nextRecord(eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException {
+	public boolean nextRecord(final PactRecord record) throws IOException {
 		if (!this.end) {
 			this.schema.jsonToRecord(this.parser.readValueAsTree(), record);
 			this.checkEnd();

@@ -22,7 +22,7 @@ import java.util.Iterator;
 public abstract class AbstractIterable<I, O> implements Iterable<O> {
 	private final Iterable<I> originalIterable;
 
-	public AbstractIterable(Iterable<I> originalIterable) {
+	public AbstractIterable(final Iterable<I> originalIterable) {
 		this.originalIterable = originalIterable;
 	}
 

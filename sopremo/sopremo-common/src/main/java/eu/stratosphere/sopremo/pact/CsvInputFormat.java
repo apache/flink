@@ -1,5 +1,10 @@
 package eu.stratosphere.sopremo.pact;
 
+import static eu.stratosphere.sopremo.pact.IOConstants.COLUMN_NAMES;
+import static eu.stratosphere.sopremo.pact.IOConstants.ENCODING;
+import static eu.stratosphere.sopremo.pact.IOConstants.FIELD_DELIMITER;
+import static eu.stratosphere.sopremo.pact.IOConstants.SCHEMA;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -13,8 +18,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.Schema;
 import eu.stratosphere.sopremo.type.TextNode;
-
-import static eu.stratosphere.sopremo.pact.IOConstants.*;
 
 public class CsvInputFormat extends TextInputFormat {
 
@@ -67,7 +70,7 @@ public class CsvInputFormat extends TextInputFormat {
 	 * byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+	public boolean readRecord(final PactRecord target, final byte[] bytes, final int numBytes) {
 		// if (!this.end) {
 		final CsvReader reader = new CsvReader(new ByteArrayInputStream(bytes), this.encoding);
 		reader.setDelimiter(this.fieldDelimiter);

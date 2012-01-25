@@ -29,7 +29,7 @@ public class TernaryExpression extends EvaluationExpression {
 		return this.ifClause;
 	}
 
-	public void setIfClause(EvaluationExpression ifClause) {
+	public void setIfClause(final EvaluationExpression ifClause) {
 		if (ifClause == null)
 			throw new NullPointerException("ifClause must not be null");
 
@@ -40,7 +40,7 @@ public class TernaryExpression extends EvaluationExpression {
 		return this.ifExpression;
 	}
 
-	public void setIfExpression(EvaluationExpression ifExpression) {
+	public void setIfExpression(final EvaluationExpression ifExpression) {
 		if (ifExpression == null)
 			throw new NullPointerException("ifExpression must not be null");
 
@@ -51,7 +51,7 @@ public class TernaryExpression extends EvaluationExpression {
 		return this.thenExpression;
 	}
 
-	public void setThenExpression(EvaluationExpression thenExpression) {
+	public void setThenExpression(final EvaluationExpression thenExpression) {
 		if (thenExpression == null)
 			throw new NullPointerException("thenExpression must not be null");
 
@@ -80,7 +80,7 @@ public class TernaryExpression extends EvaluationExpression {
 		int result = super.hashCode();
 		result = prime * result + this.ifClause.hashCode();
 		result = prime * result + this.ifExpression.hashCode();
-		result = prime * result +  this.thenExpression.hashCode();
+		result = prime * result + this.thenExpression.hashCode();
 		return result;
 	}
 
@@ -90,8 +90,8 @@ public class TernaryExpression extends EvaluationExpression {
 			return false;
 		final TernaryExpression other = (TernaryExpression) obj;
 		return this.ifClause.equals(other.ifClause)
-				&& this.ifExpression.equals(other.ifExpression)
-				&& this.thenExpression.equals(other.thenExpression);
+			&& this.ifExpression.equals(other.ifExpression)
+			&& this.thenExpression.equals(other.thenExpression);
 	}
 
 }

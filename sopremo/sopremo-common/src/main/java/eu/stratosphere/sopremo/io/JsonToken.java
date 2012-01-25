@@ -14,11 +14,11 @@ public enum JsonToken {
 
 	private char token;
 
-	private JsonToken(char token) {
+	private JsonToken(final char token) {
 		this.token = token;
 	}
 
-	public void write(Writer writer) throws IOException {
+	public void write(final Writer writer) throws IOException {
 		writer.write(this.token);
 	}
 

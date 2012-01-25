@@ -69,6 +69,7 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 		return builder.toString();
 	}
 
+	@Override
 	public void toString(final StringBuilder builder) {
 		builder.append(this.name);
 	}

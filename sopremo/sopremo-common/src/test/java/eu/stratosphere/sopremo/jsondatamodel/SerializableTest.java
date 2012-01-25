@@ -106,12 +106,12 @@ public class SerializableTest {
 	@Test
 	public void shouldSerializeAndDeserializeGivenFile() {
 
-		ArrayNode array = new ArrayNode();
+		final ArrayNode array = new ArrayNode();
 
 		try {
 			final JsonParser parser = new JsonParser(new URL(
 				SopremoTest.getResourcePath("SopremoTestPlan/test.json")));
-			File file = File.createTempFile("test", "json");
+			final File file = File.createTempFile("test", "json");
 
 			while (!parser.checkEnd())
 				array.add(parser.readValueAsTree());
@@ -121,11 +121,11 @@ public class SerializableTest {
 			final ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(this.byteArray.toByteArray());
 			final DataInputStream inStream = new DataInputStream(byteArrayIn);
 
-			ArrayNode target = new ArrayNode();
+			final ArrayNode target = new ArrayNode();
 			target.read(inStream);
 
 			// for watching the output
-			JsonGenerator gen = new JsonGenerator(file);
+			final JsonGenerator gen = new JsonGenerator(file);
 			gen.writeStartArray();
 			gen.writeTree(target);
 			gen.writeEndArray();

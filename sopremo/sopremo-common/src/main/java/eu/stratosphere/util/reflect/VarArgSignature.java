@@ -53,8 +53,8 @@ public class VarArgSignature extends Signature {
 	}
 
 	@Override
-	public Object[] adjustParameters(Object[] params) {
-		Class<?>[] parameterTypes = this.getParameterTypes();
+	public Object[] adjustParameters(final Object[] params) {
+		final Class<?>[] parameterTypes = this.getParameterTypes();
 		final int varArgIndex = parameterTypes.length - 1;
 		final int varArgCount = params.length - varArgIndex;
 
@@ -65,7 +65,7 @@ public class VarArgSignature extends Signature {
 		for (int index = 0; index < varArgCount; index++)
 			Array.set(vararg, index, params[varArgIndex + index]);
 
-		Object[] actualParams = new Object[parameterTypes.length];
+		final Object[] actualParams = new Object[parameterTypes.length];
 		System.arraycopy(params, 0, actualParams, 0, varArgIndex);
 		actualParams[varArgIndex] = vararg;
 		return actualParams;

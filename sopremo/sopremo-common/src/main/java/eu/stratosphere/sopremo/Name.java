@@ -19,25 +19,25 @@ public @interface Name {
 	public static enum NameType {
 		NOUN {
 			@Override
-			public String[] get(Name name) {
+			public String[] get(final Name name) {
 				return name.noun();
 			}
 		},
 		VERB {
 			@Override
-			public String[] get(Name name) {
+			public String[] get(final Name name) {
 				return name.verb();
 			}
 		},
 		ADJECTIVE {
 			@Override
-			public String[] get(Name name) {
+			public String[] get(final Name name) {
 				return name.adjective();
 			}
 		},
 		PREPOSITION {
 			@Override
-			public String[] get(Name name) {
+			public String[] get(final Name name) {
 				return name.preposition();
 			}
 		};

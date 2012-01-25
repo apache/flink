@@ -87,7 +87,8 @@ public class ElementaryOperatorTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void getStubClassShouldReturnTheFirstStub() {
-		final Class<? extends eu.stratosphere.pact.common.stubs.Stub> stubClass = new OperatorWithTwoStubs().getStubClass();
+		final Class<? extends eu.stratosphere.pact.common.stubs.Stub> stubClass = new OperatorWithTwoStubs()
+			.getStubClass();
 		assertEquals(OperatorWithTwoStubs.class, stubClass.getDeclaringClass());
 		assertTrue(Arrays.asList(OperatorWithTwoStubs.Implementation1.class,
 			OperatorWithTwoStubs.Implementation2.class).contains(stubClass));
@@ -109,7 +110,7 @@ public class ElementaryOperatorTest {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void map(JsonNode value, JsonCollector out) {
+			protected void map(final JsonNode value, final JsonCollector out) {
 			}
 		}
 	}
@@ -128,7 +129,7 @@ public class ElementaryOperatorTest {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void map(JsonNode value, JsonCollector out) {
+			protected void map(final JsonNode value, final JsonCollector out) {
 			}
 		}
 	}
@@ -143,7 +144,7 @@ public class ElementaryOperatorTest {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(ArrayNode values, JsonCollector out) {
+			protected void reduce(final ArrayNode values, final JsonCollector out) {
 			}
 		}
 
@@ -154,7 +155,7 @@ public class ElementaryOperatorTest {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(ArrayNode values, JsonCollector out) {
+			protected void reduce(final ArrayNode values, final JsonCollector out) {
 			}
 		}
 	}

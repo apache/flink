@@ -13,7 +13,7 @@ public abstract class ContainerExpression extends EvaluationExpression {
 	public abstract Iterator<EvaluationExpression> iterator();
 
 	public abstract List<? extends EvaluationExpression> getChildren();
-	
+
 	public abstract void setChildren(List<? extends EvaluationExpression> children);
 
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {

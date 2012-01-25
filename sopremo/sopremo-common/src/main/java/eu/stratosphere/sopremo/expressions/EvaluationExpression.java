@@ -25,22 +25,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
 
-	/**
-	 * Sets the value of the node specified by this expression using the given {@link EvaluationContext}.
-	 * 
-	 * @param node
-	 *        the node to change
-	 * @param value
-	 *        the value to set
-	 * @param context
-	 *        the current <code>EvaluationContext</code>
-	 * @return the node or a new node if the expression directly accesses the node
-	 */
-	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
-		throw new UnsupportedOperationException(String.format(
-			"Cannot change the value with expression %s of node %s to %s", this, node, value));
-	}
-
 	public final static EvaluationExpression KEY = new EvaluationExpression() {
 		/**
 		 * 
@@ -68,6 +52,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 			throw new EvaluationException();
 		}
 
+		@Override
 		protected Object readResolve() {
 			return EvaluationExpression.AS_KEY;
 		}
@@ -78,21 +63,22 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * {@link Operator}s that do not perform any transformation to the input, such as a filter operator.
 	 */
 	public static final EvaluationExpression VALUE = new SingletonExpression("<value>") {
-		
+
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = -6430819532311429108L;
 
 		@Override
-		public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 			return node;
 		}
-		
-		public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+
+		@Override
+		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 			return value;
 		};
-		
+
 		@Override
 		protected Object readResolve() {
 			return VALUE;
@@ -116,21 +102,21 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		EvaluationExpression other = (EvaluationExpression) obj;
+		final EvaluationExpression other = (EvaluationExpression) obj;
 
 		// return this.tags.equals(other.tags);
 		return this.hasAllSemanticTags(other) && other.hasAllSemanticTags(this);
 	}
 
-	protected boolean hasAllSemanticTags(EvaluationExpression other) {
-		for (ExpressionTag tag : tags)
+	protected boolean hasAllSemanticTags(final EvaluationExpression other) {
+		for (final ExpressionTag tag : this.tags)
 			if (tag.isSemantic() && !other.tags.contains(tag))
 				return false;
 		return true;
@@ -178,7 +164,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		for (ExpressionTag tag : tags)
+		for (final ExpressionTag tag : this.tags)
 			if (tag.isSemantic())
 				result = prime * result + tag.hashCode();
 		return result;
@@ -188,7 +174,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		return this.tags.contains(tag);
 	}
 
-	public void inferSchema(JsonSchema requiredInput, JsonSchema output, EvaluationContext context) {
+	public void inferSchema(final JsonSchema requiredInput, final JsonSchema output, final EvaluationContext context) {
 
 	}
 
@@ -213,7 +199,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * @return the node or a new node if the expression directly accesses the node
 	 */
 	@SuppressWarnings("unused")
-	public JsonNode set(JsonNode node, JsonNode value, EvaluationContext context) {
+	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
 		throw new UnsupportedOperationException(String.format(
 			"Cannot change the value with expression %s of node %s to %s", this, node, value));
 	}
@@ -233,12 +219,12 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 *        the builder to append to
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
-		appendTags(builder);
+	public void toString(final StringBuilder builder) {
+		this.appendTags(builder);
 	}
 
-	protected void appendTags(StringBuilder builder) {
-		for (ExpressionTag tag : this.tags)
+	protected void appendTags(final StringBuilder builder) {
+		for (final ExpressionTag tag : this.tags)
 			if (tag.isSemantic())
 				builder.append(tag).append(" ");
 	}
@@ -249,6 +235,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	}
 
 	public Set<ExpressionTag> getTags() {
-		return tags;
+		return this.tags;
 	}
 }

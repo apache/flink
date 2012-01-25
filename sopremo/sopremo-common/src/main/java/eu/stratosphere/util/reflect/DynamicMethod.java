@@ -13,12 +13,12 @@ public class DynamicMethod<ReturnType> extends DynamicInvokable<Method, Object, 
 
 	private Class<?> returnType;
 
-	public DynamicMethod(String name) {
+	public DynamicMethod(final String name) {
 		super(name);
 	}
 
 	@Override
-	public void addSignature(Method member) {
+	public void addSignature(final Method member) {
 		super.addSignature(member);
 		if (this.returnType == null)
 			this.returnType = member.getReturnType();
@@ -45,28 +45,30 @@ public class DynamicMethod<ReturnType> extends DynamicInvokable<Method, Object, 
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected ReturnType invokeDirectly(Method method, Object context, Object[] params) throws IllegalAccessException,
+	protected ReturnType invokeDirectly(final Method method, final Object context, final Object[] params)
+			throws IllegalAccessException,
 			InvocationTargetException {
 		return (ReturnType) method.invoke(context, params);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.util.reflect.DynamicInvokable#needsInstance(java.lang.reflect.Member)
 	 */
 	@Override
-	protected boolean needsInstance(Method member) {
+	protected boolean needsInstance(final Method member) {
 		return (member.getModifiers() & Modifier.STATIC) == 0;
 	}
 
 	@Override
-	protected Method findMember(java.lang.Class<Object> clazz, java.lang.Class<?>[] parameterTypes)
+	protected Method findMember(final java.lang.Class<Object> clazz, final java.lang.Class<?>[] parameterTypes)
 			throws NoSuchMethodException {
 		return clazz.getDeclaredMethod(this.getName(), parameterTypes);
 	}
 
-	public static DynamicMethod<?> valueOf(Class<?> clazz, String name) {
-		DynamicMethod<?> method = new DynamicMethod<Object>(name);
-		for (Method m : clazz.getDeclaredMethods())
+	public static DynamicMethod<?> valueOf(final Class<?> clazz, final String name) {
+		final DynamicMethod<?> method = new DynamicMethod<Object>(name);
+		for (final Method m : clazz.getDeclaredMethods())
 			if (m.getName().equals(name))
 				method.addSignature(m);
 		return method;

@@ -100,9 +100,9 @@ public class ElementInSetExpression extends BooleanExpression {
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result +  this.elementExpr.hashCode();
-		result = prime * result +  this.quantor.hashCode();
-		result = prime * result +  this.setExpr.hashCode();
+		result = prime * result + this.elementExpr.hashCode();
+		result = prime * result + this.quantor.hashCode();
+		result = prime * result + this.setExpr.hashCode();
 		return result;
 	}
 
@@ -112,8 +112,8 @@ public class ElementInSetExpression extends BooleanExpression {
 			return false;
 		final ElementInSetExpression other = (ElementInSetExpression) obj;
 		return this.quantor == other.quantor
-				&& this.elementExpr.equals(other.elementExpr) 
-				&& this.setExpr.equals(other.setExpr);
+			&& this.elementExpr.equals(other.elementExpr)
+			&& this.setExpr.equals(other.setExpr);
 	}
 
 }

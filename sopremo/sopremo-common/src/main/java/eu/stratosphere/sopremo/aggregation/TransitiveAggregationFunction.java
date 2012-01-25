@@ -11,7 +11,7 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 
 	private transient JsonNode aggregate;
 
-	private JsonNode initialAggregate;
+	private final JsonNode initialAggregate;
 
 	public TransitiveAggregationFunction(final String name, final JsonNode initialAggregate) {
 		super(name);

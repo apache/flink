@@ -2,10 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.List;
 
 import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;

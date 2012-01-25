@@ -33,7 +33,7 @@ public class UnaryExpression extends BooleanExpression {
 		return this.expr.equals(other.expr) && this.negate == other.negate;
 	}
 
-	public static BooleanExpression wrap(EvaluationExpression expression) {
+	public static BooleanExpression wrap(final EvaluationExpression expression) {
 		if (expression instanceof BooleanExpression)
 			return (BooleanExpression) expression;
 		return new UnaryExpression(expression);

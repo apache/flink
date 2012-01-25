@@ -110,7 +110,8 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start nodes
 	 */
-	public List<OutputType> convertGraph(final Iterable<InputType> startNodes, final ConnectionNavigator<InputType> navigator) {
+	public List<OutputType> convertGraph(final Iterable<InputType> startNodes,
+			final ConnectionNavigator<InputType> navigator) {
 		return this.convertGraph(startNodes.iterator(), navigator);
 	}
 
@@ -127,7 +128,8 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	 *        the navigator
 	 * @return the converted start nodes
 	 */
-	public List<OutputType> convertGraph(final Iterator<InputType> startNodes, final ConnectionNavigator<InputType> navigator) {
+	public List<OutputType> convertGraph(final Iterator<InputType> startNodes,
+			final ConnectionNavigator<InputType> navigator) {
 		final List<OutputType> results = new ArrayList<OutputType>();
 		final IdentityHashMap<InputType, OutputType> convertedNodes = new IdentityHashMap<InputType, OutputType>();
 		while (startNodes.hasNext())

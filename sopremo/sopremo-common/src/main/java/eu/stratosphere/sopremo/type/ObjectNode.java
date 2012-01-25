@@ -174,7 +174,7 @@ public class ObjectNode extends JsonNode {
 			.entrySet().iterator();
 
 		while (entries1.hasNext() && entries2.hasNext()) {
-			Entry<String, JsonNode> entry1 = entries1.next(), entry2 = entries2.next();
+			final Entry<String, JsonNode> entry1 = entries1.next(), entry2 = entries2.next();
 			final int keyComparison = entry1.getKey().compareTo(entry2.getKey());
 			if (keyComparison != 0)
 				return keyComparison;
@@ -195,7 +195,7 @@ public class ObjectNode extends JsonNode {
 	public ObjectNode clone() {
 		final ObjectNode clone = (ObjectNode) super.clone();
 		clone.children = new LinkedHashMap<String, JsonNode>(this.children);
-		for (Entry<String, JsonNode> entry : clone.children.entrySet())
+		for (final Entry<String, JsonNode> entry : clone.children.entrySet())
 			entry.setValue(entry.getValue().clone());
 		return clone;
 	}

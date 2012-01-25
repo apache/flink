@@ -12,7 +12,7 @@ public class ConstantExpression extends EvaluationExpression {
 	private static final long serialVersionUID = -4270374147359826240L;
 
 	// TODO: adjust to json model
-	private JsonNode constant;
+	private final JsonNode constant;
 
 	public ConstantExpression(final JsonNode constant) {
 		this.constant = constant;
@@ -22,11 +22,9 @@ public class ConstantExpression extends EvaluationExpression {
 		this.constant = JsonUtil.OBJECT_MAPPER.valueToTree(constant);
 	}
 
-
-public JsonNode getConstant() {
-	return constant;
-}
-
+	public JsonNode getConstant() {
+		return this.constant;
+	}
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -43,7 +41,7 @@ public JsonNode getConstant() {
 
 	@Override
 	public int hashCode() {
-		return  41 * super.hashCode() + this.constant.hashCode();
+		return 41 * super.hashCode() + this.constant.hashCode();
 	}
 
 	@Override

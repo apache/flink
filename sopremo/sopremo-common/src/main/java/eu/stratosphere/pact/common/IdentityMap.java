@@ -25,11 +25,13 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * @author Arvid Heise
  */
 public class IdentityMap extends MapStub {
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord,
+	 * eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void map(PactRecord record, Collector out) throws Exception {
+	public void map(final PactRecord record, final Collector out) throws Exception {
 		out.collect(record);
 	}
 }

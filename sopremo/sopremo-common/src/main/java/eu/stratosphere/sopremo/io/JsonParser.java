@@ -35,9 +35,9 @@ import eu.stratosphere.sopremo.type.TextNode;
 
 public class JsonParser {
 
-	private BufferedReader reader;
+	private final BufferedReader reader;
 
-	private Stack<JsonNode> state = new ObjectArrayList<JsonNode>();
+	private final Stack<JsonNode> state = new ObjectArrayList<JsonNode>();
 
 	ContainerNode root = new ContainerNode();
 
@@ -49,26 +49,26 @@ public class JsonParser {
 
 	private boolean reachedEnd = false;
 
-	private Char2ObjectMap<CharacterHandler> handler = new Char2ObjectOpenHashMap<CharacterHandler>(
+	private final Char2ObjectMap<CharacterHandler> handler = new Char2ObjectOpenHashMap<CharacterHandler>(
 		new char[] { '[', ']', '{', '}', ':', '\"', ',', ' ' },
 		new CharacterHandler[] { new OpenArrayHandler(), new CloseHandler(), new OpenObjectHandler(),
 			new CloseHandler(), new KeyValueSeperatorHandler(), new StringHandler(),
 			new CommaHandler(), new WhiteSpaceHandler() });
 
-	public JsonParser(FSDataInputStream stream) {
+	public JsonParser(final FSDataInputStream stream) {
 		this(new InputStreamReader(stream, Charset.forName("utf-8")));
 	}
 
-	public JsonParser(Reader inputStreamReader) {
+	public JsonParser(final Reader inputStreamReader) {
 		this.reader = new BufferedReader(inputStreamReader);
 		this.handler.defaultReturnValue(new DefaultHandler());
 	}
 
-	public JsonParser(URL url) throws IOException {
+	public JsonParser(final URL url) throws IOException {
 		this(new BufferedReader(new InputStreamReader(url.openStream())));
 	}
 
-	public JsonParser(String value) {
+	public JsonParser(final String value) {
 		this(new BufferedReader(new StringReader(value)));
 	}
 
@@ -76,14 +76,14 @@ public class JsonParser {
 
 		this.state.push(this.root);
 
-		StringBuilder sb = new StringBuilder();
+		final StringBuilder sb = new StringBuilder();
 		int nextChar = this.reader.read();
 
 		if (this.reachedEnd || nextChar == -1)
 			throw new NoSuchElementException("Reached end of json document!");
 
 		while ((this.state.top() != this.root || nextChar != ',') && nextChar != -1) {
-			char character = (char) nextChar;
+			final char character = (char) nextChar;
 			if (this.insideString && character != '\"')
 				sb.append(character);
 			else
@@ -123,7 +123,7 @@ public class JsonParser {
 		this.reader.close();
 	}
 
-	private static JsonNode parsePrimitive(String value) {
+	private static JsonNode parsePrimitive(final String value) {
 		if (value.equals("null"))
 			return NullNode.getInstance();
 		if (value.equals("true"))
@@ -131,9 +131,9 @@ public class JsonParser {
 		if (value.equals("false"))
 			return BooleanNode.FALSE;
 		if (value.matches("^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$")) {
-			BigDecimal bigDec = new BigDecimal(value);
+			final BigDecimal bigDec = new BigDecimal(value);
 			if (bigDec.scale() == 0) {
-				BigInteger bigInt = bigDec.unscaledValue();
+				final BigInteger bigInt = bigDec.unscaledValue();
 				if (bigInt.bitLength() <= 31)
 					return IntNode.valueOf(bigInt.intValue());
 				if (bigInt.bitLength() <= 63)
@@ -153,7 +153,7 @@ public class JsonParser {
 	private class OpenArrayHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) {
+		public void handleCharacter(final StringBuilder sb, final char character) {
 			if (JsonParser.this.root == JsonParser.this.state.top() && !JsonParser.this.isArray)
 				JsonParser.this.isArray = true;
 			else
@@ -165,8 +165,8 @@ public class JsonParser {
 	private class OpenObjectHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) {
-			ContainerNode node = new ContainerNode();
+		public void handleCharacter(final StringBuilder sb, final char character) {
+			final ContainerNode node = new ContainerNode();
 			JsonParser.this.state.push(node);
 
 		}
@@ -176,7 +176,7 @@ public class JsonParser {
 	private class CloseHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
+		public void handleCharacter(final StringBuilder sb, final char character) throws JsonParseException {
 			ContainerNode node;
 			if (JsonParser.this.state.top() != JsonParser.this.root) {
 				node = (ContainerNode) JsonParser.this.state.pop();
@@ -205,7 +205,7 @@ public class JsonParser {
 	private class StringHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) {
+		public void handleCharacter(final StringBuilder sb, final char character) {
 			if (sb.length() == 0)
 				JsonParser.this.insideString = true;
 			else if (!sb.toString().endsWith("\\")) {
@@ -219,9 +219,9 @@ public class JsonParser {
 	private class CommaHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) {
+		public void handleCharacter(final StringBuilder sb, final char character) {
 			if (sb.length() != 0) {
-				ContainerNode node = (ContainerNode) JsonParser.this.state.top();
+				final ContainerNode node = (ContainerNode) JsonParser.this.state.top();
 				if (!JsonParser.this.wasString)
 					node.addValue(JsonParser.parsePrimitive(sb.toString()));
 				else {
@@ -236,7 +236,7 @@ public class JsonParser {
 	private class WhiteSpaceHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) {
+		public void handleCharacter(final StringBuilder sb, final char character) {
 			if (JsonParser.this.insideString)
 				sb.append(character);
 		}
@@ -246,9 +246,9 @@ public class JsonParser {
 	private class KeyValueSeperatorHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
+		public void handleCharacter(final StringBuilder sb, final char character) throws JsonParseException {
 			if (sb.length() != 0) {
-				ContainerNode node = (ContainerNode) JsonParser.this.state.top();
+				final ContainerNode node = (ContainerNode) JsonParser.this.state.top();
 				node.addKey(sb);
 				JsonParser.this.wasString = false;
 				sb.setLength(0);
@@ -260,7 +260,7 @@ public class JsonParser {
 	private class DefaultHandler implements CharacterHandler {
 
 		@Override
-		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException {
+		public void handleCharacter(final StringBuilder sb, final char character) throws JsonParseException {
 
 			if (Character.isWhitespace(character))
 				JsonParser.this.handler.get(' ').handleCharacter(sb, character);
@@ -277,19 +277,19 @@ public class JsonParser {
 		 */
 		private static final long serialVersionUID = -7285733826083281420L;
 
-		private List<String> keys = new ArrayList<String>();
+		private final List<String> keys = new ArrayList<String>();
 
-		private List<JsonNode> values = new ArrayList<JsonNode>();
+		private final List<JsonNode> values = new ArrayList<JsonNode>();
 
-		public void addKey(StringBuilder sb) {
+		public void addKey(final StringBuilder sb) {
 			this.keys.add(sb.toString());
 		}
 
-		public void addValue(JsonNode node) {
+		public void addValue(final JsonNode node) {
 			this.values.add(node);
 		}
 
-		public JsonNode remove(int index) throws JsonParseException {
+		public JsonNode remove(final int index) throws JsonParseException {
 			if (this.keys.isEmpty())
 				return this.values.remove(index);
 			throw new JsonParseException();
@@ -301,7 +301,7 @@ public class JsonParser {
 			if (this.keys.size() == 0) {
 				// this ContainerNode represents an ArrayNode
 				node = new ArrayNode();
-				for (JsonNode value : this.values)
+				for (final JsonNode value : this.values)
 					((ArrayNode) node).add(value);
 
 			} else {
@@ -329,25 +329,25 @@ public class JsonParser {
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(final DataInput in) throws IOException {
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(final DataOutput out) throws IOException {
 		}
 
 		@Override
-		public StringBuilder toString(StringBuilder sb) {
+		public StringBuilder toString(final StringBuilder sb) {
 			return sb;
 		}
 
 		@Override
-		public int compareTo(Key arg0) {
+		public int compareTo(final Key arg0) {
 			return 0;
 		}
 
 		@Override
-		public int compareToSameType(JsonNode other) {
+		public int compareToSameType(final JsonNode other) {
 			return 0;
 		}
 	}

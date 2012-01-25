@@ -19,13 +19,13 @@ public class JavaMethod extends JsonMethod {
 		 */
 		private static final long serialVersionUID = 9145091116604733007L;
 
-		private AutoBoxingMethod(String name) {
+		private AutoBoxingMethod(final String name) {
 			super(name);
 		}
 
 		@Override
-		protected Class<?>[] getSignatureTypes(Method member) {
-			Class<?>[] parameterTypes = super.getParameterTypes(member);
+		protected Class<?>[] getSignatureTypes(final Method member) {
+			final Class<?>[] parameterTypes = super.getParameterTypes(member);
 			for (int index = 0; index < parameterTypes.length; index++)
 				if (!parameterTypes[index].isArray())
 					parameterTypes[index] = JavaToJsonMapper.INSTANCE.classToJsonType(parameterTypes[index]);
@@ -33,7 +33,7 @@ public class JavaMethod extends JsonMethod {
 		}
 
 		@Override
-		protected JsonNode invokeDirectly(Method method, Object context, Object[] params)
+		protected JsonNode invokeDirectly(final Method method, final Object context, final Object[] params)
 				throws IllegalAccessException, InvocationTargetException {
 			for (int index = 0; index < params.length; index++)
 				if (!params[index].getClass().isArray())
@@ -47,7 +47,7 @@ public class JavaMethod extends JsonMethod {
 	 */
 	private static final long serialVersionUID = -789826280721581321L;
 
-	private DynamicMethod<JsonNode> method;
+	private final DynamicMethod<JsonNode> method;
 
 	public JavaMethod(final String name) {
 		super(name);
@@ -68,7 +68,7 @@ public class JavaMethod extends JsonMethod {
 	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public JsonNode call(ArrayNode params, EvaluationContext context) {
+	public JsonNode call(final ArrayNode params, final EvaluationContext context) {
 		return this.method.invoke(null, (Object[]) params.toArray());
 	}
 }

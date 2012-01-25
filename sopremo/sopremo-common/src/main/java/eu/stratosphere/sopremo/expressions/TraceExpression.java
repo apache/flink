@@ -10,9 +10,9 @@ public class TraceExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -3935412444889830869L;
 
-	private EvaluationExpression expression;
+	private final EvaluationExpression expression;
 
-	public TraceExpression(EvaluationExpression expression) {
+	public TraceExpression(final EvaluationExpression expression) {
 		this.expression = expression;
 	}
 
@@ -21,7 +21,7 @@ public class TraceExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		SopremoUtil.LOG.info(this.expression.evaluate(node, context));
 		return node;
 	}

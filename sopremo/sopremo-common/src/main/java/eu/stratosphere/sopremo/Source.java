@@ -37,7 +37,7 @@ public class Source extends ElementaryOperator<Source> {
 		this.inputFormat = JsonInputFormat.class;
 	}
 
-	public Source(Class<? extends FileInputFormat> inputformat,
+	public Source(final Class<? extends FileInputFormat> inputformat,
 			final String inputPath) {
 		this.inputPath = inputPath;
 		this.inputFormat = inputformat;
@@ -55,7 +55,7 @@ public class Source extends ElementaryOperator<Source> {
 		return this.inputPath;
 	}
 
-	public void setInputPath(String inputPath) {
+	public void setInputPath(final String inputPath) {
 		if (inputPath == null)
 			throw new NullPointerException("inputPath must not be null");
 
@@ -67,7 +67,7 @@ public class Source extends ElementaryOperator<Source> {
 		return this.inputFormat;
 	}
 
-	public void setInputFormat(Class<? extends FileInputFormat> inputFormat) {
+	public void setInputFormat(final Class<? extends FileInputFormat> inputFormat) {
 		if (inputFormat == null)
 			throw new NullPointerException("inputFormat must not be null");
 
@@ -78,7 +78,7 @@ public class Source extends ElementaryOperator<Source> {
 		return this.parameters;
 	}
 
-	public void setAdhocExpression(EvaluationExpression adhocExpression) {
+	public void setAdhocExpression(final EvaluationExpression adhocExpression) {
 		if (adhocExpression == null)
 			throw new NullPointerException("adhocExpression must not be null");
 
@@ -117,9 +117,9 @@ public class Source extends ElementaryOperator<Source> {
 		return this.adhocExpression != null;
 	}
 
-	private Map<String, Object> parameters = new HashMap<String, Object>();
+	private final Map<String, Object> parameters = new HashMap<String, Object>();
 
-	public void setParameter(String key, Object value) {
+	public void setParameter(final String key, final Object value) {
 		this.parameters.put(key, value);
 	}
 

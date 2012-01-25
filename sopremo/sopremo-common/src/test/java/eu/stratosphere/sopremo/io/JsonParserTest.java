@@ -33,7 +33,7 @@ public class JsonParserTest {
 
 	private final int steps;
 
-	public JsonParserTest(final String value, final JsonNode expectedResult, int steps) {
+	public JsonParserTest(final String value, final JsonNode expectedResult, final int steps) {
 		this.value = value;
 		this.expectedResult = expectedResult;
 		this.steps = steps;
@@ -47,7 +47,7 @@ public class JsonParserTest {
 
 	@Test
 	public void shouldParseArrays() throws IOException {
-		JsonParser parser = new JsonParser(this.value);
+		final JsonParser parser = new JsonParser(this.value);
 		JsonNode result = null;
 		for (int i = 0; i < this.steps; i++)
 			result = parser.readValueAsTree();
@@ -91,8 +91,9 @@ public class JsonParserTest {
 			{
 				"[{\"key1\" : [1,3,\"Hello\"], \"key2\": {\"key3\": 23}}]",
 				new ObjectNode().put("key1",
-					new ArrayNode().add(IntNode.valueOf(1)).add(IntNode.valueOf(3)).add(TextNode.valueOf("Hello"))).put(
-					"key2", new ObjectNode().put("key3", IntNode.valueOf(23))), 1 },
+					new ArrayNode().add(IntNode.valueOf(1)).add(IntNode.valueOf(3)).add(TextNode.valueOf("Hello")))
+					.put(
+						"key2", new ObjectNode().put("key3", IntNode.valueOf(23))), 1 },
 			{ "[1 ,2 ,3, 4 , null]", NullNode.getInstance(), 5 }
 
 		});

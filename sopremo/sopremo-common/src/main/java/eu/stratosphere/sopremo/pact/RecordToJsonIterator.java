@@ -14,7 +14,7 @@ public class RecordToJsonIterator implements Iterator<JsonNode> {
 
 	private Iterator<PactRecord> iterator;
 
-	public RecordToJsonIterator(Schema schema) {
+	public RecordToJsonIterator(final Schema schema) {
 		this.schema = schema;
 	}
 
@@ -24,7 +24,7 @@ public class RecordToJsonIterator implements Iterator<JsonNode> {
 	 * @param iterator
 	 *        the iterator to set
 	 */
-	public void setIterator(Iterator<PactRecord> iterator) {
+	public void setIterator(final Iterator<PactRecord> iterator) {
 		this.iterator = iterator;
 	}
 

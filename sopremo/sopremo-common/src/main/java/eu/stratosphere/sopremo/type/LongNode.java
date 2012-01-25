@@ -125,7 +125,7 @@ public class LongNode extends NumericNode {
 	}
 
 	@Override
-	public int compareToSameType(JsonNode other) {
+	public int compareToSameType(final JsonNode other) {
 		return Long.signum(this.value.getValue() - ((LongNode) other).value.getValue());
 	}
 }

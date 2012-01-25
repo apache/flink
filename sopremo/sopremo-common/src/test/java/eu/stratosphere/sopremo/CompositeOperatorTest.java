@@ -117,7 +117,7 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 			 * eu.stratosphere.sopremo.type.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void cross(JsonNode value1, JsonNode value2, JsonCollector out) {
+			protected void cross(final JsonNode value1, final JsonNode value2, final JsonCollector out) {
 			}
 		}
 	}

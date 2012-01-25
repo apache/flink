@@ -13,15 +13,16 @@ import eu.stratosphere.sopremo.type.JsonNode;
 public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Override
-	protected AndExpression createDefaultInstance(int index) {
-		EvaluationExpression[] params = new EvaluationExpression[index + 1];
+	protected AndExpression createDefaultInstance(final int index) {
+		final EvaluationExpression[] params = new EvaluationExpression[index + 1];
 		Arrays.fill(params, TRUE);
 		return new AndExpression(params);
 	}
 
 	@Test
 	public void shouldBeTrueIfAllExprAreTrue() {
-		final JsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.TRUE, BooleanExpressionTest.TRUE).evaluate(IntNode.valueOf(42),
+		final JsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.TRUE,
+			BooleanExpressionTest.TRUE).evaluate(IntNode.valueOf(42),
 			this.context);
 
 		Assert.assertEquals(BooleanNode.TRUE, result);
@@ -29,7 +30,8 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Test
 	public void shouldBeFalseIfOneExprIsFalse() {
-		final JsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.FALSE, BooleanExpressionTest.TRUE).evaluate(IntNode.valueOf(42),
+		final JsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.FALSE,
+			BooleanExpressionTest.TRUE).evaluate(IntNode.valueOf(42),
 			this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);

@@ -22,7 +22,7 @@ public abstract class SopremoMatch extends MatchStub {
 	 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public void open(Configuration parameters) throws Exception {
+	public void open(final Configuration parameters) throws Exception {
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
 		this.inputSchema1 = this.context.getInputSchema(0);
 		this.inputSchema2 = this.context.getInputSchema(1);
@@ -42,11 +42,11 @@ public abstract class SopremoMatch extends MatchStub {
 	 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void match(PactRecord record1, PactRecord record2, Collector out) throws Exception {
+	public void match(final PactRecord record1, final PactRecord record2, final Collector out) throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.setCollector(out);
-		JsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);
-		JsonNode input2 = this.inputSchema2.recordToJson(record2, this.cachedInput2);
+		final JsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);
+		final JsonNode input2 = this.inputSchema2.recordToJson(record2, this.cachedInput2);
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), input1, input2));
 		try {

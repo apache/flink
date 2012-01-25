@@ -27,7 +27,7 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 		TextNode(TextNode.class, false),
 		BooleanNode(BooleanNode.class, false),
 		NullNode(NullNode.class, false),
-		CustomNode(JsonNode.class,false);
+		CustomNode(JsonNode.class, false);
 
 		private final Class<? extends JsonNode> clazz;
 

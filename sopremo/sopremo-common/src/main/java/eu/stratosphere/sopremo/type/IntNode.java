@@ -130,7 +130,7 @@ public class IntNode extends NumericNode {
 	}
 
 	@Override
-	public int compareToSameType(JsonNode other) {
+	public int compareToSameType(final JsonNode other) {
 		return this.value.getValue() - ((IntNode) other).value.getValue();
 	}
 }
