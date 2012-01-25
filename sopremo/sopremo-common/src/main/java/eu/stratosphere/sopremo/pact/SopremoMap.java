@@ -6,13 +6,22 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.Schema;
 
 public abstract class SopremoMap extends MapStub {
 	private EvaluationContext context;
 
+	private Schema inputSchema;
+
+	private JsonCollector collector;
+
+	private JsonNode cachedInput;
+
 	@Override
 	public void open(final Configuration parameters) {
-		this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
+		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
+		this.inputSchema = this.context.getInputSchema(0);
+		this.collector = new JsonCollector(this.context.getOutputSchema(0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 
@@ -30,13 +39,15 @@ public abstract class SopremoMap extends MapStub {
 	@Override
 	public void map(PactRecord record, Collector out) throws Exception {
 		this.context.increaseInputCounter();
+		this.collector.setCollector(out);
+		JsonNode input = this.inputSchema.recordToJson(record, this.cachedInput);
 		if (SopremoUtil.LOG.isTraceEnabled())
-			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), key, value));
+			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), input));
 		try {
-			this.map(SopremoUtil.wrap(record), new JsonCollector(out));
+			this.map(input, this.collector);
 		} catch (final RuntimeException e) {
-			SopremoUtil.LOG.error(String.format("Error occurred @ %s with k/v %s/%s: %s", this.getContext()
-				.operatorTrace(), key, value, e));
+			SopremoUtil.LOG.error(String.format("Error occurred @ %s with %s: %s", this.getContext().operatorTrace(),
+				this.cachedInput, e));
 			throw e;
 		}
 	};

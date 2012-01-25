@@ -10,6 +10,8 @@ import java.util.List;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.plan.ContractNavigator;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -52,13 +54,13 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		assertEquals(1, reachableNodes.get(3).getLevelNodes().size());
 
 		for (int index = 0; index < 3; index++)
-			assertTrue(FileDataSourceContract.class.isInstance(reachableNodes.get(0).getLevelNodes()
+			assertTrue(FileDataSource.class.isInstance(reachableNodes.get(0).getLevelNodes()
 				.get(index)));
 		assertSame(ElementaryOperatorImpl.Implementation.class, reachableNodes.get(1)
 			.getLevelNodes().get(0).getUserCodeClass());
 		assertSame(ElementaryOperatorImpl.Implementation.class, reachableNodes.get(2)
 			.getLevelNodes().get(0).getUserCodeClass());
-		assertTrue(FileDataSinkContract.class.isInstance(reachableNodes.get(3).getLevelNodes().get(0)));
+		assertTrue(FileDataSink.class.isInstance(reachableNodes.get(3).getLevelNodes().get(0)));
 	}
 
 	static class CompositeOperatorImpl extends CompositeOperator<CompositeOperatorImpl> {
@@ -108,13 +110,14 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 	static class ElementaryOperatorImpl extends ElementaryOperator<ElementaryOperatorImpl> {
 		private static final long serialVersionUID = 1L;
 
-		static class Implementation
-				extends
-				SopremoCross<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+		static class Implementation extends SopremoCross {
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoCross#cross(eu.stratosphere.sopremo.type.JsonNode,
+			 * eu.stratosphere.sopremo.type.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
 			@Override
-			protected void cross(final JsonNode key1, final JsonNode value1, final JsonNode key2,
-					final JsonNode value2,
-					final JsonCollector out) {
+			protected void cross(JsonNode value1, JsonNode value2, JsonCollector out) {
 			}
 		}
 	}

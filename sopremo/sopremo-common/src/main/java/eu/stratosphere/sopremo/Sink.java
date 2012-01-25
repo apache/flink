@@ -1,10 +1,9 @@
 package eu.stratosphere.sopremo;
 
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
-import eu.stratosphere.sopremo.type.JsonNode;
 
 @OutputCardinality(min = 0, max = 0)
 public class Sink extends ElementaryOperator<Sink> {
@@ -15,10 +14,9 @@ public class Sink extends ElementaryOperator<Sink> {
 
 	private final String outputName;
 
-	private Class<? extends FileOutputFormat<JsonNode, JsonNode>> outputFormat;
+	private Class<? extends FileOutputFormat> outputFormat;
 
-	public Sink(final Class<? extends FileOutputFormat<JsonNode, JsonNode>> outputFormat,
-			final String outputName) {
+	public Sink(final Class<? extends FileOutputFormat> outputFormat, final String outputName) {
 		super(0);
 		this.outputFormat = outputFormat;
 		this.outputName = outputName;
@@ -32,11 +30,11 @@ public class Sink extends ElementaryOperator<Sink> {
 		this("");
 	}
 
-	public Class<? extends FileOutputFormat<JsonNode, JsonNode>> getOutputFormat() {
+	public Class<? extends FileOutputFormat> getOutputFormat() {
 		return this.outputFormat;
 	}
 
-	public void setOutputFormat(Class<? extends FileOutputFormat<JsonNode, JsonNode>> outputFormat) {
+	public void setOutputFormat(Class<? extends FileOutputFormat> outputFormat) {
 		if (outputFormat == null)
 			throw new NullPointerException("outputFormat must not be null");
 
@@ -51,8 +49,7 @@ public class Sink extends ElementaryOperator<Sink> {
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		final PactModule pactModule = new PactModule(this.toString(), 1, 0);
-		final FileDataSinkContract<JsonNode, JsonNode> contract = new FileDataSinkContract<JsonNode, JsonNode>(
-			this.outputFormat, this.outputName, this.outputName);
+		final FileDataSink contract = new FileDataSink(this.outputFormat, this.outputName, this.outputName);
 		contract.setInput(pactModule.getInput(0));
 		// if(this.outputFormat == JsonOutputFormat.class)
 		contract.setDegreeOfParallelism(1);

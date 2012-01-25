@@ -30,12 +30,9 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.testing.TestPairs;
+import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -69,10 +66,8 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			.getActualOutput(0));
 
 		// explicitly check output
-		final Iterator<KeyValuePair<JsonNode, JsonNode>> outputIterator = testPlan.getActualOutput(0)
-			.iterator();
-		final Iterator<KeyValuePair<JsonNode, JsonNode>> inputIterator = testPlan.getInput(0)
-			.iterator();
+		final Iterator<JsonNode> outputIterator = testPlan.getActualOutput(0).iterator();
+		final Iterator<JsonNode> inputIterator = testPlan.getInput(0).iterator();
 		for (int index = 0; index < 2; index++) {
 			assertTrue("too few actual output values", outputIterator.hasNext());
 			assertTrue("too few input values", outputIterator.hasNext());
@@ -143,9 +138,9 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	protected void initVerifier(final EqualsVerifier<SopremoTestPlan> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier.
-			withPrefabValues(TestPairs.class,
-				new TestPairs().add(PactNull.getInstance(), new PactString("red")),
-				new TestPairs().add(PactNull.getInstance(), new PactString("black"))).
+			withPrefabValues(TestRecords.class,
+				new TestRecords().add(PactNull.getInstance(), new PactString("red")),
+				new TestRecords().add(PactNull.getInstance(), new PactString("black"))).
 			withPrefabValues(SopremoTestPlan.ActualOutput.class,
 				new SopremoTestPlan.ActualOutput(0).addValue(0),
 				new SopremoTestPlan.ActualOutput(1).addValue(1)).
@@ -189,7 +184,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		public static class Implementation extends SopremoCross {
 			@Override
 			protected void cross(final JsonNode value1, final JsonNode value2, final JsonCollector out) {
-				out.collect(JsonUtil.asArray(key1, key2), JsonUtil.asArray(value1, value2));
+				out.collect(JsonUtil.asArray(value1, value2));
 			}
 		}
 	}

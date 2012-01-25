@@ -9,34 +9,32 @@ import com.csvreader.CsvReader;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.TextInputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
-import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.Schema;
 import eu.stratosphere.sopremo.type.TextNode;
 
-public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
+import static eu.stratosphere.sopremo.pact.IOConstants.*;
 
-	private static final String FIELD_DELIMITER = "fieldDelimiter";
-
-	public static final String COLUMN_NAMES = "columnNames";
+public class CsvInputFormat extends TextInputFormat {
 
 	private char fieldDelimiter = ',';
 
 	private String[] keyNames;
 
+	private Schema targetSchema;
+
+	private Charset encoding;
+
 	@Override
 	public void configure(final Configuration parameters) {
 		super.configure(parameters);
 		this.keyNames = SopremoUtil.deserialize(parameters, COLUMN_NAMES, String[].class);
+		this.targetSchema = SopremoUtil.deserialize(parameters, SCHEMA, Schema.class);
+		this.encoding = Charset.forName(parameters.getString(ENCODING, "utf-8"));
 		final Character delimiter = SopremoUtil.deserialize(parameters, FIELD_DELIMITER, Character.class);
 		if (delimiter != null)
 			this.fieldDelimiter = delimiter;
-	}
-
-	@Override
-	public KeyValuePair<JsonNode, JsonNode> createPair() {
-		return new KeyValuePair<JsonNode, JsonNode>(NullNode.getInstance(), new ObjectNode());
 	}
 
 	@Override
@@ -63,12 +61,15 @@ public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 	// return this.end;
 	// }
 
-	private final Charset charSet = Charset.forName("utf-8");
-
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.io.TextInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord,
+	 * byte[], int)
+	 */
 	@Override
-	public boolean readLine(final KeyValuePair<JsonNode, JsonNode> pair, final byte[] record) {
+	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
 		// if (!this.end) {
-		final CsvReader reader = new CsvReader(new ByteArrayInputStream(record), this.charSet);
+		final CsvReader reader = new CsvReader(new ByteArrayInputStream(bytes), this.encoding);
 		reader.setDelimiter(this.fieldDelimiter);
 		try {
 			if (reader.readRecord()) {
@@ -79,8 +80,7 @@ public class CsvInputFormat extends TextInputFormat<JsonNode, JsonNode> {
 				else
 					for (int i = 0; i < reader.getColumnCount(); i++)
 						node.put(String.format("key%d", i + 1), TextNode.valueOf(reader.get(i)));
-				pair.setKey(SopremoUtil.wrap(pair.getKey()));
-				pair.setValue(SopremoUtil.wrap(node));
+				this.targetSchema.jsonToRecord(node, target);
 				return true;
 			}
 

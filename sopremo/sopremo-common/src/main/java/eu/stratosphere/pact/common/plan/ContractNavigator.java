@@ -1,6 +1,5 @@
 package eu.stratosphere.pact.common.plan;
 
-import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
@@ -20,7 +19,7 @@ public class ContractNavigator implements ConnectionNavigator<Contract> {
 
 	@Override
 	public List<Contract> getConnectedNodes(final Contract node) {
-		return Arrays.asList(ContractUtil.getInputs(node));
+		return ContractUtil.getFlatInputs(node);
 	}
 
 }

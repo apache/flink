@@ -1,14 +1,18 @@
 package eu.stratosphere.pact.common.plan;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -17,6 +21,8 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.MapStub;
@@ -29,7 +35,7 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
  * @author Arvid Heise
  */
 public class ContractUtil {
-	private final static Map<Class<?>, Class<?>> STUB_CONTRACTS = new HashMap<Class<?>, Class<?>>();
+	private final static Map<Class<?>, Class<? extends Contract>> STUB_CONTRACTS = new LinkedHashMap<Class<?>, Class<? extends Contract>>();
 
 	static {
 		STUB_CONTRACTS.put(MapStub.class, MapContract.class);
@@ -37,8 +43,10 @@ public class ContractUtil {
 		STUB_CONTRACTS.put(CoGroupStub.class, CoGroupContract.class);
 		STUB_CONTRACTS.put(CrossStub.class, CrossContract.class);
 		STUB_CONTRACTS.put(MatchStub.class, MatchContract.class);
-		STUB_CONTRACTS.put(FileInputFormat.class, GenericDataSource.class);
-		STUB_CONTRACTS.put(FileOutputFormat.class, GenericDataSink.class);
+		STUB_CONTRACTS.put(FileInputFormat.class, FileDataSource.class);
+		STUB_CONTRACTS.put(FileOutputFormat.class, FileDataSink.class);
+		STUB_CONTRACTS.put(InputFormat.class, GenericDataSource.class);
+		STUB_CONTRACTS.put(OutputFormat.class, GenericDataSink.class);
 	}
 
 	/**
@@ -50,10 +58,19 @@ public class ContractUtil {
 	 */
 	@SuppressWarnings({ "unchecked" })
 	public static Class<? extends Contract> getContractClass(final Class<?> stubClass) {
+		if (stubClass == null)
+			return null;
 		final Class<?> contract = STUB_CONTRACTS.get(stubClass);
-		if (contract == null && stubClass != null)
-			return getContractClass(stubClass.getSuperclass());
-		return (Class<? extends Contract>) contract;
+		if (contract != null)
+			return (Class<? extends Contract>) contract;
+		Iterator<Entry<Class<?>, Class<? extends Contract>>> stubContracts = STUB_CONTRACTS.entrySet().iterator();
+		while (stubContracts.hasNext()) {
+			Map.Entry<Class<?>, Class<? extends Contract>> entry = stubContracts.next();
+			if (entry.getKey().isAssignableFrom(stubClass))
+				return entry.getValue();
+		}
+		return null;
+
 	}
 
 	/**

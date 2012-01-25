@@ -196,15 +196,15 @@ public class TestPlan implements Closeable {
 
 	private static GenericDataSink ALL_SINKS = null;
 
-	private final Map<GenericDataSink, TestPairs> actualOutputs = new IdentityHashMap<GenericDataSink, TestPairs>();
+	private final Map<GenericDataSink, TestRecords> actualOutputs = new IdentityHashMap<GenericDataSink, TestRecords>();
 
 	private final Contract[] contracts;
 
 	private int degreeOfParallelism = 1;
 
-	private final Map<GenericDataSink, TestPairs> expectedOutputs = new IdentityHashMap<GenericDataSink, TestPairs>();
+	private final Map<GenericDataSink, TestRecords> expectedOutputs = new IdentityHashMap<GenericDataSink, TestRecords>();
 
-	private final Map<GenericDataSource<?>, TestPairs> inputs = new IdentityHashMap<GenericDataSource<?>, TestPairs>();
+	private final Map<GenericDataSource<?>, TestRecords> inputs = new IdentityHashMap<GenericDataSource<?>, TestRecords>();
 
 	private final List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 
@@ -458,7 +458,7 @@ public class TestPlan implements Closeable {
 		for (final FileDataSink fileSink : existingSinks)
 			// need a format which is deserializable without configuration
 			if (!fileSink.getFormatClass().equals(SequentialOutputFormat.class)) {
-				TestPairs expectedValues = this.expectedOutputs.get(fileSink);
+				TestRecords expectedValues = this.expectedOutputs.get(fileSink);
 				// but only if we need to check for values anyways
 				if (expectedValues == null)
 					continue;
@@ -529,7 +529,7 @@ public class TestPlan implements Closeable {
 	 * 
 	 * @return the first output of the TestPlan
 	 */
-	public TestPairs getActualOutput() {
+	public TestRecords getActualOutput() {
 		return this.getActualOutput(0);
 	}
 
@@ -549,10 +549,10 @@ public class TestPlan implements Closeable {
 	 * @return the output {@link TestPairs} of the TestPlan associated with the
 	 *         given sink
 	 */
-	public TestPairs getActualOutput(final FileDataSink sink) {
-		TestPairs values = this.actualOutputs.get(sink);
+	public TestRecords getActualOutput(final FileDataSink sink) {
+		TestRecords values = this.actualOutputs.get(sink);
 		if (values == null)
-			this.actualOutputs.put(sink, values = new TestPairs());
+			this.actualOutputs.put(sink, values = new TestRecords());
 		return values;
 	}
 
@@ -567,7 +567,7 @@ public class TestPlan implements Closeable {
 	 *        the number of the output.
 	 * @return the <i>i</i>th output of the TestPlan
 	 */
-	public TestPairs getActualOutput(final int number) {
+	public TestRecords getActualOutput(final int number) {
 		return this.getActualOutput(this.getDataSinks().get(number));
 	}
 
@@ -625,7 +625,7 @@ public class TestPlan implements Closeable {
 
 	private void initAdhocInputs() throws IOException {
 		for (final FileDataSource source : this.sources) {
-			final TestPairs input = this.getInput(source);
+			final TestRecords input = this.getInput(source);
 			if (input.isAdhoc())
 				input.saveToFile(source.getFilePath());
 		}
@@ -684,7 +684,7 @@ public class TestPlan implements Closeable {
 	 * 
 	 * @return the first expected output of the TestPlan
 	 */
-	public TestPairs getExpectedOutput(Class<? extends Value> firstFieldType, Class<?>... otherFieldTypes) {
+	public TestRecords getExpectedOutput(Class<? extends Value> firstFieldType, Class<?>... otherFieldTypes) {
 		return this.getExpectedOutput(0, firstFieldType, otherFieldTypes);
 	}
 
@@ -696,7 +696,7 @@ public class TestPlan implements Closeable {
 	 * 
 	 * @return the first expected output of the TestPlan
 	 */
-	public TestPairs getExpectedOutput(Class<? extends Value>[] schema) {
+	public TestRecords getExpectedOutput(Class<? extends Value>[] schema) {
 		return this.getExpectedOutput(0, schema);
 	}
 
@@ -715,7 +715,7 @@ public class TestPlan implements Closeable {
 	 * @return the expected output {@link TestPairs} of the TestPlan associated
 	 *         with the given sink
 	 */
-	public TestPairs getExpectedOutput(final FileDataSink sink, Class<? extends Value> firstFieldType,
+	public TestRecords getExpectedOutput(final FileDataSink sink, Class<? extends Value> firstFieldType,
 			Class<?>... otherFieldTypes) {
 		return this.getExpectedOutput(sink, SchemaUtils.combineSchema(firstFieldType, otherFieldTypes));
 	}
@@ -735,11 +735,11 @@ public class TestPlan implements Closeable {
 	 * @return the expected output {@link TestPairs} of the TestPlan associated
 	 *         with the given sink
 	 */
-	public TestPairs getExpectedOutput(final FileDataSink sink, Class<? extends Value>[] schema) {
-		TestPairs values = this.expectedOutputs.get(sink);
+	public TestRecords getExpectedOutput(final FileDataSink sink, Class<? extends Value>[] schema) {
+		TestRecords values = this.expectedOutputs.get(sink);
 		if (values == null) {
-			this.expectedOutputs.put(sink, values = new TestPairs(schema));
-			TestPairs actualOutput = this.getActualOutput(sink);
+			this.expectedOutputs.put(sink, values = new TestRecords(schema));
+			TestRecords actualOutput = this.getActualOutput(sink);
 			actualOutput.setSchema(values.getSchema());
 		}
 		return values;
@@ -756,7 +756,7 @@ public class TestPlan implements Closeable {
 	 *        the number of the expected output.
 	 * @return the <i>i</i>th expected output of the TestPlan
 	 */
-	public TestPairs getExpectedOutput(final int number, Class<? extends Value> firstFieldType,
+	public TestRecords getExpectedOutput(final int number, Class<? extends Value> firstFieldType,
 			Class<?>... otherFieldTypes) {
 		return this.getExpectedOutput(this.getDataSinks().get(number), firstFieldType, otherFieldTypes);
 	}
@@ -772,7 +772,7 @@ public class TestPlan implements Closeable {
 	 *        the number of the expected output.
 	 * @return the <i>i</i>th expected output of the TestPlan
 	 */
-	public TestPairs getExpectedOutput(final int number, Class<? extends Value>[] schema) {
+	public TestRecords getExpectedOutput(final int number, Class<? extends Value>[] schema) {
 		return this.getExpectedOutput(this.getDataSinks().get(number), schema);
 	}
 
@@ -784,7 +784,7 @@ public class TestPlan implements Closeable {
 	 * 
 	 * @return the first input of the TestPlan
 	 */
-	public TestPairs getInput() {
+	public TestRecords getInput() {
 		return this.getInput(0);
 	}
 
@@ -803,10 +803,10 @@ public class TestPlan implements Closeable {
 	 * @return the input {@link TestPairs} of the TestPlan associated with the
 	 *         given source
 	 */
-	public TestPairs getInput(final GenericDataSource<?> source) {
-		TestPairs values = this.inputs.get(source);
+	public TestRecords getInput(final GenericDataSource<?> source) {
+		TestRecords values = this.inputs.get(source);
 		if (values == null)
-			this.inputs.put(source, values = new TestPairs());
+			this.inputs.put(source, values = new TestRecords());
 		return values;
 	}
 
@@ -820,7 +820,7 @@ public class TestPlan implements Closeable {
 	 *        the number of the input.
 	 * @return the <i>i</i>th input of the TestPlan
 	 */
-	public TestPairs getInput(final int number) {
+	public TestRecords getInput(final int number) {
 		return this.getInput(this.getDataSources().get(number));
 	}
 
@@ -884,12 +884,12 @@ public class TestPlan implements Closeable {
 
 	private void validateResults() {
 		for (final FileDataSink sinkContract : this.getDataSinks()) {
-			TestPairs expectedValues = this.expectedOutputs.get(sinkContract);
+			TestRecords expectedValues = this.expectedOutputs.get(sinkContract);
 			// need a format which is deserializable without configuration
 			if (sinkContract.getFormatClass() == SequentialOutputFormat.class
 				&& expectedValues != null
 				&& expectedValues.isInitialized()) {
-				final TestPairs actualValues = new TestPairs();
+				final TestRecords actualValues = new TestRecords();
 				actualValues.fromFile(SequentialInputFormat.class,
 					sinkContract.getFilePath());
 
@@ -950,11 +950,11 @@ public class TestPlan implements Closeable {
 	public void close() throws IOException {
 		ClosableManager closableManager = new ClosableManager();
 
-		for (TestPairs pairs : this.inputs.values())
+		for (TestRecords pairs : this.inputs.values())
 			closableManager.add(pairs);
-		for (TestPairs pairs : this.actualOutputs.values())
+		for (TestRecords pairs : this.actualOutputs.values())
 			closableManager.add(pairs);
-		for (TestPairs pairs : this.expectedOutputs.values())
+		for (TestRecords pairs : this.expectedOutputs.values())
 			closableManager.add(pairs);
 
 		closableManager.close();

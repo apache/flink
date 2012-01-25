@@ -106,4 +106,8 @@ public class Bindings extends AbstractSopremoType implements SerializableSopremo
 	public void toString(StringBuilder builder) {
 		builder.append(this.getAll().toString());
 	}
+
+	public void putAll(Bindings bindings) {
+		this.bindings.addAll(bindings.bindings);
+	}
 }

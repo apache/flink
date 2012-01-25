@@ -1,9 +1,11 @@
 package eu.stratosphere.sopremo;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 
 import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Provides additional context to the evaluation of {@link Evaluable}s, such as access to all registered functions.
@@ -20,6 +22,10 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	private int inputCounter = 0;
 
 	private final LinkedList<Operator<?>> operatorStack = new LinkedList<Operator<?>>();
+
+	private Schema[] inputSchemas, outputSchemas;
+
+	private Schema schema;
 
 	public LinkedList<Operator<?>> getOperatorStack() {
 		return this.operatorStack;
@@ -48,7 +54,7 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	public Operator<?> getCurrentOperator() {
 		return this.operatorStack.peek();
 	}
-	
+
 	public void pushOperator(final Operator<?> e) {
 		this.operatorStack.push(e);
 	}
@@ -57,13 +63,31 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 		return this.operatorStack.pop();
 	}
 
+	/**
+	 * Initializes EvaluationContext.
+	 */
 	public EvaluationContext() {
+		this(0, 0);
+	}
+
+	public EvaluationContext(int numInputs, int numOutputs) {
 		this.functionRegistry = new MethodRegistry(this.bindings);
+		setInputsAndOutputs(numInputs, numOutputs);
+	}
+
+	public void setInputsAndOutputs(int numInputs, int numOutputs) {
+		this.inputSchemas = new Schema[numInputs];
+		Arrays.fill(this.inputSchemas, new Schema.Default());
+		this.outputSchemas = new Schema[numOutputs];
+		Arrays.fill(this.outputSchemas, new Schema.Default());
 	}
 
 	public EvaluationContext(final EvaluationContext context) {
-		this.functionRegistry = context.functionRegistry;
+		this(context.inputSchemas.length, context.outputSchemas.length);
+		this.bindings.putAll(context.bindings);
 		this.inputCounter = context.inputCounter;
+		this.inputSchemas = context.inputSchemas.clone();
+		this.outputSchemas = context.outputSchemas.clone();
 	}
 
 	/**
@@ -81,6 +105,26 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 
 	public void increaseInputCounter() {
 		this.inputCounter++;
+	}
+
+	/**
+	 * Returns the inputSchemas.
+	 * 
+	 * @return the inputSchemas
+	 */
+	public Schema getInputSchema(int index) {
+		return this.schema;
+//		return this.inputSchemas[index];
+	}
+
+	/**
+	 * Returns the outputSchemas.
+	 * 
+	 * @return the outputSchemas
+	 */
+	public Schema getOutputSchema(int index) {
+		return this.schema;
+//		return this.outputSchemas[index];
 	}
 
 	private int taskId;
@@ -102,5 +146,12 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 		builder.append("Context @ ").append(this.operatorStack).append("\n").
 			append("Bindings: ");
 		this.bindings.toString(builder);
+	}
+
+	/**
+	 * @param schema
+	 */
+	public void setSchema(Schema schema) {
+		this.schema = schema;
 	}
 }

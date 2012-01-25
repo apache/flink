@@ -21,12 +21,9 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;
@@ -60,11 +57,9 @@ public class PactModule extends
 		super(name, new FileDataSource[numberOfInputs], new FileDataSink[numberOfOutputs],
 			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new FileDataSource(
-				JsonInputFormat.class, String.format("%s %d", name, index));
+			this.inputNodes[index] = new FileDataSource(JsonInputFormat.class, String.format("%s %d", name, index));
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new FileDataSink(
-				JsonOutputFormat.class, String.format("%s %d", name, index));
+			this.outputNodes[index] = new FileDataSink(JsonOutputFormat.class, String.format("%s %d", name, index));
 	}
 
 	/**
@@ -116,12 +111,12 @@ public class PactModule extends
 			new GraphTraverseListener<Contract>() {
 				@Override
 				public void nodeTraversed(final Contract node) {
-					final Contract[] contractInputs = ContractUtil.getInputs(node);
-					if (contractInputs.length == 0)
+					final List<List<Contract>> contractInputs = ContractUtil.getInputs(node);
+					if (contractInputs.size() == 0)
 						inputs.add(node);
 					else
-						for (final Contract input : contractInputs)
-							if (input == null)
+						for (final List<Contract> input : contractInputs)
+							if (input.size() == 0)
 								inputs.add(node);
 				};
 			});
@@ -129,22 +124,22 @@ public class PactModule extends
 		final PactModule module = new PactModule(name, inputs.size(), sinks.size());
 		int sinkIndex = 0;
 		for (final Contract sink : sinks) {
-			if (sink instanceof FileDataSinkContract<?, ?>)
-				module.outputNodes[sinkIndex] = (FileDataSinkContract<?, ?>) sink;
+			if (sink instanceof FileDataSink)
+				module.outputNodes[sinkIndex] = (FileDataSink) sink;
 			else
-				module.getOutput(sinkIndex).setInput(sink);
+				module.getOutput(sinkIndex).addInput(sink);
 			sinkIndex++;
 		}
 
 		for (int index = 0; index < inputs.size();) {
 			final Contract node = inputs.get(index);
-			final Contract[] contractInputs = ContractUtil.getInputs(node);
-			if (contractInputs.length == 0)
-				module.inputNodes[index++] = (FileDataSourceContract<?, ?>) node;
+			final List<List<Contract>> contractInputs = ContractUtil.getInputs(node);
+			if (contractInputs.isEmpty())
+				module.inputNodes[index++] = (FileDataSource) node;
 			else {
-				for (int unconnectedIndex = 0; unconnectedIndex < contractInputs.length; unconnectedIndex++)
-					if (contractInputs[unconnectedIndex] == null)
-						contractInputs[unconnectedIndex] = module.getInput(index++);
+				for (int unconnectedIndex = 0; unconnectedIndex < contractInputs.size(); unconnectedIndex++)
+					if (contractInputs.get(unconnectedIndex).isEmpty())
+						contractInputs.get(unconnectedIndex).add(module.getInput(index++));
 				ContractUtil.setInputs(node, contractInputs);
 			}
 		}

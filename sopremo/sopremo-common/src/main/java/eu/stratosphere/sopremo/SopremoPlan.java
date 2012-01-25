@@ -6,6 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
@@ -39,6 +40,7 @@ public class SopremoPlan {
 	public void setSinks(List<Sink> sinks) {
 		for (Sink sink : sinks)
 			this.module.addInternalOutput(sink);
+		this.context.setSchema(this.module.getSchema());
 	}
 
 	/**

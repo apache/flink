@@ -11,20 +11,22 @@ import org.junit.Test;
 
 import eu.stratosphere.pact.common.IdentityMap;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSinkContract;
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
+import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.pact.testing.ioformats.FormatUtil;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Tests {@link JsonInputFormat}.
@@ -39,18 +41,21 @@ public class JsonInputFormatTest {
 	 */
 	@Test
 	public void completeTestPasses() throws IOException {
-		final FileDataSourceContract<JsonNode, JsonNode> read = new FileDataSourceContract<JsonNode, JsonNode>(
+		final FileDataSource read = new FileDataSource(
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
+		SopremoUtil.serialize(read.getParameters(), IOConstants.SCHEMA, Schema.Default);
 
-		final MapContract<Key, Value, Key, Value> map =
-			new MapContract<Key, Value, Key, Value>(IdentityMap.class, "Map");
+		final MapContract map =
+			new MapContract(IdentityMap.class, "Map");
 		map.setInput(read);
 
-		final FileDataSinkContract<Key, Value> output = this.createOutput(map, SequentialOutputFormat.class);
+		final FileDataSink output = this.createOutput(map, SequentialOutputFormat.class);
 
 		final TestPlan testPlan = new TestPlan(output);
 		testPlan.run();
-		Assert.assertEquals("input and output should be equal in identity map", testPlan.getInput(), testPlan
+		TestRecords input = testPlan.getInput();
+		input.setSchema(Schema.Default.getPactSchema());
+		Assert.assertEquals("input and output should be equal in identity map", input, testPlan
 			.getActualOutput());
 	}
 
@@ -61,18 +66,18 @@ public class JsonInputFormatTest {
 	 */
 	@Test
 	public void completeTestPassesWithExpectedValues() throws IOException {
-		final FileDataSourceContract<JsonNode, JsonNode> read = new FileDataSourceContract<JsonNode, JsonNode>(
+		final FileDataSource read = new FileDataSource(
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
+		SopremoUtil.serialize(read.getParameters(), IOConstants.SCHEMA, Schema.Default);
 
-		final MapContract<Key, Value, Key, Value> map = new MapContract<Key, Value, Key, Value>(IdentityMap.class,
-			"Map");
+		final MapContract map = new MapContract(IdentityMap.class, "Map");
 		map.setInput(read);
 
-		final FileDataSinkContract<JsonNode, JsonNode> output = this.createOutput(map,
+		final FileDataSink output = this.createOutput(map,
 			JsonOutputFormat.class);
 
 		final TestPlan testPlan = new TestPlan(output);
-		testPlan.getExpectedOutput(output).fromFile(JsonInputFormat.class,
+		testPlan.getExpectedOutput(output, Schema.Default.getPactSchema()).fromFile(JsonInputFormat.class,
 			this.getResource("SopremoTestPlan/test.json"));
 		testPlan.run();
 	}
@@ -85,14 +90,13 @@ public class JsonInputFormatTest {
 	 *        the input from which the values are read
 	 * @param outputFormatClass
 	 *        the output format
-	 * @return the {@link FileDataSinkContract} for the temporary file
+	 * @return the {@link FileDataSink} for the temporary file
 	 */
-	private <K extends Key, V extends Value> FileDataSinkContract<K, V> createOutput(final Contract input,
-			final Class<? extends FileOutputFormat<K, V>> outputFormatClass) {
+	private <K extends Key, V extends Value> FileDataSink createOutput(final Contract input,
+			final Class<? extends FileOutputFormat> outputFormatClass) {
 		try {
-			final FileDataSinkContract<K, V> out = new FileDataSinkContract<K, V>(outputFormatClass, File
-				.createTempFile(
-					"output", null).toURI().toString(), "Output");
+			final FileDataSink out = new FileDataSink(outputFormatClass,
+				File.createTempFile("output", null).toURI().toString(), "Output");
 			out.setInput(input);
 			return out;
 		} catch (final IOException e) {
@@ -119,17 +123,17 @@ public class JsonInputFormatTest {
 
 		final JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
 			.toString(), null);
-		final KeyValuePair<JsonNode, JsonNode> pair = inputFormat.createPair();
+		final PactRecord record = new PactRecord();
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
-			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextRecord(pair));
+			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextRecord(record));
 			Assert.assertEquals("other order expected", index,
-				((IntNode) ((ObjectNode) SopremoUtil.unwrap(pair.getValue())).get("id")).getIntValue());
+				((IntNode) ((ObjectNode) Schema.Default.recordToJson(record, null)).get("id")).getIntValue());
 		}
 
 		if (!inputFormat.reachedEnd()) {
-			Assert.assertTrue("no more pairs but reachedEnd did not return false", inputFormat.nextRecord(pair));
-			Assert.fail("pair unexpected: " + pair);
+			Assert.assertTrue("no more pairs but reachedEnd did not return false", inputFormat.nextRecord(record));
+			Assert.fail("pair unexpected: " + Schema.Default.recordToJson(record, null));
 		}
 	}
 
@@ -146,18 +150,18 @@ public class JsonInputFormatTest {
 
 		final JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
 			.toString(), null);
-		final KeyValuePair<JsonNode, JsonNode> pair = inputFormat.createPair();
+		final PactRecord record = new PactRecord();
 
 		if (!inputFormat.reachedEnd())
-			if (!inputFormat.nextRecord(pair))
-				Assert.fail("one value expected expected: " + pair);
+			if (!inputFormat.nextRecord(record))
+				Assert.fail("one value expected expected: " + Schema.Default.recordToJson(record, null));
 
 		if (!inputFormat.reachedEnd()) {
-			Assert.assertTrue("no more values but reachedEnd did not return false", inputFormat.nextRecord(pair));
-			Assert.fail("value unexpected: " + pair);
+			Assert.assertTrue("no more values but reachedEnd did not return false", inputFormat.nextRecord(record));
+			Assert.fail("value unexpected: " + Schema.Default.recordToJson(record, null));
 		}
 
-		final JsonNode arrayNode = ((ObjectNode) SopremoUtil.unwrap(pair.getValue())).get("array");
+		final JsonNode arrayNode = ((ObjectNode) Schema.Default.recordToJson(record, null)).get("array");
 		Assert.assertNotNull("could not find top level node", arrayNode);
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertNotNull("could not find array element " + index, ((ArrayNode) arrayNode).get(index - 1));

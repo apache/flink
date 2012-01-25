@@ -76,7 +76,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  * @param <V>
  *        the type of the values
  */
-public class TestPairs implements Closeable, Iterable<PactRecord> {
+public class TestRecords implements Closeable, Iterable<PactRecord> {
 	private static final class TestPairsReader
 			implements MutableObjectIterator<PactRecord> {
 		PactRecord currentPair;
@@ -151,7 +151,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 
 	private Value[] emptyTuple;
 
-	public TestPairs(Class<? extends Value>[] schema) {
+	public TestRecords(Class<? extends Value>[] schema) {
 		this.schema = schema;
 		this.emptyTuple = new Value[this.schema.length];
 		for (int index = 0; index < this.schema.length; index++)
@@ -162,7 +162,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	/**
 	 * Initializes TestPairs.
 	 */
-	public TestPairs() {
+	public TestRecords() {
 		this.schema = new Class[0];
 		this.emptyTuple = new Value[0];
 	}
@@ -192,7 +192,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	 *        the records to add
 	 * @return this
 	 */
-	public TestPairs add(final Iterable<? extends PactRecord> records) {
+	public TestRecords add(final Iterable<? extends PactRecord> records) {
 		for (final PactRecord record : records)
 			this.records.add(record);
 		this.setEmpty(false);
@@ -206,7 +206,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	 *        the records to add
 	 * @return this
 	 */
-	public TestPairs add(final TestPairs records) {
+	public TestRecords add(final TestRecords records) {
 		if (records.isEmpty())
 			this.setEmpty();
 		else {
@@ -225,7 +225,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	 *        the records to add
 	 * @return this
 	 */
-	public TestPairs add(final PactRecord... records) {
+	public TestRecords add(final PactRecord... records) {
 		for (final PactRecord record : records)
 			this.records.add(record);
 		this.setEmpty(false);
@@ -239,7 +239,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	 *        the fields of the record
 	 * @return this
 	 */
-	public TestPairs add(final Value... values) {
+	public TestRecords add(final Value... values) {
 		PactRecord record = new PactRecord(values.length);
 		for (int index = 0; index < values.length; index++)
 			record.setField(index, values[index]);
@@ -342,7 +342,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	 * @throws ArrayComparisonFailure
 	 *         if the sets differ
 	 */
-	public void assertEquals(final TestPairs expectedValues) throws ArrayComparisonFailure {
+	public void assertEquals(final TestRecords expectedValues) throws ArrayComparisonFailure {
 		this.assertEquals(expectedValues, new EqualityValueMatcher(), null);
 	}
 
@@ -367,7 +367,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	 * @throws ArrayComparisonFailure
 	 *         if the sets differ
 	 */
-	public void assertEquals(final TestPairs expectedValues, FuzzyTestValueMatcher fuzzyMatcher,
+	public void assertEquals(final TestRecords expectedValues, FuzzyTestValueMatcher fuzzyMatcher,
 			FuzzyTestValueSimilarity fuzzySimilarity) throws ArrayComparisonFailure {
 		try {
 			SortInfo sortInfo = firstNonNull(expectedValues.sortInfo, this.sortInfo);
@@ -485,7 +485,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final TestPairs other = (TestPairs) obj;
+		final TestRecords other = (TestRecords) obj;
 
 		try {
 			other.assertEquals(this);
@@ -504,7 +504,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	 *        the path to the file, can be relative
 	 * @return this
 	 */
-	public TestPairs fromFile(
+	public TestRecords fromFile(
 			final Class<? extends FileInputFormat> inputFormatClass,
 			final String file) {
 		this.fromFile(inputFormatClass, file, new Configuration());
@@ -522,7 +522,7 @@ public class TestPairs implements Closeable, Iterable<PactRecord> {
 	 *        the configuration for the {@link FileInputFormat}.
 	 * @return this
 	 */
-	public TestPairs fromFile(
+	public TestRecords fromFile(
 			final Class<? extends FileInputFormat> inputFormatClass,
 			final String file, final Configuration configuration) {
 		this.path = file;

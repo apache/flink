@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
-import java.util.Iterator;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -18,13 +17,13 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.ContractUtil;
-import eu.stratosphere.pact.common.stub.Collector;
-import eu.stratosphere.pact.common.stub.MapStub;
-import eu.stratosphere.pact.common.stub.ReduceStub;
-import eu.stratosphere.pact.common.stub.SingleInputStub;
-import eu.stratosphere.pact.common.stub.Stub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.sopremo.pact.JsonCollector;
+import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.pact.SopremoReduce;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * The class <code>ElementaryOperatorTest</code> contains tests for the class <code>{@link ElementaryOperator}</code>.
@@ -40,28 +39,28 @@ public class ElementaryOperatorTest {
 		PowerMockito.mockStatic(ContractUtil.class);
 		Mockito.when(ContractUtil.getContractClass(OperatorWithOneStub.Implementation.class)).thenReturn(
 			(Class) UninstanceableContract.class);
-		new OperatorWithOneStub().getContract();
+		new OperatorWithOneStub().getContract(Schema.Default);
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void getContractShouldFailIfNoStub() {
-		new OperatorWithNoStubs().getContract();
+		new OperatorWithNoStubs().getContract(Schema.Default);
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void getContractShouldFailIfOnlyInstanceStub() {
-		new OperatorWithInstanceStub().getContract();
+		new OperatorWithInstanceStub().getContract(Schema.Default);
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void getContractShouldFailIfOnlyUnknownStub() {
-		new OperatorWithUnknownStub().getContract();
+		new OperatorWithUnknownStub().getContract(Schema.Default);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test
 	public void getContractShouldReturnTheMatchingContractToTheFirstStub() {
-		final Contract contract = new OperatorWithTwoStubs().getContract();
+		final Contract contract = new OperatorWithTwoStubs().getContract(Schema.Default);
 		assertEquals(ReduceContract.class, contract.getClass());
 		assertTrue(Arrays.asList(OperatorWithTwoStubs.Implementation1.class,
 			OperatorWithTwoStubs.Implementation2.class).contains(contract.getUserCodeClass()));
@@ -69,7 +68,7 @@ public class ElementaryOperatorTest {
 
 	@Test
 	public void getContractShouldReturnTheMatchingContractToTheOnlyStub() {
-		final Contract contract = new OperatorWithOneStub().getContract();
+		final Contract contract = new OperatorWithOneStub().getContract(Schema.Default);
 		assertEquals(MapContract.class, contract.getClass());
 		assertEquals(OperatorWithOneStub.Implementation.class, contract.getUserCodeClass());
 	}
@@ -88,7 +87,7 @@ public class ElementaryOperatorTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void getStubClassShouldReturnTheFirstStub() {
-		final Class<? extends Stub<?, ?>> stubClass = new OperatorWithTwoStubs().getStubClass();
+		final Class<? extends eu.stratosphere.pact.common.stubs.Stub> stubClass = new OperatorWithTwoStubs().getStubClass();
 		assertEquals(OperatorWithTwoStubs.class, stubClass.getDeclaringClass());
 		assertTrue(Arrays.asList(OperatorWithTwoStubs.Implementation1.class,
 			OperatorWithTwoStubs.Implementation2.class).contains(stubClass));
@@ -103,9 +102,14 @@ public class ElementaryOperatorTest {
 	static class OperatorWithInstanceStub extends ElementaryOperator<OperatorWithInstanceStub> {
 		private static final long serialVersionUID = 1L;
 
-		class Implementation extends MapStub<Key, Value, Key, Value> {
+		class Implementation extends SopremoMap {
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.JsonNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
 			@Override
-			public void map(final Key key, final Value value, final Collector<Key, Value> out) {
+			protected void map(JsonNode value, JsonCollector out) {
 			}
 		}
 	}
@@ -117,9 +121,14 @@ public class ElementaryOperatorTest {
 	static class OperatorWithOneStub extends ElementaryOperator<OperatorWithOneStub> {
 		private static final long serialVersionUID = 1L;
 
-		static class Implementation extends MapStub<Key, Value, Key, Value> {
+		static class Implementation extends SopremoMap {
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.JsonNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
 			@Override
-			public void map(final Key key, final Value value, final Collector<Key, Value> out) {
+			protected void map(JsonNode value, JsonCollector out) {
 			}
 		}
 	}
@@ -127,15 +136,25 @@ public class ElementaryOperatorTest {
 	static class OperatorWithTwoStubs extends ElementaryOperator<OperatorWithTwoStubs> {
 		private static final long serialVersionUID = 1L;
 
-		static class Implementation1 extends ReduceStub<Key, Value, Key, Value> {
+		static class Implementation1 extends SopremoReduce {
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere.sopremo.type.ArrayNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
 			@Override
-			public void reduce(final Key key, final Iterator<Value> values, final Collector<Key, Value> out) {
+			protected void reduce(ArrayNode values, JsonCollector out) {
 			}
 		}
 
-		static class Implementation2 extends ReduceStub<Key, Value, Key, Value> {
+		static class Implementation2 extends SopremoReduce {
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere.sopremo.type.ArrayNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
 			@Override
-			public void reduce(final Key key, final Iterator<Value> values, final Collector<Key, Value> out) {
+			protected void reduce(ArrayNode values, JsonCollector out) {
 			}
 		}
 	}
@@ -143,14 +162,13 @@ public class ElementaryOperatorTest {
 	static class OperatorWithUnknownStub extends ElementaryOperator<OperatorWithUnknownStub> {
 		private static final long serialVersionUID = 1L;
 
-		static class Implementation extends SingleInputStub<Key, Value, Key, Value> {
+		static class Implementation extends Stub {
 		}
 	}
 
-	static class UninstanceableContract extends SingleInputContract<Key, Value, Key, Value> {
+	static class UninstanceableContract extends SingleInputContract<Stub> {
 
-		public UninstanceableContract(
-				final Class<? extends SingleInputStub<Key, Value, Key, Value>> clazz, final String name) {
+		public UninstanceableContract(final Class<? extends Stub> clazz, final String name) {
 			super(clazz, name);
 			throw new IllegalStateException("not instanceable");
 		}

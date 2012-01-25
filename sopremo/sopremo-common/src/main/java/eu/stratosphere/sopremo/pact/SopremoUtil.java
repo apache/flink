@@ -27,9 +27,7 @@ import org.apache.log4j.Level;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
@@ -39,6 +37,8 @@ import eu.stratosphere.sopremo.type.JsonNode;
 
 public class SopremoUtil {
 	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
+
+	public static final String CONTEXT = "context";
 
 	private static final ThreadLocal<PactString> SerializationString = new ThreadLocal<PactString>() {
 		@Override
@@ -197,10 +197,6 @@ public class SopremoUtil {
 		oos.writeObject(values);
 	}
 
-	public static void setContext(final Configuration config, final EvaluationContext context) {
-		serialize(config, "context", context);
-	}
-
 	public static Object stringToObject(final String string) {
 		Object object = null;
 		try {
@@ -237,15 +233,4 @@ public class SopremoUtil {
 		return new JsonNodeWrapper(node);
 	}
 
-	/**
-	 * @param value
-	 * @return
-	 */
-	public static PactRecord jsonToRecord(JsonNode value) {
-		return null;
-	}
-	
-	public static JsonNode recordToJson(PactRecord record) {
-		return null;		
-	}
 }

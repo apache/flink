@@ -31,7 +31,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * @author Arvid Heise
  */
 public class TestPairsTest {
-	private TestPairs pairs;
+	private TestRecords pairs;
 
 	private static PactRecordEqualer IntStringEqualer = new PactRecordEqualer(PactInteger.class, PactString.class);
 
@@ -40,7 +40,7 @@ public class TestPairsTest {
 	 */
 	@Before
 	public void setup() {
-		this.pairs = new TestPairs();
+		this.pairs = new TestRecords();
 	}
 
 	/**

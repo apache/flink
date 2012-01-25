@@ -15,13 +15,19 @@
 
 package eu.stratosphere.sopremo.pact;
 
-import java.io.IOException;
+import static eu.stratosphere.sopremo.pact.IOConstants.ENCODING;
+import static eu.stratosphere.sopremo.pact.IOConstants.SCHEMA;
 
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
+
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.io.JsonGenerator;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link JsonNode} .
@@ -32,7 +38,11 @@ public class JsonOutputFormat extends FileOutputFormat {
 
 	private JsonGenerator generator;
 
-	public static final String PARAMETER_ENCODING = "Encoding";
+	private JsonNode node;
+
+	private Schema schema;
+
+	private Charset encoding;
 
 	@Override
 	public void close() throws IOException {
@@ -41,11 +51,23 @@ public class JsonOutputFormat extends FileOutputFormat {
 		super.close();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.pact.common.io.FileOutputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
+	 */
+	@Override
+	public void configure(Configuration parameters) {
+		super.configure(parameters);
+		this.schema = SopremoUtil.deserialize(parameters, SCHEMA, Schema.class);
+		this.encoding = Charset.forName(parameters.getString(ENCODING, "utf-8"));
+	}
+
 	@Override
 	public void open(final int taskNumber) throws IOException {
 		super.open(taskNumber);
 
-		this.generator = new JsonGenerator(this.stream);
+		this.generator = new JsonGenerator(new OutputStreamWriter(this.stream, this.encoding));
 		this.generator.writeStartArray();
 	}
 
@@ -55,7 +77,7 @@ public class JsonOutputFormat extends FileOutputFormat {
 	 */
 	@Override
 	public void writeRecord(PactRecord record) throws IOException {
-		this.generator.writeTree(SopremoUtil.unwrap(pair.getValue()));
+		this.generator.writeTree(this.node = this.schema.recordToJson(record, this.node));
 	}
 
 }

@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.pact.common.contract.FileDataSourceContract;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
@@ -30,14 +30,14 @@ public class Source extends ElementaryOperator<Source> {
 
 	private EvaluationExpression adhocExpression;
 
-	private Class<? extends FileInputFormat<JsonNode, JsonNode>> inputFormat;
+	private Class<? extends FileInputFormat> inputFormat;
 
 	public Source(final EvaluationExpression adhocValue) {
 		this.adhocExpression = adhocValue;
 		this.inputFormat = JsonInputFormat.class;
 	}
 
-	public Source(Class<? extends FileInputFormat<JsonNode, JsonNode>> inputformat,
+	public Source(Class<? extends FileInputFormat> inputformat,
 			final String inputPath) {
 		this.inputPath = inputPath;
 		this.inputFormat = inputformat;
@@ -63,11 +63,11 @@ public class Source extends ElementaryOperator<Source> {
 		this.inputPath = inputPath;
 	}
 
-	public Class<? extends FileInputFormat<JsonNode, JsonNode>> getInputFormat() {
+	public Class<? extends FileInputFormat> getInputFormat() {
 		return this.inputFormat;
 	}
 
-	public void setInputFormat(Class<? extends FileInputFormat<JsonNode, JsonNode>> inputFormat) {
+	public void setInputFormat(Class<? extends FileInputFormat> inputFormat) {
 		if (inputFormat == null)
 			throw new NullPointerException("inputFormat must not be null");
 
@@ -100,8 +100,7 @@ public class Source extends ElementaryOperator<Source> {
 				throw new IllegalStateException("Cannot create adhoc source", e);
 			}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
-		final FileDataSourceContract<JsonNode, JsonNode> contract = new FileDataSourceContract<JsonNode, JsonNode>(
-			this.inputFormat, inputPath, name);
+		final FileDataSource contract = new FileDataSource(this.inputFormat, inputPath, name);
 		if (this.inputFormat == JsonInputFormat.class)
 			contract.setDegreeOfParallelism(1);
 
