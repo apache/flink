@@ -29,6 +29,7 @@ import org.apache.hadoop.util.StringUtils;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
@@ -508,8 +509,47 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
+	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
 		// TODO: Don't forget to synchronize on stage here
+
+		for (final AllocatedResource allocatedResource : allocatedResources) {
+
+			LOG.info("Resource on " + allocatedResource.getInstance().getName() + " for Job " + jobID + " died.");
+			// TODO (marrus)
+
+			final ExecutionGraph executionGraph = getExecutionGraphByID(jobID);
+
+			if (executionGraph == null) {
+				LOG.error("Cannot find execution graph for job " + jobID);
+				return;
+			}
+
+			final List<ExecutionVertex> vertices = executionGraph.getVerticesAssignedToResource(allocatedResource);
+			final Iterator<ExecutionVertex> vertexIter = vertices.iterator();
+			while (vertexIter.hasNext()) {
+				final ExecutionVertex vertex = vertexIter.next();
+
+				// Even if the vertex had a checkpoint before, it is now gone
+				vertex.updateCheckpointState(CheckpointState.NONE);
+
+				final ExecutionState state = vertex.getExecutionState();
+
+				switch (state) {
+				case ASSIGNED:
+				case READY:
+				case STARTING:
+				case RUNNING:
+				case FINISHING:
+
+					vertex.updateExecutionState(ExecutionState.FAILED, "The resource "
+						+ allocatedResource.getInstance().getName() + " the vertex "
+						+ vertex.getEnvironment().getTaskName() + " was assigned to died");
+
+					break;
+				default:
+				}
+			}
+		}
 	}
 }
