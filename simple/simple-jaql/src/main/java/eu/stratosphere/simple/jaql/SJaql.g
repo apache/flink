@@ -84,7 +84,7 @@ private EvaluationExpression makePath(Token inputVar, String... path) {
 }
 
 script
-	:	 statement (';' statement)* ';' ->;
+	:	 (statement ';')+ ->;
 
 statement
 	:	(assignment | operator | packageImport | functionDefinition | javaudf) ->;
