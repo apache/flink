@@ -50,11 +50,12 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 	
 	public static final String RECORD_POSITION_PARAMETER_PREFIX = "recordinformat.record.position_";
 	
+	@SuppressWarnings("unused")
 	private static final Log LOG = LogFactory.getLog(RecordInputFormat.class);
 	
 	// --------------------------------------------------------------------------------------------
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	private FieldParser[] fieldParsers;
 	private Value[] fieldValues;
 	private int[] recordPositions;

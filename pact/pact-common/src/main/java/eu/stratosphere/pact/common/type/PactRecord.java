@@ -28,17 +28,29 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 
 
-
 /**
  * The Pact Record is the basic data record that flows between functions in a Pact program. The record is a tuple of
- * arbitrary values.
- * 
+ * arbitrary values. It implements a sparse tuple model, meaning that the record can contain many fields which are
+ * actually null and not represented in the record. It has internally a bitmap marking which fields are set and which
+ * are not.
  * <p>
- * The Pact Record implements a sparse tuple model, meaning that the record can contain many fields which are actually
- * null and not represented in the record. It has internally a bitmap marking which fields are set and which are not.
- * 
+ * For efficient data exchange, a record that is read from any source holds its data in serialized binary form.
+ * Fields are deserialized lazily upon first access. Modified fields are cached and the modifications are
+ * incorporated into the binary representation upon the next serialization or any explicit call to the
+ * {@link #updateBinaryRepresenation()} method.
+ * <p>
+ * IMPORTANT NOTE: PactRecords must be used as mutable objects and be reused across user function calls in order
+ * to achieve performance. The record is a heavy-weight object, designed to minimize calls to the individual fields'
+ * serialization and deserialization methods. It holds quite a bit of state consumes a comparably large amount of
+ * memory (&gt; 200 bytes in a 64 bit JVM) due to several pointers and arrays.
+ * <p>
  * This class is NOT thread-safe!
- *
+ * 
+ * <hr>
+ * 
+ * 
+ * 
+ * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class PactRecord implements Value
@@ -47,7 +59,7 @@ public final class PactRecord implements Value
 	
 	private static final int MODIFIED_INDICATOR_OFFSET = Integer.MIN_VALUE + 1;	// value marking field as modified
 	
-//	private static final int DEFAULT_FIELD_LEN = 8;								// length estimate for bin array
+	private static final int DEFAULT_FIELD_LEN_ESTIMATE = 8;					// length estimate for bin array
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -69,7 +81,7 @@ public final class PactRecord implements Value
 	
 	private int numFields;				// the number of fields in the record
 	
-	private int firstModifiedPos = Integer.MAX_VALUE;	// position of the first modification (since (de)serialization)
+	private int firstModifiedPos;		// position of the first modification (since (de)serialization)
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -442,11 +454,14 @@ public final class PactRecord implements Value
 		markModified(fieldNum);
 	}
 	
-	private final void markModified(int field)
-	{
+	private final void markModified(int field) {
 		if (this.firstModifiedPos > field) {
 			this.firstModifiedPos = field;
 		}
+	}
+	
+	private final boolean isModified() {
+		return this.firstModifiedPos != Integer.MAX_VALUE;
 	}
 	
 //	/**
@@ -593,7 +608,7 @@ public final class PactRecord implements Value
 	{
 		if (this.numFields > 0) {
 			this.numFields = 0;
-			this.firstModifiedPos = -1;
+			this.firstModifiedPos = 0;
 		}
 	}
 	
@@ -602,11 +617,187 @@ public final class PactRecord implements Value
 	}
 	
 	/**
-	 * @param other
+	 * Unions the other record's fields with this records fields. After the method invocation with record
+	 * <code>B</code> as the parameter, this record <code>A</code> will contain at field <code>i</code>:
+	 * <ul>
+	 *   <li>Field <code>i</code> from record <code>A</code>, if that field is within record <code>A</code>'s number
+	 *       of fields and is not <i>null</i>.</li>
+	 *   <li>Field <code>i</code> from record <code>B</code>, if that field is within record <code>B</code>'s number
+	 *       of fields.</li>
+	 * </ul>
+	 * It is not necessary that both records have the same number of fields. This record will have the number of
+	 * fields of the larger of the two records. Naturally, if both <code>A</code> and <code>B</code> have field
+	 * <code>i</code> set to <i>null</i>, this record will have <i>null</i> at that position.
+	 * 
+	 * @param other The records whose fields to union with this record's fields.
 	 */
 	public void unionFields(PactRecord other)
 	{
-		throw new UnsupportedOperationException();
+		final int minFields = Math.min(this.numFields, other.numFields);
+		final int maxFields = Math.max(this.numFields, other.numFields);
+		
+		final int[] offsets = this.offsets.length >= maxFields ? this.offsets : new int[maxFields];
+		final int[] lengths = this.lengths.length >= maxFields ? this.lengths : new int[maxFields];
+		
+		if (!(this.isModified() || other.isModified())) {
+			// handle the special (but common) case where both records have a valid binary representation differently
+			// allocate space for the switchBuffer first
+			final int estimatedLength = this.binaryLen + other.binaryLen;
+			this.serializer.memory = (this.switchBuffer != null && this.switchBuffer.length >= estimatedLength) ? 
+										this.switchBuffer : new byte[estimatedLength];
+			this.serializer.position = 0;
+			
+			try {
+				// common loop for both records
+				for (int i = 0; i < minFields; i++) {
+					final int thisOff = this.offsets[i];
+					if (thisOff == NULL_INDICATOR_OFFSET) {
+						final int otherOff = other.offsets[i];
+						if (otherOff == NULL_INDICATOR_OFFSET) {
+							offsets[i] = NULL_INDICATOR_OFFSET;
+						} else {
+							// take field from other record
+							offsets[i] = this.serializer.position;
+							this.serializer.write(other.binaryData, otherOff, other.lengths[i]);
+							lengths[i] = other.lengths[i];
+						}
+					} else {
+						// copy field from this one
+						offsets[i] = this.serializer.position;
+						this.serializer.write(this.binaryData, thisOff, this.lengths[i]);
+						lengths[i] = this.lengths[i];
+					}
+				}
+				
+				// add the trailing fields from one record
+				if (minFields != maxFields) {
+					final PactRecord sourceForRemainder = this.numFields > minFields ? this : other;
+					int begin = -1;
+					int end = -1;
+					int offsetDelta = 0;
+					
+					// go through the offsets, find the non-null fields to account for the remaining data
+					for (int k = minFields; k < maxFields; k++) {
+						final int off = sourceForRemainder.offsets[k];
+						if (off == NULL_INDICATOR_OFFSET) {
+							offsets[k] = NULL_INDICATOR_OFFSET;
+						} else {
+							end = k;
+							if (begin == -1) {
+								// first non null column in the remainder
+								begin = sourceForRemainder.offsets[k];
+								offsetDelta = this.serializer.position - begin;
+							}
+							offsets[k] = sourceForRemainder.offsets[k] + offsetDelta;
+						}
+					}
+					
+					// copy the remaining fields directly as binary
+					if (begin != -1) {
+						this.serializer.write(sourceForRemainder.binaryData, begin, 
+								sourceForRemainder.offsets[end] + sourceForRemainder.lengths[end] - begin);
+					}
+					
+					// the lengths can be copied directly
+					if (lengths != sourceForRemainder.lengths) {
+						System.arraycopy(sourceForRemainder.lengths, minFields, lengths, minFields, maxFields - minFields);
+					}
+				}
+			} catch (Exception ioex) {
+				throw new RuntimeException("Error creating field union of record data" + 
+							ioex.getMessage() == null ? "." : ": " + ioex.getMessage(), ioex);
+			}
+		}
+		else {
+			// the general case, where at least one of the two records has a binary representation that is not in sync.
+			final int estimatedLength = (this.binaryLen > 0 ? this.binaryLen : this.numFields * DEFAULT_FIELD_LEN_ESTIMATE) + 
+										(other.binaryLen > 0 ? other.binaryLen : other.numFields * DEFAULT_FIELD_LEN_ESTIMATE);
+			this.serializer.memory = (this.switchBuffer != null && this.switchBuffer.length >= estimatedLength) ? 
+										this.switchBuffer : new byte[estimatedLength];
+			this.serializer.position = 0;
+			
+			try {
+				// common loop for both records
+				for (int i = 0; i < minFields; i++) {
+					final int thisOff = this.offsets[i];
+					if (thisOff == NULL_INDICATOR_OFFSET) {
+						final int otherOff = other.offsets[i];
+						if (otherOff == NULL_INDICATOR_OFFSET) {
+							offsets[i] = NULL_INDICATOR_OFFSET;
+						} else if (otherOff == MODIFIED_INDICATOR_OFFSET) {
+							// serialize modified field from other record
+							offsets[i] = this.serializer.position;
+							other.writeFields[i].write(this.serializer);
+							lengths[i] = this.serializer.position - offsets[i];
+						} else {
+							// take field from other record binary
+							offsets[i] = this.serializer.position;
+							this.serializer.write(other.binaryData, otherOff, other.lengths[i]);
+							lengths[i] = other.lengths[i];
+						}
+					} else if (thisOff == MODIFIED_INDICATOR_OFFSET) {
+						// serialize modified field from this record
+						offsets[i] = this.serializer.position;
+						this.writeFields[i].write(this.serializer);
+						lengths[i] = this.serializer.position - offsets[i];
+					} else {
+						// copy field from this one
+						offsets[i] = this.serializer.position;
+						this.serializer.write(this.binaryData, thisOff, this.lengths[i]);
+						lengths[i] = this.lengths[i];
+					}
+				}
+				
+				// add the trailing fields from one record
+				if (minFields != maxFields) {
+					final PactRecord sourceForRemainder = this.numFields > minFields ? this : other;
+					
+					// go through the offsets, find the non-null fields
+					for (int k = minFields; k < maxFields; k++) {
+						final int off = sourceForRemainder.offsets[k];
+						if (off == NULL_INDICATOR_OFFSET) {
+							offsets[k] = NULL_INDICATOR_OFFSET;
+						} else if (off == MODIFIED_INDICATOR_OFFSET) {
+							// serialize modified field from the source record
+							offsets[k] = this.serializer.position;
+							sourceForRemainder.writeFields[k].write(this.serializer);
+							lengths[k] = this.serializer.position - offsets[k];
+						} else {
+							// copy field from the source record binary
+							offsets[k] = this.serializer.position;
+							final int len = sourceForRemainder.lengths[k];
+							this.serializer.write(sourceForRemainder.binaryData, off, len);
+							lengths[k] = len;
+						}
+					}
+				}
+			} catch (Exception ioex) {
+				throw new RuntimeException("Error creating field union of record data" + 
+							ioex.getMessage() == null ? "." : ": " + ioex.getMessage(), ioex);
+			}
+		}
+		
+		serializeHeader(this.serializer, offsets, maxFields);
+		
+		// set the fields
+		this.switchBuffer = this.binaryData;
+		this.binaryData = serializer.memory;
+		this.binaryLen = serializer.position;
+		
+		this.numFields = maxFields;
+		this.offsets = offsets;
+		this.lengths = lengths;
+		
+		this.firstModifiedPos = Integer.MAX_VALUE;
+		
+		// make sure that the object arrays reflect the size as well
+		if (this.readFields == null || this.readFields.length < maxFields) {
+			final Value[] na = new Value[maxFields];
+			System.arraycopy(this.readFields, 0, na, 0, this.readFields.length);
+			this.readFields = na;
+		}
+		this.writeFields = (this.writeFields == null || this.writeFields.length < maxFields) ? 
+																new Value[maxFields] : this.writeFields;
 	}
 	
 	/**
@@ -691,19 +882,23 @@ public final class PactRecord implements Value
 	public void updateBinaryRepresenation()
 	{
 		// check whether the binary state is in sync
-		final int firstModified = this.firstModifiedPos < 0 ? 0 : this.firstModifiedPos;
+		final int firstModified = this.firstModifiedPos;
 		if (firstModified == Integer.MAX_VALUE)
 			return;
-		
 		
 		final InternalDeSerializer serializer = this.serializer;
 		final int[] offsets = this.offsets;
 		final int numFields = this.numFields;
 		
+		serializer.memory = this.switchBuffer != null ? this.switchBuffer : 
+				(this.binaryLen > 0 ? new byte[this.binaryLen] : new byte[numFields * DEFAULT_FIELD_LEN_ESTIMATE + 1]);
+		serializer.position = 0;
+		
 		if (numFields > 0) {
 			int offset = 0;
+			
+			// search backwards to find the latest preceding non-null field
 			if (firstModified > 0) {
-				// search backwards to find the latest preceeding non-null field
 				for (int i = firstModified - 1; i >= 0; i--) {
 					if (this.offsets[i] != NULL_INDICATOR_OFFSET) {
 						offset = this.offsets[i] + this.lengths[i];
@@ -711,9 +906,6 @@ public final class PactRecord implements Value
 					}
 				}
 			}
-			
-			serializer.memory = this.switchBuffer != null ? this.switchBuffer : new byte[numFields * 8];
-			serializer.position = 0;
 			
 			// we assume that changed and unchanged fields are interleaved and serialize into another array
 			try {
@@ -743,81 +935,86 @@ public final class PactRecord implements Value
 			catch (Exception e) {
 				throw new RuntimeException("Error in data type serialization: " + e.getMessage(), e); 
 			}
-			
-			this.switchBuffer = this.binaryData;
-			this.binaryData = serializer.memory;
 		}
 		
+		serializeHeader(serializer, offsets, numFields);
+		
+		// set the fields
+		this.switchBuffer = this.binaryData;
+		this.binaryData = serializer.memory;
+		this.binaryLen = serializer.position;
+		this.firstModifiedPos = Integer.MAX_VALUE;
+	}
+	
+	private final void serializeHeader(final InternalDeSerializer serializer, final int[] offsets, final int numFields)
+	{
 		try {
-			int slp = serializer.position;	// track the last position of the serializer
-			
-			// now, serialize the lengths, the sparsity mask and the number of fields
-			if (numFields <= 8) {
-				// efficient handling of common case with up to eight fields
-				int mask = 0;
-				for (int i = numFields - 1; i > 0; i--) {
-					if (offsets[i] != NULL_INDICATOR_OFFSET) {
-						slp = serializer.position;
-						serializer.writeValLenIntBackwards(offsets[i]);
-						mask |= 0x1;
-					}
-					mask <<= 1;
-				}
-
-				if (offsets[0] != NULL_INDICATOR_OFFSET) {
-					mask |= 0x1;	// add the non-null bit to the mask
-				} else {
-					// the first field is null, so some previous field was the first non-null field
-					serializer.position = slp;
-				}
-				serializer.writeByte(mask);
-			}
-			else {
-				// general case. offsets first (in backward order)
-				for (int i = numFields - 1; i > 0; i--) {
-					if (offsets[i] != NULL_INDICATOR_OFFSET) {
-						slp = serializer.position;
-						serializer.writeValLenIntBackwards(offsets[i]);
-					}
-				}
-				if (offsets[0] == NULL_INDICATOR_OFFSET) {
-					serializer.position = slp;
-				}
+			if (numFields > 0) {
+				int slp = serializer.position;	// track the last position of the serializer
 				
-				// now the mask. we write it in chucks of 8 bit.
-				// the remainder %8 comes first 
-				int col = numFields - 1;
-				int mask = 0;
-				int i = numFields & 0x7;
-				
-				if (i > 0) {
-					for (; i > 0; i--, col--) {
+				// now, serialize the lengths, the sparsity mask and the number of fields
+				if (numFields <= 8) {
+					// efficient handling of common case with up to eight fields
+					int mask = 0;
+					for (int i = numFields - 1; i > 0; i--) {
+						if (offsets[i] != NULL_INDICATOR_OFFSET) {
+							slp = serializer.position;
+							serializer.writeValLenIntBackwards(offsets[i]);
+							mask |= 0x1;
+						}
 						mask <<= 1;
-						mask |= (offsets[col] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
+					}
+	
+					if (offsets[0] != NULL_INDICATOR_OFFSET) {
+						mask |= 0x1;	// add the non-null bit to the mask
+					} else {
+						// the first field is null, so some previous field was the first non-null field
+						serializer.position = slp;
 					}
 					serializer.writeByte(mask);
 				}
-				
-				// now the eight-bit chunks
-				for (i = numFields >>> 3; i > 0; i--) {
-					mask = 0;
-					for (int k = 0; k < 8; k++, col--) {
-						mask <<= 1;
-						mask |= (offsets[col] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
+				else {
+					// general case. offsets first (in backward order)
+					for (int i = numFields - 1; i > 0; i--) {
+						if (offsets[i] != NULL_INDICATOR_OFFSET) {
+							slp = serializer.position;
+							serializer.writeValLenIntBackwards(offsets[i]);
+						}
 					}
-					serializer.writeByte(mask);
+					if (offsets[0] == NULL_INDICATOR_OFFSET) {
+						serializer.position = slp;
+					}
+					
+					// now the mask. we write it in chucks of 8 bit.
+					// the remainder %8 comes first 
+					int col = numFields - 1;
+					int mask = 0;
+					int i = numFields & 0x7;
+					
+					if (i > 0) {
+						for (; i > 0; i--, col--) {
+							mask <<= 1;
+							mask |= (offsets[col] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
+						}
+						serializer.writeByte(mask);
+					}
+					
+					// now the eight-bit chunks
+					for (i = numFields >>> 3; i > 0; i--) {
+						mask = 0;
+						for (int k = 0; k < 8; k++, col--) {
+							mask <<= 1;
+							mask |= (offsets[col] != NULL_INDICATOR_OFFSET) ? 0x1 : 0x0;
+						}
+						serializer.writeByte(mask);
+					}
 				}
 			}
 			serializer.writeValLenIntBackwards(numFields);
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Serialization into binary state failed: " + e.getMessage(), e);
+			throw new RuntimeException("Error serializing PactRecord header: " + e.getMessage(), e);
 		}
-		
-		// set the fields
-		this.binaryData = serializer.memory;
-		this.binaryLen = serializer.position;
-		this.firstModifiedPos = Integer.MAX_VALUE;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -1198,10 +1395,8 @@ public final class PactRecord implements Value
 	
 	/**
 	 * Internal interface class to provide serialization for the data types.
-	 *
-	 * @author Stephan Ewen
 	 */
-	private final class InternalDeSerializer implements DataInput, DataOutput
+	private static final class InternalDeSerializer implements DataInput, DataOutput
 	{
 		private byte[] memory;
 		private int position;
@@ -1639,4 +1834,3 @@ public final class PactRecord implements Value
 		}
 	};
 }
-
