@@ -168,8 +168,8 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 			final int expectedSequenceNumber = this.lastReceivedEnvelope + 1;
 			if (sequenceNumber != expectedSequenceNumber) {
 
-				// LOG.info("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
-				// + " but received " + sequenceNumber);
+				 LOG.info("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
+				+ " but received " + sequenceNumber);
 
 				final Buffer buffer = transferEnvelope.getBuffer();
 				if (buffer != null) {
