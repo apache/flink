@@ -593,7 +593,13 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final ChannelID localReceiver = localReceivers.get(0);
 				final ChannelContext cc = this.registeredChannels.get(localReceiver);
 				if (cc == null) {
-					throw new IOException("Cannot find channel context for local receiver " + localReceiver);
+
+					if (this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
+						// Use the transit buffer for this purpose, data will be discarded in most cases anyway.
+						return this.transitBufferPool;
+					} else {
+						throw new IOException("Cannot find channel context for local receiver " + localReceiver);
+					}
 				}
 
 				if (!cc.isInputChannel()) {
