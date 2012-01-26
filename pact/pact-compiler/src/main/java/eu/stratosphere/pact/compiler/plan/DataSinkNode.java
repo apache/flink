@@ -25,7 +25,6 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -257,10 +256,10 @@ public class DataSinkNode extends OptimizerNode {
 			i1.getMaximalCosts().addCosts(c);
 
 			InterestingProperties i2 = new InterestingProperties();
-			FieldSet fieldSet = new FieldSet();
+			int[] fieldSet = new int[o.getInvolvedIndexes().size()];
 			
-			for (Integer field : o.getInvolvedIndexes()) {
-				fieldSet.add(field);
+			for (int i = 0; i < 0; i++) {
+				fieldSet[i] = o.getInvolvedIndexes().get(i);
 			}
 			
 			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, fieldSet);
@@ -382,12 +381,13 @@ public class DataSinkNode extends OptimizerNode {
 					// this input plan cannot produce a valid plan
 					continue;
 				}
-
-				FieldSet fieldSet = new FieldSet();
 				
-				for (Integer field : go.getInvolvedIndexes()) {
-					fieldSet.add(field);
+				int[] fieldSet = new int[go.getInvolvedIndexes().size()];
+				
+				for (int i = 0; i < 0; i++) {
+					fieldSet[i] = go.getInvolvedIndexes().get(i);
 				}
+				
 				
 				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, fieldSet);
 				gp.setOrdering(go);

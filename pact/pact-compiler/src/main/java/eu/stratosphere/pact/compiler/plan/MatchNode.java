@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -206,10 +206,10 @@ public class MatchNode extends TwoInputNode {
 			CostEstimator estimator, int inputNum) {
 		InterestingProperties p = new InterestingProperties();
 
-		FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(inputNum));
+		int[] keySet = getPactContract().getKeyColumnNumbers(inputNum);
 		
 		// partition and any order
-		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet);
+		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet.clone());
 		
 		Ordering ordering = new Ordering();
 		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
@@ -226,7 +226,7 @@ public class MatchNode extends TwoInputNode {
 
 		// partition only
 		p = new InterestingProperties();
-		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet);
+		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet.clone());
 		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 	}
@@ -333,7 +333,7 @@ public class MatchNode extends TwoInputNode {
 							}
 							else {
 								if (gp1.getPartitioning().isCompatibleWith(gp2.getPartitioning()) &&
-										gp1.getPartitionedFiels().equals(gp2.getPartitionedFiels())) {
+										Arrays.equals(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
 									ss2 = ShipStrategy.FORWARD;
 								} else {
 									// both sides are partitioned, but in an incompatible way
@@ -471,8 +471,8 @@ public class MatchNode extends TwoInputNode {
 							}
 							break;
 						case PARTITION_HASH:
-							FieldSet keyFields2 = new FieldSet(getPactContract().getKeyColumnNumbers(1));
-							ss1 = (keyFields2.equals(gp1.getPartitionedFiels()) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+							int[] keyFields2 = getPactContract().getKeyColumnNumbers(1);
+							ss1 = (Arrays.equals(keyFields2, gp1.getPartitionedFields()) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 								: ShipStrategy.PARTITION_HASH;
 							break;
 						case PARTITION_RANGE:
@@ -528,8 +528,8 @@ public class MatchNode extends TwoInputNode {
 						}
 						break;
 					case PARTITION_HASH:
-						FieldSet keyFields1 = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-						ss2 = (keyFields1.equals(gp2.getPartitionedFiels()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+						int[] keyFields1 = getPactContract().getKeyColumnNumbers(0);
+						ss2 = (Arrays.equals(keyFields1, gp2.getPartitionedFields()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 							: ShipStrategy.PARTITION_HASH;
 						break;
 					case PARTITION_RANGE:
@@ -567,7 +567,7 @@ public class MatchNode extends TwoInputNode {
 						}
 
 						if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
-								gp1.getPartitionedFiels().equals(gp2.getPartitionedFiels())) {
+								Arrays.equals(gp1.getPartitionedFields(), gp2.getPartitionedFields())) {
 							// partitioning there and equal
 							createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 						} else {
@@ -815,7 +815,7 @@ public class MatchNode extends TwoInputNode {
 		
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();
-		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFiels());
+		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFields());
 		outGp.setOrdering(gp1.getOrdering());
 		
 		if (outLpp == null) {
@@ -859,7 +859,7 @@ public class MatchNode extends TwoInputNode {
 		
 		// determine the properties of the data before it goes to the user code
 		outGp = new GlobalProperties();
-		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFiels());
+		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFields());
 		outGp.setOrdering(gp2.getOrdering());
 		
 		if (outLpp == null) {
@@ -1024,16 +1024,31 @@ public class MatchNode extends TwoInputNode {
 	}
 	
 	
+	
 	public boolean partitioningIsOnRightFields(GlobalProperties gp, int inputNum) {
-		FieldSet partitionedFields = gp.getPartitionedFiels();
-		if (partitionedFields == null || partitionedFields.isEmpty()) {
+		int[] partitionedFields = gp.getPartitionedFields();
+		if (partitionedFields == null || partitionedFields.length == 0) {
 			return false;
 		}
-		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(inputNum));
+		int[] keyFields = getPactContract().getKeyColumnNumbers(inputNum);
 		if (gp.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-			return keyFields.equals(partitionedFields);	
+			return Arrays.equals(keyFields,partitionedFields);	
 		}
-		return keyFields.containsAll(partitionedFields);
+		
+		for (int partitionedField : partitionedFields) {
+			boolean foundField = false;
+			for (int keyField : keyFields){
+				if (keyField == partitionedField) {
+					foundField = true;
+					break;
+				}
+			}
+			if (foundField == false) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 }

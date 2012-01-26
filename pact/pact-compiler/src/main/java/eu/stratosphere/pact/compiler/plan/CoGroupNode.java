@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -221,10 +222,10 @@ public class CoGroupNode extends TwoInputNode {
 			CostEstimator estimator, int inputNum) {
 		InterestingProperties p = new InterestingProperties();
 
-		FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(inputNum));
+		int[] keyFields = getPactContract().getKeyColumnNumbers(inputNum);
 		
 		// partition and any order
-		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet);
+		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields.clone());
 		
 		Ordering ordering = new Ordering();
 		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
@@ -242,7 +243,7 @@ public class CoGroupNode extends TwoInputNode {
 
 		// partition only
 		p = new InterestingProperties();
-		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keySet);
+		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields.clone());
 		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 	}
@@ -306,7 +307,7 @@ public class CoGroupNode extends TwoInputNode {
 								ss2 = ShipStrategy.FORWARD;
 							}
 							else {
-								if (gp1.getPartitioning() == gp2.getPartitioning() && gp1.getPartitionedFiels().equals(gp2.getPartitionedFiels())) {
+								if (gp1.getPartitioning() == gp2.getPartitioning() && Arrays.equals(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
 									ss2 = ShipStrategy.FORWARD;
 								} else {
 									// both sides are partitioned, but in an incompatible way
@@ -430,8 +431,8 @@ public class CoGroupNode extends TwoInputNode {
 							}
 							break;
 						case PARTITION_HASH:
-							FieldSet keyFields2 = new FieldSet(getPactContract().getKeyColumnNumbers(1));
-							ss1 = (keyFields2.equals(gp1.getPartitionedFiels()) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+							int[] keyFields2 = getPactContract().getKeyColumnNumbers(1);
+							ss1 = (Arrays.equals(keyFields2, gp1.getPartitionedFields()) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 								: ShipStrategy.PARTITION_HASH;
 							break;
 						case PARTITION_RANGE:
@@ -482,8 +483,8 @@ public class CoGroupNode extends TwoInputNode {
 						}
 						break;
 					case PARTITION_HASH:
-						FieldSet keyFields1 = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-						ss2 = (keyFields1.equals(gp2.getPartitionedFiels()) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+						int[] keyFields1 = getPactContract().getKeyColumnNumbers(0);
+						ss2 = (Arrays.equals(keyFields1, gp2.getPartitionedFields()) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 							: ShipStrategy.PARTITION_HASH;
 						break;
 					case PARTITION_RANGE:
@@ -513,7 +514,7 @@ public class CoGroupNode extends TwoInputNode {
 						gp2 = new GlobalProperties();
 					}
 					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
-							gp1.getPartitionedFiels().equals(gp2.getPartitionedFiels())) {
+							Arrays.equals(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
 						// partitioning there and equal
 						createCoGroupAlternative(outputPlans, predList1, predList2, ss1, ss2, estimator);
 					} else {
@@ -586,7 +587,7 @@ public class CoGroupNode extends TwoInputNode {
 		
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();
-		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFiels());
+		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFields());
 
 		// create a new cogroup node for this input
 		CoGroupNode n = new CoGroupNode(this, allPreds1, allPreds2, this.input1, this.input2, outGp, new LocalProperties());
@@ -635,7 +636,7 @@ public class CoGroupNode extends TwoInputNode {
 		
 		// determine the properties of the data before it goes to the user code
 		outGp = new GlobalProperties();
-		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFiels());
+		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFields());
 
 		// create a new cogroup node for this input
 		n = new CoGroupNode(this, allPreds1, allPreds2, input1, input2, outGp, new LocalProperties());
@@ -772,14 +773,28 @@ public class CoGroupNode extends TwoInputNode {
 	}
 	
 	public boolean partitioningIsOnRightFields(GlobalProperties gp, int inputNum) {
-		FieldSet partitionedFields = gp.getPartitionedFiels();
-		if (partitionedFields == null || partitionedFields.isEmpty()) {
+		int[] partitionedFields = gp.getPartitionedFields();
+		if (partitionedFields == null || partitionedFields.length == 0) {
 			return false;
 		}
-		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(inputNum));
+		int[] keyFields = getPactContract().getKeyColumnNumbers(inputNum);
 		if (gp.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-			return keyFields.equals(partitionedFields);	
+			return Arrays.equals(keyFields,partitionedFields);	
 		}
-		return keyFields.containsAll(partitionedFields);
+		
+		for (int partitionedField : partitionedFields) {
+			boolean foundField = false;
+			for (int keyField : keyFields){
+				if (keyField == partitionedField) {
+					foundField = true;
+					break;
+				}
+			}
+			if (foundField == false) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 }

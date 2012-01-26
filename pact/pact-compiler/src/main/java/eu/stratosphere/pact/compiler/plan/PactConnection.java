@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.AbstractPact;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -363,17 +362,17 @@ public class PactConnection {
 		GlobalProperties gp = source.getGlobalProperties().createCopy();
 		
 		//TODO make nicer
-		FieldSet keyFields = null;
+		int[] keyFields = null;
 		int inputNum = 0;
 		for (List<PactConnection> connections : target.getIncomingConnections()) {
 			boolean isThisConnection = false;
 			for (PactConnection connection : connections) {
 				if (connection.getSourcePact().getId() == source.getId()) {
 					if (connection.getPartitionedFields() != null) {
-						keyFields = new FieldSet(connection.getPartitionedFields());
+						keyFields = connection.getPartitionedFields();
 					}
 					else if (target.getPactContract() instanceof AbstractPact<?>) {
-						keyFields = new FieldSet(((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum));
+						keyFields = ((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum);
 					}
 					break;
 				}	

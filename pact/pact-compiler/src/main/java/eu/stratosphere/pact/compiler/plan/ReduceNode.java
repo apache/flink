@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -191,12 +192,12 @@ public class ReduceNode extends SingleInputNode {
 		List<InterestingProperties> props = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
 			this, 0);
 
-		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+		int[] keyFields = getPactContract().getKeyColumnNumbers(0);
 		
 		// add the first interesting properties: partitioned and grouped
 		InterestingProperties ip1 = new InterestingProperties();
-		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields);
-		ip1.getLocalProperties().setGrouped(true, keyFields);
+		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields.clone());
+		ip1.getLocalProperties().setGrouped(true, new FieldSet(keyFields));
 		
 		ip1.getMaximalCosts().setNetworkCost(0);
 		ip1.getMaximalCosts().setSecondaryStorageCost(0);
@@ -212,7 +213,7 @@ public class ReduceNode extends SingleInputNode {
 		
 		// add the second interesting properties: partitioned only
 		InterestingProperties ip2 = new InterestingProperties();
-		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields);
+		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields.clone());
 		
 		ip2.getMaximalCosts().setNetworkCost(0);
 		ip2.getMaximalCosts().setSecondaryStorageCost(0);
@@ -487,15 +488,29 @@ public class ReduceNode extends SingleInputNode {
 	
 	
 	public boolean partitioningIsOnRightFields(GlobalProperties gp) {
-		FieldSet partitionedFields = gp.getPartitionedFiels();
-		if (partitionedFields == null || partitionedFields.isEmpty()) {
+		int[] partitionedFields = gp.getPartitionedFields();
+		if (partitionedFields == null || partitionedFields.length == 0) {
 			return false;
 		}
-		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+		int[] keyFields = getPactContract().getKeyColumnNumbers(0);
 		if (gp.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-			return keyFields.equals(partitionedFields);	
+			return Arrays.equals(keyFields,partitionedFields);	
 		}
-		return keyFields.containsAll(partitionedFields);
+		
+		for (int partitionedField : partitionedFields) {
+			boolean foundField = false;
+			for (int keyField : keyFields){
+				if (keyField == partitionedField) {
+					foundField = true;
+					break;
+				}
+			}
+			if (foundField == false) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
 }

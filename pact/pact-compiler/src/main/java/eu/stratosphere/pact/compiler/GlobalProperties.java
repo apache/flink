@@ -18,7 +18,6 @@ package eu.stratosphere.pact.compiler;
 import java.util.ArrayList;
 
 import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 
 /**
@@ -31,7 +30,7 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  */
 public final class GlobalProperties implements Cloneable
 {
-	private FieldSet partitionedFields;
+	private int[] partitionedFields;
 	
 	private PartitionProperty partitioning; // the partitioning
 
@@ -59,7 +58,7 @@ public final class GlobalProperties implements Cloneable
 	 * @param keyUnique
 	 *        The flag that indicates, whether the keys are unique.
 	 */
-	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, FieldSet partitionedFields) {
+	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, int[] partitionedFields) {
 		this.partitioning = partitioning;
 		this.ordering = ordering;
 		this.partitionedFields = partitionedFields;
@@ -67,7 +66,7 @@ public final class GlobalProperties implements Cloneable
 	}
 
 	
-	public FieldSet getPartitionedFiels() {
+	public int[] getPartitionedFields() {
 		return partitionedFields;
 	}
 	/**
@@ -85,7 +84,7 @@ public final class GlobalProperties implements Cloneable
 	 * @param partitioning
 	 *        The new partitioning to set.
 	 */
-	public void setPartitioning(PartitionProperty partitioning, FieldSet partitionedFields) {
+	public void setPartitioning(PartitionProperty partitioning, int[] partitionedFields) {
 		this.partitioning = partitioning;
 		this.partitionedFields = partitionedFields;
 	}
@@ -212,7 +211,7 @@ public final class GlobalProperties implements Cloneable
 	
 	public GlobalProperties createInterestingGlobalProperties(OptimizerNode node, int input) {
 		//check if partitioning survives
-		FieldSet newPartitionedFields = null;
+		ArrayList<Integer> newPartitionedFields = null;
 		PartitionProperty newPartitioning = PartitionProperty.NONE;
 		Ordering newOrdering = null;
 		if (partitionedFields != null) {
@@ -220,7 +219,7 @@ public final class GlobalProperties implements Cloneable
 				if (node.isFieldKept(input, index) == true) {
 					if (newPartitionedFields == null) {
 						newPartitioning = this.partitioning;
-						newPartitionedFields = new FieldSet();
+						newPartitionedFields = new ArrayList<Integer>();
 					}
 					newPartitionedFields.add(index);
 				}
@@ -247,7 +246,11 @@ public final class GlobalProperties implements Cloneable
 			return null;	
 		}
 		else {
-			return new GlobalProperties(newPartitioning, newOrdering, newPartitionedFields);
+			int[] newPartitionedFieldsArray = new int[newPartitionedFields.size()];
+			for (int i = 0; i < newPartitionedFields.size(); i++) {
+				newPartitionedFieldsArray[i] = newPartitionedFields.get(i);
+			}
+			return new GlobalProperties(newPartitioning, newOrdering, newPartitionedFieldsArray);
 		}
 		
 	}
@@ -271,17 +274,25 @@ public final class GlobalProperties implements Cloneable
 			}
 		}
 		
-		FieldSet otherPartitionedFields = other.getPartitionedFiels();
+		int[] otherPartitionedFields = other.getPartitionedFields();
 		if (this.partitionedFields != null) {
 			if (other.partitionedFields == null) {
 				return false;
 			}
-			if (this.partitionedFields.size() < otherPartitionedFields.size()) {
+			if (this.partitionedFields.length < otherPartitionedFields.length) {
 				return false;
 			}
-			
-			if (this.partitionedFields.containsAll(otherPartitionedFields) == false) {
-				return false;
+			for (int otherField : otherPartitionedFields) {
+				boolean foundField = false;
+				for (int thisField : partitionedFields){
+					if (thisField == otherField) {
+						foundField = true;
+						break;
+					}
+				}
+				if (foundField == false) {
+					return false;
+				}
 			}
 		}
 		
@@ -338,7 +349,7 @@ public final class GlobalProperties implements Cloneable
 
 		GlobalProperties other = (GlobalProperties) obj;
 		if ((ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
-				&& partitioning == other.getPartitioning() && partitionedFields.equals(other.getPartitionedFiels())) {
+				&& partitioning == other.getPartitioning() && partitionedFields.equals(other.getPartitionedFields())) {
 			return true;
 		} else {
 			return false;
@@ -363,9 +374,6 @@ public final class GlobalProperties implements Cloneable
 		GlobalProperties newProps = (GlobalProperties) super.clone();
 		if (this.ordering != null) {
 			newProps.ordering = this.ordering.clone();	
-		}
-		if (this.partitionedFields != null) {
-			newProps.partitionedFields = (FieldSet) this.partitionedFields.clone();	
 		}
 		return newProps;
 	}
