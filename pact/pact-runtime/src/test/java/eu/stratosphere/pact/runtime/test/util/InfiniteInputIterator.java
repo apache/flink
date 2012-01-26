@@ -30,7 +30,7 @@ public class InfiniteInputIterator implements MutableObjectIterator<PactRecord>
 	@Override
 	public boolean next(PactRecord target) {
 		target.setField(0, val1);
-		target.setField(0, val2);
+		target.setField(1, val2);
 		return true;
 	}
 }
