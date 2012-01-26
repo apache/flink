@@ -552,6 +552,16 @@ public class CoGroupNode extends TwoInputNode {
 		GlobalProperties gp1, gp2;
 		LocalProperties lp1, lp2;
 		
+		int[] keyPositions1 = null;
+		int[] keyPositions2 = null;
+		if (ss1 == ShipStrategy.FORWARD && ss2 == ShipStrategy.PARTITION_HASH) {
+			keyPositions2 = this.input1.get(0).getPartitionedFields();
+		}
+		
+		if (ss2 == ShipStrategy.FORWARD && ss1 == ShipStrategy.PARTITION_HASH) {
+			keyPositions1 = this.input2.get(0).getPartitionedFields();
+		}
+		
 		if(allPreds1.size() == 1) {
 			gp1 = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
 			lp1 = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
@@ -591,10 +601,14 @@ public class CoGroupNode extends TwoInputNode {
 
 		// create a new cogroup node for this input
 		CoGroupNode n = new CoGroupNode(this, allPreds1, allPreds2, this.input1, this.input2, outGp, new LocalProperties());
-		for(PactConnection c : n.input1)
+		for(PactConnection c : n.input1) {
 			c.setShipStrategy(ss1);
-		for(PactConnection c : n.input2)
+			c.setPartitionedFields(keyPositions1);
+		}
+		for(PactConnection c : n.input2) {
 			c.setShipStrategy(ss2);
+			c.setPartitionedFields(keyPositions2);
+		}
 
 		// output will have ascending order
 		//TODO generate for both inputs and filter later on
@@ -641,10 +655,14 @@ public class CoGroupNode extends TwoInputNode {
 		// create a new cogroup node for this input
 		n = new CoGroupNode(this, allPreds1, allPreds2, input1, input2, outGp, new LocalProperties());
 
-		for(PactConnection c : n.input1)
+		for(PactConnection c : n.input1) {
 			c.setShipStrategy(ss1);
-		for(PactConnection c : n.input2)
+			c.setPartitionedFields(keyPositions1);
+		}
+		for(PactConnection c : n.input2) {
 			c.setShipStrategy(ss2);
+			c.setPartitionedFields(keyPositions2);
+		}
 
 		// output will have ascending order
 		//TODO generate for both inputs and filter later on

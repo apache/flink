@@ -811,6 +811,16 @@ public class MatchNode extends TwoInputNode {
 			gp2 = new GlobalProperties();
 		}
 		
+		int[] keyPositions1 = null;
+		int[] keyPositions2 = null;
+		if (ss1 == ShipStrategy.FORWARD && ss2 == ShipStrategy.PARTITION_HASH) {
+			keyPositions2 = this.input1.get(0).getPartitionedFields();
+		}
+		
+		if (ss2 == ShipStrategy.FORWARD && ss1 == ShipStrategy.PARTITION_HASH) {
+			keyPositions1 = this.input2.get(0).getPartitionedFields();
+		}
+		
 		LocalProperties outLp = outLpp;
 		
 		// determine the properties of the data before it goes to the user code
@@ -837,12 +847,14 @@ public class MatchNode extends TwoInputNode {
 				
 		// create a new reduce node for this input
 		MatchNode n = new MatchNode(this, preds1, preds2, this.input1, this.input2, outGp, outLp);
-
+		
 		for(PactConnection c : n.input1) {
 			c.setShipStrategy(ss1);
+			c.setPartitionedFields(keyPositions1);
 		}
 		for(PactConnection c : n.input2) {
 			c.setShipStrategy(ss2);
+			c.setPartitionedFields(keyPositions2);
 		}
 		n.setLocalStrategy(ls);
 
@@ -884,9 +896,11 @@ public class MatchNode extends TwoInputNode {
 
 		for(PactConnection c : n.input1) {
 			c.setShipStrategy(ss1);
+			c.setPartitionedFields(keyPositions1);
 		}
 		for(PactConnection c : n.input2) {
 			c.setShipStrategy(ss2);
+			c.setPartitionedFields(keyPositions2);
 		}
 		
 		n.setLocalStrategy(ls);
