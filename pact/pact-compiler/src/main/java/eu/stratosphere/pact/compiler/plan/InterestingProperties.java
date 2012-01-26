@@ -309,18 +309,29 @@ public class InterestingProperties implements Cloneable {
 //	}
 	
 	
-	public static final List<InterestingProperties> filterByNodesConstantSet(List<InterestingProperties> props,
+	public static final List<InterestingProperties> createInterestingPropertiesForInput(List<InterestingProperties> props,
 			OptimizerNode node, int input) {
 		List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
 		
 		for (InterestingProperties p : props) {
-			GlobalProperties preservedGp = p.getGlobalProperties().createCopy();
-			LocalProperties preservedLp = p.getLocalProperties().createCopy();
-			boolean nonTrivial = preservedGp.filterByNodesConstantSet(node, input);
-			nonTrivial |= preservedLp.filterByNodesConstantSet(node, input);
+//			GlobalProperties preservedGp = p.getGlobalProperties().createCopy();
+//			LocalProperties preservedLp = p.getLocalProperties().createCopy();
+//			boolean nonTrivial = preservedGp.filterByNodesConstantSet(node, input);
+//			nonTrivial |= preservedLp.filterByNodesConstantSet(node, input);
+			
+			GlobalProperties preservedGp =
+					p.getGlobalProperties().createInterestingGlobalProperties(node, input);
+			LocalProperties preservedLp = 
+					p.getLocalProperties().createInterestingLocalProperties(node, input);
 
-			if (nonTrivial) {
+			if (preservedGp != null || preservedLp != null) {
 				try {
+					if (preservedGp == null) {
+						preservedGp = new GlobalProperties();
+					}
+					if (preservedLp == null) {
+						preservedLp = new LocalProperties();
+					}
 					InterestingProperties newIp = new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp);
 					mergeUnionOfInterestingProperties(preserved, newIp);
 				} catch (CloneNotSupportedException cnse) {

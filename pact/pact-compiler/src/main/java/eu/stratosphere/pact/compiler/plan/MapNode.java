@@ -115,7 +115,7 @@ public class MapNode extends SingleInputNode {
 		// if so, propagate to the child.
 		
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props = InterestingProperties.filterByNodesConstantSet(thisNodesIntProps,
+		List<InterestingProperties> props = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
 			this, 0);
 		
 		for(PactConnection c : this.input) {

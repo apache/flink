@@ -41,6 +41,14 @@ public final class LocalProperties implements Cloneable {
 	 */
 	public LocalProperties() {
 	}
+	
+	
+	public LocalProperties(boolean grouped, FieldSet groupedFields, Ordering ordering) {
+		this.grouped = grouped;
+		this.groupedFields = groupedFields;
+		this.ordering = ordering;
+	}
+
 
 	/**
 	 * Gets the key order.
@@ -192,6 +200,53 @@ public final class LocalProperties implements Cloneable {
 		
 		return !isTrivial();
 		
+	}
+	
+	public LocalProperties createInterestingLocalProperties(OptimizerNode node, int input) {
+		// check, whether the local order is preserved
+		boolean newGrouped = false;
+		Ordering newOrdering = null;
+		FieldSet newGroupedFields = null;
+		
+		
+		// check, whether the local key grouping is preserved		
+		if (this.groupedFields != null) {
+			boolean groupingPreserved = true;
+			for (Integer index : this.groupedFields) {
+				if (node.isFieldKept(input, index) == false) {
+					groupingPreserved = false;
+					break;
+				}
+			}
+			
+			if (groupingPreserved) {
+				newGroupedFields = (FieldSet) this.groupedFields.clone();
+				newGrouped = true;
+			}
+		}
+		
+		// check, whether the global order is preserved
+		if (ordering != null) {
+			boolean orderingPreserved = true;
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+			for (int i = 0; i < involvedIndexes.size(); i++) {
+				if (node.isFieldKept(input, i) == false) {
+					orderingPreserved = false;
+					break;
+				}
+			}
+			
+			if (orderingPreserved) {
+				newOrdering = ordering.clone();
+			}
+		}
+		
+		if (newGrouped == false && newOrdering == null) {
+			return null;	
+		}
+		else {
+			return new LocalProperties(newGrouped, newGroupedFields, newOrdering);
+		}
 	}
 
 	/**

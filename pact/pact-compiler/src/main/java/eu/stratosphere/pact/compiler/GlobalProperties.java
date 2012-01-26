@@ -59,9 +59,10 @@ public final class GlobalProperties implements Cloneable
 	 * @param keyUnique
 	 *        The flag that indicates, whether the keys are unique.
 	 */
-	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, boolean keyUnique) {
+	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, FieldSet partitionedFields) {
 		this.partitioning = partitioning;
 		this.ordering = ordering;
+		this.partitionedFields = partitionedFields;
 //		this.keyUnique = keyUnique;
 	}
 
@@ -187,15 +188,12 @@ public final class GlobalProperties implements Cloneable
 		
 		//check if partitioning survives
 		if (partitionedFields != null) {
-			for (Integer index : partitionedFields.toArray(new Integer[0])) {
+			for (Integer index : partitionedFields) {
 				if (node.isFieldKept(input, index) == false) {
-					partitionedFields.remove(index);
+					partitionedFields = null;
+					partitioning = PartitionProperty.NONE;
 				}
 			}
-			
-			if (partitionedFields.size() == 0) {
-				partitioning = PartitionProperty.NONE;
-			}	
 		}
 		
 		// check, whether the global order is preserved
@@ -210,6 +208,48 @@ public final class GlobalProperties implements Cloneable
 		}
 		
 		return partitioning != PartitionProperty.NONE || ordering != null;
+	}
+	
+	public GlobalProperties createInterestingGlobalProperties(OptimizerNode node, int input) {
+		//check if partitioning survives
+		FieldSet newPartitionedFields = null;
+		PartitionProperty newPartitioning = PartitionProperty.NONE;
+		Ordering newOrdering = null;
+		if (partitionedFields != null) {
+			for (Integer index : partitionedFields) {
+				if (node.isFieldKept(input, index) == true) {
+					if (newPartitionedFields == null) {
+						newPartitioning = this.partitioning;
+						newPartitionedFields = new FieldSet();
+					}
+					newPartitionedFields.add(index);
+				}
+			}
+		}
+		
+		// check, whether the global order is preserved
+		if (ordering != null) {
+			boolean orderingPreserved = true;
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+			for (int i = 0; i < involvedIndexes.size(); i++) {
+				if (node.isFieldKept(input, i) == false) {
+					orderingPreserved = false;
+					break;
+				}
+			}
+			
+			if (orderingPreserved) {
+				newOrdering = ordering.clone();
+			}
+		}
+		
+		if (newPartitioning == PartitionProperty.NONE && newOrdering == null) {
+			return null;	
+		}
+		else {
+			return new GlobalProperties(newPartitioning, newOrdering, newPartitionedFields);
+		}
+		
 	}
 
 	/**
