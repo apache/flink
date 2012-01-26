@@ -492,6 +492,9 @@ public class ReduceNode extends SingleInputNode {
 			return false;
 		}
 		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+		if (gp.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+			return keyFields.equals(partitionedFields);	
+		}
 		return keyFields.containsAll(partitionedFields);
 	}
 

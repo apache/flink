@@ -321,7 +321,8 @@ public class InterestingProperties implements Cloneable {
 
 			if (nonTrivial) {
 				try {
-					preserved.add(new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp));
+					InterestingProperties newIp = new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp);
+					mergeUnionOfInterestingProperties(preserved, newIp);
 				} catch (CloneNotSupportedException cnse) {
 					// should never happen, but propagate just in case
 					throw new RuntimeException(cnse);

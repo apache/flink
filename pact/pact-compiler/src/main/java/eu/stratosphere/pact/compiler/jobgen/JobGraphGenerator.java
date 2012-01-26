@@ -1155,6 +1155,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		final Contract targetContract = connection.getTargetPact().getPactContract();
 		if (targetContract instanceof AbstractPact<?>) {
 			AbstractPact<?> pact = (AbstractPact<?>) targetContract;
+			if (connection.getPartitionedFields() != null) {
+				//TODO
+			}
 			keyPositions = pact.getKeyColumnNumbers(inputNumber-1);
 			keyTypes = pact.getKeyClasses();
 		} else {

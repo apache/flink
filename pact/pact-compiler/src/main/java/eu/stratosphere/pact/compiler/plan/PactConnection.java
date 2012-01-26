@@ -58,6 +58,10 @@ public class PactConnection {
 	private TempMode tempMode; // indicates whether and where the connection needs to be temped by a TempTask
 	
 	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
+	
+	private int[] partitionedFields; // The fields which are used  for partitioning, this is only used if the partitioned fields
+									 // are not the key fields
+
 
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
@@ -359,13 +363,16 @@ public class PactConnection {
 		GlobalProperties gp = source.getGlobalProperties().createCopy();
 		
 		//TODO make nicer
-		int inputNum = 0;
 		FieldSet keyFields = null;
+		int inputNum = 0;
 		for (List<PactConnection> connections : target.getIncomingConnections()) {
 			boolean isThisConnection = false;
 			for (PactConnection connection : connections) {
 				if (connection.getSourcePact().getId() == source.getId()) {
-					if (target.getPactContract() instanceof AbstractPact<?>) {
+					if (connection.getPartitionedFields() != null) {
+						keyFields = new FieldSet(connection.getPartitionedFields());
+					}
+					else if (target.getPactContract() instanceof AbstractPact<?>) {
 						keyFields = new FieldSet(((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum));
 					}
 					break;
@@ -436,5 +443,13 @@ public class PactConnection {
 		}
 
 		return lp;
+	}
+	
+	public int[] getPartitionedFields() {
+		return partitionedFields;
+	}
+
+	public void setPartitionedFields(int[] partitionedFields) {
+		this.partitionedFields = partitionedFields;
 	}
 }

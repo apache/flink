@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -278,7 +279,7 @@ public class MatchNode extends TwoInputNode {
 						gp = new GlobalProperties();
 					}
 					
-					if(partitioningIsOnRightFields(gp, 0) && gp.getPartitioning().equals(PartitionProperty.NONE)) {
+					if(!partitioningIsOnRightFields(gp, 0) || gp.getPartitioning().equals(PartitionProperty.NONE)) {
 						// we need to partition
 						// TODO: include range partitioning
 						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator);
@@ -327,12 +328,12 @@ public class MatchNode extends TwoInputNode {
 							// input is partitioned
 
 							// check, whether that partitioning is the same as the one of input one!
-							if (!partitioningIsOnRightFields(gp1, 0)) {
+							if (!partitioningIsOnRightFields(gp1, 0) || !gp1.getPartitioning().isComputablyPartitioned()) {
 								ss2 = ShipStrategy.FORWARD;
 							}
 							else {
-								if ((!gp1.getPartitioning().isPartitioned())
-									|| gp1.getPartitioning().isCompatibleWith(gp2.getPartitioning())) {
+								if (gp1.getPartitioning().isCompatibleWith(gp2.getPartitioning()) &&
+										gp1.getPartitionedFiels().equals(gp2.getPartitionedFiels())) {
 									ss2 = ShipStrategy.FORWARD;
 								} else {
 									// both sides are partitioned, but in an incompatible way
@@ -470,7 +471,8 @@ public class MatchNode extends TwoInputNode {
 							}
 							break;
 						case PARTITION_HASH:
-							ss1 = (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+							FieldSet keyFields2 = new FieldSet(getPactContract().getKeyColumnNumbers(1));
+							ss1 = (keyFields2.equals(gp1.getPartitionedFiels()) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 								: ShipStrategy.PARTITION_HASH;
 							break;
 						case PARTITION_RANGE:
@@ -513,9 +515,9 @@ public class MatchNode extends TwoInputNode {
 					case FORWARD:
 						if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning().isPartitioned()) {
 							// adapt to the partitioning
-							if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+							if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
 								ss2 = ShipStrategy.PARTITION_HASH;
-							} else if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+							} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
 								ss2 = ShipStrategy.PARTITION_RANGE;
 							} else {
 								throw new CompilerException();
@@ -526,7 +528,8 @@ public class MatchNode extends TwoInputNode {
 						}
 						break;
 					case PARTITION_HASH:
-						ss2 = (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+						FieldSet keyFields1 = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+						ss2 = (keyFields1.equals(gp2.getPartitionedFiels()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 							: ShipStrategy.PARTITION_HASH;
 						break;
 					case PARTITION_RANGE:
@@ -564,7 +567,7 @@ public class MatchNode extends TwoInputNode {
 						}
 
 						if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
-								partitioningIsOnRightFields(gp1, 0) && partitioningIsOnRightFields(gp2, 1)) {
+								gp1.getPartitionedFiels().equals(gp2.getPartitionedFiels())) {
 							// partitioning there and equal
 							createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 						} else {
@@ -1027,6 +1030,9 @@ public class MatchNode extends TwoInputNode {
 			return false;
 		}
 		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(inputNum));
+		if (gp.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+			return keyFields.equals(partitionedFields);	
+		}
 		return keyFields.containsAll(partitionedFields);
 	}
 	
