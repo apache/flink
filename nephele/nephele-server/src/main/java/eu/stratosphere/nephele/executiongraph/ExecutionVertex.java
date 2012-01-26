@@ -166,8 +166,6 @@ public final class ExecutionVertex {
 			LOG.error("Vertex " + groupVertex.getName() + " does not specify a task");
 		}
 
-		// Register the vertex itself as a listener for state changes
-		registerExecutionListener(this.executionGraph);
 		this.environment.instantiateInvokable();
 	}
 
