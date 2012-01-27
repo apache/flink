@@ -321,16 +321,4 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		getTaskManager().killTaskManager();
 	}
-
-	/**
-	 * @param executionVertexID
-	 * @param serializableHashSet
-	 * @param environment
-	 * @param configuration
-	 * @throws IOException
-	 */
-	public void restartTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
-		getTaskManager().restartTask(id, jobConfiguration, environment, activeOutputChannels);
-	}
 }

@@ -921,20 +921,4 @@ public class TaskManager implements TaskOperationProtocol {
 
 		timer.schedule(timerTask, 10L);
 	}
-
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * @throws IOException
-	 */
-	@Override
-	public void restartTask(ExecutionVertexID id, Configuration jobConfiguration,
-			Environment environment, Set<ChannelID> activeOutputChannels) throws IOException {
-		Task torestart = this.runningTasks.get(id);
-		// torestart.markAsRestarting();
-		torestart.cancelExecution();
-		// unregisterTask(id,torestart);
-		submitTask(id, jobConfiguration, environment, activeOutputChannels);
-
-	}
 }

@@ -149,17 +149,4 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         throws if an error occurs during this remote procedure call
 	 */
 	void killTaskManager() throws IOException;
-
-	/**
-	 * Restarts a given Task by unregistering an submitting it
-	 * 
-	 * @param executionVertexID
-	 * @param activeOutputChannels
-	 * @param environment
-	 * @param jobConfiguration
-	 * @throws IOException
-	 */
-	@Deprecated
-	void restartTask(ExecutionVertexID executionVertexID, Configuration jobConfiguration, Environment environment,
-			Set<ChannelID> activeOutputChannels) throws IOException;
 }
