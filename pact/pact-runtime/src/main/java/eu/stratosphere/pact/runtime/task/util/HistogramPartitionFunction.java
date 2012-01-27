@@ -23,7 +23,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
 public class HistogramPartitionFunction implements PartitionFunction {
 	private final PactRecord[] splitBorders;
 	private final Order partitionOrder;
-	private final int[] channels = new int[1];
 	
 	public HistogramPartitionFunction(PactRecord[] splitBorders, Order partitionOrder) {
 		this.splitBorders = splitBorders;
@@ -31,7 +30,7 @@ public class HistogramPartitionFunction implements PartitionFunction {
 	}
 
 	@Override
-	public int[] selectChannels(PactRecord data, int numChannels) {
+	public void selectChannels(PactRecord data, int numChannels, int[] channels) {
 		//TODO: Check partition borders match number of channels
 		int pos = Arrays.binarySearch(splitBorders, data);
 
@@ -51,7 +50,5 @@ public class HistogramPartitionFunction implements PartitionFunction {
 		} else {
 			channels[0] = splitBorders.length  - pos;
 		}
-		
-		return channels;
 	}
 }
