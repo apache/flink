@@ -20,6 +20,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
@@ -36,7 +37,7 @@ public class FileBuffer implements InternalBuffer {
 
 	private FileChannel fileChannel;
 
-	private volatile boolean writeMode;
+	private final AtomicBoolean writeMode;
 
 	private long totalBytesWritten = 0;
 
@@ -50,7 +51,7 @@ public class FileBuffer implements InternalBuffer {
 		this.offset = offset;
 		this.ownerID = ownerID;
 		this.fileBufferManager = fileBufferManager;
-		this.writeMode = false;
+		this.writeMode =  new AtomicBoolean(false);
 	}
 	
 	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager) {
@@ -60,13 +61,13 @@ public class FileBuffer implements InternalBuffer {
 		this.offset = 0L;
 		this.ownerID = ownerID;
 		this.fileBufferManager = fileBufferManager;
-		this.writeMode = true;
+		this.writeMode =  new AtomicBoolean(true);
 	}
 
 	@Override
 	public int read(WritableByteChannel writableByteChannel) throws IOException {
 
-		if (this.writeMode) {
+		if (this.writeMode.get()) {
 			throw new IOException("FileBuffer is still in write mode!");
 		}
 
@@ -98,7 +99,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public int read(ByteBuffer dst) throws IOException {
 
-		if (this.writeMode) {
+		if (this.writeMode.get()) {
 			throw new IOException("FileBuffer is still in write mode!");
 		}
 
@@ -143,7 +144,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public int write(final ReadableByteChannel readableByteChannel) throws IOException {
 
-		if (!this.writeMode) {
+		if (!this.writeMode.get()) {
 			throw new IOException("Cannot write to buffer, buffer already switched to read mode");
 		}
 
@@ -169,7 +170,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public int write(final ByteBuffer src) throws IOException {
 
-		if (!this.writeMode) {
+		if (!this.writeMode.get()) {
 			throw new IOException("Cannot write to buffer, buffer already switched to read mode");
 		}
 
@@ -217,7 +218,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public int remaining() {
 
-		if (this.writeMode) {
+		if (this.writeMode.get()) {
 			return (int) (this.bufferSize - this.totalBytesWritten);
 		} else {
 			return (int) (this.bufferSize - this.totalBytesRead);
@@ -247,7 +248,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public void finishWritePhase() throws IOException {
 
-		if (this.writeMode) {
+		if (this.writeMode.compareAndSet(true, false)) {
 
 			final long currentFileSize = this.offset + this.totalBytesWritten;
 			// If the input channel this buffer belongs to is already canceled, fileChannel may be null
@@ -257,8 +258,6 @@ public class FileBuffer implements InternalBuffer {
 			this.fileChannel = null;
 			this.bufferSize = this.totalBytesWritten;
 			// System.out.println("Buffer size: " + this.bufferSize);
-			// TODO: Check synchronization
-			this.writeMode = false;
 			this.fileID = this.fileBufferManager.reportEndOfWritePhase(this.ownerID, currentFileSize);
 		}
 
@@ -276,7 +275,7 @@ public class FileBuffer implements InternalBuffer {
 		this.fileBufferManager.increaseBufferCounter(this.ownerID, this.fileID);
 
 		final FileBuffer dup = new FileBuffer((int) this.bufferSize, this.ownerID, this.fileBufferManager);
-		dup.writeMode = this.writeMode;
+		dup.writeMode.set(this.writeMode.get());
 		dup.fileID = this.fileID;
 		dup.offset = this.offset;
 
@@ -315,7 +314,7 @@ public class FileBuffer implements InternalBuffer {
 	@Override
 	public boolean isInWriteMode() {
 
-		return this.writeMode;
+		return this.writeMode.get();
 	}
 
 	/**
