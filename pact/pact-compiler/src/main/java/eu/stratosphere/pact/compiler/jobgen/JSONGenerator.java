@@ -410,7 +410,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			String valuesKey = "(none)";
 			if (hints.getAvgNumValuesPerDistinctValues().size() > 0) {
 				valuesKey = "";
-				for (Entry<FieldSet, Long> entry : visitable.getEstimatedCardinalities().entrySet()) {
+				for (Entry<FieldSet, Float> entry : hints.getAvgNumValuesPerDistinctValues().entrySet()) {
 					valuesKey += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
 				}
 			}
