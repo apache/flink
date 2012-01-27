@@ -197,20 +197,7 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	// ------------------------------------------------------------------------
 	
-//	/**
-//	 * Computes the number of keys that are processed by the PACT.
-//	 * 
-//	 * @return the number of keys processed by the PACT.
-//	 */
-//	protected abstract long computeNumberOfProcessedKeys();
-//	
-//	/**
-//	 * Computes the number of stub calls for one processed key. 
-//	 * 
-//	 * @return the number of stub calls for one processed key.
-//	 */
-//	protected abstract double computeStubCallsPerProcessedKey();
-	
+
 	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its <i>first</i> input.
 	 * 

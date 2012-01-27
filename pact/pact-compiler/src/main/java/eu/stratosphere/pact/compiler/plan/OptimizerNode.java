@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import eu.stratosphere.pact.common.contract.AbstractPact;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -797,36 +798,29 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 			this.estimatedCardinality.putAll(hints.getCardinalities());	
 
-//			if(hints.getKeyCardinality() != -1) {
-//				// number of keys is explicitly given by user hint
-//				this.estimatedKeyCardinality = hints.getKeyCardinality();
-//				
-//			} else if(!this.getOutputContract().equals(OutputContract.None)) {
-//				// we have an output contract which might help to estimate the number of output keys
-//				
-//				if(this.getOutputContract().equals(OutputContract.UniqueKey)) {
-//					// each output key is unique. Every record has a unique key.
-//					this.estimatedKeyCardinality = this.estimatedNumRecords;
-//					
-//				} else if(this.getOutputContract().equals(OutputContract.SameKey) || 
-//						this.getOutputContract().equals(OutputContract.SameKeyFirst) || 
-//						this.getOutputContract().equals(OutputContract.SameKeySecond)) {
-//					// we have a samekey output contract
-//					
-//					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
-//						// in average less than one record is emitted per stub call
-//						
-//						// compute the probability that at least one stub call emits a record for a given key 
-//						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
-//
-//						this.estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
-//								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
-//					} else {
-//						// in average more than one record is emitted per stub call. We assume all keys are kept.
-//						this.estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
-//					}
-//				}
-//			} else 
+			for (int input = 0; input < getIncomingConnections().size(); input++) {
+				int[] keyColumns;
+				if ((keyColumns = getConstantKeySet(input)) != null) {
+					long estimatedKeyCardinality; 
+					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
+						// in average less than one record is emitted per stub call
+						
+						// compute the probability that at least one stub call emits a record for a given key 
+						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
+
+						estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
+								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
+					} else {
+						// in average more than one record is emitted per stub call. We assume all keys are kept.
+						estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
+					}
+					
+					FieldSet fieldSet = new FieldSet(keyColumns);
+					if (estimatedCardinality.get(fieldSet) != null) {
+						estimatedCardinality.put(fieldSet, estimatedKeyCardinality);	
+					}
+				}
+			}
 			
 			if(this.estimatedNumRecords != -1) {
 				for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumValuesPerDistinctValues().entrySet()) {
@@ -1392,4 +1386,49 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 	
 	public abstract boolean isFieldKept(int input, int fieldNumber);
+	
+	/**
+	 * Computes the number of keys that are processed by the PACT.
+	 * 
+	 * @return the number of keys processed by the PACT.
+	 */
+	protected long computeNumberOfProcessedKeys() {
+		return -1;
+	}
+	
+	/**
+	 * Computes the number of stub calls for one processed key. 
+	 * 
+	 * @return the number of stub calls for one processed key.
+	 */
+	protected double computeStubCallsPerProcessedKey() {
+		return -1;
+	}
+	
+	
+	/**
+	 * Returns the key column numbers for the specific input if it
+	 * is preserved by this node. Null, otherwise.
+	 * 
+	 * @param input
+	 * @return
+	 */
+	protected int[] getConstantKeySet(int input) {
+		int[] keyColumns = null;
+		Contract contract = getPactContract();
+		if (contract instanceof AbstractPact<?>) {
+			AbstractPact<?> abstractPact = (AbstractPact<?>) contract;
+			keyColumns = abstractPact.getKeyColumnNumbers(input);
+			if (keyColumns != null) {
+				for (int keyColumn : keyColumns) {
+					if (isFieldKept(input, keyColumn) == false) {
+						keyColumns = null;
+						break;	
+					}
+				}
+			}
+		}
+		return keyColumns;
+	}
+	
 }

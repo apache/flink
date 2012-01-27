@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
@@ -384,7 +385,7 @@ public class ReduceNode extends SingleInputNode {
 	 * 
 	 * @return the number of keys processed by the PACT.
 	 */
-	private long computeNumberOfProcessedKeys() {
+	protected long computeNumberOfProcessedKeys() {
 		long keySum = 0;
 		FieldSet columnSet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
 		
@@ -468,19 +469,21 @@ public class ReduceNode extends SingleInputNode {
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-//		CompilerHints hints = getPactContract().getCompilerHints();
+		CompilerHints hints = getPactContract().getCompilerHints();
 		
 		// special hint handling for Reduce:
 		// In case of SameKey OutputContract, avgNumValuesPerKey and avgRecordsEmittedPerStubCall are identical, 
 		// since the stub is called once per key
-//		if(this.getOutputContract().equals(OutputContract.SameKey)) {
-//			if(hints.getAvgNumValuesPerKey() != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
-//				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerKey());
-//			}
-//			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerKey() == -1) {
-//				hints.setAvgNumValuesPerKey(hints.getAvgRecordsEmittedPerStubCall());
-//			}
-//		}
+		int[] keyColumns = getConstantKeySet(0); 
+		if (keyColumns != null) {
+			FieldSet keySet = new FieldSet(keyColumns);
+			if (hints.getAvgNumValuesPerDistinctValue(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerDistinctValue(keySet));
+			}
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerDistinctValue(keySet) == -1) {
+				hints.setAvgNumValuesPerDistinctValue(keySet, hints.getAvgRecordsEmittedPerStubCall());
+			}
+		}
 		super.computeOutputEstimates(statistics);
 		// check if preceding node is available
 		this.computeCombinerReducingFactor();

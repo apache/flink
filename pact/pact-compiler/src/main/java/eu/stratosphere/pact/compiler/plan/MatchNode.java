@@ -968,7 +968,7 @@ public class MatchNode extends TwoInputNode {
 	 * 
 	 * @return the number of stub calls for one processed key.
 	 */
-	private double computeStubCallsPerProcessedKey() {
+	protected double computeStubCallsPerProcessedKey() {
 		
 		FieldSet fieldSet1 = new FieldSet(getPactContract().getKeyColumnNumbers(0));
 		FieldSet fieldSet2 = new FieldSet(getPactContract().getKeyColumnNumbers(1));
