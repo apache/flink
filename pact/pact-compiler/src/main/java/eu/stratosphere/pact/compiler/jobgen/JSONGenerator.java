@@ -18,6 +18,7 @@ package eu.stratosphere.pact.compiler.jobgen;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map.Entry;
@@ -28,6 +29,7 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.PartitionProperty;
 //import eu.stratosphere.pact.compiler.OutputContract;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
@@ -320,15 +322,17 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 			this.jsonString.append(",\n\t\t\"global_properties\": [\n");
 
-			addProperty(jsonString, "Key-Partitioning", gp.getPartitioning().name(), true);
+			addProperty(jsonString, "Partitioning", gp.getPartitioning().name(), true);
+			if (gp.getPartitioning() != PartitionProperty.NONE) {
+				addProperty(jsonString, "Partitioned on", Arrays.toString(gp.getPartitionedFields()), false);
+			}
 			if (gp.getOrdering() != null) {
-				addProperty(jsonString, "Key-Order", gp.getOrdering().getOrder(0).name(), false);	
+				addProperty(jsonString, "Key-Order", gp.getOrdering().toString(), false);	
 			}
 			else {
-				addProperty(jsonString, "Key-Order", "none", false);
+				addProperty(jsonString, "Key-Order", "(none)", false);
 			}
 //			addProperty(jsonString, "Key-Uniqueness", gp.isKeyUnique() ? "unique" : "not unique", false);
-			addProperty(jsonString, "Key-Uniqueness", "not unique", false);
 
 			this.jsonString.append("\n\t\t]");
 		}
@@ -340,14 +344,16 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			this.jsonString.append(",\n\t\t\"local_properties\": [\n");
 
 			if (lp.getOrdering() != null) {
-				addProperty(jsonString, "Key-Order", lp.getOrdering().getOrder(0).name(), true);	
+				addProperty(jsonString, "Order", lp.getOrdering().toString(), true);	
 			}
 			else {
-				addProperty(jsonString, "Key-Order", "none", true);
+				addProperty(jsonString, "Order", "(none)", true);
 			}
 //			addProperty(jsonString, "Key-Uniqueness", lp.isKeyUnique() ? "unique" : "not unique", false);
-			addProperty(jsonString, "Key-Uniqueness", "not unique", false);
-			addProperty(jsonString, "Key-Grouping", lp.isGrouped() ? "grouped" : "not grouped", false);
+			addProperty(jsonString, "Grouping", lp.isGrouped() ? "grouped": "not grouped", false);
+			if (lp.isGrouped()) {
+				addProperty(jsonString, "Grouped on", lp.getGroupedFields().toString(), false);	
+			}
 
 			this.jsonString.append("\n\t\t]");
 		}
@@ -364,7 +370,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 				estCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
 			}
 		}
-		addProperty(jsonString, "Est. Key-Cardinality", estCardinality, false);	
+		addProperty(jsonString, "Est. Cardinality", estCardinality, false);	
 		addProperty(jsonString, "Est. Output Size", visitable.getEstimatedOutputSize() == -1 ? "(unknown)"
 			: formatNumber(visitable.getEstimatedOutputSize(), "B"), false);
 
@@ -403,7 +409,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 					hintCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
 				}
 			}
-			addProperty(jsonString, "Key-Cardinality", hintCardinality, true);
+			addProperty(jsonString, "Cardinality", hintCardinality, true);
 			addProperty(jsonString, "Avg. Records/StubCall", hints.getAvgRecordsEmittedPerStubCall() == defaults.
 					getAvgRecordsEmittedPerStubCall() ? "(none)" : String.valueOf(hints.getAvgRecordsEmittedPerStubCall()), false);
 			
@@ -414,7 +420,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 					valuesKey += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
 				}
 			}
-			addProperty(jsonString, "Avg. Values/Key", valuesKey, false);
+			addProperty(jsonString, "Avg. Values/Distinct fields", valuesKey, false);
 			addProperty(jsonString, "Avg. Width (bytes)", hints.getAvgBytesPerRecord() == defaults
 				.getAvgBytesPerRecord() ? "(none)" : String.valueOf(hints.getAvgBytesPerRecord()), false);
 
