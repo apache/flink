@@ -314,9 +314,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 			final ChannelContext cc = this.registeredChannels.get(localReceiver);
 			if (cc == null) {
-				
+
 				if (this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
-					//TODO: Reconsider buffer recycling here
+					// TODO: Reconsider buffer recycling here
 					return;
 				} else {
 					throw new IOException("Cannot find channel context for local receiver " + localReceiver);
@@ -676,5 +676,20 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	public void cleanUpRecentlyRemovedChannelIDSet() {
 
 		this.recentlyRemovedChannelIDSet.cleanup();
+	}
+
+	/**
+	 * Invalidates the entries identified by the given channel IDs from the receiver lookup cache.
+	 * 
+	 * @param channelIDs
+	 *        the channel IDs identifying the cache entries to invalidate
+	 */
+	public void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) {
+
+		final Iterator<ChannelID> it = channelIDs.iterator();
+		while (it.hasNext()) {
+
+			this.receiverCache.remove(it.next());
+		}
 	}
 }

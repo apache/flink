@@ -321,4 +321,17 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		getTaskManager().killTaskManager();
 	}
+
+	/**
+	 * Invalidates the entries identified by the given channel IDs from the remote task manager's receiver lookup cache.
+	 * 
+	 * @param channelIDs
+	 *        the channel IDs identifying the cache entries to invalidate
+	 * @throws IOException
+	 *         thrown if an error occurs during this remote procedure call
+	 */
+	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
+
+		getTaskManager().invalidateLookupCacheEntries(channelIDs);
+	}
 }

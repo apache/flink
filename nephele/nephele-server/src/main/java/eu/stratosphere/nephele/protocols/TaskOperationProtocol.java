@@ -115,7 +115,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @param update
 	 *        a {@link LibraryCacheUpdate} object used to transmit the library data
 	 * @throws IOException
-	 *         if an error occurs during this remote procedure call
+	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
 
@@ -129,16 +129,26 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @param listOfVertexIDs
 	 *        the list of vertex IDs which identify the checkpoints to be removed
 	 * @throws IOException
-	 *         if an error occurs during this remote procedure call
+	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException;
+
+	/**
+	 * Invalidates the entries identified by the given channel IDs from the task manager's receiver lookup cache.
+	 * 
+	 * @param channelIDs
+	 *        the channel IDs identifying the cache entries to invalidate
+	 * @throws IOException
+	 *         thrown if an error occurs during this remote procedure call
+	 */
+	void invalidateLookupCacheEntries(Set<ChannelID> channelIDs) throws IOException;
 
 	/**
 	 * Triggers the task manager write the current utilization of its read and write buffers to its logs.
 	 * This method is primarily for debugging purposes.
 	 * 
 	 * @throws IOException
-	 *         throws if an error occurs while transmitting the request
+	 *         thrown if an error occurs while transmitting the request
 	 */
 	void logBufferUtilization() throws IOException;
 
@@ -146,7 +156,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * Kills the task manager. This method is mainly intended to test and debug Nephele's fault tolerance mechanisms.
 	 * 
 	 * @throws IOException
-	 *         throws if an error occurs during this remote procedure call
+	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void killTaskManager() throws IOException;
 }

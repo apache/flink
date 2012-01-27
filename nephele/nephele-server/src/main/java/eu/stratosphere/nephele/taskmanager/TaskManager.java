@@ -375,9 +375,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// Check the status of the task threads to detect unexpected thread terminations
 			checkTaskExecution();
-			
+
 			// Clean up set of recently unregistered channels
-			 this.byteBufferedChannelManager.cleanUpRecentlyRemovedChannelIDSet();
+			this.byteBufferedChannelManager.cleanUpRecentlyRemovedChannelIDSet();
 		}
 
 		// Shutdown the individual components of the task manager
@@ -616,8 +616,8 @@ public class TaskManager implements TaskOperationProtocol {
 	public SerializableArrayList<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs)
 			throws IOException {
 
-		//TODO: Invalidate lookup caches
-		
+		// TODO: Invalidate lookup caches
+
 		final SerializableArrayList<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
 
 		for (final ExecutionVertexID vertexID : vertexIDs) {
@@ -920,5 +920,14 @@ public class TaskManager implements TaskOperationProtocol {
 		};
 
 		timer.schedule(timerTask, 10L);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
+
+		this.byteBufferedChannelManager.invalidateLookupCacheEntries(channelIDs);
 	}
 }
