@@ -274,33 +274,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.networkConnectionManager.shutDown();
 	}
 
-	public void reportIOExceptionForAllInputChannels(IOException ioe) {
-
-		final Iterator<ChannelContext> it = this.registeredChannels.values().iterator();
-
-		while (it.hasNext()) {
-
-			final ChannelContext channelContext = it.next();
-			if (channelContext.isInputChannel()) {
-				channelContext.reportIOException(ioe);
-			}
-		}
-	}
-
-	public void reportIOExceptionForOutputChannel(ChannelID sourceChannelID, IOException ioe) {
-
-		final ChannelContext channelContext = this.registeredChannels.get(sourceChannelID);
-
-		if (channelContext == null) {
-			LOG.error("Cannot find network output channel with ID " + sourceChannelID);
-			return;
-		}
-
-		if (channelContext.isInputChannel()) {
-			channelContext.reportIOException(ioe);
-		}
-	}
-
 	public NetworkConnectionManager getNetworkConnectionManager() {
 
 		return this.networkConnectionManager;

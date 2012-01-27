@@ -250,11 +250,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 		this.byteBufferedOutputChannel.processEvent(abstractEvent);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void reportIOException(IOException ioe) {
+	void reportIOException(final IOException ioe) {
 
 		this.byteBufferedOutputChannel.reportIOException(ioe);
 	}

@@ -168,8 +168,17 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 			final int expectedSequenceNumber = this.lastReceivedEnvelope + 1;
 			if (sequenceNumber != expectedSequenceNumber) {
 
-				// LOG.info("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
-				// + " but received " + sequenceNumber);
+				if (sequenceNumber > expectedSequenceNumber) {
+					// This is a problem, now we are actually missing some data
+					this.byteBufferedInputChannel.reportIOException(new IOException("Missing data packet "
+						+ expectedSequenceNumber + " from sender"));
+					this.byteBufferedInputChannel.checkForNetworkEvents();
+				}
+
+				if (LOG.isDebugEnabled()) {
+					LOG.info("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
+						+ " but received " + sequenceNumber);
+				}
 
 				final Buffer buffer = transferEnvelope.getBuffer();
 				if (buffer != null) {
@@ -185,13 +194,6 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 		}
 
 		// Notify the channel about the new data
-		this.byteBufferedInputChannel.checkForNetworkEvents();
-	}
-
-	@Override
-	public void reportIOException(IOException ioe) {
-
-		this.byteBufferedInputChannel.reportIOException(ioe);
 		this.byteBufferedInputChannel.checkForNetworkEvents();
 	}
 
