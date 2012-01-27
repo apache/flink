@@ -136,8 +136,6 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private final CopyOnWriteArrayList<ExecutionStageListener> executionStageListeners = new CopyOnWriteArrayList<ExecutionStageListener>();
 
-	private final CopyOnWriteArrayList<ExecutionVertex> recovering = new CopyOnWriteArrayList<ExecutionVertex>();
-
 	/**
 	 * Private constructor used for duplicating execution vertices.
 	 * 
@@ -1206,8 +1204,7 @@ public class ExecutionGraph implements ExecutionListener {
 		return true;
 	}
 
-	// TODO: Make this static
-	private InternalJobStatus determineNewJobStatus(final ExecutionGraph eg,
+	private static InternalJobStatus determineNewJobStatus(final ExecutionGraph eg,
 			final ExecutionState latestStateChange) {
 
 		final InternalJobStatus currentJobStatus = eg.getJobStatus();
@@ -1242,30 +1239,12 @@ public class ExecutionGraph implements ExecutionListener {
 
 					final ExecutionVertex vertex = it.next();
 					if (vertex.getExecutionState() == ExecutionState.FAILED) {
-						if (!vertex.hasRetriesLeft()) {
-							System.out.println(" Vertex failed finally");
-							return InternalJobStatus.FAILING;
-						} else {
-							return InternalJobStatus.RECOVERING;
-						}
+						return InternalJobStatus.FAILING;
 					}
 				}
 			}
-			if (latestStateChange == ExecutionState.RECOVERING) {
-				return InternalJobStatus.RECOVERING;
-			}
 			if (eg.jobHasFinishedStatus()) {
 				return InternalJobStatus.FINISHED;
-			}
-			break;
-		case RECOVERING:
-			if (latestStateChange == ExecutionState.RERUNNING) {
-				if (this.recovering.isEmpty()) {
-					return InternalJobStatus.RUNNING;
-				}
-			}
-			if (latestStateChange == ExecutionState.FAILED) {
-				LOG.info("Another Failed Vertex while recovering");
 			}
 			break;
 		case FAILING:
@@ -1319,10 +1298,6 @@ public class ExecutionGraph implements ExecutionListener {
 
 		final ExecutionState actualExecutionState = vertex.getExecutionState();
 
-		if (actualExecutionState == ExecutionState.RERUNNING) {
-			this.recovering.remove(getVertexByID(vertexID));
-		}
-
 		final InternalJobStatus newJobStatus = determineNewJobStatus(this, actualExecutionState);
 
 		if (actualExecutionState == ExecutionState.FINISHED) {
@@ -1338,13 +1313,6 @@ public class ExecutionGraph implements ExecutionListener {
 						it.next().nextExecutionStageEntered(jobID, nextExecutionStage);
 					}
 				}
-			}
-		}
-		if (actualExecutionState == ExecutionState.FAILED && newJobStatus == InternalJobStatus.RECOVERING) {
-			LOG.info("RECOVERING");
-			// FIXME (marrus) see if we even need that
-			if (!this.recovering.contains(vertexID)) {
-				this.recovering.add(this.getVertexByID(vertexID));
 			}
 		}
 
@@ -1515,11 +1483,6 @@ public class ExecutionGraph implements ExecutionListener {
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 
 		// Nothing to do here
-	}
-
-	public List<ExecutionVertex> getFailedVertices() {
-
-		return this.recovering;
 	}
 
 	/**
