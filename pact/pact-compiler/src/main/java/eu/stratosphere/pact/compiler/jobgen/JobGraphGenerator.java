@@ -1117,6 +1117,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException
 	 * @throws CompilerException
 	 */
+	@SuppressWarnings("unchecked")
 	private void connectJobVertices(PactConnection connection, int inputNumber,
 			final AbstractJobVertex outputVertex, final TaskConfig outputConfig,
 			final AbstractJobVertex inputVertex, final TaskConfig inputConfig)
@@ -1154,8 +1155,24 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		final Contract targetContract = connection.getTargetPact().getPactContract();
 		if (targetContract instanceof AbstractPact<?>) {
 			AbstractPact<?> pact = (AbstractPact<?>) targetContract;
-			keyPositions = pact.getKeyColumnNumbers(inputNumber-1);
-			keyTypes = pact.getKeyClasses();
+			if (connection.getPartitionedFields() != null) {
+				int[] originalKeyPositions = pact.getKeyColumnNumbers(inputNumber-1);
+				Class<? extends Key>[] originalKeyTypes = pact.getKeyClasses();
+				keyPositions = connection.getPartitionedFields();
+				keyTypes = new Class[keyPositions.length];
+				for (int i = 0; i < keyPositions.length; i++) {
+					for (int j = 0; j < originalKeyPositions.length; j++) {
+						if (keyPositions[i] == originalKeyPositions[j]) {
+							keyTypes[i] = originalKeyTypes[j];
+							break;
+						}
+					}
+				}
+			}
+			else {
+				keyPositions = pact.getKeyColumnNumbers(inputNumber-1);
+				keyTypes = pact.getKeyClasses();	
+			}
 		} else {
 			keyPositions = null;
 			keyTypes = null;

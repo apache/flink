@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -188,15 +189,18 @@ public class ReduceNode extends SingleInputNode {
 		// check, if there is an output contract that tells us that certain properties are preserved.
 		// if so, propagate to the child.
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props = InterestingProperties.filterByConstantSet(thisNodesIntProps,
+		List<InterestingProperties> props = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
 			this, 0);
 
-		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+		int[] keyFields = getPactContract().getKeyColumnNumbers(0);
 		
 		// add the first interesting properties: partitioned and grouped
 		InterestingProperties ip1 = new InterestingProperties();
-		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields);
-		ip1.getLocalProperties().setGrouped(true, keyFields);
+		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields.clone());
+		ip1.getLocalProperties().setGrouped(true, new FieldSet(keyFields));
+		
+		ip1.getMaximalCosts().setNetworkCost(0);
+		ip1.getMaximalCosts().setSecondaryStorageCost(0);
 		
 		for(PactConnection c : this.input) {
 			Costs cost = new Costs();
@@ -209,7 +213,10 @@ public class ReduceNode extends SingleInputNode {
 		
 		// add the second interesting properties: partitioned only
 		InterestingProperties ip2 = new InterestingProperties();
-		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields);
+		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields.clone());
+		
+		ip2.getMaximalCosts().setNetworkCost(0);
+		ip2.getMaximalCosts().setSecondaryStorageCost(0);
 		
 		for(PactConnection c : this.input) {
 			Costs cost = new Costs();
@@ -481,12 +488,29 @@ public class ReduceNode extends SingleInputNode {
 	
 	
 	public boolean partitioningIsOnRightFields(GlobalProperties gp) {
-		FieldSet partitionedFields = gp.getPartitionedFiels();
-		if (partitionedFields == null || partitionedFields.isEmpty()) {
+		int[] partitionedFields = gp.getPartitionedFields();
+		if (partitionedFields == null || partitionedFields.length == 0) {
 			return false;
 		}
-		FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-		return keyFields.containsAll(partitionedFields);
+		int[] keyFields = getPactContract().getKeyColumnNumbers(0);
+		if (gp.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+			return Arrays.equals(keyFields,partitionedFields);	
+		}
+		
+		for (int partitionedField : partitionedFields) {
+			boolean foundField = false;
+			for (int keyField : keyFields){
+				if (keyField == partitionedField) {
+					foundField = true;
+					break;
+				}
+			}
+			if (foundField == false) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
 }

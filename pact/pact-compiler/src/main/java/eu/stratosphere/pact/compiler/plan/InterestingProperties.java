@@ -48,8 +48,8 @@ public class InterestingProperties implements Cloneable {
 	 * properties and a maximal cost of infinite.
 	 */
 	public InterestingProperties() {
-		// instantiate the maximal costs to 0
-		this.maximalCosts = new Costs(0, 0);
+		// instantiate the maximal costs to the possible maximum
+		this.maximalCosts = new Costs(Long.MAX_VALUE, Long.MAX_VALUE);
 
 		this.globalProps = new GlobalProperties();
 		this.localProps = new LocalProperties();
@@ -309,19 +309,31 @@ public class InterestingProperties implements Cloneable {
 //	}
 	
 	
-	public static final List<InterestingProperties> filterByConstantSet(List<InterestingProperties> props,
+	public static final List<InterestingProperties> createInterestingPropertiesForInput(List<InterestingProperties> props,
 			OptimizerNode node, int input) {
 		List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
 		
 		for (InterestingProperties p : props) {
-			GlobalProperties preservedGp = p.getGlobalProperties().createCopy();
-			LocalProperties preservedLp = p.getLocalProperties().createCopy();
-			boolean nonTrivial = preservedGp.filterByNodesConstantSet(node, input);
-			nonTrivial |= preservedLp.filterByNodesConstantSet(node, input);
+//			GlobalProperties preservedGp = p.getGlobalProperties().createCopy();
+//			LocalProperties preservedLp = p.getLocalProperties().createCopy();
+//			boolean nonTrivial = preservedGp.filterByNodesConstantSet(node, input);
+//			nonTrivial |= preservedLp.filterByNodesConstantSet(node, input);
+			
+			GlobalProperties preservedGp =
+					p.getGlobalProperties().createInterestingGlobalProperties(node, input);
+			LocalProperties preservedLp = 
+					p.getLocalProperties().createInterestingLocalProperties(node, input);
 
-			if (nonTrivial) {
+			if (preservedGp != null || preservedLp != null) {
 				try {
-					preserved.add(new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp));
+					if (preservedGp == null) {
+						preservedGp = new GlobalProperties();
+					}
+					if (preservedLp == null) {
+						preservedLp = new LocalProperties();
+					}
+					InterestingProperties newIp = new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp);
+					mergeUnionOfInterestingProperties(preserved, newIp);
 				} catch (CloneNotSupportedException cnse) {
 					// should never happen, but propagate just in case
 					throw new RuntimeException(cnse);
