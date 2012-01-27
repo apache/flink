@@ -170,8 +170,8 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 
 				if (sequenceNumber > expectedSequenceNumber) {
 					// This is a problem, now we are actually missing some data
-					this.byteBufferedInputChannel.reportIOException(new IOException("Missing data packet "
-						+ expectedSequenceNumber + " from sender"));
+					this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
+						+ expectedSequenceNumber + " but received " + sequenceNumber));
 					this.byteBufferedInputChannel.checkForNetworkEvents();
 				}
 
