@@ -753,21 +753,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		} else {
 			// We have a preceding node
 		
-			// ############# set default estimates
-			
-			// default key cardinality is -1
-			//this.estimatedKeyCardinality = -1;
-			// default output cardinality is equal to number of stub calls
-			this.estimatedNumRecords = this.computeNumberOfStubCalls();
-						
-			
 			// ############# output cardinality estimation ##############
 			
 			boolean outputCardEstimated = true;
 				
 			this.estimatedNumRecords = 0;
 			int count = 0;
-			
+
+			//If we have cardinalities and avg num values available for some fields, calculate 
+			//the average of those
 			for (Entry<FieldSet, Long> cardinality : hints.getCardinalities().entrySet()) {
 				float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
 				if (avgNumValues != -1) {
@@ -785,7 +779,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 				// default output cardinality is equal to number of stub calls
 				this.estimatedNumRecords = this.computeNumberOfStubCalls();
 				
-				if(hints.getAvgRecordsEmittedPerStubCall() != -1.0) {
+				if(hints.getAvgRecordsEmittedPerStubCall() != -1.0 && this.computeNumberOfStubCalls() != -1) {
 					// we know how many records are in average emitted per stub call
 					this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
 							(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
