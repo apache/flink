@@ -17,6 +17,8 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,6 +30,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelActivateEvent;
+import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
@@ -59,12 +62,22 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	/**
 	 * Indicates whether the receiver of an envelope is currently running.
 	 */
-	private volatile boolean isReceiverRunning = false;
+	private boolean isReceiverRunning = false;
+
+	/**
+	 * Stores whether the receiver has acknowledged the close request from this channel.
+	 */
+	private boolean closeAcknowledgementReceived = false;
 
 	/**
 	 * Queue to store outgoing transfer envelope in case the receiver of the envelopes is not yet running.
 	 */
-	private SpillingQueue queuedOutgoingEnvelopes;
+	private final SpillingQueue queuedOutgoingEnvelopes;
+
+	/**
+	 * Stores incoming events for this output channel.
+	 */
+	private final Queue<AbstractEvent> incomingEventQueue = new LinkedBlockingDeque<AbstractEvent>();
 
 	/**
 	 * The sequence number for the next {@link TransferEnvelope} to be created.
@@ -144,6 +157,8 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 */
 	@Override
 	public void releaseWriteBuffers() throws IOException, InterruptedException {
+
+		processIncomingEvents();
 
 		if (this.outgoingTransferEnvelope == null) {
 			LOG.error("Cannot find transfer envelope for channel with ID " + this.byteBufferedOutputChannel.getID());
@@ -245,14 +260,9 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 * @param abstractEvent
 	 *        the event to be reported
 	 */
-	void processEvent(AbstractEvent abstractEvent) {
+	void processEvent(final AbstractEvent abstractEvent) {
 
-		this.byteBufferedOutputChannel.processEvent(abstractEvent);
-	}
-
-	void reportIOException(final IOException ioe) {
-
-		this.byteBufferedOutputChannel.reportIOException(ioe);
+		this.incomingEventQueue.offer(abstractEvent);
 	}
 
 	/**
@@ -286,7 +296,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
+	public void queueTransferEnvelope(final TransferEnvelope transferEnvelope) {
 
 		if (transferEnvelope.getBuffer() != null) {
 			LOG.error("Transfer envelope for output channel has buffer attached");
@@ -294,15 +304,7 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 
 		final Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
 		while (it.hasNext()) {
-
-			final AbstractEvent event = it.next();
-
-			if (event instanceof ByteBufferedChannelActivateEvent) {
-				this.isReceiverRunning = true;
-				this.outputGateContext.reportAsynchronousEvent();
-			} else {
-				this.byteBufferedOutputChannel.processEvent(event);
-			}
+			processEvent(it.next());
 		}
 	}
 
@@ -339,13 +341,15 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	@Override
 	public boolean hasDataLeftToTransmit() throws IOException, InterruptedException {
 
+		processIncomingEvents();
+
 		if (!this.isReceiverRunning) {
 			return true;
 		}
 
 		flushQueuedOutgoingEnvelopes();
 
-		return (!this.queuedOutgoingEnvelopes.isEmpty());
+		return (!this.closeAcknowledgementReceived);
 	}
 
 	long getAmountOfMainMemoryInQueue() {
@@ -369,5 +373,25 @@ final class OutputChannelContext implements ByteBufferedOutputChannelBroker, Cha
 	long spillQueueWithOutgoingEnvelopes() throws IOException {
 
 		return this.queuedOutgoingEnvelopes.spillSynchronouslyIncludingHead();
+	}
+
+	/**
+	 * Processes all queues incoming events.
+	 */
+	private void processIncomingEvents() {
+
+		AbstractEvent event = this.incomingEventQueue.poll();
+		while (event != null) {
+
+			if (event instanceof ByteBufferedChannelCloseEvent) {
+				this.closeAcknowledgementReceived = true;
+			} else if (event instanceof ByteBufferedChannelActivateEvent) {
+				this.isReceiverRunning = true;
+			} else {
+				this.byteBufferedOutputChannel.processEvent(event);
+			}
+
+			event = this.incomingEventQueue.poll();
+		}
 	}
 }

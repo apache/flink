@@ -60,7 +60,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 		return this.taskContext.getFileOwnerID();
 	}
 
-	private long spillQueueWithLargestAmountOfMainMemory() {
+	private long spillQueueWithLargestAmountOfMainMemory() throws IOException {
 
 		if (this.inactiveOutputChannels.isEmpty()) {
 			return 0L;
@@ -83,11 +83,7 @@ final class OutputGateContext implements BufferProvider, AsynchronousEventListen
 		}
 
 		if (maxContext != null) {
-			try {
-				return maxContext.spillQueueWithOutgoingEnvelopes();
-			} catch (IOException ioe) {
-				maxContext.reportIOException(ioe);
-			}
+			return maxContext.spillQueueWithOutgoingEnvelopes();
 		}
 
 		return 0L;
