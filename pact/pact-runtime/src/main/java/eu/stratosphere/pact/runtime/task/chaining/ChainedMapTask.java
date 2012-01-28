@@ -65,7 +65,9 @@ public class ChainedMapTask implements ChainedTask
 		Configuration stubConfig = this.config.getStubParameters();
 		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
 		stubConfig.setInteger("pact.parallel.task.count", this.parent.getEnvironment().getCurrentNumberOfSubtasks());
-		stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
+		if(this.parent.getEnvironment().getTaskName() != null) {
+			stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
+		}
 		AbstractPactTask.openUserCode(this.mapper, stubConfig);
 	}
 	

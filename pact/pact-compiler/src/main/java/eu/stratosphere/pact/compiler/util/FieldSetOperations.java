@@ -109,5 +109,37 @@ public class FieldSetOperations {
 			return false;
 		}
 	}
+
+	/**
+	 * Computes the set difference of minuend \ subtrahend.
+	 * Both sets must be sorted.
+	 * 
+	 * @param minuend a sorted int array
+	 * @param subtrahend a sorted int array
+	 * @return minuend \ subtrahend
+	 */
+	public static int[] setDifference(int[] minuend, int[] subtrahend) {
+		int[] difference = new int[minuend.length - subtrahend.length];
+		
+		int j = 0;
+		int k = 0;
+		for(int i=0;i<minuend.length;i++) {
+			
+			if(j < subtrahend.length && minuend[i] == subtrahend[j]) {
+				j++;
+			} else {
+				if(k >= difference.length) {
+					break;
+				}
+				difference[k++] = minuend[i];
+			}
+		}
+		
+		if((j >= subtrahend.length)) {
+			return difference;
+		} else {
+			throw new IllegalArgumentException("Subtrahend was not fully contained in Minuend!");
+		}
+	}
 	
 }

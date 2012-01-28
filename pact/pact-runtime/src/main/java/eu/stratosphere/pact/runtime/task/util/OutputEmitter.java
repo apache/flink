@@ -22,6 +22,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.pact.common.type.DeserializationException;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -145,7 +146,12 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	}
 
 	private int[] partition_range(PactRecord record, int numberOfChannels) {
-		return partitionFunction.selectChannels(record, numberOfChannels);
+		try {
+			partitionFunction.selectChannels(record, numberOfChannels, this.channels);
+		} catch(NullPointerException npe) {
+			throw new RuntimeException("Partition function for RangePartitioner not set!");
+		}
+		return this.channels;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -183,8 +189,16 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 		
 		int hash = 0;
 		for (int i = 0; i < this.keyPositions.length; i++) {
-			final Key k = record.getField(this.keyPositions[i], this.keyClasses[i]);
-			hash ^= (1315423911 ^ ((1315423911 << 5) + k.hashCode() + (1315423911 >> 2)));
+			try {
+				final Key k = record.getField(this.keyPositions[i], this.keyClasses[i]);
+				hash ^= (1315423911 ^ ((1315423911 << 5) + k.hashCode() + (1315423911 >> 2)));
+			} catch(IndexOutOfBoundsException ioobe) {
+				throw new RuntimeException("Key field "+this.keyPositions[i]+" is of our bounds of record.", ioobe);
+			} catch(NullPointerException npe) {
+				throw new RuntimeException("Key field "+this.keyPositions[i]+" is null.", npe);
+			} catch(DeserializationException de) {
+				throw new RuntimeException("Key field "+this.keyPositions[i]+" of type '"+this.keyClasses[i].getName()+"' could not be deserialized.", de);
+			}
 		}
 		
 		for (int i = 0; i < salt.length; i++) {
