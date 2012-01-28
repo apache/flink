@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.util.StringUtils;
 
 final class InputChannelContext implements ChannelContext, ByteBufferedInputChannelBroker, BufferProvider {
 
@@ -169,16 +170,23 @@ final class InputChannelContext implements ChannelContext, ByteBufferedInputChan
 			if (sequenceNumber != expectedSequenceNumber) {
 
 				if (sequenceNumber > expectedSequenceNumber) {
+					
 					// This is a problem, now we are actually missing some data
 					this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
 						+ expectedSequenceNumber + " but received " + sequenceNumber));
 					this.byteBufferedInputChannel.checkForNetworkEvents();
+				} else {
+					
+					// Tell the sender that we are expecting an envelope with a higher sequence number
+					try {
+						transferEventToOutputChannel(new UnexpectedEnvelopeEvent(expectedSequenceNumber));
+					} catch (Exception e) {
+						LOG.error(StringUtils.stringifyException(e));
+					}
 				}
 
-				if (LOG.isDebugEnabled()) {
-					LOG.info("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
+				LOG.warn("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
 						+ " but received " + sequenceNumber);
-				}
 
 				final Buffer buffer = transferEnvelope.getBuffer();
 				if (buffer != null) {
