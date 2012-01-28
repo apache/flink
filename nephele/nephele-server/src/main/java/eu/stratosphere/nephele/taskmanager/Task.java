@@ -92,6 +92,11 @@ public class Task implements ExecutionObserver {
 		// Check the state transition
 		ExecutionStateTransition.checkTransition(getTaskName(), this.executionState, newExecutionState);
 
+		// Make sure the reason for a transition to FAILED appears in the log files
+		if (newExecutionState == ExecutionState.FAILED) {
+			LOG.error(optionalMessage);
+		}
+
 		// Notify all listener objects
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
 		while (it.hasNext()) {
