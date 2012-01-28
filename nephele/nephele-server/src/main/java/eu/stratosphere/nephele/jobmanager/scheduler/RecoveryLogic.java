@@ -28,15 +28,25 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
+import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.DummyInstance;
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.SerializableArrayList;
+import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -86,6 +96,11 @@ public final class RecoveryLogic {
 				return false;
 			}
 
+		}
+
+		// Invalidate the lookup caches
+		if (!invalidateReceiverLookupCaches(failedVertex, verticesToBeCanceled)) {
+			return false;
 		}
 
 		// Replay all necessary checkpoints
@@ -165,5 +180,97 @@ public final class RecoveryLogic {
 			}
 			visited.add(vertex);
 		}
+	}
+
+	private static final boolean invalidateReceiverLookupCaches(final ExecutionVertex failedVertex,
+			final Set<ExecutionVertex> verticesToBeCanceled) {
+
+		final Map<AbstractInstance, Set<ChannelID>> entriesToInvalidate = new HashMap<AbstractInstance, Set<ChannelID>>();
+
+		final ExecutionGraph eg = failedVertex.getExecutionGraph();
+
+		final Environment env = failedVertex.getEnvironment();
+		for (int i = 0; i < env.getNumberOfOutputGates(); ++i) {
+
+			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+
+				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+				if (outputChannel.getType() == ChannelType.FILE) {
+					// Connected vertex is not yet running
+					continue;
+				}
+
+				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(outputChannel.getConnectedChannelID());
+				if (connectedVertex == null) {
+					LOG.error("Connected vertex is null");
+					continue;
+				}
+
+				if (verticesToBeCanceled.contains(connectedVertex)) {
+					// Vertex will be canceled anyways
+					continue;
+				}
+
+				final AbstractInstance instance = connectedVertex.getAllocatedResource().getInstance();
+				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
+				if (channelIDs == null) {
+					channelIDs = new SerializableHashSet<ChannelID>();
+					entriesToInvalidate.put(instance, channelIDs);
+				}
+
+				channelIDs.add(outputChannel.getID());
+			}
+		}
+
+		for (int i = 0; i < env.getNumberOfInputGates(); ++i) {
+
+			final InputGate<? extends Record> inputGate = env.getInputGate(i);
+			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+
+				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
+				if (inputChannel.getType() == ChannelType.FILE) {
+					// Connected vertex is not running anymore
+					continue;
+				}
+
+				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(inputChannel.getConnectedChannelID());
+				if (connectedVertex == null) {
+					LOG.error("Connected vertex is null");
+					continue;
+				}
+
+				if (verticesToBeCanceled.contains(connectedVertex)) {
+					// Vertex will be canceled anyways
+					continue;
+				}
+
+				final AbstractInstance instance = connectedVertex.getAllocatedResource().getInstance();
+				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
+				if (channelIDs == null) {
+					channelIDs = new SerializableHashSet<ChannelID>();
+					entriesToInvalidate.put(instance, channelIDs);
+				}
+
+				channelIDs.add(inputChannel.getID());
+			}
+		}
+
+		final Iterator<Map.Entry<AbstractInstance, Set<ChannelID>>> it = entriesToInvalidate.entrySet().iterator();
+
+		while (it.hasNext()) {
+
+			final Map.Entry<AbstractInstance, Set<ChannelID>> entry = it.next();
+			final AbstractInstance instance = entry.getKey();
+
+			try {
+				instance.invalidateLookupCacheEntries(entry.getValue());
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+				return false;
+			}
+		}
+
+		return true;
 	}
 }
