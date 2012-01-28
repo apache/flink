@@ -811,14 +811,36 @@ public class MatchNode extends TwoInputNode {
 			gp2 = new GlobalProperties();
 		}
 		
-		int[] keyPositions1 = null;
-		int[] keyPositions2 = null;
+		int[] scrambledKeys1 = null;
+		int[] scrambledKeys2 = null;
+		
 		if (ss1 == ShipStrategy.FORWARD && ss2 == ShipStrategy.PARTITION_HASH) {
-			keyPositions2 = this.input1.get(0).getPartitionedFields();
+			scrambledKeys1 = getScrambledArray(getPactContract().getKeyColumnNumbers(0), gp1.getPartitionedFields());
+			//scramble gp2
+			if (scrambledKeys1 != null) {
+				int[] oldPartitions = gp2.getPartitionedFields();
+				int[] newPositions = new int[scrambledKeys1.length];
+				for (int i = 0; i < scrambledKeys1.length; i++) {
+					newPositions[i] = oldPartitions[scrambledKeys1[i]];
+				}
+				
+				gp2.setPartitioning(gp2.getPartitioning(), newPositions);
+			}
+			
 		}
 		
 		if (ss2 == ShipStrategy.FORWARD && ss1 == ShipStrategy.PARTITION_HASH) {
-			keyPositions1 = this.input2.get(0).getPartitionedFields();
+			scrambledKeys2 = getScrambledArray(getPactContract().getKeyColumnNumbers(1), gp2.getPartitionedFields());
+			//scramble gp1
+			if (scrambledKeys2 != null) {
+				int[] oldPartitions = gp1.getPartitionedFields();
+				int[] newPositions = new int[scrambledKeys2.length];
+				for (int i = 0; i < scrambledKeys2.length; i++) {
+					newPositions[i] = oldPartitions[scrambledKeys2[i]];
+				}
+				
+				gp1.setPartitioning(gp1.getPartitioning(), newPositions);
+			}
 		}
 		
 		LocalProperties outLp = outLpp;
@@ -850,11 +872,11 @@ public class MatchNode extends TwoInputNode {
 		
 		for(PactConnection c : n.input1) {
 			c.setShipStrategy(ss1);
-			c.setPartitionedFields(keyPositions1);
+			c.setScramblePartitionedFields(scrambledKeys2);
 		}
 		for(PactConnection c : n.input2) {
 			c.setShipStrategy(ss2);
-			c.setPartitionedFields(keyPositions2);
+			c.setScramblePartitionedFields(scrambledKeys1);
 		}
 		n.setLocalStrategy(ls);
 
@@ -896,11 +918,11 @@ public class MatchNode extends TwoInputNode {
 
 		for(PactConnection c : n.input1) {
 			c.setShipStrategy(ss1);
-			c.setPartitionedFields(keyPositions1);
+			c.setScramblePartitionedFields(scrambledKeys2);
 		}
 		for(PactConnection c : n.input2) {
 			c.setShipStrategy(ss2);
-			c.setPartitionedFields(keyPositions2);
+			c.setScramblePartitionedFields(scrambledKeys1);
 		}
 		
 		n.setLocalStrategy(ls);
@@ -1063,6 +1085,30 @@ public class MatchNode extends TwoInputNode {
 		}
 		
 		return true;
+	}
+	
+	private int[] getScrambledArray(int[] oldPositions, int[] newPositions) {
+		if (Arrays.equals(oldPositions, newPositions)) {
+			return null;
+		}
+		
+		int[] scrambledKeys = new int[newPositions.length];
+		for (int newPosition = 0; newPosition < newPositions.length; newPosition++) {
+			boolean foundNeyKey = false;
+			for (int oldPosition = 0; oldPosition < oldPositions.length; oldPosition++) {
+				if (newPositions[newPosition] == oldPositions[oldPosition]) {
+					scrambledKeys[newPosition] = oldPosition;
+					foundNeyKey = true;
+					break;
+				}
+			}
+			
+			if (foundNeyKey == false) {
+				throw new RuntimeException("Partitioned fields are not subset of the key");
+			}
+		}
+		
+		return scrambledKeys;
 	}
 	
 }
