@@ -9,12 +9,10 @@
         <version>0.2</version>
     </parent>
 
-    <groupId>eu.stratosphere</groupId>
     <artifactId>nephele</artifactId>
 
     <packaging>pom</packaging>
 
-    <version>0.2</version>
     <name>nephele</name>
     <url>http://maven.apache.org</url>
 
@@ -103,5 +101,6 @@
       <module>nephele-visualization</module>
       <module>nephele-server</module>
       <module>nephele-examples</module>
+      <module>nephele-streaming</module>
     </modules>
 </project>

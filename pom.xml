@@ -480,6 +480,7 @@
 		<module>nephele</module>
 		<module>pact</module>
 		<module>build-tools</module>
+		<module>score</module>
 		<module>stratosphere-dist</module>
 	</modules>
 </project>

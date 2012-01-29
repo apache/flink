@@ -27,11 +27,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.io.InputGate;
@@ -80,7 +81,7 @@ public final class ExecutionVertex {
 	/**
 	 * The environment created to execute the vertex's task.
 	 */
-	private final Environment environment;
+	private final RuntimeEnvironment environment;
 
 	/**
 	 * The group vertex this vertex belongs to.
@@ -151,14 +152,17 @@ public final class ExecutionVertex {
 	 *        the execution graph the new vertex belongs to
 	 * @param groupVertex
 	 *        the group vertex the new vertex belongs to
+	 * @param jobConfiguration
+	 *        the configuration object attached to the original {@link JobGraph}
 	 * @throws Exception
 	 *         any exception that might be thrown by the user code during instantiation and registration of input and
 	 *         output channels
 	 */
 	public ExecutionVertex(final JobID jobID, final Class<? extends AbstractInvokable> invokableClass,
-			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex) throws Exception {
-		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex, new Environment(jobID,
-			groupVertex.getName(), invokableClass, groupVertex.getConfiguration()));
+			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
+			final Configuration jobConfiguration) throws Exception {
+		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex, new RuntimeEnvironment(jobID,
+			groupVertex.getName(), invokableClass, groupVertex.getConfiguration(), jobConfiguration));
 
 		this.groupVertex.addInitialSubtask(this);
 
@@ -184,7 +188,8 @@ public final class ExecutionVertex {
 	 *        the environment for the newly created vertex
 	 */
 	private ExecutionVertex(final ExecutionVertexID vertexID, final Class<? extends AbstractInvokable> invokableClass,
-			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex, final Environment environment) {
+			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
+			final RuntimeEnvironment environment) {
 		this.vertexID = vertexID;
 		this.invokableClass = invokableClass;
 		this.executionGraph = executionGraph;
@@ -204,7 +209,7 @@ public final class ExecutionVertex {
 	 * 
 	 * @return the environment of this execution vertex
 	 */
-	public Environment getEnvironment() {
+	public RuntimeEnvironment getEnvironment() {
 		return this.environment;
 	}
 
@@ -245,7 +250,7 @@ public final class ExecutionVertex {
 			newVertexID = new ExecutionVertexID();
 		}
 
-		final Environment duplicatedEnvironment = this.environment.duplicateEnvironment();
+		final RuntimeEnvironment duplicatedEnvironment = this.environment.duplicateEnvironment();
 
 		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.invokableClass,
 			this.executionGraph, this.groupVertex, duplicatedEnvironment);

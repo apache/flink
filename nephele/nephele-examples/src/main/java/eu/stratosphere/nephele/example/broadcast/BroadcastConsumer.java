@@ -100,10 +100,10 @@ public class BroadcastConsumer extends AbstractOutputTask {
 	 */
 	private String getFilename() {
 
-		final String outputPath = getRuntimeConfiguration().getString(OUTPUT_PATH_KEY, "");
-		final String instanceType = getRuntimeConfiguration().getString(INSTANCE_TYPE_KEY, "unknown");
-		final String topologyTree = getRuntimeConfiguration().getString(TOPOLOGY_TREE_KEY, "unknown");
-		final int numberOfRecords = getRuntimeConfiguration().getInteger(BroadcastProducer.NUMBER_OF_RECORDS_KEY, 0);
+		final String outputPath = getTaskConfiguration().getString(OUTPUT_PATH_KEY, "");
+		final String instanceType = getTaskConfiguration().getString(INSTANCE_TYPE_KEY, "unknown");
+		final String topologyTree = getTaskConfiguration().getString(TOPOLOGY_TREE_KEY, "unknown");
+		final int numberOfRecords = getTaskConfiguration().getInteger(BroadcastProducer.NUMBER_OF_RECORDS_KEY, 0);
 
 		return outputPath + File.separator + "latency_" + instanceType + "_" + topologyTree + "_"
 			+ getCurrentNumberOfSubtasks() + "_" + numberOfRecords + "_" + getIndexInSubtaskGroup() + "_"

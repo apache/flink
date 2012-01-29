@@ -59,11 +59,11 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the environment of this task or <code>null</code> if the environment has not yet been set
 	 */
-	//TODO: This method should be final
+	// TODO: This method should be final
 	public Environment getEnvironment() {
 		return this.environment;
 	}
-	
+
 	/**
 	 * Overwrite this method to implement task specific checks if the
 	 * respective task has been configured properly.
@@ -119,13 +119,23 @@ public abstract class AbstractInvokable {
 	}
 
 	/**
-	 * Returns the runtime configuration object which was attached to the original {@link JobVertex}.
+	 * Returns the task configuration object which was attached to the original {@link JobVertex}.
 	 * 
-	 * @return the runtime configuration object which was attached to the original {@link JobVertex}
+	 * @return the task configuration object which was attached to the original {@link JobVertex}
 	 */
-	public final Configuration getRuntimeConfiguration() {
+	public final Configuration getTaskConfiguration() {
 
-		return this.environment.getRuntimeConfiguration();
+		return this.environment.getTaskConfiguration();
+	}
+
+	/**
+	 * Returns the job configuration object which was attached to the original {@link JobGraph}.
+	 * 
+	 * @return the job configuration object which was attached to the original {@link JobGraph}
+	 */
+	public final Configuration getJobConfiguration() {
+
+		return this.environment.getJobConfiguration();
 	}
 
 	/**

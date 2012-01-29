@@ -85,7 +85,7 @@ public class PartitionTask extends AbstractPactTask {
 	@Override
 	public void prepare() throws Exception {
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		config = new TaskConfig(getTaskConfiguration());
 	
 		order = Order.valueOf(config.getStubParameters().getString(GLOBAL_PARTITIONING_ORDER, ""));
 		usesSample = config.getStubParameters().getBoolean(PARTITION_BY_SAMPLING, true);

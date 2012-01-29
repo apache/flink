@@ -144,7 +144,7 @@ public class OutgoingConnectionThread extends Thread {
 			}
 
 			try {
-				this.selector.select(500);
+				this.selector.select(10);
 			} catch (IOException e) {
 				LOG.error(e);
 			}

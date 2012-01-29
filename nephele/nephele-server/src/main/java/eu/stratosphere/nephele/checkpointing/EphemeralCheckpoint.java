@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
@@ -131,7 +132,7 @@ public class EphemeralCheckpoint {
 
 		// Determine number of output channel
 		int nooc = 0;
-		final Environment environment = task.getEnvironment();
+		final RuntimeEnvironment environment = task.getEnvironment();
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			nooc += environment.getOutputGate(i).getNumberOfOutputChannels();
 		}

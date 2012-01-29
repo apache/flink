@@ -13,18 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.optimizer;
+package eu.stratosphere.nephele.protocols;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
+import java.io.IOException;
 
-/**
- * Common interface for Nephele execution graph optimizer.
- * 
- * @author warneke
- *         TODO
- */
-public interface Optimizer {
+import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.plugins.PluginID;
 
-	void optimize(ExecutionGraph executionGraph);
+public interface PluginCommunicationProtocol extends VersionedProtocol {
 
+	void sendData(PluginID pluginID, IOReadableWritable data) throws IOException;
+
+	IOReadableWritable requestData(PluginID pluginID, IOReadableWritable data) throws IOException;
 }

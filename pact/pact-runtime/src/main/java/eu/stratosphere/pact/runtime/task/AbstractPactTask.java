@@ -245,7 +245,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	protected void initConfigAndStub(Class<? super T> stubSuperClass)
 	{
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getTaskConfiguration());
 
 		// obtain stub implementation class
 		try {

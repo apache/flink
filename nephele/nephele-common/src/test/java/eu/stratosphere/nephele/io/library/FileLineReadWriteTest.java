@@ -101,7 +101,7 @@ public class FileLineReadWriteTest {
 		FileLineWriter writer = new FileLineWriter();
 		Whitebox.setInternalState(writer, "environment", this.environment);
 		Whitebox.setInternalState(writer, "input", this.recordReader);
-		when(this.environment.getRuntimeConfiguration()).thenReturn(this.conf);
+		when(this.environment.getTaskConfiguration()).thenReturn(this.conf);
 
 		when(this.conf.getString("outputPath", null)).thenReturn(this.file.toURI().toString());
 		when(this.recordReader.hasNext()).thenReturn(true, true, true, false);
