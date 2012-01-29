@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.InputGateListener;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.OutputGateListener;
-import eu.stratosphere.nephele.taskmanager.Task;
+import eu.stratosphere.nephele.taskmanager.RuntimeTask;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -41,7 +41,7 @@ public interface TaskManagerProfiler {
 	 * @param jobConfiguration
 	 *        the job configuration sent with the task
 	 */
-	void registerExecutionListener(Task task, Configuration jobConfiguration);
+	void registerExecutionListener(RuntimeTask task, Configuration jobConfiguration);
 
 	/**
 	 * Registers a {@link InputGateListener} object for the given input gate.

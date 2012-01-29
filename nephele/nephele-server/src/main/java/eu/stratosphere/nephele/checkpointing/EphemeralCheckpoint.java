@@ -26,7 +26,7 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.taskmanager.Task;
+import eu.stratosphere.nephele.taskmanager.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -77,7 +77,7 @@ public class EphemeralCheckpoint {
 	/**
 	 * The task this checkpoint is created for.
 	 */
-	private final Task task;
+	private final RuntimeTask task;
 
 	/**
 	 * The number of channels connected to this checkpoint.
@@ -126,13 +126,13 @@ public class EphemeralCheckpoint {
 
 	private volatile CheckpointingDecisionState asynchronousCheckpointingDecision;
 
-	public EphemeralCheckpoint(final Task task, final boolean ephemeral) {
+	public EphemeralCheckpoint(final RuntimeTask task, final boolean ephemeral) {
 
 		this.task = task;
 
 		// Determine number of output channel
 		int nooc = 0;
-		final RuntimeEnvironment environment = task.getEnvironment();
+		final RuntimeEnvironment environment = task.getRuntimeEnvironment();
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			nooc += environment.getOutputGate(i).getNumberOfOutputChannels();
 		}

@@ -19,8 +19,12 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.logging.Log;
@@ -1002,5 +1006,61 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		for (int i = 0; i < this.outputGates.size(); i++) {
 			this.outputGates.get(i).releaseAllChannelResources();
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<ChannelID> getOutputChannelIDs() {
+
+		final Set<ChannelID> outputChannelIDs = new HashSet<ChannelID>();
+
+		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		while (gateIterator.hasNext()) {
+
+			final OutputGate<? extends Record> outputGate = gateIterator.next();
+			for (int i = 0; i < outputGate.getNumberOfOutputChannels(); ++i) {
+				outputChannelIDs.add(outputGate.getOutputChannel(i).getID());
+			}
+		}
+
+		return Collections.unmodifiableSet(outputChannelIDs);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<ChannelID> getInputChannelIDs() {
+
+		final Set<ChannelID> inputChannelIDs = new HashSet<ChannelID>();
+
+		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		while (gateIterator.hasNext()) {
+
+			final InputGate<? extends Record> outputGate = gateIterator.next();
+			for (int i = 0; i < outputGate.getNumberOfInputChannels(); ++i) {
+				inputChannelIDs.add(outputGate.getInputChannel(i).getID());
+			}
+		}
+
+		return Collections.unmodifiableSet(inputChannelIDs);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<GateID> getInputGateIDs() {
+
+		final Set<GateID> inputGateIDs = new HashSet<GateID>();
+
+		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		while (gateIterator.hasNext()) {
+			inputGateIDs.add(gateIterator.next().getGateID());
+		}
+
+		return Collections.unmodifiableSet(inputGateIDs);
 	}
 }

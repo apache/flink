@@ -29,9 +29,11 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
@@ -45,6 +47,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInpu
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
+import eu.stratosphere.nephele.taskmanager.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
@@ -134,9 +137,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * @param the
 	 *        set of output channels which are initially active
 	 */
-	public void register(final Task task, final Set<ChannelID> activeOutputChannels) {
+	public void register(final RuntimeTask task, final Set<ChannelID> activeOutputChannels) {
 
-		final Environment environment = task.getEnvironment();
+		final RuntimeEnvironment environment = task.getRuntimeEnvironment();
 
 		final TaskContext taskContext = new TaskContext(task, this, this.tasksWithUndecidedCheckpoints);
 
@@ -231,35 +234,40 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		// Mark all channel IDs to be recently removed
 		this.recentlyRemovedChannelIDSet.add(environment);
 
-		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<?> outputGate = environment.getOutputGate(i);
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
-				this.registeredChannels.remove(outputChannel.getID());
-				this.receiverCache.remove(outputChannel.getID());
-			}
+		Iterator<ChannelID> channelIterator = environment.getOutputChannelIDs().iterator();
+
+		while (channelIterator.hasNext()) {
+
+			final ChannelID outputChannelID = channelIterator.next();
+			this.registeredChannels.remove(outputChannelID);
+			this.receiverCache.remove(outputChannelID);
 		}
 
-		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final InputGate<?> inputGate = environment.getInputGate(i);
-			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
-				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
-				this.registeredChannels.remove(inputChannel.getID());
-				this.receiverCache.remove(inputChannel.getID());
-			}
+		channelIterator = environment.getInputChannelIDs().iterator();
 
-			final LocalBufferPoolOwner owner = this.localBufferPoolOwner.remove(inputGate.getGateID());
+		while (channelIterator.hasNext()) {
+
+			final ChannelID outputChannelID = channelIterator.next();
+			this.registeredChannels.remove(outputChannelID);
+			this.receiverCache.remove(outputChannelID);
+		}
+
+		final Iterator<GateID> inputGateIterator = environment.getInputGateIDs().iterator();
+
+		while (inputGateIterator.hasNext()) {
+
+			final GateID inputGateID = inputGateIterator.next();
+
+			final LocalBufferPoolOwner owner = this.localBufferPoolOwner.remove(inputGateID);
 			if (owner == null) {
-				LOG.error("Cannot find local buffer pool owner for input gate " + inputGate.getGateID());
+				LOG.error("Cannot find local buffer pool owner for input gate " + inputGateID);
 			} else {
 				owner.clearLocalBufferPool();
 			}
 		}
 
 		final LocalBufferPoolOwner owner = this.localBufferPoolOwner.remove(vertexID);
-		if (owner == null) {
-			LOG.error("Cannot find local buffer pool owner for vertex ID" + vertexID);
-		} else {
+		if (owner != null) {
 			owner.clearLocalBufferPool();
 		}
 

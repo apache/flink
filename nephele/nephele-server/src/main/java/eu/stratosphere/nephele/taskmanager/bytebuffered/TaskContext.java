@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.taskmanager.Task;
+import eu.stratosphere.nephele.taskmanager.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
@@ -40,7 +40,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 
 	private final LocalBufferPool localBufferPool;
 
-	private final Task task;
+	private final RuntimeTask task;
 
 	private final AsynchronousEventListener[] subEventListener;
 
@@ -57,13 +57,13 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 	 */
 	private boolean initialExhaustionOfMemoryBuffersReported = false;
 
-	TaskContext(final Task task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+	TaskContext(final RuntimeTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final Map<ExecutionVertexID, TaskContext> tasksWithUndecidedCheckpoints) {
 
 		this.localBufferPool = new LocalBufferPool(1, false, this);
 		this.task = task;
 
-		final RuntimeEnvironment environment = task.getEnvironment();
+		final RuntimeEnvironment environment = task.getRuntimeEnvironment();
 
 		// Compute number of output input channels
 		int nooc = 0;
@@ -163,7 +163,7 @@ final class TaskContext implements BufferProvider, LocalBufferPoolOwner, Asynchr
 		final int req = this.localBufferPool.getRequestedNumberOfBuffers();
 		final int des = this.localBufferPool.getDesignatedNumberOfBuffers();
 
-		final RuntimeEnvironment environment = this.task.getEnvironment();
+		final RuntimeEnvironment environment = this.task.getRuntimeEnvironment();
 
 		System.out.println("\t\t" + environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
 			+ des + " designated");

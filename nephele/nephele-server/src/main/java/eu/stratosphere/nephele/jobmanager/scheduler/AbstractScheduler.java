@@ -27,8 +27,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -222,7 +222,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			verticesForInstance.add(vertex);
 		}
 
-		final Environment env = vertex.getEnvironment();
+		final RuntimeEnvironment env = vertex.getEnvironment();
 		final int numberOfOutputGates = env.getNumberOfOutputGates();
 		for (int i = 0; i < numberOfOutputGates; ++i) {
 

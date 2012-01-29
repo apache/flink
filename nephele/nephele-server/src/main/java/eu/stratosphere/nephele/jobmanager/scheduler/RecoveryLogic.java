@@ -28,8 +28,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -189,7 +189,7 @@ public final class RecoveryLogic {
 
 		final ExecutionGraph eg = failedVertex.getExecutionGraph();
 
-		final Environment env = failedVertex.getEnvironment();
+		final RuntimeEnvironment env = failedVertex.getEnvironment();
 		for (int i = 0; i < env.getNumberOfOutputGates(); ++i) {
 
 			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);

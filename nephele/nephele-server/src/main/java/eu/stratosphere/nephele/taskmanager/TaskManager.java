@@ -495,7 +495,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		re.setInputSplitProvider(new TaskInputSplitProvider(re.getJobID(), id, this.globalInputSplitProvider));
 
 		// Create task object and register it with the environment
-		final Task task = new Task(id, re, this);
+		final RuntimeTask task = new RuntimeTask(id, re, this);
 		re.setExecutionObserver(task);
 
 		// Register the task
@@ -538,7 +538,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			re.setInputSplitProvider(new TaskInputSplitProvider(re.getJobID(), id, this.globalInputSplitProvider));
 
 			// Create task object and register it with the environment
-			final Task task = new Task(id, re, this);
+			final RuntimeTask task = new RuntimeTask(id, re, this);
 			re.setExecutionObserver(task);
 
 			// Register the task
@@ -561,7 +561,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	}
 
 	/**
-	 * Registers an newly incoming task with the task manager.
+	 * Registers an newly incoming runtime task with the task manager.
 	 * 
 	 * @param id
 	 *        the ID of the task to register
@@ -574,8 +574,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * @return <code>null</code> if the registration has been successful or a {@link TaskSubmissionResult} containing
 	 *         the error that occurred
 	 */
-	private TaskSubmissionResult registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Task task, final Set<ChannelID> activeOutputChannels) {
+	private TaskSubmissionResult registerRuntimeTask(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final RuntimeTask task, final Set<ChannelID> activeOutputChannels) {
 
 		if (id == null) {
 			throw new IllegalArgumentException("Argument id is null");
@@ -595,7 +595,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			}
 		}
 
-		final RuntimeEnvironment ee = task.getEnvironment();
+		final RuntimeEnvironment ee = task.getRuntimeEnvironment();
 
 		// Register the task with the byte buffered channel manager
 		this.byteBufferedChannelManager.register(task, activeOutputChannels);

@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.execution;
 
+import java.util.Set;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.DistributionPattern;
@@ -22,6 +24,7 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -184,4 +187,25 @@ public interface Environment {
 	 *        the input gate to be registered
 	 */
 	void registerInputGate(InputGate<? extends Record> inputGate);
+
+	/**
+	 * Returns the IDs of all output channels connected to this environment.
+	 * 
+	 * @return the IDs of all output channels connected to this environment
+	 */
+	Set<ChannelID> getOutputChannelIDs();
+
+	/**
+	 * Returns the IDs of all input channels connected to this environment.
+	 * 
+	 * @return the IDs of all input channels connected to this environment
+	 */
+	Set<ChannelID> getInputChannelIDs();
+
+	/**
+	 * Returns the IDs of all input gates connected to this environment.
+	 * 
+	 * @return the IDs of all input gates connected to this environment
+	 */
+	Set<GateID> getInputGateIDs();
 }
