@@ -1003,11 +1003,4 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 			this.outputGates.get(i).releaseAllChannelResources();
 		}
 	}
-
-	@Override
-	public void registerMapper(final Mapper<? extends Record, ? extends Record> mapper) {
-
-		// Nothing to do here
-
-	}
 }

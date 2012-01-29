@@ -101,6 +101,5 @@
       <module>nephele-visualization</module>
       <module>nephele-server</module>
       <module>nephele-examples</module>
-      <module>nephele-streaming</module>
     </modules>
 </project>

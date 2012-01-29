@@ -184,6 +184,4 @@ public interface Environment {
 	 *        the input gate to be registered
 	 */
 	void registerInputGate(InputGate<? extends Record> inputGate);
-
-	void registerMapper(Mapper<? extends Record, ? extends Record> mapper);
 }
