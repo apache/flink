@@ -201,7 +201,8 @@ public final class RecoveryLogic {
 					continue;
 				}
 
-				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(outputChannel.getConnectedChannelID());
+				final ChannelID connectedChannelID = outputChannel.getConnectedChannelID();
+				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
 				if (connectedVertex == null) {
 					LOG.error("Connected vertex is null");
 					continue;
@@ -219,7 +220,7 @@ public final class RecoveryLogic {
 					entriesToInvalidate.put(instance, channelIDs);
 				}
 
-				channelIDs.add(outputChannel.getID());
+				channelIDs.add(connectedChannelID);
 			}
 		}
 
@@ -234,7 +235,8 @@ public final class RecoveryLogic {
 					continue;
 				}
 
-				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(inputChannel.getConnectedChannelID());
+				final ChannelID connectedChannelID = inputChannel.getConnectedChannelID();
+				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
 				if (connectedVertex == null) {
 					LOG.error("Connected vertex is null");
 					continue;
@@ -252,7 +254,7 @@ public final class RecoveryLogic {
 					entriesToInvalidate.put(instance, channelIDs);
 				}
 
-				channelIDs.add(inputChannel.getID());
+				channelIDs.add(connectedChannelID);
 			}
 		}
 
