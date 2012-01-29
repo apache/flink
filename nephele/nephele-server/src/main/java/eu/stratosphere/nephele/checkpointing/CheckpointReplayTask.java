@@ -145,8 +145,6 @@ class CheckpointReplayTask extends Thread {
 						break;
 					}
 				}
-			} catch (InterruptedException e) {
-				// Ignore exception
 			} finally {
 				if (fis != null) {
 					fis.close();

@@ -279,15 +279,26 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		return this.networkConnectionManager;
 	}
 
-	private void processEnvelope(final TransferEnvelope transferEnvelope, final boolean freeSourceBuffer)
-			throws IOException, InterruptedException {
+	private void recycleBuffer(final TransferEnvelope envelope) {
+
+		final Buffer buffer = envelope.getBuffer();
+		if (buffer != null) {
+			buffer.recycleBuffer();
+		}
+	}
+
+	private void sendReceiverNotFoundEvent(final ChannelID originalSender, final ChannelID unknownReceiver) {
+
+	}
+
+	private void processEnvelope(final TransferEnvelope transferEnvelope, final boolean freeSourceBuffer) {
 
 		final TransferEnvelopeReceiverList receiverList = getReceiverList(transferEnvelope.getJobID(),
 			transferEnvelope.getSource());
 
 		if (receiverList == null) {
-			throw new IOException("Transfer envelope " + transferEnvelope.getSequenceNumber() + " from source channel "
-				+ transferEnvelope.getSource() + " has not have a receiver list");
+			recycleBuffer(transferEnvelope);
+			return;
 		}
 
 		// This envelope is known to have either no buffer or an memory-based input buffer
@@ -299,15 +310,14 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	}
 
 	private void processEnvelopeWithBuffer(final TransferEnvelope transferEnvelope,
-			final TransferEnvelopeReceiverList receiverList, final boolean freeSourceBuffer)
-			throws IOException, InterruptedException {
+			final TransferEnvelopeReceiverList receiverList, final boolean freeSourceBuffer) {
 
 		// Handle the most common (unicast) case first
 		if (!freeSourceBuffer) {
 
 			final List<ChannelID> localReceivers = receiverList.getLocalReceivers();
 			if (localReceivers.size() != 1) {
-				throw new IOException("Expected receiver list to have exactly one element");
+				LOG.error("Expected receiver list to have exactly one element");
 			}
 
 			final ChannelID localReceiver = localReceivers.get(0);
@@ -315,17 +325,17 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			final ChannelContext cc = this.registeredChannels.get(localReceiver);
 			if (cc == null) {
 
-				if (this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
-					// TODO: Reconsider buffer recycling here
-					return;
-				} else {
-					throw new IOException("Cannot find channel context for local receiver " + localReceiver);
+				if (!this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
+					sendReceiverNotFoundEvent(transferEnvelope.getSource(), localReceiver);
 				}
+
+				recycleBuffer(transferEnvelope);
+				return;
 			}
 
 			if (!cc.isInputChannel()) {
-				throw new IOException("Local receiver " + localReceiver
-						+ " is not an input channel, but is supposed to accept a buffer");
+				LOG.error("Local receiver " + localReceiver
+					+ " is not an input channel, but is supposed to accept a buffer");
 			}
 
 			cc.queueTransferEnvelope(transferEnvelope);
@@ -345,21 +355,32 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final ChannelContext cc = this.registeredChannels.get(localReceiver);
 				if (cc == null) {
 
-					if (this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
-						continue;
-					} else {
-						throw new IOException("Cannot find channel context for local receiver " + localReceiver);
+					if (!this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
+						sendReceiverNotFoundEvent(transferEnvelope.getSource(), localReceiver);
 					}
+
+					continue;
 				}
 
 				if (!cc.isInputChannel()) {
-					throw new IOException("Local receiver " + localReceiver
-							+ " is not an input channel, but is supposed to accept a buffer");
+					LOG.error("Local receiver " + localReceiver
+						+ " is not an input channel, but is supposed to accept a buffer");
+					continue;
 				}
 
 				final InputChannelContext inputChannelContext = (InputChannelContext) cc;
-				final Buffer destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
-				srcBuffer.copyToBuffer(destBuffer);
+
+				Buffer destBuffer = null;
+				try {
+					destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
+					srcBuffer.copyToBuffer(destBuffer);
+				} catch (Exception e) {
+					LOG.error(StringUtils.stringifyException(e));
+					if (destBuffer != null) {
+						destBuffer.recycleBuffer();
+					}
+					continue;
+				}
 				// TODO: See if we can save one duplicate step here
 				final TransferEnvelope dup = transferEnvelope.duplicateWithoutBuffer();
 				dup.setBuffer(destBuffer);
@@ -372,7 +393,18 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
 			for (final InetSocketAddress remoteReceiver : remoteReceivers) {
 
-				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope.duplicate());
+				TransferEnvelope dup = null;
+				try {
+					dup = transferEnvelope.duplicate();
+				} catch (Exception e) {
+					LOG.error(StringUtils.stringifyException(e));
+					if (dup != null) {
+						recycleBuffer(dup);
+						continue;
+					}
+				}
+
+				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, dup);
 			}
 		}
 
@@ -421,62 +453,68 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 	}
 
-	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID)
-			throws IOException, InterruptedException {
+	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID) {
 
 		TransferEnvelopeReceiverList receiverList = this.receiverCache.get(sourceChannelID);
+		
 		if (receiverList == null) {
 
-			while (true) {
+			try {
+				while (true) {
 
-				final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
+					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
 							this.localConnectionInfo, jobID, sourceChannelID);
 
-				if (lookupResponse.receiverNotFound()) {
-					throw new IOException("Cannot find task(s) waiting for data from source channel with ID "
+					if (lookupResponse.receiverNotFound()) {
+						throw new IOException("Cannot find task(s) waiting for data from source channel with ID "
 							+ sourceChannelID);
-				}
-
-				if (lookupResponse.receiverNotReady()) {
-					Thread.sleep(500);
-					continue;
-				}
-
-				if (lookupResponse.receiverReady()) {
-					receiverList = new TransferEnvelopeReceiverList(lookupResponse);
-					break;
-				}
-			}
-
-			if (receiverList == null) {
-				LOG.error("Receiver list is null for source channel ID " + sourceChannelID);
-			} else {
-				this.receiverCache.put(sourceChannelID, receiverList);
-
-				if (LOG.isDebugEnabled()) {
-
-					final StringBuilder sb = new StringBuilder();
-					sb.append("Receiver list for source channel ID " + sourceChannelID + " at task manager "
-						+ this.localConnectionInfo + "\n");
-
-					if (receiverList.hasLocalReceivers()) {
-						sb.append("\tLocal receivers:\n");
-						final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
-						while (it.hasNext()) {
-							sb.append("\t\t" + it.next() + "\n");
-						}
 					}
 
-					if (receiverList.hasRemoteReceivers()) {
-						sb.append("Remote receivers:\n");
-						final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
-						while (it.hasNext()) {
-							sb.append("\t\t" + it.next() + "\n");
-						}
+					if (lookupResponse.receiverNotReady()) {
+						Thread.sleep(500);
+						continue;
 					}
 
-					LOG.debug(sb.toString());
+					if (lookupResponse.receiverReady()) {
+						receiverList = new TransferEnvelopeReceiverList(lookupResponse);
+						break;
+					}
 				}
+
+				if (receiverList == null) {
+					LOG.error("Receiver list is null for source channel ID " + sourceChannelID);
+				} else {
+					this.receiverCache.put(sourceChannelID, receiverList);
+
+					if (LOG.isDebugEnabled()) {
+
+						final StringBuilder sb = new StringBuilder();
+						sb.append("Receiver list for source channel ID " + sourceChannelID + " at task manager "
+							+ this.localConnectionInfo + "\n");
+
+						if (receiverList.hasLocalReceivers()) {
+							sb.append("\tLocal receivers:\n");
+							final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
+							while (it.hasNext()) {
+								sb.append("\t\t" + it.next() + "\n");
+							}
+						}
+
+						if (receiverList.hasRemoteReceivers()) {
+							sb.append("Remote receivers:\n");
+							final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
+							while (it.hasNext()) {
+								sb.append("\t\t" + it.next() + "\n");
+							}
+						}
+
+						LOG.debug(sb.toString());
+					}
+				}
+			} catch (InterruptedException ie) {
+				// TODO: Send appropriate notifications here
+			} catch (IOException ioe) {
+				// TODO: Send appropriate notifications here
 			}
 		}
 
@@ -487,8 +525,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) throws IOException,
-			InterruptedException {
+	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) {
 
 		processEnvelope(transferEnvelope, true);
 	}
@@ -497,8 +534,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) throws IOException,
-			InterruptedException {
+	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) {
 
 		processEnvelope(transferEnvelope, false);
 	}
@@ -507,14 +543,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer)
-			throws IOException {
+	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer) {
 
-		try {
-			processEnvelope(transferEnvelope, freeSourceBuffer);
-		} catch (InterruptedException e) {
-			LOG.error("Caught unexpected interrupted exception: " + StringUtils.stringifyException(e));
-		}
+		processEnvelope(transferEnvelope, freeSourceBuffer);
 	}
 
 	/**
