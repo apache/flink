@@ -44,9 +44,11 @@ public abstract class AbstractID implements IOReadableWritable {
 	 */
 	public AbstractID(final byte[] bytes) {
 
-		if (bytes.length == SIZE) {
-			System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
+		if (bytes.length != SIZE) {
+			throw new IllegalArgumentException("Argument bytes must by an array of " + SIZE + " bytes");
 		}
+
+		System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
 	}
 
 	/**

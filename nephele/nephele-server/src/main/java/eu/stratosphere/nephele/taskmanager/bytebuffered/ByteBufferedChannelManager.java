@@ -287,8 +287,24 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 	}
 
-	private void sendReceiverNotFoundEvent(final ChannelID originalSender, final ChannelID unknownReceiver) {
+	private void sendReceiverNotFoundEvent(final JobID jobID, final ChannelID unknownReceiver) {
 
+		if (ChannelID.SYSTEM_ID.equals(unknownReceiver)) {
+			LOG.error("Requested to send unknown receiver event from the system, dropping request...");
+			return;
+		}
+
+		final TransferEnvelope transferEnvelope = new TransferEnvelope(0, jobID, ChannelID.SYSTEM_ID);
+		final UnknownReceiverEvent unknownReceiverEvent = new UnknownReceiverEvent(unknownReceiver);
+		transferEnvelope.addEvent(unknownReceiverEvent);
+
+		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, unknownReceiver);
+		if (receiverList == null) {
+			LOG.error("Cannot determine receiver list for source channel ID " + unknownReceiver);
+			return;
+		}
+
+		processEnvelopeEnvelopeWithoutBuffer(transferEnvelope, receiverList);
 	}
 
 	private void processEnvelope(final TransferEnvelope transferEnvelope, final boolean freeSourceBuffer) {
@@ -326,7 +342,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			if (cc == null) {
 
 				if (!this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
-					sendReceiverNotFoundEvent(transferEnvelope.getSource(), localReceiver);
+					sendReceiverNotFoundEvent(transferEnvelope.getJobID(), localReceiver);
 				}
 
 				recycleBuffer(transferEnvelope);
@@ -356,7 +372,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				if (cc == null) {
 
 					if (!this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
-						sendReceiverNotFoundEvent(transferEnvelope.getSource(), localReceiver);
+						sendReceiverNotFoundEvent(transferEnvelope.getJobID(), localReceiver);
 					}
 
 					continue;
@@ -456,7 +472,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID) {
 
 		TransferEnvelopeReceiverList receiverList = this.receiverCache.get(sourceChannelID);
-		
+
 		if (receiverList == null) {
 
 			try {
