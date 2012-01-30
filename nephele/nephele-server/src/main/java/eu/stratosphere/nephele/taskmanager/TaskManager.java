@@ -40,12 +40,14 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayManager;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
@@ -530,13 +532,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			final Configuration jobConfiguration = tsw.getConfiguration();
 			final Set<ChannelID> activeOutputChannels = tsw.getActiveOutputChannels();
 
-			// Register task manager components in environment
-			re.setMemoryManager(this.memoryManager);
-			re.setIOManager(this.ioManager);
-
-			// Register a new task input split provider
-			re.setInputSplitProvider(new TaskInputSplitProvider(re.getJobID(), id, this.globalInputSplitProvider));
-
 			// Create task object and register it with the environment
 			final RuntimeTask task = new RuntimeTask(id, re, this);
 			re.setExecutionObserver(task);
@@ -574,8 +569,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * @return <code>null</code> if the registration has been successful or a {@link TaskSubmissionResult} containing
 	 *         the error that occurred
 	 */
-	private TaskSubmissionResult registerRuntimeTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final RuntimeTask task, final Set<ChannelID> activeOutputChannels) {
+	private TaskSubmissionResult registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final Task task, final Set<ChannelID> activeOutputChannels) {
 
 		if (id == null) {
 			throw new IllegalArgumentException("Argument id is null");
@@ -595,7 +590,12 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			}
 		}
 
-		final RuntimeEnvironment ee = task.getRuntimeEnvironment();
+		final Environment ee = task.getEnvironment();
+
+		// Register task manager components with the task
+		task.registerMemoryManager(this.memoryManager);
+		task.registerIOManager(this.ioManager);
+		task.registerInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
 
 		// Register the task with the byte buffered channel manager
 		this.byteBufferedChannelManager.register(task, activeOutputChannels);
@@ -607,16 +607,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Register environment, input, and output gates for profiling
 		if (enableProfiling) {
-
-			this.profiler.registerExecutionListener(task, jobConfiguration);
-
-			for (int i = 0; i < ee.getNumberOfInputGates(); i++) {
-				this.profiler.registerInputGateListener(id, jobConfiguration, ee.getInputGate(i));
-			}
-
-			for (int i = 0; i < ee.getNumberOfOutputGates(); i++) {
-				this.profiler.registerOutputGateListener(id, jobConfiguration, ee.getOutputGate(i));
-			}
+			task.registerProfiler(this.profiler, jobConfiguration);
 		}
 
 		// Allow plugins to register their listeners for this task
@@ -636,14 +627,12 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * {@inheritDoc}
 	 */
 	@Override
-	public SerializableArrayList<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs)
-			throws IOException {
-
-		// TODO: Invalidate lookup caches
+	public SerializableArrayList<CheckpointReplayResult> replayCheckpoints(
+			final List<CheckpointReplayRequest> replayRequests) throws IOException {
 
 		final SerializableArrayList<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
 
-		for (final ExecutionVertexID vertexID : vertexIDs) {
+		for (final CheckpointReplayRequest replayRequest : replayRequests) {
 
 			if (!this.checkpointManager.hasCompleteCheckpointAvailable(vertexID)) {
 
@@ -688,16 +677,10 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		this.byteBufferedChannelManager.unregister(id, task);
 
 		// Unregister task from profiling
-		if (this.profiler != null) {
-			this.profiler.unregisterOutputGateListeners(id);
-			this.profiler.unregisterInputGateListeners(id);
-			this.profiler.unregisterExecutionListener(id);
-		}
+		task.unregisterProfiler(this.profiler);
 
 		// Unregister task from memory manager
-		if (this.memoryManager != null) {
-			this.memoryManager.releaseAll(task.getEnvironment().getInvokable());
-		}
+		task.unregisterMemoryManager(this.memoryManager);
 
 		// Allow plugins to unregister their listeners for this task
 		if (!this.taskManagerPlugins.isEmpty()) {

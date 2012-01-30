@@ -27,6 +27,7 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
@@ -78,7 +79,7 @@ public final class RecoveryLogic {
 
 		final Set<ExecutionVertex> verticesToBeCanceled = new HashSet<ExecutionVertex>();
 
-		final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToBeReplayed = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
+		final Map<AbstractInstance, Set<ExecutionVertexID>> checkpointsToBeReplayed = new HashMap<AbstractInstance, Set<ExecutionVertexID>>();
 
 		findVerticesToRestart(failedVertex, verticesToBeCanceled, checkpointsToBeReplayed);
 
@@ -104,16 +105,17 @@ public final class RecoveryLogic {
 		}
 
 		// Replay all necessary checkpoints
-		final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> checkpointIterator = checkpointsToBeReplayed
+		final Iterator<Map.Entry<AbstractInstance, Set<ExecutionVertexID>>> checkpointIterator = checkpointsToBeReplayed
 			.entrySet().iterator();
 
 		while (checkpointIterator.hasNext()) {
 
-			final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = checkpointIterator.next();
+			final Map.Entry<AbstractInstance, Set<ExecutionVertexID>> entry = checkpointIterator.next();
 			final AbstractInstance instance = entry.getKey();
 
 			try {
-				final List<CheckpointReplayResult> results = instance.replayCheckpoints(entry.getValue());
+				final List<CheckpointReplayResult> results = instance.replayCheckpoints(toListOfReplayRequests(
+					failedVertex.getExecutionGraph(), entry.getValue()));
 				for (final CheckpointReplayResult result : results) {
 					if (result.getReturnCode() != ReturnCode.SUCCESS) {
 						LOG.error(result.getDescription());
@@ -137,9 +139,32 @@ public final class RecoveryLogic {
 		return true;
 	}
 
+	private static List<CheckpointReplayRequest> toListOfReplayRequests(final ExecutionGraph executionGraph,
+			final Set<ExecutionVertexID> vertexIDs) {
+
+		final List<CheckpointReplayRequest> replayRequests = new SerializableArrayList<CheckpointReplayRequest>();
+		final Iterator<ExecutionVertexID> it = vertexIDs.iterator();
+		while (it.hasNext()) {
+
+			final ExecutionVertexID vertexID = it.next();
+			final ExecutionVertex vertex = executionGraph.getVertexByID(vertexID);
+
+			if (vertex == null) {
+				LOG.error("Cannot find execution vertex with ID " + vertexID);
+				continue;
+			}
+
+			final CheckpointReplayRequest replayRequest = new CheckpointReplayRequest(vertexID);
+			replayRequest.addOutputChannelIDs(vertex.getEnvironment().getOutputChannelIDs());
+			replayRequests.add(replayRequest);
+		}
+
+		return replayRequests;
+	}
+
 	private static void findVerticesToRestart(final ExecutionVertex failedVertex,
 			final Set<ExecutionVertex> verticesToBeCanceled,
-			final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToBeReplayed) {
+			final Map<AbstractInstance, Set<ExecutionVertexID>> checkpointsToBeReplayed) {
 
 		final Queue<ExecutionVertex> verticesToTest = new ArrayDeque<ExecutionVertex>();
 		final Set<ExecutionVertex> visited = new HashSet<ExecutionVertex>();
@@ -167,15 +192,13 @@ public final class RecoveryLogic {
 
 					// Group IDs by instance
 					final AbstractInstance instance = predecessor.getAllocatedResource().getInstance();
-					List<ExecutionVertexID> checkpointIDs = checkpointsToBeReplayed.get(instance);
+					Set<ExecutionVertexID> checkpointIDs = checkpointsToBeReplayed.get(instance);
 					if (checkpointIDs == null) {
-						checkpointIDs = new SerializableArrayList<ExecutionVertexID>();
+						checkpointIDs = new HashSet<ExecutionVertexID>();
 						checkpointsToBeReplayed.put(instance, checkpointIDs);
 					}
 
-					if (!checkpointIDs.contains(predecessor.getID())) {
-						checkpointIDs.add(predecessor.getID());
-					}
+					checkpointIDs.add(predecessor.getID());
 				}
 			}
 			visited.add(vertex);

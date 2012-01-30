@@ -128,7 +128,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			+ (this.allowSenderSideSpilling ? "enabled" : "disabled")
 			+ (this.mergeSpilledBuffers ? " and spilled buffer merging enabled" : ""));
 	}
-
+	
 	/**
 	 * Registers the given task with the byte buffered channel manager.
 	 * 
@@ -137,9 +137,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * @param the
 	 *        set of output channels which are initially active
 	 */
-	public void register(final RuntimeTask task, final Set<ChannelID> activeOutputChannels) {
+	public void register(final Task task, final Set<ChannelID> activeOutputChannels) {
 
-		final RuntimeEnvironment environment = task.getRuntimeEnvironment();
+		final Environment environment = task.getEnvironment();
 
 		final TaskContext taskContext = new TaskContext(task, this, this.tasksWithUndecidedCheckpoints);
 

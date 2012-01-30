@@ -29,6 +29,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.annotations.Stateful;
 import eu.stratosphere.nephele.annotations.Stateless;
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
@@ -44,7 +45,11 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -177,24 +182,27 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	}
 
 	/**
-	 * Marks the task as failed and triggers the appropriate state changes.
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void markAsFailed() {
 
 		executionStateChanged(ExecutionState.FAILED, "Execution thread died unexpectedly");
 	}
 
 	/**
-	 * Cancels the execution of the task (i.e. interrupts the execution thread).
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void cancelExecution() {
 
 		cancelOrKillExecution(true);
 	}
 
 	/**
-	 * Kills the task (i.e. interrupts the execution thread).
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void killExecution() {
 
 		cancelOrKillExecution(false);
@@ -254,8 +262,9 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	}
 
 	/**
-	 * Starts the execution of this Nephele task.
+	 * {@inheritDoc}
 	 */
+	@Override
 	public void startExecution() {
 
 		final Thread thread = this.environment.getExecutingThread();
@@ -345,11 +354,9 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	}
 
 	/**
-	 * Checks if the state of the thread which is associated with this task is <code>TERMINATED</code>.
-	 * 
-	 * @return <code>true</code> if the state of this thread which is associated with this task is
-	 *         <code>TERMINATED</code>, <code>false</code> otherwise
+	 * {@inheritDoc}
 	 */
+	@Override
 	public boolean isTerminated() {
 
 		final Thread executingThread = this.environment.getExecutingThread();
@@ -395,5 +402,75 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public ExecutionVertexID getVertexID() {
 
 		return this.vertexID;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerMemoryManager(final MemoryManager memoryManager) {
+
+		this.environment.setMemoryManager(memoryManager);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerIOManager(final IOManager ioManager) {
+
+		this.environment.setIOManager(ioManager);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerInputSplitProvider(final InputSplitProvider inputSplitProvider) {
+
+		this.environment.setInputSplitProvider(inputSplitProvider);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerProfiler(final TaskManagerProfiler taskManagerProfiler, final Configuration jobConfiguration) {
+
+		taskManagerProfiler.registerExecutionListener(this, jobConfiguration);
+
+		for (int i = 0; i < this.environment.getNumberOfInputGates(); i++) {
+			taskManagerProfiler.registerInputGateListener(this.vertexID, jobConfiguration,
+				this.environment.getInputGate(i));
+		}
+
+		for (int i = 0; i < this.environment.getNumberOfOutputGates(); i++) {
+			taskManagerProfiler.registerOutputGateListener(this.vertexID, jobConfiguration,
+				this.environment.getOutputGate(i));
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void unregisterMemoryManager(final MemoryManager memoryManager) {
+
+		if (memoryManager != null) {
+			memoryManager.releaseAll(this.environment.getInvokable());
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void unregisterProfiler(final TaskManagerProfiler taskManagerProfiler) {
+
+		if (taskManagerProfiler != null) {
+			taskManagerProfiler.unregisterOutputGateListeners(this.vertexID);
+			taskManagerProfiler.unregisterInputGateListeners(this.vertexID);
+			taskManagerProfiler.unregisterExecutionListener(this.vertexID);
+		}
 	}
 }

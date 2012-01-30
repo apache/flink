@@ -59,6 +59,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecisionCoordinator;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecisionPropagator;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
@@ -1238,9 +1239,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@Override
 	public void replayCheckpoints(final JobID jobID, final AbstractInstance instance,
-			final List<ExecutionVertexID> vertexIDs) {
+			final List<CheckpointReplayRequest> replayRequests) {
 
-		if (vertexIDs.isEmpty()) {
+		if (replayRequests.isEmpty()) {
 			LOG.error("Method 'replayCheckpoints' called but list of checkpoints to be replayed is empty");
 			return;
 		}
@@ -1257,15 +1258,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				List<CheckpointReplayResult> checkpointResultList = null;
 
 				try {
-					checkpointResultList = instance.replayCheckpoints(vertexIDs);
+					checkpointResultList = instance.replayCheckpoints(replayRequests);
 				} catch (final IOException ioe) {
 					final String errorMsg = StringUtils.stringifyException(ioe);
 					// TODO: Handle this correctly
 					LOG.error(errorMsg);
 				}
 
-				if (vertexIDs.size() != checkpointResultList.size()) {
-					LOG.error("size of submission result list does not match size of list with vertices to be deployed");
+				if (replayRequests.size() != checkpointResultList.size()) {
+					LOG.error("size of submission result list does not match size of list with checkpoints to be deployed");
 				}
 
 				for (final CheckpointReplayResult ccr : checkpointResultList) {

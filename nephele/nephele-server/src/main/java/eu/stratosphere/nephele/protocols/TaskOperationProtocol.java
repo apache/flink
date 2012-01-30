@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
+import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
@@ -119,7 +120,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
 
-	List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException;
+	List<CheckpointReplayResult> replayCheckpoints(List<CheckpointReplayRequest> replayRequests) throws IOException;
 
 	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
 

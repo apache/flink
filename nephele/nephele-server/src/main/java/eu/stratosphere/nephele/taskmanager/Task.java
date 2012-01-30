@@ -15,9 +15,14 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.InputSplitProvider;
 
 public interface Task {
 
@@ -41,4 +46,82 @@ public interface Task {
 	 * @return the environment associated with this task
 	 */
 	Environment getEnvironment();
+
+	/**
+	 * Marks the task as failed and triggers the appropriate state changes.
+	 */
+	void markAsFailed();
+
+	/**
+	 * Checks if the state of the thread which is associated with this task is <code>TERMINATED</code>.
+	 * 
+	 * @return <code>true</code> if the state of this thread which is associated with this task is
+	 *         <code>TERMINATED</code>, <code>false</code> otherwise
+	 */
+	boolean isTerminated();
+
+	/**
+	 * Starts the execution of this task.
+	 */
+	void startExecution();
+
+	/**
+	 * Cancels the execution of the task (i.e. interrupts the execution thread).
+	 */
+	void cancelExecution();
+
+	/**
+	 * Kills the task (i.e. interrupts the execution thread).
+	 */
+	void killExecution();
+
+	/**
+	 * Registers the central memory manager with the task.
+	 * 
+	 * @param memoryManager
+	 *        the central memory manager
+	 */
+	void registerMemoryManager(MemoryManager memoryManager);
+
+	/**
+	 * Registers the central IO manager with the task.
+	 * 
+	 * @param ioManager
+	 *        the central IO manager
+	 */
+	void registerIOManager(IOManager ioManager);
+
+	/**
+	 * Registers the input splits provider with the task.
+	 * 
+	 * @param inputSplitProvider
+	 *        the input split provider
+	 */
+	void registerInputSplitProvider(InputSplitProvider inputSplitProvider);
+
+	/**
+	 * Registers the task manager profiler with the task.
+	 * 
+	 * @param taskManagerProfiler
+	 *        the task manager profiler
+	 * @param jobConfiguration
+	 *        the configuration attached to the job
+	 */
+	void registerProfiler(TaskManagerProfiler taskManagerProfiler, Configuration jobConfiguration);
+
+	/**
+	 * Unregisters the task from the central memory manager.
+	 * 
+	 * @param memoryManager
+	 *        the central memory manager
+	 */
+	void unregisterMemoryManager(MemoryManager memoryManager);
+
+	/**
+	 * Unregisters the task from the task manager profiler.
+	 * 
+	 * @param taskManagerProfiler
+	 *        the task manager profiler
+	 */
+	void unregisterProfiler(TaskManagerProfiler taskManagerProfiler);
 }
