@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager;
+package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
@@ -48,6 +48,10 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.taskmanager.Task;
+import eu.stratosphere.nephele.taskmanager.TaskManager;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
@@ -82,7 +86,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 	private long startTime;
 
-	RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment, final TaskManager taskManager) {
+	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment, final TaskManager taskManager) {
 
 		this.vertexID = vertexID;
 		this.environment = environment;
@@ -472,5 +476,15 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			taskManagerProfiler.unregisterInputGateListeners(this.vertexID);
 			taskManagerProfiler.unregisterExecutionListener(this.vertexID);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints) {
+
+		return new RuntimeTaskContext(this, transferEnvelopeDispatcher, tasksWithUndecidedCheckpoints);
 	}
 }

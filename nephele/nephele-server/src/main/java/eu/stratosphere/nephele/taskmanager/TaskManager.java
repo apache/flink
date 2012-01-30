@@ -81,6 +81,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -740,7 +741,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Nothing to to here
 	}
 
-	void executionStateChanged(final JobID jobID, final ExecutionVertexID id, final Task task,
+	public void executionStateChanged(final JobID jobID, final ExecutionVertexID id, final Task task,
 			final ExecutionState newExecutionState, final String optionalDescription) {
 
 		if (newExecutionState == ExecutionState.RUNNING || newExecutionState == ExecutionState.RUNNING) {
@@ -784,7 +785,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * @param resourceUtilizationSnapshot
 	 *        snapshot of the task's resource utilization taken at the point in time when the exhaustion occurred
 	 */
-	void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID id,
+	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID id,
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 
 		synchronized (this.jobManager) {
@@ -796,7 +797,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 	}
 
-	void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id, final CheckpointState newCheckpointState) {
+	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id, final CheckpointState newCheckpointState) {
 
 		synchronized (this.jobManager) {
 			try {

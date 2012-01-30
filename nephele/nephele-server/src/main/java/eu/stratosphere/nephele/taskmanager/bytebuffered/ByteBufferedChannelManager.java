@@ -29,31 +29,23 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractChannel;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
-import eu.stratosphere.nephele.taskmanager.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
@@ -75,7 +67,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
 
-	private final Map<ExecutionVertexID, TaskContext> tasksWithUndecidedCheckpoints = new ConcurrentHashMap<ExecutionVertexID, TaskContext>();
+	private final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints = new ConcurrentHashMap<ExecutionVertexID, RuntimeTaskContext>();
 
 	private final NetworkConnectionManager networkConnectionManager;
 
@@ -128,7 +120,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			+ (this.allowSenderSideSpilling ? "enabled" : "disabled")
 			+ (this.mergeSpilledBuffers ? " and spilled buffer merging enabled" : ""));
 	}
-	
+
 	/**
 	 * Registers the given task with the byte buffered channel manager.
 	 * 
@@ -137,84 +129,83 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * @param the
 	 *        set of output channels which are initially active
 	 */
-	public void register(final Task task, final Set<ChannelID> activeOutputChannels) {
+	public synchronized void register(final Task task, final Set<ChannelID> activeOutputChannels) {
 
 		final Environment environment = task.getEnvironment();
 
-		final TaskContext taskContext = new TaskContext(task, this, this.tasksWithUndecidedCheckpoints);
+		final TaskContext taskContext = task.createTaskContext(this, this.tasksWithUndecidedCheckpoints);
 
-		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<?> outputGate = environment.getOutputGate(i);
-			final OutputGateContext outputGateContext = new OutputGateContext(taskContext, outputGate.getChannelType(),
-				outputGate.getIndex());
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-				final AbstractOutputChannel<?> outputChannel = outputGate.getOutputChannel(j);
-				if (!(outputChannel instanceof AbstractByteBufferedOutputChannel)) {
-					LOG.error("Output channel " + outputChannel.getID() + "of job " + environment.getJobID()
-							+ " is not a byte buffered output channel, skipping...");
-					continue;
-				}
+		final Set<GateID> outputGateIDs = environment.getOutputGateIDs();
+		for (final Iterator<GateID> gateIt = outputGateIDs.iterator(); gateIt.hasNext();) {
 
-				final AbstractByteBufferedOutputChannel<?> bboc = (AbstractByteBufferedOutputChannel<?>) outputChannel;
+			final GateID gateID = gateIt.next();
+			final OutputGateContext outputGateContext = taskContext.createOutputGateContext(gateID);
+			final Set<ChannelID> outputChannelIDs = environment.getOutputChannelIDsOfGate(gateID);
+			for (final Iterator<ChannelID> channelIt = outputChannelIDs.iterator(); channelIt.hasNext();) {
 
-				if (this.registeredChannels.containsKey(bboc.getID())) {
-					LOG.error("Byte buffered output channel " + bboc.getID() + " is already registered");
-					continue;
-				}
+				final ChannelID channelID = channelIt.next();
+				final OutputChannelContext previousContext = (OutputChannelContext) this.registeredChannels
+					.get(channelID);
+
+				final boolean isActive = activeOutputChannels.contains(channelID);
+				
+				final OutputChannelContext outputChannelContext = outputGateContext.createOutputChannelContext(
+					channelID, previousContext, isActive, this.mergeSpilledBuffers);
 
 				// Add routing entry to receiver cache to reduce latency
-				if (bboc.getType() == ChannelType.INMEMORY) {
-					addReceiverListHint(bboc);
+				if (outputChannelContext.getType() == ChannelType.INMEMORY) {
+					addReceiverListHint(outputChannelContext);
 				}
 
-				final boolean isActive = activeOutputChannels.contains(bboc.getID());
-
 				if (LOG.isDebugEnabled())
-					LOG.debug("Registering byte buffered output channel " + bboc.getID() + " ("
+					LOG.debug("Registering byte buffered output channel " + outputChannelContext.getChannelID() + " ("
 							+ (isActive ? "active" : "inactive") + ")");
 
-				final OutputChannelContext outputChannelContext = new OutputChannelContext(outputGateContext, bboc,
-						isActive, this.mergeSpilledBuffers);
-				this.registeredChannels.put(bboc.getID(), outputChannelContext);
+				this.registeredChannels.put(outputChannelContext.getChannelID(), outputChannelContext);
 			}
 		}
 
-		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-			final InputGate<?> inputGate = environment.getInputGate(i);
-			final InputGateContext inputGateContext = new InputGateContext(inputGate.getNumberOfInputChannels());
-			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
-				final AbstractInputChannel<?> inputChannel = inputGate.getInputChannel(j);
-				if (!(inputChannel instanceof AbstractByteBufferedInputChannel)) {
-					LOG.error("Input channel " + inputChannel.getID() + "of job " + environment.getJobID()
-							+ " is not a byte buffered input channel, skipping...");
-					continue;
-				}
+		final Set<GateID> inputGateIDs = environment.getInputGateIDs();
+		for (final Iterator<GateID> gateIt = inputGateIDs.iterator(); gateIt.hasNext();) {
 
-				final AbstractByteBufferedInputChannel<?> bbic = (AbstractByteBufferedInputChannel<?>) inputChannel;
+			final GateID gateID = gateIt.next();
+			final InputGateContext inputGateContext = taskContext.createInputGateContext(gateID);
+			final Set<ChannelID> inputChannelIDs = environment.getInputChannelIDsOfGate(gateID);
+			for (final Iterator<ChannelID> channelIt = inputChannelIDs.iterator(); channelIt.hasNext();) {
 
-				if (this.registeredChannels.containsKey(bbic.getID())) {
-					LOG.error("Byte buffered input channel " + bbic.getID() + " is already registered");
-					continue;
-				}
+				final ChannelID channelID = channelIt.next();
+				final InputChannelContext previousContext = (InputChannelContext) this.registeredChannels
+					.get(channelID);
+
+				final InputChannelContext inputChannelContext = inputGateContext.createInputChannelContext(
+					channelID, previousContext);
 
 				// Add routing entry to receiver cache to reduce latency
-				if (bbic.getType() == ChannelType.INMEMORY) {
-					addReceiverListHint(bbic);
+				if (inputChannelContext.getType() == ChannelType.INMEMORY) {
+					addReceiverListHint(inputChannelContext);
 				}
 
-				if (LOG.isDebugEnabled())
-					LOG.debug("Registering byte buffered input channel " + bbic.getID());
+				final boolean isActive = activeOutputChannels.contains(inputChannelContext.getChannelID());
 
-				final InputChannelContext inputChannelContext = new InputChannelContext(inputGateContext, this,
-						bbic);
-				this.registeredChannels.put(bbic.getID(), inputChannelContext);
+				if (LOG.isDebugEnabled())
+					LOG.debug("Registering byte buffered input channel " + inputChannelContext.getChannelID() + " ("
+							+ (isActive ? "active" : "inactive") + ")");
+
+				this.registeredChannels.put(inputChannelContext.getChannelID(), inputChannelContext);
 			}
 
 			// Add input gate context to set of local buffer pool owner
-			this.localBufferPoolOwner.put(inputGate.getGateID(), inputGateContext);
+			final LocalBufferPoolOwner bufferPoolOwner = inputGateContext.getLocalBufferPoolOwner();
+			if (bufferPoolOwner != null) {
+				this.localBufferPoolOwner.put(inputGateContext.getGateID(), bufferPoolOwner);
+			}
+
 		}
 
-		this.localBufferPoolOwner.put(task.getVertexID(), taskContext);
+		final LocalBufferPoolOwner bufferPoolOwner = taskContext.getLocalBufferPoolOwner();
+		if (bufferPoolOwner != null) {
+			this.localBufferPoolOwner.put(task.getVertexID(), bufferPoolOwner);
+		}
 
 		redistributeGlobalBuffers();
 	}
@@ -227,7 +218,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * @param task
 	 *        the task to be unregistered
 	 */
-	public void unregister(final ExecutionVertexID vertexID, final Task task) {
+	public synchronized void unregister(final ExecutionVertexID vertexID, final Task task) {
 
 		final Environment environment = task.getEnvironment();
 
@@ -259,9 +250,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			final GateID inputGateID = inputGateIterator.next();
 
 			final LocalBufferPoolOwner owner = this.localBufferPoolOwner.remove(inputGateID);
-			if (owner == null) {
-				LOG.error("Cannot find local buffer pool owner for input gate " + inputGateID);
-			} else {
+			if (owner != null) {
 				owner.clearLocalBufferPool();
 			}
 		}
@@ -468,12 +457,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		return true;
 	}
 
-	private void addReceiverListHint(final AbstractChannel channel) {
+	private void addReceiverListHint(final ChannelContext channelContext) {
 
-		TransferEnvelopeReceiverList receiverList = new TransferEnvelopeReceiverList(channel);
+		TransferEnvelopeReceiverList receiverList = new TransferEnvelopeReceiverList(channelContext);
 
-		if (this.receiverCache.put(channel.getID(), receiverList) != null) {
-			LOG.warn("Receiver cache already contained entry for " + channel.getID());
+		if (this.receiverCache.put(channelContext.getChannelID(), receiverList) != null) {
+			LOG.warn("Receiver cache already contained entry for " + channelContext.getChannelID());
 		}
 	}
 
@@ -689,7 +678,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		for (final CheckpointDecision cd : checkpointDecisions) {
 
-			final TaskContext taskContext = this.tasksWithUndecidedCheckpoints.remove(cd.getVertexID());
+			final RuntimeTaskContext taskContext = this.tasksWithUndecidedCheckpoints.remove(cd.getVertexID());
 
 			if (taskContext == null) {
 				LOG.error("Cannot report checkpoint decision for vertex " + cd.getVertexID());

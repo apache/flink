@@ -203,9 +203,34 @@ public interface Environment {
 	Set<ChannelID> getInputChannelIDs();
 
 	/**
+	 * Returns the IDs of all output gates connected to this environment.
+	 * 
+	 * @return the IDs of all output gates connected to this environment
+	 */
+	Set<GateID> getOutputGateIDs();
+
+	/**
 	 * Returns the IDs of all input gates connected to this environment.
 	 * 
 	 * @return the IDs of all input gates connected to this environment
 	 */
 	Set<GateID> getInputGateIDs();
+
+	/**
+	 * Returns the IDs of all the output channels connected to the gate with the given ID.
+	 * 
+	 * @param gateID
+	 *        the gate ID
+	 * @return the IDs of all the output channels connected to the gate with the given ID
+	 */
+	Set<ChannelID> getOutputChannelIDsOfGate(GateID gateID);
+
+	/**
+	 * Returns the IDs of all the input channels connected to the gate with the given ID.
+	 * 
+	 * @param gateID
+	 *        the gate ID
+	 * @return the IDs of all the input channels connected to the gate with the given ID
+	 */
+	Set<ChannelID> getInputChannelIDsOfGate(GateID gateID);
 }

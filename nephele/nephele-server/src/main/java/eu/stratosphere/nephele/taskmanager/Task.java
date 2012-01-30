@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
+import java.util.Map;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
@@ -22,6 +24,9 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 
 public interface Task {
@@ -124,4 +129,7 @@ public interface Task {
 	 *        the task manager profiler
 	 */
 	void unregisterProfiler(TaskManagerProfiler taskManagerProfiler);
+
+	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints);
 }

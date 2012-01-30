@@ -1063,4 +1063,78 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 
 		return Collections.unmodifiableSet(inputGateIDs);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<GateID> getOutputGateIDs() {
+
+		final Set<GateID> outputGateIDs = new HashSet<GateID>();
+
+		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		while (gateIterator.hasNext()) {
+			outputGateIDs.add(gateIterator.next().getGateID());
+		}
+
+		return Collections.unmodifiableSet(outputGateIDs);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
+
+		OutputGate<? extends Record> outputGate = null;
+		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		while (gateIterator.hasNext()) {
+			final OutputGate<? extends Record> candidateGate = gateIterator.next();
+			if (candidateGate.getGateID().equals(gateID)) {
+				outputGate = candidateGate;
+				break;
+			}
+		}
+
+		if (outputGate == null) {
+			throw new IllegalArgumentException("Cannot find output gate with ID " + gateID);
+		}
+
+		final Set<ChannelID> outputChannelIDs = new HashSet<ChannelID>();
+
+		for (int i = 0; i < outputGate.getNumberOfOutputChannels(); ++i) {
+			outputChannelIDs.add(outputGate.getOutputChannel(i).getID());
+		}
+
+		return Collections.unmodifiableSet(outputChannelIDs);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
+
+		InputGate<? extends Record> inputGate = null;
+		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		while (gateIterator.hasNext()) {
+			final InputGate<? extends Record> candidateGate = gateIterator.next();
+			if (candidateGate.getGateID().equals(gateID)) {
+				inputGate = candidateGate;
+				break;
+			}
+		}
+
+		if (inputGate == null) {
+			throw new IllegalArgumentException("Cannot find input gate with ID " + gateID);
+		}
+
+		final Set<ChannelID> inputChannelIDs = new HashSet<ChannelID>();
+
+		for (int i = 0; i < inputGate.getNumberOfInputChannels(); ++i) {
+			inputChannelIDs.add(inputGate.getInputChannel(i).getID());
+		}
+
+		return Collections.unmodifiableSet(inputChannelIDs);
+	}
 }

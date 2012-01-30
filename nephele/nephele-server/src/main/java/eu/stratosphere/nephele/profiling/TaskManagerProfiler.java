@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.InputGateListener;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.OutputGateListener;
-import eu.stratosphere.nephele.taskmanager.RuntimeTask;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.types.Record;
 
 /**

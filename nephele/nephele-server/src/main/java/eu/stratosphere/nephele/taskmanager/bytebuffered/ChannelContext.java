@@ -16,10 +16,11 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-interface ChannelContext {
+public interface ChannelContext {
 
 	boolean isInputChannel();
 	
@@ -28,6 +29,8 @@ interface ChannelContext {
 	public ChannelID getChannelID();
 
 	public ChannelID getConnectedChannelID();
+	
+	public ChannelType getType();
 	
 	public void queueTransferEnvelope(TransferEnvelope transferEnvelope);
 }
