@@ -35,9 +35,8 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitWrites;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
@@ -122,7 +121,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
 	
-	protected int[] addSet; // The set of fields added to the schema by the stub
+	protected int[] explWrites; // The set of explicitly written fields
 	
 	protected int[] outputSchema; // The fields are present in the output records
 	
@@ -185,8 +184,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.localProps = new LocalProperties();
 		this.globalProps = new GlobalProperties();
 
-		this.readAddSetAnnotation();
-		this.readOutputCardBoundAnnotation();
+		this.readStubAnnotations();
 	}
 
 	/**
@@ -224,7 +222,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		this.stubOutCardLB = toClone.stubOutCardLB;
 		this.stubOutCardUB = toClone.stubOutCardUB;
-		this.addSet = toClone.addSet;
+		this.explWrites = toClone.explWrites;
+		// TODO: copy output schema info
 		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length); 
 
 		// check, if this node branches. if yes, this candidate must be associated with
@@ -392,34 +391,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return PactType.getType(this.pactContract.getClass());
 	}
 
-	/**
-	 * Gets the constant set mode declared on the user function that is wrapped in the PACT of this node.
-	 * 
-	 * @return The declared constant set mode, or null, if none was declared.
-	 */
-	public abstract ConstantSetMode getInputConstantSetMode(int inputNum);
-	
-	/**
-	 * Gets the constant set declared on the user function that is wrapped in the PACT of this node.
-	 * 
-	 * @return The declared constant set, or null, if none was declared.
-	 */
-	public abstract int[] getInputConstantSet(int inputNum);
-	
-	/**
-	 * Gets the update set declared on the user function that is wrapped in the PACT of this node.
-	 * 
-	 * @return The declared update set, or null, if none was declared.
-	 */
-	public abstract int[] getInputUpdateSet(int inputNum);
-	
-	/**
-	 * Gets the read set declared on the user function that is wrapped in the PACT of this node.
-	 * 
-	 * @return The declared read set, or null, if none was declared.
-	 */
-	public abstract int[] getInputReadSet(int inputNum);
-	
 	/**
 	 * Gets the degree of parallelism for the contract represented by this optimizer node.
 	 * The degree of parallelism denotes how many parallel instances of the user function will be
@@ -1324,6 +1295,27 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		return result;
 	}
+	
+	private void readStubAnnotations() {
+		this.readReadsAnnotation();
+		this.readCopyProjectionAnnotations();
+		this.readWritesAnnotation();
+		this.readOutputCardBoundAnnotation();
+	}
+
+	protected void readWritesAnnotation() {
+
+		// get readSet annotation from stub
+		ExplicitWrites addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(ExplicitWrites.class);
+		
+		// extract addSet from annotation
+		if(addSetAnnotation == null) {
+			this.explWrites = null;
+		} else {
+			this.explWrites = addSetAnnotation.fields();
+			Arrays.sort(this.explWrites);
+		}
+	}
 
 	protected void readOutputCardBoundAnnotation() {
 		
@@ -1340,29 +1332,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 	}
 	
-	protected void readAddSetAnnotation() {
-
-		// get readSet annotation from stub
-		AddSet addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(AddSet.class);
-		
-		// extract addSet from annotation
-		if(addSetAnnotation == null) {
-			this.addSet = null;
-		} else {
-			this.addSet = addSetAnnotation.fields();
-			Arrays.sort(this.addSet);
-		}
-	}
+	protected abstract void readReadsAnnotation();
+	
+	protected abstract void readCopyProjectionAnnotations();
 	
 	public abstract void deriveOutputSchema();
-	
-	public int[] getAddSet() {
-		return this.addSet;
-	}
-	
-	public int[] getStubOutCardBounds() {
-		return new int[]{this.stubOutCardLB, this.stubOutCardUB};
-	}
 	
 	public int getStubOutCardLowerBound() {
 		return this.stubOutCardLB;
@@ -1375,6 +1349,26 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public int[] getOutputSchema() {
 		return this.outputSchema;
 	}
+
+	/**
+	 * Give the read set of the node.
+	 * 
+	 * @param id of input for which the read set should be returned. 
+	 *        -1 if the unioned read set over all inputs is requested. 
+	 *  
+	 * @return the read set for the requested input(s)
+	 */
+	public abstract int[] getReadSet(int input);
+	
+	/**
+	 * Give the write set of the node.
+	 * 
+	 * @param id of input for which the write set should be returned. 
+	 *        -1 if the unioned write set over all inputs is requested. 
+	 *  
+	 * @return the write set for the requested input(s)
+	 */
+	public abstract int[] getWriteSet(int input);
 	
 	protected static final class UnclosedBranchDescriptor
 	{

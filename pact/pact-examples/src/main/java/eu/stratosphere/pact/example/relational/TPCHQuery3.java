@@ -36,25 +36,27 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitWrites;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextDoubleParser;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.example.relational.util.Tuple;
 
 /**
@@ -88,9 +90,10 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * input format in a very fast manner, without actual field parsing. They only index the
 	 * delimiters. The parsed fields in the Pact Records are set after projection only
 	 */
-	@ReadSet(fields={2,3,4})
-	@ConstantSet(fields={2,3,4}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@Reads(fields={2,3,4})
+	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={2,3,4})
+	@ExplicitWrites(fields={})
 	@OutCardBounds(lowerBound=0, upperBound=1)
 	public static class FilterO extends MapStub
 	{
@@ -149,11 +152,13 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * built of the keys of the inputs.
 	 *
 	 */
-	@ReadSetFirst(fields={})
-	@ReadSetSecond(fields={})
-	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Update)
-	@ConstantSetSecond(fields={}, setMode=ConstantSetMode.Constant)
-	@AddSet(fields={5})
+	@ReadsFirst(fields={})
+	@ReadsSecond(fields={})
+	@ImplicitOperationFirst(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={})
+	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Projection)
+	@ExplicitCopies(fields={})
+	@ExplicitWrites(fields={2})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinLiO extends MatchStub
 	{
@@ -172,7 +177,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			// second inputs has its fields in (0, 2). The conflicting field (0) is the key which is guaranteed
 			// to be identical anyways 
 			// <-- to do when union fields is implemented
-			order.setField(5, lineitem.getField(1, PactDouble.class));
+			order.setField(2, lineitem.getField(1, PactDouble.class));
 			out.collect(order);
 		}
 	}
@@ -184,9 +189,10 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 *
 	 */
 	@Combinable
-	@ReadSet(fields={5})
-	@ConstantSet(fields={2,5}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@Reads(fields={2})
+	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={})
+	@ExplicitWrites(fields={2})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggLiO extends ReduceStub
 	{
@@ -211,7 +217,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 			while (values.hasNext()) {
 				rec = values.next();
-				partExtendedPriceSum += rec.getField(5, PactDouble.class).getValue();
+				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
 			}
 
 			this.extendedPrice.setValue(partExtendedPriceSum);
@@ -230,11 +236,11 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 			while (values.hasNext()) {
 				rec = values.next();
-				partExtendedPriceSum += rec.getField(5, PactDouble.class).getValue();
+				partExtendedPriceSum += rec.getField(2, PactDouble.class).getValue();
 			}
 
 			this.extendedPrice.setValue(partExtendedPriceSum);
-			rec.setField(5, this.extendedPrice);
+			rec.setField(2, this.extendedPrice);
 			out.collect(rec);
 		}
 	}

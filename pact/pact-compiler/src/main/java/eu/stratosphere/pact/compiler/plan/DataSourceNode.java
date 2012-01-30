@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -25,10 +26,9 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.io.OutputSchemaProvider;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -315,10 +315,24 @@ public class DataSourceNode extends OptimizerNode
 		}
 	}
 
+	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		return false;
+	}
+	
+	@Override
+	protected void readCopyProjectionAnnotations() {
+		// DO NOTHING		
+	}
+
+	@Override
+	protected void readReadsAnnotation() {
+		// DO NOTHING
+	}
+	
 	@SuppressWarnings("unchecked")
 	@Override
 	public void deriveOutputSchema() {
-		
 		// get the input format class
 		Class<InputFormat<?>> clazz = (Class<InputFormat<?>>)((GenericDataSource<? extends InputFormat<?>>)getPactContract()).getFormatClass();
 		
@@ -330,6 +344,7 @@ public class DataSourceNode extends OptimizerNode
 				
 				inputFormat.configure(getPactContract().getParameters());
 				this.outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
+				Arrays.sort(this.outputSchema);
 				return;
 			} else {
 				this.outputSchema = null;
@@ -342,44 +357,14 @@ public class DataSourceNode extends OptimizerNode
 			e.printStackTrace();
 		}
 	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
-	 */
+	
 	@Override
-	public ConstantSetMode getInputConstantSetMode(int inputNum) {
+	public int[] getReadSet(int input) {
 		return null;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
-	 */
 	@Override
-	public int[] getInputConstantSet(int inputNum) {
+	public int[] getWriteSet(int input) {
 		return null;
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
-	 */
-	@Override
-	public int[] getInputUpdateSet(int inputNum) {
-		return null;
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
-	 */
-	@Override
-	public int[] getInputReadSet(int inputNum) {
-		return null;
-	}
-	
-	public boolean isFieldKept(int input, int fieldNumber) {
-		return false;
 	}
 }

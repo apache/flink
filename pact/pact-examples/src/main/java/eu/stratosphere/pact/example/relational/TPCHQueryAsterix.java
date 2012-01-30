@@ -30,21 +30,23 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitWrites;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
+import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -69,11 +71,13 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Realizes the join between Customers and Order table.
 	 */
-	@ReadSetFirst(fields={})
-	@ReadSetSecond(fields={})
-	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Constant)
-	@ConstantSetSecond(fields={0}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@ReadsFirst(fields={})
+	@ReadsSecond(fields={})
+	@ImplicitOperationFirst(implicitOperation=ImplicitOperationMode.Projection)
+	@ExplicitCopies(fields={})
+	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={})
+	@ExplicitWrites(fields={0})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinCO extends MatchStub {
 
@@ -99,9 +103,10 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 *
 	 */
 	@Combinable
-	@ReadSet(fields={0})
-	@ConstantSet(fields={0}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@Reads(fields={0})
+	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={})
+	@ExplicitWrites(fields={0})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggCO extends ReduceStub {
 

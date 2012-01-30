@@ -25,8 +25,6 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -466,49 +464,34 @@ public class DataSinkNode extends OptimizerNode {
 		}
 	}
 
-	@Override
-	public void deriveOutputSchema() {
-		// DataSink has no output, do nothing
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
-	 */
-	@Override
-	public ConstantSetMode getInputConstantSetMode(int inputNum) {
-		return null;
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
-	 */
-	@Override
-	public int[] getInputConstantSet(int inputNum) {
-		return null;
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
-	 */
-	@Override
-	public int[] getInputUpdateSet(int inputNum) {
-		return null;
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getInputConstantSet(int)
-	 */
-	@Override
-	public int[] getInputReadSet(int inputNum) {
-		return null;
-	}
-	
 	public boolean isFieldKept(int input, int fieldNumber) {
 		return false;
+	}
+	
+	@Override
+	protected void readCopyProjectionAnnotations() {
+		// DO NOTHING		
+	}
+
+	@Override
+	protected void readReadsAnnotation() {
+		// DO NOTHING
+	}
+	
+	@Override
+	public void deriveOutputSchema() {
+		// DataSink has no output
+		// DO NOTHING
+	}
+	
+	@Override
+	public int[] getWriteSet(int input) {
+		return null;
+	}
+
+	@Override
+	public int[] getReadSet(int input) {
+		return null;
 	}
 	
 }

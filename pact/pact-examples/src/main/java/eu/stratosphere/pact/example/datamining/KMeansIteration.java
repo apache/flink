@@ -37,15 +37,18 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopiesSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjectionsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitWrites;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -348,11 +351,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@ReadSetFirst(fields={1})
-	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Update)
-	@ReadSetSecond(fields={1})
-	@ConstantSetSecond(fields={}, setMode=ConstantSetMode.Constant)
-	@AddSet(fields={2,3})
+	@ReadsFirst(fields={1})
+	@ImplicitOperationFirst(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjectionsFirst(fields={})
+	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Projection)
+	@ExplicitCopiesSecond(fields={})
+	@ExplicitWrites(fields={2,3})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class ComputeDistance extends	CrossStub
 	{
@@ -387,9 +391,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@ReadSet(fields={3})
-	@ConstantSet(fields={}, setMode=ConstantSetMode.Constant)
-	@AddSet(fields={})
+	@Reads(fields={1,2,3})
+	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Projection)
+	@ExplicitCopies(fields={})
+	@ExplicitWrites(fields={0,1,2})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class FindNearestCenter extends ReduceStub
@@ -479,9 +484,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * @author Fabian Hueske
 	 */
 	
-	@ReadSet(fields={1,2})
-	@ConstantSet(fields={1,2}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@Reads(fields={1,2})
+	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={2})
+	@ExplicitWrites(fields={0,1})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class RecomputeClusterCenter extends ReduceStub
@@ -530,6 +536,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 			
 			coordinates.setCoordinates(coordinateSum);
 			next.setField(1, coordinates);
+			next.setNull(2);
 
 			// emit new position of cluster center
 			out.collect(next);

@@ -20,7 +20,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 
 /**
@@ -57,7 +58,7 @@ public class StubAnnotation
 
 	/**
 	 * Specifies the read set for a stub with a single input ( {@link MapStub}, {@link ReduceStub}).
-	 * The {@link ReadSet#fields()} attribute of the read set specifies all fields of the record 
+	 * The {@link Reads#fields()} attribute of the read set specifies all fields of the record 
 	 * that the stub reads and uses to modify its output. 
 	 * This is the case for if the value is used in conditional statements or to compute new values.
 	 * 
@@ -69,7 +70,7 @@ public class StubAnnotation
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ReadSet
+	public @interface Reads
 	{
 		int[] fields();
 	}
@@ -77,7 +78,7 @@ public class StubAnnotation
 	/**
 	 * Specifies the read set for the first input of a stub with two inputs ( {@link CrossStub}, 
 	 * {@link MatchStub}, {@link CoGroupStub}).
-	 * The {@link ReadSetFirst#fields()} attribute of the read set specifies all fields of the record 
+	 * The {@link ReadsFirst#fields()} attribute of the read set specifies all fields of the record 
 	 * that the stub reads from the first input's tuples and uses to modify its output. 
 	 * This is the case for if the value is used in conditional statements or to compute new values.   
 	 *
@@ -89,7 +90,7 @@ public class StubAnnotation
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ReadSetFirst
+	public @interface ReadsFirst
 	{
 		int[] fields();
 	}
@@ -97,7 +98,7 @@ public class StubAnnotation
 	/**
 	 * Specifies the read set for the second input of a stub with two inputs ( {@link CrossStub}, 
 	 * {@link MatchStub}, {@link CoGroupStub}).
-	 * The {@link ReadSetSecond#fields()} attribute of the read set specifies all fields of the record 
+	 * The {@link ReadsSecond#fields()} attribute of the read set specifies all fields of the record 
 	 * that the stub reads from the second input's tuples and uses to modify its output. 
 	 * This is the case for if the value is used in conditional statements or to compute new values.   
 	 *
@@ -108,106 +109,92 @@ public class StubAnnotation
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ReadSetSecond
+	public @interface ReadsSecond
+	{
+		int[] fields();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ImplicitOperation
+	{
+		public static enum ImplicitOperationMode {Copy, Projection};
+		
+		ImplicitOperationMode implicitOperation();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ImplicitOperationFirst
+	{
+		ImplicitOperationMode implicitOperation();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ImplicitOperationSecond
+	{
+		ImplicitOperationMode implicitOperation();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ExplicitCopies
+	{
+		int[] fields();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ExplicitCopiesFirst
+	{
+		int[] fields();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ExplicitCopiesSecond
+	{
+		int[] fields();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ExplicitProjections
+	{
+		int[] fields();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ExplicitProjectionsFirst
+	{
+		int[] fields();
+	}
+	
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ExplicitProjectionsSecond
 	{
 		int[] fields();
 	}
 
 	/**
-	 * Specifies the update set for a stub with a single input ( {@link MapStub}, {@link ReduceStub}).
-	 * The {@link ConstantSet#setMode()} attribute specifies whether the {@link ConstantSet#fields()} attribute 
-	 * lists fields that are updated {@link ConstantSet.ConstantSetMode#Update} 
-	 * or constant (not updated) {@link ConstantSet.ConstantSetMode#Constant}. 
+	 * Specifies the explicit write set.
+	 * The {@link ExplicitWrites#fields()} attribute contains all fields of the output record 
+	 * to which the stub explicitly applies non-null modifications. 
 	 * 
-	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
-	 * at the same field index <i>i</i>. 
-	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
-	 * the output record, the field must be considered to be updated.
+	 * An explicit modification is done by calling the {@link PactRecord#setField(int, eu.stratosphere.pact.common.type.Value)}
+	 * method. 
 	 * 
-	 * It is very important the the ConstantSet contains at least all fields that are changed in order to guarantee 
-	 * correct execution of PACT programs. If the set mode is {@link ConstantSet.ConstantSetMode#Constant}, only 
-	 * those fields might be added to the field attribute which are definitely not changed!
-	 * 
-	 * If you do not specify an ConstantSet, all fields are considered to be updated.
+	 * It is very important the the explicit write set  contains <b>at least</b> all fields that 
+	 * have been modified in order to guarantee correct execution of PACT programs. 
+	 * Specifying a superset is not critical.
 	 *
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantSet
-	{
-		public static enum ConstantSetMode {Update, Constant};	
-		
-		ConstantSetMode setMode() default ConstantSetMode.Constant;
-		int[] fields();
-	}
-	
-	/**
-	 * Specifies the update set for the first input of a stub with two inputs ( {@link CrossStub}, 
-	 * {@link MatchStub}, {@link CoGroupStub}).
-	 * The {@link ConstantSetFirst#setMode()} attribute specifies whether the {@link ConstantSetFirst#fields()} 
-	 * attribute lists fields of the first input that are updated {@link ConstantSet.ConstantSetMode#Update} 
-	 * or not modified {@link ConstantSet.ConstantSetMode#Constant}. 
-	 * 
-	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
-	 * at the same field index <i>i</i>. 
-	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
-	 * the output record, the field must be considered to be updated.
-	 * 
-	 * It is very important the the ConstantSet contains at least all fields that are changed in order to guarantee 
-	 * correct execution of PACT programs. If the set mode is {@link ConstantSet.ConstantSetMode#Constant}, only 
-	 * those fields might be added to the field attribute which are definitely not changed!
-	 *
-	 * If you do not specify an ConstantSet, all fields are considered to be updated.
-	 */
-	@Target(ElementType.TYPE)
-	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantSetFirst
-	{
-		ConstantSetMode setMode() default ConstantSetMode.Constant;
-		int[] fields();
-	}
-	
-	/**
-	 * Specifies the update set for the second input of a stub with two inputs ( {@link CrossStub}, 
-	 * {@link MatchStub}, {@link CoGroupStub}).
-	 * The {@link ConstantSetSecond#setMode()} attribute specifies whether the {@link ConstantSetSecond#fields()} 
-	 * attribute lists fields of the second input that are updated {@link ConstantSet.ConstantSetMode#Update} 
-	 * or not modified {@link ConstantSet.ConstantSetMode#Constant}. 
-	 * 
-	 * A field with index <i>i</i> is considered to be constant if its value is also present in the output record
-	 * at the same field index <i>i</i>. 
-	 * In any other case, e.g., if the value of a field was changed or the value was moved to another field within
-	 * the output record, the field must be considered to be updated.
-	 * 
-	 * It is very important the the ConstantSet contains at least all fields that are changed in order to guarantee 
-	 * correct execution of PACT programs. If the set mode is {@link ConstantSet.ConstantSetMode#Constant}, only 
-	 * those fields might be added to the field attribute which are definitely not changed!
-	 *
-	 * If you do not specify an ConstantSet, all fields are considered to be updated.
-	 * 
-	 */	
-	@Target(ElementType.TYPE)
-	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantSetSecond
-	{
-		ConstantSetMode setMode() default ConstantSetMode.Constant;
-		int[] fields();
-	}
-	
-	/**
-	 * Specifies the add set for all kinds of stubs.
-	 * The {@link AddSet#fields()} attribute specifies all fields that are added by the stub.
-	 * 
-	 * A field is added if it is written to a field of the output record that was not used in any
-	 * of the stubs inputs.
-	 * 
-	 * It is very important the the AddSet contains at least all fields that have been added in order to guarantee 
-	 * correct execution of PACT programs.
-	 *
-	 */
-	@Target(ElementType.TYPE)
-	@Retention(RetentionPolicy.RUNTIME)
-	public @interface AddSet
+	public @interface ExplicitWrites
 	{
 		int[] fields();
 	}
