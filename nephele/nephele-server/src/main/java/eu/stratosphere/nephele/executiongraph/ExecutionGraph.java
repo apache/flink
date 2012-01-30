@@ -1310,13 +1310,22 @@ public class ExecutionGraph implements ExecutionListener {
 	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
 			final ExecutionState newExecutionState, String optionalMessage) {
 
-		if (newExecutionState == ExecutionState.RERUNNING) {
+		// Do not use the parameter newExecutionState here as it may already be out-dated
+
+		final ExecutionVertex vertex = getVertexByID(vertexID);
+		if (vertex == null) {
+			LOG.error("Cannot find execution vertex with the ID " + vertexID);
+		}
+
+		final ExecutionState actualExecutionState = vertex.getExecutionState();
+
+		if (actualExecutionState == ExecutionState.RERUNNING) {
 			this.recovering.remove(getVertexByID(vertexID));
 		}
 
-		final InternalJobStatus newJobStatus = determineNewJobStatus(this, newExecutionState);
+		final InternalJobStatus newJobStatus = determineNewJobStatus(this, actualExecutionState);
 
-		if (newExecutionState == ExecutionState.FINISHED) {
+		if (actualExecutionState == ExecutionState.FINISHED) {
 			// It is worth checking if the current stage has complete
 			if (this.isCurrentStageCompleted()) {
 				// Increase current execution stage
@@ -1331,7 +1340,7 @@ public class ExecutionGraph implements ExecutionListener {
 				}
 			}
 		}
-		if (newExecutionState == ExecutionState.FAILED && newJobStatus == InternalJobStatus.RECOVERING) {
+		if (actualExecutionState == ExecutionState.FAILED && newJobStatus == InternalJobStatus.RECOVERING) {
 			LOG.info("RECOVERING");
 			// FIXME (marrus) see if we even need that
 			if (!this.recovering.contains(vertexID)) {
@@ -1533,5 +1542,14 @@ public class ExecutionGraph implements ExecutionListener {
 	public Iterator<ExecutionStage> iterator() {
 
 		return this.stages.iterator();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getPriority() {
+
+		return 1;
 	}
 }

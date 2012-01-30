@@ -209,7 +209,7 @@ public abstract class AbstractInstance extends NetworkNode {
 		return getTaskManager().submitTasks(tasks);
 	}
 
-	public synchronized List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs)
+	public synchronized List<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs)
 			throws IOException {
 
 		return getTaskManager().replayCheckpoints(vertexIDs);
@@ -235,7 +235,7 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		return getTaskManager().cancelTask(id);
 	}
-	
+
 	/**
 	 * Kills the task identified by the given ID at the instance's
 	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
@@ -323,14 +323,13 @@ public abstract class AbstractInstance extends NetworkNode {
 	}
 
 	/**
-	 * @param executionVertexID 
-	 * @param serializableHashSet 
-	 * @param environment 
-	 * @param configuration 
-	 * @throws IOException 
-	 * 
+	 * @param executionVertexID
+	 * @param serializableHashSet
+	 * @param environment
+	 * @param configuration
+	 * @throws IOException
 	 */
-	public void restartTask(final ExecutionVertexID id,	final Configuration jobConfiguration,
+	public void restartTask(final ExecutionVertexID id, final Configuration jobConfiguration,
 			final Environment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
 		getTaskManager().restartTask(id, jobConfiguration, environment, activeOutputChannels);
 	}

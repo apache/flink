@@ -101,4 +101,13 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 		// Nothing to do here
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getPriority() {
+
+		return 1;
+	}
 }

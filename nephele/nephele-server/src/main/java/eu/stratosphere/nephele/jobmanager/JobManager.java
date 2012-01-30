@@ -665,7 +665,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			public void run() {
 				eg.updateJobStatus(InternalJobStatus.CANCELING, "Job canceled by user");
 				final TaskCancelResult cancelResult = cancelJob(eg);
-				if(cancelResult.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
+				if (cancelResult != null) {
 					LOG.error(cancelResult.getDescription());
 				}
 			}
@@ -683,7 +683,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * 
 	 * @param eg
 	 *        the execution graph representing the job to cancel.
-	 * @return <code>null</code> no error occurred during the cancel attempt,
+	 * @return <code>null</code> if no error occurred during the cancel attempt,
 	 *         otherwise the returned object will describe the error
 	 */
 	private TaskCancelResult cancelJob(final ExecutionGraph eg) {

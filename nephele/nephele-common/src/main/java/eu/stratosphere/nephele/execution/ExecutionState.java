@@ -84,12 +84,6 @@ public enum ExecutionState {
 	RECOVERING,
 
 	/**
-	 * The task is restarting during recovery.
-	 */
-
-	RESTARTING,
-
-	/**
 	 * Recovery is finished the job is running normal again.
 	 */
 	RERUNNING;

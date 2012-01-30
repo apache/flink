@@ -17,7 +17,10 @@ package eu.stratosphere.nephele.executiongraph;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -112,10 +115,9 @@ public final class ExecutionVertex {
 	private final CopyOnWriteArrayList<CheckpointStateListener> checkpointStateListeners = new CopyOnWriteArrayList<CheckpointStateListener>();
 
 	/**
-	 * A list of {@link ExecutionListener} objects to be notified about state changes of the vertex's
-	 * checkpoint.
+	 * A map of {@link ExecutionListener} objects to be notified about the state changes of a vertex.
 	 */
-	private final CopyOnWriteArrayList<ExecutionListener> executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
+	private final ConcurrentMap<Integer, ExecutionListener> executionListeners = new ConcurrentSkipListMap<Integer, ExecutionListener>();
 
 	/**
 	 * The current execution state of the task represented by this vertex
@@ -123,14 +125,14 @@ public final class ExecutionVertex {
 	private final AtomicEnum<ExecutionState> executionState = new AtomicEnum<ExecutionState>(ExecutionState.CREATED);
 
 	/**
-	 * The current checkpoint state of this vertex.
+	 * Stores the number of times the vertex may be still be started before the corresponding task is considered to be
+	 * failed.
 	 */
+	private final AtomicInteger retriesLeft;
 
 	/**
-	 * Number of times this vertex may be restarted
+	 * The current checkpoint state of this vertex.
 	 */
-	private int retries = 3; // TODO make this configurable
-
 	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(CheckpointState.NONE);
 
 	/**
@@ -164,8 +166,6 @@ public final class ExecutionVertex {
 			LOG.error("Vertex " + groupVertex.getName() + " does not specify a task");
 		}
 
-		// Register the vertex itself as a listener for state changes
-		registerExecutionListener(this.executionGraph);
 		this.environment.instantiateInvokable();
 	}
 
@@ -190,6 +190,8 @@ public final class ExecutionVertex {
 		this.executionGraph = executionGraph;
 		this.groupVertex = groupVertex;
 		this.environment = environment;
+
+		this.retriesLeft = new AtomicInteger(2); // TODO: Make this configurable
 
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
@@ -310,7 +312,7 @@ public final class ExecutionVertex {
 		}
 
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
 				optionalMessage);
@@ -330,12 +332,8 @@ public final class ExecutionVertex {
 			return false;
 		}
 
-		// TODO: Improve thread-safety here
-		if (this.executionState.get() == ExecutionState.FAILED) {
-			this.retries--;
-		}
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, update,
 				null);
@@ -366,7 +364,7 @@ public final class ExecutionVertex {
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID,
 				resourceUtilizationSnapshot);
@@ -613,7 +611,7 @@ public final class ExecutionVertex {
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
-		
+
 		try {
 			return this.allocatedResource.getInstance().killTask(this.vertexID);
 		} catch (IOException e) {
@@ -695,11 +693,23 @@ public final class ExecutionVertex {
 	 * 
 	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
 	 */
+	@Deprecated
 	public boolean hasRetriesLeft() {
-		if (this.retries < 0) {
+		if (this.retriesLeft.get() <= 0) {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Decrements the number of retries left and checks whether another attempt to run the task is possible.
+	 * 
+	 * @return <code>true</code>if the task represented by this vertex can be started at least once more,
+	 *         <code>false/<code> otherwise
+	 */
+	public boolean decrementRetriesLeftAndCheck() {
+
+		return (this.retriesLeft.decrementAndGet() > 0);
 	}
 
 	/**
@@ -759,7 +769,19 @@ public final class ExecutionVertex {
 	 */
 	public void registerExecutionListener(final ExecutionListener executionListener) {
 
-		this.executionListeners.addIfAbsent(executionListener);
+		final Integer priority = Integer.valueOf(executionListener.getPriority());
+
+		if (priority.intValue() < 0) {
+			LOG.error("Priority for execution listener " + executionListener.getClass() + " must be non-negative.");
+			return;
+		}
+
+		final ExecutionListener previousValue = this.executionListeners.putIfAbsent(priority, executionListener);
+
+		if (previousValue != null) {
+			LOG.error("Cannot register " + executionListener.getClass() + " as an execution listener. Priority "
+				+ priority.intValue() + " is already taken.");
+		}
 	}
 
 	/**

@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,6 +29,7 @@ import org.apache.hadoop.util.StringUtils;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
@@ -37,6 +39,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -90,6 +93,11 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * Stores whether task merging is allowed.
 	 */
 	private final boolean allowTaskMerging;
+
+	/**
+	 * Stores the vertices to be restarted once they have switched to the <code>CANCELED</code> state.
+	 */
+	private final Map<ExecutionVertexID, ExecutionVertex> verticesToBeRestarted = new ConcurrentHashMap<ExecutionVertexID, ExecutionVertex>();
 
 	/**
 	 * Constructs a new abstract scheduler.
@@ -396,7 +404,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * @param allocatedResource
 	 *        the allocated resource to check the assignment for
 	 */
-	public void checkAndReleaseAllocatedResource(ExecutionGraph executionGraph, AllocatedResource allocatedResource) {
+	public void checkAndReleaseAllocatedResource(final ExecutionGraph executionGraph,
+			final AllocatedResource allocatedResource) {
 
 		if (allocatedResource == null) {
 			LOG.error("Resource to lock is null!");
@@ -414,8 +423,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 			return;
 		}
 
-		boolean instanceCanBeReleased = true;
-		final Iterator<ExecutionVertex> it = assignedVertices.iterator();
+		boolean resourceCanBeReleased = true;
+		Iterator<ExecutionVertex> it = assignedVertices.iterator();
 		while (it.hasNext()) {
 			final ExecutionVertex vertex = it.next();
 			final ExecutionState state = vertex.getExecutionState();
@@ -423,12 +432,26 @@ public abstract class AbstractScheduler implements InstanceListener {
 			if (state != ExecutionState.CREATED && state != ExecutionState.FINISHED
 					&& state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
 
-				instanceCanBeReleased = false;
+				resourceCanBeReleased = false;
 				break;
 			}
 		}
 
-		if (instanceCanBeReleased) {
+		if (resourceCanBeReleased) {
+
+			final DummyInstance dummyInstance = DummyInstance.createDummyInstance(allocatedResource.getInstance()
+				.getType());
+			final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
+				allocatedResource.getInstanceType(), new AllocationID());
+
+			// Assign vertices back to a dummy resource in case we need the resource information once more for another
+			// execution.
+			it = assignedVertices.iterator();
+			while (it.hasNext()) {
+				final ExecutionVertex vertex = it.next();
+				vertex.setAllocatedResource(dummyResource);
+			}
+
 			LOG.info("Releasing instance " + allocatedResource.getInstance());
 			try {
 				getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
@@ -473,11 +496,60 @@ public abstract class AbstractScheduler implements InstanceListener {
 	}
 
 	/**
+	 * Returns a map of vertices to be restarted once they have switched to their <code>CANCELED</code> state.
+	 * 
+	 * @return the map of vertices to be restarted
+	 */
+	Map<ExecutionVertexID, ExecutionVertex> getVerticesToBeRestarted() {
+
+		return this.verticesToBeRestarted;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
-		
-		//TODO: Don't forget to synchronize on stage here
+	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
+
+		// TODO: Don't forget to synchronize on stage here
+
+		for (final AllocatedResource allocatedResource : allocatedResources) {
+
+			LOG.info("Resource on " + allocatedResource.getInstance().getName() + " for Job " + jobID + " died.");
+			// TODO (marrus)
+
+			final ExecutionGraph executionGraph = getExecutionGraphByID(jobID);
+
+			if (executionGraph == null) {
+				LOG.error("Cannot find execution graph for job " + jobID);
+				return;
+			}
+
+			final List<ExecutionVertex> vertices = executionGraph.getVerticesAssignedToResource(allocatedResource);
+			final Iterator<ExecutionVertex> vertexIter = vertices.iterator();
+			while (vertexIter.hasNext()) {
+				final ExecutionVertex vertex = vertexIter.next();
+
+				// Even if the vertex had a checkpoint before, it is now gone
+				vertex.updateCheckpointState(CheckpointState.NONE);
+
+				final ExecutionState state = vertex.getExecutionState();
+
+				switch (state) {
+				case ASSIGNED:
+				case READY:
+				case STARTING:
+				case RUNNING:
+				case FINISHING:
+
+					vertex.updateExecutionState(ExecutionState.FAILED, "The resource "
+						+ allocatedResource.getInstance().getName() + " the vertex "
+						+ vertex.getEnvironment().getTaskName() + " was assigned to died");
+
+					break;
+				default:
+				}
+			}
+		}
 	}
 }

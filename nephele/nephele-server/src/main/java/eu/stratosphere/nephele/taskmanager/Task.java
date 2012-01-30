@@ -27,7 +27,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.annotations.ForceCheckpoint;
-import eu.stratosphere.nephele.annotations.Statefull;
+import eu.stratosphere.nephele.annotations.Stateful;
 import eu.stratosphere.nephele.annotations.Stateless;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
@@ -308,7 +308,7 @@ public class Task implements ExecutionObserver {
 		}
 		Boolean force = null;
 
-		if (this.environment.getInvokable().getClass().isAnnotationPresent(Statefull.class)
+		if (this.environment.getInvokable().getClass().isAnnotationPresent(Stateful.class)
 			&& !this.environment.getInvokable().getClass().isAnnotationPresent(Stateless.class)) {
 			// Don't checkpoint statefull tasks
 			force = false;

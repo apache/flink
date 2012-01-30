@@ -102,4 +102,13 @@ public final class CheckpointExecutionListener implements ExecutionListener {
 		this.decisionCoordinator.checkpointDecisionRequired(this.executionVertex, resourceUtilizationSnapshot);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getPriority() {
+
+		return 2;
+	}
+
 }

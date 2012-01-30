@@ -170,6 +170,15 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			// Nothing to do here
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public int getPriority() {
+
+			return 20;
+		}
+
 	}
 
 	/**
@@ -287,7 +296,15 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			if (instance == null) {
 				event = new VertexAssignmentEvent(timestamp, managementVertexID, "null", "null");
 			} else {
-				event = new VertexAssignmentEvent(timestamp, managementVertexID, instance.getName(), instance.getType()
+
+				String instanceName = null;
+				if (instance.getInstanceConnectionInfo() != null) {
+					instanceName = instance.getInstanceConnectionInfo().toString();
+				} else {
+					instanceName = instance.toString();
+				}
+
+				event = new VertexAssignmentEvent(timestamp, managementVertexID, instanceName, instance.getType()
 					.getIdentifier());
 			}
 

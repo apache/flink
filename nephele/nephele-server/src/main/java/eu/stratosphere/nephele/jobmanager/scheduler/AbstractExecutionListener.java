@@ -23,6 +23,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionPipeline;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 
@@ -91,11 +92,24 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 			this.scheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
 		}
 
-		// In case of an error, check if vertex can be rescheduled
+		// In case of an error, check if the vertex shall be recovered
 		if (newExecutionState == ExecutionState.FAILED) {
-			if (this.executionVertex.hasRetriesLeft()) {
-				// Reschedule vertex
-				this.executionVertex.updateExecutionState(ExecutionState.SCHEDULED);
+			if (this.executionVertex.decrementRetriesLeftAndCheck()) {
+
+				if (RecoveryLogic.recover(this.executionVertex, this.scheduler.getVerticesToBeRestarted())) {
+
+					// Run through the deployment procedure
+					this.scheduler.deployAssignedVertices(eg);
+
+					try {
+						this.scheduler.requestInstances(this.executionVertex.getGroupVertex().getExecutionStage());
+					} catch (InstanceException e) {
+						e.printStackTrace();
+						// TODO: Cancel the entire job in this case
+					}
+				} else {
+					// TODO: Cancel the entire job in this case
+				}
 			}
 		}
 
@@ -214,5 +228,14 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		 * }
 		 * }
 		 */
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getPriority() {
+
+		return 0;
 	}
 }

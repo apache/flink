@@ -616,6 +616,8 @@ public class TaskManager implements TaskOperationProtocol {
 	public SerializableArrayList<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs)
 			throws IOException {
 
+		//TODO: Invalidate lookup caches
+		
 		final SerializableArrayList<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
 
 		for (final ExecutionVertexID vertexID : vertexIDs) {
