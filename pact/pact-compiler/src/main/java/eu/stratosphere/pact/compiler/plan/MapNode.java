@@ -20,7 +20,6 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -188,51 +187,6 @@ public class MapNode extends SingleInputNode {
 		}		
 	}
 
-	/**
-	 * Computes the number of keys that are processed by the PACT.
-	 * 
-	 * @return the number of keys processed by the PACT.
-	 */
-	private long computeNumberOfProcessedKeys() {
-		long keySum = 0;
-		FieldSet fieldSet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-		
-		for(PactConnection c : this.input) {
-			OptimizerNode pred = c.getSourcePact();
-		
-			if(pred != null) {
-				// if one input (all of them are unioned) does not know
-				// its record count, we a pessimistic and return "unknown" as well
-				if(pred.getEstimatedCardinality(fieldSet) == -1)
-					return -1;
-				
-				// Each key is processed by Map
-				// all inputs are union -> we sum up the keyCounts
-				keySum += pred.getEstimatedCardinality(fieldSet);
-			} 
-		}
-		
-		return keySum;
-	}
-	
-	/**
-	 * Computes the number of stub calls for one processed key. 
-	 * 
-	 * @return the number of stub calls for one processed key.
-	 */
-	protected double computeStubCallsPerProcessedKey() {
-		// we are pessimistic -> if one value is unknown we return "unknown" as well
-		
-		long numRecords = computeNumberOfStubCalls();
-		if(numRecords == -1)
-			return -1;
-		
-		long keyCardinality = computeNumberOfProcessedKeys();
-		if(keyCardinality == -1)
-			return -1;
-
-		return numRecords / (double)keyCardinality;
-	}
 	
 	/**
 	 * Computes the number of stub calls.

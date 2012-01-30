@@ -90,4 +90,24 @@ public class Ordering {
 		newOrdering.orders = (ArrayList<Order>) this.orders.clone();
 		return this;
 	}
+	
+	public String toString() {
+		if (indexes.size() == 0) {
+			return "(none)";
+		}
+		StringBuffer buf = new StringBuffer();
+		for (int i = 0; i < indexes.size(); i++) {
+			if (buf.length() == 0) {
+				buf.append("[");
+			}
+			else {
+				buf.append(",");
+			}
+			buf.append(indexes.get(i));
+			buf.append(":");
+			buf.append(orders.get(i).name());
+		}
+		buf.append("]");
+		return buf.toString();
+	}
 }

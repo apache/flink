@@ -22,6 +22,7 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
+import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
@@ -552,15 +553,8 @@ public class CoGroupNode extends TwoInputNode {
 		GlobalProperties gp1, gp2;
 		LocalProperties lp1, lp2;
 		
-		int[] keyPositions1 = null;
-		int[] keyPositions2 = null;
-		if (ss1 == ShipStrategy.FORWARD && ss2 == ShipStrategy.PARTITION_HASH) {
-			keyPositions2 = this.input1.get(0).getPartitionedFields();
-		}
-		
-		if (ss2 == ShipStrategy.FORWARD && ss1 == ShipStrategy.PARTITION_HASH) {
-			keyPositions1 = this.input2.get(0).getPartitionedFields();
-		}
+		int[] scrambledKeys1 = null;
+		int[] scrambledKeys2 = null;
 		
 		if(allPreds1.size() == 1) {
 			gp1 = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
@@ -578,6 +572,35 @@ public class CoGroupNode extends TwoInputNode {
 			// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
 			gp2 = new GlobalProperties();
 			lp2 = new LocalProperties();
+		}
+		
+		if (ss1 == ShipStrategy.FORWARD && ss2 == ShipStrategy.PARTITION_HASH) {
+			scrambledKeys1 = getScrambledArray(getPactContract().getKeyColumnNumbers(0), gp1.getPartitionedFields());
+			//scramble gp2
+			if (scrambledKeys1 != null) {
+				int[] oldPartitions = gp2.getPartitionedFields();
+				int[] newPositions = new int[scrambledKeys1.length];
+				for (int i = 0; i < scrambledKeys1.length; i++) {
+					newPositions[i] = oldPartitions[scrambledKeys1[i]];
+				}
+				
+				gp2.setPartitioning(gp2.getPartitioning(), newPositions);
+			}
+			
+		}
+		
+		if (ss2 == ShipStrategy.FORWARD && ss1 == ShipStrategy.PARTITION_HASH) {
+			scrambledKeys2 = getScrambledArray(getPactContract().getKeyColumnNumbers(1), gp2.getPartitionedFields());
+			//scramble gp1
+			if (scrambledKeys2 != null) {
+				int[] oldPartitions = gp1.getPartitionedFields();
+				int[] newPositions = new int[scrambledKeys2.length];
+				for (int i = 0; i < scrambledKeys2.length; i++) {
+					newPositions[i] = oldPartitions[scrambledKeys2[i]];
+				}
+				
+				gp1.setPartitioning(gp1.getPartitioning(), newPositions);
+			}
 		}
 
 		
@@ -603,16 +626,14 @@ public class CoGroupNode extends TwoInputNode {
 		CoGroupNode n = new CoGroupNode(this, allPreds1, allPreds2, this.input1, this.input2, outGp, new LocalProperties());
 		for(PactConnection c : n.input1) {
 			c.setShipStrategy(ss1);
-			c.setPartitionedFields(keyPositions1);
+			c.setScramblePartitionedFields(scrambledKeys2);
 		}
 		for(PactConnection c : n.input2) {
 			c.setShipStrategy(ss2);
-			c.setPartitionedFields(keyPositions2);
+			c.setScramblePartitionedFields(scrambledKeys1);
 		}
 
 		// output will have ascending order
-		//TODO generate for both inputs and filter later on
-		
 		n.getLocalProperties().setOrdering(ordering1);
 		n.getLocalProperties().setGrouped(true, new FieldSet(keyColumns1));
 		
@@ -657,11 +678,11 @@ public class CoGroupNode extends TwoInputNode {
 
 		for(PactConnection c : n.input1) {
 			c.setShipStrategy(ss1);
-			c.setPartitionedFields(keyPositions1);
+			c.setScramblePartitionedFields(scrambledKeys2);
 		}
 		for(PactConnection c : n.input2) {
 			c.setShipStrategy(ss2);
-			c.setPartitionedFields(keyPositions2);
+			c.setScramblePartitionedFields(scrambledKeys1);
 		}
 
 		// output will have ascending order
@@ -704,7 +725,7 @@ public class CoGroupNode extends TwoInputNode {
 	 * 
 	 * @return the number of keys processed by the PACT.
 	 */
-	private long computeNumberOfProcessedKeys() {
+	protected long computeNumberOfProcessedKeys() {
 		long numKey1 = 0;
 		long numKey2 = 0;
 		
@@ -774,21 +795,37 @@ public class CoGroupNode extends TwoInputNode {
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-//		CompilerHints hints = getPactContract().getCompilerHints();
-//
-//		// special hint handling for CoGroup:
-//		// In case of SameKey OutputContract, avgNumValuesPerKey and avgRecordsEmittedPerStubCall are identical, 
-//		// since the stub is called once per key
-//		if(this.getOutputContract().equals(OutputContract.SameKey)) {
-//			if(hints.getAvgNumValuesPerKey() != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
-//				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerKey());
-//			}
-//			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerKey() == -1) {
-//				hints.setAvgNumValuesPerKey(hints.getAvgRecordsEmittedPerStubCall());
-//			}
-//		}
+		CompilerHints hints = getPactContract().getCompilerHints();
+
+		// special hint handling for CoGroup:
+		// In case of SameKey OutputContract, avgNumValuesPerKey and avgRecordsEmittedPerStubCall are identical, 
+		// since the stub is called once per key
+		int[] keyColumns = getConstantKeySet(0); 
+		if (keyColumns != null) {
+			FieldSet keySet = new FieldSet(keyColumns);
+			if (hints.getAvgNumValuesPerDistinctValue(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerDistinctValue(keySet));
+			}
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerDistinctValue(keySet) == -1) {
+				hints.setAvgNumValuesPerDistinctValue(keySet, hints.getAvgRecordsEmittedPerStubCall());
+			}
+		}
+		
+		keyColumns = getConstantKeySet(1); 
+		if (keyColumns != null) {
+			FieldSet keySet = new FieldSet(keyColumns);
+			if (hints.getAvgNumValuesPerDistinctValue(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerDistinctValue(keySet));
+			}
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerDistinctValue(keySet) == -1) {
+				hints.setAvgNumValuesPerDistinctValue(keySet, hints.getAvgRecordsEmittedPerStubCall());
+			}
+		}
+		
+		
 		super.computeOutputEstimates(statistics);
 	}
+	
 	
 	public boolean partitioningIsOnRightFields(GlobalProperties gp, int inputNum) {
 		int[] partitionedFields = gp.getPartitionedFields();
@@ -814,5 +851,29 @@ public class CoGroupNode extends TwoInputNode {
 		}
 		
 		return true;
+	}
+	
+	private int[] getScrambledArray(int[] oldPositions, int[] newPositions) {
+		if (Arrays.equals(oldPositions, newPositions)) {
+			return null;
+		}
+		
+		int[] scrambledKeys = new int[newPositions.length];
+		for (int newPosition = 0; newPosition < newPositions.length; newPosition++) {
+			boolean foundNeyKey = false;
+			for (int oldPosition = 0; oldPosition < oldPositions.length; oldPosition++) {
+				if (newPositions[newPosition] == oldPositions[oldPosition]) {
+					scrambledKeys[newPosition] = oldPosition;
+					foundNeyKey = true;
+					break;
+				}
+			}
+			
+			if (foundNeyKey == false) {
+				throw new RuntimeException("Partitioned fields are not subset of the key");
+			}
+		}
+		
+		return scrambledKeys;
 	}
 }

@@ -58,7 +58,7 @@ public class PactConnection {
 	
 	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
 	
-	private int[] partitionedFields; // The fields which are used  for partitioning, this is only used if the partitioned fields
+	private int[] scramblePartitionedFields; // The fields which are used  for partitioning, this is only used if the partitioned fields
 									 // are not the key fields
 
 
@@ -368,8 +368,8 @@ public class PactConnection {
 			boolean isThisConnection = false;
 			for (PactConnection connection : connections) {
 				if (connection.getSourcePact().getId() == source.getId()) {
-					if (connection.getPartitionedFields() != null) {
-						keyFields = connection.getPartitionedFields();
+					if (connection.getScramblePartitionedFields() != null) {
+						keyFields = connection.getScramblePartitionedFields();
 					}
 					else if (target.getPactContract() instanceof AbstractPact<?>) {
 						keyFields = ((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum);
@@ -444,11 +444,11 @@ public class PactConnection {
 		return lp;
 	}
 	
-	public int[] getPartitionedFields() {
-		return partitionedFields;
+	public int[] getScramblePartitionedFields() {
+		return scramblePartitionedFields;
 	}
 
-	public void setPartitionedFields(int[] partitionedFields) {
-		this.partitionedFields = partitionedFields;
+	public void setScramblePartitionedFields(int[] scramblePartitionedFields) {
+		this.scramblePartitionedFields = scramblePartitionedFields;
 	}
 }
