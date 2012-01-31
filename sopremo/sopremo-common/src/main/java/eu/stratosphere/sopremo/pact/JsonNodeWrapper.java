@@ -23,25 +23,25 @@ public class JsonNodeWrapper extends JsonNode {
 	 * 
 	 * @param value
 	 */
-	public JsonNodeWrapper(JsonNode value) {
+	public JsonNodeWrapper(final JsonNode value) {
 		super();
 		this.value = value;
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 		try {
 			this.value = Type.values()[in.readInt()].getClazz().newInstance();
 			this.value.read(in);
-		} catch (InstantiationException e) {
+		} catch (final InstantiationException e) {
 			e.printStackTrace();
-		} catch (IllegalAccessException e) {
+		} catch (final IllegalAccessException e) {
 			e.printStackTrace();
 		}
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.value.getType().ordinal());
 		this.value.write(out);
 	}
@@ -50,8 +50,21 @@ public class JsonNodeWrapper extends JsonNode {
 		return this.value;
 	}
 
+	/**
+	 * Sets the value to the specified value.
+	 * 
+	 * @param value
+	 *        the value to set
+	 */
+	public void setValue(final JsonNode value) {
+		if (value == null)
+			throw new NullPointerException("value must not be null");
+
+		this.value = value;
+	}
+
 	@Override
-	public int compareToSameType(JsonNode other) {
+	public int compareToSameType(final JsonNode other) {
 		return this.value.compareTo(((JsonNodeWrapper) other).getValue());
 	}
 
@@ -66,7 +79,7 @@ public class JsonNodeWrapper extends JsonNode {
 	}
 
 	@Override
-	public boolean equals(Object o) {
+	public boolean equals(final Object o) {
 		return this.value.equals(((JsonNodeWrapper) o).getValue());
 	}
 
@@ -76,7 +89,7 @@ public class JsonNodeWrapper extends JsonNode {
 	}
 
 	@Override
-	public StringBuilder toString(StringBuilder sb) {
+	public StringBuilder toString(final StringBuilder sb) {
 		return this.value.toString(sb);
 	}
 

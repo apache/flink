@@ -24,7 +24,7 @@ public abstract class SopremoReduce extends ReduceStub {
 	 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public void open(Configuration parameters) throws Exception {
+	public void open(final Configuration parameters) throws Exception {
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
 		this.cachedIterator = new RecordToJsonIterator(this.context.getInputSchema(0));
 		this.collector = new JsonCollector(this.context.getOutputSchema(0));
@@ -47,7 +47,7 @@ public abstract class SopremoReduce extends ReduceStub {
 	 * eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+	public void reduce(final Iterator<PactRecord> records, final Collector out) throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.setCollector(out);
 		this.cachedIterator.setIterator(records);
@@ -60,7 +60,7 @@ public abstract class SopremoReduce extends ReduceStub {
 			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), values));
 		}
 
-		ArrayNode array = JsonUtil.wrapWithNode(this.needsResettableIterator(values), values);
+		final ArrayNode array = JsonUtil.wrapWithNode(this.needsResettableIterator(values), values);
 		try {
 			this.reduce(array, this.collector);
 		} catch (final RuntimeException e) {

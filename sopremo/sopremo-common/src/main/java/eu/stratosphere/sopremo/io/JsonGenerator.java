@@ -16,15 +16,15 @@ public class JsonGenerator {
 
 	boolean isFirst = true;
 
-	public JsonGenerator(OutputStream stream) {
+	public JsonGenerator(final OutputStream stream) {
 		this.writer = new BufferedWriter(new OutputStreamWriter(stream));
 	}
 
-	public JsonGenerator(Writer writer) {
+	public JsonGenerator(final Writer writer) {
 		this.writer = new BufferedWriter(writer);
 	}
 
-	public JsonGenerator(File file) throws IOException {
+	public JsonGenerator(final File file) throws IOException {
 		this.writer = new BufferedWriter(new FileWriter(file));
 	}
 
@@ -32,7 +32,7 @@ public class JsonGenerator {
 		this.writer.close();
 	}
 
-	public void writeTree(JsonNode value) throws IOException {
+	public void writeTree(final JsonNode value) throws IOException {
 		if (value != null) {
 			if (!this.isFirst)
 				this.writer.write(",");

@@ -84,7 +84,7 @@ public class BooleanNode extends JsonNode {
 	private Object readResolve() {
 		return valueOf(this.value);
 	}
-	
+
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeBoolean(this.value);

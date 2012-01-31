@@ -16,15 +16,15 @@ public class GroupingExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = 7602198150833087978L;
 
-	private EvaluationExpression groupingExpression, resultExpression;
+	private final EvaluationExpression groupingExpression, resultExpression;
 
-	public GroupingExpression(EvaluationExpression groupingExpression, EvaluationExpression resultExpression) {
+	public GroupingExpression(final EvaluationExpression groupingExpression, final EvaluationExpression resultExpression) {
 		this.groupingExpression = groupingExpression;
 		this.resultExpression = resultExpression;
 	}
 
 	@Override
-	public JsonNode evaluate(JsonNode node, EvaluationContext context) {
+	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
 		if (((ArrayNode) node).size() == 0)
 			return new ArrayNode();
 
@@ -46,22 +46,22 @@ public class GroupingExpression extends EvaluationExpression {
 		return resultNode;
 	}
 
-	protected List<ArrayNode> sortNodesWithKey(JsonNode node, EvaluationContext context) {
+	protected List<ArrayNode> sortNodesWithKey(final JsonNode node, final EvaluationContext context) {
 		final List<ArrayNode> nodes = new ArrayList<ArrayNode>();
 		for (final JsonNode jsonNode : (ArrayNode) node)
 			nodes.add(JsonUtil.asArray(this.groupingExpression.evaluate(jsonNode, context), jsonNode));
 		Collections.sort(nodes, new Comparator<ArrayNode>() {
 			@Override
-			public int compare(ArrayNode o1, ArrayNode o2) {
+			public int compare(final ArrayNode o1, final ArrayNode o2) {
 				return o1.get(0).compareTo(o2.get(0));
 			}
 		});
 		return nodes;
 	}
 
-	protected JsonNode evaluateGroup(List<ArrayNode> group, EvaluationContext context) {
-		ArrayNode values = new ArrayNode();
-		for (ArrayNode compactArrayNode : group)
+	protected JsonNode evaluateGroup(final List<ArrayNode> group, final EvaluationContext context) {
+		final ArrayNode values = new ArrayNode();
+		for (final ArrayNode compactArrayNode : group)
 			values.add(compactArrayNode.get(1));
 		return this.resultExpression.evaluate(values, context);
 	}
@@ -76,16 +76,16 @@ public class GroupingExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (!super.equals(obj))
 			return false;
-		GroupingExpression other = (GroupingExpression) obj;
+		final GroupingExpression other = (GroupingExpression) obj;
 		return this.groupingExpression.equals(other.groupingExpression)
 			&& this.resultExpression.equals(other.resultExpression);
 	}
 
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append("g(").append(this.groupingExpression).append(") -> ").append(this.resultExpression);
 	}
 

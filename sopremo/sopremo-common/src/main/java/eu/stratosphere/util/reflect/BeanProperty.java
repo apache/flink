@@ -21,9 +21,9 @@ import java.lang.reflect.InvocationTargetException;
  * @author Arvid Heise
  */
 public class BeanProperty<Type> extends DynamicProperty<Type> {
-	private PropertyDescriptor propertyDescriptor;
+	private final PropertyDescriptor propertyDescriptor;
 
-	public BeanProperty(PropertyDescriptor propertyDescriptor) {
+	public BeanProperty(final PropertyDescriptor propertyDescriptor) {
 		this.propertyDescriptor = propertyDescriptor;
 	}
 
@@ -32,12 +32,12 @@ public class BeanProperty<Type> extends DynamicProperty<Type> {
 	 * @see eu.stratosphere.util.reflect.DynamicProperty#set(java.lang.Object, java.lang.Object)
 	 */
 	@Override
-	public void set(Object instance, Type value) {
+	public void set(final Object instance, final Type value) {
 		try {
 			this.propertyDescriptor.getWriteMethod().invoke(instance, value);
-		} catch (IllegalAccessException e) {
+		} catch (final IllegalAccessException e) {
 			throw new RuntimeException(e);
-		} catch (InvocationTargetException e) {
+		} catch (final InvocationTargetException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -47,12 +47,12 @@ public class BeanProperty<Type> extends DynamicProperty<Type> {
 	 * @see eu.stratosphere.util.reflect.DynamicProperty#get(java.lang.Object)
 	 */
 	@Override
-	public Type get(Object instance) {
+	public Type get(final Object instance) {
 		try {
 			return (Type) this.propertyDescriptor.getReadMethod().invoke(instance);
-		} catch (IllegalAccessException e) {
+		} catch (final IllegalAccessException e) {
 			throw new RuntimeException(e);
-		} catch (InvocationTargetException e) {
+		} catch (final InvocationTargetException e) {
 			throw new RuntimeException(e);
 		}
 	}

@@ -28,7 +28,7 @@ public class CoerceExpression extends EvaluationExpression {
 		return this.valueExpression;
 	}
 
-	public void setValueExpression(EvaluationExpression valueExpression) {
+	public void setValueExpression(final EvaluationExpression valueExpression) {
 		if (valueExpression == null)
 			throw new NullPointerException("valueExpression must not be null");
 
@@ -43,8 +43,8 @@ public class CoerceExpression extends EvaluationExpression {
 	@Override
 	public void toString(final StringBuilder builder) {
 		builder.append('(').append(this.targetType).append(')');
-		if(valueExpression != EvaluationExpression.VALUE)
-			builder.append(' ').append(valueExpression);
+		if (this.valueExpression != EvaluationExpression.VALUE)
+			builder.append(' ').append(this.valueExpression);
 	}
 
 	@Override

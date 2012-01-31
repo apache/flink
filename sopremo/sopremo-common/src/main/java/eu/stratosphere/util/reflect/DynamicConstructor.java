@@ -18,7 +18,7 @@ public class DynamicConstructor<DeclaringClass> extends
 	}
 
 	@Override
-	public void addSignature(Constructor<DeclaringClass> member) {
+	public void addSignature(final Constructor<DeclaringClass> member) {
 		super.addSignature(member);
 		if (this.declaringClass == null)
 			this.declaringClass = member.getDeclaringClass();
@@ -28,35 +28,37 @@ public class DynamicConstructor<DeclaringClass> extends
 	}
 
 	@Override
-	protected boolean isVarargs(Constructor<DeclaringClass> member) {
+	protected boolean isVarargs(final Constructor<DeclaringClass> member) {
 		return member.isVarArgs();
 	}
 
 	@Override
-	protected Class<?>[] getParameterTypes(Constructor<DeclaringClass> member) {
+	protected Class<?>[] getParameterTypes(final Constructor<DeclaringClass> member) {
 		return member.getParameterTypes();
 	}
 
 	@Override
-	protected DeclaringClass invokeDirectly(Constructor<DeclaringClass> member, Object context, Object[] params)
+	protected DeclaringClass invokeDirectly(final Constructor<DeclaringClass> member, final Object context,
+			final Object[] params)
 			throws IllegalAccessException, InvocationTargetException, IllegalArgumentException, InstantiationException {
 		return member.newInstance(params);
 	}
 
-	public DeclaringClass invoke(Object... params) {
+	public DeclaringClass invoke(final Object... params) {
 		return super.invoke(null, params);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.util.reflect.DynamicInvokable#needsInstance(java.lang.reflect.Member)
 	 */
 	@Override
-	protected boolean needsInstance(Constructor<DeclaringClass> member) {
+	protected boolean needsInstance(final Constructor<DeclaringClass> member) {
 		return false;
 	}
 
 	@Override
-	protected Constructor<DeclaringClass> findMember(Class<DeclaringClass> clazz, Class<?>[] parameterTypes)
+	protected Constructor<DeclaringClass> findMember(final Class<DeclaringClass> clazz, final Class<?>[] parameterTypes)
 			throws NoSuchMethodException {
 		return clazz.getDeclaredConstructor(parameterTypes);
 	}
@@ -68,9 +70,9 @@ public class DynamicConstructor<DeclaringClass> extends
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <C> DynamicConstructor<C> valueOf(Class<C> clazz) {
-		DynamicConstructor<C> ctor = new DynamicConstructor<C>();
-		for (Constructor<?> constructor : clazz.getDeclaredConstructors())
+	public static <C> DynamicConstructor<C> valueOf(final Class<C> clazz) {
+		final DynamicConstructor<C> ctor = new DynamicConstructor<C>();
+		for (final Constructor<?> constructor : clazz.getDeclaredConstructors())
 			ctor.addSignature((Constructor<C>) constructor);
 		return ctor;
 	}

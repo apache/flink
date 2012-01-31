@@ -61,9 +61,11 @@ public class ArithmeticCrossTest {
 				String.format("%s%s%s", this.left, this.operator, this.right,
 					result, expectedNode), expectedNode, result);
 		else
-			Assert.assertEquals(
-				String.format("%s%s%s", this.left, this.operator, this.right,
-					result, expectedNode), this.expected.doubleValue(), ((NumericNode) result).getDoubleValue(), 0.0001);
+			Assert
+				.assertEquals(
+					String.format("%s%s%s", this.left, this.operator, this.right,
+						result, expectedNode), this.expected.doubleValue(), ((NumericNode) result).getDoubleValue(),
+					0.0001);
 	}
 
 	@Parameters

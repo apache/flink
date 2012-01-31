@@ -67,7 +67,7 @@ public class JsonToCsv {
 		return this.separator;
 	}
 
-	public void setSeparator(String separator) {
+	public void setSeparator(final String separator) {
 		if (separator == null)
 			throw new NullPointerException("separator must not be null");
 
@@ -78,42 +78,42 @@ public class JsonToCsv {
 		return this.extractionExpressions;
 	}
 
-	public void setContext(EvaluationContext context) {
+	public void setContext(final EvaluationContext context) {
 		if (context == null)
 			throw new NullPointerException("context must not be null");
 
 		this.context = context;
 	}
 
-	public void setExtractionExpressions(List<EvaluationExpression> extractionExpressions) {
+	public void setExtractionExpressions(final List<EvaluationExpression> extractionExpressions) {
 		if (extractionExpressions == null)
 			throw new NullPointerException("extractionExpressions must not be null");
 
 		this.extractionExpressions = extractionExpressions;
 	}
 
-	public static FileDataSink convert(String sourceFile, JsonToCsv jsonToCsv,
-			String targetFile) {
-		PactModule sourceModule = new Source(sourceFile).asPactModule(jsonToCsv.getContext());
-		Contract source = sourceModule.getOutput(0).getInputs().get(0);
+	public static FileDataSink convert(final String sourceFile, final JsonToCsv jsonToCsv,
+			final String targetFile) {
+		final PactModule sourceModule = new Source(sourceFile).asPactModule(jsonToCsv.getContext());
+		final Contract source = sourceModule.getOutput(0).getInputs().get(0);
 
-		MapContract jsonToString = new MapContract(JsonToString.class);
+		final MapContract jsonToString = new MapContract(JsonToString.class);
 		jsonToString.getParameters().setString("separator", jsonToCsv.getSeparator());
 		SopremoUtil.serialize(jsonToString.getParameters(), SopremoUtil.CONTEXT, jsonToCsv.getContext());
 		SopremoUtil.serialize(jsonToString.getParameters(), "extractionExpressions",
 			(Serializable) jsonToCsv.getExtractionExpressions());
 		jsonToString.setInput(source);
 
-		FileDataSink target = new FileDataSink(StringOutputFormat.class, targetFile);
+		final FileDataSink target = new FileDataSink(StringOutputFormat.class, targetFile);
 		target.setInput(jsonToString);
 
 		return target;
 	}
 
 	public static class StringOutputFormat extends DelimitedOutputFormat {
-		private Charset cs = Charset.defaultCharset();
+		private final Charset cs = Charset.defaultCharset();
 
-		private PactString string = new PactString();
+		private final PactString string = new PactString();
 
 		/*
 		 * (non-Javadoc)
@@ -122,11 +122,11 @@ public class JsonToCsv {
 		 * , byte[])
 		 */
 		@Override
-		public int serializeRecord(PactRecord record, byte[] target) throws Exception {
+		public int serializeRecord(final PactRecord record, final byte[] target) throws Exception {
 			record.getFieldInto(0, this.string);
-			ByteBuffer line = this.cs.encode(this.string.getValue());
+			final ByteBuffer line = this.cs.encode(this.string.getValue());
 
-			int length = line.limit() + 1;
+			final int length = line.limit() + 1;
 			if (length > target.length)
 				return -length;
 
@@ -146,9 +146,9 @@ public class JsonToCsv {
 
 		private JsonNode node;
 
-		private PactString resultString = new PactString();
+		private final PactString resultString = new PactString();
 
-		private PactRecord resultRecord = new PactRecord(this.resultString);
+		private final PactRecord resultRecord = new PactRecord(this.resultString);
 
 		private Schema schema;
 
@@ -158,7 +158,7 @@ public class JsonToCsv {
 		 */
 		@SuppressWarnings("unchecked")
 		@Override
-		public void open(Configuration parameters) throws Exception {
+		public void open(final Configuration parameters) throws Exception {
 			super.open(parameters);
 
 			this.context = SopremoUtil.deserialize(parameters, "context", EvaluationContext.class);
@@ -174,13 +174,13 @@ public class JsonToCsv {
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
-			StringBuilder string = new StringBuilder();
+		public void map(final PactRecord record, final Collector out) throws Exception {
+			final StringBuilder string = new StringBuilder();
 
 			this.node = this.schema.recordToJson(record, this.node);
 			if (this.extractionExpressions.isEmpty())
 				this.discoverEntries(this.node, new LinkedList<EvaluationExpression>());
-			for (EvaluationExpression expr : this.extractionExpressions)
+			for (final EvaluationExpression expr : this.extractionExpressions)
 				string.append(expr.evaluate(this.node, this.context)).append(this.separator);
 
 			string.setLength(string.length() - 1);
@@ -192,9 +192,9 @@ public class JsonToCsv {
 		/**
 		 * @param value
 		 */
-		private void discoverEntries(JsonNode value, LinkedList<EvaluationExpression> path) {
+		private void discoverEntries(final JsonNode value, final LinkedList<EvaluationExpression> path) {
 			if (value instanceof ObjectNode)
-				for (Entry<String, JsonNode> entry : ((ObjectNode) value).getEntries()) {
+				for (final Entry<String, JsonNode> entry : ((ObjectNode) value).getEntries()) {
 					path.push(new ObjectAccess(entry.getKey()));
 					this.discoverEntries(entry.getValue(), path);
 					path.pop();

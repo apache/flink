@@ -27,7 +27,7 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	 * eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector out) {
+	public void coGroup(final Iterator<PactRecord> records1, final Iterator<PactRecord> records2, final Collector out) {
 		this.context.increaseInputCounter();
 		this.cachedIterator1.setIterator(records1);
 		this.cachedIterator2.setIterator(records2);
@@ -45,8 +45,8 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 			values2 = cached2.iterator();
 		}
 
-		ArrayNode array1 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values1), values1);
-		ArrayNode array2 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values1), values1);
+		final ArrayNode array1 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values1), values1);
+		final ArrayNode array2 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values1), values1);
 		try {
 			this.coGroup(array1, array2, this.collector);
 		} catch (final RuntimeException e) {
@@ -61,7 +61,7 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public void open(Configuration parameters) throws Exception {
+	public void open(final Configuration parameters) throws Exception {
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
 		this.collector = new JsonCollector(this.context.getInputSchema(0));
 		this.cachedIterator1 = new RecordToJsonIterator(this.context.getInputSchema(0));

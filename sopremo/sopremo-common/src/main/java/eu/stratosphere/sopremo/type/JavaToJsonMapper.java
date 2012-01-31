@@ -75,15 +75,15 @@ public class JavaToJsonMapper {
 		}
 
 		if (Collection.class.isAssignableFrom(valueClass)) {
-			ArrayNode arrayNode = new ArrayNode();
-			for (Object element : (Collection<?>) value)
+			final ArrayNode arrayNode = new ArrayNode();
+			for (final Object element : (Collection<?>) value)
 				arrayNode.add(this.valueToTree(element));
 			return arrayNode;
 		}
 
 		if (Map.class.isAssignableFrom(valueClass)) {
-			ObjectNode objectNode = new ObjectNode();
-			for (Entry<?, ?> element : ((Map<?, ?>) value).entrySet())
+			final ObjectNode objectNode = new ObjectNode();
+			for (final Entry<?, ?> element : ((Map<?, ?>) value).entrySet())
 				objectNode.put(element.getKey().toString(), this.valueToTree(element.getValue()));
 			return objectNode;
 		}
@@ -93,7 +93,7 @@ public class JavaToJsonMapper {
 
 		try {
 			return this.typeDict.get(valueClass).newInstance(value);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new IllegalArgumentException("Cannot map object " + value + " to json node", e);
 		}
 

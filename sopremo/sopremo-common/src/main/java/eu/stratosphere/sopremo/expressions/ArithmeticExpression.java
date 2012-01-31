@@ -13,9 +13,9 @@ import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode.Type;
 import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.sopremo.type.NumericNode;
-import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for
@@ -38,7 +38,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		return this.firstOperand;
 	}
 
-	public void setFirstOperand(EvaluationExpression firstOperand) {
+	public void setFirstOperand(final EvaluationExpression firstOperand) {
 		if (firstOperand == null)
 			throw new NullPointerException("firstOperand must not be null");
 
@@ -51,7 +51,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 	 * @param secondOperand
 	 *        the operand to set
 	 */
-	public void setSecondOperand(EvaluationExpression secondOperand) {
+	public void setSecondOperand(final EvaluationExpression secondOperand) {
 		if (secondOperand == null)
 			throw new NullPointerException("second operand must not be null");
 
@@ -68,8 +68,9 @@ public class ArithmeticExpression extends EvaluationExpression {
 	}
 
 	public ArithmeticExpression.ArithmeticOperator getOperator() {
-		return operator;
+		return this.operator;
 	}
+
 	/**
 	 * Initializes Arithmetic with two {@link EvaluationExpression}s and an {@link ArithmeticOperator} in infix
 	 * notation.
@@ -79,7 +80,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 	 * @param operator
 	 *        the operator
 	 * @param op2
-	 *        the 
+	 *        the
 	 */
 	public ArithmeticExpression(final EvaluationExpression op1, final ArithmeticOperator operator,
 			final EvaluationExpression op2) {
@@ -92,8 +93,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 	public boolean equals(final Object obj) {
 		if (!super.equals(obj))
 			return false;
-		ArithmeticExpression other = (ArithmeticExpression) obj;
-		return this.firstOperand.equals(other .firstOperand)
+		final ArithmeticExpression other = (ArithmeticExpression) obj;
+		return this.firstOperand.equals(other.firstOperand)
 			&& this.operator.equals(other.operator)
 			&& this.secondOperand.equals(other.secondOperand);
 	}

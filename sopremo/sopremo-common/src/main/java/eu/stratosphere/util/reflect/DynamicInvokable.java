@@ -66,7 +66,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		return this.name;
 	}
 
-	public DynamicInvokable(String name) {
+	public DynamicInvokable(final String name) {
 		this.name = name;
 	}
 
@@ -87,8 +87,8 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 
 	protected abstract boolean needsInstance(MemberType member);
 
-	protected Class<?>[] getSignatureTypes(MemberType member) {
-		return getParameterTypes(member);
+	protected Class<?>[] getSignatureTypes(final MemberType member) {
+		return this.getParameterTypes(member);
 	}
 
 	protected abstract boolean isVarargs(final MemberType member);
@@ -96,7 +96,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 	protected abstract Class<?>[] getParameterTypes(final MemberType member);
 
 	private Signature findBestSignature(final Signature signature) {
-		MemberType member = getMember(signature);
+		MemberType member = this.getMember(signature);
 		if (member != null)
 			return signature;
 
@@ -150,19 +150,19 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 	}
 
 	public ReturnType invokeStatic(final Object... params) {
-		return invoke(null, params);
+		return this.invoke(null, params);
 	}
 
 	public abstract Class<ReturnType> getReturnType();
 
-	public boolean isInvokableFor(Object... params) {
+	public boolean isInvokableFor(final Object... params) {
 		final Class<?>[] paramTypes = this.getActualParameterTypes(params);
 		return this.findBestSignature(new Signature(paramTypes)) != null;
 	}
 
 	public ReturnType invokeSignature(final Signature signature, final Object context, final Object... params) {
 		try {
-			return this.invokeDirectly(getMember(signature), context, signature.adjustParameters(params));
+			return this.invokeDirectly(this.getMember(signature), context, signature.adjustParameters(params));
 		} catch (final Exception e) {
 			throw new EvaluationException("Cannot invoke " + this.getName() + " with " + Arrays.toString(params), e);
 		}

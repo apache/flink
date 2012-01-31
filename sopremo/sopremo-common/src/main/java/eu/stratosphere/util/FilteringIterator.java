@@ -22,10 +22,10 @@ import java.util.Iterator;
 public class FilteringIterator<T> extends AbstractIterator<T> {
 
 	private final Iterator<T> iterator;
-	
+
 	private final Predicate<T> selector;
 
-	public FilteringIterator(Iterator<T> iterator, Predicate<T> selector) {
+	public FilteringIterator(final Iterator<T> iterator, final Predicate<T> selector) {
 		this.iterator = iterator;
 		this.selector = selector;
 	}
@@ -37,7 +37,7 @@ public class FilteringIterator<T> extends AbstractIterator<T> {
 	@Override
 	protected T loadNext() {
 		while (this.iterator.hasNext()) {
-			T next = this.iterator.next();
+			final T next = this.iterator.next();
 			if (this.selector.isTrue(next))
 				return next;
 		}

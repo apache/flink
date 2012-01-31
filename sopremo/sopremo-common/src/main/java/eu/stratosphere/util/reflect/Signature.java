@@ -3,6 +3,8 @@ package eu.stratosphere.util.reflect;
 import java.io.Serializable;
 import java.util.Arrays;
 
+import javassist.bytecode.SignatureAttribute.MethodSignature;
+
 /**
  * General signature of a method that handles exactly the specified argument types.
  * 
@@ -59,7 +61,7 @@ public class Signature implements Serializable {
 
 		int distance = 0;
 		for (int index = 0; index < this.parameterTypes.length; index++) {
-			int actualDistance = ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
+			final int actualDistance = ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
 			if (actualDistance < 0)
 				return INCOMPATIBLE;
 			distance += actualDistance;
@@ -89,21 +91,22 @@ public class Signature implements Serializable {
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
 	 */
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append("(").append(Arrays.toString(this.parameterTypes)).append(")");
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder();
-		toString(builder);
+		final StringBuilder builder = new StringBuilder();
+		this.toString(builder);
 		return builder.toString();
 	}
 
-	public Object[] adjustParameters(Object[] params) {
+	public Object[] adjustParameters(final Object[] params) {
 		return params;
 	}
 }

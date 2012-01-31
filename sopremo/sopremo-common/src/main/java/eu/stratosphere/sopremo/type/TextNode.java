@@ -41,7 +41,7 @@ public class TextNode extends JsonNode {
 	}
 
 	public String getTextValue() {
-		return getJavaValue();
+		return this.getJavaValue();
 	}
 
 	@Override

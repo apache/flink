@@ -19,7 +19,7 @@ package eu.stratosphere.sopremo;
  */
 public interface SopremoType {
 	public void toString(StringBuilder builder);
-	
+
 	@Override
 	public abstract String toString();
 }

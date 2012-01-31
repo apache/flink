@@ -6,7 +6,6 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
@@ -33,12 +32,12 @@ public class SopremoPlan {
 		return new Plan((Collection) this.module.assemblePact(this.context));
 	}
 
-	public void setSinks(Sink... sinks) {
+	public void setSinks(final Sink... sinks) {
 		this.setSinks(Arrays.asList(sinks));
 	}
 
-	public void setSinks(List<Sink> sinks) {
-		for (Sink sink : sinks)
+	public void setSinks(final List<Sink> sinks) {
+		for (final Sink sink : sinks)
 			this.module.addInternalOutput(sink);
 		this.context.setSchema(this.module.getSchema());
 	}
@@ -100,18 +99,18 @@ public class SopremoPlan {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		SopremoPlan other = (SopremoPlan) obj;
+		final SopremoPlan other = (SopremoPlan) obj;
 		return this.module.equals(other.module);
 	}
 
-	public List<Operator<?>> getUnmatchingOperators(SopremoPlan other) {
+	public List<Operator<?>> getUnmatchingOperators(final SopremoPlan other) {
 		return this.module.getUnmatchingNodes(other.module);
 	}
 }

@@ -34,44 +34,44 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 
 	private ConnectionModifier<Node> modifier;
 
-	private RootPath root = new RootPath();
+	private final RootPath root = new RootPath();
 
 	/**
 	 * Initializes Graph.
 	 */
-	public Graph(ConnectionModifier<Node> modifier, List<Node> startNodes) {
+	public Graph(final ConnectionModifier<Node> modifier, final List<Node> startNodes) {
 		this.startNodes = startNodes;
 		this.navigator = this.modifier = modifier;
 	}
 
-	public Graph(ConnectionModifier<Node> modifier, Node... startNodes) {
+	public Graph(final ConnectionModifier<Node> modifier, final Node... startNodes) {
 		this(modifier, Arrays.asList(startNodes));
 	}
 
 	@SuppressWarnings("rawtypes")
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		Graph other = (Graph) obj;
+		final Graph other = (Graph) obj;
 		return this.startNodes.equals(other.startNodes);
 	}
 
-	public Iterable<Graph<Node>.NodePath> findAll(final Node toFind, boolean equal) {
-		Predicate<Graph<Node>.NodePath> selector = equal ?
+	public Iterable<Graph<Node>.NodePath> findAll(final Node toFind, final boolean equal) {
+		final Predicate<Graph<Node>.NodePath> selector = equal ?
 			new Predicate<Graph<Node>.NodePath>() {
 				@Override
-				public boolean isTrue(Graph<Node>.NodePath param) {
+				public boolean isTrue(final Graph<Node>.NodePath param) {
 					return param.equals(toFind);
 				};
 			} :
 			new Predicate<Graph<Node>.NodePath>() {
 				@Override
-				public boolean isTrue(Graph<Node>.NodePath param) {
+				public boolean isTrue(final Graph<Node>.NodePath param) {
 					return param.getNode() == toFind;
 				};
 			};
@@ -87,7 +87,7 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 		return this.startNodes;
 	}
 
-	public NodePath getPath(Node startNode, int... indizes) {
+	public NodePath getPath(final Node startNode, final int... indizes) {
 		int startIndex = -1;
 		for (int index = 0; index < this.startNodes.size(); index++)
 			if (this.startNodes.get(index) == startNode) {
@@ -99,20 +99,20 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 			throw new IllegalArgumentException("unknown start node");
 
 		NodePath nodePath = new NodePath(this.root, startNode, startIndex);
-		for (int pathIndex : indizes)
+		for (final int pathIndex : indizes)
 			nodePath = nodePath.followConnection(pathIndex);
 		return nodePath;
 	}
 
-	public Iterable<Graph<Node>.NodePath> findAll(Predicate<Graph<Node>.NodePath> predicate) {
+	public Iterable<Graph<Node>.NodePath> findAll(final Predicate<Graph<Node>.NodePath> predicate) {
 		return new FilteringIterable<Graph<Node>.NodePath>(this, predicate);
 	}
 
 	public Iterable<Graph<Node>.NodePath> findAllIncomings(final Node node) {
 		return new FilteringIterable<Graph<Node>.NodePath>(this, new Predicate<Graph<Node>.NodePath>() {
 			@Override
-			public boolean isTrue(Graph<Node>.NodePath param) {
-				for (Node outgoing : param.getOutgoings())
+			public boolean isTrue(final Graph<Node>.NodePath param) {
+				for (final Node outgoing : param.getOutgoings())
 					if (outgoing == node)
 						return true;
 				return false;
@@ -123,7 +123,7 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 	public Iterable<Graph<Node>.NodePath> findAllTypes(final Class<?> clazz) {
 		return new FilteringIterable<Graph<Node>.NodePath>(this, new Predicate<Graph<Node>.NodePath>() {
 			@Override
-			public boolean isTrue(Graph<Node>.NodePath param) {
+			public boolean isTrue(final Graph<Node>.NodePath param) {
 				return clazz.isInstance(param);
 			};
 		});
@@ -146,16 +146,16 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 		return new GraphIterator();
 	}
 
-	public void replace(Node toReplace, Node replacement, boolean equal) {
-		for (NodePath replaceNode : this.findAll(toReplace, equal)) {
-			int index = replaceNode.getIndex();
-			NodePath incoming = replaceNode.getIncoming();
+	public void replace(final Node toReplace, final Node replacement, final boolean equal) {
+		for (final NodePath replaceNode : this.findAll(toReplace, equal)) {
+			final int index = replaceNode.getIndex();
+			final NodePath incoming = replaceNode.getIncoming();
 			this.replaceChild(incoming, index, replacement);
 		}
 	}
 
-	public void replaceChild(NodePath referencingNode, int index, Node replacement) {
-		List<Node> outgoings = referencingNode.getOutgoings();
+	public void replaceChild(final NodePath referencingNode, final int index, final Node replacement) {
+		final List<Node> outgoings = referencingNode.getOutgoings();
 		outgoings.set(index, replacement);
 		referencingNode.setOutgoings(outgoings);
 	}
@@ -166,8 +166,8 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 	public class GraphIterator extends AbstractIterator<NodePath> {
 		private NodePath path = new StartPath();
 
-		private NodePath followNext(NodePath path, int nextIndex) {
-			NodePath incoming = path.getIncoming();
+		private NodePath followNext(final NodePath path, final int nextIndex) {
+			final NodePath incoming = path.getIncoming();
 			if (incoming == null)
 				return this.noMoreElements();
 
@@ -195,8 +195,8 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 		 */
 		@Override
 		public void remove() {
-			NodePath referencingNode = this.path.getIncoming();
-			List<Node> outgoings = referencingNode.getOutgoings();
+			final NodePath referencingNode = this.path.getIncoming();
+			final List<Node> outgoings = referencingNode.getOutgoings();
 			outgoings.remove(this.path.getIndex());
 			referencingNode.setOutgoings(outgoings);
 		}
@@ -232,21 +232,21 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 	public class NodePath implements Iterable<NodePath> {
 		private NodePath parentPath;
 
-		private Node node;
+		private final Node node;
 
 		private int index;
 
-		private NodePath(Node node) {
+		private NodePath(final Node node) {
 			this.node = node;
 		}
 
-		private NodePath(NodePath parentPath, Node node, int followedIndex) {
+		private NodePath(final NodePath parentPath, final Node node, final int followedIndex) {
 			this.parentPath = parentPath;
 			this.node = node;
 			this.index = followedIndex;
 		}
 
-		public NodePath followConnection(int connectionIndex) {
+		public NodePath followConnection(final int connectionIndex) {
 			return new NodePath(this, Graph.this.navigator.getConnectedNodes(this.node).get(connectionIndex),
 				connectionIndex);
 		}
@@ -296,13 +296,13 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 				int outIndex = 0;
 
 				@Override
-				protected NodePath convert(Node inputObject) {
+				protected NodePath convert(final Node inputObject) {
 					return new NodePath(NodePath.this, inputObject, this.outIndex++);
 				};
 			};
 		}
 
-		public void setOutgoings(List<Node> outgoings) {
+		public void setOutgoings(final List<Node> outgoings) {
 			Graph.this.modifier.setConnectedNodes(this.node, outgoings);
 		}
 
@@ -312,7 +312,7 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 		 */
 		@Override
 		public String toString() {
-			StringBuilder builder = new StringBuilder();
+			final StringBuilder builder = new StringBuilder();
 			if (this.parentPath != null)
 				builder.append(this.parentPath.toString()).append("[").append(this.index).append("]=>");
 			builder.append(this.node.toString());
@@ -331,7 +331,7 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 		}
 
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj)
 				return true;
 			if (obj == null)
@@ -339,7 +339,7 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 			if (this.getClass() != obj.getClass())
 				return false;
 			@SuppressWarnings("unchecked")
-			NodePath other = (NodePath) obj;
+			final NodePath other = (NodePath) obj;
 			return this.getOuterType().equals(other.getOuterType())
 				&& this.index == other.index
 				&& (this.node == null ? other.node == null : this.node.equals(other.node))
@@ -364,7 +364,7 @@ public class Graph<Node> implements Iterable<Graph<Node>.NodePath> {
 		 * @see eu.stratosphere.util.dag.Graph.NodePath#followConnection(int)
 		 */
 		@Override
-		public NodePath followConnection(int connectionIndex) {
+		public NodePath followConnection(final int connectionIndex) {
 			return new NodePath(this, Graph.this.startNodes.get(connectionIndex), connectionIndex);
 		}
 

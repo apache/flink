@@ -29,7 +29,7 @@ public abstract class Callable<Result, InputType> extends AbstractSopremoType im
 
 	private final String name;
 
-	public Callable(String name) {
+	public Callable(final String name) {
 		this.name = name;
 	}
 
@@ -44,7 +44,7 @@ public abstract class Callable<Result, InputType> extends AbstractSopremoType im
 	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append(this.name).append("()");
 	}
 }

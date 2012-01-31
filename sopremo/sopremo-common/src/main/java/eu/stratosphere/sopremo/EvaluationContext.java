@@ -70,12 +70,12 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 		this(0, 0);
 	}
 
-	public EvaluationContext(int numInputs, int numOutputs) {
+	public EvaluationContext(final int numInputs, final int numOutputs) {
 		this.functionRegistry = new MethodRegistry(this.bindings);
-		setInputsAndOutputs(numInputs, numOutputs);
+		this.setInputsAndOutputs(numInputs, numOutputs);
 	}
 
-	public void setInputsAndOutputs(int numInputs, int numOutputs) {
+	public void setInputsAndOutputs(final int numInputs, final int numOutputs) {
 		this.inputSchemas = new Schema[numInputs];
 		Arrays.fill(this.inputSchemas, new Schema.Default());
 		this.outputSchemas = new Schema[numOutputs];
@@ -112,9 +112,9 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	 * 
 	 * @return the inputSchemas
 	 */
-	public Schema getInputSchema(int index) {
+	public Schema getInputSchema(final int index) {
 		return this.schema;
-//		return this.inputSchemas[index];
+		// return this.inputSchemas[index];
 	}
 
 	/**
@@ -122,9 +122,9 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	 * 
 	 * @return the outputSchemas
 	 */
-	public Schema getOutputSchema(int index) {
+	public Schema getOutputSchema(final int index) {
 		return this.schema;
-//		return this.outputSchemas[index];
+		// return this.outputSchemas[index];
 	}
 
 	private int taskId;
@@ -142,7 +142,7 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		builder.append("Context @ ").append(this.operatorStack).append("\n").
 			append("Bindings: ");
 		this.bindings.toString(builder);
@@ -151,7 +151,7 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	/**
 	 * @param schema
 	 */
-	public void setSchema(Schema schema) {
+	public void setSchema(final Schema schema) {
 		this.schema = schema;
 	}
 }

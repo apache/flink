@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -31,9 +30,8 @@ import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.io.JsonGenerator;
-import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 public class SopremoUtil {
 	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
@@ -70,17 +68,28 @@ public class SopremoUtil {
 		return (T) stringToObject(string);
 	}
 
-	public static JsonNode deserializeNode(final DataInput in) throws IOException {
-		SerializationString.get().read(in);
-		final JsonParser parser = new JsonParser(SerializationString.get().getValue());
-		// parser.setCodec(JsonUtil.OBJECT_MAPPER);
-		return parser.readValueAsTree();
-	}
+	public static JsonNode deserializeNode(final DataInput in) {
+		JsonNode value = null;
+		try {
+			final int readInt = in.readInt();
+			if (readInt == Type.CustomNode.ordinal()) {
+				final String className = in.readUTF();
+				try {
+					value = (JsonNode) Class.forName(className).newInstance();
+				} catch (final ClassNotFoundException e) {
+					e.printStackTrace();
+				}
+			} else
+				value = Type.values()[readInt].getClazz().newInstance();
+		} catch (final InstantiationException e) {
+			e.printStackTrace();
+		} catch (final IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
 
-	@SuppressWarnings("unchecked")
-	public static <T extends JsonNode> T deserializeNode(final DataInput in,
-			@SuppressWarnings("unused") final Class<T> expectedClass) throws IOException {
-		return (T) deserializeNode(in);
+		return value;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -156,13 +165,16 @@ public class SopremoUtil {
 		config.setString(key, objectToString(object));
 	}
 
-	public static void serializeNode(final DataOutput out, final JsonNode value) throws IOException {
-		final StringWriter writer = new StringWriter();
-		final JsonGenerator generator = new JsonGenerator(writer);
-		// generator.setCodec(JsonUtil.OBJECT_MAPPER);
-		generator.writeTree(value);
-		SerializationString.get().setValue(writer.toString());
-		SerializationString.get().write(out);
+	public static void serializeNode(final DataOutput out, final JsonNode value) {
+		try {
+			out.writeInt(value.getType().ordinal());
+
+			if (value.getType()== Type.CustomNode)
+				out.writeUTF(value.getClass().getName());
+			value.write(out);
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public static void serializeObject(final ObjectOutputStream oos, final Object object) throws IOException {
@@ -221,13 +233,13 @@ public class SopremoUtil {
 		((Log4JLogger) LOG).getLogger().setLevel(((Log4JLogger) LOG).getLogger().getParent().getLevel());
 	}
 
-	public static JsonNode unwrap(JsonNode wrapper) {
+	public static JsonNode unwrap(final JsonNode wrapper) {
 		if (!(wrapper instanceof JsonNodeWrapper))
 			return wrapper;
 		return ((JsonNodeWrapper) wrapper).getValue();
 	}
 
-	public static JsonNode wrap(JsonNode node) {
+	public static JsonNode wrap(final JsonNode node) {
 		if (node instanceof JsonNodeWrapper)
 			return node;
 		return new JsonNodeWrapper(node);

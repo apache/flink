@@ -27,7 +27,7 @@ public class GenericMacro extends MacroBase {
 	 */
 	private static final long serialVersionUID = 7262633375508859703L;
 
-	private Class<? extends EvaluationExpression> expressionClass;
+	private final Class<? extends EvaluationExpression> expressionClass;
 
 	/**
 	 * Initializes GenericMacro.
@@ -35,7 +35,7 @@ public class GenericMacro extends MacroBase {
 	 * @param name
 	 * @param macroParams
 	 */
-	public GenericMacro(String name, Class<? extends EvaluationExpression> expressionClass) {
+	public GenericMacro(final String name, final Class<? extends EvaluationExpression> expressionClass) {
 		super(name);
 		this.expressionClass = expressionClass;
 	}
@@ -45,7 +45,7 @@ public class GenericMacro extends MacroBase {
 	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public EvaluationExpression call(EvaluationExpression[] params, EvaluationContext context) {
+	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationContext context) {
 		return ReflectUtil.newInstance(this.expressionClass, (Object[]) params);
 	}
 }

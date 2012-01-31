@@ -23,7 +23,7 @@ public class FilteringIterable<T> extends AbstractIterable<T, T> {
 
 	private final Predicate<T> selector;
 
-	public FilteringIterable(Iterable<T> originalIterable, Predicate<T> selector) {
+	public FilteringIterable(final Iterable<T> originalIterable, final Predicate<T> selector) {
 		super(originalIterable);
 		this.selector = selector;
 	}
@@ -33,7 +33,7 @@ public class FilteringIterable<T> extends AbstractIterable<T, T> {
 	 * @see eu.stratosphere.util.AbstractIterable#wrap(java.util.Iterator)
 	 */
 	@Override
-	protected Iterator<T> wrap(Iterator<T> iterator) {
+	protected Iterator<T> wrap(final Iterator<T> iterator) {
 		return new FilteringIterator<T>(iterator, this.selector);
 	}
 }

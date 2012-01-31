@@ -70,7 +70,7 @@ public class MethodCall extends ContainerExpression {
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
 	 */
 	@Override
-	public void setChildren(List<? extends EvaluationExpression> children) {
+	public void setChildren(final List<? extends EvaluationExpression> children) {
 		this.paramExprs = children.toArray(this.paramExprs);
 	}
 

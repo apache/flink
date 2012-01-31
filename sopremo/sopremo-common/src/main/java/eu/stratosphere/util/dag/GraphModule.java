@@ -149,13 +149,13 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		for (Node node : getReachableNodes())
+		for (final Node node : this.getReachableNodes())
 			result = prime * result + node.hashCode();
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -164,12 +164,12 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 			return false;
 
 		@SuppressWarnings({ "rawtypes", "unchecked" })
-		GraphModule<Node, InputNode, OutputNode> other = (GraphModule) obj;
+		final GraphModule<Node, InputNode, OutputNode> other = (GraphModule) obj;
 		return this.getUnmatchingNodes(other) == null;
 	}
 
-	public List<Node> getUnmatchingNodes(GraphModule<Node, InputNode, OutputNode> other) {
-		IdentitySet<Node> seen = new IdentitySet<Node>();
+	public List<Node> getUnmatchingNodes(final GraphModule<Node, InputNode, OutputNode> other) {
+		final IdentitySet<Node> seen = new IdentitySet<Node>();
 
 		return this.getUnmatchingNode(Arrays.asList(this.getAllOutputs()), Arrays.asList(other.getAllOutputs()), seen);
 	}
@@ -181,19 +181,19 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	private List<Node> getUnmatchingNode(Iterable<? extends Node> nodes1, Iterable<? extends Node> nodes2,
-			IdentitySet<Node> seen) {
-		Iterator<? extends Node> iterator1 = nodes1.iterator();
-		Iterator<? extends Node> iterator2 = nodes2.iterator();
+	private List<Node> getUnmatchingNode(final Iterable<? extends Node> nodes1, final Iterable<? extends Node> nodes2,
+			final IdentitySet<Node> seen) {
+		final Iterator<? extends Node> iterator1 = nodes1.iterator();
+		final Iterator<? extends Node> iterator2 = nodes2.iterator();
 
 		while (iterator1.hasNext() && iterator2.hasNext()) {
-			Node node1 = iterator1.next();
-			Node node2 = iterator2.next();
+			final Node node1 = iterator1.next();
+			final Node node2 = iterator2.next();
 
 			if (!node1.equals(node2))
 				return Arrays.asList(node1, node2);
 
-			List<Node> unmatching = this.getUnmatchingNode(this.navigator.getConnectedNodes(node1),
+			final List<Node> unmatching = this.getUnmatchingNode(this.navigator.getConnectedNodes(node1),
 				this.navigator.getConnectedNodes(node2), seen);
 			if (unmatching != null)
 				return unmatching;

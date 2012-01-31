@@ -14,13 +14,12 @@ public abstract class MacroBase extends Callable<EvaluationExpression, Evaluatio
 	 * @param name
 	 * @param definition
 	 */
-	public MacroBase(String name) {
+	public MacroBase(final String name) {
 		super(name);
 	}
-	
+
 	/**
 	 * Initializes MacroBase.
-	 *
 	 */
 	public MacroBase() {
 		this("");

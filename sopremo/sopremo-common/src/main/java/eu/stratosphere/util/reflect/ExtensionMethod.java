@@ -18,9 +18,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-
-import eu.stratosphere.sopremo.EvaluationException;
 
 /**
  * @author Arvid Heise
@@ -29,10 +26,10 @@ public class ExtensionMethod<ReturnType> extends DynamicMethod<ReturnType> {
 
 	/**
 	 * Initializes ExtensionMethod.
-	 *
+	 * 
 	 * @param name
 	 */
-	public ExtensionMethod(String name) {
+	public ExtensionMethod(final String name) {
 		super(name);
 	}
 
@@ -40,35 +37,39 @@ public class ExtensionMethod<ReturnType> extends DynamicMethod<ReturnType> {
 	 * 
 	 */
 	private static final long serialVersionUID = -6283761940969938808L;
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.util.reflect.DynamicInvokable#getSignatureTypes(java.lang.reflect.Member)
 	 */
 	@Override
-	protected Class<?>[] getSignatureTypes(Method method) {
+	protected Class<?>[] getSignatureTypes(final Method method) {
 		Class<?>[] signatureTypes = super.getSignatureTypes(method);
-		if(needsInstance(method)) {
-			ObjectArrayList<Class<?>> paramList = ObjectArrayList.wrap(signatureTypes);
+		if (this.needsInstance(method)) {
+			final ObjectArrayList<Class<?>> paramList = ObjectArrayList.wrap(signatureTypes);
 			paramList.ensureCapacity(paramList.size() + 1);
 			paramList.add(0, method.getDeclaringClass());
 			signatureTypes = paramList.elements();
 		}
 		return signatureTypes;
 	}
-	
-	public ReturnType invoke(Object... params) {
+
+	public ReturnType invoke(final Object... params) {
 		return super.invoke(null, params);
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.util.reflect.DynamicMethod#invokeDirectly(java.lang.reflect.Method, java.lang.Object, java.lang.Object[])
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.util.reflect.DynamicMethod#invokeDirectly(java.lang.reflect.Method, java.lang.Object,
+	 * java.lang.Object[])
 	 */
 	@Override
-	protected ReturnType invokeDirectly(Method method, Object context, Object[] params) throws IllegalAccessException,
+	protected ReturnType invokeDirectly(final Method method, final Object context, final Object[] params)
+			throws IllegalAccessException,
 			InvocationTargetException {
-		if(needsInstance(method) && context == null) {
-			return super.invokeDirectly(method, params[0], ObjectArrayList.wrap(params).subList(1, params.length).toArray());
-		}			
+		if (this.needsInstance(method) && context == null)
+			return super.invokeDirectly(method, params[0], ObjectArrayList.wrap(params).subList(1, params.length)
+				.toArray());
 		return super.invokeDirectly(method, context, params);
 	}
 }

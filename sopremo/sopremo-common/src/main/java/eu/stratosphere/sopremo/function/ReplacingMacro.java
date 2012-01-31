@@ -26,9 +26,9 @@ public class ReplacingMacro extends MacroBase {
 	 */
 	private static final long serialVersionUID = 3949887310463840434L;
 
-	private EvaluationExpression replacement;
+	private final EvaluationExpression replacement;
 
-	public ReplacingMacro(String name, EvaluationExpression replacement) {
+	public ReplacingMacro(final String name, final EvaluationExpression replacement) {
 		super(name);
 		this.replacement = replacement;
 	}
@@ -38,7 +38,7 @@ public class ReplacingMacro extends MacroBase {
 	 * @see eu.stratosphere.sopremo.function.Callable#call(java.lang.Object, eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public EvaluationExpression call(EvaluationExpression[] params, EvaluationContext context) {
+	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationContext context) {
 		return this.replacement;
 	}
 }

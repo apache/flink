@@ -53,7 +53,7 @@ public class JsonInputFormatTest {
 
 		final TestPlan testPlan = new TestPlan(output);
 		testPlan.run();
-		TestRecords input = testPlan.getInput();
+		final TestRecords input = testPlan.getInput();
 		input.setSchema(Schema.Default.getPactSchema());
 		Assert.assertEquals("input and output should be equal in identity map", input, testPlan
 			.getActualOutput());

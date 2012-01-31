@@ -254,6 +254,10 @@ public class SopremoTestPlan {
 				this.add(this.schema.recordToJson(record, null));
 			actualOutput.close();
 		}
+
+		public void assertEquals(final ActualOutput expectedValues) {
+			this.getPairs().assertEquals(expectedValues.getPairs());
+		}
 	}
 
 	static class Channel<O extends Operator<?>, C extends Channel<O, C>> {
@@ -275,6 +279,11 @@ public class SopremoTestPlan {
 			return this.add(NullNode.getInstance(), value);
 		}
 
+
+		public void load(final String path) {
+			this.pairs.fromFile(JsonInputFormat.class, path);
+		}
+
 		public C addObject(final Object... fields) {
 			return this.add(JsonUtil.createObjectNode(fields));
 		}
@@ -285,6 +294,7 @@ public class SopremoTestPlan {
 
 		public C addArray(final Object... values) {
 			return this.add(JsonUtil.createArrayNode(values));
+
 		}
 
 		@SuppressWarnings("unchecked")
@@ -326,7 +336,7 @@ public class SopremoTestPlan {
 		}
 
 		public Iterator<JsonNode> iterator() {
-			RecordToJsonIterator iterator = new RecordToJsonIterator(schema);
+			final RecordToJsonIterator iterator = new RecordToJsonIterator(this.schema);
 			iterator.setIterator(this.pairs.iterator());
 			return iterator;
 		}
@@ -371,6 +381,7 @@ public class SopremoTestPlan {
 			if (this.getOperator() instanceof MockupSource)
 				testPlan.getInput(this.getIndex()).add(this.getPairs());
 		}
+
 	}
 
 	public static class MockupSink extends Sink {

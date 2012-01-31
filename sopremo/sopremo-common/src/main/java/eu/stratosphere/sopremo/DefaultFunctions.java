@@ -290,31 +290,47 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		return union;
 	}
 
-	public static JsonNode average(NumericNode... inputs) {
+	/**
+	 * Adds the specified node to the array at the given index
+	 * 
+	 * @param array
+	 *        the array which should be extended
+	 * @param node
+	 *        the node to add
+	 * @param index
+	 *        the position of the insert
+	 * @return array with the added node
+	 */
+	public static JsonNode add(final JsonNode array, final JsonNode node, final int index) {
+		((ArrayNode) array).add(index, node);
+
+		return array;
+	}
+
+	public static JsonNode average(final NumericNode... inputs) {
 		double sum = 0;
 
-		for (NumericNode numericNode : inputs) {
+		for (final NumericNode numericNode : inputs)
 			sum += ((DoubleNode) numericNode).getDoubleValue();
-		}
 
 		return DoubleNode.valueOf(sum / inputs.length);
 	}
 
-	public static JsonNode trim(TextNode input) {
+	public static JsonNode trim(final TextNode input) {
 		return TextNode.valueOf(input.getTextValue().trim());
 	}
 
-	public static JsonNode split(TextNode input, TextNode splitString) {
-		String[] split = input.getTextValue().split(splitString.getTextValue());
-		ArrayNode splitNode = new ArrayNode();
-		for (String string : split)
+	public static JsonNode split(final TextNode input, final TextNode splitString) {
+		final String[] split = input.getTextValue().split(splitString.getTextValue());
+		final ArrayNode splitNode = new ArrayNode();
+		for (final String string : split)
 			splitNode.add(TextNode.valueOf(string));
 		return splitNode;
 	}
 
-	public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
-		Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
-		Matcher matcher = compiledPattern.matcher(input.getTextValue());
+	public static JsonNode extract(final TextNode input, final TextNode pattern, final JsonNode defaultValue) {
+		final Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
+		final Matcher matcher = compiledPattern.matcher(input.getTextValue());
 
 		if (!matcher.find())
 			return defaultValue;
@@ -325,23 +341,23 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		if (matcher.groupCount() == 1)
 			return TextNode.valueOf(matcher.group(1));
 
-		ArrayNode result = new ArrayNode();
+		final ArrayNode result = new ArrayNode();
 		for (int index = 1; index <= matcher.groupCount(); index++)
 			result.add(TextNode.valueOf(matcher.group(index)));
 		return result;
 	}
 
-	public static JsonNode extract(TextNode input, TextNode pattern) {
+	public static JsonNode extract(final TextNode input, final TextNode pattern) {
 		return extract(input, pattern, NullNode.getInstance());
 	}
 
-	public static JsonNode replace(TextNode input, TextNode search, TextNode replace) {
+	public static JsonNode replace(final TextNode input, final TextNode search, final TextNode replace) {
 		return TextNode.valueOf(input.getTextValue().replaceAll(search.getTextValue(), replace.getTextValue()));
 	}
 
-	public static JsonNode filter(ArrayNode input, JsonNode... elementsToFilter) {
-		ArrayNode output = new ArrayNode();
-		HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
+	public static JsonNode filter(final ArrayNode input, final JsonNode... elementsToFilter) {
+		final ArrayNode output = new ArrayNode();
+		final HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
 		for (int index = 0; index < input.size(); index++)
 			if (!filterSet.contains(input.get(index)))
 				output.add(input.get(index));
@@ -349,19 +365,19 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	}
 
 	@Override
-	public void registerFunctions(MethodRegistry registry) {
-		List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
-		for (Method method : methods)
+	public void registerFunctions(final MethodRegistry registry) {
+		final List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
+		for (final Method method : methods)
 			try {
-				if(method.getDeclaringClass() == String.class)
-				registry.register(method);
-			} catch (Exception e) {
+				if (method.getDeclaringClass() == String.class)
+					registry.register(method);
+			} catch (final Exception e) {
 				// System.out.println("Could not register " + method);
 			}
 	}
-	
+
 	@Override
-	public void registerConstants(EvaluationContext context) {
+	public void registerConstants(final EvaluationContext context) {
 		context.getBindings().set("pi", new ConstantExpression(Math.PI));
 		context.getBindings().set("e", new ConstantExpression(Math.E));
 	}

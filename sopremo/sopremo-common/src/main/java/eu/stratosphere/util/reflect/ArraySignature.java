@@ -1,5 +1,7 @@
 package eu.stratosphere.util.reflect;
 
+import javassist.bytecode.SignatureAttribute.MethodSignature;
+
 /**
  * Signature that takes an array of types as its only parameter.
  * 

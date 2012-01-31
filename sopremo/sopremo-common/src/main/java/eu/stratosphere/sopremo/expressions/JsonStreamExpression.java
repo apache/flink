@@ -12,15 +12,15 @@ public class JsonStreamExpression extends UnevaluableExpression {
 
 	public static final ExpressionTag THIS_CONTEXT = new ExpressionTag("This");
 
-	private JsonStream stream;
+	private final JsonStream stream;
 
-	private int inputIndex;
+	private final int inputIndex;
 
-	public JsonStreamExpression(JsonStream stream) {
+	public JsonStreamExpression(final JsonStream stream) {
 		this(stream, -1);
 	}
 
-	public JsonStreamExpression(JsonStream stream, int inputIndex) {
+	public JsonStreamExpression(final JsonStream stream, final int inputIndex) {
 		super("JsonStream placeholder");
 		this.stream = stream;
 		this.inputIndex = inputIndex;
@@ -44,8 +44,8 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	 * @see eu.stratosphere.sopremo.expressions.UnevaluableExpression#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
-		appendTags(builder);
+	public void toString(final StringBuilder builder) {
+		this.appendTags(builder);
 		builder.append(this.stream.getSource().getOperator().getName()).
 			append("@").append(this.stream.getSource().getIndex());
 	}
@@ -54,19 +54,19 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	 * @param inputs
 	 * @return
 	 */
-	public EvaluationExpression toInputSelection(Operator<?> operator) {
+	public EvaluationExpression toInputSelection(final Operator<?> operator) {
 		InputSelection inputSelection;
 		if (this.inputIndex != -1)
 			inputSelection = new InputSelection(this.inputIndex);
 		else if (operator.getSource() == this.stream.getSource())
 			inputSelection = new InputSelection(0);
 		else {
-			int index = operator.getInputs().indexOf(this.stream.getSource());
+			final int index = operator.getInputs().indexOf(this.stream.getSource());
 			if (index == -1)
 				return this;
 			inputSelection = new InputSelection(index);
 		}
-		for (ExpressionTag tag : this.getTags())
+		for (final ExpressionTag tag : this.getTags())
 			inputSelection.addTag(tag);
 		return inputSelection;
 	}
@@ -75,20 +75,20 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + stream.getSource().hashCode();
+		result = prime * result + this.stream.getSource().hashCode();
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
-		JsonStreamExpression other = (JsonStreamExpression) obj;
-		return stream.getSource().equals(other.stream.getSource());
+		final JsonStreamExpression other = (JsonStreamExpression) obj;
+		return this.stream.getSource().equals(other.stream.getSource());
 	}
 
 }

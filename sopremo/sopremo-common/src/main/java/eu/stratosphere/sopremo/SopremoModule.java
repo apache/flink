@@ -195,8 +195,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				for (final Contract contract : module.getReachableNodes()) {
 					final List<List<Contract>> inputLists = ContractUtil.getInputs(contract);
 					for (int listIndex = 0; listIndex < inputLists.size(); listIndex++) {
-						List<Contract> connectedInputs = new ArrayList<Contract>();
-						List<Contract> inputs = inputLists.get(listIndex);
+						final List<Contract> connectedInputs = new ArrayList<Contract>();
+						final List<Contract> inputs = inputLists.get(listIndex);
 						for (int inputIndex = 0; inputIndex < inputs.size(); inputIndex++)
 							this.addOutputtingPactInOperator(operator, inputs.get(inputIndex), connectedInputs);
 						inputLists.set(listIndex, connectedInputs);
@@ -241,27 +241,25 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				return;
 			}
 
-			Operator<?>.Output inputSource = operator.getInputs().get(inputIndex).getSource();
-			List<Contract> outputtingContracts = this.operatorOutputs.get(inputSource.getOperator()).get(
+			final Operator<?>.Output inputSource = operator.getInputs().get(inputIndex).getSource();
+			final List<Contract> outputtingContracts = this.operatorOutputs.get(inputSource.getOperator()).get(
 				inputSource.getIndex());
-			for (Contract outputtingContract : outputtingContracts) {
+			for (final Contract outputtingContract : outputtingContracts)
 				if (outputtingContract instanceof FileDataSource && !(inputSource.getOperator() instanceof Source))
 					this.addOutputtingPactInOperator(inputSource.getOperator(), outputtingContract, connectedInputs);
 				else
 					connectedInputs.add(outputtingContract);
-			}
 		}
 
 		private List<Contract> findPACTSinks() {
 			final List<Contract> pactSinks = new ArrayList<Contract>();
 			for (final Operator<?> sink : SopremoModule.this.getAllOutputs()) {
 				final FileDataSink[] outputs = this.modules.get(sink).getAllOutputs();
-				for (final FileDataSink outputStub : outputs) {
+				for (final FileDataSink outputStub : outputs)
 					if (sink instanceof Sink)
 						pactSinks.add(outputStub);
 					else
 						pactSinks.addAll(outputStub.getInputs());
-				}
 			}
 			return pactSinks;
 		}
@@ -290,7 +288,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
-						SopremoModule elementaryModule = node.toElementaryOperators();
+						final SopremoModule elementaryModule = node.toElementaryOperators();
 						ElementaryAssembler.this.modules.put(node, elementaryModule);
 					}
 				});
@@ -304,7 +302,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				final Map<JsonStream, JsonStream> operatorInputToModuleOutput = new IdentityHashMap<JsonStream, JsonStream>();
 
 				for (int index = 0; index < operator.getInputs().size(); index++) {
-					Operator<?>.Output inputSource = operator.getInput(index).getSource();
+					final Operator<?>.Output inputSource = operator.getInput(index).getSource();
 					final SopremoModule inputModule = this.modules.get(inputSource.getOperator());
 					operatorInputToModuleOutput.put(module.getInput(0).getOutput(0),
 						inputModule.getOutput(inputSource.getIndex()).getInput(0));
@@ -314,9 +312,9 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 						@Override
 						public void nodeTraversed(final Operator<?> innerNode) {
-							List<JsonStream> innerNodeInputs = innerNode.getInputs();
+							final List<JsonStream> innerNodeInputs = innerNode.getInputs();
 							for (int index = 0; index < innerNodeInputs.size(); index++) {
-								JsonStream moduleOutput = operatorInputToModuleOutput.get(innerNodeInputs
+								final JsonStream moduleOutput = operatorInputToModuleOutput.get(innerNodeInputs
 									.get(index));
 								if (moduleOutput != null)
 									innerNodeInputs.set(index, moduleOutput);

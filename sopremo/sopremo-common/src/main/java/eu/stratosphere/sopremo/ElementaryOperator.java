@@ -96,16 +96,16 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 
 		final List<List<Contract>> inputLists = ContractUtil.getInputs(contract);
 		final List<Contract> distinctInputs = new IdentityList<Contract>();
-		for (List<Contract> inputs : inputLists) {
+		for (final List<Contract> inputs : inputLists) {
 			// assume at least one input for each contract input slot
 			if (inputs.isEmpty())
 				inputs.add(new MapContract(IdentityMap.class));
-			for (Contract input : inputs)
+			for (final Contract input : inputs)
 				if (!distinctInputs.contains(input))
 					distinctInputs.add(input);
 		}
 		final PactModule module = new PactModule(this.toString(), distinctInputs.size(), 1);
-		for (List<Contract> inputs : inputLists)
+		for (final List<Contract> inputs : inputLists)
 			for (int index = 0; index < inputs.size(); index++)
 				inputs.set(index, module.getInput(distinctInputs.indexOf(inputs.get(index))));
 		ContractUtil.setInputs(contract, inputLists);
@@ -164,7 +164,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 * @return the contract representing this operator
 	 */
 	@SuppressWarnings("unchecked")
-	protected Contract getContract(Schema globalSchema) {
+	protected Contract getContract(final Schema globalSchema) {
 		final Class<? extends Stub> stubClass = this.getStubClass();
 		if (stubClass == null)
 			throw new IllegalStateException("no implementing stub found");

@@ -30,6 +30,7 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
+import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.testing.TestRecords;

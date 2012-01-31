@@ -9,6 +9,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
+import eu.stratosphere.sopremo.pact.SopremoUtil;
+
 public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	/**
 	 * 
@@ -34,11 +36,15 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.size();
 	}
 
-	public ArrayNode add(JsonNode node) {
+	public ArrayNode add(final JsonNode node) {
 		if (node == null)
 			throw new NullPointerException();
 		this.children.add(node);
 		return this;
+	}
+
+	public void add(final int index, final JsonNode element) {
+		this.children.add(index, element);
 	}
 
 	public JsonNode get(final int index) {
@@ -47,7 +53,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		throw new ArrayIndexOutOfBoundsException();
 	}
 
-	public JsonNode set(final int index, JsonNode node) {
+	public JsonNode set(final int index, final JsonNode node) {
 		if (node == null)
 			throw new NullPointerException();
 		return this.children.set(index, node);
@@ -129,8 +135,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		out.writeInt(this.children.size());
 
 		for (final JsonNode child : this.children) {
-			out.writeInt(child.getType().ordinal());
-			child.write(out);
+			SopremoUtil.serializeNode(out, child);
 		}
 	}
 
@@ -138,7 +143,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 	public ArrayNode clone() {
 		final ArrayNode clone = (ArrayNode) super.clone();
 		clone.children = new ArrayList<JsonNode>(this.children);
-		ListIterator<JsonNode> listIterator = clone.children.listIterator();
+		final ListIterator<JsonNode> listIterator = clone.children.listIterator();
 		while (listIterator.hasNext())
 			listIterator.set(listIterator.next().clone());
 		return clone;
@@ -169,9 +174,9 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return this.children.toArray(new JsonNode[this.children.size()]);
 	}
 
-	public ArrayNode addAll(Collection<? extends JsonNode> c) {
-		for (JsonNode jsonNode : c)
-			add(jsonNode);
+	public ArrayNode addAll(final Collection<? extends JsonNode> c) {
+		for (final JsonNode jsonNode : c)
+			this.add(jsonNode);
 		return this;
 	}
 
@@ -196,7 +201,7 @@ public class ArrayNode extends JsonNode implements Iterable<JsonNode> {
 		return 0;
 	}
 
-	public JsonNode subList(int fromIndex, int toIndex) {
+	public JsonNode subList(final int fromIndex, final int toIndex) {
 		return new ArrayNode(this.children.subList(fromIndex, toIndex));
 	}
 

@@ -37,7 +37,8 @@ public class OneTimeTraverser extends AbstractGraphTraverser {
 		this.visitNodes(startNodes, navigator, listener, visitedNodes);
 	}
 
-	private <Node> void visitNodes(final Iterator<? extends Node> startNodes, final ConnectionNavigator<Node> navigator,
+	private <Node> void visitNodes(final Iterator<? extends Node> startNodes,
+			final ConnectionNavigator<Node> navigator,
 			final GraphTraverseListener<Node> listener, final Map<Node, Object> visitedNodes) {
 		while (startNodes.hasNext()) {
 			final Node node = startNodes.next();

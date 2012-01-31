@@ -42,7 +42,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 	public void shouldGetIteratorOverAllParams() {
 
 		final MethodCall func = new MethodCall("sum");
-		Iterator<EvaluationExpression> iterator = func.iterator();
+		final Iterator<EvaluationExpression> iterator = func.iterator();
 
 		Assert.assertFalse(iterator.hasNext());
 

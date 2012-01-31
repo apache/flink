@@ -11,7 +11,7 @@ public class ExpressionTag {
 		this(name, false);
 	}
 
-	public ExpressionTag(String name, boolean semantic) {
+	public ExpressionTag(final String name, final boolean semantic) {
 		this.name = name;
 		this.semantic = semantic;
 	}

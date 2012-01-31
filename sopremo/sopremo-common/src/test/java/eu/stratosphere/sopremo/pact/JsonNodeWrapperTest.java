@@ -59,10 +59,10 @@ public class JsonNodeWrapperTest {
 	public void shouldSerializeAndDeserialize() {
 		try {
 
-			ArrayNode array = new ArrayNode();
+			final ArrayNode array = new ArrayNode();
 			final JsonParser parser = new JsonParser(new URL(
 				SopremoTest.getResourcePath("SopremoTestPlan/test.json")));
-			File file = File.createTempFile("test", "json");
+			final File file = File.createTempFile("test", "json");
 
 			while (!parser.checkEnd())
 				array.add(parser.readValueAsTree());
@@ -72,12 +72,12 @@ public class JsonNodeWrapperTest {
 			final ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(this.byteArray.toByteArray());
 			final DataInputStream inStream = new DataInputStream(byteArrayIn);
 
-			JsonNodeWrapper wrapper = new JsonNodeWrapper();
+			final JsonNodeWrapper wrapper = new JsonNodeWrapper();
 			wrapper.read(inStream);
-			JsonNode target = SopremoUtil.unwrap(wrapper);
+			final JsonNode target = SopremoUtil.unwrap(wrapper);
 
 			// for watching the output
-			JsonGenerator gen = new JsonGenerator(file);
+			final JsonGenerator gen = new JsonGenerator(file);
 			gen.writeStartArray();
 			gen.writeTree(target);
 			gen.writeEndArray();

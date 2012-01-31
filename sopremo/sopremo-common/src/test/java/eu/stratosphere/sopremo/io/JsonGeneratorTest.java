@@ -48,16 +48,16 @@ public class JsonGeneratorTest {
 	@Test
 	public void testGeneration() {
 		try {
-			File file = File.createTempFile("test", "json");
-			JsonGenerator gen = new JsonGenerator(file);
+			final File file = File.createTempFile("test", "json");
+			final JsonGenerator gen = new JsonGenerator(file);
 			// gen.writeStartArray();
 			gen.writeTree(arr);
 			// gen.writeEndArray();
 			gen.close();
-			JsonParser parser = new JsonParser(new FileReader(file));
+			final JsonParser parser = new JsonParser(new FileReader(file));
 			parser.readValueAsTree();
 			Assert.assertEquals(NullNode.getInstance(), parser.readValueAsTree());
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 	}
@@ -67,8 +67,8 @@ public class JsonGeneratorTest {
 		try {
 			final JsonParser parser = new JsonParser(new URL(
 				SopremoTest.getResourcePath("SopremoTestPlan/test.json")));
-			File file = File.createTempFile("test", "json");
-			JsonGenerator gen = new JsonGenerator(file);
+			final File file = File.createTempFile("test", "json");
+			final JsonGenerator gen = new JsonGenerator(file);
 			gen.writeStartArray();
 			while (!parser.checkEnd())
 				gen.writeTree(parser.readValueAsTree());

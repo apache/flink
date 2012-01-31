@@ -12,7 +12,7 @@ public class JsonCollector {
 
 	private final PactRecord record = new PactRecord();
 
-	public JsonCollector(Schema schema) {
+	public JsonCollector(final Schema schema) {
 		this.schema = schema;
 	}
 
@@ -22,7 +22,7 @@ public class JsonCollector {
 	 * @param collector
 	 *        the collector to set
 	 */
-	public void setCollector(Collector collector) {
+	public void setCollector(final Collector collector) {
 		this.collector = collector;
 	}
 

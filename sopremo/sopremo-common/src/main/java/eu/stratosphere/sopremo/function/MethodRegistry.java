@@ -22,9 +22,9 @@ public class MethodRegistry extends AbstractSopremoType implements SerializableS
 	 */
 	private static final long serialVersionUID = -8399369017331739066L;
 
-	private Bindings bindings;
+	private final Bindings bindings;
 
-	public MethodRegistry(Bindings bindings) {
+	public MethodRegistry(final Bindings bindings) {
 		this.bindings = bindings;
 	}
 
@@ -48,7 +48,7 @@ public class MethodRegistry extends AbstractSopremoType implements SerializableS
 			return false;
 
 		boolean compatibleSignature;
-		Class<?>[] parameterTypes = method.getParameterTypes();
+		final Class<?>[] parameterTypes = method.getParameterTypes();
 		if (parameterTypes.length == 1 && parameterTypes[0].isArray()
 			&& JsonNode.class.isAssignableFrom(parameterTypes[0].getComponentType()))
 			compatibleSignature = true;
@@ -66,30 +66,30 @@ public class MethodRegistry extends AbstractSopremoType implements SerializableS
 	}
 
 	public void register(final Class<?> javaFunctions) {
-		List<Method> functions = getCompatibleMethods(
+		final List<Method> functions = getCompatibleMethods(
 			ReflectUtil.getMethods(javaFunctions, null, Modifier.STATIC | Modifier.PUBLIC));
 
-		for (Method method : functions)
-			registerInternal(method);
+		for (final Method method : functions)
+			this.registerInternal(method);
 
 		if (FunctionRegistryCallback.class.isAssignableFrom(javaFunctions))
 			((FunctionRegistryCallback) ReflectUtil.newInstance(javaFunctions)).registerFunctions(this);
 	}
 
-	public void register(Method method) {
-		registerInternal(method);
+	public void register(final Method method) {
+		this.registerInternal(method);
 	}
 
-	private void registerInternal(Method method) {
+	private void registerInternal(final Method method) {
 		JavaMethod javaFunction = this.bindings.get(method.getName(), JavaMethod.class);
 		if (javaFunction == null)
 			this.bindings.set(method.getName(), javaFunction = new JavaMethod(method.getName()));
 		javaFunction.addSignature(method);
 	}
 
-	public static List<Method> getCompatibleMethods(List<Method> methods) {
-		List<Method> functions = new ArrayList<Method>();
-		for (Method method : methods)
+	public static List<Method> getCompatibleMethods(final List<Method> methods) {
+		final List<Method> functions = new ArrayList<Method>();
+		for (final Method method : methods)
 			if (isCompatibleSignature(method))
 				functions.add(method);
 		return functions;
@@ -104,7 +104,7 @@ public class MethodRegistry extends AbstractSopremoType implements SerializableS
 	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		this.bindings.toString(builder);
 	}
 }

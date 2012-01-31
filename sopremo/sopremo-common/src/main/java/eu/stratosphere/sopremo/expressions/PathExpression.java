@@ -1,9 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,7 +27,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		this(normalize(fragments));
 	}
 
-	private PathExpression(LinkedList<EvaluationExpression> fragments) {
+	private PathExpression(final LinkedList<EvaluationExpression> fragments) {
 		this.fragments = fragments;
 	}
 
@@ -39,7 +37,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 
 	@Override
 	public PathExpression clone() {
-		return new PathExpression(fragments);
+		return new PathExpression(this.fragments);
 	}
 
 	@Override
@@ -103,7 +101,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
 	 */
 	@Override
-	public void setChildren(List<? extends EvaluationExpression> children) {
+	public void setChildren(final List<? extends EvaluationExpression> children) {
 		this.fragments = normalize(children);
 	}
 
@@ -111,8 +109,8 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
 		super.replace(toReplace, replaceFragment);
 
-		final PathExpression pathToFind = this.ensurePathExpression(toReplace);
-		final PathExpression replacePath = this.ensurePathExpression(replaceFragment);
+		final PathExpression pathToFind = PathExpression.ensurePathExpression(toReplace);
+		final PathExpression replacePath = PathExpression.ensurePathExpression(replaceFragment);
 		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
 		final int findSize = pathToFind.fragments.size();
 		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
@@ -141,20 +139,20 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		return new PathExpression(expression);
 	}
 
-	private static LinkedList<EvaluationExpression> normalize(List<? extends EvaluationExpression> fragments) {
-		LinkedList<EvaluationExpression> linkedList = new LinkedList<EvaluationExpression>();
+	private static LinkedList<EvaluationExpression> normalize(final List<? extends EvaluationExpression> fragments) {
+		final LinkedList<EvaluationExpression> linkedList = new LinkedList<EvaluationExpression>();
 
-		for (EvaluationExpression fragment : fragments)
+		for (final EvaluationExpression fragment : fragments)
 			if (fragment instanceof PathExpression)
 				linkedList.addAll(((PathExpression) fragment).fragments);
 			else if (!canIgnore(fragment))
 				linkedList.add(fragment);
-				
+
 		return linkedList;
 	}
 
-	public static EvaluationExpression wrapIfNecessary(List<EvaluationExpression> expressions) {
-		LinkedList<EvaluationExpression> normalized = normalize(expressions);
+	public static EvaluationExpression wrapIfNecessary(final List<EvaluationExpression> expressions) {
+		final LinkedList<EvaluationExpression> normalized = normalize(expressions);
 		switch (normalized.size()) {
 		case 0:
 			return EvaluationExpression.VALUE;
@@ -167,7 +165,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		}
 	}
 
-	public static EvaluationExpression wrapIfNecessary(EvaluationExpression... expressions) {
+	public static EvaluationExpression wrapIfNecessary(final EvaluationExpression... expressions) {
 		return wrapIfNecessary(Arrays.asList(expressions));
 	}
 
@@ -215,23 +213,23 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	 * 
 	 */
 	public void removeLast() {
-		fragments.removeLast();
+		this.fragments.removeLast();
 	}
 
-	public void add(int index, EvaluationExpression fragment) {
+	public void add(final int index, final EvaluationExpression fragment) {
 		if (!canIgnore(fragment))
-			fragments.add(index, fragment);
+			this.fragments.add(index, fragment);
 	}
 
-	private static boolean canIgnore(EvaluationExpression fragment) {
+	private static boolean canIgnore(final EvaluationExpression fragment) {
 		return fragment == EvaluationExpression.VALUE;
 	}
 
 	public PathExpression subPath(int start, int end) {
-		if(start < 0)
-			start = fragments.size() + 1 + start;
-		if(end < 0)
-			end = fragments.size() + 1 + end;
-		return new PathExpression(fragments.subList(start, end));
+		if (start < 0)
+			start = this.fragments.size() + 1 + start;
+		if (end < 0)
+			end = this.fragments.size() + 1 + end;
+		return new PathExpression(this.fragments.subList(start, end));
 	}
 }

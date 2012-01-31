@@ -5,21 +5,19 @@ import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import eu.stratosphere.util.FilteringIterable;
-import eu.stratosphere.util.FilteringIterator;
 import eu.stratosphere.util.Predicate;
 
 public class DynamicClass<DeclaringClass> {
 	private DynamicConstructor<DeclaringClass> constructor;
 
-	private Map<String, DynamicInvokable<?, ?, ?>> methods = new HashMap<String, DynamicInvokable<?, ?, ?>>();
+	private final Map<String, DynamicInvokable<?, ?, ?>> methods = new HashMap<String, DynamicInvokable<?, ?, ?>>();
 
-	private Class<DeclaringClass> declaringClass;
+	private final Class<DeclaringClass> declaringClass;
 
-	private Map<String, Field> fields = new HashMap<String, Field>();
+	private final Map<String, Field> fields = new HashMap<String, Field>();
 
 	private Map<String, DynamicProperty<?>> properties;
 
@@ -27,7 +25,7 @@ public class DynamicClass<DeclaringClass> {
 
 	private final static int PROPERTY_INIT = 0x1;
 
-	public DynamicClass(Class<DeclaringClass> declaringClass) {
+	public DynamicClass(final Class<DeclaringClass> declaringClass) {
 		this.declaringClass = declaringClass;
 	}
 
@@ -37,45 +35,45 @@ public class DynamicClass<DeclaringClass> {
 		return this.constructor;
 	}
 
-	private synchronized Field getField(String name) {
+	private synchronized Field getField(final String name) {
 		Field field = this.fields.get(name);
 		if (field == null)
 			try {
 				this.fields.put(name, field = this.declaringClass.getField(name));
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				throw new RuntimeException(e);
 			}
 		return field;
 	}
 
-	public Object getFieldValue(DeclaringClass instance, String name) {
+	public Object getFieldValue(final DeclaringClass instance, final String name) {
 		try {
 			return this.getField(name).get(instance);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
 
-	public synchronized DynamicInvokable<?, ?, ?> getMethod(String name) {
+	public synchronized DynamicInvokable<?, ?, ?> getMethod(final String name) {
 		DynamicInvokable<?, ?, ?> method = this.methods.get(name);
 		if (method == null)
 			this.methods.put(name, method = DynamicMethod.valueOf(this.declaringClass, name));
 		return method;
 	}
 
-	public Object getStaticFieldValue(String name) {
+	public Object getStaticFieldValue(final String name) {
 		try {
 			return this.getField(name).get(null);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
 
-	public Object invoke(DeclaringClass instance, String name, Object... params) {
+	public Object invoke(final DeclaringClass instance, final String name, final Object... params) {
 		return this.getMethod(name).invoke(instance, params);
 	}
 
-	public Object invokeStatic(String name, Object... params) {
+	public Object invokeStatic(final String name, final Object... params) {
 		return this.getMethod(name).invoke(null, params);
 	}
 
@@ -83,26 +81,26 @@ public class DynamicClass<DeclaringClass> {
 		return this.getConstructor().isInvokableFor();
 	}
 
-	public DynamicInstance<DeclaringClass> newDynamicInstance(Object... params) {
+	public DynamicInstance<DeclaringClass> newDynamicInstance(final Object... params) {
 		return new DynamicInstance<DeclaringClass>(this, params);
 	}
 
-	public DeclaringClass newInstance(Object... params) {
+	public DeclaringClass newInstance(final Object... params) {
 		return this.getConstructor().invoke(params);
 	}
 
-	public void setFieldValue(DeclaringClass instance, String name, Object value) {
+	public void setFieldValue(final DeclaringClass instance, final String name, final Object value) {
 		try {
 			this.getField(name).set(instance, value);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
 
-	public void setStaticFieldValue(String name, Object value) {
+	public void setStaticFieldValue(final String name, final Object value) {
 		try {
 			this.getField(name).set(null, value);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -111,17 +109,17 @@ public class DynamicClass<DeclaringClass> {
 	public <BaseType> Iterable<DynamicProperty<BaseType>> getProperties(final Class<BaseType> baseType) {
 		return new FilteringIterable(this.getProperties(), new Predicate<DynamicProperty>() {
 			@Override
-			public boolean isTrue(DynamicProperty property) {
+			public boolean isTrue(final DynamicProperty property) {
 				return baseType.isAssignableFrom(property.getType());
 			}
 		});
 	}
 
-	public boolean needsInit(int stateBit) {
+	public boolean needsInit(final int stateBit) {
 		return (this.stateMask & stateBit) == 0;
 	}
 
-	public void setState(int stateBit) {
+	public void setState(final int stateBit) {
 		this.stateMask |= stateBit;
 	}
 
@@ -133,12 +131,13 @@ public class DynamicClass<DeclaringClass> {
 
 	private void initProperties() {
 		try {
-			properties = new HashMap<String, DynamicProperty<?>>();
-			for (PropertyDescriptor property : Introspector.getBeanInfo(this.declaringClass).getPropertyDescriptors())
+			this.properties = new HashMap<String, DynamicProperty<?>>();
+			for (final PropertyDescriptor property : Introspector.getBeanInfo(this.declaringClass)
+				.getPropertyDescriptors())
 				if (property.getPropertyType() != null)
 					this.properties.put(property.getName(), new BeanProperty(property));
 			this.setState(PROPERTY_INIT);
-		} catch (IntrospectionException e) {
+		} catch (final IntrospectionException e) {
 			throw new RuntimeException(e);
 		}
 	}

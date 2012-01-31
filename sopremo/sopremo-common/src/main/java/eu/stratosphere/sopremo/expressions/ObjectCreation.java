@@ -104,8 +104,8 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	@Override
 	public List<? extends EvaluationExpression> getChildren() {
-		ArrayList<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
-		for (Mapping<?> mapping : this.mappings)
+		final ArrayList<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
+		for (final Mapping<?> mapping : this.mappings)
 			list.add(mapping.getExpression());
 		return list;
 	}
@@ -115,7 +115,7 @@ public class ObjectCreation extends ContainerExpression {
 	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
 	 */
 	@Override
-	public void setChildren(List<? extends EvaluationExpression> children) {
+	public void setChildren(final List<? extends EvaluationExpression> children) {
 		if (this.mappings.size() != children.size())
 			throw new IllegalArgumentException();
 
@@ -183,7 +183,7 @@ public class ObjectCreation extends ContainerExpression {
 		 * @param target
 		 * @param expression
 		 */
-		public FieldAssignment(String target, EvaluationExpression expression) {
+		public FieldAssignment(final String target, final EvaluationExpression expression) {
 			super(target, expression);
 		}
 
@@ -207,7 +207,7 @@ public class ObjectCreation extends ContainerExpression {
 		 * @param target
 		 * @param expression
 		 */
-		public TagMapping(EvaluationExpression target, EvaluationExpression expression) {
+		public TagMapping(final EvaluationExpression target, final EvaluationExpression expression) {
 			super(target, expression);
 		}
 
@@ -223,7 +223,7 @@ public class ObjectCreation extends ContainerExpression {
 		 * eu.stratosphere.sopremo.type.JsonNode, eu.stratosphere.sopremo.EvaluationContext)
 		 */
 		@Override
-		protected void evaluate(ObjectNode transformedNode, JsonNode node, EvaluationContext context) {
+		protected void evaluate(final ObjectNode transformedNode, final JsonNode node, final EvaluationContext context) {
 			throw new EvaluationException("Only tag mapping");
 		}
 	}
@@ -249,7 +249,7 @@ public class ObjectCreation extends ContainerExpression {
 		 * @param expression
 		 *        the expression to set
 		 */
-		public void setExpression(EvaluationExpression expression) {
+		public void setExpression(final EvaluationExpression expression) {
 			if (expression == null)
 				throw new NullPointerException("expression must not be null");
 
