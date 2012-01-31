@@ -384,33 +384,40 @@ public abstract class SingleInputNode extends OptimizerNode {
 	@Override
 	public void deriveOutputSchema() {
 		
+		if(this.input.size() > 1) {
+			throw new UnsupportedOperationException("Can not compute output schema for unioned inputs");
+		}
+		
+		this.outputSchema = computeOutputSchema(Collections.singletonList(this.input.get(0).getSourcePact()));
+		
+	}
+	
+	public int[] computeOutputSchema(List<OptimizerNode> inputNodes) {
+		
+		if(inputNodes.size() != 1)
+			throw new IllegalArgumentException("SingleInputNode must have exactly one input");
+		
 		if(implOpMode == null) {
-			this.outputSchema = null;
+			return null;
 		} else {
-			
-			// FIXME
-			if(this.input.size() > 1) 
-				throw new UnsupportedOperationException("Must be adapted to union case");
-			
-			OptimizerNode pred = this.input.get(0).getSourcePact();
 			
 			switch(implOpMode) {
 			case Copy:
 				if(this.explProjections != null && this.explWrites != null) {
-					this.outputSchema = FieldSetOperations.unionSets(
-							FieldSetOperations.setDifference(pred.getOutputSchema(), this.explProjections),
+					return FieldSetOperations.unionSets(
+							FieldSetOperations.setDifference(inputNodes.get(0).getOutputSchema(), this.explProjections),
 							this.explWrites);
 				} else {
-					this.outputSchema = null;
+					return null;
 				}
-				break;
 			case Projection:
 				if(this.explCopies != null && this.explWrites != null) {
-					this.outputSchema = FieldSetOperations.unionSets(this.explCopies, this.explWrites);
+					return FieldSetOperations.unionSets(this.explCopies, this.explWrites);
 				} else {
-					this.outputSchema = null;
+					return null;
 				}
-				break;
+			default:
+				return null;
 			}
 		}
 	}
@@ -426,6 +433,20 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	@Override
 	public int[] getWriteSet(int input) {
+		if(this.input.size() > 1) {
+			throw new UnsupportedOperationException("Can not compute write set for nodes with unioned inputs");
+		}
+		
+		return this.getWriteSet(input, Collections.singletonList(this.input.get(0).getSourcePact()));
+	}
+	
+	@Override
+	public int[] getWriteSet(int input, List<OptimizerNode> inputNodes) {
+		
+		if(this.input.size() > 1) 
+			throw new IllegalArgumentException("SingleInputNode have only one input");
+		
+		OptimizerNode inputNode = inputNodes.get(0);
 		
 		if(input < -1 || input > 0)
 			throw new IndexOutOfBoundsException();
@@ -443,13 +464,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 			}
 		case Projection:
 			if(this.explCopies != null) {
-				// FIXME
-				if(this.input.size() > 1) 
-					throw new UnsupportedOperationException("Must be adapted to union case");
 				
-				OptimizerNode pred = this.input.get(0).getSourcePact();
 				return FieldSetOperations.unionSets(
-						FieldSetOperations.setDifference(pred.outputSchema, this.explCopies),
+						FieldSetOperations.setDifference(inputNode.outputSchema, this.explCopies),
 						this.explWrites);
 			} else {
 				return null;

@@ -333,6 +333,15 @@ public class DataSourceNode extends OptimizerNode
 	@SuppressWarnings("unchecked")
 	@Override
 	public void deriveOutputSchema() {
+		
+		this.outputSchema = this.computeOutputSchema(Collections.EMPTY_LIST);
+	}
+	
+	public int[] computeOutputSchema(List<OptimizerNode> inputNodes) {
+		
+		if(inputNodes.size() > 0)
+			throw new IllegalArgumentException("DataSourceNode do not have input nodes");
+		
 		// get the input format class
 		Class<InputFormat<?>> clazz = (Class<InputFormat<?>>)((GenericDataSource<? extends InputFormat<?>>)getPactContract()).getFormatClass();
 		
@@ -343,12 +352,11 @@ public class DataSourceNode extends OptimizerNode
 			if(inputFormat instanceof OutputSchemaProvider) {
 				
 				inputFormat.configure(getPactContract().getParameters());
-				this.outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
-				Arrays.sort(this.outputSchema);
-				return;
+				int[] outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
+				Arrays.sort(outputSchema);
+				return outputSchema;
 			} else {
-				this.outputSchema = null;
-				return;
+				return null;
 			}
 			
 		} catch (InstantiationException e) {
@@ -356,6 +364,8 @@ public class DataSourceNode extends OptimizerNode
 		} catch (IllegalAccessException e) {
 			e.printStackTrace();
 		}
+		return null;
+		
 	}
 	
 	@Override
@@ -365,6 +375,11 @@ public class DataSourceNode extends OptimizerNode
 	
 	@Override
 	public int[] getWriteSet(int input) {
+		return null;
+	}
+
+	@Override
+	public int[] getWriteSet(int input, List<OptimizerNode> inputNodes) {
 		return null;
 	}
 }

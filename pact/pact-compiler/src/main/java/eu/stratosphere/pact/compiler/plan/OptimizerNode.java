@@ -1349,6 +1349,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public int[] getOutputSchema() {
 		return this.outputSchema;
 	}
+	
+	public abstract int[] computeOutputSchema(List<OptimizerNode> inputNodes);
 
 	/**
 	 * Give the read set of the node.
@@ -1369,6 +1371,17 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return the write set for the requested input(s)
 	 */
 	public abstract int[] getWriteSet(int input);
+	
+	/**
+	 * Give the write set of the node.
+	 * 
+	 * @param id of input for which the write set should be returned. 
+	 *        -1 if the unioned write set over all inputs is requested. 
+	 * @param inputNodes for which the write set should be computed 
+	 *  
+	 * @return the write set for the requested input(s)
+	 */
+	public abstract int[] getWriteSet(int input, List<OptimizerNode> inputNodes);
 	
 	protected static final class UnclosedBranchDescriptor
 	{

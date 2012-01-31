@@ -485,12 +485,22 @@ public class DataSinkNode extends OptimizerNode {
 	}
 	
 	@Override
+	public int[] computeOutputSchema(List<OptimizerNode> inputNodes) {
+		return new int[0];
+	}
+	
+	@Override
 	public int[] getWriteSet(int input) {
 		return null;
 	}
 
 	@Override
 	public int[] getReadSet(int input) {
+		return null;
+	}
+
+	@Override
+	public int[] getWriteSet(int input, List<OptimizerNode> inputNodes) {
 		return null;
 	}
 	
