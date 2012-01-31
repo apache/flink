@@ -485,7 +485,7 @@ public class DataSinkNode extends OptimizerNode {
 	}
 	
 	@Override
-	public int[] computeOutputSchema(List<OptimizerNode> inputNodes) {
+	public int[] computeOutputSchema(List<int[]> inputSchemas) {
 		return new int[0];
 	}
 	
@@ -500,7 +500,7 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	@Override
-	public int[] getWriteSet(int input, List<OptimizerNode> inputNodes) {
+	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
 		return null;
 	}
 	

@@ -159,12 +159,12 @@ public class CombinerNode extends OptimizerNode {
 	}
 
 	@Override
-	public int[] computeOutputSchema(List<OptimizerNode> inputNodes) {
+	public int[] computeOutputSchema(List<int[]> inputSchemas) {
 		return null;
 	}
 
 	@Override
-	public int[] getWriteSet(int input, List<OptimizerNode> inputNodes) {
+	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
 		return null;
 	}
 }

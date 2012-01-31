@@ -1350,7 +1350,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return this.outputSchema;
 	}
 	
-	public abstract int[] computeOutputSchema(List<OptimizerNode> inputNodes);
+	public abstract int[] computeOutputSchema(List<int[]> inputSchemas);
 
 	/**
 	 * Give the read set of the node.
@@ -1381,7 +1381,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 *  
 	 * @return the write set for the requested input(s)
 	 */
-	public abstract int[] getWriteSet(int input, List<OptimizerNode> inputNodes);
+	public abstract int[] getWriteSet(int input, List<int[]> inputSchemas);
 	
 	protected static final class UnclosedBranchDescriptor
 	{

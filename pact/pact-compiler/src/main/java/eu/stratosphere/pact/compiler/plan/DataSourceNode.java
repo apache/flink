@@ -337,9 +337,9 @@ public class DataSourceNode extends OptimizerNode
 		this.outputSchema = this.computeOutputSchema(Collections.EMPTY_LIST);
 	}
 	
-	public int[] computeOutputSchema(List<OptimizerNode> inputNodes) {
+	public int[] computeOutputSchema(List<int[]> inputSchemas) {
 		
-		if(inputNodes.size() > 0)
+		if(inputSchemas.size() > 0)
 			throw new IllegalArgumentException("DataSourceNode do not have input nodes");
 		
 		// get the input format class
@@ -379,7 +379,7 @@ public class DataSourceNode extends OptimizerNode
 	}
 
 	@Override
-	public int[] getWriteSet(int input, List<OptimizerNode> inputNodes) {
+	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
 		return null;
 	}
 }

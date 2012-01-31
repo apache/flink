@@ -388,13 +388,13 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new UnsupportedOperationException("Can not compute output schema for unioned inputs");
 		}
 		
-		this.outputSchema = computeOutputSchema(Collections.singletonList(this.input.get(0).getSourcePact()));
+		this.outputSchema = computeOutputSchema(Collections.singletonList(this.input.get(0).getSourcePact().getOutputSchema()));
 		
 	}
 	
-	public int[] computeOutputSchema(List<OptimizerNode> inputNodes) {
+	public int[] computeOutputSchema(List<int[]> inputSchemas) {
 		
-		if(inputNodes.size() != 1)
+		if(inputSchemas.size() != 1)
 			throw new IllegalArgumentException("SingleInputNode must have exactly one input");
 		
 		if(implOpMode == null) {
@@ -405,7 +405,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			case Copy:
 				if(this.explProjections != null && this.explWrites != null) {
 					return FieldSetOperations.unionSets(
-							FieldSetOperations.setDifference(inputNodes.get(0).getOutputSchema(), this.explProjections),
+							FieldSetOperations.setDifference(inputSchemas.get(0), this.explProjections),
 							this.explWrites);
 				} else {
 					return null;
@@ -437,16 +437,14 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new UnsupportedOperationException("Can not compute write set for nodes with unioned inputs");
 		}
 		
-		return this.getWriteSet(input, Collections.singletonList(this.input.get(0).getSourcePact()));
+		return this.getWriteSet(input, Collections.singletonList(this.input.get(0).getSourcePact().getOutputSchema()));
 	}
 	
 	@Override
-	public int[] getWriteSet(int input, List<OptimizerNode> inputNodes) {
+	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
 		
 		if(this.input.size() > 1) 
 			throw new IllegalArgumentException("SingleInputNode have only one input");
-		
-		OptimizerNode inputNode = inputNodes.get(0);
 		
 		if(input < -1 || input > 0)
 			throw new IndexOutOfBoundsException();
@@ -466,7 +464,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			if(this.explCopies != null) {
 				
 				return FieldSetOperations.unionSets(
-						FieldSetOperations.setDifference(inputNode.outputSchema, this.explCopies),
+						FieldSetOperations.setDifference(inputSchemas.get(0), this.explCopies),
 						this.explWrites);
 			} else {
 				return null;

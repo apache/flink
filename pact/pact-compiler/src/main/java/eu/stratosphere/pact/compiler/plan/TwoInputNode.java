@@ -693,9 +693,9 @@ public abstract class TwoInputNode extends OptimizerNode
 	}
 	
 	@Override
-	public int[] computeOutputSchema(List<OptimizerNode> inputNodes) {
+	public int[] computeOutputSchema(List<int[]> inputSchemas) {
 
-		if(inputNodes.size() != 2)
+		if(inputSchemas.size() != 2)
 			throw new IllegalArgumentException("TwoInputNode requires exactly 2 input nodes");
 		
 		int[] constFields1 = null;
@@ -712,7 +712,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			switch(implOpMode1) {
 			case Copy:
 				if(this.explProjections1 != null) {
-					constFields1 = FieldSetOperations.setDifference(inputNodes.get(0).getOutputSchema(), this.explProjections1);
+					constFields1 = FieldSetOperations.setDifference(inputSchemas.get(0), this.explProjections1);
 				} else {
 					constFields1 = null;
 				}
@@ -730,7 +730,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			switch(implOpMode2) {
 			case Copy:
 				if(this.explProjections2 != null) {
-					constFields2 = FieldSetOperations.setDifference(inputNodes.get(1).getOutputSchema(), this.explProjections2);
+					constFields2 = FieldSetOperations.setDifference(inputSchemas.get(1), this.explProjections2);
 				} else {
 					constFields2 = null;
 				}
@@ -758,11 +758,11 @@ public abstract class TwoInputNode extends OptimizerNode
 			throw new UnsupportedOperationException("Can not compute output schema for nodes with unioned inputs");
 		}
 		
-		List<OptimizerNode> inputNodes = new ArrayList<OptimizerNode>(2);
-		inputNodes.add(this.input1.get(0).getSourcePact());
-		inputNodes.add(this.input2.get(0).getSourcePact());
+		List<int[]> inputSchemas = new ArrayList<int[]>(2);
+		inputSchemas.add(this.input1.get(0).getSourcePact().getOutputSchema());
+		inputSchemas.add(this.input2.get(0).getSourcePact().getOutputSchema());
 		
-		this.outputSchema = computeOutputSchema(inputNodes);
+		this.outputSchema = computeOutputSchema(inputSchemas);
 		
 	}
 	
@@ -789,20 +789,17 @@ public abstract class TwoInputNode extends OptimizerNode
 			throw new UnsupportedOperationException("Can not compute output schema for nodes with unioned inputs");
 		}
 		
-		List<OptimizerNode> inputNodes = new ArrayList<OptimizerNode>(2);
-		inputNodes.add(this.input1.get(0).getSourcePact());
-		inputNodes.add(this.input2.get(0).getSourcePact());
-		return this.getWriteSet(input, inputNodes);
+		List<int[]> inputSchemas = new ArrayList<int[]>(2);
+		inputSchemas.add(this.input1.get(0).getSourcePact().getOutputSchema());
+		inputSchemas.add(this.input2.get(0).getSourcePact().getOutputSchema());
+		return this.getWriteSet(input, inputSchemas);
 	}
 	
 	@Override
-	public int[] getWriteSet(int input, List<OptimizerNode> inputNodes) {
+	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
 
-		if(inputNodes.size() != 2)
+		if(inputSchemas.size() != 2)
 			throw new IllegalArgumentException("TwoInputNode requires exactly 2 input nodes");
-		
-		OptimizerNode inputNode1 = inputNodes.get(0);
-		OptimizerNode inputNode2 = inputNodes.get(1);
 		
 		switch(input) {
 		case 0:
@@ -817,7 +814,7 @@ public abstract class TwoInputNode extends OptimizerNode
 				case Projection:
 					if(this.explCopies1 != null) {
 						return FieldSetOperations.unionSets(
-							FieldSetOperations.setDifference(inputNode1.outputSchema, this.explCopies1),
+							FieldSetOperations.setDifference(inputSchemas.get(0), this.explCopies1),
 							this.explWrites);
 					} else {
 						return null;
@@ -840,7 +837,7 @@ public abstract class TwoInputNode extends OptimizerNode
 				case Projection:
 					if(this.explCopies2 != null) {
 						return FieldSetOperations.unionSets(
-								FieldSetOperations.setDifference(inputNode2.outputSchema, this.explCopies2),
+								FieldSetOperations.setDifference(inputSchemas.get(1), this.explCopies2),
 								this.explWrites);
 					} else {
 						return null;
@@ -863,7 +860,7 @@ public abstract class TwoInputNode extends OptimizerNode
 					break;
 				case Projection:
 					if(this.explCopies1 != null) {
-						projection1 = FieldSetOperations.setDifference(inputNode1.outputSchema, this.explCopies1);
+						projection1 = FieldSetOperations.setDifference(inputSchemas.get(0), this.explCopies1);
 					} else {
 						return null;
 					}
@@ -878,7 +875,7 @@ public abstract class TwoInputNode extends OptimizerNode
 					break;
 				case Projection:
 					if(this.explCopies2 != null) {
-						projection2 = FieldSetOperations.setDifference(inputNode2.outputSchema, this.explCopies2);
+						projection2 = FieldSetOperations.setDifference(inputSchemas.get(1), this.explCopies2);
 					} else {
 						return null;
 					}
