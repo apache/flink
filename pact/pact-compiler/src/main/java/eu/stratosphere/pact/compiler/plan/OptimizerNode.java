@@ -223,7 +223,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.stubOutCardLB = toClone.stubOutCardLB;
 		this.stubOutCardUB = toClone.stubOutCardUB;
 		this.explWrites = toClone.explWrites;
-		// TODO: copy output schema info
 		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length); 
 
 		// check, if this node branches. if yes, this candidate must be associated with
@@ -1295,7 +1294,14 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		return result;
 	}
+
+	// ------------------------------------------------------------------------
+	// Reading of stub annotations
+	// ------------------------------------------------------------------------
 	
+	/**
+	 * Reads all stub annotations
+	 */
 	private void readStubAnnotations() {
 		this.readReadsAnnotation();
 		this.readCopyProjectionAnnotations();
@@ -1303,6 +1309,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.readOutputCardBoundAnnotation();
 	}
 
+	/**
+	 * Reads the explicit writes stub annotation
+	 */
 	protected void readWritesAnnotation() {
 
 		// get readSet annotation from stub
@@ -1317,6 +1326,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 	}
 
+	/**
+	 * Reads the output cardinality stub annotations
+	 */
 	protected void readOutputCardBoundAnnotation() {
 		
 		// get readSet annotation from stub
@@ -1332,30 +1344,75 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 	}
 	
+	/**
+	 * Reads all reads stub annotations.
+	 * Reads stub annotations are defined per input.
+	 */
 	protected abstract void readReadsAnnotation();
 	
+	/**
+	 * Reads the copy and projection stub annotations.
+	 * These annotations are defined per input.
+	 */
 	protected abstract void readCopyProjectionAnnotations();
 	
+	/**
+	 * Reads and sets the output schema of the node.
+	 * The schema can change if the input schema changes.
+	 */
 	public abstract void deriveOutputSchema();
 	
+	// ------------------------------------------------------------------------
+	// Access of stub annotations
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Returns the lower output cardinality bound of the node.
+	 * 
+	 * @return the lower output cardinality bound of the node.
+	 */
 	public int getStubOutCardLowerBound() {
 		return this.stubOutCardLB;
 	}
 	
+	/**
+	 * Returns the upper output cardinality bound of the node.
+	 * 
+	 * @return the upper output cardinality bound of the node.
+	 */
 	public int getStubOutCardUpperBound() {
 		return this.stubOutCardUB;
 	}
 	
+	/**
+	 * Returns the output schema of the node.
+	 * 
+	 * @return the output schema of the node.
+	 */
 	public int[] getOutputSchema() {
 		return this.outputSchema;
 	}
 	
+	/**
+	 * Computes the output schema of the node for given input schemas (one per input).
+	 * 
+	 * @param inputSchemas A list of input schemas. Element 0 of the list refers to the first input, and so on.
+	 * @return The output schema of the node for the given input schemas.
+	 */
 	public abstract int[] computeOutputSchema(List<int[]> inputSchemas);
 
+	/**
+	 * Determines whether the node can on the given input schema for the specified input.
+	 * 
+	 * @param input The input for which the input schema is assumed.
+	 * @param inputSchema The input schema for the specified input
+	 * @return True, if the node can operate on the the schema for the specified input, false otherwise.
+	 */
 	public abstract boolean isValidInputSchema(int input, int[] inputSchema);
 	
 	/**
-	 * Give the read set of the node.
+	 * Gives the read set of the node. 
+	 * The read set is used to decide about reordering of nodes.
 	 * 
 	 * @param id of input for which the read set should be returned. 
 	 *        -1 if the unioned read set over all inputs is requested. 
@@ -1366,6 +1423,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	/**
 	 * Give the write set of the node.
+	 * The write set is used to decide about reordering of nodes.
 	 * 
 	 * @param id of input for which the write set should be returned. 
 	 *        -1 if the unioned write set over all inputs is requested. 

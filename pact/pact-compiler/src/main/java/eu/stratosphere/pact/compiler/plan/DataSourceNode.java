@@ -320,16 +320,28 @@ public class DataSourceNode extends OptimizerNode
 		return false;
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
+	 */
 	@Override
 	protected void readCopyProjectionAnnotations() {
 		// DO NOTHING		
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
+	 */
 	@Override
 	protected void readReadsAnnotation() {
 		// DO NOTHING
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public void deriveOutputSchema() {
@@ -337,6 +349,12 @@ public class DataSourceNode extends OptimizerNode
 		this.outputSchema = this.computeOutputSchema(Collections.EMPTY_LIST);
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
 	public int[] computeOutputSchema(List<int[]> inputSchemas) {
 		
 		if(inputSchemas.size() > 0)
@@ -368,21 +386,37 @@ public class DataSourceNode extends OptimizerNode
 		
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
+	 */
 	@Override
 	public int[] getReadSet(int input) {
 		return null;
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
+	 */
 	@Override
 	public int[] getWriteSet(int input) {
 		return null;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
+	 */
 	@Override
 	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
 		return null;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
+	 */
 	@Override
 	public boolean isValidInputSchema(int input, int[] inputSchema) {
 		return false;
