@@ -27,8 +27,10 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopiesFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopiesSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjectionsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjectionsSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
@@ -644,7 +646,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			switch(implOp1Annotation.implicitOperation()) {
 			case Copy:
 				// we have explicit projection
-				ExplicitProjections explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjections.class);
+				ExplicitProjectionsFirst explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjectionsFirst.class);
 				if(explProjAnnotation != null) {
 					this.implOpMode1 = ImplicitOperationMode.Copy;
 					this.explProjections1 = explProjAnnotation.fields();
@@ -653,7 +655,7 @@ public abstract class TwoInputNode extends OptimizerNode
 				break;
 			case Projection:
 				// we have explicit copies
-				ExplicitCopies explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopies.class);
+				ExplicitCopiesFirst explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopiesFirst.class);
 				if(explCopyjAnnotation != null) {
 					this.implOpMode1 = ImplicitOperationMode.Projection;
 					this.explCopies1 = explCopyjAnnotation.fields();
@@ -672,7 +674,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			switch(implOp2Annotation.implicitOperation()) {
 			case Copy:
 				// we have explicit projection
-				ExplicitProjections explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjections.class);
+				ExplicitProjectionsSecond explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjectionsSecond.class);
 				if(explProjAnnotation != null) {
 					this.implOpMode2 = ImplicitOperationMode.Copy;
 					this.explProjections2 = explProjAnnotation.fields();
@@ -681,7 +683,7 @@ public abstract class TwoInputNode extends OptimizerNode
 				break;
 			case Projection:
 				// we have explicit copies
-				ExplicitCopies explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopies.class);
+				ExplicitCopiesSecond explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopiesSecond.class);
 				if(explCopyjAnnotation != null) {
 					this.implOpMode2 = ImplicitOperationMode.Projection;
 					this.explCopies2 = explCopyjAnnotation.fields();
