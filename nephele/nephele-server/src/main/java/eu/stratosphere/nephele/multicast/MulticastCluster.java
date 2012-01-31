@@ -114,6 +114,8 @@ public class MulticastCluster {
 
 	public static MulticastForwardingTable createClusteredTree(LinkedList<TreeNode> nodes, int maxclustersize) {
 
+		return null;
+		/*
 		// List to store all levels of the clustered multicast tree
 		LinkedList<HashSet<MulticastCluster>> clusterlist = new LinkedList<HashSet<MulticastCluster>>();
 
@@ -209,6 +211,7 @@ public class MulticastCluster {
 		}
 
 		return table;
+		*/
 	}
 
 }
