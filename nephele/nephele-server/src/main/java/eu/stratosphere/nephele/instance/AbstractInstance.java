@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
@@ -237,12 +235,6 @@ public abstract class AbstractInstance extends NetworkNode {
 			throws IOException {
 
 		return getTaskManager().submitTasks(tasks);
-	}
-
-	public synchronized List<CheckpointReplayResult> replayCheckpoints(final List<CheckpointReplayRequest> replayRequests)
-			throws IOException {
-
-		return getTaskManager().replayCheckpoints(replayRequests);
 	}
 
 	public synchronized void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions)

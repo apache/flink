@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
@@ -119,8 +117,6 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
-
-	List<CheckpointReplayResult> replayCheckpoints(List<CheckpointReplayRequest> replayRequests) throws IOException;
 
 	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
 

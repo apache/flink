@@ -129,7 +129,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * @param the
 	 *        set of output channels which are initially active
 	 */
-	public synchronized void register(final Task task, final Set<ChannelID> activeOutputChannels) {
+	public void register(final Task task, final Set<ChannelID> activeOutputChannels) {
 
 		final Environment environment = task.getEnvironment();
 
@@ -218,7 +218,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 * @param task
 	 *        the task to be unregistered
 	 */
-	public synchronized void unregister(final ExecutionVertexID vertexID, final Task task) {
+	public void unregister(final ExecutionVertexID vertexID, final Task task) {
 
 		final Environment environment = task.getEnvironment();
 

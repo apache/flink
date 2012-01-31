@@ -26,7 +26,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
@@ -52,7 +51,6 @@ import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * This abstract scheduler must be extended by a scheduler implementations for Nephele. The abstract class defines the
@@ -472,31 +470,13 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final int currentStageIndex = executionGraph.getIndexOfCurrentExecutionStage();
 		final ExecutionStage previousStage = executionGraph.getStage(currentStageIndex - 1);
 
-		final Map<AbstractInstance, List<CheckpointReplayRequest>> checkpointsToReplay = new HashMap<AbstractInstance, List<CheckpointReplayRequest>>();
-
 		for (int i = 0; i < previousStage.getNumberOfOutputExecutionVertices(); ++i) {
 
 			final ExecutionVertex vertex = previousStage.getOutputExecutionVertex(i);
-			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-
-			List<CheckpointReplayRequest> replayRequests = checkpointsToReplay.get(instance);
-			if (replayRequests == null) {
-				replayRequests = new SerializableArrayList<CheckpointReplayRequest>();
-				checkpointsToReplay.put(instance, replayRequests);
-			}
-
-			final CheckpointReplayRequest replayRequest = new CheckpointReplayRequest(vertex.getID());
-			replayRequest.addOutputChannelIDs(vertex.getEnvironment().getOutputChannelIDs());
-
-			replayRequests.add(replayRequest);
+			vertex.updateExecutionState(ExecutionState.ASSIGNED);
 		}
 
-		final Iterator<Map.Entry<AbstractInstance, List<CheckpointReplayRequest>>> it = checkpointsToReplay.entrySet()
-				.iterator();
-		while (it.hasNext()) {
-			final Map.Entry<AbstractInstance, List<CheckpointReplayRequest>> entry = it.next();
-			this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
-		}
+		deployAssignedVertices(executionGraph);
 	}
 
 	/**

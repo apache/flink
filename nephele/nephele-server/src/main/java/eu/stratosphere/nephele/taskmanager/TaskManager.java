@@ -20,13 +20,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -40,8 +40,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayManager;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -79,7 +77,6 @@ import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.SerializableArrayList;
@@ -114,7 +111,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * is stored inside this map and its thread status is TERMINATED, this indicates a virtual machine error.
 	 * As a result, task status will switch to FAILED and reported to the {@link JobManager}.
 	 */
-	private final Map<ExecutionVertexID, Task> runningTasks = new HashMap<ExecutionVertexID, Task>();
+	private final Map<ExecutionVertexID, Task> runningTasks = new ConcurrentHashMap<ExecutionVertexID, Task>();
 
 	private final InstanceConnectionInfo localInstanceConnectionInfo;
 
@@ -416,21 +413,14 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	@Override
 	public TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
-		// Check if the task is registered with our task manager
-		Task tmpTask;
+		final Task task = this.runningTasks.get(id);
 
-		synchronized (this.runningTasks) {
-
-			tmpTask = this.runningTasks.get(id);
-
-			if (tmpTask == null) {
-				final TaskCancelResult taskCancelResult = new TaskCancelResult(id, AbstractTaskResult.ReturnCode.ERROR);
-				taskCancelResult.setDescription("No task with ID + " + id + " is currently running");
-				return taskCancelResult;
-			}
+		if (task == null) {
+			final TaskCancelResult taskCancelResult = new TaskCancelResult(id, AbstractTaskResult.ReturnCode.ERROR);
+			taskCancelResult.setDescription("No task with ID + " + id + " is currently running");
+			return taskCancelResult;
 		}
 
-		final Task task = tmpTask;
 		// Execute call in a new thread so IPC thread can return immediately
 		final Thread tmpThread = new Thread(new Runnable() {
 
@@ -489,13 +479,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	public TaskSubmissionResult submitTask(final ExecutionVertexID id, final Configuration jobConfiguration,
 			final RuntimeEnvironment re, final Set<ChannelID> activeOutputChannels)
 			throws IOException {
-
-		// Register task manager components in environment
-		re.setMemoryManager(this.memoryManager);
-		re.setIOManager(this.ioManager);
-
-		// Register a new task input split provider
-		re.setInputSplitProvider(new TaskInputSplitProvider(re.getJobID(), id, this.globalInputSplitProvider));
 
 		// Create task object and register it with the environment
 		final RuntimeTask task = new RuntimeTask(id, re, this);
@@ -581,87 +564,49 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			throw new IllegalArgumentException("Argument task is null");
 		}
 
-		// Check if the task is already running
-		synchronized (this.runningTasks) {
-			if (this.runningTasks.containsKey(id)) {
-				LOG.debug("Task with ID " + id + " is already running");
-				TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
+		// Task registration must be atomic
+		synchronized (this) {
+
+			final Task runningTask = this.runningTasks.get(id);
+			if (runningTask != null) {
+				LOG.error("Task with ID " + id + " is already running");
+				final TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
 				result.setDescription("Task with ID " + id + " is already running");
 				return result;
 			}
-		}
 
-		final Environment ee = task.getEnvironment();
+			final Environment ee = task.getEnvironment();
 
-		// Register task manager components with the task
-		task.registerMemoryManager(this.memoryManager);
-		task.registerIOManager(this.ioManager);
-		task.registerInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
+			// Register task manager components with the task
+			task.registerMemoryManager(this.memoryManager);
+			task.registerIOManager(this.ioManager);
+			task.registerInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
 
-		// Register the task with the byte buffered channel manager
-		this.byteBufferedChannelManager.register(task, activeOutputChannels);
+			// Register the task with the byte buffered channel manager
+			this.byteBufferedChannelManager.register(task, activeOutputChannels);
 
-		boolean enableProfiling = false;
-		if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
-			enableProfiling = true;
-		}
-
-		// Register environment, input, and output gates for profiling
-		if (enableProfiling) {
-			task.registerProfiler(this.profiler, jobConfiguration);
-		}
-
-		// Allow plugins to register their listeners for this task
-		if (!this.taskManagerPlugins.isEmpty()) {
-			final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
-			while (it.hasNext()) {
-				it.next().registerTask(id, jobConfiguration, ee);
+			boolean enableProfiling = false;
+			if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
+				enableProfiling = true;
 			}
-		}
 
-		// The environment itself will put the task into the running task map
+			// Register environment, input, and output gates for profiling
+			if (enableProfiling) {
+				task.registerProfiler(this.profiler, jobConfiguration);
+			}
 
-		return null;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public SerializableArrayList<CheckpointReplayResult> replayCheckpoints(
-			final List<CheckpointReplayRequest> replayRequests) throws IOException {
-
-		final SerializableArrayList<CheckpointReplayResult> checkpointResultList = new SerializableArrayList<CheckpointReplayResult>();
-
-		for (final CheckpointReplayRequest replayRequest : replayRequests) {
-
-			if (!this.checkpointManager.hasCompleteCheckpointAvailable(vertexID)) {
-
-				if (this.checkpointManager.hasPartialCheckpointAvailable(vertexID)) {
-					synchronized (this.runningTasks) {
-						if (!this.runningTasks.containsKey(vertexID)) {
-							final CheckpointReplayResult result = new CheckpointReplayResult(vertexID, ReturnCode.ERROR);
-							result
-								.setDescription("Checkpoint is only partial and corresponding task is no longer running");
-							checkpointResultList.add(result);
-							continue;
-						}
-					}
-				} else {
-					final CheckpointReplayResult result = new CheckpointReplayResult(vertexID, ReturnCode.ERROR);
-					result.setDescription("No checkpoint found");
-					checkpointResultList.add(result);
-					continue;
+			// Allow plugins to register their listeners for this task
+			if (!this.taskManagerPlugins.isEmpty()) {
+				final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
+				while (it.hasNext()) {
+					it.next().registerTask(id, jobConfiguration, ee);
 				}
 			}
 
-			// Replay the checkpoint
-			this.checkpointManager.replayCheckpoint(vertexID);
-
-			checkpointResultList.add(new CheckpointReplayResult(vertexID, ReturnCode.SUCCESS));
+			this.runningTasks.put(id, task);
 		}
 
-		return checkpointResultList;
+		return null;
 	}
 
 	/**
@@ -674,26 +619,28 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private void unregisterTask(final ExecutionVertexID id, final Task task) {
 
-		// Unregister task from the byte buffered channel manager
-		this.byteBufferedChannelManager.unregister(id, task);
+		// Task deregistration must be atomic
+		synchronized (this) {
 
-		// Unregister task from profiling
-		task.unregisterProfiler(this.profiler);
+			// Unregister task from the byte buffered channel manager
+			this.byteBufferedChannelManager.unregister(id, task);
 
-		// Unregister task from memory manager
-		task.unregisterMemoryManager(this.memoryManager);
+			// Unregister task from profiling
+			task.unregisterProfiler(this.profiler);
 
-		// Allow plugins to unregister their listeners for this task
-		if (!this.taskManagerPlugins.isEmpty()) {
-			final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
-			while (it.hasNext()) {
-				it.next().unregisterTask(id, task.getEnvironment());
+			// Unregister task from memory manager
+			task.unregisterMemoryManager(this.memoryManager);
+
+			// Allow plugins to unregister their listeners for this task
+			if (!this.taskManagerPlugins.isEmpty()) {
+				final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
+				while (it.hasNext()) {
+					it.next().unregisterTask(id, task.getEnvironment());
+				}
 			}
-		}
 
-		// Check if there are still vertices running that belong to the same job
-		int numberOfVerticesBelongingToThisJob = 0;
-		synchronized (this.runningTasks) {
+			// Check if there are still vertices running that belong to the same job
+			int numberOfVerticesBelongingToThisJob = 0;
 			final Iterator<Task> iterator = this.runningTasks.values().iterator();
 			while (iterator.hasNext()) {
 				final Task candidateTask = iterator.next();
@@ -701,14 +648,14 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 					numberOfVerticesBelongingToThisJob++;
 				}
 			}
-		}
 
-		// If there are no other vertices belonging to the same job, we can unregister the job's class loader
-		if (numberOfVerticesBelongingToThisJob == 0) {
-			try {
-				LibraryCacheManager.unregister(task.getJobID());
-			} catch (IOException e) {
-				LOG.debug("Unregistering the job vertex ID " + id + " caused an IOException");
+			// If there are no other vertices belonging to the same job, we can unregister the job's class loader
+			if (numberOfVerticesBelongingToThisJob == 0) {
+				try {
+					LibraryCacheManager.unregister(task.getJobID());
+				} catch (IOException e) {
+					LOG.debug("Unregistering the job vertex ID " + id + " caused an IOException");
+				}
 			}
 		}
 	}
@@ -797,7 +744,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 	}
 
-	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id, final CheckpointState newCheckpointState) {
+	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id,
+			final CheckpointState newCheckpointState) {
 
 		synchronized (this.jobManager) {
 			try {

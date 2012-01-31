@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 
 import java.util.List;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -61,15 +60,6 @@ public class TestDeploymentManager implements DeploymentManager {
 		synchronized (this.synchronizationObject) {
 			this.synchronizationObject.notify();
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void replayCheckpoints(final JobID jobID, final AbstractInstance instance,
-			final List<CheckpointReplayRequest> replayRequests) {
-		throw new IllegalStateException("replayCheckpoints called on TestDeploymentManager");
 	}
 
 	/**

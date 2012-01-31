@@ -59,8 +59,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecisionCoordinator;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecisionPropagator;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayRequest;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobProgressResult;
@@ -1226,54 +1224,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					if (tsr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
 						// Change the execution state to failed and let the scheduler deal with the rest
 						vertex.updateExecutionState(ExecutionState.FAILED, tsr.getDescription());
-					}
-				}
-			}
-		};
-
-		this.executorService.execute(deploymentRunnable);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void replayCheckpoints(final JobID jobID, final AbstractInstance instance,
-			final List<CheckpointReplayRequest> replayRequests) {
-
-		if (replayRequests.isEmpty()) {
-			LOG.error("Method 'replayCheckpoints' called but list of checkpoints to be replayed is empty");
-			return;
-		}
-
-		// Create a new runnable and pass it the executor service
-		final Runnable deploymentRunnable = new Runnable() {
-
-			/**
-			 * {@inheritDoc}
-			 */
-			@Override
-			public void run() {
-
-				List<CheckpointReplayResult> checkpointResultList = null;
-
-				try {
-					checkpointResultList = instance.replayCheckpoints(replayRequests);
-				} catch (final IOException ioe) {
-					final String errorMsg = StringUtils.stringifyException(ioe);
-					// TODO: Handle this correctly
-					LOG.error(errorMsg);
-				}
-
-				if (replayRequests.size() != checkpointResultList.size()) {
-					LOG.error("size of submission result list does not match size of list with checkpoints to be deployed");
-				}
-
-				for (final CheckpointReplayResult ccr : checkpointResultList) {
-
-					if (ccr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
-						// TODO: Handle this correctly
-						LOG.error(ccr.getDescription());
 					}
 				}
 			}
