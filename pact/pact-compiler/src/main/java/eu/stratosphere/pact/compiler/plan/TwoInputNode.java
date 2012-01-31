@@ -769,6 +769,43 @@ public abstract class TwoInputNode extends OptimizerNode
 	}
 	
 	@Override
+	public boolean isValidInputSchema(int input, int[] inputSchema) {
+		
+		if(input < 0 || input > 1)
+			throw new IndexOutOfBoundsException("TwoInputNode has inputs 0 or 1");
+		
+		if(!FieldSetOperations.emptyIntersect(inputSchema, this.getReadSet(input)))
+			return false;
+		if(input == 0) {
+			if(this.keySet1 != null && !FieldSetOperations.emptyIntersect(inputSchema, this.keySet1))
+				return false;
+			if(this.implOpMode1 == null) {
+				return false;
+			}
+			if(this.implOpMode1 == ImplicitOperationMode.Copy && 
+					!FieldSetOperations.emptyIntersect(inputSchema, this.explProjections1))
+				return false;
+			if(this.implOpMode1 == ImplicitOperationMode.Projection &&
+					!FieldSetOperations.emptyIntersect(inputSchema, this.explCopies1))
+				return false;
+		} else {
+			if(this.keySet2 != null && !FieldSetOperations.emptyIntersect(inputSchema, this.keySet2))
+				return false;
+			if(this.implOpMode2 == null) {
+				return false;
+			}
+			if(this.implOpMode2 == ImplicitOperationMode.Copy && 
+					!FieldSetOperations.emptyIntersect(inputSchema, this.explProjections2))
+				return false;
+			if(this.implOpMode2 == ImplicitOperationMode.Projection &&
+					!FieldSetOperations.emptyIntersect(inputSchema, this.explCopies2))
+				return false;
+		}
+		
+		return true;
+	}
+	
+	@Override
 	public int[] getReadSet(int input) {
 
 		switch(input) {

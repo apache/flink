@@ -423,6 +423,29 @@ public abstract class SingleInputNode extends OptimizerNode {
 	}
 	
 	@Override
+	public boolean isValidInputSchema(int input, int[] inputSchema) {
+		
+		if(input != 0)
+			throw new IndexOutOfBoundsException("SingleInputNode must have exactly one input");
+		
+		if(!FieldSetOperations.emptyIntersect(inputSchema, this.getReadSet(input)))
+			return false;
+		if(this.keySet != null && !FieldSetOperations.emptyIntersect(inputSchema, this.keySet))
+			return false;
+		if(this.implOpMode == null) {
+			return false;
+		}
+		if(this.implOpMode == ImplicitOperationMode.Copy && 
+				!FieldSetOperations.emptyIntersect(inputSchema, this.explProjections))
+			return false;
+		if(this.implOpMode == ImplicitOperationMode.Projection &&
+				!FieldSetOperations.emptyIntersect(inputSchema, this.explCopies))
+			return false;
+		
+		return true;
+	}
+	
+	@Override
 	public int[] getReadSet(int input) {
 		
 		if(input < -1 || input > 0)

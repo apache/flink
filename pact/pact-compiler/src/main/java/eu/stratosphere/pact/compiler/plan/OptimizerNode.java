@@ -1352,6 +1352,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	public abstract int[] computeOutputSchema(List<int[]> inputSchemas);
 
+	public abstract boolean isValidInputSchema(int input, int[] inputSchema);
+	
 	/**
 	 * Give the read set of the node.
 	 * 

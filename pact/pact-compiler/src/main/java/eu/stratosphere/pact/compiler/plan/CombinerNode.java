@@ -167,4 +167,9 @@ public class CombinerNode extends OptimizerNode {
 	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
 		return null;
 	}
+
+	@Override
+	public boolean isValidInputSchema(int input, int[] inputSchema) {
+		return false;
+	}
 }
