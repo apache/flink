@@ -774,36 +774,39 @@ public abstract class TwoInputNode extends OptimizerNode
 		if(input < 0 || input > 1)
 			throw new IndexOutOfBoundsException("TwoInputNode has inputs 0 or 1");
 		
-		if(!FieldSetOperations.emptyIntersect(inputSchema, this.getReadSet(input)))
-			return false;
 		if(input == 0) {
-			if(this.keySet1 != null && !FieldSetOperations.emptyIntersect(inputSchema, this.keySet1))
+			if(this.reads1 != null && !FieldSetOperations.fullyContained(inputSchema, this.reads1))
+				return false;
+			if(this.keySet1 != null && !FieldSetOperations.fullyContained(inputSchema, this.keySet1))
 				return false;
 			if(this.implOpMode1 == null) {
 				return false;
 			}
 			if(this.implOpMode1 == ImplicitOperationMode.Copy && 
-					!FieldSetOperations.emptyIntersect(inputSchema, this.explProjections1))
+					!FieldSetOperations.fullyContained(inputSchema, this.explProjections1))
 				return false;
 			if(this.implOpMode1 == ImplicitOperationMode.Projection &&
-					!FieldSetOperations.emptyIntersect(inputSchema, this.explCopies1))
+					!FieldSetOperations.fullyContained(inputSchema, this.explCopies1))
 				return false;
 		} else {
-			if(this.keySet2 != null && !FieldSetOperations.emptyIntersect(inputSchema, this.keySet2))
+			if(this.reads2 != null && !FieldSetOperations.fullyContained(inputSchema, this.reads2))
+				return false;
+			if(this.keySet2 != null && !FieldSetOperations.fullyContained(inputSchema, this.keySet2))
 				return false;
 			if(this.implOpMode2 == null) {
 				return false;
 			}
 			if(this.implOpMode2 == ImplicitOperationMode.Copy && 
-					!FieldSetOperations.emptyIntersect(inputSchema, this.explProjections2))
+					!FieldSetOperations.fullyContained(inputSchema, this.explProjections2))
 				return false;
 			if(this.implOpMode2 == ImplicitOperationMode.Projection &&
-					!FieldSetOperations.emptyIntersect(inputSchema, this.explCopies2))
+					!FieldSetOperations.fullyContained(inputSchema, this.explCopies2))
 				return false;
 		}
 		
 		return true;
 	}
+
 	
 	@Override
 	public int[] getReadSet(int input) {

@@ -428,18 +428,18 @@ public abstract class SingleInputNode extends OptimizerNode {
 		if(input != 0)
 			throw new IndexOutOfBoundsException("SingleInputNode must have exactly one input");
 		
-		if(!FieldSetOperations.emptyIntersect(inputSchema, this.getReadSet(input)))
+		if(this.reads != null && !FieldSetOperations.fullyContained(inputSchema, this.reads))
 			return false;
-		if(this.keySet != null && !FieldSetOperations.emptyIntersect(inputSchema, this.keySet))
+		if(this.keySet != null && !FieldSetOperations.fullyContained(inputSchema, this.keySet))
 			return false;
 		if(this.implOpMode == null) {
 			return false;
 		}
 		if(this.implOpMode == ImplicitOperationMode.Copy && 
-				!FieldSetOperations.emptyIntersect(inputSchema, this.explProjections))
+				!FieldSetOperations.fullyContained(inputSchema, this.explProjections))
 			return false;
 		if(this.implOpMode == ImplicitOperationMode.Projection &&
-				!FieldSetOperations.emptyIntersect(inputSchema, this.explCopies))
+				!FieldSetOperations.fullyContained(inputSchema, this.explCopies))
 			return false;
 		
 		return true;
