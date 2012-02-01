@@ -244,6 +244,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		for (int index = 0; index < values.length; index++)
 			record.setField(index, values[index]);
 		this.records.add(record);
+		this.setEmpty(false);
 		return this;
 	}
 

@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.plan.PactModule;
@@ -20,6 +21,7 @@ import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.RecordToJsonIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -62,8 +64,7 @@ public class SopremoTestPlan {
 				unconnectedOutputs.add(operator);
 		}
 
-		for (final Operator<?> operator : OneTimeTraverser.INSTANCE
-			.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
+		for (final Operator<?> operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
 			if (operator instanceof Source)
 				unconnectedInputs.add(operator);
 			else
@@ -200,10 +201,11 @@ public class SopremoTestPlan {
 		sopremoPlan.setContext(this.evaluationContext);
 		sopremoPlan.setSinks(this.getOutputOperators(0, this.expectedOutputs.length));
 		this.testPlan = new TestPlan(sopremoPlan.assemblePact());
+		Schema schema = getSchema();
 		for (final Input input : this.inputs)
-			input.prepare(this.testPlan);
+			input.prepare(this.testPlan, schema);
 		for (final ExpectedOutput output : this.expectedOutputs)
-			output.prepare(this.testPlan);
+			output.prepare(this.testPlan, schema);
 		if (this.trace)
 			SopremoUtil.trace();
 		this.testPlan.run();
@@ -215,16 +217,6 @@ public class SopremoTestPlan {
 
 	public void setInputOperator(final int index, final Source operator) {
 		this.inputs[index].setOperator(operator);
-		if (operator.isAdhoc())
-			for (final JsonNode node : (ArrayNode) operator.getAdhocValues())
-				this.inputs[index].add(node);
-		else {
-			final TestRecords testPairs = new TestRecords();
-			testPairs.fromFile(JsonInputFormat.class, operator.getInputName());
-			for (final PactRecord record : testPairs)
-				this.inputs[index].add(Schema.Default.recordToJson(record, null));
-			testPairs.close();
-		}
 	}
 
 	public void setOutputOperator(final int index, final Sink operator) {
@@ -261,14 +253,12 @@ public class SopremoTestPlan {
 	}
 
 	static class Channel<O extends Operator<?>, C extends Channel<O, C>> {
-		private final TestRecords pairs = new TestRecords();
 
-		private O operator;
+		private final TestRecords pairs = new TestRecords(schema.getPactSchema());
+
+		protected O operator;
 
 		private final int index;
-
-		// TODO: where is the schema coming from?
-		protected Schema schema = Schema.Default;
 
 		public Channel(final O operator, final int index) {
 			this.operator = operator;
@@ -276,31 +266,30 @@ public class SopremoTestPlan {
 		}
 
 		public C add(final JsonNode value) {
-			return this.add(NullNode.getInstance(), value);
+			this.pairs.add(this.schema.jsonToRecord(value, null));
+			return (C) this;
 		}
 
+		@Deprecated
+		public C add(final JsonNode key, final JsonNode value) {
+			return add(JsonUtil.asArray(key, value));
+		}
 
 		public void load(final String path) {
 			this.pairs.fromFile(JsonInputFormat.class, path);
 		}
 
 		public C addObject(final Object... fields) {
-			return this.add(JsonUtil.createObjectNode(fields));
+			return this.add(NullNode.getInstance(), JsonUtil.createObjectNode(fields));
 		}
 
 		public C addValue(final Object value) {
-			return this.add(JsonUtil.createValueNode(value));
+			return this.add(NullNode.getInstance(), JsonUtil.createValueNode(value));
 		}
 
 		public C addArray(final Object... values) {
-			return this.add(JsonUtil.createArrayNode(values));
+			return this.add(NullNode.getInstance(), JsonUtil.createArrayNode(values));
 
-		}
-
-		@SuppressWarnings("unchecked")
-		public C add(final JsonNode key, final JsonNode value) {
-			this.pairs.add(SopremoUtil.wrap(key), SopremoUtil.wrap(value));
-			return (C) this;
 		}
 
 		@Override
@@ -366,9 +355,10 @@ public class SopremoTestPlan {
 			super(new MockupSource(index), index);
 		}
 
-		public void prepare(final TestPlan testPlan) {
+		public void prepare(final TestPlan testPlan, Schema schema) {
 			if (this.getOperator() instanceof MockupSource)
 				testPlan.getExpectedOutput(this.getIndex(), this.schema.getPactSchema()).add(this.getPairs());
+			this.schema = schema;
 		}
 	}
 
@@ -377,11 +367,33 @@ public class SopremoTestPlan {
 			super(new MockupSource(index), index);
 		}
 
-		public void prepare(final TestPlan testPlan) {
-			if (this.getOperator() instanceof MockupSource)
-				testPlan.getInput(this.getIndex()).add(this.getPairs());
+		public void prepare(final TestPlan testPlan, Schema schema) {
+			PactRecord record = null;
+			if (operator.isAdhoc())
+				for (final JsonNode node : (ArrayNode) operator.getAdhocValues())
+					testPlan.getInput(this.getIndex()).add(record = schema.jsonToRecord(node, record));
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.testing.SopremoTestPlan.Channel#iterator()
+		 */
+		@Override
+		public Iterator<JsonNode> iterator() {
+
+			if (operator.isAdhoc())
+				return super.iterator();
+
+			Schema schema = this.getSchema();
+			final TestRecords testPairs = new TestRecords(schema.getPactSchema());
+			Configuration configuration = new Configuration();
+			SopremoUtil.serialize(configuration, IOConstants.SCHEMA, schema);
+			testPairs.fromFile(JsonInputFormat.class, operator.getInputName(), configuration);
+			for (final PactRecord record : testPairs)
+				this.inputs[index].add(Schema.Default.recordToJson(record, null));
+			testPairs.close();
+
+		}
 	}
 
 	public static class MockupSink extends Sink {
@@ -403,6 +415,7 @@ public class SopremoTestPlan {
 			final FileDataSink contract = TestPlan.createDefaultSink(this.getOutputName());
 			contract.setInput(pactModule.getInput(0));
 			pactModule.addInternalOutput(contract);
+			SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA, context.getOutputSchema(0));
 			return pactModule;
 		}
 
@@ -452,6 +465,7 @@ public class SopremoTestPlan {
 			final FileDataSource contract = TestPlan.createDefaultSource(this.getInputName());
 			pactModule.getOutput(0).setInput(contract);
 			// pactModule.setInput(0, contract);
+			SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA, context.getInputSchema(0));
 			return pactModule;
 		}
 
@@ -479,6 +493,13 @@ public class SopremoTestPlan {
 		public String toString() {
 			return String.format("MockupSource [%s]", this.index);
 		}
+	}
+
+	/**
+	 * @return
+	 */
+	public Schema getSchema() {
+		return Schema.Default;
 	}
 
 }

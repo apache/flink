@@ -207,11 +207,13 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		}
 
 		private void convertDAGToModules() {
+			final Schema schema = getSchema();
 			OneTimeTraverser.INSTANCE.traverse(SopremoModule.this.getAllOutputs(),
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
 						// TODO: set schema
+						PactAssembler.this.context.setSchema(schema);
 						final PactModule module = node.asPactModule(PactAssembler.this.context);
 						PactAssembler.this.modules.put(node, module);
 						final FileDataSink[] outputStubs = module.getOutputs();

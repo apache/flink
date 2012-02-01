@@ -14,6 +14,7 @@ import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.io.JsonGenerator;
 import eu.stratosphere.sopremo.io.JsonProcessingException;
+import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.JsonNode;
@@ -108,6 +109,7 @@ public class Source extends ElementaryOperator<Source> {
 			if (parameter.getValue() instanceof Serializable)
 				SopremoUtil
 					.serialize(contract.getParameters(), parameter.getKey(), (Serializable) parameter.getValue());
+		SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA, context.getOutputSchema(0));
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);
 		return pactModule;
