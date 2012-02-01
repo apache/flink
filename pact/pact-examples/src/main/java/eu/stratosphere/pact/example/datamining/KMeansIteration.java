@@ -41,7 +41,7 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopiesSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjectionsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModification;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
@@ -356,7 +356,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	@ExplicitProjectionsFirst(fields={})
 	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Projection)
 	@ExplicitCopiesSecond(fields={})
-	@ExplicitModification(fields={2,3})
+	@ExplicitModifications(fields={2,3})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class ComputeDistance extends	CrossStub
 	{
@@ -394,7 +394,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	@Reads(fields={1,2,3})
 	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Projection)
 	@ExplicitCopies(fields={})
-	@ExplicitModification(fields={0,1,2})
+	@ExplicitModifications(fields={0,1,2})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class FindNearestCenter extends ReduceStub
@@ -487,7 +487,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	@Reads(fields={1,2})
 	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
 	@ExplicitProjections(fields={2})
-	@ExplicitModification(fields={0,1})
+	@ExplicitModifications(fields={0,1})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class RecomputeClusterCenter extends ReduceStub

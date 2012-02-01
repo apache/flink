@@ -346,7 +346,7 @@ public class StubAnnotation
 	}
 
 	/**
-	 * The {@link ExplicitModification} annotation contains all fields of the output record 
+	 * The {@link ExplicitModifications} annotation contains all fields of the output record 
 	 * which have been explicitly modified. 
 	 * 
 	 * An explicit modification is done by calling the 
@@ -362,7 +362,7 @@ public class StubAnnotation
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ExplicitModification
+	public @interface ExplicitModifications
 	{
 		int[] fields();
 	}
