@@ -54,6 +54,10 @@ public class ObjectSchema implements Schema {
 
 	@Override
 	public JsonNode recordToJson(PactRecord record, JsonNode target) {
+		if(this.mapping.size()+1 != record.getNumFields()){
+			throw new IllegalStateException("Schema does not match to record!");
+		}
+		
 		if(target == null){
 			target = new ObjectNode();
 		} else {
@@ -63,7 +67,9 @@ public class ObjectSchema implements Schema {
 		for(int i=0; i< this.mapping.size(); i++){
 			((ObjectNode)target).put(this.mapping.get(i), SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
 		}
-		((ObjectNode)target).putAll((ObjectNode)SopremoUtil.unwrap(record.getField(this.mapping.size(), JsonNodeWrapper.class)));
+		
+		((ObjectNode)target).putAll((ObjectNode)SopremoUtil.unwrap(record.getField(this.mapping.size(), JsonNodeWrapper.class)));	
+
 		
 		return target;
 	}
