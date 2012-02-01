@@ -21,7 +21,7 @@ public class ObjectSchemaTest {
 	@Ignore
 	@Test
 	public void shouldConvertFromJsonToRecord() {
-		this.schema.setPactSchema("firstname", "lastname");
+		this.schema.setMappings("firstname", "lastname");
 
 		ObjectNode object = new ObjectNode();
 		object.put("firstname", TextNode.valueOf("testfn"))
@@ -38,7 +38,7 @@ public class ObjectSchemaTest {
 
 	@Test
 	public void shouldConvertFromRecordToJson() {
-		this.schema.setPactSchema("firstname", "lastname");
+		this.schema.setMappings("firstname", "lastname");
 
 		PactRecord record = new PactRecord(3);
 		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
@@ -54,7 +54,7 @@ public class ObjectSchemaTest {
 	
 	@Test
 	public void shouldUseRecordTarget(){
-		this.schema.setPactSchema("firstname", "lastname");
+		this.schema.setMappings("firstname", "lastname");
 
 		ObjectNode object = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
@@ -67,7 +67,7 @@ public class ObjectSchemaTest {
 	
 	@Test
 	public void shouldUseJsonNodeTarget(){
-		this.schema.setPactSchema("firstname", "lastname");
+		this.schema.setMappings("firstname", "lastname");
 
 		PactRecord record = new PactRecord(3);
 		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));

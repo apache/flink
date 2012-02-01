@@ -12,7 +12,8 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 public class ObjectSchema implements Schema {
 
 	/**
-	 * 
+	 * @author Michael Hopstock
+	 * @author Tommy Neubert
 	 */
 	private static final long serialVersionUID = 4037447354469753483L;
 
@@ -29,7 +30,7 @@ public class ObjectSchema implements Schema {
 		return schema;
 	}
 	
-	public void setPactSchema(String... schema) {
+	public void setMappings(String... schema) {
 		this.mapping = Arrays.asList(schema);
 	}
 
