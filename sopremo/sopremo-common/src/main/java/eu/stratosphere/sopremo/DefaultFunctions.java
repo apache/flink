@@ -24,8 +24,11 @@ import eu.stratosphere.sopremo.expressions.Scope;
 import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.NumericNode;
 import eu.stratosphere.sopremo.type.TextNode;
@@ -47,7 +50,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -8021932798231751696L;
 
 		@Override
-		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
 			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, (NumericNode) node);
 		}
 	};
@@ -59,7 +62,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -4700372075569392783L;
 
 		@Override
-		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
 			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, ONE);
 		}
 	};
@@ -71,7 +74,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = 273172975676646935L;
 
 		@Override
-		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
 			return aggregate.isNull() ? node : aggregate;
 		}
 	};
@@ -83,7 +86,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = 3035270432104235038L;
 
 		@Override
-		protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
+		protected List<IJsonNode> processNodes(final List<IJsonNode> nodes) {
 			Collections.sort(nodes);
 			return nodes;
 		}
@@ -108,13 +111,13 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private transient double value;
 
 		@Override
-		public void aggregate(final JsonNode node, final EvaluationContext context) {
-			this.value += ((NumericNode) node).getDoubleValue();
+		public void aggregate(final IJsonNode node, final EvaluationContext context) {
+			this.value += ((INumericNode) node).getDoubleValue();
 			this.count++;
 		}
 
 		@Override
-		public JsonNode getFinalAggregate() {
+		public IJsonNode getFinalAggregate() {
 			if (this.count == 0)
 				return DoubleNode.valueOf(Double.NaN);
 			return DoubleNode.valueOf(this.value / this.count);
@@ -127,7 +130,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		}
 	};
 
-	public static JsonNode format(final TextNode format, final JsonNode... params) {
+	public static IJsonNode format(final TextNode format, final IJsonNode... params) {
 		final Object[] paramsAsObjects = new Object[params.length];
 		for (int index = 0; index < paramsAsObjects.length; index++)
 			paramsAsObjects[index] = params[index].isTextual() ? ((TextNode) params[index]).getTextValue()
@@ -137,7 +140,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		return TextNode.valueOf(String.format(format.getTextValue(), paramsAsObjects));
 	}
 
-	public static JsonNode substring(final TextNode input, final IntNode from, final IntNode to) {
+	public static IJsonNode substring(final TextNode input, final IntNode from, final IntNode to) {
 		final String string = input.getTextValue();
 		final int fromPos = resolveIndex(from.getIntValue(), string.length());
 		final int toPos = resolveIndex(to.getIntValue(), string.length());
@@ -145,7 +148,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		return TextNode.valueOf(string.substring(fromPos, toPos));
 	}
 
-	// public static JsonNode extract(TextNode input, TextNode pattern, JsonNode defaultValue) {
+	// public static IJsonNode extract(TextNode input, TextNode pattern, IJsonNode defaultValue) {
 	// Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
 	// Matcher matcher = compiledPattern.matcher(input.getTextValue());
 	// if (!matcher.find())
@@ -160,11 +163,11 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	// return result;
 	// }
 	//
-	// public static JsonNode extract(TextNode input, TextNode pattern) {
+	// public static IJsonNode extract(TextNode input, TextNode pattern) {
 	// return extract(input, pattern, NullNode.getInstance());
 	// }
 
-	public static JsonNode camelCase(final TextNode input) {
+	public static IJsonNode camelCase(final TextNode input) {
 		final char[] chars = input.getTextValue().toCharArray();
 
 		boolean capitalize = true;
@@ -194,9 +197,9 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	 * @return a string node of the concatenated textual representations
 	 */
 	@OptimizerHints(minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode concat(final JsonNode... params) {
+	public static IJsonNode concat(final IJsonNode... params) {
 		final StringBuilder builder = new StringBuilder();
-		for (final JsonNode jsonNode : params)
+		for (final IJsonNode jsonNode : params)
 			builder.append(jsonNode.isTextual() ? ((TextNode) jsonNode).getTextValue() : jsonNode);
 		return JsonUtil.OBJECT_MAPPER.valueToTree(builder);
 	}
@@ -209,14 +212,14 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	 * @return the number of child elements
 	 */
 	@OptimizerHints(minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode count(final JsonNode node) {
-		return new IntNode(((ArrayNode) node).size());
+	public static IJsonNode count(final IJsonNode node) {
+		return new IntNode(((IArrayNode) node).size());
 	}
 
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode sort(final JsonNode node) {
-		final List<JsonNode> nodes = new ArrayList<JsonNode>();
-		for (final JsonNode jsonNode : (ArrayNode) node)
+	public static IJsonNode sort(final IJsonNode node) {
+		final List<IJsonNode> nodes = new ArrayList<IJsonNode>();
+		for (final IJsonNode jsonNode : (IArrayNode) node)
 			nodes.add(jsonNode);
 		Collections.sort(nodes);
 		final ArrayNode arrayNode = new ArrayNode();
@@ -225,16 +228,16 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	}
 
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode distinct(final JsonNode node) {
-		final Set<JsonNode> nodes = new HashSet<JsonNode>();
-		for (final JsonNode jsonNode : (ArrayNode) node)
+	public static IJsonNode distinct(final IJsonNode node) {
+		final Set<IJsonNode> nodes = new HashSet<IJsonNode>();
+		for (final IJsonNode jsonNode : (IArrayNode) node)
 			nodes.add(jsonNode);
 		final ArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(nodes);
 		return arrayNode;
 	}
 
-	public static JsonNode length(final TextNode node) {
+	public static IJsonNode length(final TextNode node) {
 		return IntNode.valueOf(node.getTextValue().length());
 	}
 
@@ -246,8 +249,8 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	 * @return the sum of child elements
 	 */
 	@OptimizerHints(minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode sum(final JsonNode node) {
-		final Iterator<JsonNode> iterator = ((ArrayNode) node).iterator();
+	public static IJsonNode sum(final IJsonNode node) {
+		final Iterator<IJsonNode> iterator = ((ArrayNode) node).iterator();
 		if (!iterator.hasNext())
 			return ZERO;
 		NumericNode sum = (NumericNode) iterator.next();
@@ -265,9 +268,9 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	 * @return the concatenated array
 	 */
 	@OptimizerHints(scope = Scope.ARRAY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND, transitive = true, iterating = true)
-	public static JsonNode unionAll(final JsonNode... arrays) {
+	public static IJsonNode unionAll(final IJsonNode... arrays) {
 		boolean hasStream = false; // , resettable = false;
-		for (final JsonNode param : arrays) {
+		for (final IJsonNode param : arrays) {
 			final boolean stream = param instanceof ArrayNode;
 			hasStream |= stream;
 			// if (stream && ((ArrayNode) param).isResettable()) {
@@ -280,12 +283,12 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 			final Iterator<?>[] iterators = new Iterator[arrays.length];
 			for (int index = 0; index < iterators.length; index++)
 				iterators[index] = ((ArrayNode) arrays[index]).iterator();
-			return ArrayNode.valueOf(new ConcatenatingIterator<JsonNode>(iterators)/* , resettable */);
+			return ArrayNode.valueOf(new ConcatenatingIterator<IJsonNode>(iterators)/* , resettable */);
 		}
 
 		final ArrayNode union = new ArrayNode();
-		for (final JsonNode param : arrays)
-			for (final JsonNode child : (ArrayNode) param)
+		for (final IJsonNode param : arrays)
+			for (final IJsonNode child : (IArrayNode) param)
 				union.add(child);
 		return union;
 	}
@@ -301,26 +304,26 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	 *        the position of the insert
 	 * @return array with the added node
 	 */
-	public static JsonNode add(final JsonNode array, final JsonNode node, final int index) {
-		((ArrayNode) array).add(index, node);
+	public static IJsonNode add(final IJsonNode array, final IJsonNode node, final int index) {
+		((IArrayNode) array).add(index, node);
 
 		return array;
 	}
 
-	public static JsonNode average(final NumericNode... inputs) {
+	public static IJsonNode average(final INumericNode... inputs) {
 		double sum = 0;
 
-		for (final NumericNode numericNode : inputs)
+		for (final INumericNode numericNode : inputs)
 			sum += ((DoubleNode) numericNode).getDoubleValue();
 
 		return DoubleNode.valueOf(sum / inputs.length);
 	}
 
-	public static JsonNode trim(final TextNode input) {
+	public static IJsonNode trim(final TextNode input) {
 		return TextNode.valueOf(input.getTextValue().trim());
 	}
 
-	public static JsonNode split(final TextNode input, final TextNode splitString) {
+	public static IJsonNode split(final TextNode input, final TextNode splitString) {
 		final String[] split = input.getTextValue().split(splitString.getTextValue());
 		final ArrayNode splitNode = new ArrayNode();
 		for (final String string : split)
@@ -328,7 +331,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		return splitNode;
 	}
 
-	public static JsonNode extract(final TextNode input, final TextNode pattern, final JsonNode defaultValue) {
+	public static IJsonNode extract(final TextNode input, final TextNode pattern, final IJsonNode defaultValue) {
 		final Pattern compiledPattern = Pattern.compile(pattern.getTextValue());
 		final Matcher matcher = compiledPattern.matcher(input.getTextValue());
 
@@ -347,17 +350,17 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		return result;
 	}
 
-	public static JsonNode extract(final TextNode input, final TextNode pattern) {
+	public static IJsonNode extract(final TextNode input, final TextNode pattern) {
 		return extract(input, pattern, NullNode.getInstance());
 	}
 
-	public static JsonNode replace(final TextNode input, final TextNode search, final TextNode replace) {
+	public static IJsonNode replace(final TextNode input, final TextNode search, final TextNode replace) {
 		return TextNode.valueOf(input.getTextValue().replaceAll(search.getTextValue(), replace.getTextValue()));
 	}
 
-	public static JsonNode filter(final ArrayNode input, final JsonNode... elementsToFilter) {
+	public static IJsonNode filter(final IArrayNode input, final IJsonNode... elementsToFilter) {
 		final ArrayNode output = new ArrayNode();
-		final HashSet<JsonNode> filterSet = new HashSet<JsonNode>(Arrays.asList(elementsToFilter));
+		final HashSet<IJsonNode> filterSet = new HashSet<IJsonNode>(Arrays.asList(elementsToFilter));
 		for (int index = 0; index < input.size(); index++)
 			if (!filterSet.contains(input.get(index)))
 				output.add(input.get(index));
@@ -383,14 +386,14 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	}
 
 	//
-	// public static JsonNode group(ArrayNode array, TextNode elementName) {
+	// public static IJsonNode group(ArrayNode array, TextNode elementName) {
 	// return extract(input, pattern, NullNode.getInstance());
 	// }
 	//
-	// public static JsonNode aggregate(ArrayNode array, EvaluationExpression groupingExpression, EvaluationExpression
+	// public static IJsonNode aggregate(ArrayNode array, EvaluationExpression groupingExpression, EvaluationExpression
 	// aggregation) {
 	// final List<CompactArrayNode> nodes = new ArrayList<CompactArrayNode>();
-	// for (final JsonNode jsonNode : array)
+	// for (final IJsonNode jsonNode : array)
 	// nodes.add(JsonUtil.asArray(groupingExpression.evaluate(jsonNode, null)));
 	// Collections.sort(nodes, JsonNodeComparator.INSTANCE);
 	// final ArrayNode arrayNode = new ArrayNode(null);
@@ -405,7 +408,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -8124401653435722884L;
 
 		@Override
-		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
 			if (aggregate.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(node, aggregate))
 				return node;
 			return aggregate;
@@ -419,7 +422,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -1735264603829085865L;
 
 		@Override
-		protected JsonNode aggregate(final JsonNode aggregate, final JsonNode node, final EvaluationContext context) {
+		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
 			if (aggregate.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(aggregate, node))
 				return node;
 			return aggregate;

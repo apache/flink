@@ -24,8 +24,8 @@ import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.RecordToJsonIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
@@ -35,8 +35,8 @@ public class SopremoTestPlan {
 	private ActualOutput[] actualOutputs;
 
 	//
-	// public static interface TestObjects extends Iterable<JsonNode> {
-	// public TestObjects add(JsonNode object);
+	// public static interface TestObjects extends Iterable<IJsonNode> {
+	// public TestObjects add(IJsonNode object);
 	//
 	// public TestObjects setEmpty();
 	// }
@@ -216,7 +216,7 @@ public class SopremoTestPlan {
 	public void setInputOperator(final int index, final Source operator) {
 		this.inputs[index].setOperator(operator);
 		if (operator.isAdhoc())
-			for (final JsonNode node : (ArrayNode) operator.getAdhocValues())
+			for (final IJsonNode node : (IArrayNode) operator.getAdhocValues())
 				this.inputs[index].add(node);
 		else {
 			final TestRecords testPairs = new TestRecords();
@@ -275,7 +275,7 @@ public class SopremoTestPlan {
 			this.index = index;
 		}
 
-		public C add(final JsonNode value) {
+		public C add(final IJsonNode value) {
 			return this.add(NullNode.getInstance(), value);
 		}
 
@@ -298,7 +298,7 @@ public class SopremoTestPlan {
 		}
 
 		@SuppressWarnings("unchecked")
-		public C add(final JsonNode key, final JsonNode value) {
+		public C add(final IJsonNode key, final IJsonNode value) {
 			this.pairs.add(SopremoUtil.wrap(key), SopremoUtil.wrap(value));
 			return (C) this;
 		}
@@ -335,7 +335,7 @@ public class SopremoTestPlan {
 			return result;
 		}
 
-		public Iterator<JsonNode> iterator() {
+		public Iterator<IJsonNode> iterator() {
 			final RecordToJsonIterator iterator = new RecordToJsonIterator(this.schema);
 			iterator.setIterator(this.pairs.iterator());
 			return iterator;
@@ -361,7 +361,7 @@ public class SopremoTestPlan {
 		}
 	}
 
-	public static class ExpectedOutput extends Channel<Source, ExpectedOutput> implements Iterable<JsonNode> {
+	public static class ExpectedOutput extends Channel<Source, ExpectedOutput> implements Iterable<IJsonNode> {
 		public ExpectedOutput(final int index) {
 			super(new MockupSource(index), index);
 		}
@@ -372,7 +372,7 @@ public class SopremoTestPlan {
 		}
 	}
 
-	public static class Input extends Channel<Source, Input> implements Iterable<JsonNode> {
+	public static class Input extends Channel<Source, Input> implements Iterable<IJsonNode> {
 		public Input(final int index) {
 			super(new MockupSource(index), index);
 		}

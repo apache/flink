@@ -1,14 +1,14 @@
 package eu.stratosphere.sopremo.function;
 
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * A base for built-in and user-defined functions.
  * 
  * @author Arvid Heise
  */
-public abstract class JsonMethod extends Callable<JsonNode, ArrayNode> {
+public abstract class JsonMethod extends Callable<IJsonNode, IArrayNode> {
 	/**
 	 * 
 	 */

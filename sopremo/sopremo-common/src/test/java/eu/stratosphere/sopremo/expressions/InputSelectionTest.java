@@ -6,7 +6,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class InputSelectionTest extends EvaluableExpressionTest<InputSelection> {
 
@@ -17,7 +17,7 @@ public class InputSelectionTest extends EvaluableExpressionTest<InputSelection> 
 
 	@Test
 	public void shouldSelectCorrectInput() {
-		final JsonNode result = new InputSelection(1).evaluate(createArrayNode(IntNode.valueOf(0), IntNode.valueOf(1)),
+		final IJsonNode result = new InputSelection(1).evaluate(createArrayNode(IntNode.valueOf(0), IntNode.valueOf(1)),
 			this.context);
 
 		Assert.assertEquals(IntNode.valueOf(1), result);

@@ -10,7 +10,7 @@ import eu.stratosphere.pact.testing.PactRecordEqualer;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -49,8 +49,8 @@ public class ObjectSchemaTest {
 		record.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
 		record.setField(2, new JsonNodeWrapper(new ObjectNode()));
 
-		JsonNode result = this.schema.recordToJson(record, null);
-		JsonNode expected = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
+		IJsonNode result = this.schema.recordToJson(record, null);
+		IJsonNode expected = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
 
 		Assert.assertEquals(expected, result);
@@ -79,8 +79,8 @@ public class ObjectSchemaTest {
 		record.setField(2, new JsonNodeWrapper(new ObjectNode()));
 
 
-		JsonNode target = new ObjectNode();
-		JsonNode result = this.schema.recordToJson(record, target);
+		IJsonNode target = new ObjectNode();
+		IJsonNode result = this.schema.recordToJson(record, target);
 
 		Assert.assertSame(target, result);
 	}
@@ -108,7 +108,7 @@ public class ObjectSchemaTest {
 		record.setField(
 			0,
 			new JsonNodeWrapper(object));
-		JsonNode result = this.schema.recordToJson(record, null);
+		IJsonNode result = this.schema.recordToJson(record, null);
 		Assert.assertEquals(object, result);
 	}
 	

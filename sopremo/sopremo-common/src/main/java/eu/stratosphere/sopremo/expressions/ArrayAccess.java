@@ -2,7 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 /**
@@ -73,10 +74,10 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		if (this.isSelectingAll())
 			return node;
-		final int size = ((ArrayNode) node).size();
+		final int size = ((IArrayNode) node).size();
 		if (this.isSelectingRange()) {
 			final ArrayNode arrayNode = new ArrayNode();
 			int index = this.resolveIndex(this.startIndex, size);
@@ -84,33 +85,33 @@ public class ArrayAccess extends EvaluationExpression {
 			final int increment = index < endIndex ? 1 : -1;
 
 			for (boolean moreElements = true; moreElements; index += increment) {
-				arrayNode.add(((ArrayNode) node).get(index));
+				arrayNode.add(((IArrayNode) node).get(index));
 				moreElements = index != endIndex;
 			}
 			return arrayNode;
 		}
-		final JsonNode value = ((ArrayNode) node).get(this.resolveIndex(this.startIndex, size));
+		final IJsonNode value = ((IArrayNode) node).get(this.resolveIndex(this.startIndex, size));
 		return value == null ? NullNode.getInstance() : value;
 	}
 
 	@Override
-	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
 		if (this.isSelectingAll())
 			return value;
-		final int size = ((ArrayNode) node).size();
+		final int size = ((IArrayNode) node).size();
 		if (this.isSelectingRange()) {
-			final ArrayNode arrayNode = (ArrayNode) node;
+			final IArrayNode arrayNode = (IArrayNode) node;
 			int index = this.resolveIndex(this.startIndex, size), replaceIndex = 0;
 			final int endIndex = this.resolveIndex(this.endIndex, size);
 
 			final int increment = index < endIndex ? 1 : -1;
 
 			for (boolean moreElements = true; moreElements; index += increment, replaceIndex++) {
-				arrayNode.set(index, ((ArrayNode) node).get(replaceIndex));
+				arrayNode.set(index, ((IArrayNode) node).get(replaceIndex));
 				moreElements = index != endIndex;
 			}
 		} else
-			((ArrayNode) node).set(this.resolveIndex(this.startIndex, size), value);
+			((IArrayNode) node).set(this.resolveIndex(this.startIndex, size), value);
 		return node;
 	}
 

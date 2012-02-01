@@ -41,7 +41,10 @@ import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
@@ -144,7 +147,7 @@ public class JsonToCsv {
 
 		private String separator;
 
-		private JsonNode node;
+		private IJsonNode node;
 
 		private final PactString resultString = new PactString();
 
@@ -192,17 +195,17 @@ public class JsonToCsv {
 		/**
 		 * @param value
 		 */
-		private void discoverEntries(final JsonNode value, final LinkedList<EvaluationExpression> path) {
+		private void discoverEntries(final IJsonNode value, final LinkedList<EvaluationExpression> path) {
 			if (value instanceof ObjectNode)
-				for (final Entry<String, JsonNode> entry : ((ObjectNode) value).getEntries()) {
+				for (final Entry<String, IJsonNode> entry : ((IObjectNode) value).getEntries()) {
 					path.push(new ObjectAccess(entry.getKey()));
 					this.discoverEntries(entry.getValue(), path);
 					path.pop();
 				}
 			else if (value instanceof ArrayNode)
-				for (int index = 0; index < ((ArrayNode) value).size(); index++) {
+				for (int index = 0; index < ((IArrayNode) value).size(); index++) {
 					path.push(new ArrayAccess(index));
-					this.discoverEntries(((ArrayNode) value).get(index), path);
+					this.discoverEntries(((IArrayNode) value).get(index), path);
 					path.pop();
 				}
 			else

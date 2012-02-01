@@ -8,7 +8,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
 import eu.stratosphere.sopremo.type.DoubleNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class AggregationExpressionTest extends EvaluableExpressionTest<AggregationExpression> {
 	@Override
@@ -27,7 +27,7 @@ public class AggregationExpressionTest extends EvaluableExpressionTest<Aggregati
 
 	@Test
 	public void shouldAggregate() {
-		final JsonNode result = new AggregationExpression(DefaultFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
+		final IJsonNode result = new AggregationExpression(DefaultFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
 			this.context);
 		Assert.assertEquals(new DoubleNode(3.0), result);
 	}

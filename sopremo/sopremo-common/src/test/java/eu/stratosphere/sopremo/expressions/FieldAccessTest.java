@@ -8,7 +8,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class FieldAccessTest extends EvaluableExpressionTest<ObjectAccess> {
 	@Override
@@ -18,7 +18,7 @@ public class FieldAccessTest extends EvaluableExpressionTest<ObjectAccess> {
 
 	@Test
 	public void shouldAccessFieldOfSingleObject() {
-		final JsonNode result = new ObjectAccess("fieldName").evaluate(
+		final IJsonNode result = new ObjectAccess("fieldName").evaluate(
 			createObjectNode("fieldName", 42, "fieldName2", 12),
 			this.context);
 		Assert.assertEquals(createValueNode(42), result);

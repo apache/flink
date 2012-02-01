@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class GenerateExpression extends EvaluationExpression {
@@ -24,7 +24,7 @@ public class GenerateExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		return TextNode.valueOf(String.format(this.pattern, context.getTaskId(), this.id++));
 	}
 }

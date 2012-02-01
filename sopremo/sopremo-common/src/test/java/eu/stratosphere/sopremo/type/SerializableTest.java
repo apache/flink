@@ -27,7 +27,7 @@ import eu.stratosphere.sopremo.type.TextNode;
 
 public class SerializableTest {
 
-	private static ObjectNode obj;
+	private static IObjectNode obj;
 
 	private ByteArrayOutputStream byteArray;
 
@@ -36,7 +36,7 @@ public class SerializableTest {
 	@BeforeClass
 	public static void setUpClass() {
 		obj = new ObjectNode();
-		final ArrayNode friends = new ArrayNode();
+		final IArrayNode friends = new ArrayNode();
 
 		friends.add(new ObjectNode().put("name", TextNode.valueOf("testfriend 1")).put("age", IntNode.valueOf(20))
 			.put("male", BooleanNode.TRUE));
@@ -66,7 +66,7 @@ public class SerializableTest {
 		final ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(this.byteArray.toByteArray());
 		final DataInputStream inStream = new DataInputStream(byteArrayIn);
 
-		final ObjectNode target = new ObjectNode();
+		final IObjectNode target = new ObjectNode();
 
 		try {
 			target.read(inStream);
@@ -88,7 +88,7 @@ public class SerializableTest {
 			e.printStackTrace();
 		}
 
-		final ObjectNode target = new ObjectNode();
+		final IObjectNode target = new ObjectNode();
 
 		final ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(this.byteArray.toByteArray());
 		final DataInputStream inStream = new DataInputStream(byteArrayIn);
@@ -106,7 +106,7 @@ public class SerializableTest {
 	@Test
 	public void shouldSerializeAndDeserializeGivenFile() {
 
-		final ArrayNode array = new ArrayNode();
+		final IArrayNode array = new ArrayNode();
 
 		try {
 			final JsonParser parser = new JsonParser(new URL(
@@ -121,7 +121,7 @@ public class SerializableTest {
 			final ByteArrayInputStream byteArrayIn = new ByteArrayInputStream(this.byteArray.toByteArray());
 			final DataInputStream inStream = new DataInputStream(byteArrayIn);
 
-			final ArrayNode target = new ArrayNode();
+			final IArrayNode target = new ArrayNode();
 			target.read(inStream);
 
 			// for watching the output

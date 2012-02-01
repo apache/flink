@@ -8,7 +8,7 @@ import java.io.ObjectOutputStream;
 
 import eu.stratosphere.pact.common.type.base.PactString;
 
-public class TextNode extends JsonNode {
+public class TextNode extends JsonNode implements IPrimitiveNode{
 
 	/**
 	 * 
@@ -100,7 +100,7 @@ public class TextNode extends JsonNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		return this.value.compareTo(((TextNode) other).value);
 	}
 

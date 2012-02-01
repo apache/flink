@@ -1,7 +1,8 @@
 package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class TransitiveAggregationFunction extends AggregationFunction {
 	/**
@@ -9,24 +10,24 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	 */
 	private static final long serialVersionUID = -4836890030948315219L;
 
-	private transient JsonNode aggregate;
+	private transient IJsonNode aggregate;
 
-	private final JsonNode initialAggregate;
+	private final IJsonNode initialAggregate;
 
-	public TransitiveAggregationFunction(final String name, final JsonNode initialAggregate) {
+	public TransitiveAggregationFunction(final String name, final IJsonNode initialAggregate) {
 		super(name);
 		this.initialAggregate = initialAggregate;
 	}
 
 	@Override
-	public void aggregate(final JsonNode node, final EvaluationContext context) {
+	public void aggregate(final IJsonNode node, final EvaluationContext context) {
 		this.aggregate = this.aggregate(this.aggregate, node, context);
 	}
 
-	protected abstract JsonNode aggregate(JsonNode aggregate, JsonNode node, EvaluationContext context);
+	protected abstract IJsonNode aggregate(IJsonNode aggregate, IJsonNode node, EvaluationContext context);
 
 	@Override
-	public JsonNode getFinalAggregate() {
+	public IJsonNode getFinalAggregate() {
 		return this.aggregate;
 	}
 

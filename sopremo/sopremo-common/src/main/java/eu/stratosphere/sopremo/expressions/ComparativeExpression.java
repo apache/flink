@@ -3,7 +3,8 @@ package eu.stratosphere.sopremo.expressions;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.BooleanNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NumericNode;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
@@ -34,11 +35,11 @@ public class ComparativeExpression extends BooleanExpression {
 	}
 
 	// @Override
-	// public Iterator<JsonNode> evaluate(Iterator<JsonNode> input) {
+	// public Iterator<IJsonNode> evaluate(Iterator<IJsonNode> input) {
 	// return binaryOperator.evaluate(expr1.evaluate(input), expr2.evaluate(input));
 	// }
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, context),
 			this.expr2.evaluate(node, context)));
 	}
@@ -77,7 +78,7 @@ public class ComparativeExpression extends BooleanExpression {
 				return comparisonResult == 0;
 			}
 			// @Override
-			// public boolean evaluate(JsonNode e1, JsonNode e2) {
+			// public boolean evaluate(IJsonNode e1, IJsonNode e2) {
 			// return e1.equals(e2);
 			// };
 		},
@@ -87,7 +88,7 @@ public class ComparativeExpression extends BooleanExpression {
 				return comparisonResult != 0;
 			}
 			// @Override
-			// public boolean evaluate(JsonNode e1, JsonNode e2) {
+			// public boolean evaluate(IJsonNode e1, IJsonNode e2) {
 			// return !e1.equals(e2);
 			// };
 		},
@@ -138,7 +139,7 @@ public class ComparativeExpression extends BooleanExpression {
 			this.sign = sign;
 		}
 
-		public boolean evaluate(final JsonNode e1, final JsonNode e2) {
+		public boolean evaluate(final IJsonNode e1, final IJsonNode e2) {
 			if (e1.getClass() != e2.getClass()) {
 				if (e1 instanceof NumericNode && e2 instanceof NumericNode)
 					return this.isTrue(e1.compareTo(e2));

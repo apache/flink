@@ -8,7 +8,7 @@ import java.io.Serializable;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
-public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
+public abstract class JsonNode implements IJsonNode {
 
 	/**
 	 * 
@@ -48,14 +48,26 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 
 	};
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#getType()
+	 */
+	@Override
 	public abstract JsonNode.Type getType();
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#canonicalize()
+	 */
+	@Override
 	public JsonNode canonicalize() {
 		return this;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#clone()
+	 */
+
 	@Override
-	public JsonNode clone() {
+	public IJsonNode clone() {
 		try {
 			return (JsonNode) super.clone();
 		} catch (final CloneNotSupportedException e) {
@@ -63,38 +75,74 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#read(java.io.DataInput)
+	 */
+
 	@Override
 	public abstract void read(DataInput in) throws IOException;
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#write(java.io.DataOutput)
+	 */
 
 	@Override
 	public abstract void write(DataOutput out) throws IOException;
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#isNull()
+	 */
+	@Override
 	public boolean isNull() {
 		return false;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#isObject()
+	 */
+	@Override
 	public boolean isObject() {
 		return false;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#isArray()
+	 */
+	@Override
 	public boolean isArray() {
 		return false;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#isTextual()
+	 */
+	@Override
 	public boolean isTextual() {
 		return false;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#getJavaValue()
+	 */
+	@Override
 	public abstract Object getJavaValue();
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#compareTo(eu.stratosphere.pact.common.type.Key)
+	 */
 
 	@Override
 	public int compareTo(final Key other) {
-		if (this.getType() != ((JsonNode) other).getType())
-			return this.getType().compareTo(((JsonNode) other).getType());
-		return this.compareToSameType((JsonNode) other);
+		if (this.getType() != ((IJsonNode) other).getType())
+			return this.getType().compareTo(((IJsonNode) other).getType());
+		return this.compareToSameType((IJsonNode) other);
 	}
 
-	public abstract int compareToSameType(JsonNode other);
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#compareToSameType(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
+	@Override
+	public abstract int compareToSameType(IJsonNode other);
 
 	@Override
 	public String toString() {
@@ -103,6 +151,10 @@ public abstract class JsonNode implements Serializable, Value, Key, Cloneable {
 		return sb.toString();
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#toString(java.lang.StringBuilder)
+	 */
+	@Override
 	public abstract StringBuilder toString(StringBuilder sb);
 
 }

@@ -6,7 +6,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjection> {
 	@Override
@@ -16,7 +16,7 @@ public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjec
 
 	@Test
 	public void shouldAccessFieldOfArray() {
-		final JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
+		final IJsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			this.context);
@@ -25,7 +25,7 @@ public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjec
 
 	@Test
 	public void shouldAccessFieldOfStreamArray() {
-		final JsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
+		final IJsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			this.context);

@@ -6,7 +6,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 	@Override
@@ -16,7 +16,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldAccessAllElements() {
-		final JsonNode result = new ArrayAccess().evaluate(
+		final IJsonNode result = new ArrayAccess().evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)),
@@ -28,7 +28,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldAccessOneElement() {
-		final JsonNode result = new ArrayAccess(1).evaluate(
+		final IJsonNode result = new ArrayAccess(1).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			this.context);
@@ -37,7 +37,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldAccessOneElementWithNegativeIndex() {
-		final JsonNode result = new ArrayAccess(-1).evaluate(
+		final IJsonNode result = new ArrayAccess(-1).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
 			this.context);
@@ -46,7 +46,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldAccessRangeOfElement() {
-		final JsonNode result = new ArrayAccess(1, 3).evaluate(
+		final IJsonNode result = new ArrayAccess(1, 3).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)),
@@ -57,7 +57,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldAccessRangeOfElementWithNegativeEndIndex() {
-		final JsonNode result = new ArrayAccess(1, -1).evaluate(
+		final IJsonNode result = new ArrayAccess(1, -1).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)),
@@ -69,7 +69,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldAccessRangeOfElementWithNegativeStartAndEndIndex() {
-		final JsonNode result = new ArrayAccess(-3, -1).evaluate(
+		final IJsonNode result = new ArrayAccess(-3, -1).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)),
@@ -80,7 +80,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldAccessRangeOfElementWithNegativeStartIndex() {
-		final JsonNode result = new ArrayAccess(-3, 4).evaluate(
+		final IJsonNode result = new ArrayAccess(-3, 4).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)),
@@ -91,7 +91,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldAccessReversedRangeOfElements() {
-		final JsonNode result = new ArrayAccess(3, 1).evaluate(
+		final IJsonNode result = new ArrayAccess(3, 1).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)),

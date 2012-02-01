@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
@@ -19,7 +20,7 @@ public class ComparativeExpressionTest extends EvaluableExpressionTest<Comparati
 	}
 
 	@Ignore
-	public JsonNode evaluate(final JsonNode expr1, final BinaryOperator op, final JsonNode expr2) {
+	public IJsonNode evaluate(final JsonNode expr1, final BinaryOperator op, final IJsonNode expr2) {
 		return new ComparativeExpression(new InputSelection(0), op, new InputSelection(1)).evaluate(
 			createArrayNode(expr1, expr2), this.context);
 

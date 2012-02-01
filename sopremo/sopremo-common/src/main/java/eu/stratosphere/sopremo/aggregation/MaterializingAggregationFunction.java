@@ -5,7 +5,8 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class MaterializingAggregationFunction extends AggregationFunction {
 
@@ -14,7 +15,7 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 	 */
 	private static final long serialVersionUID = 3685213903416162250L;
 
-	private transient List<JsonNode> nodes;
+	private transient List<IJsonNode> nodes;
 
 	public MaterializingAggregationFunction() {
 		super("<values>");
@@ -25,13 +26,13 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 	}
 
 	@Override
-	public void aggregate(final JsonNode node, final EvaluationContext context) {
+	public void aggregate(final IJsonNode node, final EvaluationContext context) {
 		this.nodes.add(node);
 	}
 
 	@Override
-	public JsonNode getFinalAggregate() {
-		final ArrayNode arrayNode = new ArrayNode();
+	public IJsonNode getFinalAggregate() {
+		final IArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(this.processNodes(this.nodes));
 		this.nodes = null;
 		return arrayNode;
@@ -39,10 +40,10 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 
 	@Override
 	public void initialize() {
-		this.nodes = new ArrayList<JsonNode>();
+		this.nodes = new ArrayList<IJsonNode>();
 	}
 
-	protected List<JsonNode> processNodes(final List<JsonNode> nodes) {
+	protected List<IJsonNode> processNodes(final List<IJsonNode> nodes) {
 		return nodes;
 	}
 }

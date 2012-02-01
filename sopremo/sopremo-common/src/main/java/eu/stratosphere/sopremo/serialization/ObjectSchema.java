@@ -8,7 +8,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
 public class ObjectSchema implements Schema {
@@ -37,7 +38,7 @@ public class ObjectSchema implements Schema {
 	}
 
 	@Override
-	public PactRecord jsonToRecord(JsonNode value, PactRecord target) {
+	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
 		if(target == null){
 			
 			//the last element is the field "others"
@@ -45,8 +46,8 @@ public class ObjectSchema implements Schema {
 		}
 		
 		for(int i=0; i<this.mapping.size(); i++){
-			target.setField(i, new JsonNodeWrapper(((ObjectNode)value).get(this.mapping.get(i))));
-			((ObjectNode)value).remove(this.mapping.get(i));
+			target.setField(i, new JsonNodeWrapper(((IObjectNode)value).get(this.mapping.get(i))));
+			((IObjectNode)value).remove(this.mapping.get(i));
 		}
 		
 		target.setField(this.mapping.size(), new JsonNodeWrapper(value));
@@ -55,7 +56,7 @@ public class ObjectSchema implements Schema {
 	}
 
 	@Override
-	public JsonNode recordToJson(PactRecord record, JsonNode target) {
+	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
 		if(this.mapping.size()+1 != record.getNumFields()){
 			throw new IllegalStateException("Schema does not match to record!");
 		}
@@ -63,14 +64,14 @@ public class ObjectSchema implements Schema {
 		if(target == null){
 			target = new ObjectNode();
 		} else {
-			((ObjectNode)target).removeAll();
+			((IObjectNode)target).removeAll();
 		}
 		
 		for(int i=0; i< this.mapping.size(); i++){
-			((ObjectNode)target).put(this.mapping.get(i), SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
+			((IObjectNode)target).put(this.mapping.get(i), SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
 		}
 		
-		((ObjectNode)target).putAll((ObjectNode)SopremoUtil.unwrap(record.getField(this.mapping.size(), JsonNodeWrapper.class)));	
+		((IObjectNode)target).putAll((IObjectNode)SopremoUtil.unwrap(record.getField(this.mapping.size(), JsonNodeWrapper.class)));	
 
 		
 		return target;

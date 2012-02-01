@@ -8,7 +8,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementInSetExpression> {
 
@@ -21,7 +21,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 
 	@Test
 	public void shouldFindElementInSet() {
-		final JsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
+		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(2),
 				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), this.context);
@@ -31,7 +31,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 
 	@Test
 	public void shouldNotFindElementInSet() {
-		final JsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
+		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(0),
 				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), this.context);
@@ -41,7 +41,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 
 	@Test
 	public void shouldFindNonexistingElementInSet() {
-		final JsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_NOT_IN,
+		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_NOT_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(2),
 				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), this.context);
@@ -51,7 +51,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 
 	@Test
 	public void shouldNotFindNonexistingElementInSet() {
-		final JsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_NOT_IN,
+		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_NOT_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(0),
 				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), this.context);
@@ -61,7 +61,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 
 	@Test
 	public void shouldReturnFalseIfSetIsEmpty() {
-		final JsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
+		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(2),
 				createArrayNode()), this.context);

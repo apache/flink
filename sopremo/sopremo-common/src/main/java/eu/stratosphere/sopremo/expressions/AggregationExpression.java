@@ -2,7 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
-import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 public class AggregationExpression extends EvaluationExpression {
@@ -25,9 +26,9 @@ public class AggregationExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode nodes, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode nodes, final EvaluationContext context) {
 		this.function.initialize();
-		for (final JsonNode node : (ArrayNode) nodes)
+		for (final IJsonNode node : (IArrayNode) nodes)
 			this.function.aggregate(this.preprocessing.evaluate(node, context), context);
 		return this.function.getFinalAggregate();
 	}

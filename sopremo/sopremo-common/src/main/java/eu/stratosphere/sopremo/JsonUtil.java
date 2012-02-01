@@ -12,8 +12,10 @@ import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JavaToJsonMapper;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
@@ -41,7 +43,7 @@ public class JsonUtil {
 	// */
 	// public static final JsonFactory FACTORY = new JsonFactory();
 
-	public static final JsonNode ZERO = new IntNode(0);
+	public static final IJsonNode ZERO = new IntNode(0);
 
 	/**
 	 * Creates an efficient read-only wrapper for the given node array.
@@ -50,7 +52,7 @@ public class JsonUtil {
 	 *        the nodes to wrap
 	 * @return an efficient wrapper
 	 */
-	public static ArrayNode asArray(final JsonNode... nodes) {
+	public static ArrayNode asArray(final IJsonNode... nodes) {
 		return new ArrayNode(nodes);
 	}
 
@@ -68,10 +70,10 @@ public class JsonUtil {
 	 * @see #wrapWithNode(boolean, List)
 	 */
 	@SuppressWarnings("unchecked")
-	public static JsonNode wrapWithNode(final boolean resettable, final Iterator<?>... objectIterators) {
+	public static IJsonNode wrapWithNode(final boolean resettable, final Iterator<?>... objectIterators) {
 		final JsonNode[] streamNodes = new JsonNode[objectIterators.length];
 		for (int index = 0; index < streamNodes.length; index++)
-			streamNodes[index] = wrapWithNode(resettable, (Iterator<JsonNode>) objectIterators[index]);
+			streamNodes[index] = wrapWithNode(resettable, (Iterator<IJsonNode>) objectIterators[index]);
 		return new ArrayNode(streamNodes);
 	}
 
@@ -86,7 +88,7 @@ public class JsonUtil {
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the stream
 	 */
-	public static ArrayNode wrapWithNode(final boolean resettable, final Iterator<JsonNode> objectIterator) {
+	public static ArrayNode wrapWithNode(final boolean resettable, final Iterator<IJsonNode> objectIterator) {
 		return ArrayNode.valueOf(objectIterator/* , resettable */);
 	}
 
@@ -101,9 +103,9 @@ public class JsonUtil {
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the streams
 	 */
-	public static JsonNode wrapWithNode(final boolean resettable,
+	public static IJsonNode wrapWithNode(final boolean resettable,
 			final List<? extends Iterator<JsonNode>> objectIterators) {
-		final JsonNode[] streamNodes = new JsonNode[objectIterators.size()];
+		final IJsonNode[] streamNodes = new JsonNode[objectIterators.size()];
 		for (int index = 0; index < streamNodes.length; index++)
 			streamNodes[index] = wrapWithNode(resettable, objectIterators.get(index));
 		return new ArrayNode(streamNodes);
@@ -143,7 +145,7 @@ public class JsonUtil {
 		return (ArrayNode) JsonUtil.OBJECT_MAPPER.valueToTree(constants);
 	}
 
-	public static ArrayNode createCompactArray(final Object... constants) {
+	public static IArrayNode createCompactArray(final Object... constants) {
 		final JsonNode[] nodes = new JsonNode[constants.length];
 		for (int index = 0; index < nodes.length; index++)
 			nodes[index] = createValueNode(constants[index]);

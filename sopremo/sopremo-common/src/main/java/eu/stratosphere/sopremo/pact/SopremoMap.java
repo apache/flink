@@ -6,7 +6,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.serialization.Schema;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class SopremoMap extends MapStub {
 	private EvaluationContext context;
@@ -15,7 +15,7 @@ public abstract class SopremoMap extends MapStub {
 
 	private JsonCollector collector;
 
-	private JsonNode cachedInput;
+	private IJsonNode cachedInput;
 
 	@Override
 	public void open(final Configuration parameters) {
@@ -29,7 +29,7 @@ public abstract class SopremoMap extends MapStub {
 		return this.context;
 	}
 
-	protected abstract void map(JsonNode value, JsonCollector out);
+	protected abstract void map(IJsonNode value, JsonCollector out);
 
 	/*
 	 * (non-Javadoc)
@@ -40,7 +40,7 @@ public abstract class SopremoMap extends MapStub {
 	public void map(final PactRecord record, final Collector out) throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.setCollector(out);
-		final JsonNode input = this.inputSchema.recordToJson(record, this.cachedInput);
+		final IJsonNode input = this.inputSchema.recordToJson(record, this.cachedInput);
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), input));
 		try {

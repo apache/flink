@@ -10,7 +10,7 @@ import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 
-public class DoubleNode extends NumericNode {
+public class DoubleNode extends NumericNode implements INumericNode{
 
 	/**
 	 * 
@@ -136,7 +136,7 @@ public class DoubleNode extends NumericNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		return Double.compare(this.value.getValue(), ((DoubleNode) other).value.getValue());
 	}
 }

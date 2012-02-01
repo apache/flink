@@ -33,9 +33,9 @@ public class JavaToJsonMapper {
 	}
 
 	@SuppressWarnings("unchecked")
-	public Class<? extends JsonNode> classToJsonType(final Class<?> javaClass) {
-		if (JsonNode.class.isAssignableFrom(javaClass))
-			return (Class<? extends JsonNode>) javaClass;
+	public Class<? extends IJsonNode> classToJsonType(final Class<?> javaClass) {
+		if (IJsonNode.class.isAssignableFrom(javaClass))
+			return (Class<? extends IJsonNode>) javaClass;
 
 		if (javaClass == Void.TYPE)
 			return NullNode.class;

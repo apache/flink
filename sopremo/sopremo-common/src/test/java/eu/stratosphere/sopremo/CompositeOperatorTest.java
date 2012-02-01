@@ -16,7 +16,8 @@ import eu.stratosphere.pact.common.plan.ContractNavigator;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.dag.GraphLevelPartitioner;
 import eu.stratosphere.util.dag.GraphLevelPartitioner.Level;
 
@@ -113,11 +114,11 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		static class Implementation extends SopremoCross {
 			/*
 			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.pact.SopremoCross#cross(eu.stratosphere.sopremo.type.JsonNode,
-			 * eu.stratosphere.sopremo.type.JsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 * @see eu.stratosphere.sopremo.pact.SopremoCross#cross(eu.stratosphere.sopremo.type.IJsonNode,
+			 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void cross(final JsonNode value1, final JsonNode value2, final JsonCollector out) {
+			protected void cross(final IJsonNode value1, final IJsonNode value2, final JsonCollector out) {
 			}
 		}
 	}

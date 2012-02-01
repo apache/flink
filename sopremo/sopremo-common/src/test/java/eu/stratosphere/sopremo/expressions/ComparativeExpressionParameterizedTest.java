@@ -16,14 +16,15 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 @RunWith(Parameterized.class)
 public class ComparativeExpressionParameterizedTest {
 
-	private final JsonNode expr1, expr2;
+	private final IJsonNode expr1, expr2;
 
 	private final BinaryOperator op;
 
@@ -31,7 +32,7 @@ public class ComparativeExpressionParameterizedTest {
 
 	private final EvaluationContext context = new EvaluationContext();
 
-	public ComparativeExpressionParameterizedTest(final JsonNode expr1, final BinaryOperator op, final JsonNode expr2,
+	public ComparativeExpressionParameterizedTest(final IJsonNode expr1, final BinaryOperator op, final IJsonNode expr2,
 			final BooleanNode ExpectedResult) {
 		this.expr1 = expr1;
 		this.expr2 = expr2;
@@ -40,7 +41,7 @@ public class ComparativeExpressionParameterizedTest {
 	}
 
 	@Ignore
-	public JsonNode evaluate(final JsonNode expr1, final BinaryOperator op, final JsonNode expr2) {
+	public IJsonNode evaluate(final IJsonNode expr1, final BinaryOperator op, final IJsonNode expr2) {
 		return new ComparativeExpression(new InputSelection(0), op, new InputSelection(1)).evaluate(
 			createArrayNode(expr1, expr2), this.context);
 
@@ -48,7 +49,7 @@ public class ComparativeExpressionParameterizedTest {
 
 	@Test
 	public void shouldReturnExpectedResultsForComparators() {
-		final JsonNode result = this.evaluate(this.expr1, this.op, this.expr2);
+		final IJsonNode result = this.evaluate(this.expr1, this.op, this.expr2);
 		Assert.assertEquals(this.ExpectedResult, result);
 
 	}
