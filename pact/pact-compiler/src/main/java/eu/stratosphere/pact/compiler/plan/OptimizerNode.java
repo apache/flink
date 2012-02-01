@@ -35,7 +35,7 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitWrites;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModification;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -1315,7 +1315,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	protected void readWritesAnnotation() {
 
 		// get readSet annotation from stub
-		ExplicitWrites addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(ExplicitWrites.class);
+		ExplicitModification addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(ExplicitModification.class);
 		
 		// extract addSet from annotation
 		if(addSetAnnotation == null) {

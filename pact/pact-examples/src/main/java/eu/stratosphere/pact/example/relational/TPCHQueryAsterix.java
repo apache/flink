@@ -32,7 +32,7 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitWrites;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModification;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
@@ -77,7 +77,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	@ExplicitCopies(fields={})
 	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Copy)
 	@ExplicitProjections(fields={})
-	@ExplicitWrites(fields={0})
+	@ExplicitModification(fields={0})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinCO extends MatchStub {
 
@@ -106,7 +106,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	@Reads(fields={0})
 	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
 	@ExplicitProjections(fields={})
-	@ExplicitWrites(fields={0})
+	@ExplicitModification(fields={0})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggCO extends ReduceStub {
 

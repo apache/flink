@@ -79,7 +79,7 @@ public class StubAnnotation
 	 * Specifies the read set for the first input of a stub with two inputs ( {@link CrossStub}, 
 	 * {@link MatchStub}, {@link CoGroupStub}).
 	 * The {@link ReadsFirst#fields()} attribute of the read set specifies all fields of the record 
-	 * that the stub reads from the first input's tuples and uses to modify its output. 
+	 * that the stub reads from the first input's records and uses to modify its output. 
 	 * This is the case for if the value is used in conditional statements or to compute new values.   
 	 *
 	 * It is very important the the ReadSet contains at least all fields that are read in order to guarantee 
@@ -99,7 +99,7 @@ public class StubAnnotation
 	 * Specifies the read set for the second input of a stub with two inputs ( {@link CrossStub}, 
 	 * {@link MatchStub}, {@link CoGroupStub}).
 	 * The {@link ReadsSecond#fields()} attribute of the read set specifies all fields of the record 
-	 * that the stub reads from the second input's tuples and uses to modify its output. 
+	 * that the stub reads from the second input's records and uses to modify its output. 
 	 * This is the case for if the value is used in conditional statements or to compute new values.   
 	 *
 	 * It is very important the the ReadSet contains at least all fields that are read in order to guarantee 
@@ -114,6 +114,19 @@ public class StubAnnotation
 		int[] fields();
 	}
 	
+	/**
+	 * Specifies the implicit operation that is applied to the fields of input records 
+	 * of stub with a single input ( {@link MapStub}, {@link ReduceStub}).
+	 * Fields can either be implicitly copied or projected.
+	 * 
+	 * Implicit copying happens if all fields are copied to the output of the stub. For example, this is the 
+	 * case if input records are (modified) and emitted by the stub. It is important to notice
+	 * that implicit copy requires that <i>by default all</i> fields of an input record are emitted.
+	 * 
+	 * In contrast, implicit projection happens if no field is copied to the output. For example, this is the
+	 * case if a new {@link PactRecord} is created and emitted by the stub. 
+	 * 
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ImplicitOperation
@@ -123,6 +136,20 @@ public class StubAnnotation
 		ImplicitOperationMode implicitOperation();
 	}
 	
+	/**
+	 * Specifies the implicit operation that is applied to the fields of input records of the first input 
+	 * of stub with two inputs ( {@link CrossStub}, {@link MatchStub}, {@link CoGroupStub}).
+	 * Fields can either be implicitly copied or projected.
+	 * 
+	 * Implicit copying happens if all fields of the input are copied to the output of the stub. 
+	 * For example, this is the case if input records are (modified) and emitted by the stub. 
+	 * It is important to notice that implicit copy requires that <i>by default all</i> fields 
+	 * of an input record are emitted.
+	 * 
+	 * In contrast, implicit projection happens if no field of the input is copied to the output. 
+	 * For example, this is the case if a new {@link PactRecord} is created and emitted by the stub. 
+	 * 
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ImplicitOperationFirst
@@ -130,6 +157,20 @@ public class StubAnnotation
 		ImplicitOperationMode implicitOperation();
 	}
 	
+	/**
+	 * Specifies the implicit operation that is applied to the fields of input records of the second input 
+	 * of stub with two inputs ( {@link CrossStub}, {@link MatchStub}, {@link CoGroupStub}).
+	 * Fields can either be implicitly copied or projected.
+	 * 
+	 * Implicit copying happens if all fields of the input are copied to the output of the stub. 
+	 * For example, this is the case if input records are (modified) and emitted by the stub. 
+	 * It is important to notice that implicit copy requires that <i>by default all</i> fields 
+	 * of an input record are emitted.
+	 * 
+	 * In contrast, implicit projection happens if no field of the input is copied to the output. 
+	 * For example, this is the case if a new {@link PactRecord} is created and emitted by the stub. 
+	 * 
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ImplicitOperationSecond
@@ -137,6 +178,27 @@ public class StubAnnotation
 		ImplicitOperationMode implicitOperation();
 	}
 	
+	/**
+	 * Specifies the fields of an input record that are explicitly copied to the output of 
+	 * a stub with a single input ( {@link MapStub}, {@link ReduceStub}).
+	 * This annotation should be used and is only interpreted if the {@link ImplicitOperation} of the 
+	 * input is set to {@link ImplicitOperation.ImplicitOperationMode#Projection}.
+	 * 
+	 * Since the default behavior is <i>projection</i> this annotation specifies which fields are 
+	 * explicitly copied to records that are emitted by the stub.
+	 * A field is considered to be copied if its value is not changed and copied to the same position of 
+	 * output record.
+	 * 
+	 * <b>
+	 * It is very important to follow a conservative strategy when specifying explicit copies.
+	 * Only fields that are copied always (regardless of value, stub call, etc.) to the output may be 
+	 * inserted! Otherwise, the correct execution of a PACT program can not be guaranteed.
+	 * So if in doubt, do not add a field to this set.
+	 * </b>
+	 * 
+	 * If this annotation is not set, it is assumed that <i>no</i> field is copied.
+	 *
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ExplicitCopies
@@ -144,6 +206,27 @@ public class StubAnnotation
 		int[] fields();
 	}
 	
+	/**
+	 * Specifies the fields of an input record that are explicitly copied from the first input of  
+	 * a stub with two inputs ( {@link CrossStub}, {@link MatchStub}, {@link CoGroupStub}) to the output.
+	 * This annotation should be used and is only interpreted if the {@link ImplicitOperation} of the 
+	 * input is set to {@link ImplicitOperation.ImplicitOperationMode#Projection}.
+	 * 
+	 * Since in this case, the default behavior is <i>projection</i> this annotation specifies which fields are 
+	 * explicitly copied to records that are emitted by the stub.
+	 * A field is considered to be copied if its value is not changed and copied to the same position of 
+	 * output record.
+	 * 
+	 * <b>
+	 * It is very important to follow a conservative strategy when specifying explicit copies.
+	 * Only fields that are copied always (regardless of value, stub call, etc.) to the output may be 
+	 * inserted! Otherwise, the correct execution of a PACT program can not be guaranteed.
+	 * So if in doubt, do not add a field to this set.
+	 * </b>
+	 * 
+	 * If this annotation is not set, it is assumed that <i>no</i> field is copied.
+	 *
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ExplicitCopiesFirst
@@ -151,6 +234,27 @@ public class StubAnnotation
 		int[] fields();
 	}
 	
+	/**
+	 * Specifies the fields of an input record that are explicitly copied from the second input of  
+	 * a stub with two inputs ( {@link CrossStub}, {@link MatchStub}, {@link CoGroupStub}) to the output.
+	 * This annotation should be used and is only interpreted if the {@link ImplicitOperation} of the 
+	 * input is set to {@link ImplicitOperation.ImplicitOperationMode#Projection}.
+	 * 
+	 * Since in this case, the default behavior is <i>projection</i> this annotation specifies which fields are 
+	 * explicitly copied to records that are emitted by the stub.
+	 * A field is considered to be copied if its value is not changed and copied to the same position of 
+	 * output record.
+	 * 
+	 * <b>
+	 * It is very important to follow a conservative strategy when specifying explicit copies.
+	 * Only fields that are copied always (regardless of value, stub call, etc.) to the output may be 
+	 * inserted! Otherwise, the correct execution of a PACT program can not be guaranteed.
+	 * So if in doubt, do not add a field to this set.
+	 * </b>
+	 * 
+	 * If this annotation is not set, it is assumed that <i>no</i> field is copied.
+	 *
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ExplicitCopiesSecond
@@ -158,6 +262,26 @@ public class StubAnnotation
 		int[] fields();
 	}
 	
+	/**
+	 * Specifies the fields of an input record that are explicitly projected and not contained in the output of 
+	 * a stub with a single input ( {@link MapStub}, {@link ReduceStub}).
+	 * This annotation should be used and is only interpreted if the {@link ImplicitOperation} of the 
+	 * input is set to {@link ImplicitOperation.ImplicitOperationMode#Copy}.
+	 * 
+	 * Since the default behavior is <i>copy</i> this annotation specifies which fields are 
+	 * explicitly projected and not contained in records that are emitted by the stub.
+	 * A field is considered to be projected if the field of the output record is explicitly set to <i>null</i>.
+	 * 
+	 * <b>
+	 * It is very important to follow a conservative strategy when specifying explicit copies.
+	 * Every field that is projected in at least on output record must be inserted! 
+	 * Otherwise, the correct execution of a PACT program can not be guaranteed.
+	 * So if in doubt, add a field to the set of projected fields.
+	 * </b>
+	 * 
+	 * If this annotation is not set, it is assumed that <i>all</i> fields are projected.
+	 *
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ExplicitProjections
@@ -165,6 +289,27 @@ public class StubAnnotation
 		int[] fields();
 	}
 	
+	/**
+	 * Specifies the fields of an input record of the first input of a stub with two inputs 
+	 * ({@link CrossStub}, {@link MatchStub}, {@link CoGroupStub}) that are explicitly projected 
+	 * and not contained in the output.
+	 * This annotation should be used and is only interpreted if the {@link ImplicitOperation} of the 
+	 * input is set to {@link ImplicitOperation.ImplicitOperationMode#Copy}.
+	 * 
+	 * Since the default behavior is <i>copy</i> this annotation specifies which fields are 
+	 * explicitly projected and not contained in records that are emitted by the stub.
+	 * A field is considered to be projected if the field of the output record is explicitly set to <i>null</i>.
+	 * 
+	 * <b>
+	 * It is very important to follow a conservative strategy when specifying explicit copies.
+	 * Every field that is projected in at least on output record must be inserted! 
+	 * Otherwise, the correct execution of a PACT program can not be guaranteed.
+	 * So if in doubt, add a field to the set of projected fields.
+	 * </b>
+	 * 
+	 * If this annotation is not set, it is assumed that <i>all</i> fields are projected.
+	 *
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ExplicitProjectionsFirst
@@ -172,6 +317,27 @@ public class StubAnnotation
 		int[] fields();
 	}
 	
+	/**
+	 * Specifies the fields of an input record of the second input of a stub with two inputs 
+	 * ({@link CrossStub}, {@link MatchStub}, {@link CoGroupStub}) that are explicitly projected 
+	 * and not contained in the output.
+	 * This annotation should be used and is only interpreted if the {@link ImplicitOperation} of the 
+	 * input is set to {@link ImplicitOperation.ImplicitOperationMode#Copy}.
+	 * 
+	 * Since the default behavior is <i>copy</i> this annotation specifies which fields are 
+	 * explicitly projected and not contained in records that are emitted by the stub.
+	 * A field is considered to be projected if the field of the output record is explicitly set to <i>null</i>.
+	 * 
+	 * <b>
+	 * It is very important to follow a conservative strategy when specifying explicit copies.
+	 * Every field that is projected in at least on output record must be inserted! 
+	 * Otherwise, the correct execution of a PACT program can not be guaranteed.
+	 * So if in doubt, add a field to the set of projected fields.
+	 * </b>
+	 * 
+	 * If this annotation is not set, it is assumed that <i>all</i> fields are projected.
+	 *
+	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ExplicitProjectionsSecond
@@ -180,21 +346,23 @@ public class StubAnnotation
 	}
 
 	/**
-	 * Specifies the explicit write set.
-	 * The {@link ExplicitWrites#fields()} attribute contains all fields of the output record 
-	 * to which the stub explicitly applies non-null modifications. 
+	 * The {@link ExplicitModification} annotation contains all fields of the output record 
+	 * which have been explicitly modified. 
 	 * 
-	 * An explicit modification is done by calling the {@link PactRecord#setField(int, eu.stratosphere.pact.common.type.Value)}
-	 * method. 
+	 * An explicit modification is done by calling the 
+	 * {@link PactRecord#setField(int, eu.stratosphere.pact.common.type.Value)} method.
+	 * Setting a field to <i>null</i> is considered to be a projection and 
+	 * <b>not</b> a modification.
 	 * 
-	 * It is very important the the explicit write set  contains <b>at least</b> all fields that 
+	 * <b>
+	 * It is very important the the explicit write set contains <b>at least</b> all fields that may
 	 * have been modified in order to guarantee correct execution of PACT programs. 
-	 * Specifying a superset is not critical.
-	 *
+	 * So if in doubt, add a field to the modification annotation.
+	 * </b>
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ExplicitWrites
+	public @interface ExplicitModification
 	{
 		int[] fields();
 	}
