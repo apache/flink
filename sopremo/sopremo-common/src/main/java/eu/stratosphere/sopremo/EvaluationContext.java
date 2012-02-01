@@ -5,7 +5,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 import eu.stratosphere.sopremo.function.MethodRegistry;
-import eu.stratosphere.sopremo.type.Schema;
+import eu.stratosphere.sopremo.serialization.Schema;
 
 /**
  * Provides additional context to the evaluation of {@link Evaluable}s, such as access to all registered functions.

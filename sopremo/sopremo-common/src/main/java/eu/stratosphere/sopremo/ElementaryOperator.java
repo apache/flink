@@ -22,7 +22,7 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.Schema;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.util.IdentityList;
 import eu.stratosphere.util.reflect.ReflectUtil;
 

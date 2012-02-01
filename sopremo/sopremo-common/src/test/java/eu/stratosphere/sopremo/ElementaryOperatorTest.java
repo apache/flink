@@ -21,9 +21,9 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * The class <code>ElementaryOperatorTest</code> contains tests for the class <code>{@link ElementaryOperator}</code>.

@@ -5,8 +5,8 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.Schema;
 
 public abstract class SopremoMap extends MapStub {
 	private EvaluationContext context;

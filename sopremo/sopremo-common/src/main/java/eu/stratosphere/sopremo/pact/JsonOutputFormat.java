@@ -27,8 +27,8 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.io.JsonGenerator;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link JsonNode} .

@@ -16,7 +16,7 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
-import eu.stratosphere.sopremo.type.Schema;
+import eu.stratosphere.sopremo.serialization.Schema;
 
 @Ignore
 public class CsvInputFormatTest {

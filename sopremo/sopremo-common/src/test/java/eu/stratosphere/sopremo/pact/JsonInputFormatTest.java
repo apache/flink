@@ -22,11 +22,11 @@ import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.pact.testing.ioformats.FormatUtil;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.sopremo.type.Schema;
 
 /**
  * Tests {@link JsonInputFormat}.

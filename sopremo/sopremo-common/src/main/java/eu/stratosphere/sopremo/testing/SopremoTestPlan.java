@@ -23,10 +23,10 @@ import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.RecordToJsonIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
-import eu.stratosphere.sopremo.type.Schema;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
 public class SopremoTestPlan {

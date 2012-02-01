@@ -3,8 +3,8 @@ package eu.stratosphere.sopremo.pact;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.Schema;
 
 public class RecordToJsonIterator implements Iterator<JsonNode> {
 
