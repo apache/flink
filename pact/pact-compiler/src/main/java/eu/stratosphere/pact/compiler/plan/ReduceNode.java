@@ -481,7 +481,7 @@ public class ReduceNode extends SingleInputNode {
 				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
 			}
 			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
-				hints.setAvgNumValuesPerDistinctValue(keySet, hints.getAvgRecordsEmittedPerStubCall());
+				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
 			}
 		}
 		super.computeOutputEstimates(statistics);

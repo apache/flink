@@ -281,7 +281,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+4, 5);
 		// compiler hints
 //		orders.getCompilerHints().setAvgNumValuesPerKey(1);
-		orders.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 1);
+		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders.getCompilerHints().setAvgBytesPerRecord(16);
 
 		// create DataSourceContract for LineItems input
@@ -299,7 +299,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 5);
 		// compiler hints	
 //		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
-		lineitems.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 4);
+		lineitems.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 4);
 		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MapContract for filtering Orders tuples
@@ -312,14 +312,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		filterO.getCompilerHints().setAvgBytesPerRecord(16);
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
 //		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
-		filterO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 1);
+		filterO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinLiO = new MatchContract(JoinLiO.class, PactLong.class, 0, 0, filterO, lineitems, "JoinLiO");
 		joinLiO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
-		joinLiO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0, 1}), 4);
+		joinLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 4);
 //		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
 		// fixing the strategy
 		// TODO: remove
@@ -334,7 +334,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// compiler hints
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
 		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
-		aggLiO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0, 1}), 1);
+		aggLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");

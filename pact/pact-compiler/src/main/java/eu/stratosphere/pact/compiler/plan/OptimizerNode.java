@@ -809,7 +809,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			}
 			
 			if(this.estimatedNumRecords != -1) {
-				for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumValuesPerDistinctValues().entrySet()) {
+				for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
 					if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
 						long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
 								(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;

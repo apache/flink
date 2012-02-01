@@ -169,7 +169,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		// compiler hints
 		orders.getCompilerHints().setAvgBytesPerRecord(5);
 //		orders.getCompilerHints().setAvgNumValuesPerKey(10);
-		orders.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0}), 10);
+		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 10);
 		
 		// create DataSourceContract for Customer input
 		FileDataSource customers = new FileDataSource(RecordInputFormat.class, customerPath, "Customers");
@@ -185,7 +185,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		customers.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 6);
 		// compiler hints
 //		customers.getCompilerHints().setAvgNumValuesPerKey(1);
-		customers.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0}), 1);
+		customers.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		
 		// create MatchContract for joining Orders and LineItems
@@ -199,7 +199,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		aggCO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
-		aggCO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0}), 1);
+		aggCO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, "Output");

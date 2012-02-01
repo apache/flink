@@ -414,9 +414,9 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 					getAvgRecordsEmittedPerStubCall() ? "(none)" : String.valueOf(hints.getAvgRecordsEmittedPerStubCall()), false);
 			
 			String valuesKey = "(none)";
-			if (hints.getAvgNumValuesPerDistinctValues().size() > 0) {
+			if (hints.getAvgNumRecordsPerDistinctFields().size() > 0) {
 				valuesKey = "";
-				for (Entry<FieldSet, Float> entry : hints.getAvgNumValuesPerDistinctValues().entrySet()) {
+				for (Entry<FieldSet, Float> entry : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
 					valuesKey += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
 				}
 			}

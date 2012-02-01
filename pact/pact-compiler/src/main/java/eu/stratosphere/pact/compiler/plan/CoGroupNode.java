@@ -807,7 +807,7 @@ public class CoGroupNode extends TwoInputNode {
 				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
 			}
 			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
-				hints.setAvgNumValuesPerDistinctValue(keySet, hints.getAvgRecordsEmittedPerStubCall());
+				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
 			}
 		}
 		
@@ -818,7 +818,7 @@ public class CoGroupNode extends TwoInputNode {
 				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
 			}
 			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
-				hints.setAvgNumValuesPerDistinctValue(keySet, hints.getAvgRecordsEmittedPerStubCall());
+				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
 			}
 		}
 		

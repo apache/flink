@@ -139,21 +139,21 @@ public class CompilerHints {
 	 * 
 	 * @return The average number of records for all specified field sets.
 	 */
-	public Map<FieldSet, Float> getAvgNumValuesPerDistinctValues() {
+	public Map<FieldSet, Float> getAvgNumRecordsPerDistinctFields() {
 		return avgNumRecordsPerDistinctFields;
 	}
 
 	/**
 	 * Sets the average number of records per distinct field set for the contract containing these hints.
 	 * 
-	 * @param avgNumValues
+	 * @param avgNumRecords
 	 *        The average number of records per distinct field set to set.
 	 */
-	public void setAvgNumValuesPerDistinctValue(FieldSet fieldSet, float avgNumValues) {
-		if(avgNumValues < 0) {
+	public void setAvgNumRecordsPerDistinctFields(FieldSet fieldSet, float avgNumRecords) {
+		if(avgNumRecords < 0) {
 			throw new IllegalArgumentException("Average Number of Values per distinct Values must be >= 0");
 		}
-		this.avgNumRecordsPerDistinctFields.put(fieldSet, avgNumValues);
+		this.avgNumRecordsPerDistinctFields.put(fieldSet, avgNumRecords);
 	}
 
 	/**
