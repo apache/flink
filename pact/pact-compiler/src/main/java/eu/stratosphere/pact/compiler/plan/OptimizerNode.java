@@ -716,13 +716,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		if (!allPredsAvailable) {
 			// Preceding node is not available, we take hints as given
 			//this.estimatedKeyCardinality = hints.getKeyCardinality();
-			this.estimatedCardinality.putAll(hints.getCardinalities());
+			this.estimatedCardinality.putAll(hints.getDistinctCounts());
 			
 			this.estimatedNumRecords = 0;
 			int count = 0;
 			
-			for (Entry<FieldSet, Long> cardinality : hints.getCardinalities().entrySet()) {
-				float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 				if (avgNumValues != -1) {
 					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
 					count++;
@@ -754,8 +754,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 			//If we have cardinalities and avg num values available for some fields, calculate 
 			//the average of those
-			for (Entry<FieldSet, Long> cardinality : hints.getCardinalities().entrySet()) {
-				float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 				if (avgNumValues != -1) {
 					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
 					count++;
@@ -782,7 +782,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 						
 			// ############# output key cardinality estimation ##########
 
-			this.estimatedCardinality.putAll(hints.getCardinalities());	
+			this.estimatedCardinality.putAll(hints.getDistinctCounts());	
 
 			for (int input = 0; input < getIncomingConnections().size(); input++) {
 				int[] keyColumns;
@@ -826,7 +826,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 				count = 0;
 				
 				for (Entry<FieldSet, Long> cardinality : estimatedCardinality.entrySet()) {
-					float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
+					float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 					if (avgNumValues != -1) {
 						// we have a hint for average values per key
 						newEstimatedNumRecords += cardinality.getValue() * avgNumValues;

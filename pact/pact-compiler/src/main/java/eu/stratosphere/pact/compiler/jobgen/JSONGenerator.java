@@ -403,7 +403,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			this.jsonString.append(",\n\t\t\"compiler_hints\": [\n");
 
 			String hintCardinality = "(none)";
-			if (hints.getCardinalities().size() > 0) {
+			if (hints.getDistinctCounts().size() > 0) {
 				hintCardinality = "";
 				for (Entry<FieldSet, Long> entry : visitable.getEstimatedCardinalities().entrySet()) {
 					hintCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 

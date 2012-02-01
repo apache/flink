@@ -205,7 +205,7 @@ public class DataSourceNode extends OptimizerNode
 		// or we assume for robustness reasons that every record has a unique key. 
 		// Key cardinality overestimation results in more robust plans
 		
-		this.estimatedCardinality.putAll(hints.getCardinalities());
+		this.estimatedCardinality.putAll(hints.getDistinctCounts());
 		
 		if(this.estimatedNumRecords != -1) {
 			for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumValuesPerDistinctValues().entrySet()) {
@@ -222,8 +222,8 @@ public class DataSourceNode extends OptimizerNode
 			this.estimatedNumRecords = 0;
 			int count = 0;
 			
-			for (Entry<FieldSet, Long> cardinality : hints.getCardinalities().entrySet()) {
-				float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 				if (avgNumValues != -1) {
 					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
 					count++;
