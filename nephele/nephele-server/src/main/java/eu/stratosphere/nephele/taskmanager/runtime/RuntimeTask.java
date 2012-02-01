@@ -91,6 +91,8 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		this.vertexID = vertexID;
 		this.environment = environment;
 		this.taskManager = taskManager;
+		
+		this.environment.setExecutionObserver(this);
 	}
 
 	/**

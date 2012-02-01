@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
@@ -35,26 +34,23 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.types.Record;
 
-public final class RuntimeTaskContext implements BufferProvider, AsynchronousEventListener, LocalBufferPoolOwner, TaskContext {
+public final class RuntimeTaskContext implements BufferProvider, AsynchronousEventListener, LocalBufferPoolOwner,
+		TaskContext {
 
 	private final LocalBufferPool localBufferPool;
 
 	private final RuntimeTask task;
 
-	private final AsynchronousEventListener[] subEventListener;
-
 	private final int numberOfOutputChannels;
 
-	final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+
+	private final RuntimeDispatcher runtimeDispatcher;
 
 	private final EphemeralCheckpoint ephemeralCheckpoint;
-
-	private final boolean forwardTransferEnvelopes;
 
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
@@ -80,7 +76,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			}
 		}
 		this.numberOfOutputChannels = nooc;
-		this.forwardTransferEnvelopes = ephemeral;
 
 		this.ephemeralCheckpoint = new EphemeralCheckpoint(task, ephemeral);
 		if (ephemeral) {
@@ -88,26 +83,17 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		}
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
-
-		// Each output gate context will register as a sub event listener
-		this.subEventListener = new AsynchronousEventListener[environment.getNumberOfOutputGates()];
+		this.runtimeDispatcher = new RuntimeDispatcher(transferEnvelopeDispatcher);
 	}
 
-	void registerAsynchronousEventListener(final int index, final AsynchronousEventListener eventListener) {
+	RuntimeDispatcher getRuntimeDispatcher() {
 
-		if (index >= this.subEventListener.length || index < 0) {
-			throw new IllegalArgumentException("Argument index has invalid value " + index);
-		}
+		return this.runtimeDispatcher;
+	}
 
-		if (eventListener == null) {
-			throw new IllegalArgumentException("Argument eventListener must not be null");
-		}
+	EphemeralCheckpoint getEphemeralCheckpoint() {
 
-		if (this.subEventListener[index] != null) {
-			throw new IllegalStateException("There is already an event listener with index " + index + " registered");
-		}
-
-		this.subEventListener[index] = eventListener;
+		return this.ephemeralCheckpoint;
 	}
 
 	/**
@@ -200,17 +186,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	@Override
 	public void asynchronousEventOccurred() throws IOException, InterruptedException {
 
-		// First, notify all the listeners about the asynchronous event
-		for (int i = 0; i < this.subEventListener.length; ++i) {
-
-			if (this.subEventListener[i] == null) {
-				throw new IllegalStateException("Event listener at index " + i + " is null");
-			}
-
-			this.subEventListener[i].asynchronousEventOccurred();
-		}
-
-		// Second, check if the checkpoint decision changed
+		// Check if the checkpoint decision changed
 		this.ephemeralCheckpoint.checkAsynchronousCheckpointDecision();
 	}
 
@@ -232,37 +208,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		this.localBufferPool.setDesignatedNumberOfBuffers(numberOfBuffers);
 	}
 
-	/**
-	 * Called by the attached output gate context to forward a {@link TransferEnvelope} object
-	 * to its final destination. Within this method the provided transfer envelope is possibly also
-	 * forwarded to the assigned ephemeral checkpoint.
-	 * 
-	 * @param outgoingTransferEnvelope
-	 *        the transfer envelope to be forwarded
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while processing the envelope
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the envelope to be processed
-	 */
-	void processEnvelope(final TransferEnvelope outgoingTransferEnvelope) throws IOException, InterruptedException {
-
-		if (!this.ephemeralCheckpoint.isDiscarded()) {
-			final TransferEnvelope dup = outgoingTransferEnvelope.duplicate();
-			this.ephemeralCheckpoint.addTransferEnvelope(dup);
-		}
-
-		if (this.forwardTransferEnvelopes) {
-			// Immediately forward the envelope
-			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(outgoingTransferEnvelope);
-		} else {
-			// Simply discard the envelope
-			final Buffer buffer = outgoingTransferEnvelope.getBuffer();
-			if (buffer != null) {
-				buffer.recycleBuffer();
-			}
-		}
-	}
-
 	AbstractID getFileOwnerID() {
 
 		return this.task.getVertexID();
@@ -272,29 +217,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		// Simply delegate call
 		this.ephemeralCheckpoint.setCheckpointDecisionAsynchronously(checkpointDecision);
-	}
-
-	/**
-	 * Registers the given spilling queue with a network connection. The network connection is in charge of polling the
-	 * remaining elements from the queue.
-	 * 
-	 * @param sourceChannelID
-	 *        the ID of the source channel which is associated with the spilling queue
-	 * @param spillingQueue
-	 *        the spilling queue to be registered
-	 * @return <code>true</code> if the has been successfully registered with the network connection, <code>false</code>
-	 *         if the receiver runs within the same task manager and there is no network operation required to transfer
-	 *         the queued data
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while looking up the destination of the queued envelopes
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while looking up the destination of the queued envelopes
-	 */
-	boolean registerSpillingQueueWithNetworkConnection(final ChannelID sourceChannelID,
-			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
-
-		return this.transferEnvelopeDispatcher.registerSpillingQueueWithNetworkConnection(this.task.getJobID(),
-			sourceChannelID, spillingQueue);
 	}
 
 	/**

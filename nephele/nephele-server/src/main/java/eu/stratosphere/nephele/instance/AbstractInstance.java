@@ -21,9 +21,6 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
@@ -197,29 +194,6 @@ public abstract class AbstractInstance extends NetworkNode {
 				getTaskManager().updateLibraryCache(update);
 			}
 		}
-	}
-
-	/**
-	 * Submits the task represented by the given {@link Environment} object to the instance's
-	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
-	 * 
-	 * @param id
-	 *        the ID of the vertex to be submitted
-	 * @param jobConfiguration
-	 *        the configuration of the overall job
-	 * @param environment
-	 *        the environment encapsulating the task
-	 * @param activeOutputChannels
-	 *        the set of initially active output channels
-	 * @return the result of the submission attempt
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the task
-	 */
-	public synchronized TaskSubmissionResult submitTask(final ExecutionVertexID id,
-			final Configuration jobConfiguration, final RuntimeEnvironment environment,
-			final Set<ChannelID> activeOutputChannels) throws IOException {
-
-		return getTaskManager().submitTask(id, jobConfiguration, environment, activeOutputChannels);
 	}
 
 	/**

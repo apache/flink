@@ -39,7 +39,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayManager;
+import eu.stratosphere.nephele.checkpointing.ReplayTask;
+import eu.stratosphere.nephele.checkpointing.CheckpointUtils;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -124,12 +125,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * setting up and cleaning up the byte buffered channels of the tasks.
 	 */
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
-
-	/**
-	 * The instance of the {@link CheckpointReplayManager} to restore
-	 * previously written checkpoints.
-	 */
-	private final CheckpointReplayManager checkpointManager;
 
 	/**
 	 * Instance of the task manager profile if profiling is enabled.
@@ -291,9 +286,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			throw new Exception("Failed to instantiate Byte-buffered channel manager. " + ioe.getMessage(), ioe);
 		}
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
-
-		// Initialize the checkpoint manager
-		this.checkpointManager = new CheckpointReplayManager(this.byteBufferedChannelManager);
 
 		// Determine hardware description
 		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
@@ -476,33 +468,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * {@inheritDoc}
 	 */
 	@Override
-	public TaskSubmissionResult submitTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final RuntimeEnvironment re, final Set<ChannelID> activeOutputChannels)
-			throws IOException {
-
-		// Create task object and register it with the environment
-		final RuntimeTask task = new RuntimeTask(id, re, this);
-		re.setExecutionObserver(task);
-
-		// Register the task
-		TaskSubmissionResult result = registerTask(id, jobConfiguration, task, activeOutputChannels);
-		if (result != null) { // If result is non-null, an error occurred during task registration
-			return result;
-		}
-
-		// Start execution
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Starting execution of task with ID " + id);
-		}
-		task.startExecution();
-
-		return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
 
 		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
@@ -516,13 +481,12 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			final Configuration jobConfiguration = tsw.getConfiguration();
 			final Set<ChannelID> activeOutputChannels = tsw.getActiveOutputChannels();
 
-			// Create task object and register it with the environment
-			final RuntimeTask task = new RuntimeTask(id, re, this);
-			re.setExecutionObserver(task);
-
 			// Register the task
-			TaskSubmissionResult result = registerTask(id, jobConfiguration, task, activeOutputChannels);
-			if (result != null) { // If result is non-null, an error occurred during task registration
+			final Task task = createAndRegisterTask(id, jobConfiguration, re, activeOutputChannels);
+			if (task == null) {
+				final TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
+				result.setDescription("Task with ID " + id + " was already running");
+				LOG.error(result.getDescription());
 				submissionResultList.add(result);
 			} else {
 				submissionResultList.add(new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS));
@@ -546,67 +510,91 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 *        the ID of the task to register
 	 * @param jobConfiguration
 	 *        the job configuration that has been attached to the original job graph
-	 * @param task
-	 *        the task to register
+	 * @param environment
+	 *        the environment of the task to be registered
 	 * @param activeOutputChannels
 	 *        the set of initially active output channels
-	 * @return <code>null</code> if the registration has been successful or a {@link TaskSubmissionResult} containing
-	 *         the error that occurred
+	 * @return the task to be started or <code>null</code> if a task with the same ID was already running
 	 */
-	private TaskSubmissionResult registerTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Task task, final Set<ChannelID> activeOutputChannels) {
+	private Task createAndRegisterTask(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final RuntimeEnvironment environment, final Set<ChannelID> activeOutputChannels) {
 
 		if (id == null) {
 			throw new IllegalArgumentException("Argument id is null");
 		}
 
-		if (task == null) {
-			throw new IllegalArgumentException("Argument task is null");
+		if (environment == null) {
+			throw new IllegalArgumentException("Argument environment is null");
 		}
 
-		// Task registration must be atomic
+		// Task creation and registration must be atomic
+		Task task = null;
+
 		synchronized (this) {
 
 			final Task runningTask = this.runningTasks.get(id);
-			if (runningTask != null) {
-				LOG.error("Task with ID " + id + " is already running");
-				final TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
-				result.setDescription("Task with ID " + id + " is already running");
-				return result;
+			boolean registerTask = true;
+			if (runningTask == null) {
+
+				// Is there a complete checkpoint for this task
+				if (CheckpointUtils.hasCompleteCheckpointAvailable(id)) {
+					task = new ReplayTask(id, environment, this);
+				} else {
+					task = new RuntimeTask(id, environment, this);
+				}
+			} else {
+
+				if (runningTask instanceof RuntimeTask) {
+
+					// Check if there at least a partial checkpoint available
+					if (CheckpointUtils.hasPartialCheckpointAvailable(id)) {
+						task = new ReplayTask((RuntimeTask) runningTask);
+					} else {
+						// Task is already running
+						return null;
+					}
+				} else {
+					// There is already a replay task running, we will simply restart it
+					registerTask = false;
+				}
+
 			}
 
 			final Environment ee = task.getEnvironment();
 
-			// Register task manager components with the task
-			task.registerMemoryManager(this.memoryManager);
-			task.registerIOManager(this.ioManager);
-			task.registerInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id, this.globalInputSplitProvider));
+			if (registerTask) {
+				// Register task manager components with the task
+				task.registerMemoryManager(this.memoryManager);
+				task.registerIOManager(this.ioManager);
+				task.registerInputSplitProvider(new TaskInputSplitProvider(ee.getJobID(), id,
+					this.globalInputSplitProvider));
 
-			// Register the task with the byte buffered channel manager
-			this.byteBufferedChannelManager.register(task, activeOutputChannels);
+				// Register the task with the byte buffered channel manager
+				this.byteBufferedChannelManager.register(task, activeOutputChannels);
 
-			boolean enableProfiling = false;
-			if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
-				enableProfiling = true;
-			}
-
-			// Register environment, input, and output gates for profiling
-			if (enableProfiling) {
-				task.registerProfiler(this.profiler, jobConfiguration);
-			}
-
-			// Allow plugins to register their listeners for this task
-			if (!this.taskManagerPlugins.isEmpty()) {
-				final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
-				while (it.hasNext()) {
-					it.next().registerTask(id, jobConfiguration, ee);
+				boolean enableProfiling = false;
+				if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
+					enableProfiling = true;
 				}
-			}
 
-			this.runningTasks.put(id, task);
+				// Register environment, input, and output gates for profiling
+				if (enableProfiling) {
+					task.registerProfiler(this.profiler, jobConfiguration);
+				}
+
+				// Allow plugins to register their listeners for this task
+				if (!this.taskManagerPlugins.isEmpty()) {
+					final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
+					while (it.hasNext()) {
+						it.next().registerTask(id, jobConfiguration, ee);
+					}
+				}
+
+				this.runningTasks.put(id, task);
+			}
 		}
 
-		return null;
+		return task;
 	}
 
 	/**
@@ -849,7 +837,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		final Iterator<ExecutionVertexID> it = listOfVertexIDs.iterator();
 		while (it.hasNext()) {
-			this.checkpointManager.removeCheckpoint(it.next());
+			CheckpointUtils.removeCheckpoint(it.next());
 		}
 	}
 

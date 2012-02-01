@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
@@ -41,25 +39,6 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
  * @author warneke
  */
 public interface TaskOperationProtocol extends VersionedProtocol {
-
-	/**
-	 * Submits a task to the task manager.
-	 * 
-	 * @param id
-	 *        the ID of the corresponding execution vertex
-	 * @param jobConfiguration
-	 *        the job configuration that has been attached to the original job graph
-	 * @param re
-	 *        the runtime environment containing the task
-	 * @param activeOutputChannels
-	 *        the set of initially active output channels
-	 * @return the result of the task submission
-	 * @throws IOException
-	 *         thrown if an error occurs during this remote procedure call
-	 */
-	TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration, RuntimeEnvironment re,
-			Set<ChannelID> activeOutputChannels)
-			throws IOException;
 
 	/**
 	 * Submits a list of tasks to the task manager.

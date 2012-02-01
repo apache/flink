@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.executiongraph;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -46,9 +47,11 @@ import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.AtomicEnum;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
@@ -582,10 +585,16 @@ public final class ExecutionVertex {
 
 		final SerializableHashSet<ChannelID> activeOutputChannels = constructInitialActiveOutputChannelsSet();
 
+		final List<TaskSubmissionWrapper> tasks = new SerializableArrayList<TaskSubmissionWrapper>();
+		final TaskSubmissionWrapper tsw = new TaskSubmissionWrapper(this.vertexID, this.environment,
+			this.executionGraph.getJobConfiguration(), activeOutputChannels);
+		tasks.add(tsw);
+
 		try {
-			return this.allocatedResource.getInstance().submitTask(this.vertexID,
-				this.executionGraph.getJobConfiguration(), this.environment,
-				activeOutputChannels);
+			final List<TaskSubmissionResult> results = this.allocatedResource.getInstance().submitTasks(tasks);
+
+			return results.get(0);
+
 		} catch (IOException e) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
