@@ -209,7 +209,6 @@ final class ReplayThread extends Thread {
 			throw new IOException("Cannot find output broker for channel " + transferEnvelope.getSource());
 		}
 
-		System.out.println("Emitting envelope " + transferEnvelope.getSequenceNumber());
 		outputBroker.outputEnvelope(transferEnvelope);
 	}
 }

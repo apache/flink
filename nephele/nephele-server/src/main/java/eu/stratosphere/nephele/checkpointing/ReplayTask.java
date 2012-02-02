@@ -130,7 +130,7 @@ public final class ReplayTask implements Task {
 	private final AtomicReference<ExecutionState> overallExecutionState = new AtomicReference<ExecutionState>(
 		ExecutionState.STARTING);
 
-	private AtomicBoolean replayThreadStarted = new AtomicBoolean(false);
+	private final AtomicBoolean replayThreadStarted = new AtomicBoolean(false);
 
 	/**
 	 * Stores whether the task has been canceled.
@@ -203,9 +203,23 @@ public final class ReplayTask implements Task {
 		reportExecutionStateChange(true, "Execution thread died unexpectedly");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean isTerminated() {
-		// TODO Auto-generated method stub
+
+		if (this.encapsulatedTask != null) {
+			if (this.encapsulatedTask.isTerminated()) {
+				return true;
+			}
+		}
+
+		final Thread executingThread = this.environment.getExecutingThread();
+		if (executingThread.getState() == Thread.State.TERMINATED) {
+			return true;
+		}
+
 		return false;
 	}
 
@@ -228,8 +242,6 @@ public final class ReplayTask implements Task {
 	 */
 	@Override
 	public void cancelExecution() {
-
-		System.out.println("+++++++ Cancel called");
 
 		cancelOrKillExecution(true);
 	}
@@ -436,7 +448,9 @@ public final class ReplayTask implements Task {
 			return ExecutionState.FINISHING;
 		}
 
-		System.out.println("Changed: " + changedExecutionState + " unchanged: " + unchangedExecutionState);
+		if (changedExecutionState == ExecutionState.FINISHED && unchangedExecutionState == ExecutionState.FINISHED) {
+			return ExecutionState.FINISHED;
+		}
 
 		return null;
 	}
