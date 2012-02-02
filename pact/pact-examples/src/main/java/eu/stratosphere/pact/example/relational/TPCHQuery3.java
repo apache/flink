@@ -246,7 +246,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+4, VarLengthStringParser.class);
 		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+4, 5);
 		// compiler hints
-//		orders.getCompilerHints().setAvgNumValuesPerKey(1);
 		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders.getCompilerHints().setAvgBytesPerRecord(16);
 
@@ -264,7 +263,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextDoubleParser.class);
 		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 5);
 		// compiler hints	
-//		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
 		lineitems.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 4);
 		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
@@ -277,7 +275,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// compiler hints
 		filterO.getCompilerHints().setAvgBytesPerRecord(16);
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
-//		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
 		filterO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 
 		// create MatchContract for joining Orders and LineItems
