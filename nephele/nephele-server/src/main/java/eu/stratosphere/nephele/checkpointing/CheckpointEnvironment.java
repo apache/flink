@@ -1,14 +1,12 @@
 package eu.stratosphere.nephele.checkpointing;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.ExecutionObserver;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
@@ -24,44 +22,39 @@ import eu.stratosphere.nephele.types.Record;
 
 final class CheckpointEnvironment implements Environment {
 
-	private final JobID jobID;
+	private final ExecutionVertexID vertexID;
 
-	private final Map<GateID, Set<ChannelID>> outputChannelIDs;
+	private final Environment environment;
 
-	private final Map<GateID, Set<ChannelID>> inputChannelIDs;
+	private final boolean hasCompleteCheckpoint;
 
-	private CheckpointEnvironment(final JobID jobID, Map<GateID, Set<ChannelID>> outputChannelIDs,
-			Map<GateID, Set<ChannelID>> inputChannelIDs) {
+	private final Map<ChannelID, ReplayOutputBroker> outputBrokerMap;
 
-		this.jobID = jobID;
-		this.outputChannelIDs = outputChannelIDs;
-		this.inputChannelIDs = inputChannelIDs;
+	/**
+	 * The observer object for the task's execution.
+	 */
+	private volatile ExecutionObserver executionObserver = null;
+
+	private volatile ReplayThread executingThread = null;
+
+	CheckpointEnvironment(final ExecutionVertexID vertexID, final Environment environment,
+			final boolean hasCompleteCheckpoint,
+			final Map<ChannelID, ReplayOutputBroker> outputBrokerMap) {
+
+		this.vertexID = vertexID;
+		this.environment = environment;
+		this.hasCompleteCheckpoint = hasCompleteCheckpoint;
+		this.outputBrokerMap = outputBrokerMap;
 	}
 
-	static CheckpointEnvironment createFromEnvironment(final Environment environment) {
-
-		final JobID jobID = environment.getJobID();
-
-		final Map<GateID, Set<ChannelID>> outputChannelIDs = new HashMap<GateID, Set<ChannelID>>();
-
-		final Map<GateID, Set<ChannelID>> inputChannelIDs = new HashMap<GateID, Set<ChannelID>>();
-
-		Iterator<GateID> gateIt = environment.getOutputGateIDs().iterator();
-		while (gateIt.hasNext()) {
-
-			final GateID gateID = gateIt.next();
-			outputChannelIDs.put(gateID, environment.getOutputChannelIDsOfGate(gateID));
-		}
-
-		gateIt = environment.getInputGateIDs().iterator();
-		while (gateIt.hasNext()) {
-
-			final GateID gateID = gateIt.next();
-			inputChannelIDs.put(gateID, environment.getInputChannelIDsOfGate(gateID));
-		}
-
-		return new CheckpointEnvironment(jobID, Collections.unmodifiableMap(outputChannelIDs),
-			Collections.unmodifiableMap(inputChannelIDs));
+	/**
+	 * Sets the execution observer for this environment.
+	 * 
+	 * @param executionObserver
+	 *        the execution observer for this environment
+	 */
+	void setExecutionObserver(final ExecutionObserver executionObserver) {
+		this.executionObserver = executionObserver;
 	}
 
 	/**
@@ -70,7 +63,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public JobID getJobID() {
 
-		return this.jobID;
+		return this.environment.getJobID();
 	}
 
 	/**
@@ -79,7 +72,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public Configuration getTaskConfiguration() {
 
-		throw new UnsupportedOperationException("Method getTaskConfiguration is not supported by this environment");
+		return this.environment.getTaskConfiguration();
 	}
 
 	/**
@@ -88,7 +81,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public Configuration getJobConfiguration() {
 
-		throw new UnsupportedOperationException("Method getJobConfiguration is not supported by this environment");
+		return this.environment.getJobConfiguration();
 	}
 
 	/**
@@ -97,8 +90,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public int getCurrentNumberOfSubtasks() {
 
-		throw new UnsupportedOperationException(
-			"Method getCurrentNumberOfSubtasks is not supported by this environment");
+		return this.environment.getCurrentNumberOfSubtasks();
 	}
 
 	/**
@@ -107,7 +99,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public int getIndexInSubtaskGroup() {
 
-		throw new UnsupportedOperationException("Method getIndexInSubtaskGroup is not supported by this environment");
+		return this.environment.getIndexInSubtaskGroup();
 	}
 
 	/**
@@ -116,7 +108,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public void userThreadStarted(final Thread userThread) {
 
-		throw new UnsupportedOperationException("Method userThreadStarted is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called userThreadStarted");
 	}
 
 	/**
@@ -125,7 +117,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public void userThreadFinished(final Thread userThread) {
 
-		throw new UnsupportedOperationException("Method userThreadFinished is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called userThreadFinished");
 	}
 
 	/**
@@ -134,7 +126,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public InputSplitProvider getInputSplitProvider() {
 
-		throw new UnsupportedOperationException("Method getInputSplitProvider is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called getInputSplitProvider");
 	}
 
 	/**
@@ -143,7 +135,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public IOManager getIOManager() {
 
-		throw new UnsupportedOperationException("Method getIOManager is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called getIOManager");
 	}
 
 	/**
@@ -152,7 +144,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public MemoryManager getMemoryManager() {
 
-		throw new UnsupportedOperationException("Method getMemoryManager is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called getMemoryManager");
 	}
 
 	/**
@@ -161,7 +153,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public String getTaskName() {
 
-		throw new UnsupportedOperationException("Method getTaskName is not supported by this environment");
+		return this.environment.getTaskName();
 	}
 
 	/**
@@ -170,7 +162,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public GateID getNextUnboundInputGateID() {
 
-		throw new UnsupportedOperationException("Method getNextUnboundInputGateID is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called getNextUnboundInputGateID");
 	}
 
 	/**
@@ -179,8 +171,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public GateID getNextUnboundOutputGateID() {
 
-		throw new UnsupportedOperationException(
-			"Method getNextUnboundOutputGateID is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called getNextUnboundOutputGateID");
 	}
 
 	/**
@@ -189,7 +180,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public int getNumberOfOutputGates() {
 
-		throw new UnsupportedOperationException("Method getNumberOfOutputGates is not supported by this environment");
+		return this.environment.getNumberOfOutputGates();
 	}
 
 	/**
@@ -198,17 +189,18 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public int getNumberOfInputGates() {
 
-		throw new UnsupportedOperationException("Method getNumberOfInputGates is not supported by this environment");
+		return this.environment.getNumberOfInputGates();
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public OutputGate<? extends Record> createOutputGate(final GateID gateID, Class<? extends Record> outputClass,
+	public OutputGate<? extends Record> createOutputGate(final GateID gateID,
+			final Class<? extends Record> outputClass,
 			final ChannelSelector<? extends Record> selector, final boolean isBroadcast) {
 
-		throw new UnsupportedOperationException("Method createOutputGate is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called createOutputGate");
 	}
 
 	/**
@@ -218,7 +210,7 @@ final class CheckpointEnvironment implements Environment {
 	public InputGate<? extends Record> createInputGate(final GateID gateID,
 			final RecordDeserializer<? extends Record> deserializer, final DistributionPattern distributionPattern) {
 
-		throw new UnsupportedOperationException("Method createInputGate is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called createInputGate");
 	}
 
 	/**
@@ -227,7 +219,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
 
-		throw new UnsupportedOperationException("Method registerOutputGate is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called registerOutputGate");
 	}
 
 	/**
@@ -236,7 +228,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public void registerInputGate(final InputGate<? extends Record> inputGate) {
 
-		throw new UnsupportedOperationException("Method registerInputGate is not supported by this environment");
+		throw new IllegalStateException("Checkpoint replay task called registerInputGate");
 	}
 
 	/**
@@ -245,16 +237,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public Set<ChannelID> getOutputChannelIDs() {
 
-		final Set<ChannelID> channelIDs = new HashSet<ChannelID>();
-		final Iterator<Map.Entry<GateID, Set<ChannelID>>> it = this.outputChannelIDs.entrySet().iterator();
-		while (it.hasNext()) {
-
-			final Map.Entry<GateID, Set<ChannelID>> entry = it.next();
-			channelIDs.addAll(entry.getValue());
-
-		}
-
-		return Collections.unmodifiableSet(channelIDs);
+		return this.environment.getOutputChannelIDs();
 	}
 
 	/**
@@ -263,16 +246,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public Set<ChannelID> getInputChannelIDs() {
 
-		final Set<ChannelID> channelIDs = new HashSet<ChannelID>();
-		final Iterator<Map.Entry<GateID, Set<ChannelID>>> it = this.inputChannelIDs.entrySet().iterator();
-		while (it.hasNext()) {
-
-			final Map.Entry<GateID, Set<ChannelID>> entry = it.next();
-			channelIDs.addAll(entry.getValue());
-
-		}
-
-		return Collections.unmodifiableSet(channelIDs);
+		return this.environment.getInputChannelIDs();
 	}
 
 	/**
@@ -281,7 +255,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public Set<GateID> getOutputGateIDs() {
 
-		return this.outputChannelIDs.keySet();
+		return this.environment.getOutputGateIDs();
 	}
 
 	/**
@@ -290,7 +264,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public Set<GateID> getInputGateIDs() {
 
-		return this.inputChannelIDs.keySet();
+		return this.environment.getInputGateIDs();
 	}
 
 	/**
@@ -299,12 +273,7 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
 
-		final Set<ChannelID> channelIDs = this.outputChannelIDs.get(gateID);
-		if (channelIDs == null) {
-			throw new IllegalStateException("Cannot find channel IDs for output gate with ID " + gateID);
-		}
-
-		return channelIDs;
+		return this.environment.getOutputChannelIDsOfGate(gateID);
 	}
 
 	/**
@@ -313,12 +282,24 @@ final class CheckpointEnvironment implements Environment {
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
 
-		final Set<ChannelID> channelIDs = this.inputChannelIDs.get(gateID);
-		if (channelIDs == null) {
-			throw new IllegalStateException("Cannot find channel IDs for input gate with ID " + gateID);
-		}
-
-		return channelIDs;
+		return this.environment.getInputChannelIDsOfGate(gateID);
 	}
 
+	/**
+	 * Returns the thread which is assigned to executes the replay task
+	 * 
+	 * @return the thread which is assigned to execute the replay task
+	 */
+	public ReplayThread getExecutingThread() {
+
+		synchronized (this) {
+
+			if (this.executingThread == null) {
+				this.executingThread = new ReplayThread(this.vertexID, this.executionObserver, getTaskName(),
+					this.hasCompleteCheckpoint, this.outputBrokerMap);
+			}
+
+			return this.executingThread;
+		}
+	}
 }

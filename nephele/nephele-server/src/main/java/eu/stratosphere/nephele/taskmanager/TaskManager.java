@@ -548,7 +548,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 					// Check if there at least a partial checkpoint available
 					if (CheckpointUtils.hasPartialCheckpointAvailable(id)) {
-						task = new ReplayTask((RuntimeTask) runningTask);
+						task = new ReplayTask((RuntimeTask) runningTask, this);
 					} else {
 						// Task is already running
 						return null;
@@ -602,13 +602,17 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * 
 	 * @param id
 	 *        the ID of the task to be unregistered
-	 * @param task
-	 *        the {@link Task} to be unregistered
 	 */
-	private void unregisterTask(final ExecutionVertexID id, final Task task) {
+	private void unregisterTask(final ExecutionVertexID id) {
 
 		// Task deregistration must be atomic
 		synchronized (this) {
+
+			final Task task = this.runningTasks.remove(id);
+			if (task == null) {
+				LOG.error("Cannot find task with ID " + id + " to unregister");
+				return;
+			}
 
 			// Unregister task from the byte buffered channel manager
 			this.byteBufferedChannelManager.unregister(id, task);
@@ -676,27 +680,14 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Nothing to to here
 	}
 
-	public void executionStateChanged(final JobID jobID, final ExecutionVertexID id, final Task task,
+	public void executionStateChanged(final JobID jobID, final ExecutionVertexID id,
 			final ExecutionState newExecutionState, final String optionalDescription) {
-
-		if (newExecutionState == ExecutionState.RUNNING || newExecutionState == ExecutionState.RUNNING) {
-			// Mark task as running by putting it in the corresponding map
-			synchronized (this.runningTasks) {
-				this.runningTasks.put(id, task);
-			}
-		}
 
 		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
 			|| newExecutionState == ExecutionState.FAILED) {
 
-			// In any of these states the task's thread will be terminated, so we remove the task from the running tasks
-			// map
-			synchronized (this.runningTasks) {
-				this.runningTasks.remove(id);
-			}
-
-			// Unregister the task (free all buffers, remove all channels, task-specific class loaders, etc...
-			unregisterTask(id, task);
+			// Unregister the task (free all buffers, remove all channels, task-specific class loaders, etc...)
+			unregisterTask(id);
 		}
 		// Get lock on the jobManager object and propagate the state change
 		synchronized (this.jobManager) {

@@ -62,7 +62,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(Task.class);
+	private static final Log LOG = LogFactory.getLog(RuntimeTask.class);
 
 	private static final long NANO_TO_MILLISECONDS = 1000 * 1000;
 
@@ -86,12 +86,13 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 	private long startTime;
 
-	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment, final TaskManager taskManager) {
+	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
+			final TaskManager taskManager) {
 
 		this.vertexID = vertexID;
 		this.environment = environment;
 		this.taskManager = taskManager;
-		
+
 		this.environment.setExecutionObserver(this);
 	}
 
@@ -120,8 +121,8 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		this.executionState = newExecutionState;
 
 		// Finally propagate the state change to the job manager
-		this.taskManager.executionStateChanged(this.environment.getJobID(), this.vertexID, this,
-			newExecutionState, optionalMessage);
+		this.taskManager.executionStateChanged(this.environment.getJobID(), this.vertexID, newExecutionState,
+			optionalMessage);
 	}
 
 	/**
@@ -488,5 +489,14 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints) {
 
 		return new RuntimeTaskContext(this, transferEnvelopeDispatcher, tasksWithUndecidedCheckpoints);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public ExecutionState getExecutionState() {
+
+		return this.executionState;
 	}
 }
