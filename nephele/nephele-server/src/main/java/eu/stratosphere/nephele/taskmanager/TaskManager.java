@@ -796,27 +796,13 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private void checkTaskExecution() {
 
-		final List<Task> failedTasks = new ArrayList<Task>();
+		final Iterator<Task> it = this.runningTasks.values().iterator();
+		while (it.hasNext()) {
+			final Task task = it.next();
 
-		synchronized (this.runningTasks) {
-
-			final Iterator<ExecutionVertexID> it = this.runningTasks.keySet().iterator();
-			while (it.hasNext()) {
-				final ExecutionVertexID executionVertexID = it.next();
-				final Task task = this.runningTasks.get(executionVertexID);
-
-				if (task.isTerminated()) {
-					// Remove entry from the running tasks map
-					it.remove();
-					// Don't to IPC call while holding a lock on the runningTasks map
-					failedTasks.add(task);
-				}
+			if (task.isTerminated()) {
+				task.markAsFailed();
 			}
-		}
-
-		final Iterator<Task> it2 = failedTasks.iterator();
-		while (it2.hasNext()) {
-			it2.next().markAsFailed();
 		}
 	}
 

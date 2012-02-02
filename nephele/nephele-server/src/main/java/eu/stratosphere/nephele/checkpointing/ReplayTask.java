@@ -47,10 +47,10 @@ public final class ReplayTask implements Task {
 
 	private final class ReplayTaskExecutionObserver implements ExecutionObserver {
 
-		private final RuntimeTask encapsulatedTask;
+		private final RuntimeTask encapsulatedRuntimeTask;
 
-		private ReplayTaskExecutionObserver(final RuntimeTask encapsulatedTask) {
-			this.encapsulatedTask = encapsulatedTask;
+		private ReplayTaskExecutionObserver(final RuntimeTask encapsulatedRuntimeTask) {
+			this.encapsulatedRuntimeTask = encapsulatedRuntimeTask;
 		}
 
 		/**
@@ -59,13 +59,24 @@ public final class ReplayTask implements Task {
 		@Override
 		public void executionStateChanged(final ExecutionState newExecutionState, final String optionalMessage) {
 
-			if (this.encapsulatedTask == null) {
+			if (this.encapsulatedRuntimeTask == null) {
 				replayTaskExecutionState = newExecutionState;
+
+				if (newExecutionState == ExecutionState.FAILED) {
+					if (encapsulatedTask != null) {
+						encapsulatedTask.killExecution();
+					}
+				}
+
 			} else {
 				encapsulatedExecutionState = newExecutionState;
+
+				if (newExecutionState == ExecutionState.FAILED) {
+					killExecution();
+				}
 			}
 
-			reportExecutionStateChange((this.encapsulatedTask == null), optionalMessage);
+			reportExecutionStateChange((this.encapsulatedRuntimeTask == null), optionalMessage);
 		}
 
 		/**
@@ -74,8 +85,8 @@ public final class ReplayTask implements Task {
 		@Override
 		public void userThreadStarted(final Thread userThread) {
 
-			if (this.encapsulatedTask != null) {
-				this.encapsulatedTask.userThreadStarted(userThread);
+			if (this.encapsulatedRuntimeTask != null) {
+				this.encapsulatedRuntimeTask.userThreadStarted(userThread);
 			} else {
 				LOG.error("userThreadStarted called although there is no encapsulated task");
 			}
@@ -87,8 +98,8 @@ public final class ReplayTask implements Task {
 		@Override
 		public void userThreadFinished(final Thread userThread) {
 
-			if (this.encapsulatedTask != null) {
-				this.encapsulatedTask.userThreadFinished(userThread);
+			if (this.encapsulatedRuntimeTask != null) {
+				this.encapsulatedRuntimeTask.userThreadFinished(userThread);
 			} else {
 				LOG.error("userThreadFinished called although there is no encapsulated task");
 			}
@@ -100,8 +111,8 @@ public final class ReplayTask implements Task {
 		@Override
 		public boolean isCanceled() {
 
-			if (this.encapsulatedTask != null) {
-				if (this.encapsulatedTask.isCanceled()) {
+			if (this.encapsulatedRuntimeTask != null) {
+				if (this.encapsulatedRuntimeTask.isCanceled()) {
 					return true;
 				}
 			}
@@ -199,6 +210,9 @@ public final class ReplayTask implements Task {
 	@Override
 	public void markAsFailed() {
 
+		if (this.encapsulatedTask != null) {
+			this.encapsulatedTask.killExecution();
+		}
 		this.replayTaskExecutionState = ExecutionState.FAILED;
 		reportExecutionStateChange(true, "Execution thread died unexpectedly");
 	}
@@ -211,13 +225,25 @@ public final class ReplayTask implements Task {
 
 		if (this.encapsulatedTask != null) {
 			if (this.encapsulatedTask.isTerminated()) {
-				return true;
+
+				if (this.encapsulatedExecutionState != ExecutionState.FINISHED
+					&& this.encapsulatedExecutionState != ExecutionState.CANCELED
+					&& this.encapsulatedExecutionState != ExecutionState.FAILED) {
+
+					return true;
+				}
 			}
 		}
 
 		final Thread executingThread = this.environment.getExecutingThread();
 		if (executingThread.getState() == Thread.State.TERMINATED) {
-			return true;
+
+			if (this.replayTaskExecutionState != ExecutionState.FINISHED
+				&& this.replayTaskExecutionState != ExecutionState.CANCELED
+				&& this.replayTaskExecutionState != ExecutionState.FAILED) {
+
+				return true;
+			}
 		}
 
 		return false;
@@ -450,6 +476,10 @@ public final class ReplayTask implements Task {
 
 		if (changedExecutionState == ExecutionState.FINISHED && unchangedExecutionState == ExecutionState.FINISHED) {
 			return ExecutionState.FINISHED;
+		}
+
+		if (changedExecutionState == ExecutionState.FAILED && unchangedExecutionState == ExecutionState.FAILED) {
+			return ExecutionState.FAILED;
 		}
 
 		return null;
