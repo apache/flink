@@ -20,9 +20,6 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
@@ -42,25 +39,6 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
  * @author warneke
  */
 public interface TaskOperationProtocol extends VersionedProtocol {
-
-	/**
-	 * Submits a task to the task manager.
-	 * 
-	 * @param id
-	 *        the ID of the corresponding execution vertex
-	 * @param jobConfiguration
-	 *        the job configuration that has been attached to the original job graph
-	 * @param ee
-	 *        the environment containing the task
-	 * @param activeOutputChannels
-	 *        the set of initially active output channels
-	 * @return the result of the task submission
-	 * @throws IOException
-	 *         thrown if an error occurs during this remote procedure call
-	 */
-	TaskSubmissionResult submitTask(ExecutionVertexID id, Configuration jobConfiguration, Environment ee,
-			Set<ChannelID> activeOutputChannels)
-			throws IOException;
 
 	/**
 	 * Submits a list of tasks to the task manager.
@@ -115,11 +93,9 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @param update
 	 *        a {@link LibraryCacheUpdate} object used to transmit the library data
 	 * @throws IOException
-	 *         if an error occurs during this remote procedure call
+	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
-
-	List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException;
 
 	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
 
@@ -129,16 +105,26 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @param listOfVertexIDs
 	 *        the list of vertex IDs which identify the checkpoints to be removed
 	 * @throws IOException
-	 *         if an error occurs during this remote procedure call
+	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException;
+
+	/**
+	 * Invalidates the entries identified by the given channel IDs from the task manager's receiver lookup cache.
+	 * 
+	 * @param channelIDs
+	 *        the channel IDs identifying the cache entries to invalidate
+	 * @throws IOException
+	 *         thrown if an error occurs during this remote procedure call
+	 */
+	void invalidateLookupCacheEntries(Set<ChannelID> channelIDs) throws IOException;
 
 	/**
 	 * Triggers the task manager write the current utilization of its read and write buffers to its logs.
 	 * This method is primarily for debugging purposes.
 	 * 
 	 * @throws IOException
-	 *         throws if an error occurs while transmitting the request
+	 *         thrown if an error occurs while transmitting the request
 	 */
 	void logBufferUtilization() throws IOException;
 
@@ -146,20 +132,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * Kills the task manager. This method is mainly intended to test and debug Nephele's fault tolerance mechanisms.
 	 * 
 	 * @throws IOException
-	 *         throws if an error occurs during this remote procedure call
+	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void killTaskManager() throws IOException;
-
-	/**
-	 * Restarts a given Task by unregistering an submitting it
-	 * 
-	 * @param executionVertexID
-	 * @param activeOutputChannels
-	 * @param environment
-	 * @param jobConfiguration
-	 * @throws IOException
-	 */
-	@Deprecated
-	void restartTask(ExecutionVertexID executionVertexID, Configuration jobConfiguration, Environment environment,
-			Set<ChannelID> activeOutputChannels) throws IOException;
 }

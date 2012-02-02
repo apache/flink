@@ -245,7 +245,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	protected void initConfigAndStub(Class<? super T> stubSuperClass)
 	{
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getTaskConfiguration());
 
 		// obtain stub implementation class
 		try {
@@ -443,7 +443,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			
 			final OutputEmitter oe =  (keyPositions == null || keyClasses == null) ?
 					new OutputEmitter(strategy) :
-					new OutputEmitter(strategy, task.getEnvironment().getJobID(), keyPositions, keyClasses);
+					new OutputEmitter(strategy, keyPositions, keyClasses);
 			
 			if (task instanceof AbstractTask) {
 				output.addWriter(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));

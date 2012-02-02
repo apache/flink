@@ -21,18 +21,18 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.plugins.PluginID;
+import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
@@ -67,6 +67,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * Stores the RPC stub object for the instance's task manager.
 	 */
 	private TaskOperationProtocol taskManager = null;
+
+	/**
+	 * Stores the RPC stub object for the instance's task manager plugin component.
+	 */
+	private PluginCommunicationProtocol taskManagerPluginComponent = null;
 
 	/**
 	 * Constructs an abstract instance object.
@@ -108,6 +113,26 @@ public abstract class AbstractInstance extends NetworkNode {
 		}
 
 		return this.taskManager;
+	}
+
+	/**
+	 * Creates or returns the RPC stub object for the instance's task manager plugin component.
+	 * 
+	 * @return the RPC stub object for the instance's task manager plugin component
+	 * @throws IOException
+	 *         thrown if the RPC stub object for the task manager plugin component cannot be created
+	 */
+	protected PluginCommunicationProtocol getTaskManagerPluginComponent() throws IOException {
+
+		if (this.taskManagerPluginComponent == null) {
+
+			this.taskManagerPluginComponent = (PluginCommunicationProtocol) RPC.getProxy(
+				PluginCommunicationProtocol.class, new InetSocketAddress(
+					getInstanceConnectionInfo().getAddress(), getInstanceConnectionInfo().getIPCPort()), NetUtils
+					.getSocketFactory());
+		}
+
+		return this.taskManagerPluginComponent;
 	}
 
 	/**
@@ -172,29 +197,6 @@ public abstract class AbstractInstance extends NetworkNode {
 	}
 
 	/**
-	 * Submits the task represented by the given {@link Environment} object to the instance's
-	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
-	 * 
-	 * @param id
-	 *        the ID of the vertex to be submitted
-	 * @param jobConfiguration
-	 *        the configuration of the overall job
-	 * @param environment
-	 *        the environment encapsulating the task
-	 * @param activeOutputChannels
-	 *        the set of initially active output channels
-	 * @return the result of the submission attempt
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the task
-	 */
-	public synchronized TaskSubmissionResult submitTask(final ExecutionVertexID id,
-			final Configuration jobConfiguration,
-			final Environment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
-
-		return getTaskManager().submitTask(id, jobConfiguration, environment, activeOutputChannels);
-	}
-
-	/**
 	 * Submits a list of tasks to the instance's {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
 	 * 
 	 * @param tasks
@@ -207,12 +209,6 @@ public abstract class AbstractInstance extends NetworkNode {
 			throws IOException {
 
 		return getTaskManager().submitTasks(tasks);
-	}
-
-	public synchronized List<CheckpointReplayResult> replayCheckpoints(final List<ExecutionVertexID> vertexIDs)
-			throws IOException {
-
-		return getTaskManager().replayCheckpoints(vertexIDs);
 	}
 
 	public synchronized void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions)
@@ -322,15 +318,48 @@ public abstract class AbstractInstance extends NetworkNode {
 		getTaskManager().killTaskManager();
 	}
 
-	/**
-	 * @param executionVertexID
-	 * @param serializableHashSet
-	 * @param environment
-	 * @param configuration
+/**
+	 * Connects to the plugin component of this instance's task manager and sends data to the plugin with the given ID.
+	 * 
+	 * @param pluginID
+	 *        the ID of the plugin to send data to
+	 * @param data
+	 *        the data to send
 	 * @throws IOException
+	 *         thrown if an error occurs while sending the data from the plugin
 	 */
-	public void restartTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final Environment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
-		getTaskManager().restartTask(id, jobConfiguration, environment, activeOutputChannels);
+	public synchronized void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
+
+		getTaskManagerPluginComponent().sendData(pluginID, data);
+	}
+
+	/**
+	 * Connects to the plugin component of this instance's task manager and requests data from the plugin with the given
+	 * ID.
+	 * 
+	 * @param pluginID
+	 *        the ID of the plugin to request data from
+	 * @param data
+	 *        data to specify the request
+	 * @return the requested data, possibly <code>null</code>
+	 * @throws IOException
+	 *         thrown if an error occurs while requesting the data from the plugin
+	 */
+	public synchronized IOReadableWritable requestData(PluginID pluginID, IOReadableWritable data) throws IOException {
+
+		return getTaskManagerPluginComponent().requestData(pluginID, data);
+	}
+
+	/**
+	 * Invalidates the entries identified by the given channel IDs from the remote task manager's receiver lookup cache.
+	 * 
+	 * @param channelIDs
+	 *        the channel IDs identifying the cache entries to invalidate
+	 * @throws IOException
+	 *         thrown if an error occurs during this remote procedure call
+	 */
+	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
+
+		getTaskManager().invalidateLookupCacheEntries(channelIDs);
 	}
 }

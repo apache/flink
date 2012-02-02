@@ -19,7 +19,6 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -27,16 +26,24 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
+import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.DummyInstance;
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
-import eu.stratosphere.nephele.util.SerializableArrayList;
+import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -68,7 +75,7 @@ public final class RecoveryLogic {
 
 		final Set<ExecutionVertex> verticesToBeCanceled = new HashSet<ExecutionVertex>();
 
-		final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToBeReplayed = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
+		final Set<ExecutionVertex> checkpointsToBeReplayed = new HashSet<ExecutionVertex>();
 
 		findVerticesToRestart(failedVertex, verticesToBeCanceled, checkpointsToBeReplayed);
 
@@ -88,28 +95,17 @@ public final class RecoveryLogic {
 
 		}
 
+		// Invalidate the lookup caches
+		if (!invalidateReceiverLookupCaches(failedVertex, verticesToBeCanceled)) {
+			return false;
+		}
+
 		// Replay all necessary checkpoints
-		final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> checkpointIterator = checkpointsToBeReplayed
-			.entrySet().iterator();
+		final Iterator<ExecutionVertex> checkpointIterator = checkpointsToBeReplayed.iterator();
 
 		while (checkpointIterator.hasNext()) {
 
-			final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = checkpointIterator.next();
-			final AbstractInstance instance = entry.getKey();
-
-			try {
-				final List<CheckpointReplayResult> results = instance.replayCheckpoints(entry.getValue());
-				for (final CheckpointReplayResult result : results) {
-					if (result.getReturnCode() != ReturnCode.SUCCESS) {
-						LOG.error(result.getDescription());
-						return false;
-					}
-				}
-
-			} catch (IOException ioe) {
-				LOG.error(StringUtils.stringifyException(ioe));
-				return false;
-			}
+			checkpointIterator.next().updateExecutionState(ExecutionState.ASSIGNED);
 		}
 
 		// Restart failed vertex
@@ -124,7 +120,7 @@ public final class RecoveryLogic {
 
 	private static void findVerticesToRestart(final ExecutionVertex failedVertex,
 			final Set<ExecutionVertex> verticesToBeCanceled,
-			final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToBeReplayed) {
+			final Set<ExecutionVertex> checkpointsToBeReplayed) {
 
 		final Queue<ExecutionVertex> verticesToTest = new ArrayDeque<ExecutionVertex>();
 		final Set<ExecutionVertex> visited = new HashSet<ExecutionVertex>();
@@ -149,21 +145,104 @@ public final class RecoveryLogic {
 						verticesToTest.add(predecessor);
 					}
 				} else {
-
-					// Group IDs by instance
-					final AbstractInstance instance = predecessor.getAllocatedResource().getInstance();
-					List<ExecutionVertexID> checkpointIDs = checkpointsToBeReplayed.get(instance);
-					if (checkpointIDs == null) {
-						checkpointIDs = new SerializableArrayList<ExecutionVertexID>();
-						checkpointsToBeReplayed.put(instance, checkpointIDs);
-					}
-
-					if (!checkpointIDs.contains(predecessor.getID())) {
-						checkpointIDs.add(predecessor.getID());
-					}
+					checkpointsToBeReplayed.add(predecessor);
 				}
 			}
 			visited.add(vertex);
 		}
+	}
+
+	private static final boolean invalidateReceiverLookupCaches(final ExecutionVertex failedVertex,
+			final Set<ExecutionVertex> verticesToBeCanceled) {
+
+		final Map<AbstractInstance, Set<ChannelID>> entriesToInvalidate = new HashMap<AbstractInstance, Set<ChannelID>>();
+
+		final ExecutionGraph eg = failedVertex.getExecutionGraph();
+
+		final RuntimeEnvironment env = failedVertex.getEnvironment();
+		for (int i = 0; i < env.getNumberOfOutputGates(); ++i) {
+
+			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+
+				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+				if (outputChannel.getType() == ChannelType.FILE) {
+					// Connected vertex is not yet running
+					continue;
+				}
+
+				final ChannelID connectedChannelID = outputChannel.getConnectedChannelID();
+				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
+				if (connectedVertex == null) {
+					LOG.error("Connected vertex is null");
+					continue;
+				}
+
+				if (verticesToBeCanceled.contains(connectedVertex)) {
+					// Vertex will be canceled anyways
+					continue;
+				}
+
+				final AbstractInstance instance = connectedVertex.getAllocatedResource().getInstance();
+				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
+				if (channelIDs == null) {
+					channelIDs = new SerializableHashSet<ChannelID>();
+					entriesToInvalidate.put(instance, channelIDs);
+				}
+
+				channelIDs.add(connectedChannelID);
+			}
+		}
+
+		for (int i = 0; i < env.getNumberOfInputGates(); ++i) {
+
+			final InputGate<? extends Record> inputGate = env.getInputGate(i);
+			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+
+				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
+				if (inputChannel.getType() == ChannelType.FILE) {
+					// Connected vertex is not running anymore
+					continue;
+				}
+
+				final ChannelID connectedChannelID = inputChannel.getConnectedChannelID();
+				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
+				if (connectedVertex == null) {
+					LOG.error("Connected vertex is null");
+					continue;
+				}
+
+				if (verticesToBeCanceled.contains(connectedVertex)) {
+					// Vertex will be canceled anyways
+					continue;
+				}
+
+				final AbstractInstance instance = connectedVertex.getAllocatedResource().getInstance();
+				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
+				if (channelIDs == null) {
+					channelIDs = new SerializableHashSet<ChannelID>();
+					entriesToInvalidate.put(instance, channelIDs);
+				}
+
+				channelIDs.add(connectedChannelID);
+			}
+		}
+
+		final Iterator<Map.Entry<AbstractInstance, Set<ChannelID>>> it = entriesToInvalidate.entrySet().iterator();
+
+		while (it.hasNext()) {
+
+			final Map.Entry<AbstractInstance, Set<ChannelID>> entry = it.next();
+			final AbstractInstance instance = entry.getKey();
+
+			try {
+				instance.invalidateLookupCacheEntries(entry.getValue());
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

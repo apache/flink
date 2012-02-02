@@ -26,13 +26,15 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.taskmanager.Task;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
@@ -51,7 +53,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelClose
  * 
  * @author warneke
  */
-public class EphemeralCheckpoint {
+public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 	/**
 	 * The log object used to report problems.
@@ -76,7 +78,7 @@ public class EphemeralCheckpoint {
 	/**
 	 * The task this checkpoint is created for.
 	 */
-	private final Task task;
+	private final RuntimeTask task;
 
 	/**
 	 * The number of channels connected to this checkpoint.
@@ -125,13 +127,13 @@ public class EphemeralCheckpoint {
 
 	private volatile CheckpointingDecisionState asynchronousCheckpointingDecision;
 
-	public EphemeralCheckpoint(final Task task, final boolean ephemeral) {
+	public EphemeralCheckpoint(final RuntimeTask task, final boolean ephemeral) {
 
 		this.task = task;
 
 		// Determine number of output channel
 		int nooc = 0;
-		final Environment environment = task.getEnvironment();
+		final RuntimeEnvironment environment = task.getRuntimeEnvironment();
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			nooc += environment.getOutputGate(i).getNumberOfOutputChannels();
 		}
@@ -149,52 +151,6 @@ public class EphemeralCheckpoint {
 		if (this.checkpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
 			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
 		}
-	}
-
-	/**
-	 * Adds a transfer envelope to the checkpoint.
-	 * 
-	 * @param transferEnvelope
-	 *        the transfer envelope to be added
-	 * @throws IOException
-	 *         thrown when an I/O error occurs while writing the envelope to disk
-	 */
-	public void addTransferEnvelope(TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
-
-		if (this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING) {
-			final Buffer buffer = transferEnvelope.getBuffer();
-			if (buffer != null) {
-				buffer.recycleBuffer();
-			}
-
-			return;
-		}
-
-		if (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED) {
-			this.queuedEnvelopes.add(transferEnvelope);
-			return;
-		}
-
-		writeTransferEnvelope(transferEnvelope);
-	}
-
-	/**
-	 * Returns whether the checkpoint is persistent.
-	 * 
-	 * @return <code>true</code> if the checkpoint is persistent, <code>false</code> otherwise
-	 */
-	public boolean isPersistent() {
-
-		return (this.checkpointingDecision == CheckpointingDecisionState.CHECKPOINTING);
-	}
-
-	public boolean isDecided() {
-		return this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED;
-	}
-
-	public boolean isDiscarded() {
-
-		return this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING;
 	}
 
 	private void destroy() {
@@ -219,11 +175,11 @@ public class EphemeralCheckpoint {
 	private boolean renameCheckpointPart(final String checkpointDir) {
 
 		final File oldFile = new File(checkpointDir + File.separator
-			+ CheckpointReplayManager.METADATA_PREFIX + "_"
+			+ CheckpointUtils.METADATA_PREFIX + "_"
 			+ this.task.getVertexID() + "_part");
 
 		final File newFile = new File(checkpointDir + File.separator
-			+ CheckpointReplayManager.METADATA_PREFIX + "_"
+			+ CheckpointUtils.METADATA_PREFIX + "_"
 			+ this.task.getVertexID() + "_" + this.metaDataSuffix);
 
 		if (!oldFile.renameTo(newFile)) {
@@ -238,8 +194,8 @@ public class EphemeralCheckpoint {
 			InterruptedException {
 
 		final String checkpointDir = GlobalConfiguration.getString(
-			CheckpointReplayManager.CHECKPOINT_DIRECTORY_KEY,
-			CheckpointReplayManager.DEFAULT_CHECKPOINT_DIRECTORY);
+			CheckpointUtils.CHECKPOINT_DIRECTORY_KEY,
+			CheckpointUtils.DEFAULT_CHECKPOINT_DIRECTORY);
 
 		final Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer != null) {
@@ -275,7 +231,7 @@ public class EphemeralCheckpoint {
 				LOG.debug("Writing checkpointing meta data to directory " + checkpointDir);
 			}
 			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator
-				+ CheckpointReplayManager.METADATA_PREFIX
+				+ CheckpointUtils.METADATA_PREFIX
 				+ "_" + this.task.getVertexID() + "_part");
 			this.metaDataFileChannel = fos.getChannel();
 		}
@@ -307,7 +263,7 @@ public class EphemeralCheckpoint {
 				renameCheckpointPart(checkpointDir);
 			}
 
-			new FileOutputStream(checkpointDir + File.separator + CheckpointReplayManager.METADATA_PREFIX + "_"
+			new FileOutputStream(checkpointDir + File.separator + CheckpointUtils.METADATA_PREFIX + "_"
 				+ this.task.getVertexID() + "_final").close();
 
 			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.
@@ -350,5 +306,44 @@ public class EphemeralCheckpoint {
 		}
 
 		this.checkpointingDecision = this.asynchronousCheckpointingDecision;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean forward(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
+
+		if (this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING) {
+			return true;
+		}
+
+		final TransferEnvelope dup = transferEnvelope.duplicate();
+
+		if (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED) {
+			this.queuedEnvelopes.add(dup);
+		} else {
+			writeTransferEnvelope(dup);
+		}
+
+		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean hasDataLeft() {
+
+		return false;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void processEvent(final AbstractEvent event) {
+		// TODO Auto-generated method stub
+
 	}
 }

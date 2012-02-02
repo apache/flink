@@ -13,24 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.checkpointing;
+package eu.stratosphere.nephele.util;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.annotations.Stateless;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
- * This notifier will be called by a {@link CheckpointReplayTask} after the replay of a checkpoint has been finished,
- * either because all data has been replayed, the same checkpoint shall be replayed by another
- * {@link CheckpointReplayTask} object, or an error occurred.
+ * This class implements several convenience methods to determine properties of Nephele task classes.
  * 
  * @author warneke
  */
-public interface ReplayFinishedNotifier {
+public class TaskUtils {
 
 	/**
-	 * Indicates the {@link CheckpointReplayTask} for the task represented by the given vertex ID has finished.
-	 * 
-	 * @param vertexID
-	 *        the ID identifying the {@link CheckpointReplayTask} that has finished
+	 * Private constructor, so class cannot be instantiated.
 	 */
-	public void replayFinished(ExecutionVertexID vertexID);
+	private TaskUtils() {
+	}
+
+	/**
+	 * Checks if a task is declared to be stateless.
+	 * 
+	 * @param taskClass
+	 *        the class of the task to check
+	 * @return <code>true</code> if the given class is declared to be stateless, <code>false</code> otherwise
+	 */
+	public static boolean isStateless(final Class<? extends AbstractInvokable> taskClass) {
+
+		return taskClass.isAnnotationPresent(Stateless.class);
+	}
 }

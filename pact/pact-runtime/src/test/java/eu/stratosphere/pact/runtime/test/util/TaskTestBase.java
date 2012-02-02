@@ -71,24 +71,24 @@ public abstract class TaskTestBase {
 
 	public void addInput(MutableObjectIterator<PactRecord> input, int groupId) {
 		this.mockEnv.addInput(input);
-		new TaskConfig(this.mockEnv.getRuntimeConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD, groupId);
+		new TaskConfig(this.mockEnv.getTaskConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD, groupId);
 	}
 
 	public void addOutput(List<PactRecord> output) {
 		this.mockEnv.addOutput(output);
-		new TaskConfig(this.mockEnv.getRuntimeConfiguration()).addOutputShipStrategy(ShipStrategy.FORWARD);
+		new TaskConfig(this.mockEnv.getTaskConfiguration()).addOutputShipStrategy(ShipStrategy.FORWARD);
 	}
 
 	public TaskConfig getTaskConfig() {
-		return new TaskConfig(this.mockEnv.getRuntimeConfiguration());
+		return new TaskConfig(this.mockEnv.getTaskConfiguration());
 	}
 	
 	public Configuration getConfiguration() {
-		return this.mockEnv.getRuntimeConfiguration();
+		return this.mockEnv.getTaskConfiguration();
 	}
 
 	public void registerTask(AbstractTask task, Class<? extends Stub> stubClass) {
-		new TaskConfig(this.mockEnv.getRuntimeConfiguration()).setStubClass(stubClass);
+		new TaskConfig(this.mockEnv.getTaskConfiguration()).setStubClass(stubClass);
 		task.setEnvironment(this.mockEnv);
 		task.registerInputOutput();
 	}
@@ -101,7 +101,7 @@ public abstract class TaskTestBase {
 	public void registerFileOutputTask(AbstractOutputTask outTask,
 			Class<? extends FileOutputFormat> stubClass, String outPath)
 	{
-		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getRuntimeConfiguration());
+		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		
 		dsConfig.setStubClass(stubClass);
 		dsConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outPath);
@@ -113,7 +113,7 @@ public abstract class TaskTestBase {
 	public void registerFileInputTask(AbstractInputTask<?> inTask,
 			Class<? extends DelimitedInputFormat> stubClass, String inPath, String delimiter)
 	{
-		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getRuntimeConfiguration()); 
+		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration()); 
 		dsConfig.setStubClass(stubClass);
 		dsConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, inPath);
 		dsConfig.setStubParameter(DelimitedInputFormat.RECORD_DELIMITER, delimiter);

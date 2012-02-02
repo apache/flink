@@ -276,18 +276,18 @@ public class ManagementGraphTest {
 			"medium", CHECKPOINT_STATE, 0);
 
 		// Input/output gates
-		final ManagementGate outputGate1_1 = new ManagementGate(vertex1_1, 0, false, RECORD_TYPE);
+		final ManagementGate outputGate1_1 = new ManagementGate(vertex1_1, new ManagementGateID(), 0, false, RECORD_TYPE);
 
-		final ManagementGate inputGate2_1 = new ManagementGate(vertex2_1, 0, true, RECORD_TYPE);
-		final ManagementGate outputGate2_1 = new ManagementGate(vertex2_1, 0, false, RECORD_TYPE);
+		final ManagementGate inputGate2_1 = new ManagementGate(vertex2_1, new ManagementGateID(), 0, true, RECORD_TYPE);
+		final ManagementGate outputGate2_1 = new ManagementGate(vertex2_1, new ManagementGateID(), 0, false, RECORD_TYPE);
 
-		final ManagementGate inputGate2_2 = new ManagementGate(vertex2_2, 0, true, RECORD_TYPE);
-		final ManagementGate outputGate2_2 = new ManagementGate(vertex2_2, 0, false, RECORD_TYPE);
+		final ManagementGate inputGate2_2 = new ManagementGate(vertex2_2, new ManagementGateID(), 0, true, RECORD_TYPE);
+		final ManagementGate outputGate2_2 = new ManagementGate(vertex2_2, new ManagementGateID(), 0, false, RECORD_TYPE);
 
-		final ManagementGate inputGate3_1 = new ManagementGate(vertex3_1, 0, true, RECORD_TYPE);
-		final ManagementGate outputGate3_1 = new ManagementGate(vertex3_1, 0, false, RECORD_TYPE);
+		final ManagementGate inputGate3_1 = new ManagementGate(vertex3_1, new ManagementGateID(), 0, true, RECORD_TYPE);
+		final ManagementGate outputGate3_1 = new ManagementGate(vertex3_1, new ManagementGateID(), 0, false, RECORD_TYPE);
 
-		final ManagementGate inputGate4_1 = new ManagementGate(vertex4_1, 0, true, RECORD_TYPE);
+		final ManagementGate inputGate4_1 = new ManagementGate(vertex4_1, new ManagementGateID(), 0, true, RECORD_TYPE);
 
 		// Group Edges
 		new ManagementGroupEdge(groupVertex1, 0, groupVertex2, 0, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
@@ -295,11 +295,16 @@ public class ManagementGraphTest {
 		new ManagementGroupEdge(groupVertex3, 0, groupVertex4, 0, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 		// Edges
-		new ManagementEdge(outputGate1_1, 0, inputGate2_1, 0, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(outputGate1_1, 1, inputGate2_2, 0, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(outputGate2_1, 0, inputGate3_1, 0, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(outputGate2_2, 0, inputGate3_1, 1, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(outputGate3_1, 0, inputGate4_1, 0, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate1_1, 0, inputGate2_1, 0,
+			ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate1_1, 1, inputGate2_2, 0,
+			ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate2_1, 0, inputGate3_1, 0,
+			ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate2_2, 0, inputGate3_1, 1,
+			ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate3_1, 0, inputGate4_1, 0,
+			ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 		return graph;
 	}

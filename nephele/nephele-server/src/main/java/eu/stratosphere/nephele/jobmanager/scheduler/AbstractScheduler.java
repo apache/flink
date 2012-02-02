@@ -27,8 +27,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -51,7 +51,6 @@ import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * This abstract scheduler must be extended by a scheduler implementations for Nephele. The abstract class defines the
@@ -222,7 +221,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			verticesForInstance.add(vertex);
 		}
 
-		final Environment env = vertex.getEnvironment();
+		final RuntimeEnvironment env = vertex.getEnvironment();
 		final int numberOfOutputGates = env.getNumberOfOutputGates();
 		for (int i = 0; i < numberOfOutputGates; ++i) {
 
@@ -471,28 +470,13 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final int currentStageIndex = executionGraph.getIndexOfCurrentExecutionStage();
 		final ExecutionStage previousStage = executionGraph.getStage(currentStageIndex - 1);
 
-		final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToReplay = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
-
 		for (int i = 0; i < previousStage.getNumberOfOutputExecutionVertices(); ++i) {
 
 			final ExecutionVertex vertex = previousStage.getOutputExecutionVertex(i);
-			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-
-			List<ExecutionVertexID> vertexIDs = checkpointsToReplay.get(instance);
-			if (vertexIDs == null) {
-				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
-				checkpointsToReplay.put(instance, vertexIDs);
-			}
-
-			vertexIDs.add(vertex.getID());
+			vertex.updateExecutionState(ExecutionState.ASSIGNED);
 		}
 
-		final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> it = checkpointsToReplay.entrySet()
-				.iterator();
-		while (it.hasNext()) {
-			final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = it.next();
-			this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
-		}
+		deployAssignedVertices(executionGraph);
 	}
 
 	/**

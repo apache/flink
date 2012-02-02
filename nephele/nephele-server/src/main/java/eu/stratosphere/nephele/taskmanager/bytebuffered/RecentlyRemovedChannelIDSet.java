@@ -18,12 +18,10 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * This channel set stores the IDs of all channels that have been recently removed. The set can be cleaned up by
@@ -91,30 +89,19 @@ public final class RecentlyRemovedChannelIDSet {
 
 		final Long now = Long.valueOf(System.currentTimeMillis());
 
+		final Set<ChannelID> outputChannelIDs = environment.getOutputChannelIDs();
+		final Set<ChannelID> inputChannelIDs = environment.getInputChannelIDs();
+
 		synchronized (this.recentlyRemovedChannels) {
 
-			final int numberOfOutputGates = environment.getNumberOfOutputGates();
-
-			for (int i = 0; i < numberOfOutputGates; ++i) {
-
-				final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
-				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
-				for (int j = 0; j < numberOfOutputChannels; ++j) {
-
-					this.recentlyRemovedChannels.put(outputGate.getOutputChannel(j).getID(), now);
-				}
+			Iterator<ChannelID> it = outputChannelIDs.iterator();
+			while (it.hasNext()) {
+				this.recentlyRemovedChannels.put(it.next(), now);
 			}
 
-			final int numberOfInputGates = environment.getNumberOfInputGates();
-
-			for (int i = 0; i < numberOfInputGates; ++i) {
-
-				final InputGate<? extends Record> inputGate = environment.getInputGate(i);
-				final int numberOfInputChannels = inputGate.getNumberOfInputChannels();
-				for (int j = 0; j < numberOfInputChannels; ++j) {
-
-					this.recentlyRemovedChannels.put(inputGate.getInputChannel(j).getID(), now);
-				}
+			it = inputChannelIDs.iterator();
+			while (it.hasNext()) {
+				this.recentlyRemovedChannels.put(it.next(), now);
 			}
 		}
 	}

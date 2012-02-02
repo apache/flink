@@ -41,7 +41,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 public abstract class AbstractOutputChannel<T extends Record> extends AbstractChannel {
 
 	private OutputGate<T> outputGate = null;
-	
+
 	/**
 	 * Creates a new output channel object.
 	 * 

@@ -174,7 +174,7 @@ public class FailingJobITCase {
 				if (!new File(configDir).exists()) {
 					configDir = userDir + "/src/test/resources/" + CONFIGURATION_DIRECTORY;
 				}
-				
+
 				final Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
 					String.class });
 				c.setAccessible(true);
@@ -283,9 +283,9 @@ public class FailingJobITCase {
 
 			boolean failing = false;
 
-			final int failAfterRecord = getRuntimeConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
+			final int failAfterRecord = getTaskConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
 			synchronized (FAILED_ONCE) {
-				failing = (getIndexInSubtaskGroup() == getRuntimeConfiguration().getInteger(
+				failing = (getIndexInSubtaskGroup() == getTaskConfiguration().getInteger(
 					FAILURE_INDEX_KEY, -1)) && FAILED_ONCE.add(getEnvironment().getTaskName());
 			}
 
@@ -300,13 +300,14 @@ public class FailingJobITCase {
 			}
 		}
 	}
+
 	@ForceCheckpoint(checkpoint = true)
 	public final static class InnerTask extends AbstractTask {
 
 		private MutableRecordReader<FailingJobRecord> recordReader;
 
 		private RecordWriter<FailingJobRecord> recordWriter;
-		
+
 		/**
 		 * {@inheritDoc}
 		 */
@@ -328,9 +329,9 @@ public class FailingJobITCase {
 
 			boolean failing = false;
 
-			final int failAfterRecord = getRuntimeConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
+			final int failAfterRecord = getTaskConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
 			synchronized (FAILED_ONCE) {
-				failing = (getIndexInSubtaskGroup() == getRuntimeConfiguration().getInteger(
+				failing = (getIndexInSubtaskGroup() == getTaskConfiguration().getInteger(
 					FAILURE_INDEX_KEY, -1)) && FAILED_ONCE.add(getEnvironment().getTaskName());
 			}
 
@@ -346,13 +347,14 @@ public class FailingJobITCase {
 			}
 		}
 	}
+
 	@ForceCheckpoint(checkpoint = false)
 	public final static class NoCheckpointInnerTask extends AbstractTask {
 
 		private MutableRecordReader<FailingJobRecord> recordReader;
 
 		private RecordWriter<FailingJobRecord> recordWriter;
-		
+
 		/**
 		 * {@inheritDoc}
 		 */
@@ -374,9 +376,9 @@ public class FailingJobITCase {
 
 			boolean failing = false;
 
-			final int failAfterRecord = getRuntimeConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
+			final int failAfterRecord = getTaskConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
 			synchronized (FAILED_ONCE) {
-				failing = (getIndexInSubtaskGroup() == getRuntimeConfiguration().getInteger(
+				failing = (getIndexInSubtaskGroup() == getTaskConfiguration().getInteger(
 					FAILURE_INDEX_KEY, -1)) && FAILED_ONCE.add(getEnvironment().getTaskName());
 			}
 
@@ -392,6 +394,7 @@ public class FailingJobITCase {
 			}
 		}
 	}
+
 	public final static class RefailingInnerTask extends AbstractTask {
 
 		private MutableRecordReader<FailingJobRecord> recordReader;
@@ -419,9 +422,8 @@ public class FailingJobITCase {
 
 			boolean failing = false;
 
-			final int failAfterRecord = getRuntimeConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
-				failing = (getIndexInSubtaskGroup() == getRuntimeConfiguration().getInteger(FAILURE_INDEX_KEY, -1));
-			
+			final int failAfterRecord = getTaskConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
+			failing = (getIndexInSubtaskGroup() == getTaskConfiguration().getInteger(FAILURE_INDEX_KEY, -1));
 
 			int count = 0;
 
@@ -435,6 +437,7 @@ public class FailingJobITCase {
 			}
 		}
 	}
+
 	public static final class OutputTask extends AbstractOutputTask {
 
 		private MutableRecordReader<FailingJobRecord> recordReader;
@@ -457,9 +460,9 @@ public class FailingJobITCase {
 
 			boolean failing = false;
 
-			final int failAfterRecord = getRuntimeConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
+			final int failAfterRecord = getTaskConfiguration().getInteger(FAILED_AFTER_RECORD_KEY, -1);
 			synchronized (FAILED_ONCE) {
-				failing = (getIndexInSubtaskGroup() == getRuntimeConfiguration().getInteger(
+				failing = (getIndexInSubtaskGroup() == getTaskConfiguration().getInteger(
 					FAILURE_INDEX_KEY, -1)) && FAILED_ONCE.add(getEnvironment().getTaskName());
 			}
 
@@ -496,7 +499,6 @@ public class FailingJobITCase {
 		innerVertex1.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex1.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
 
-		
 		final JobTaskVertex innerVertex2 = new JobTaskVertex("Inner vertex 2", jobGraph);
 		innerVertex2.setTaskClass(InnerTask.class);
 		innerVertex2.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
@@ -600,6 +602,7 @@ public class FailingJobITCase {
 			fail(StringUtils.stringifyException(e));
 		}
 	}
+
 	/**
 	 * This test checks Nephele's capabilities to recover from network channel checkpoints.
 	 */
@@ -617,14 +620,14 @@ public class FailingJobITCase {
 		innerVertex1.setTaskClass(InnerTask.class);
 		innerVertex1.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex1.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
-		
+
 		final JobTaskVertex innerVertex2 = new JobTaskVertex("Inner vertex 2", jobGraph);
 		innerVertex2.setTaskClass(InnerTask.class);
 		innerVertex2.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex2.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
 		innerVertex2.getConfiguration().setInteger(FAILED_AFTER_RECORD_KEY, 95490);
 		innerVertex2.getConfiguration().setInteger(FAILURE_INDEX_KEY, 0);
-		
+
 		final JobGenericOutputVertex output = new JobGenericOutputVertex("Output", jobGraph);
 		output.setOutputClass(OutputTask.class);
 		output.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
@@ -660,6 +663,7 @@ public class FailingJobITCase {
 			fail(StringUtils.stringifyException(e));
 		}
 	}
+
 	/**
 	 * This test checks Nephele's fault tolerance capabilities by simulating a failing input vertex.
 	 */
@@ -684,7 +688,6 @@ public class FailingJobITCase {
 		innerVertex2.setTaskClass(InnerTask.class);
 		innerVertex2.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex2.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
-		
 
 		final JobTaskVertex innerVertex3 = new JobTaskVertex("Inner vertex 3", jobGraph);
 		innerVertex3.setTaskClass(InnerTask.class);
@@ -801,6 +804,7 @@ public class FailingJobITCase {
 		}
 
 	}
+
 	/**
 	 * This test checks Nephele's fault tolerance capabilities by simulating a successively failing one inner vertices.
 	 */
@@ -815,7 +819,7 @@ public class FailingJobITCase {
 		input.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
 
 		final JobTaskVertex innerVertex1 = new JobTaskVertex("Inner vertex 1", jobGraph);
-		//Using re-failing inner task
+		// Using re-failing inner task
 		innerVertex1.setTaskClass(RefailingInnerTask.class);
 		innerVertex1.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex1.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
@@ -866,13 +870,13 @@ public class FailingJobITCase {
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
-			//This is expected here
-			assert(e.isJobCanceledByUser() == false);
+			// This is expected here
+			assert (e.isJobCanceledByUser() == false);
 			return;
 		}
 		fail("Job expected to be cancled");
 	}
-	
+
 	/**
 	 * This test checks Nephele's fault tolerance capabilities by simulating a successively failing one inner vertices.
 	 */
@@ -945,10 +949,11 @@ public class FailingJobITCase {
 		}
 
 	}
-	
-	@After public void cleanUp(){
+
+	@After
+	public void cleanUp() {
 		File file = new File("/tmp/");
-		File[] files= file.listFiles();
+		File[] files = file.listFiles();
 
 		for (int i = 0; i < files.length; i++) {
 			String name = files[i].getName();
@@ -956,13 +961,14 @@ public class FailingJobITCase {
 				files[i].delete();
 			}
 		}
-		
+
 		System.out.println("deleted");
-		
-	   
+
 	}
+
 	/**
-	 * This test checks Nephele's fault tolerance capabilities by simulating a failing inner vertex without all tasks checkpointing.
+	 * This test checks Nephele's fault tolerance capabilities by simulating a failing inner vertex without all tasks
+	 * checkpointing.
 	 */
 	@Test
 	public void testFailingInternalVertexSomeCheckpoints() {
@@ -979,12 +985,10 @@ public class FailingJobITCase {
 		innerVertex1.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex1.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
 
-		
 		final JobTaskVertex innerVertex2 = new JobTaskVertex("Inner vertex 2", jobGraph);
 		innerVertex2.setTaskClass(NoCheckpointInnerTask.class);
 		innerVertex2.setNumberOfSubtasks(DEGREE_OF_PARALLELISM);
 		innerVertex2.setNumberOfSubtasksPerInstance(DEGREE_OF_PARALLELISM);
-		
 
 		final JobTaskVertex innerVertex3 = new JobTaskVertex("Inner vertex 3", jobGraph);
 		innerVertex3.setTaskClass(InnerTask.class);

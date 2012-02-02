@@ -13,29 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.checkpointing;
+package eu.stratosphere.nephele.plugins;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
+import eu.stratosphere.nephele.instance.AbstractInstance;
 
-public class CheckpointReplayResult extends AbstractTaskResult {
+public interface PluginLookupService {
 
-	/**
-	 * Constructs a new checkpoint replay result.
-	 * 
-	 * @param vertexID
-	 *        the task ID this result belongs to
-	 * @param returnCode
-	 *        the return code of the submission
-	 */
-	public CheckpointReplayResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
-		super(vertexID, returnCode);
-	}
-
-	/**
-	 * Constructs an empty checkpoint replay result.
-	 */
-	public CheckpointReplayResult() {
-		super();
-	}
+	PluginCommunication getJobManagerComponent(PluginID pluginID);
+	
+	PluginCommunication getTaskManagerComponent(PluginID pluginID, AbstractInstance instance);
 }

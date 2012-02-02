@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -52,35 +51,14 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	private boolean closeRequested = false;
 
 	/**
-	 * Stores whether the channel has received the acknowledgment
-	 * for the close request from its connected input channel.
-	 */
-	private boolean closeAcknowledgementReceived = false;
-
-	/**
 	 * The output channel broker the channel should contact to request and release write buffers.
 	 */
 	private ByteBufferedOutputChannelBroker outputChannelBroker = null;
 
 	/**
-	 * Synchronization object to protect variables that are accessed by the task and the framework.
-	 */
-	private final Object synchronisationObject = new Object();
-
-	/**
-	 * Temporarily stores a possible IOException that may be reported by the framework.
-	 */
-	private IOException ioException = null;
-
-	/**
 	 * The compressor used to compress the outgoing data.
 	 */
 	private Compressor compressor = null;
-
-	/**
-	 * Indicates the period of time this output channel shall throttle down so that the consumer can catch up.
-	 */
-	private long throttelingDuration = 0L;
 
 	/**
 	 * Buffer for the uncompressed data.
@@ -122,18 +100,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if (this.closeRequested && this.uncompressedDataBuffer == null
 			&& !this.serializationBuffer.dataLeftFromPreviousSerialization()) {
 
-			if (this.ioException != null) {
-				throw this.ioException;
-			}
-
-			if (this.outputChannelBroker.hasDataLeftToTransmit()) {
-				return false;
-			}
-
-			synchronized (this.synchronisationObject) {
-				if (this.closeAcknowledgementReceived) {
-					return true;
-				}
+			if (!this.outputChannelBroker.hasDataLeftToTransmit()) {
+				return true;
 			}
 		}
 
@@ -149,7 +117,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if (!this.closeRequested) {
 			this.closeRequested = true;
 			if (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
-				//make sure we serialized all data before we send the close event
+				// make sure we serialized all data before we send the close event
 				flush();
 			}
 
@@ -205,6 +173,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		this.outputChannelBroker.releaseWriteBuffers();
 		this.compressedDataBuffer = null;
 		this.uncompressedDataBuffer = null;
+
+		// Notify the output gate to enable statistics collection by plugins
+		getOutputGate().outputBufferSent(getID());
 	}
 
 	/**
@@ -215,20 +186,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		// Get a write buffer from the broker
 		if (this.uncompressedDataBuffer == null) {
-
-			synchronized (this.synchronisationObject) {
-
-				if (this.ioException != null) {
-					throw this.ioException;
-				}
-
-				if (this.throttelingDuration > 0L) {
-					// Temporarily, stop producing data
-					this.synchronisationObject.wait(this.throttelingDuration);
-					// Reset throttling duration
-					this.throttelingDuration = 0L;
-				}
-			}
 
 			requestWriteBuffersFromBroker();
 		}
@@ -303,19 +260,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (event instanceof AbstractTaskEvent) {
 			getOutputGate().deliverEvent((AbstractTaskEvent) event);
-		} else if (event instanceof NetworkThrottleEvent) {
-			if (getType() == ChannelType.FILE) {
-				LOG.error("FileChannel " + getID() + " received NetworkThrottleEvent");
-			} else {
-				synchronized (this.synchronisationObject) {
-					final NetworkThrottleEvent nte = (NetworkThrottleEvent) event;
-					this.throttelingDuration = nte.getDuration();
-				}
-			}
-		} else if (event instanceof ByteBufferedChannelCloseEvent) {
-			synchronized (this.synchronisationObject) {
-				this.closeAcknowledgementReceived = true;
-			}
 		} else {
 			LOG.error("Channel " + getID() + " received unknown event " + event);
 		}
@@ -379,33 +323,13 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	}
 
 	/**
-	 * This method is called by the framework to report
-	 * an {@link IOException} that occurred while trying to process
-	 * one of the buffers issued by this channel.
-	 * 
-	 * @param ioe
-	 *        the {@link IOException} which occurred
-	 */
-	public void reportIOException(IOException ioe) {
-
-		synchronized (this.synchronisationObject) {
-			this.ioException = ioe;
-			// Wake up thread if it has been throttled down
-			this.synchronisationObject.notify();
-		}
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseResources() {
+	public void releaseAllResources() {
 
+		// TODO: Reconsider release of broker's resources here
 		this.closeRequested = true;
-
-		synchronized (this.synchronisationObject) {
-			this.closeAcknowledgementReceived = true;
-		}
 
 		this.serializationBuffer.clear();
 

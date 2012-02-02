@@ -78,13 +78,7 @@ public enum ExecutionState {
 	FAILED,
 
 	/**
-	 * The task has been failed and will be restarted.
+	 * The task is being replayed from a checkpoint (the original task may still be running).
 	 */
-
-	RECOVERING,
-
-	/**
-	 * Recovery is finished the job is running normal again.
-	 */
-	RERUNNING;
+	REPLAYING;
 }

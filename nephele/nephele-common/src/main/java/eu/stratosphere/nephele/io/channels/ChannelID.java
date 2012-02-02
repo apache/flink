@@ -24,4 +24,26 @@ import eu.stratosphere.nephele.io.AbstractID;
  */
 public class ChannelID extends AbstractID {
 
+	/**
+	 * Constructs a new channel ID from the provided byte array.
+	 * 
+	 * @param bytes
+	 *        the byte array to construct the channel ID from
+	 */
+	private ChannelID(final byte[] bytes) {
+		super(bytes);
+	}
+
+	/**
+	 * Constructs a new, random channel ID.
+	 */
+	public ChannelID() {
+		super();
+	}
+
+	/**
+	 * The channel ID used by the framework to send notifications about problems with the data delivery.
+	 */
+	public static final ChannelID SYSTEM_ID = new ChannelID(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
 }
