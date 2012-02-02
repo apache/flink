@@ -34,6 +34,7 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.example.util.AsciiUtils;
 
 
 

@@ -13,13 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.relational.util;
+package eu.stratosphere.pact.test.testPrograms.util.tests;
 
 import org.eclipse.jdt.internal.core.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
+import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 
 public class IntTupleDataInFormatTest {
 

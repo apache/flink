@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.wordcount;
+package eu.stratosphere.pact.example.util;
 
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;

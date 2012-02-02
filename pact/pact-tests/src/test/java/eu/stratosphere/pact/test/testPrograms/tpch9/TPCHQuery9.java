@@ -27,7 +27,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
+import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
 
 /**
  * Quote from the TPC-H homepage:
