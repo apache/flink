@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.checkpointing;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,7 +39,9 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplitProvider;
+import eu.stratosphere.nephele.util.StringUtils;
 
 public final class ReplayTask implements Task {
 
@@ -56,8 +59,6 @@ public final class ReplayTask implements Task {
 		@Override
 		public void executionStateChanged(final ExecutionState newExecutionState, final String optionalMessage) {
 
-			System.out.println("Execution state changed to " + newExecutionState + ", " + optionalMessage);
-			
 			if (this.encapsulatedTask == null) {
 				replayTaskExecutionState = newExecutionState;
 			} else {
@@ -125,6 +126,9 @@ public final class ReplayTask implements Task {
 	private volatile ExecutionState encapsulatedExecutionState = null;
 
 	private volatile ExecutionState replayTaskExecutionState = ExecutionState.STARTING;
+
+	private final AtomicReference<ExecutionState> overallExecutionState = new AtomicReference<ExecutionState>(
+		ExecutionState.STARTING);
 
 	private AtomicBoolean replayThreadStarted = new AtomicBoolean(false);
 
@@ -219,16 +223,90 @@ public final class ReplayTask implements Task {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void cancelExecution() {
-		// TODO Auto-generated method stub
 
+		System.out.println("+++++++ Cancel called");
+
+		cancelOrKillExecution(true);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void killExecution() {
-		// TODO Auto-generated method stub
 
+		cancelOrKillExecution(false);
+	}
+
+	/**
+	 * Cancels or kills the task.
+	 * 
+	 * @param cancel
+	 *        <code>true/code> if the task shall be cancelled, <code>false</code> if it shall be killed
+	 */
+	private void cancelOrKillExecution(final boolean cancel) {
+
+		final Thread replayThread = this.environment.getExecutingThread();
+		Thread encapsulatedThread = null;
+		if (this.encapsulatedTask != null) {
+			encapsulatedThread = this.encapsulatedTask.getRuntimeEnvironment().getExecutingThread();
+		}
+
+		if (replayThread == null && encapsulatedThread == null) {
+			return;
+		}
+
+		if (cancel) {
+			this.isCanceled = true;
+			this.replayTaskExecutionState = ExecutionState.CANCELING;
+			if (this.encapsulatedExecutionState != null) {
+				this.encapsulatedExecutionState = ExecutionState.CANCELING;
+			}
+			reportExecutionStateChange(true, null);
+		}
+
+		// Request user code to shut down
+		if (this.encapsulatedTask != null) {
+
+			try {
+				final AbstractInvokable invokable = this.encapsulatedTask.getRuntimeEnvironment().getInvokable();
+				if (invokable != null) {
+					invokable.cancel();
+				}
+			} catch (Throwable e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
+		}
+
+		// Continuously interrupt the threads until it changed to state CANCELED
+		while (true) {
+
+			replayThread.interrupt();
+			if (encapsulatedThread != null) {
+				encapsulatedThread.interrupt();
+			}
+
+			if (cancel) {
+				if (this.overallExecutionState.get() == ExecutionState.CANCELED) {
+					break;
+				}
+			} else {
+				if (this.overallExecutionState.get() == ExecutionState.FAILED) {
+					break;
+				}
+			}
+
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
 	}
 
 	/**
@@ -297,17 +375,22 @@ public final class ReplayTask implements Task {
 
 	private void reportExecutionStateChange(final boolean replayTaskStateChanged, final String optionalMessage) {
 
-		final JobID jobID = this.environment.getJobID();
-
+		ExecutionState candidateState;
 		if (replayTaskStateChanged) {
-
-			if (this.replayTaskExecutionState == ExecutionState.REPLAYING) {
-				this.taskManager.executionStateChanged(jobID, this.vertexID, this.replayTaskExecutionState,
-					optionalMessage);
-			}
-
+			candidateState = determineOverallExecutionState(this.encapsulatedExecutionState,
+				this.replayTaskExecutionState);
 		} else {
+			candidateState = determineOverallExecutionState(this.replayTaskExecutionState,
+				this.encapsulatedExecutionState);
+		}
 
+		if (candidateState == null) {
+			return;
+		}
+
+		if (this.overallExecutionState.getAndSet(candidateState) != candidateState) {
+			this.taskManager.executionStateChanged(this.environment.getJobID(), this.vertexID, candidateState,
+				optionalMessage);
 		}
 	}
 
@@ -325,4 +408,36 @@ public final class ReplayTask implements Task {
 		return null;
 	}
 
+	private static ExecutionState determineOverallExecutionState(final ExecutionState unchangedExecutionState,
+			final ExecutionState changedExecutionState) {
+
+		if (changedExecutionState == null) {
+			return changedExecutionState;
+		}
+
+		if (changedExecutionState == ExecutionState.REPLAYING) {
+
+			if (unchangedExecutionState == ExecutionState.RUNNING) {
+				return ExecutionState.REPLAYING;
+			} else {
+				return unchangedExecutionState;
+			}
+		}
+
+		if (changedExecutionState == ExecutionState.CANCELING) {
+			return ExecutionState.CANCELING;
+		}
+
+		if (changedExecutionState == ExecutionState.CANCELED && unchangedExecutionState == ExecutionState.CANCELED) {
+			return ExecutionState.CANCELED;
+		}
+
+		if (changedExecutionState == ExecutionState.FINISHING && unchangedExecutionState == ExecutionState.FINISHING) {
+			return ExecutionState.FINISHING;
+		}
+
+		System.out.println("Changed: " + changedExecutionState + " unchanged: " + unchangedExecutionState);
+
+		return null;
+	}
 }
