@@ -126,6 +126,8 @@ public final class RecoveryLogic {
 		final Set<ExecutionVertex> visited = new HashSet<ExecutionVertex>();
 		verticesToTest.add(failedVertex);
 
+		System.out.println("++++" + failedVertex + " failed");
+		
 		while (!verticesToTest.isEmpty()) {
 
 			final ExecutionVertex vertex = verticesToTest.poll();
@@ -137,6 +139,7 @@ public final class RecoveryLogic {
 			// Predecessors must be either checkpoints or need to be restarted, too
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
 				final ExecutionVertex predecessor = vertex.getPredecessor(j);
+				System.out.println("++++ Predecessor " + predecessor + " has checkpoint state " + predecessor.getCheckpointState());
 				if (predecessor.getCheckpointState() != CheckpointState.PARTIAL
 						&& predecessor.getCheckpointState() != CheckpointState.COMPLETE) {
 

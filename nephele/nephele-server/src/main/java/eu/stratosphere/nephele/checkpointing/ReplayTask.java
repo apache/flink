@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.io.OutputBuffer;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
@@ -57,6 +56,8 @@ public final class ReplayTask implements Task {
 		@Override
 		public void executionStateChanged(final ExecutionState newExecutionState, final String optionalMessage) {
 
+			System.out.println("Execution state changed to " + newExecutionState + ", " + optionalMessage);
+			
 			if (this.encapsulatedTask == null) {
 				replayTaskExecutionState = newExecutionState;
 			} else {
@@ -291,7 +292,7 @@ public final class ReplayTask implements Task {
 	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints) {
 
-		return new ReplayTaskContext();
+		return new ReplayTaskContext(this, transferEnvelopeDispatcher);
 	}
 
 	private void reportExecutionStateChange(final boolean replayTaskStateChanged, final String optionalMessage) {
@@ -307,8 +308,6 @@ public final class ReplayTask implements Task {
 
 		} else {
 
-			
-			
 		}
 	}
 

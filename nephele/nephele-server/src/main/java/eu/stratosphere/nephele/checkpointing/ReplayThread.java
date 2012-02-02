@@ -136,7 +136,7 @@ final class ReplayThread extends Thread {
 	}
 
 	private void replayCheckpoint() throws Exception {
-
+		
 		final CheckpointDeserializer deserializer = new CheckpointDeserializer(this.vertexID);
 
 		int metaDataIndex = 0;
@@ -209,6 +209,7 @@ final class ReplayThread extends Thread {
 			throw new IOException("Cannot find output broker for channel " + transferEnvelope.getSource());
 		}
 
+		System.out.println("Emitting envelope " + transferEnvelope.getSequenceNumber());
 		outputBroker.outputEnvelope(transferEnvelope);
 	}
 }

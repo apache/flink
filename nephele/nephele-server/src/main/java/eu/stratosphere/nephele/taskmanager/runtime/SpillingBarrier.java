@@ -20,7 +20,7 @@ public final class SpillingBarrier implements OutputChannelForwarder {
 	 */
 	private boolean isReceiverRunning = false;
 
-	SpillingBarrier(final boolean isReceiverRunning) {
+	public SpillingBarrier(final boolean isReceiverRunning, final boolean mergeSpillBuffers) {
 		this.isReceiverRunning = isReceiverRunning;
 		this.queuedOutgoingEnvelopes = null;
 	}

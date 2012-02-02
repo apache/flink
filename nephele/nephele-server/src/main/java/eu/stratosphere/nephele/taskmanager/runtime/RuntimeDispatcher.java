@@ -11,7 +11,7 @@ public final class RuntimeDispatcher implements OutputChannelForwarder {
 
 	private final TransferEnvelopeDispatcher dispatcher;
 
-	RuntimeDispatcher(final TransferEnvelopeDispatcher dispatcher) {
+	public RuntimeDispatcher(final TransferEnvelopeDispatcher dispatcher) {
 		
 		this.dispatcher = dispatcher;
 	}

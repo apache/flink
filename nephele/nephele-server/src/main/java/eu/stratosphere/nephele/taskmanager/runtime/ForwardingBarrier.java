@@ -32,7 +32,7 @@ public final class ForwardingBarrier implements OutputChannelForwarder {
 
 	private int forwardingBarrier = -1;
 
-	ForwardingBarrier(final ChannelID outputChannelID) {
+	public ForwardingBarrier(final ChannelID outputChannelID) {
 		this.outputChannelID = outputChannelID;
 	}
 
