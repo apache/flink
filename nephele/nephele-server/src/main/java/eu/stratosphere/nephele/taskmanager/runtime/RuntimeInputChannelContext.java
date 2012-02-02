@@ -173,10 +173,12 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 				if (sequenceNumber > expectedSequenceNumber) {
 
-					// This is a problem, now we are actually missing some data
-					this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
+					if (expectedSequenceNumber > 0) {
+						// This is a problem, now we are actually missing some data
+						this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
 							+ expectedSequenceNumber + " but received " + sequenceNumber));
-					this.byteBufferedInputChannel.checkForNetworkEvents();
+						this.byteBufferedInputChannel.checkForNetworkEvents();
+					}
 				} else {
 
 					// Tell the sender that we are expecting an envelope with a higher sequence number
