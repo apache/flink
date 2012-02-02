@@ -134,4 +134,13 @@ final class ReplayInputChannelContext implements InputChannelContext {
 		return this.encapsulatedContext.getNumberOfQueuedMemoryBuffers();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseAllResources() {
+		
+		this.encapsulatedContext.releaseAllResources();
+	}
+
 }

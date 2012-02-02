@@ -60,4 +60,10 @@ public final class ReplayOutputChannelContext implements OutputChannelContext {
 
 	}
 
+	@Override
+	public void releaseAllResources() {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

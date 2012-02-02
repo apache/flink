@@ -468,7 +468,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 		final Iterator<AbstractOutputChannel<T>> it = this.outputChannels.iterator();
 
 		while (it.hasNext()) {
-			it.next().releaseResources();
+			it.next().releaseAllResources();
 		}
 	}
 

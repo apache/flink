@@ -24,13 +24,15 @@ public interface ChannelContext {
 
 	boolean isInputChannel();
 	
-	public JobID getJobID();
+	JobID getJobID();
 
-	public ChannelID getChannelID();
+	ChannelID getChannelID();
 
-	public ChannelID getConnectedChannelID();
+	ChannelID getConnectedChannelID();
 	
-	public ChannelType getType();
+	ChannelType getType();
 	
-	public void queueTransferEnvelope(TransferEnvelope transferEnvelope);
+	void queueTransferEnvelope(TransferEnvelope transferEnvelope);
+	
+	void releaseAllResources();
 }

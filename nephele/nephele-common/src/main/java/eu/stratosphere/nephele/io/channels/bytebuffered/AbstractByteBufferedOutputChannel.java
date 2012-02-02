@@ -117,7 +117,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if (!this.closeRequested) {
 			this.closeRequested = true;
 			if (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
-				//make sure we serialized all data before we send the close event
+				// make sure we serialized all data before we send the close event
 				flush();
 			}
 
@@ -326,8 +326,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseResources() {
+	public void releaseAllResources() {
 
+		// TODO: Reconsider release of broker's resources here
 		this.closeRequested = true;
 
 		this.serializationBuffer.clear();

@@ -77,4 +77,13 @@ public final class RuntimeOutputChannelContext extends AbstractOutputChannelCont
 
 		return this.byteBufferedOutputChannel.getType();
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void releaseAllResources() {
+		// TODO Auto-generated method stub
+		
+	}
 }

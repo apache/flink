@@ -291,7 +291,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseResources() {
+	public void releaseAllResources() {
 
 		synchronized (this.synchronisationObject) {
 			this.brokerAggreedToCloseChannel = true;

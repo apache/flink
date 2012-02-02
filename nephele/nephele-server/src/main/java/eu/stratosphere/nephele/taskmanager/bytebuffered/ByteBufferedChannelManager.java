@@ -148,7 +148,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					.get(channelID);
 
 				final boolean isActive = activeOutputChannels.contains(channelID);
-				
+
 				final OutputChannelContext outputChannelContext = outputGateContext.createOutputChannelContext(
 					channelID, previousContext, isActive, this.mergeSpilledBuffers);
 
@@ -230,7 +230,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		while (channelIterator.hasNext()) {
 
 			final ChannelID outputChannelID = channelIterator.next();
-			this.registeredChannels.remove(outputChannelID);
+			final ChannelContext context = this.registeredChannels.remove(outputChannelID);
+			if (context != null) {
+				context.releaseAllResources();
+			}
 			this.receiverCache.remove(outputChannelID);
 		}
 
@@ -239,7 +242,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		while (channelIterator.hasNext()) {
 
 			final ChannelID outputChannelID = channelIterator.next();
-			this.registeredChannels.remove(outputChannelID);
+			final ChannelContext context = this.registeredChannels.remove(outputChannelID);
+			if (context != null) {
+				context.releaseAllResources();
+			}
 			this.receiverCache.remove(outputChannelID);
 		}
 
