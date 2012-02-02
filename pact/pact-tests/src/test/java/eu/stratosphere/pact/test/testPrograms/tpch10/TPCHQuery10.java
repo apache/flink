@@ -39,8 +39,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.Tuple;
+import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
+import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 
 /**
  * @author rico
