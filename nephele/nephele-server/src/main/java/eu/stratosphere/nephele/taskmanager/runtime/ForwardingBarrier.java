@@ -45,7 +45,7 @@ public final class ForwardingBarrier implements OutputChannelForwarder {
 		if (transferEnvelope.getSequenceNumber() < this.forwardingBarrier) {
 			return false;
 		}
-		
+
 		return true;
 	}
 
@@ -64,8 +64,11 @@ public final class ForwardingBarrier implements OutputChannelForwarder {
 		if (event instanceof UnexpectedEnvelopeEvent) {
 
 			final UnexpectedEnvelopeEvent uee = (UnexpectedEnvelopeEvent) event;
-			this.forwardingBarrier = uee.getExpectedSequenceNumber();
-			LOG.info("Setting forwarding barrier to sequence number " + this.forwardingBarrier + " for output channel " + this.outputChannelID);
+			if (uee.getExpectedSequenceNumber() > this.forwardingBarrier) {
+				this.forwardingBarrier = uee.getExpectedSequenceNumber();
+				LOG.info("Setting forwarding barrier to sequence number " + this.forwardingBarrier
+					+ " for output channel " + this.outputChannelID);
+			}
 		}
 	}
 }
