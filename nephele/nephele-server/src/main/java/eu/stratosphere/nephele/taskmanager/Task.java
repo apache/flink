@@ -278,11 +278,14 @@ public class Task implements ExecutionObserver {
 
 		// Construct a resource utilization snapshot
 		final long timestamp = System.currentTimeMillis();
+		if(this.environment.getInputGate(0) != null && this.environment.getInputGate(0).getExecutionStart() < timestamp ){
+			this.startTime = this.environment.getInputGate(0).getExecutionStart();
+		}
 		// Get CPU-Usertime in percent
 		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
 		long userCPU = (threadBean.getCurrentThreadUserTime() / NANO_TO_MILLISECONDS) * 100
 			/ (timestamp - this.startTime);
-
+		LOG.info("USER CPU for " + this.getTaskName() + " : " + userCPU);
 		// collect outputChannelUtilization
 		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
 		long totalOutputAmount = 0;
@@ -295,6 +298,7 @@ public class Task implements ExecutionObserver {
 				totalOutputAmount += outputChannel.getAmountOfDataTransmitted();
 			}
 		}
+		//FIXME (marrus) it is not about what we received but what we processed yet
 		long totalInputAmount = 0;
 		for (int i = 0; i < this.environment.getNumberOfInputGates(); ++i) {
 			final InputGate<? extends Record> inputGate = this.environment.getInputGate(i);

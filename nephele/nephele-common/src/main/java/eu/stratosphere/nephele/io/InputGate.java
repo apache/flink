@@ -109,6 +109,10 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * The thread which executes the task connected to the input gate.
 	 */
 	private Thread executingThread = null;
+	/**
+	 * The Systemtime at the first arrival of a record
+	 */
+	private long executionstart = -1;
 
 	/**
 	 * Constructs a new input gate.
@@ -351,6 +355,10 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
 			try {
+				if(this.executionstart == -1){
+					//save time for arrival of first record
+					this.executionstart = System.currentTimeMillis();
+				}
 				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
 			} catch (EOFException e) {
 				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
@@ -634,5 +642,9 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 
 			this.recordAvailabilityListener = listener;
 		}
+	}
+	
+	public long getExecutionStart(){
+		return this.executionstart;
 	}
 }
