@@ -52,6 +52,8 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private int lastReceivedEnvelope = -1;
 
+	private boolean destroyCalled = false;
+
 	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext,
 				final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 				final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel) {
@@ -168,6 +170,14 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 		synchronized (this.queuedEnvelopes) {
 
+			if (this.destroyCalled) {
+				final Buffer buffer = transferEnvelope.getBuffer();
+				if (buffer != null) {
+					buffer.recycleBuffer();
+				}
+				return;
+			}
+
 			final int expectedSequenceNumber = this.lastReceivedEnvelope + 1;
 			if (sequenceNumber != expectedSequenceNumber) {
 
@@ -237,11 +247,13 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseAllResources() {
+	public void destroy() {
 
 		final Queue<Buffer> buffersToRecycle = new ArrayDeque<Buffer>();
 
 		synchronized (this.queuedEnvelopes) {
+
+			this.destroyCalled = true;
 
 			while (!this.queuedEnvelopes.isEmpty()) {
 				final TransferEnvelope envelope = this.queuedEnvelopes.poll();

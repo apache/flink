@@ -41,6 +41,7 @@ final class ReplayOutputGateContext extends AbstractReplayGateContext implements
 		forwardingChain.addForwarder(this.taskContext.getRuntimeDispatcher());
 
 		// Register output broker
+		this.taskContext.registerReplayOutputBroker(channelID, outputBroker);
 
 		return new ReplayOutputChannelContext(null, channelID, incomingEventQueue, previousContext);
 	}

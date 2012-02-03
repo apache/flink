@@ -30,6 +30,8 @@ public final class LocalBufferPool implements BufferProvider {
 
 	private final static Log LOG = LogFactory.getLog(LocalBufferPool.class);
 
+	private final String ownerName;
+
 	private final GlobalBufferPool globalBufferPool;
 
 	private final int maximumBufferSize;
@@ -46,9 +48,10 @@ public final class LocalBufferPool implements BufferProvider {
 
 	private final Queue<ByteBuffer> buffers = new ArrayDeque<ByteBuffer>();
 
-	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared,
+	public LocalBufferPool(final String ownerName, final int designatedNumberOfBuffers, final boolean isShared,
 			final AsynchronousEventListener eventListener) {
 
+		this.ownerName = ownerName;
 		this.globalBufferPool = GlobalBufferPool.getInstance();
 		this.maximumBufferSize = this.globalBufferPool.getMaximumBufferSize();
 		this.designatedNumberOfBuffers = designatedNumberOfBuffers;
@@ -56,8 +59,8 @@ public final class LocalBufferPool implements BufferProvider {
 		this.eventListener = eventListener;
 	}
 
-	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared) {
-		this(designatedNumberOfBuffers, isShared, null);
+	public LocalBufferPool(final String ownerName, final int designatedNumberOfBuffers, final boolean isShared) {
+		this(ownerName, designatedNumberOfBuffers, isShared, null);
 	}
 
 	/**
@@ -190,7 +193,8 @@ public final class LocalBufferPool implements BufferProvider {
 		synchronized (this.buffers) {
 
 			if (this.requestedNumberOfBuffers != this.buffers.size()) {
-				LOG.error("Possible resource leak: Requested number of buffers is " + this.requestedNumberOfBuffers
+
+				LOG.error(this.ownerName + ": Requested number of buffers is " + this.requestedNumberOfBuffers
 					+ ", but only " + this.buffers.size() + " buffers in local pool");
 			}
 

@@ -138,9 +138,9 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseAllResources() {
+	public void destroy() {
 		
-		this.encapsulatedContext.releaseAllResources();
+		this.encapsulatedContext.destroy();
 	}
 
 }
