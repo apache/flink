@@ -105,7 +105,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		GlobalBufferPool.getInstance();
 
 		// Initialize the transit buffer pool
-		this.transitBufferPool = new LocalBufferPool(128, true);
+		this.transitBufferPool = new LocalBufferPool("Transit buffer pool", 128, true);
 
 		this.networkConnectionManager = new NetworkConnectionManager(this,
 			localInstanceConnectionInfo.getAddress(), localInstanceConnectionInfo.getDataPort());
@@ -232,7 +232,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			final ChannelID outputChannelID = channelIterator.next();
 			final ChannelContext context = this.registeredChannels.remove(outputChannelID);
 			if (context != null) {
-				context.releaseAllResources();
+				context.destroy();
 			}
 			this.receiverCache.remove(outputChannelID);
 		}
@@ -244,7 +244,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			final ChannelID outputChannelID = channelIterator.next();
 			final ChannelContext context = this.registeredChannels.remove(outputChannelID);
 			if (context != null) {
-				context.releaseAllResources();
+				context.destroy();
 			}
 			this.receiverCache.remove(outputChannelID);
 		}

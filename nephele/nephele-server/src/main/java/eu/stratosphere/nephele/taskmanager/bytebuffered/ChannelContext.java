@@ -34,5 +34,5 @@ public interface ChannelContext {
 	
 	void queueTransferEnvelope(TransferEnvelope transferEnvelope);
 	
-	void releaseAllResources();
+	void destroy();
 }

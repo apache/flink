@@ -81,10 +81,10 @@ public final class ReplayOutputChannelContext extends AbstractOutputChannelConte
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseAllResources() {
+	public void destroy() {
 
 		if (this.encapsulatedContext != null) {
-			this.encapsulatedContext.releaseAllResources();
+			this.encapsulatedContext.destroy();
 		}
 	}
 

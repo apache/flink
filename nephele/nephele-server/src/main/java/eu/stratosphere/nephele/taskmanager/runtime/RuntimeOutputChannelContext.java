@@ -82,7 +82,7 @@ public final class RuntimeOutputChannelContext extends AbstractOutputChannelCont
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseAllResources() {
+	public void destroy() {
 		// TODO Auto-generated method stub
 		
 	}
