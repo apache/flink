@@ -779,7 +779,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				return ConnectionInfoLookupResponse.createReceiverFoundAndReady();
 			}
 
-			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
+			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.REPLAYING
+				&& executionState != ExecutionState.FINISHING) {
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
@@ -808,7 +809,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			// Check execution state
 			final ExecutionState executionState = targetVertex.getExecutionState();
-			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
+			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.REPLAYING
+				&& executionState != ExecutionState.FINISHING) {
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
