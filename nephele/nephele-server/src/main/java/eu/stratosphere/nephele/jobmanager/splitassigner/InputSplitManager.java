@@ -159,9 +159,11 @@ public final class InputSplitManager {
 	 * 
 	 * @param vertex
 	 *        the vertex for which the next input split is to be determined
+	 * @param sequenceNumber
+	 *        the sequence number of the vertex's request
 	 * @return the next input split to consume or <code>null</code> if the vertex shall consume no more input splits
 	 */
-	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {
+	public InputSplit getNextInputSplit(final ExecutionVertex vertex, final int sequenceNumber) {
 
 		final ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
 		final InputSplitAssigner inputSplitAssigner = this.assignerCache.get(groupVertex);

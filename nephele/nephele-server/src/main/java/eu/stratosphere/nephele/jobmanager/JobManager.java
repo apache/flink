@@ -1238,8 +1238,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputSplitWrapper requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID)
-			throws IOException {
+	public InputSplitWrapper requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID,
+			final IntegerRecord sequenceNumber) throws IOException {
 
 		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
 		if (graph == null) {
@@ -1253,7 +1253,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return null;
 		}
 
-		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex));
+		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex, sequenceNumber.getValue()));
 	}
 
 	/**
