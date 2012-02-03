@@ -19,6 +19,7 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
@@ -131,6 +132,13 @@ public interface Task {
 	 */
 	void unregisterProfiler(TaskManagerProfiler taskManagerProfiler);
 
+	/**
+	 * Returns the current execution state of the task.
+	 * 
+	 * @return the current execution state of the task
+	 */
+	ExecutionState getExecutionState();
+	
 	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints);
 }

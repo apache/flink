@@ -166,6 +166,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		if (!this.initialExhaustionOfMemoryBuffersReported) {
 
+			System.out.println(this.task.getEnvironment().getTaskName() + " has buffers exhausted");
+			
 			this.task.initialExecutionResourcesExhausted();
 			this.initialExhaustionOfMemoryBuffersReported = true;
 		}

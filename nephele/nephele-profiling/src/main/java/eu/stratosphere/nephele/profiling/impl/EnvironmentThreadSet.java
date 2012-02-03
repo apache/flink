@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.profiling.impl;
 
+import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -117,10 +118,14 @@ public class EnvironmentThreadSet {
 
 		final long threadId = thread.getId();
 
+		final ThreadInfo threadInfo = tmx.getThreadInfo(threadId);
+		if(threadInfo == null) {
+			return null;
+		}
+
 		return new CPUUtilizationSnapshot(timestamp, tmx.getThreadCpuTime(threadId) / NANO_TO_MILLISECONDS, tmx
-			.getThreadUserTime(threadId)
-			/ NANO_TO_MILLISECONDS, tmx.getThreadInfo(threadId).getWaitedTime(), tmx.getThreadInfo(threadId)
-			.getBlockedTime());
+			.getThreadUserTime(threadId) / NANO_TO_MILLISECONDS, threadInfo.getWaitedTime(),
+			threadInfo.getBlockedTime());
 	}
 
 	public InternalExecutionVertexThreadProfilingData captureCPUUtilization(JobID jobID, ThreadMXBean tmx,
@@ -129,7 +134,11 @@ public class EnvironmentThreadSet {
 		synchronized (this.userThreads) {
 
 			// Calculate utilization for main thread first
-			CPUUtilizationSnapshot newMainThreadSnapshot = createCPUUtilizationSnapshot(tmx, this.mainThread, timestamp);
+			final CPUUtilizationSnapshot newMainThreadSnapshot = createCPUUtilizationSnapshot(tmx, this.mainThread, timestamp);
+			if(newMainThreadSnapshot == null) {
+				return null;
+			}
+			
 			final long mainInterval = newMainThreadSnapshot.getTimestamp() - this.mainThreadSnapshot.getTimestamp();
 
 			if (mainInterval == 0) {

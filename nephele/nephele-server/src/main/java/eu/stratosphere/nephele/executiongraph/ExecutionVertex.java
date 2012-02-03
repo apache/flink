@@ -659,7 +659,7 @@ public final class ExecutionVertex {
 		}
 
 		if (state != ExecutionState.RUNNING && state != ExecutionState.STARTING
-			&& state != ExecutionState.FINISHING) {
+			&& state != ExecutionState.FINISHING && state != ExecutionState.REPLAYING) {
 			// Set to canceled directly
 			updateExecutionState(ExecutionState.CANCELED, null);
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);

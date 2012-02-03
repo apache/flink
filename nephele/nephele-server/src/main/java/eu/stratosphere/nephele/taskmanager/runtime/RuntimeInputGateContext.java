@@ -114,6 +114,8 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 	@Override
 	public void clearLocalBufferPool() {
 
+		System.out.println("Clearing local input gate context: " + this.localBufferPool.getNumberOfAvailableBuffers());
+		
 		this.localBufferPool.clear();
 	}
 

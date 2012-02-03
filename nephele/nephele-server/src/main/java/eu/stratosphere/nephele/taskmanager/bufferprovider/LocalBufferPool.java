@@ -190,7 +190,8 @@ public final class LocalBufferPool implements BufferProvider {
 		synchronized (this.buffers) {
 
 			if (this.requestedNumberOfBuffers != this.buffers.size()) {
-				LOG.error("Clear is called, but some buffers are still missing...");
+				LOG.error("Possible resource leak: Requested number of buffers is " + this.requestedNumberOfBuffers
+					+ ", but only " + this.buffers.size() + " buffers in local pool");
 			}
 
 			while (!this.buffers.isEmpty()) {

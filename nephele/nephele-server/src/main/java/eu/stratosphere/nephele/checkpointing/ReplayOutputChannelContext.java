@@ -3,17 +3,24 @@ package eu.stratosphere.nephele.checkpointing;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-public final class ReplayOutputChannelContext implements OutputChannelContext {
+public final class ReplayOutputChannelContext extends AbstractOutputChannelContext implements OutputChannelContext {
+
+	private final JobID jobID;
 
 	private final ChannelID channelID;
-	
+
 	private final OutputChannelContext encapsulatedContext;
 
-	ReplayOutputChannelContext(final ChannelID channelID, final OutputChannelContext encapsulatedContext) {
-		
+	ReplayOutputChannelContext(final JobID jobID, final ChannelID channelID,
+			final IncomingEventQueue incomingEventQueue, final OutputChannelContext encapsulatedContext) {
+		super(incomingEventQueue);
+
+		this.jobID = jobID;
 		this.channelID = channelID;
 		this.encapsulatedContext = encapsulatedContext;
 	}
@@ -23,14 +30,17 @@ public final class ReplayOutputChannelContext implements OutputChannelContext {
 	 */
 	@Override
 	public boolean isInputChannel() {
-		// TODO Auto-generated method stub
+
 		return true;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public JobID getJobID() {
-		// TODO Auto-generated method stub
-		return null;
+
+		return this.jobID;
 	}
 
 	/**
@@ -38,7 +48,7 @@ public final class ReplayOutputChannelContext implements OutputChannelContext {
 	 */
 	@Override
 	public ChannelID getChannelID() {
-		
+
 		return this.channelID;
 	}
 
@@ -54,16 +64,28 @@ public final class ReplayOutputChannelContext implements OutputChannelContext {
 		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void queueTransferEnvelope(TransferEnvelope transferEnvelope) {
-		// TODO Auto-generated method stub
+	public void queueTransferEnvelope(final TransferEnvelope transferEnvelope) {
 
+		super.queueTransferEnvelope(transferEnvelope);
+
+		if (this.encapsulatedContext != null) {
+			this.encapsulatedContext.queueTransferEnvelope(transferEnvelope);
+		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void releaseAllResources() {
-		// TODO Auto-generated method stub
-		
+
+		if (this.encapsulatedContext != null) {
+			this.encapsulatedContext.releaseAllResources();
+		}
 	}
 
 }

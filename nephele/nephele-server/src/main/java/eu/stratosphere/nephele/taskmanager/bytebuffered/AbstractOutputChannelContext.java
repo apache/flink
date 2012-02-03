@@ -26,7 +26,7 @@ public abstract class AbstractOutputChannelContext implements OutputChannelConte
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void queueTransferEnvelope(final TransferEnvelope transferEnvelope) {
+	public void queueTransferEnvelope(final TransferEnvelope transferEnvelope) {
 
 		if (transferEnvelope.getBuffer() != null) {
 			throw new IllegalStateException("Transfer envelope for output channel has buffer attached");
