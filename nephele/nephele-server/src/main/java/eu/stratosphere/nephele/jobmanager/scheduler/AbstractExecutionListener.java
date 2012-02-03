@@ -86,6 +86,16 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 			}
 		}
 
+		if (newExecutionState == ExecutionState.CANCELED) {
+			if (this.scheduler.getVerticesToBeRestarted().remove(this.executionVertex.getID()) != null) {
+				this.executionVertex.updateExecutionState(ExecutionState.ASSIGNED, "Restart as part of recovery");
+
+				// Run through the deployment procedure
+				this.scheduler.deployAssignedVertices(eg);
+				return;
+			}
+		}
+
 		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
 				|| newExecutionState == ExecutionState.FAILED) {
 			// Check if instance can be released
