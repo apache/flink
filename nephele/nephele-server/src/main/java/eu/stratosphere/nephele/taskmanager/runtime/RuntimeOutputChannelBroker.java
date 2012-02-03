@@ -6,6 +6,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
@@ -99,7 +100,7 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 
 		if (event instanceof ByteBufferedChannelCloseEvent) {
 			this.closeAcknowledgementReceived = true;
-		} else {
+		} else if (event instanceof AbstractTaskEvent) {
 			this.byteBufferedOutputChannel.processEvent(event);
 		}
 	}
