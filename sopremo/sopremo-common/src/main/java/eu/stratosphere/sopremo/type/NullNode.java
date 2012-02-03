@@ -8,7 +8,7 @@ import java.io.ObjectOutputStream;
 
 import eu.stratosphere.pact.common.type.base.PactNull;
 
-public class NullNode extends JsonNode {
+public class NullNode extends JsonNode implements IPrimitiveNode{
 
 	/**
 	 * 
@@ -65,7 +65,7 @@ public class NullNode extends JsonNode {
 	}
 
 	@Override
-	public JsonNode clone() {
+	public IJsonNode clone() {
 		return this;
 	}
 
@@ -75,7 +75,7 @@ public class NullNode extends JsonNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		return 0;
 	}
 

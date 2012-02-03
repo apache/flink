@@ -3,7 +3,8 @@ package eu.stratosphere.sopremo.aggregation;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class AggregationFunction implements SerializableSopremoType, Cloneable {
 	/**
@@ -17,7 +18,7 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 		this.name = name;
 	}
 
-	public abstract void aggregate(JsonNode node, EvaluationContext context);
+	public abstract void aggregate(IJsonNode node, EvaluationContext context);
 
 	public AggregationExpression asExpression() {
 		return new AggregationExpression(this);
@@ -57,7 +58,7 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 		}
 	}
 
-	public abstract JsonNode getFinalAggregate();
+	public abstract IJsonNode getFinalAggregate();
 
 	public void initialize() {
 	}

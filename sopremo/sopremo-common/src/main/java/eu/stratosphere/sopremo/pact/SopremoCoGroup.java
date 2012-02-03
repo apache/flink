@@ -10,7 +10,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class SopremoCoGroup extends CoGroupStub {
 	private EvaluationContext context;
@@ -19,7 +20,7 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 
 	private RecordToJsonIterator cachedIterator1, cachedIterator2;
 
-	protected abstract void coGroup(ArrayNode values1, ArrayNode values2, JsonCollector out);
+	protected abstract void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out);
 
 	/*
 	 * (non-Javadoc)
@@ -31,10 +32,10 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 		this.context.increaseInputCounter();
 		this.cachedIterator1.setIterator(records1);
 		this.cachedIterator2.setIterator(records2);
-		Iterator<JsonNode> values1 = this.cachedIterator1;
-		Iterator<JsonNode> values2 = this.cachedIterator2;
+		Iterator<IJsonNode> values1 = this.cachedIterator1;
+		Iterator<IJsonNode> values2 = this.cachedIterator2;
 		if (SopremoUtil.LOG.isTraceEnabled()) {
-			final ArrayList<JsonNode> cached1 = new ArrayList<JsonNode>(), cached2 = new ArrayList<JsonNode>();
+			final ArrayList<IJsonNode> cached1 = new ArrayList<IJsonNode>(), cached2 = new ArrayList<IJsonNode>();
 			while (values1.hasNext())
 				cached1.add(values1.next());
 			while (values2.hasNext())
@@ -73,7 +74,7 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 		return this.context;
 	}
 
-	protected boolean needsResettableIterator(final int input, final Iterator<JsonNode> values) {
+	protected boolean needsResettableIterator(final int input, final Iterator<IJsonNode> values) {
 		return false;
 	}
 }

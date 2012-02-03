@@ -11,7 +11,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 
@@ -26,7 +26,7 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 		list.add(new ConstantExpression(IntNode.valueOf(0)));
 		list.add(new ConstantExpression(IntNode.valueOf(1)));
 
-		final JsonNode result = new ArrayCreation(list).evaluate(IntNode.valueOf(42), this.context);
+		final IJsonNode result = new ArrayCreation(list).evaluate(IntNode.valueOf(42), this.context);
 
 		Assert.assertEquals(createArrayNode(IntNode.valueOf(0), IntNode.valueOf(1)), result);
 	}

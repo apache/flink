@@ -5,7 +5,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.BooleanNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 @OptimizerHints(scope = Scope.ANY)
 public class OrExpression extends BooleanExpression {
@@ -33,7 +33,7 @@ public class OrExpression extends BooleanExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		for (final EvaluationExpression booleanExpression : this.expressions)
 			if (booleanExpression.evaluate(node, context) == BooleanNode.TRUE)
 				return BooleanNode.TRUE;

@@ -15,8 +15,8 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.sopremo.type.Schema;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class CsvInputFormat extends TextInputFormat {

@@ -12,8 +12,9 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.type.DoubleNode;
-import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.INumericNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 
@@ -33,7 +34,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 
 	@Test
 	public void shouldCallFunction() {
-		final JsonNode result = new MethodCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
+		final IJsonNode result = new MethodCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
 			createArrayNode(1, 2), this.context);
 		Assert.assertEquals(new DoubleNode(3), result);
 	}
@@ -48,10 +49,10 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 
 	}
 
-	public static JsonNode sum(final NumericNode... nodes) {
+	public static IJsonNode sum(final INumericNode... nodes) {
 
 		Double i = 0.0;
-		for (final NumericNode node : nodes)
+		for (final INumericNode node : nodes)
 			i += node.getDoubleValue();
 		return new DoubleNode(i);
 

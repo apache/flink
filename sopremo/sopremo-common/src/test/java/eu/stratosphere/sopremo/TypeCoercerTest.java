@@ -13,12 +13,13 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.sopremo.type.NumericNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -28,13 +29,13 @@ import eu.stratosphere.sopremo.type.TextNode;
 public class TypeCoercerTest {
 	private static final Object CONVERSION_ERROR = "Error";
 
-	private final JsonNode value;
+	private final IJsonNode value;
 
-	private final Class<? extends JsonNode> targetType;
+	private final Class<? extends IJsonNode> targetType;
 
 	private final Object expectedResult;
 
-	public TypeCoercerTest(final JsonNode value, final Class<? extends JsonNode> targetType, final Object expectedResult) {
+	public TypeCoercerTest(final IJsonNode value, final Class<? extends IJsonNode> targetType, final Object expectedResult) {
 		this.value = value;
 		this.targetType = targetType;
 		this.expectedResult = expectedResult;
@@ -43,7 +44,7 @@ public class TypeCoercerTest {
 	@Test
 	public void shouldPerformTheCoercionAsExpected() {
 		try {
-			final JsonNode result = TypeCoercer.INSTANCE.coerce(this.value, this.targetType);
+			final IJsonNode result = TypeCoercer.INSTANCE.coerce(this.value, this.targetType);
 
 			// workaround for BigIntegerNode bug
 			if (this.expectedResult instanceof BigIntegerNode) {
@@ -128,8 +129,8 @@ public class TypeCoercerTest {
 		});
 	}
 
-	protected static ArrayNode createArray(final JsonNode... elems) {
-		final ArrayNode arrayNode = new ArrayNode();
+	protected static IArrayNode createArray(final IJsonNode... elems) {
+		final IArrayNode arrayNode = new ArrayNode();
 		arrayNode.addAll(Arrays.asList(elems));
 		return arrayNode;
 	}

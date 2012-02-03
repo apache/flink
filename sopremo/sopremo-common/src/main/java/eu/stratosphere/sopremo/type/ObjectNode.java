@@ -12,7 +12,7 @@ import java.util.TreeMap;
 
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-public class ObjectNode extends JsonNode {
+public class ObjectNode extends JsonNode implements IObjectNode {
 
 	/**
 	 * 
@@ -22,18 +22,22 @@ public class ObjectNode extends JsonNode {
 	/**
 	 * Do not store null nodes
 	 */
-	protected Map<String, JsonNode> children = new TreeMap<String, JsonNode>();
+	protected Map<String, IJsonNode> children = new TreeMap<String, IJsonNode>();
 
 	public int size() {
 		return this.children.size();
 	}
 
 	@Override
-	public Map<String, JsonNode> getJavaValue() {
+	public Map<String, IJsonNode> getJavaValue() {
 		return this.children;
 	}
 
-	public ObjectNode put(final String fieldName, final JsonNode value) {
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#put(java.lang.String, eu.stratosphere.sopremo.type.IJsonNode)
+	 */
+	@Override
+	public ObjectNode put(final String fieldName, final IJsonNode value) {
 		if (value == null)
 			throw new NullPointerException();
 
@@ -44,21 +48,33 @@ public class ObjectNode extends JsonNode {
 		return this;
 	}
 
-	public JsonNode get(final String fieldName) {
-		final JsonNode node = this.children.get(fieldName);
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#get(java.lang.String)
+	 */
+	@Override
+	public IJsonNode get(final String fieldName) {
+		final IJsonNode node = this.children.get(fieldName);
 		if (node != null)
 			return node;
 		return NullNode.getInstance();
 	}
 
-	public JsonNode remove(final String fieldName) {
-		final JsonNode node = this.children.remove(fieldName);
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#remove(java.lang.String)
+	 */
+	@Override
+	public IJsonNode remove(final String fieldName) {
+		final IJsonNode node = this.children.remove(fieldName);
 		if (node != null)
 			return node;
 		return NullNode.getInstance();
 	}
 
-	public ObjectNode removeAll() {
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#removeAll()
+	 */
+	@Override
+	public IObjectNode removeAll() {
 		this.children.clear();
 		return this;
 	}
@@ -68,7 +84,7 @@ public class ObjectNode extends JsonNode {
 		sb.append('{');
 
 		int count = 0;
-		for (final Map.Entry<String, JsonNode> en : this.children.entrySet()) {
+		for (final Map.Entry<String, IJsonNode> en : this.children.entrySet()) {
 			if (count > 0)
 				sb.append(',');
 			++count;
@@ -110,18 +126,10 @@ public class ObjectNode extends JsonNode {
 		final int len = in.readInt();
 
 		for (int i = 0; i < len; i++) {
-			JsonNode node = SopremoUtil.deserializeNode(in);
+			
 			final String key = in.readUTF();
-
-			try {
-				node = Type.values()[in.readInt()].getClazz().newInstance();
-				node.read(in);
-				this.put(key, node.canonicalize());
-			} catch (final InstantiationException e) {
-				e.printStackTrace();
-			} catch (final IllegalAccessException e) {
-				e.printStackTrace();
-			}
+			IJsonNode node = SopremoUtil.deserializeNode(in);
+			this.put(key, node.canonicalize());
 		}
 	}
 
@@ -129,21 +137,27 @@ public class ObjectNode extends JsonNode {
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.children.size());
 
-		for (final Entry<String, JsonNode> entry : this.children.entrySet()) {
-			SopremoUtil.serializeNode(out, entry.getValue());
+		for (final Entry<String, IJsonNode> entry : this.children.entrySet()) {
 			out.writeUTF(entry.getKey());
-			out.writeInt(entry.getValue().getType().ordinal());
-			entry.getValue().write(out);
+			SopremoUtil.serializeNode(out, entry.getValue());
 		}
 
 	}
 
-	public Set<Entry<String, JsonNode>> getEntries() {
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#getEntries()
+	 */
+	@Override
+	public Set<Entry<String, IJsonNode>> getEntries() {
 		return this.children.entrySet();
 	}
 
-	public ObjectNode putAll(final ObjectNode jsonNode) {
-		for (final Entry<String, JsonNode> entry : jsonNode.getEntries())
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#putAll(eu.stratosphere.sopremo.type.JsonObject)
+	 */
+	@Override
+	public IObjectNode putAll(final IObjectNode jsonNode) {
+		for (final Entry<String, IJsonNode> entry : jsonNode.getEntries())
 			this.put(entry.getKey(), entry.getValue());
 		return this;
 	}
@@ -153,11 +167,19 @@ public class ObjectNode extends JsonNode {
 		return true;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#getFieldNames()
+	 */
+	@Override
 	public Iterator<String> getFieldNames() {
 		return this.children.keySet().iterator();
 	}
 
-	public Iterator<Entry<String, JsonNode>> getFields() {
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#getFields()
+	 */
+	@Override
+	public Iterator<Entry<String, IJsonNode>> getFields() {
 		return this.children.entrySet().iterator();
 	}
 
@@ -167,14 +189,14 @@ public class ObjectNode extends JsonNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 
 		final ObjectNode node = (ObjectNode) other;
-		final Iterator<Entry<String, JsonNode>> entries1 = this.children.entrySet().iterator(), entries2 = node.children
+		final Iterator<Entry<String, IJsonNode>> entries1 = this.children.entrySet().iterator(), entries2 = node.children
 			.entrySet().iterator();
 
 		while (entries1.hasNext() && entries2.hasNext()) {
-			final Entry<String, JsonNode> entry1 = entries1.next(), entry2 = entries2.next();
+			final Entry<String, IJsonNode> entry1 = entries1.next(), entry2 = entries2.next();
 			final int keyComparison = entry1.getKey().compareTo(entry2.getKey());
 			if (keyComparison != 0)
 				return keyComparison;
@@ -194,10 +216,9 @@ public class ObjectNode extends JsonNode {
 	@Override
 	public ObjectNode clone() {
 		final ObjectNode clone = (ObjectNode) super.clone();
-		clone.children = new LinkedHashMap<String, JsonNode>(this.children);
-		for (final Entry<String, JsonNode> entry : clone.children.entrySet())
+		clone.children = new LinkedHashMap<String, IJsonNode>(this.children);
+		for (final Entry<String, IJsonNode> entry : clone.children.entrySet())
 			entry.setValue(entry.getValue().clone());
 		return clone;
 	}
-
 }

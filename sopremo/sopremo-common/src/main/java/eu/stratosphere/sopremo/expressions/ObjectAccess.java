@@ -2,9 +2,10 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.NullNode;
-import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
  * Returns the value of an attribute of one or more Json nodes.
@@ -53,14 +54,14 @@ public class ObjectAccess extends EvaluationExpression {
 	 * such value exists.
 	 */
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		if (!node.isObject()) {
 			if (node.isNull() && this.safeDereference)
 				return node;
 			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", this.field, node
 				.getClass().getSimpleName()));
 		}
-		final JsonNode value = ((ObjectNode) node).get(this.field);
+		final IJsonNode value = ((IObjectNode) node).get(this.field);
 		return value == null ? NullNode.getInstance() : value;
 	}
 
@@ -70,10 +71,10 @@ public class ObjectAccess extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
 		if (!node.isObject())
 			throw new EvaluationException("Cannot access field of non-object " + node.getClass().getSimpleName());
-		((ObjectNode) node).put(this.field, value);
+		((IObjectNode) node).put(this.field, value);
 		return node;
 	}
 

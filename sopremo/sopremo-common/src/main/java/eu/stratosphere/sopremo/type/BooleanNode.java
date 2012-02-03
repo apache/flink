@@ -4,7 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-public class BooleanNode extends JsonNode {
+public class BooleanNode extends JsonNode implements IPrimitiveNode{
 
 	/**
 	 * 
@@ -39,7 +39,7 @@ public class BooleanNode extends JsonNode {
 	}
 
 	@Override
-	public JsonNode clone() {
+	public IJsonNode clone() {
 		return this;
 	}
 
@@ -96,7 +96,7 @@ public class BooleanNode extends JsonNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		return (this.value ? 1 : 0) - (((BooleanNode) other).value ? 1 : 0);
 	}
 }

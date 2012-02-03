@@ -26,8 +26,11 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -302,7 +305,7 @@ public class JsonParser {
 				// this ContainerNode represents an ArrayNode
 				node = new ArrayNode();
 				for (final JsonNode value : this.values)
-					((ArrayNode) node).add(value);
+					((IArrayNode) node).add(value);
 
 			} else {
 				// this ContainerNode represents an ObjectNode
@@ -312,7 +315,7 @@ public class JsonParser {
 
 				node = new ObjectNode();
 				for (int i = 0; i < this.keys.size(); i++)
-					((ObjectNode) node).put(this.keys.get(i), this.values.get(i));
+					((IObjectNode) node).put(this.keys.get(i), this.values.get(i));
 			}
 
 			return node;
@@ -347,7 +350,7 @@ public class JsonParser {
 		}
 
 		@Override
-		public int compareToSameType(final JsonNode other) {
+		public int compareToSameType(final IJsonNode other) {
 			return 0;
 		}
 	}

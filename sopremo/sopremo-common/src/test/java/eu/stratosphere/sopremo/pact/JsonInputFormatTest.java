@@ -22,11 +22,11 @@ import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.pact.testing.ioformats.FormatUtil;
 import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
-import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.sopremo.type.Schema;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 
 /**
  * Tests {@link JsonInputFormat}.
@@ -128,7 +128,7 @@ public class JsonInputFormatTest {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
 			Assert.assertTrue("valid pair expected @ " + index, inputFormat.nextRecord(record));
 			Assert.assertEquals("other order expected", index,
-				((IntNode) ((ObjectNode) Schema.Default.recordToJson(record, null)).get("id")).getIntValue());
+				((IntNode) ((IObjectNode) Schema.Default.recordToJson(record, null)).get("id")).getIntValue());
 		}
 
 		if (!inputFormat.reachedEnd()) {
@@ -161,12 +161,12 @@ public class JsonInputFormatTest {
 			Assert.fail("value unexpected: " + Schema.Default.recordToJson(record, null));
 		}
 
-		final JsonNode arrayNode = ((ObjectNode) Schema.Default.recordToJson(record, null)).get("array");
+		final IJsonNode arrayNode = ((IObjectNode) Schema.Default.recordToJson(record, null)).get("array");
 		Assert.assertNotNull("could not find top level node", arrayNode);
 		for (int index = 1; index <= 5; index++) {
-			Assert.assertNotNull("could not find array element " + index, ((ArrayNode) arrayNode).get(index - 1));
+			Assert.assertNotNull("could not find array element " + index, ((IArrayNode) arrayNode).get(index - 1));
 			Assert.assertEquals("other order expected", index,
-				((IntNode) ((ObjectNode) ((ArrayNode) arrayNode).get(index - 1)).get("id")).getIntValue());
+				((IntNode) ((IObjectNode) ((IArrayNode) arrayNode).get(index - 1)).get("id")).getIntValue());
 		}
 	}
 }

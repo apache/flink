@@ -7,10 +7,12 @@ import java.util.List;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
- * Batch aggregates one stream of {@link JsonNode} with several {@link AggregationFunction}s.
+ * Batch aggregates one stream of {@link IJsonNode} with several {@link AggregationFunction}s.
  * 
  * @author Arvid Heise
  */
@@ -22,7 +24,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 	private final List<Partial> partials;
 
-	private transient JsonNode lastResult;
+	private transient IJsonNode lastResult;
 
 	private transient int lastInputCounter = Integer.MIN_VALUE;
 
@@ -47,7 +49,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		if (this.lastInputCounter == context.getInputCounter())
 			return this.lastResult;
 
@@ -55,11 +57,11 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		for (final Partial partial : this.partials)
 			partial.getFunction().initialize();
-		for (final JsonNode input : (ArrayNode) node)
+		for (final IJsonNode input : (ArrayNode) node)
 			for (final Partial partial : this.partials)
 				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, context), context);
 
-		final JsonNode[] results = new JsonNode[this.partials.size()];
+		final IJsonNode[] results = new IJsonNode[this.partials.size()];
 		for (int index = 0; index < results.length; index++)
 			results[index] = this.partials.get(index).getFunction().getFinalAggregate();
 
@@ -80,8 +82,8 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		}
 
 		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return ((ArrayNode) BatchAggregationExpression.this.evaluate(node, context)).get(this.index);
+		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+			return ((IArrayNode) BatchAggregationExpression.this.evaluate(node, context)).get(this.index);
 		}
 	}
 

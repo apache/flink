@@ -5,8 +5,9 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.Schema;
+import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class SopremoMatch extends MatchStub {
 	private EvaluationContext context;
@@ -15,7 +16,7 @@ public abstract class SopremoMatch extends MatchStub {
 
 	private JsonCollector collector;
 
-	private JsonNode cachedInput1, cachedInput2;
+	private IJsonNode cachedInput1, cachedInput2;
 
 	/*
 	 * (non-Javadoc)
@@ -34,7 +35,7 @@ public abstract class SopremoMatch extends MatchStub {
 		return this.context;
 	}
 
-	protected abstract void match(JsonNode value1, JsonNode value2, JsonCollector out);
+	protected abstract void match(IJsonNode value1, IJsonNode value2, JsonCollector out);
 
 	/*
 	 * (non-Javadoc)
@@ -45,8 +46,8 @@ public abstract class SopremoMatch extends MatchStub {
 	public void match(final PactRecord record1, final PactRecord record2, final Collector out) throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.setCollector(out);
-		final JsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);
-		final JsonNode input2 = this.inputSchema2.recordToJson(record2, this.cachedInput2);
+		final IJsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);
+		final IJsonNode input2 = this.inputSchema2.recordToJson(record2, this.cachedInput2);
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s/%s", this.getContext().operatorTrace(), input1, input2));
 		try {

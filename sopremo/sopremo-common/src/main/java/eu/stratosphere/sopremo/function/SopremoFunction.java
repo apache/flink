@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.function;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class SopremoFunction extends JsonMethod implements Inlineable {
 	/**
@@ -34,7 +34,7 @@ public class SopremoFunction extends JsonMethod implements Inlineable {
 	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public JsonNode call(final ArrayNode params, final EvaluationContext context) {
+	public IJsonNode call(final IArrayNode params, final EvaluationContext context) {
 		return this.definition.evaluate(params, context);
 	}
 }

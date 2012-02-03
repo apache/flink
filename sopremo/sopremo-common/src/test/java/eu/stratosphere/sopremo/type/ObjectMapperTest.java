@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.jsondatamodel;
+package eu.stratosphere.sopremo.type;
 
 import junit.framework.Assert;
 

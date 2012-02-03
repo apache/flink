@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.NUMBER)
@@ -36,7 +37,7 @@ public class CoerceExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, context), this.targetType);
 	}
 

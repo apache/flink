@@ -27,11 +27,11 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.sopremo.io.JsonGenerator;
-import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.Schema;
+import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
- * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link JsonNode} .
+ * Writes json files with Jackson. The incoming key/value pair consists of {@link PactNull} and a {@link IJsonNode} .
  * 
  * @author Arvid Heise
  */
@@ -39,7 +39,7 @@ public class JsonOutputFormat extends FileOutputFormat {
 
 	private JsonGenerator generator;
 
-	private JsonNode node;
+	private IJsonNode node;
 
 	private Schema schema;
 

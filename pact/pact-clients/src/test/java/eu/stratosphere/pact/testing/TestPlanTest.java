@@ -288,9 +288,8 @@ public class TestPlanTest {
 		map.setInput(read);
 
 		FileDataSink output = createOutput(map, RecordOutputFormat.class);
-		output.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+		output.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 1);
 		output.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-		output.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.getExpectedOutput(output, IntStringPair).fromFile(IntegerInFormat.class,

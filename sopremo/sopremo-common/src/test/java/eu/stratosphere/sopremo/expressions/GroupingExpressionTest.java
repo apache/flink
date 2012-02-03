@@ -8,7 +8,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpression> {
 	@Override
@@ -30,7 +30,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 		final GroupingExpression aggExpression = new GroupingExpression(new ObjectAccess("key"), new MethodCall("sum",
 			new ArrayProjection(new ObjectAccess("value"))));
 
-		final JsonNode result = aggExpression.evaluate(input, this.context);
+		final IJsonNode result = aggExpression.evaluate(input, this.context);
 
 		final ArrayNode expected = new ArrayNode();
 		expected.add(createValueNode(23));

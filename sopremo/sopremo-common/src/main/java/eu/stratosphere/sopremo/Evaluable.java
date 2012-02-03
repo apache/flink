@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo;
 
 import it.unimi.dsi.fastutil.Function;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
@@ -31,5 +32,5 @@ public interface Evaluable {
 	 *        the context in which the node should be evaluated
 	 * @return the node resulting from the evaluation or several nodes wrapped in a special node type
 	 */
-	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
+	public abstract IJsonNode evaluate(IJsonNode node, EvaluationContext context);
 }

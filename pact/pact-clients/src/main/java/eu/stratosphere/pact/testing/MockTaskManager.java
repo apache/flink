@@ -117,14 +117,10 @@ class MockTaskManager implements TaskOperationProtocol {
 
 			final ExecutionVertex vertex = eg.getVertexByID(this.id);
 			if (vertex == null) {
-				LOG.error("Cannot find vertex with ID " + this.id + " of job " + eg.getJobID()
-					+ " to change state to " + executionState);
+				LOG.error("Cannot find vertex with ID " + this.id + " of job " + eg.getJobID() + " to change state to "
+					+ executionState);
 				return;
 			}
-
-			if (executionState == ExecutionState.FINISHED || executionState == ExecutionState.CANCELED
-				|| executionState == ExecutionState.FAILED)
-				MockTaskManager.this.channelManager.unregisterChannels(this.environment);
 
 			if (executionState == ExecutionState.CANCELED)
 				isCanceled = true;
@@ -139,12 +135,16 @@ class MockTaskManager implements TaskOperationProtocol {
 			ConcurrentUtil.invokeLater(taskStateChangeRunnable);
 
 			eg.checkAndUpdateJobStatus(executionState);
+
+			finishedTasks.add(environment);
 		}
 	}
 
 	private static final Log LOG = LogFactory.getLog(MockTaskManager.class);
 
 	private static final long MEMORY_SIZE = Math.max(192 << 20, Runtime.getRuntime().maxMemory() / 2);
+
+	private List<Environment> finishedTasks = new ArrayList<Environment>();
 
 	public static final MockTaskManager INSTANCE = new MockTaskManager();
 
@@ -174,7 +174,7 @@ class MockTaskManager implements TaskOperationProtocol {
 		Environment environment = this.runningTasks.get(id);
 		final Thread executingThread = environment.getExecutingThread();
 
-		this.channelManager.unregisterChannels(environment);
+		finishedTasks.add(environment);
 		// Request user code to shut down
 		try {
 			final AbstractInvokable invokable = environment.getInvokable();
@@ -309,5 +309,14 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	public void addJobGraph(ExecutionGraph eg) {
 		this.jobGraphs.put(eg.getJobID(), eg);
+	}
+
+	/**
+	 * @param executionGraph
+	 */
+	public void cleanupJob(ExecutionGraph executionGraph) {
+		for (Environment task : finishedTasks) 
+			this.channelManager.unregisterChannels(task);
+		this.finishedTasks.clear();
 	}
 }

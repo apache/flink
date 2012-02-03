@@ -17,7 +17,7 @@ import eu.stratosphere.sopremo.io.JsonProcessingException;
 import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 @InputCardinality(min = 0, max = 0)
@@ -149,7 +149,7 @@ public class Source extends ElementaryOperator<Source> {
 		return this.adhocExpression;
 	}
 
-	public JsonNode getAdhocValues() {
+	public IJsonNode getAdhocValues() {
 		if (!this.isAdhoc())
 			throw new IllegalStateException();
 		return this.getAdhocExpression().evaluate(NullNode.getInstance(), new EvaluationContext());

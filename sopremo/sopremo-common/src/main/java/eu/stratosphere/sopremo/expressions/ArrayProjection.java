@@ -2,7 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
 public class ArrayProjection extends EvaluationExpression {
@@ -26,7 +27,7 @@ public class ArrayProjection extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		// lazy spread
 		// TODO
 		// if (node instanceof StreamArrayNode)
@@ -37,7 +38,7 @@ public class ArrayProjection extends EvaluationExpression {
 		// }
 		// }, ((StreamArrayNode) node).isResettable());
 		// spread
-		final ArrayNode array = (ArrayNode) node;
+		final IArrayNode array = (IArrayNode) node;
 		final ArrayNode arrayNode = new ArrayNode();
 		for (int index = 0, size = array.size(); index < size; index++)
 			arrayNode.add(this.expression.evaluate(array.get(index), context));
@@ -45,8 +46,8 @@ public class ArrayProjection extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
-		final ArrayNode arrayNode = (ArrayNode) node;
+	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
+		final IArrayNode arrayNode = (ArrayNode) node;
 		for (int index = 0, size = arrayNode.size(); index < size; index++)
 			arrayNode.set(index, this.expression.set(arrayNode.get(index), value, context));
 		return arrayNode;

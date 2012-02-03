@@ -30,7 +30,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 public class SopremoUtil {
@@ -68,19 +68,20 @@ public class SopremoUtil {
 		return (T) stringToObject(string);
 	}
 
-	public static JsonNode deserializeNode(final DataInput in) {
-		JsonNode value = null;
+	public static IJsonNode deserializeNode(final DataInput in) {
+		IJsonNode value = null;
 		try {
 			final int readInt = in.readInt();
 			if (readInt == Type.CustomNode.ordinal()) {
 				final String className = in.readUTF();
 				try {
-					value = (JsonNode) Class.forName(className).newInstance();
+					value = (IJsonNode) Class.forName(className).newInstance();
 				} catch (final ClassNotFoundException e) {
 					e.printStackTrace();
 				}
 			} else
 				value = Type.values()[readInt].getClazz().newInstance();
+			value.read(in);
 		} catch (final InstantiationException e) {
 			e.printStackTrace();
 		} catch (final IllegalAccessException e) {
@@ -165,13 +166,13 @@ public class SopremoUtil {
 		config.setString(key, objectToString(object));
 	}
 
-	public static void serializeNode(final DataOutput out, final JsonNode value) {
+	public static void serializeNode(final DataOutput out, final IJsonNode iJsonNode) {
 		try {
-			out.writeInt(value.getType().ordinal());
+			out.writeInt(iJsonNode.getType().ordinal());
 
-			if (value.getType()== Type.CustomNode)
-				out.writeUTF(value.getClass().getName());
-			value.write(out);
+			if (iJsonNode.getType()== Type.CustomNode)
+				out.writeUTF(iJsonNode.getClass().getName());
+			iJsonNode.write(out);
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}
@@ -233,13 +234,13 @@ public class SopremoUtil {
 		((Log4JLogger) LOG).getLogger().setLevel(((Log4JLogger) LOG).getLogger().getParent().getLevel());
 	}
 
-	public static JsonNode unwrap(final JsonNode wrapper) {
+	public static IJsonNode unwrap(final IJsonNode wrapper) {
 		if (!(wrapper instanceof JsonNodeWrapper))
 			return wrapper;
 		return ((JsonNodeWrapper) wrapper).getValue();
 	}
 
-	public static JsonNode wrap(final JsonNode node) {
+	public static IJsonNode wrap(final IJsonNode node) {
 		if (node instanceof JsonNodeWrapper)
 			return node;
 		return new JsonNodeWrapper(node);

@@ -8,6 +8,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.CoercionException;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
@@ -22,21 +23,21 @@ public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpressi
 
 	@Test
 	public void shouldChangeTypeOfIntToText() {
-		final JsonNode result = new CoerceExpression(TextNode.class).evaluate(IntNode.valueOf(42), this.context);
+		final IJsonNode result = new CoerceExpression(TextNode.class).evaluate(IntNode.valueOf(42), this.context);
 
 		Assert.assertEquals(TextNode.valueOf("42"), result);
 	}
 
 	@Test
 	public void shouldChangeTypeOfTextInterpretedNumberToInt() {
-		final JsonNode result = new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("42"), this.context);
+		final IJsonNode result = new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("42"), this.context);
 
 		Assert.assertEquals(IntNode.valueOf(42), result);
 	}
 
 	@Test
 	public void shouldOnlyChangeOuterType() {
-		final JsonNode result = new CoerceExpression(ArrayNode.class).evaluate(
+		final IJsonNode result = new CoerceExpression(ArrayNode.class).evaluate(
 			createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), this.context);
 
 		Assert.assertEquals(createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), result);

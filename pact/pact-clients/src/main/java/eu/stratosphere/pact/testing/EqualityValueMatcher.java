@@ -1,7 +1,10 @@
 package eu.stratosphere.pact.testing;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
@@ -12,7 +15,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Arvid Heise
  * @param <V>
  */
-public class EqualityValueMatcher implements FuzzyTestValueMatcher {
+public class EqualityValueMatcher implements FuzzyValueMatcher {
 	private Equaler<PactRecord> recordEqualer;
 
 	/**
@@ -27,8 +30,8 @@ public class EqualityValueMatcher implements FuzzyTestValueMatcher {
 	}
 
 	@Override
-	public void removeMatchingValues(FuzzyTestValueSimilarity similarity, Class<? extends Value>[] schema,
-			Collection<PactRecord> expectedValues, Collection<PactRecord> actualValues) {
+	public void removeMatchingValues(Int2ObjectMap<List<ValueSimilarity<?>>> similarities,
+			Class<? extends Value>[] schema, Collection<PactRecord> expectedValues, Collection<PactRecord> actualValues) {
 		Equaler<PactRecord> recordEqualer = this.recordEqualer == null ? new PactRecordEqualer(schema)
 			: this.recordEqualer;
 

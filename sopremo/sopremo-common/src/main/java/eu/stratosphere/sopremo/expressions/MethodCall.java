@@ -6,7 +6,8 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 @OptimizerHints(scope = Scope.ANY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND)
 public class MethodCall extends ContainerExpression {
@@ -43,8 +44,8 @@ public class MethodCall extends ContainerExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final JsonNode[] params = new JsonNode[this.paramExprs.length];
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+		final IJsonNode[] params = new IJsonNode[this.paramExprs.length];
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs[index].evaluate(node, context);
 

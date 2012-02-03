@@ -13,7 +13,7 @@ import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.FunctionRegistryCallback;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 public class MethodRegistry extends AbstractSopremoType implements SerializableSopremoType {
@@ -28,7 +28,7 @@ public class MethodRegistry extends AbstractSopremoType implements SerializableS
 		this.bindings = bindings;
 	}
 
-	public JsonNode evaluate(final String functionName, final ArrayNode params, final EvaluationContext context) {
+	public IJsonNode evaluate(final String functionName, final ArrayNode params, final EvaluationContext context) {
 		final JsonMethod function = this.getFunction(functionName);
 		if (function == null)
 			throw new EvaluationException(String.format("Unknown function %s", functionName));
@@ -44,20 +44,20 @@ public class MethodRegistry extends AbstractSopremoType implements SerializableS
 	}
 
 	private static boolean isCompatibleSignature(final Method method) {
-		if (!JsonNode.class.isAssignableFrom(method.getReturnType()))
+		if (!IJsonNode.class.isAssignableFrom(method.getReturnType()))
 			return false;
 
 		boolean compatibleSignature;
 		final Class<?>[] parameterTypes = method.getParameterTypes();
 		if (parameterTypes.length == 1 && parameterTypes[0].isArray()
-			&& JsonNode.class.isAssignableFrom(parameterTypes[0].getComponentType()))
+			&& IJsonNode.class.isAssignableFrom(parameterTypes[0].getComponentType()))
 			compatibleSignature = true;
 		else {
 			compatibleSignature = true;
 			for (int index = 0; index < parameterTypes.length; index++)
-				if (!JsonNode.class.isAssignableFrom(parameterTypes[index])
+				if (!IJsonNode.class.isAssignableFrom(parameterTypes[index])
 					&& !(index == parameterTypes.length - 1 && method.isVarArgs() &&
-					JsonNode.class.isAssignableFrom(parameterTypes[index].getComponentType()))) {
+					IJsonNode.class.isAssignableFrom(parameterTypes[index].getComponentType()))) {
 					compatibleSignature = false;
 					break;
 				}

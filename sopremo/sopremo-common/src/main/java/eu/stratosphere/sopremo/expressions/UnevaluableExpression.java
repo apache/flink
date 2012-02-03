@@ -2,7 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 @OptimizerHints(scope = Scope.ANY)
 public class UnevaluableExpression extends EvaluationExpression {
@@ -26,7 +26,7 @@ public class UnevaluableExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		throw new EvaluationException(this.message);
 	}
 

@@ -12,14 +12,14 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> {
 
-	private static JsonNode doc = getJsonNode();
+	private static IJsonNode doc = getJsonNode();
 
-	private static JsonNode getJsonNode() {
+	private static IJsonNode getJsonNode() {
 		try {
 			final JsonParser parser = new JsonParser(new URL(
 				getResourcePath("PathExpressionTest/test.json")));
@@ -39,7 +39,7 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 	@Test
 	public void shouldReturnElementOfGivenPath() {
-		final JsonNode result = new PathExpression(
+		final IJsonNode result = new PathExpression(
 			new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"), new ObjectAccess("GlossList"),
 			new ObjectAccess("GlossEntry"), new ObjectAccess("GlossDef"), new ObjectAccess("GlossSeeAlso"),
 			new ArrayAccess(1)).evaluate(doc, this.context);
@@ -52,7 +52,7 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 		final PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
 			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"));
 		expr.add(new ObjectAccess("ID"));
-		final JsonNode result = expr.evaluate(doc, this.context);
+		final IJsonNode result = expr.evaluate(doc, this.context);
 
 		Assert.assertEquals(TextNode.valueOf("SGML"), result);
 	}
@@ -92,7 +92,7 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"), new ObjectAccess("ID"));
 		expr.replace(new ObjectAccess("ID"), new ObjectAccess("GlossSee"));
 
-		final JsonNode result = expr.evaluate(doc, this.context);
+		final IJsonNode result = expr.evaluate(doc, this.context);
 
 		Assert.assertEquals(TextNode.valueOf("markup"), result);
 	}
@@ -104,7 +104,7 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 		expr.replace(new PathExpression(new ObjectAccess("GlossDiv"), new ObjectAccess("GlossList"), new ObjectAccess(
 			"GlossEntry"), new ObjectAccess("ID")), new ObjectAccess("title"));
 
-		final JsonNode result = expr.evaluate(doc, this.context);
+		final IJsonNode result = expr.evaluate(doc, this.context);
 
 		Assert.assertEquals(TextNode.valueOf("example glossary"), result);
 	}

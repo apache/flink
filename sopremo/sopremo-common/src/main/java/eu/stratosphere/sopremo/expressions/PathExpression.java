@@ -7,7 +7,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
 public class PathExpression extends ContainerExpression implements Cloneable {
@@ -49,8 +50,8 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		JsonNode fragmentNode = node;
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+		IJsonNode fragmentNode = node;
 		for (final EvaluationExpression fragment : this.fragments)
 			fragmentNode = fragment.evaluate(fragmentNode, context);
 		return fragmentNode;
@@ -170,8 +171,8 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	}
 
 	@Override
-	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
-		JsonNode fragmentNode = node;
+	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
+		IJsonNode fragmentNode = node;
 		final List<EvaluationExpression> fragments = this.getFragments();
 		for (int index = 0; index < fragments.size() - 1; index++)
 			fragmentNode = fragments.get(index).evaluate(fragmentNode, context);

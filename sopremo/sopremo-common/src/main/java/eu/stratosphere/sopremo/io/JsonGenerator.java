@@ -8,7 +8,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class JsonGenerator {
 
@@ -32,11 +32,11 @@ public class JsonGenerator {
 		this.writer.close();
 	}
 
-	public void writeTree(final JsonNode value) throws IOException {
-		if (value != null) {
+	public void writeTree(final IJsonNode iJsonNode) throws IOException {
+		if (iJsonNode != null) {
 			if (!this.isFirst)
 				this.writer.write(",");
-			this.writer.write(value.toString());
+			this.writer.write(iJsonNode.toString());
 			this.writer.flush();
 			this.isFirst = false;
 		}

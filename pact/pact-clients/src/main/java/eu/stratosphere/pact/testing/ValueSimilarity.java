@@ -1,6 +1,6 @@
 package eu.stratosphere.pact.testing;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
 
 /**
  * Distance function between two values.
@@ -9,7 +9,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * @param <V>
  *        the value type
  */
-public interface FuzzyTestValueSimilarity {
+public interface ValueSimilarity<V extends Value> {
 	/**
 	 * Constant used to indicate that two values do not match.
 	 */
@@ -24,5 +24,7 @@ public interface FuzzyTestValueSimilarity {
 	 *        the second value
 	 * @return a positive value corresponding to the distance or {@link #NO_MATCH}
 	 */
-	public double getDistance(PactRecord value1, PactRecord value2);
+	public double getDistance(V value1, V value2);
+	
+	public boolean isApplicable(Class<? extends V> valueType);
 }

@@ -10,6 +10,7 @@ import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.util.IdentitySet;
@@ -32,7 +33,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		private static final long serialVersionUID = 9192628786637605317L;
 
 		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 			throw new EvaluationException();
 		}
 
@@ -48,7 +49,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		private static final long serialVersionUID = 9192628786637605317L;
 
 		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 			throw new EvaluationException();
 		}
 
@@ -70,12 +71,12 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		private static final long serialVersionUID = -6430819532311429108L;
 
 		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 			return node;
 		}
 
 		@Override
-		public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+		public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
 			return value;
 		};
 
@@ -158,7 +159,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 *        the context in which the node should be evaluated
 	 * @return the node resulting from the evaluation or several nodes wrapped in a special node type
 	 */
-	public abstract JsonNode evaluate(JsonNode node, EvaluationContext context);
+	public abstract IJsonNode evaluate(IJsonNode node, EvaluationContext context);
 
 	@Override
 	public int hashCode() {
@@ -199,7 +200,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * @return the node or a new node if the expression directly accesses the node
 	 */
 	@SuppressWarnings("unused")
-	public JsonNode set(final JsonNode node, final JsonNode value, final EvaluationContext context) {
+	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
 		throw new UnsupportedOperationException(String.format(
 			"Cannot change the value with expression %s of node %s to %s", this, node, value));
 	}

@@ -12,7 +12,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
@@ -39,7 +39,7 @@ public class BuiltinFunctionsTest {
 	public void shouldConcatenateObjects() {
 		Assert.assertEquals(
 			createValueNode("bla1blu2"),
-			DefaultFunctions.concat(new JsonNode[] {
+			DefaultFunctions.concat(new IJsonNode[] {
 				createValueNode("bla"),
 				createValueNode(1),
 				createValueNode("blu"),
@@ -53,7 +53,7 @@ public class BuiltinFunctionsTest {
 	public void shouldConcatenateStrings() {
 		Assert.assertEquals(
 			createValueNode("blabliblu"),
-			DefaultFunctions.concat(new JsonNode[] {
+			DefaultFunctions.concat(new IJsonNode[] {
 				createValueNode("bla"),
 				createValueNode("bli"),
 				createValueNode("blu") }));
@@ -121,7 +121,7 @@ public class BuiltinFunctionsTest {
 	@Test
 	public void shouldReturnEmptyStringWhenConcatenatingEmptyArray() {
 		Assert.assertEquals(
-			createValueNode(""), DefaultFunctions.concat(new JsonNode[0]));
+			createValueNode(""), DefaultFunctions.concat(new IJsonNode[0]));
 	}
 
 	/**
@@ -272,7 +272,7 @@ public class BuiltinFunctionsTest {
 
 	@Test
 	public void shouldReturnCorrectSubstring() {
-		final JsonNode result = DefaultFunctions.substring(TextNode.valueOf("0123456789"), IntNode.valueOf(3),
+		final IJsonNode result = DefaultFunctions.substring(TextNode.valueOf("0123456789"), IntNode.valueOf(3),
 			IntNode.valueOf(6));
 
 		Assert.assertEquals(TextNode.valueOf("345"), result);

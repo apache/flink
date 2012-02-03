@@ -8,7 +8,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
@@ -21,7 +21,7 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Test
 	public void shouldBeTrueIfAllExprAreTrue() {
-		final JsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.TRUE,
+		final IJsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.TRUE,
 			BooleanExpressionTest.TRUE).evaluate(IntNode.valueOf(42),
 			this.context);
 
@@ -30,7 +30,7 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Test
 	public void shouldBeFalseIfOneExprIsFalse() {
-		final JsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.FALSE,
+		final IJsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.FALSE,
 			BooleanExpressionTest.TRUE).evaluate(IntNode.valueOf(42),
 			this.context);
 

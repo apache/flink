@@ -10,7 +10,7 @@ import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
-public class IntNode extends NumericNode {
+public class IntNode extends NumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -130,7 +130,7 @@ public class IntNode extends NumericNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		return this.value.getValue() - ((IntNode) other).value.getValue();
 	}
 }

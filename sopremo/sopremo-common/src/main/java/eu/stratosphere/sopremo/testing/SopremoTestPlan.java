@@ -25,10 +25,10 @@ import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.RecordToJsonIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
-import eu.stratosphere.sopremo.type.Schema;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
 public class SopremoTestPlan {
@@ -37,8 +37,8 @@ public class SopremoTestPlan {
 	private ActualOutput[] actualOutputs;
 
 	//
-	// public static interface TestObjects extends Iterable<JsonNode> {
-	// public TestObjects add(JsonNode object);
+	// public static interface TestObjects extends Iterable<IJsonNode> {
+	// public TestObjects add(IJsonNode object);
 	//
 	// public TestObjects setEmpty();
 	// }
@@ -203,7 +203,7 @@ public class SopremoTestPlan {
 		this.testPlan = new TestPlan(sopremoPlan.assemblePact());
 		Schema schema = getSchema();
 		for (final Input input : this.inputs)
-			input.prepare(this.testPlan, schema);
+			input.sync(this.testPlan, schema);
 		for (final ExpectedOutput output : this.expectedOutputs)
 			output.prepare(this.testPlan, schema);
 		if (this.trace)
@@ -212,7 +212,7 @@ public class SopremoTestPlan {
 		if (this.trace)
 			SopremoUtil.untrace();
 		for (final ActualOutput output : this.actualOutputs)
-			output.load(this.testPlan);
+			output.load(this.testPlan, schema);
 	}
 
 	public void setInputOperator(final int index, final Source operator) {
@@ -239,11 +239,11 @@ public class SopremoTestPlan {
 			super(new MockupSink(index), index);
 		}
 
-		public void load(final TestPlan testPlan) {
+		void load(final TestPlan testPlan, Schema schema) {
 			this.setEmpty();
 			final TestRecords actualOutput = testPlan.getActualOutput(this.getIndex());
 			for (final PactRecord record : actualOutput)
-				this.add(this.schema.recordToJson(record, null));
+				this.add(schema.recordToJson(record, null));
 			actualOutput.close();
 		}
 
@@ -254,7 +254,9 @@ public class SopremoTestPlan {
 
 	static class Channel<O extends Operator<?>, C extends Channel<O, C>> {
 
-		private final TestRecords pairs = new TestRecords(schema.getPactSchema());
+		private final List<IJsonNode> values = new ArrayList<IJsonNode>();
+
+		protected String file;
 
 		protected O operator;
 
@@ -265,18 +267,18 @@ public class SopremoTestPlan {
 			this.index = index;
 		}
 
-		public C add(final JsonNode value) {
-			this.pairs.add(this.schema.jsonToRecord(value, null));
+		public C add(final IJsonNode value) {
+			this.values.add(value);
 			return (C) this;
 		}
 
 		@Deprecated
-		public C add(final JsonNode key, final JsonNode value) {
+		public C add(final IJsonNode key, final IJsonNode value) {
 			return add(JsonUtil.asArray(key, value));
 		}
 
 		public void load(final String path) {
-			this.pairs.fromFile(JsonInputFormat.class, path);
+			this.file = path;
 		}
 
 		public C addObject(final Object... fields) {
@@ -289,7 +291,6 @@ public class SopremoTestPlan {
 
 		public C addArray(final Object... values) {
 			return this.add(NullNode.getInstance(), JsonUtil.createArrayNode(values));
-
 		}
 
 		@Override
@@ -324,7 +325,106 @@ public class SopremoTestPlan {
 			return result;
 		}
 
-		public Iterator<JsonNode> iterator() {
+		public Iterator<IJsonNode> iterator() {
+			final RecordToJsonIterator iterator = new RecordToJsonIterator(this.schema);
+			iterator.setIterator(this.pairs.iterator());
+			return iterator;
+		}
+
+		@SuppressWarnings("unchecked")
+		public C setEmpty() {
+			this.pairs.setEmpty();
+			return (C) this;
+		}
+
+		void setOperator(final O operator) {
+			if (operator == null)
+				throw new NullPointerException("operator must not be null");
+
+			this.operator = operator;
+			this.setEmpty();
+		}
+
+		@Override
+		public String toString() {
+			return this.pairs.toString();
+		}
+	}
+	
+	static class Channel<O extends Operator<?>, C extends Channel<O, C>> {
+
+		private final List<IJsonNode> values = new ArrayList<IJsonNode>();
+
+		protected String file;
+
+		protected O operator;
+
+		private final int index;
+
+		public Channel(final O operator, final int index) {
+			this.operator = operator;
+			this.index = index;
+		}
+
+		public C add(final IJsonNode value) {
+			this.values.add(value);
+			return (C) this;
+		}
+
+		@Deprecated
+		public C add(final IJsonNode key, final IJsonNode value) {
+			return add(JsonUtil.asArray(key, value));
+		}
+
+		public void load(final String path) {
+			this.file = path;
+		}
+
+		public C addObject(final Object... fields) {
+			return this.add(NullNode.getInstance(), JsonUtil.createObjectNode(fields));
+		}
+
+		public C addValue(final Object value) {
+			return this.add(NullNode.getInstance(), JsonUtil.createValueNode(value));
+		}
+
+		public C addArray(final Object... values) {
+			return this.add(NullNode.getInstance(), JsonUtil.createArrayNode(values));
+		}
+
+		@Override
+		public boolean equals(final Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (!(obj instanceof Channel))
+				return false;
+			final Channel<?, ?> other = (Channel<?, ?>) obj;
+			return this.pairs.equals(other.pairs);
+		}
+
+		int getIndex() {
+			return this.index;
+		}
+
+		O getOperator() {
+			return this.operator;
+		}
+
+		TestRecords getPairs() {
+			return this.pairs;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + (this.pairs == null ? 0 : this.pairs.hashCode());
+			return result;
+		}
+
+		public Iterator<IJsonNode> iterator() {
 			final RecordToJsonIterator iterator = new RecordToJsonIterator(this.schema);
 			iterator.setIterator(this.pairs.iterator());
 			return iterator;
@@ -350,28 +450,32 @@ public class SopremoTestPlan {
 		}
 	}
 
-	public static class ExpectedOutput extends Channel<Source, ExpectedOutput> implements Iterable<JsonNode> {
+	public static class ExpectedOutput extends Channel<Source, ExpectedOutput> implements Iterable<IJsonNode> {
 		public ExpectedOutput(final int index) {
 			super(new MockupSource(index), index);
 		}
 
 		public void prepare(final TestPlan testPlan, Schema schema) {
 			if (this.getOperator() instanceof MockupSource)
-				testPlan.getExpectedOutput(this.getIndex(), this.schema.getPactSchema()).add(this.getPairs());
-			this.schema = schema;
+				testPlan.getExpectedOutput(this.getIndex(), schema.getPactSchema()).add(this.getPairs());
 		}
 	}
 
-	public static class Input extends Channel<Source, Input> implements Iterable<JsonNode> {
+	public static class Input extends Channel<Source, Input> implements Iterable<IJsonNode> {
 		public Input(final int index) {
 			super(new MockupSource(index), index);
 		}
 
-		public void prepare(final TestPlan testPlan, Schema schema) {
+		void sync(final TestPlan testPlan, Schema schema) {
 			PactRecord record = null;
 			if (operator.isAdhoc())
-				for (final JsonNode node : (ArrayNode) operator.getAdhocValues())
+				for (final IJsonNode node : (IArrayNode) operator.getAdhocValues())
 					testPlan.getInput(this.getIndex()).add(record = schema.jsonToRecord(node, record));
+			else {
+				Configuration configuration = new Configuration();
+				SopremoUtil.serialize(configuration, IOConstants.SCHEMA, schema);
+				testPlan.getInput(this.getIndex()).fromFile(JsonInputFormat.class, this.file, configuration);
+			}
 		}
 
 		/*
@@ -379,15 +483,13 @@ public class SopremoTestPlan {
 		 * @see eu.stratosphere.sopremo.testing.SopremoTestPlan.Channel#iterator()
 		 */
 		@Override
-		public Iterator<JsonNode> iterator() {
+		public Iterator<IJsonNode> iterator() {
 
 			if (operator.isAdhoc())
 				return super.iterator();
 
 			Schema schema = this.getSchema();
 			final TestRecords testPairs = new TestRecords(schema.getPactSchema());
-			Configuration configuration = new Configuration();
-			SopremoUtil.serialize(configuration, IOConstants.SCHEMA, schema);
 			testPairs.fromFile(JsonInputFormat.class, operator.getInputName(), configuration);
 			for (final PactRecord record : testPairs)
 				this.inputs[index].add(Schema.Default.recordToJson(record, null));

@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 @OptimizerHints(scope = Scope.ANY)
@@ -22,7 +23,7 @@ public class ConstantExpression extends EvaluationExpression {
 		this.constant = JsonUtil.OBJECT_MAPPER.valueToTree(constant);
 	}
 
-	public JsonNode getConstant() {
+	public IJsonNode getConstant() {
 		return this.constant;
 	}
 
@@ -35,7 +36,7 @@ public class ConstantExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		return this.constant;
 	}
 

@@ -20,14 +20,15 @@ import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class JsonNodeWrapperTest {
 
-	private static ObjectNode obj;
+	private static IObjectNode obj;
 
 	private ByteArrayOutputStream byteArray;
 
@@ -74,7 +75,7 @@ public class JsonNodeWrapperTest {
 
 			final JsonNodeWrapper wrapper = new JsonNodeWrapper();
 			wrapper.read(inStream);
-			final JsonNode target = SopremoUtil.unwrap(wrapper);
+			final IJsonNode target = SopremoUtil.unwrap(wrapper);
 
 			// for watching the output
 			final JsonGenerator gen = new JsonGenerator(file);

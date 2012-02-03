@@ -13,7 +13,7 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -27,7 +27,7 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 
 	@Test
 	public void shouldCreateObjectAsIntended() {
-		final JsonNode result = new ObjectCreation(new ObjectCreation.FieldAssignment("name", new ConstantExpression(
+		final IJsonNode result = new ObjectCreation(new ObjectCreation.FieldAssignment("name", new ConstantExpression(
 			TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
 			IntNode.valueOf(30)))).evaluate(IntNode.valueOf(0), this.context);
 
@@ -55,7 +55,7 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 
 		object.addMapping("birthday", new ConstantExpression(TextNode.valueOf("01.01.2000")));
 
-		final JsonNode result = object.evaluate(IntNode.valueOf(0), this.context);
+		final IJsonNode result = object.evaluate(IntNode.valueOf(0), this.context);
 
 		Assert.assertEquals(createObjectNode("name", "testperson", "age", 30, "birthday", "01.01.2000"), result);
 	}

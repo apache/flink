@@ -6,7 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * Creates an array of the given expressions.
@@ -55,7 +55,7 @@ public class ArrayCreation extends ContainerExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		final ArrayNode arrayNode = new ArrayNode();
 		for (final EvaluationExpression expression : this.elements)
 			arrayNode.add(expression.evaluate(node, context));

@@ -11,6 +11,8 @@ import eu.stratosphere.sopremo.NumberCoercer;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.JsonNode.Type;
@@ -100,7 +102,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, context),
 			(NumericNode) this.secondOperand.evaluate(node, context));
 	}
@@ -268,7 +270,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract BigDecimal evaluate(BigDecimal left, BigDecimal right);
 
 		@Override
-		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
+		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
 			return DecimalNode.valueOf(this.evaluate(left.getDecimalValue(),
 				right.getDecimalValue()));
 		}
@@ -278,7 +280,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract BigInteger evaluate(BigInteger left, BigInteger right);
 
 		@Override
-		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
+		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
 			return BigIntegerNode.valueOf(this.evaluate(left.getBigIntegerValue(),
 				right.getBigIntegerValue()));
 		}
@@ -301,7 +303,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		public static final int DIVISION_MIN_SCALE = 10;
 
 		@Override
-		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
+		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
 			return DecimalNode.valueOf(divideImpl(left.getDecimalValue(),
 				right.getDecimalValue()));
 		}
@@ -325,7 +327,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract double evaluate(double left, double right);
 
 		@Override
-		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
+		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
 			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(),
 				right.getDoubleValue()));
 		}
@@ -335,7 +337,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract int evaluate(int left, int right);
 
 		@Override
-		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
+		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
 			return IntNode.valueOf(this.evaluate(left.getIntValue(), right.getIntValue()));
 		}
 	}
@@ -344,12 +346,12 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract long evaluate(long left, long right);
 
 		@Override
-		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
+		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
 			return LongNode.valueOf(this.evaluate(left.getLongValue(), right.getLongValue()));
 		}
 	}
 
 	private static interface NumberEvaluator {
-		public NumericNode evaluate(NumericNode left, NumericNode right);
+		public NumericNode evaluate(INumericNode left, INumericNode right);
 	}
 }

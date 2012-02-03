@@ -10,7 +10,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class SopremoReduce extends ReduceStub {
 	private EvaluationContext context;
@@ -35,11 +36,11 @@ public abstract class SopremoReduce extends ReduceStub {
 		return this.context;
 	}
 
-	protected boolean needsResettableIterator(final Iterator<JsonNode> values) {
+	protected boolean needsResettableIterator(final Iterator<IJsonNode> values) {
 		return false;
 	}
 
-	protected abstract void reduce(ArrayNode values, JsonCollector out);
+	protected abstract void reduce(IArrayNode values, JsonCollector out);
 
 	/*
 	 * (non-Javadoc)
@@ -51,9 +52,9 @@ public abstract class SopremoReduce extends ReduceStub {
 		this.context.increaseInputCounter();
 		this.collector.setCollector(out);
 		this.cachedIterator.setIterator(records);
-		Iterator<JsonNode> values = this.cachedIterator;
+		Iterator<IJsonNode> values = this.cachedIterator;
 		if (SopremoUtil.LOG.isTraceEnabled()) {
-			final ArrayList<JsonNode> cached = new ArrayList<JsonNode>();
+			final ArrayList<IJsonNode> cached = new ArrayList<IJsonNode>();
 			while (this.cachedIterator.hasNext())
 				cached.add(this.cachedIterator.next());
 			values = cached.iterator();

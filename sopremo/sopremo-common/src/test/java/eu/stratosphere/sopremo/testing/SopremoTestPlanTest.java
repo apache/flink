@@ -43,7 +43,8 @@ import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * Tests {@link SopremoTestPlan}.
@@ -67,8 +68,8 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			.getActualOutput(0));
 
 		// explicitly check output
-		final Iterator<JsonNode> outputIterator = testPlan.getActualOutput(0).iterator();
-		final Iterator<JsonNode> inputIterator = testPlan.getInput(0).iterator();
+		final Iterator<IJsonNode> outputIterator = testPlan.getActualOutput(0).iterator();
+		final Iterator<IJsonNode> inputIterator = testPlan.getInput(0).iterator();
 		for (int index = 0; index < 2; index++) {
 			assertTrue("too few actual output values", outputIterator.hasNext());
 			assertTrue("too few input values", outputIterator.hasNext());
@@ -184,7 +185,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 
 		public static class Implementation extends SopremoCross {
 			@Override
-			protected void cross(final JsonNode value1, final JsonNode value2, final JsonCollector out) {
+			protected void cross(final IJsonNode value1, final IJsonNode value2, final JsonCollector out) {
 				out.collect(JsonUtil.asArray(value1, value2));
 			}
 		}
@@ -198,7 +199,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 
 		public static class Implementation extends SopremoMap {
 			@Override
-			protected void map(final JsonNode value, final JsonCollector out) {
+			protected void map(final IJsonNode value, final JsonCollector out) {
 				out.collect(value);
 			}
 		}

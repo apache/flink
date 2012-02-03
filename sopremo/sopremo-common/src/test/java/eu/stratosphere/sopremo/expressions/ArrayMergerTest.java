@@ -6,7 +6,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
@@ -18,7 +18,7 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldMergeOneArray() {
-		final JsonNode result = new ArrayMerger().evaluate(
+		final IJsonNode result = new ArrayMerger().evaluate(
 			createArrayNode(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5))),
@@ -30,7 +30,7 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldMergeEmptyArray() {
-		final JsonNode result = new ArrayMerger().evaluate(
+		final IJsonNode result = new ArrayMerger().evaluate(
 			createArrayNode(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)), createArrayNode()),
@@ -42,7 +42,7 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldFillNullValuesWithValuesFromOtherArrays() {
-		final JsonNode result = new ArrayMerger().evaluate(
+		final IJsonNode result = new ArrayMerger().evaluate(
 			createArrayNode(createArrayNode(null, createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)), createArrayNode(createObjectNode("fieldName", 1))),
@@ -54,7 +54,7 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldFillNullNodesWithValuesFromOtherArrays() {
-		final JsonNode result = new ArrayMerger().evaluate(
+		final IJsonNode result = new ArrayMerger().evaluate(
 			createArrayNode(
 				createArrayNode(NullNode.getInstance(), createObjectNode("fieldName", 2),
 					NullNode.getInstance()), createArrayNode(createObjectNode("fieldName", 1)),

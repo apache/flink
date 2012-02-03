@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-public class DecimalNode extends NumericNode {
+public class DecimalNode extends NumericNode implements INumericNode{
 
 	/**
 	 * 
@@ -125,7 +125,7 @@ public class DecimalNode extends NumericNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		return this.value.compareTo(((DecimalNode) other).value);
 	}
 }

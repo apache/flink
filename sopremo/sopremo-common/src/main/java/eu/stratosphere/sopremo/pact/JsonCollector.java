@@ -2,8 +2,9 @@ package eu.stratosphere.sopremo.pact;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.Schema;
 
 public class JsonCollector {
 	private Collector collector;
@@ -26,7 +27,7 @@ public class JsonCollector {
 		this.collector = collector;
 	}
 
-	public void collect(final JsonNode value) {
+	public void collect(final IJsonNode value) {
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format(" to %s", value));
 		this.collector.collect(this.schema.jsonToRecord(value, this.record));

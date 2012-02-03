@@ -8,7 +8,9 @@ import java.util.List;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class GroupingExpression extends EvaluationExpression {
 	/**
@@ -24,8 +26,8 @@ public class GroupingExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		if (((ArrayNode) node).size() == 0)
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+		if (((IArrayNode) node).size() == 0)
 			return new ArrayNode();
 
 		final List<ArrayNode> nodes = this.sortNodesWithKey(node, context);
@@ -33,7 +35,7 @@ public class GroupingExpression extends EvaluationExpression {
 		final ArrayNode resultNode = new ArrayNode();
 
 		int groupStart = 0;
-		JsonNode groupKey = nodes.get(0).get(0);
+		IJsonNode groupKey = nodes.get(0).get(0);
 		for (int index = 1; index < nodes.size(); index++)
 			if (!nodes.get(index).get(0).equals(groupKey)) {
 				resultNode.add(this.evaluateGroup(nodes.subList(groupStart, index), context));
@@ -46,9 +48,9 @@ public class GroupingExpression extends EvaluationExpression {
 		return resultNode;
 	}
 
-	protected List<ArrayNode> sortNodesWithKey(final JsonNode node, final EvaluationContext context) {
+	protected List<ArrayNode> sortNodesWithKey(final IJsonNode node, final EvaluationContext context) {
 		final List<ArrayNode> nodes = new ArrayList<ArrayNode>();
-		for (final JsonNode jsonNode : (ArrayNode) node)
+		for (final IJsonNode jsonNode : (IArrayNode) node)
 			nodes.add(JsonUtil.asArray(this.groupingExpression.evaluate(jsonNode, context), jsonNode));
 		Collections.sort(nodes, new Comparator<ArrayNode>() {
 			@Override
@@ -59,9 +61,9 @@ public class GroupingExpression extends EvaluationExpression {
 		return nodes;
 	}
 
-	protected JsonNode evaluateGroup(final List<ArrayNode> group, final EvaluationContext context) {
+	protected IJsonNode evaluateGroup(final List<ArrayNode> group, final EvaluationContext context) {
 		final ArrayNode values = new ArrayNode();
-		for (final ArrayNode compactArrayNode : group)
+		for (final IArrayNode compactArrayNode : group)
 			values.add(compactArrayNode.get(1));
 		return this.resultExpression.evaluate(values, context);
 	}

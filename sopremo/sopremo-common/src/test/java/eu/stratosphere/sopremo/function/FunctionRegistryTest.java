@@ -9,9 +9,12 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.INumericNode;
+import eu.stratosphere.sopremo.type.IPrimitiveNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.NumericNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -120,27 +123,27 @@ public class FunctionRegistryTest {
 	@SuppressWarnings("unused")
 	public static class JavaFunctions {
 
-		public static JsonNode count(final ArrayNode node) {
+		public static IJsonNode count(final IArrayNode node) {
 			return ARRAY_NODE;
 		}
 
-		public static JsonNode count(final IntNode node, final IntNode node2) {
+		public static IJsonNode count(final IPrimitiveNode node, final IPrimitiveNode node2) {
 			return TWO_INT_NODE;
 		}
 
-		public static JsonNode count(final IntNode node, final IntNode... nodes) {
+		public static IJsonNode count(final IPrimitiveNode node, final IPrimitiveNode... nodes) {
 			return ONE_INT_VARARG_NODE;
 		}
 
-		public static JsonNode count(final JsonNode node) {
+		public static IJsonNode count(final IJsonNode node) {
 			return GENERIC_NODE;
 		}
 
-		public static JsonNode count(final JsonNode... node) {
+		public static IJsonNode count(final IJsonNode... node) {
 			return GENERIC_VARARG_NODE;
 		}
 
-		public static JsonNode sum(final NumericNode... nodes) {
+		public static IJsonNode sum(final INumericNode... nodes) {
 			return SUM_NODE;
 		}
 	}

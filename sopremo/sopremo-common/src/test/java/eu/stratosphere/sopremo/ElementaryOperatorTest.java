@@ -21,9 +21,9 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.Schema;
+import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * The class <code>ElementaryOperatorTest</code> contains tests for the class <code>{@link ElementaryOperator}</code>.
@@ -106,11 +106,11 @@ public class ElementaryOperatorTest {
 		class Implementation extends SopremoMap {
 			/*
 			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.JsonNode,
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.IJsonNode,
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void map(final JsonNode value, final JsonCollector out) {
+			protected void map(final IJsonNode value, final JsonCollector out) {
 			}
 		}
 	}
@@ -125,11 +125,11 @@ public class ElementaryOperatorTest {
 		static class Implementation extends SopremoMap {
 			/*
 			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.JsonNode,
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.IJsonNode,
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void map(final JsonNode value, final JsonCollector out) {
+			protected void map(final IJsonNode value, final JsonCollector out) {
 			}
 		}
 	}
@@ -144,7 +144,7 @@ public class ElementaryOperatorTest {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(final ArrayNode values, final JsonCollector out) {
+			protected void reduce(final IArrayNode values, final JsonCollector out) {
 			}
 		}
 
@@ -155,7 +155,7 @@ public class ElementaryOperatorTest {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(final ArrayNode values, final JsonCollector out) {
+			protected void reduce(final IArrayNode values, final JsonCollector out) {
 			}
 		}
 	}

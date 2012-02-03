@@ -10,7 +10,7 @@ import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactLong;
 
-public class LongNode extends NumericNode {
+public class LongNode extends NumericNode implements INumericNode{
 
 	/**
 	 * 
@@ -125,7 +125,7 @@ public class LongNode extends NumericNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		return Long.signum(this.value.getValue() - ((LongNode) other).value.getValue());
 	}
 }

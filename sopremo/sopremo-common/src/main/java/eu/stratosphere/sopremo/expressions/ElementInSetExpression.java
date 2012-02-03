@@ -6,7 +6,8 @@ import java.util.Iterator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 @OptimizerHints(scope = Scope.ANY, iterating = true)
 public class ElementInSetExpression extends BooleanExpression {
@@ -27,16 +28,16 @@ public class ElementInSetExpression extends BooleanExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		return this.quantor.evaluate(this.elementExpr.evaluate(node, context),
 			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, context)));
 	}
 
 	// @Override
-	// public Iterator<JsonNode> evaluate(Iterator<JsonNode>... inputs) {
-	// return new AbstractIterator<JsonNode>() {
+	// public Iterator<IJsonNode> evaluate(Iterator<IJsonNode>... inputs) {
+	// return new AbstractIterator<IJsonNode>() {
 	// @Override
-	// protected JsonNode loadNext() {
+	// protected IJsonNode loadNext() {
 	// return isIn(elementExpr.evaluate(inputs[0].e).next(), setExpr.evaluate(inputs)) != notIn ? BooleanNode.TRUE
 	// : BooleanNode.FALSE;
 	// ;
@@ -46,7 +47,7 @@ public class ElementInSetExpression extends BooleanExpression {
 	// }
 	//
 	// @Override
-	// public Iterator<JsonNode> evaluate(Iterator<JsonNode> input) {
+	// public Iterator<IJsonNode> evaluate(Iterator<IJsonNode> input) {
 	// return super.evaluate(input);
 	// }
 
@@ -70,11 +71,11 @@ public class ElementInSetExpression extends BooleanExpression {
 
 	//
 	// @Override
-	// public JsonNode evaluate(JsonNode... nodes) {
+	// public IJsonNode evaluate(IJsonNode... nodes) {
 	// return quantor.evaluate(this.elementExpr.evaluate(nodes), this.asIterator(this.setExpr.evaluate(nodes)));
 	// }
 
-	static Iterator<JsonNode> asIterator(final JsonNode evaluate) {
+	static Iterator<IJsonNode> asIterator(final IJsonNode evaluate) {
 		if (evaluate instanceof ArrayNode)
 			return ((ArrayNode) evaluate).iterator();
 		return Arrays.asList(evaluate).iterator();
@@ -83,12 +84,12 @@ public class ElementInSetExpression extends BooleanExpression {
 	public static enum Quantor {
 		EXISTS_IN, EXISTS_NOT_IN {
 			@Override
-			protected BooleanNode evaluate(final JsonNode element, final Iterator<JsonNode> set) {
+			protected BooleanNode evaluate(final IJsonNode element, final Iterator<IJsonNode> set) {
 				return super.evaluate(element, set) == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
 			}
 		};
 
-		protected BooleanNode evaluate(final JsonNode element, final Iterator<JsonNode> set) {
+		protected BooleanNode evaluate(final IJsonNode element, final Iterator<IJsonNode> set) {
 			while (set.hasNext())
 				if (element.equals(set.next()))
 					return BooleanNode.TRUE;

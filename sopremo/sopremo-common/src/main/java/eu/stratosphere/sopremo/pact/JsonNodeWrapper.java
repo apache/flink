@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
 public class JsonNodeWrapper extends JsonNode {
@@ -13,7 +14,7 @@ public class JsonNodeWrapper extends JsonNode {
 	 */
 	private static final long serialVersionUID = -3195619585864989618L;
 
-	private JsonNode value;
+	private IJsonNode value;
 
 	public JsonNodeWrapper() {
 	};
@@ -21,11 +22,12 @@ public class JsonNodeWrapper extends JsonNode {
 	/**
 	 * Initializes JsonNodeWrapper.
 	 * 
-	 * @param value
+	 * @param iJsonNode
 	 */
-	public JsonNodeWrapper(final JsonNode value) {
+	public JsonNodeWrapper(final IJsonNode iJsonNode) {
 		super();
-		this.value = value;
+		
+		this.value = iJsonNode;
 	}
 
 	@Override
@@ -46,7 +48,7 @@ public class JsonNodeWrapper extends JsonNode {
 		this.value.write(out);
 	}
 
-	public JsonNode getValue() {
+	public IJsonNode getValue() {
 		return this.value;
 	}
 
@@ -64,7 +66,7 @@ public class JsonNodeWrapper extends JsonNode {
 	}
 
 	@Override
-	public int compareToSameType(final JsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		return this.value.compareTo(((JsonNodeWrapper) other).getValue());
 	}
 

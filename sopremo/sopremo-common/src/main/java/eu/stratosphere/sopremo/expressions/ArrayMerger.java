@@ -4,6 +4,8 @@ import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
@@ -20,14 +22,14 @@ public class ArrayMerger extends EvaluationExpression {
 	private static final long serialVersionUID = -6884623565349727369L;
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-		final Iterator<JsonNode> arrays = ((ArrayNode) node).iterator();
-		final ArrayNode mergedArray = new ArrayNode();
-		JsonNode nextNode;
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+		final Iterator<IJsonNode> arrays = ((ArrayNode) node).iterator();
+		final IArrayNode mergedArray = new ArrayNode();
+		IJsonNode nextNode;
 		while (arrays.hasNext())
 			if ((nextNode = arrays.next()) != NullNode.getInstance()) {
 
-				final ArrayNode array = (ArrayNode) nextNode;
+				final IArrayNode array = (IArrayNode) nextNode;
 				for (int index = 0; index < array.size(); index++)
 					if (mergedArray.size() <= index)
 						mergedArray.add(array.get(index));
@@ -37,7 +39,7 @@ public class ArrayMerger extends EvaluationExpression {
 		return mergedArray;
 	}
 
-	private boolean isNull(final JsonNode value) {
+	private boolean isNull(final IJsonNode value) {
 		return value == null || value.isNull();
 	}
 

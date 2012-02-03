@@ -10,7 +10,9 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.util.ConversionIterator;
 
@@ -28,13 +30,13 @@ public class ObjectCreation extends ContainerExpression {
 		private static final long serialVersionUID = 5274811723343043990L;
 
 		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 			final ObjectNode objectNode = new ObjectNode();
-			final Iterator<JsonNode> elements = ((ArrayNode) node).iterator();
+			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
 			while (elements.hasNext()) {
-				final JsonNode jsonNode = elements.next();
+				final IJsonNode jsonNode = elements.next();
 				if (!jsonNode.isNull())
-					objectNode.putAll((ObjectNode) jsonNode);
+					objectNode.putAll((IObjectNode) jsonNode);
 			}
 			return objectNode;
 		}
@@ -71,7 +73,7 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	@Override
-	public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
 		final ObjectNode transformedNode = new ObjectNode();
 		for (final Mapping<?> mapping : this.mappings)
 			mapping.evaluate(transformedNode, node, context);
@@ -164,9 +166,9 @@ public class ObjectCreation extends ContainerExpression {
 		}
 
 		@Override
-		protected void evaluate(final ObjectNode transformedNode, final JsonNode node, final EvaluationContext context) {
-			final JsonNode exprNode = this.getExpression().evaluate(node, context);
-			transformedNode.putAll((ObjectNode) exprNode);
+		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
+			final IJsonNode exprNode = this.getExpression().evaluate(node, context);
+			transformedNode.putAll((IObjectNode) exprNode);
 		}
 
 		@Override
@@ -193,8 +195,8 @@ public class ObjectCreation extends ContainerExpression {
 		private static final long serialVersionUID = -4873817871983692783L;
 
 		@Override
-		protected void evaluate(final ObjectNode transformedNode, final JsonNode node, final EvaluationContext context) {
-			final JsonNode value = this.expression.evaluate(node, context);
+		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
+			final IJsonNode value = this.expression.evaluate(node, context);
 			// if (!value.isNull())
 			transformedNode.put(this.target, value);
 		}
@@ -220,10 +222,10 @@ public class ObjectCreation extends ContainerExpression {
 		 * (non-Javadoc)
 		 * @see
 		 * eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping#evaluate(eu.stratosphere.sopremo.type.ObjectNode,
-		 * eu.stratosphere.sopremo.type.JsonNode, eu.stratosphere.sopremo.EvaluationContext)
+		 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
 		 */
 		@Override
-		protected void evaluate(final ObjectNode transformedNode, final JsonNode node, final EvaluationContext context) {
+		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
 			throw new EvaluationException("Only tag mapping");
 		}
 	}
@@ -268,7 +270,7 @@ public class ObjectCreation extends ContainerExpression {
 			return this.target.equals(other.target) && this.expression.equals(other.expression);
 		}
 
-		protected abstract void evaluate(final ObjectNode transformedNode, final JsonNode node,
+		protected abstract void evaluate(final IObjectNode transformedNode, final IJsonNode node,
 				final EvaluationContext context);
 
 		public EvaluationExpression getExpression() {

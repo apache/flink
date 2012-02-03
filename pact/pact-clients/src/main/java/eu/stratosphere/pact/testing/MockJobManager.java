@@ -45,6 +45,12 @@ public class MockJobManager implements JobStatusListener {
 			// Cancel all remaining tasks
 			cancelJob(executionGraph);
 		}
+		
+
+		
+		if (newJobStatus == InternalJobStatus.FINISHED || newJobStatus == InternalJobStatus.CANCELED
+				|| newJobStatus == InternalJobStatus.FAILED)
+				MockTaskManager.INSTANCE.cleanupJob(executionGraph);
 	};
 
 	/**
