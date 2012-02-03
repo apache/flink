@@ -60,7 +60,13 @@ public final class ExecutionStateTransition {
 		if (oldState == ExecutionState.STARTING && newState == ExecutionState.RUNNING) {
 			unexpectedStateChange = false;
 		}
+		if (oldState == ExecutionState.STARTING && newState == ExecutionState.REPLAYING) {
+			unexpectedStateChange = false;
+		}
 		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.FINISHING) {
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.FINISHING) {
 			unexpectedStateChange = false;
 		}
 		if (oldState == ExecutionState.FINISHING && newState == ExecutionState.FINISHED) {
@@ -101,6 +107,12 @@ public final class ExecutionStateTransition {
 		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.FAILED) {
 			/**
 			 * This is a regular transition in case of a task error.
+			 */
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.ASSIGNED) {
+			/**
+			 * This is a regular transition in case a task replay is triggered.
 			 */
 			unexpectedStateChange = false;
 		}
