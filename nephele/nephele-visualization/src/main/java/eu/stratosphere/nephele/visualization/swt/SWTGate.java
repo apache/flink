@@ -78,6 +78,9 @@ public class SWTGate extends AbstractSWTVertex {
 		case RUNNING:
 			returnColor = ColorScheme.getGateRunningBorderColor(device);
 			break;
+		case REPLAYING:
+			returnColor = ColorScheme.getGateReplayingBorderColor(device);
+			break;
 		case FINISHING:
 			returnColor = ColorScheme.getGateFinishingBorderColor(device);
 			break;
@@ -107,6 +110,9 @@ public class SWTGate extends AbstractSWTVertex {
 		switch (executionState) {
 		case RUNNING:
 			returnColor = ColorScheme.getGateRunningBackgroundColor(device);
+			break;
+		case REPLAYING:
+			returnColor = ColorScheme.getGateReplayingBackgroundColor(device);
 			break;
 		case FINISHING:
 			returnColor = ColorScheme.getGateFinishingBackgroundColor(device);
