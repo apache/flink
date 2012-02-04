@@ -455,7 +455,8 @@ public final class ReplayTask implements Task {
 
 		if (changedExecutionState == ExecutionState.REPLAYING) {
 
-			if (unchangedExecutionState == ExecutionState.RUNNING) {
+			if (unchangedExecutionState == ExecutionState.RUNNING
+				|| unchangedExecutionState == ExecutionState.FINISHING) {
 				return ExecutionState.REPLAYING;
 			} else {
 				return unchangedExecutionState;
@@ -470,7 +471,8 @@ public final class ReplayTask implements Task {
 			return ExecutionState.CANCELED;
 		}
 
-		if (changedExecutionState == ExecutionState.FINISHING && unchangedExecutionState == ExecutionState.FINISHING) {
+		if (changedExecutionState == ExecutionState.FINISHING
+			&& (unchangedExecutionState == ExecutionState.FINISHING || unchangedExecutionState == ExecutionState.FINISHED)) {
 			return ExecutionState.FINISHING;
 		}
 
