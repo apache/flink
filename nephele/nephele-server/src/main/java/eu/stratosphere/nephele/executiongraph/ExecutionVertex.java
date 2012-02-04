@@ -578,7 +578,7 @@ public final class ExecutionVertex {
 
 		if (this.allocatedResource == null) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
-				AbstractTaskResult.ReturnCode.ERROR);
+				AbstractTaskResult.ReturnCode.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
@@ -596,7 +596,8 @@ public final class ExecutionVertex {
 			return results.get(0);
 
 		} catch (IOException e) {
-			final TaskSubmissionResult result = new TaskSubmissionResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
+				AbstractTaskResult.ReturnCode.IPC_ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
 			return result;
 		}
@@ -615,13 +616,13 @@ public final class ExecutionVertex {
 		final ExecutionState state = this.executionState.get();
 
 		if (state != ExecutionState.RUNNING) {
-			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ILLEGAL_STATE);
 			result.setDescription("Vertex " + this.toString() + " is in state " + state);
 			return result;
 		}
 
 		if (this.allocatedResource == null) {
-			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
@@ -629,7 +630,7 @@ public final class ExecutionVertex {
 		try {
 			return this.allocatedResource.getInstance().killTask(this.vertexID);
 		} catch (IOException e) {
-			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.IPC_ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
 			return result;
 		}
@@ -666,7 +667,7 @@ public final class ExecutionVertex {
 		}
 
 		if (this.allocatedResource == null) {
-			final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
@@ -674,7 +675,7 @@ public final class ExecutionVertex {
 		try {
 			return this.allocatedResource.getInstance().cancelTask(this.vertexID);
 		} catch (IOException e) {
-			final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.IPC_ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
 			return result;
 		}

@@ -719,7 +719,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			final ExecutionVertex vertex = it.next();
 			final TaskCancelResult result = vertex.cancelTask();
-			if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+			if (result.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
 				errorResult = result;
 			}
 		}
@@ -934,7 +934,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			public void run() {
 
 				final TaskKillResult result = vertex.killTask();
-				if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+				if (result.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
 					LOG.error(result.getDescription());
 				}
 			}
@@ -1223,7 +1223,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 						}
 					}
 
-					if (tsr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+					if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
 						// Change the execution state to failed and let the scheduler deal with the rest
 						vertex.updateExecutionState(ExecutionState.FAILED, tsr.getDescription());
 					}

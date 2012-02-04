@@ -84,13 +84,25 @@ public final class RecoveryLogic {
 		while (cancelIterator.hasNext()) {
 
 			final ExecutionVertex vertex = cancelIterator.next();
-			LOG.info(vertex + " is canceled by recovery logic");
-			final TaskCancelResult cancelResult = vertex.cancelTask();
-			verticesToBeRestarted.put(vertex.getID(), vertex);
-			if (cancelResult.getReturnCode() != ReturnCode.SUCCESS) {
-				verticesToBeRestarted.remove(vertex.getID());
-				LOG.error(cancelResult.getDescription());
-				return false;
+			final ExecutionState state = vertex.getExecutionState();
+			System.out.println("Canceling " + vertex + " with state " + vertex.getExecutionState());
+			if (state == ExecutionState.FINISHED) {
+				// Restart vertex right away
+				restart(vertex);
+			} else {
+
+				LOG.info(vertex + " is canceled by recovery logic");
+				final TaskCancelResult cancelResult = vertex.cancelTask();
+				verticesToBeRestarted.put(vertex.getID(), vertex);
+				if (cancelResult.getReturnCode() != ReturnCode.SUCCESS) {
+					verticesToBeRestarted.remove(vertex.getID());
+					if (cancelResult.getReturnCode() == ReturnCode.TASK_NOT_FOUND) {
+						restart(vertex);
+					} else {
+						LOG.error(cancelResult.getDescription());
+						return false;
+					}
+				}
 			}
 
 		}
@@ -109,13 +121,18 @@ public final class RecoveryLogic {
 		}
 
 		// Restart failed vertex
-		if (failedVertex.getAllocatedResource().getInstance() instanceof DummyInstance) {
-			failedVertex.updateExecutionState(ExecutionState.CREATED);
-		} else {
-			failedVertex.updateExecutionState(ExecutionState.ASSIGNED);
-		}
+		restart(failedVertex);
 
 		return true;
+	}
+
+	private static void restart(final ExecutionVertex vertex) {
+
+		if (vertex.getAllocatedResource().getInstance() instanceof DummyInstance) {
+			vertex.updateExecutionState(ExecutionState.CREATED);
+		} else {
+			vertex.updateExecutionState(ExecutionState.ASSIGNED);
+		}
 	}
 
 	private static void findVerticesToRestart(final ExecutionVertex failedVertex,

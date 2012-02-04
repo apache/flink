@@ -408,7 +408,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		final Task task = this.runningTasks.get(id);
 
 		if (task == null) {
-			final TaskCancelResult taskCancelResult = new TaskCancelResult(id, AbstractTaskResult.ReturnCode.ERROR);
+			final TaskCancelResult taskCancelResult = new TaskCancelResult(id,
+				AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
 			taskCancelResult.setDescription("No task with ID " + id + " is currently running");
 			return taskCancelResult;
 		}
@@ -442,7 +443,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			tmpTask = this.runningTasks.get(id);
 
 			if (tmpTask == null) {
-				final TaskKillResult taskKillResult = new TaskKillResult(id, AbstractTaskResult.ReturnCode.ERROR);
+				final TaskKillResult taskKillResult = new TaskKillResult(id,
+					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
 				taskKillResult.setDescription("No task with ID + " + id + " is currently running");
 				return taskKillResult;
 			}
@@ -484,7 +486,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			// Register the task
 			final Task task = createAndRegisterTask(id, jobConfiguration, re, activeOutputChannels);
 			if (task == null) {
-				final TaskSubmissionResult result = new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.ERROR);
+				final TaskSubmissionResult result = new TaskSubmissionResult(id,
+					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
 				result.setDescription("Task with ID " + id + " was already running");
 				LOG.error(result.getDescription());
 				submissionResultList.add(result);
