@@ -409,7 +409,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		if (task == null) {
 			final TaskCancelResult taskCancelResult = new TaskCancelResult(id, AbstractTaskResult.ReturnCode.ERROR);
-			taskCancelResult.setDescription("No task with ID + " + id + " is currently running");
+			taskCancelResult.setDescription("No task with ID " + id + " is currently running");
 			return taskCancelResult;
 		}
 
