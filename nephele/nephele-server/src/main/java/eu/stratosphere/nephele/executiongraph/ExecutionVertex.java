@@ -333,12 +333,12 @@ public final class ExecutionVertex {
 			throw new IllegalArgumentException("Argument update must not be null");
 		}
 
-		// Check the transition
-		ExecutionStateTransition.checkTransition(getName(), this.executionState.get(), update);
-
 		if (!this.executionState.compareAndSet(expected, update)) {
 			return false;
 		}
+		
+		// Check the transition
+		ExecutionStateTransition.checkTransition(toString(), this.executionState.get(), update);
 
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
