@@ -168,6 +168,8 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		// The sequence number of the envelope to be queued
 		final int sequenceNumber = transferEnvelope.getSequenceNumber();
 
+		AbstractEvent eventToSend = null;
+
 		synchronized (this.queuedEnvelopes) {
 
 			if (this.destroyCalled) {
@@ -192,11 +194,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 				} else {
 
 					// Tell the sender that we are expecting an envelope with a higher sequence number
-					try {
-						transferEventToOutputChannel(new UnexpectedEnvelopeEvent(expectedSequenceNumber));
-					} catch (Exception e) {
-						LOG.error(StringUtils.stringifyException(e));
-					}
+					eventToSend = new UnexpectedEnvelopeEvent(expectedSequenceNumber);
 				}
 
 				LOG.warn("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
@@ -206,17 +204,24 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 				if (buffer != null) {
 					buffer.recycleBuffer();
 				}
+			} else {
 
-				return;
+				this.queuedEnvelopes.add(transferEnvelope);
+
+				this.lastReceivedEnvelope = sequenceNumber;
 			}
-
-			this.queuedEnvelopes.add(transferEnvelope);
-
-			this.lastReceivedEnvelope = sequenceNumber;
 		}
 
 		// Notify the channel about the new data
 		this.byteBufferedInputChannel.checkForNetworkEvents();
+
+		if (eventToSend != null) {
+			try {
+				transferEventToOutputChannel(eventToSend);
+			} catch (Exception e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
+		}
 	}
 
 	@Override
