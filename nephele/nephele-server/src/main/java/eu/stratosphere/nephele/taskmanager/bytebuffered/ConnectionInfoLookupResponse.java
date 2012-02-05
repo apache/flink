@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.util.SerializableArrayList;
 public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 	private enum ReturnCode {
-		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY
+		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY, FOUND_BUT_RECEIVER_FINISHED
 	};
 
 	// was request successful?
@@ -104,6 +104,11 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		return (this.returnCode == ReturnCode.FOUND_AND_RECEIVER_READY);
 	}
 
+	public boolean receiverHasFinished() {
+
+		return (this.returnCode == ReturnCode.FOUND_BUT_RECEIVER_FINISHED);
+	}
+
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(ChannelID targetChannelID) {
 
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
@@ -121,9 +126,10 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 		return response;
 	}
-	
+
 	/**
 	 * Constructor used to generate a plain ConnectionInfoLookupResponse object to be filled with multicast targets.
+	 * 
 	 * @return
 	 */
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady() {
@@ -132,7 +138,7 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
 
 		return response;
-	}	
+	}
 
 	public static ConnectionInfoLookupResponse createReceiverNotFound() {
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
@@ -147,16 +153,23 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 		return response;
 	}
-	
+
+	public static ConnectionInfoLookupResponse createReceiverFinished() {
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
+		response.setReturnCode(ReturnCode.FOUND_BUT_RECEIVER_FINISHED);
+
+		return response;
+	}
+
 	@Override
-	public String toString(){
+	public String toString() {
 		StringBuilder returnstring = new StringBuilder();
 		returnstring.append("local targets (total: " + this.localTargets.size() + "):\n");
-		for(ChannelID i: this.localTargets){
+		for (ChannelID i : this.localTargets) {
 			returnstring.append(i + "\n");
 		}
 		returnstring.append("remote targets: (total: " + this.remoteTargets.size() + "):\n");
-		for(InstanceConnectionInfo i: this.remoteTargets){
+		for (InstanceConnectionInfo i : this.remoteTargets) {
 			returnstring.append(i + "\n");
 		}
 		return returnstring.toString();

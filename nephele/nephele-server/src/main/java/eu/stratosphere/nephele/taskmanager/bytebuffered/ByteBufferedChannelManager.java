@@ -494,15 +494,19 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						continue;
 					}
 
+					if (lookupResponse.receiverHasFinished()) {
+						// TODO: Send close notification here
+						break;
+					}
+
 					if (lookupResponse.receiverReady()) {
 						receiverList = new TransferEnvelopeReceiverList(lookupResponse);
 						break;
 					}
 				}
 
-				if (receiverList == null) {
-					LOG.error("Receiver list is null for source channel ID " + sourceChannelID);
-				} else {
+				if (receiverList != null) {
+
 					this.receiverCache.put(sourceChannelID, receiverList);
 
 					if (LOG.isDebugEnabled()) {
