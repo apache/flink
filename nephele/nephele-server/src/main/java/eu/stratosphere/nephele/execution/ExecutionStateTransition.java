@@ -3,6 +3,8 @@ package eu.stratosphere.nephele.execution;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.util.StringUtils;
+
 /**
  * This class is a utility class to check the consistency of Nephele's execution state model.
  * 
@@ -142,7 +144,11 @@ public final class ExecutionStateTransition {
 		}
 
 		if (unexpectedStateChange) {
-			LOG.error("Unexpected state change: " + oldState + " -> " + newState);
+			try {
+				throw new IllegalStateException("Unexpected state change: " + oldState + " -> " + newState);
+			} catch (IllegalStateException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
 		}
 	}
 }
