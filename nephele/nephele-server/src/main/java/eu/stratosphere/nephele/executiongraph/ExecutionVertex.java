@@ -312,7 +312,7 @@ public final class ExecutionVertex {
 		}
 
 		// Check the transition
-		ExecutionStateTransition.checkTransition(getName(), this.executionState.get(), newExecutionState);
+		ExecutionStateTransition.checkTransition(toString(), this.executionState.get(), newExecutionState);
 
 		// Check and save the new execution state
 		if (this.executionState.getAndSet(newExecutionState) == newExecutionState) {
