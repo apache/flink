@@ -96,4 +96,36 @@ public class FieldSetOperationTest {
 		assertTrue(FieldSetOperations.fullyContained(a, b));
 	}
 	
+	@Test
+	public void differenceTest() {
+	
+		int[] a,b,d;
+		
+		a = new int[]{0,1,2,3,4,5,6,7};
+		b = new int[]{0,1,2};
+		d = FieldSetOperations.setDifference(a, b);
+		assertTrue(Arrays.toString(d), Arrays.equals(d, new int[]{3,4,5,6,7}));
+		
+		a = new int[]{0,1,2,3,4,5,6,7};
+		b = new int[]{7};
+		d = FieldSetOperations.setDifference(a, b);
+		assertTrue(Arrays.toString(d), Arrays.equals(d, new int[]{0,1,2,3,4,5,6}));
+		
+		a = new int[]{0,1,2,3,4,5,6,7};
+		b = new int[]{1,2,5,7};
+		d = FieldSetOperations.setDifference(a, b);
+		assertTrue(Arrays.toString(d), Arrays.equals(d, new int[]{0,3,4,6}));
+		
+		a = new int[]{0,1,2,3,4,5,6,7};
+		b = new int[]{0,1,2,9};
+		boolean exception = false;
+		try {
+			d = FieldSetOperations.setDifference(a, b);
+		} catch(IllegalArgumentException iae) {
+			exception = true;
+		}
+		assertTrue(exception);		
+		
+	}
+	
 }
