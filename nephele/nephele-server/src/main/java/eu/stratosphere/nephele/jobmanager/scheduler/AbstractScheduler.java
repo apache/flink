@@ -17,9 +17,11 @@ package eu.stratosphere.nephele.jobmanager.scheduler;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -192,9 +194,14 @@ public abstract class AbstractScheduler implements InstanceListener {
 	}
 
 	void findVerticesToBeDeployed(final ExecutionVertex vertex,
-			final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed) {
+			final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed,
+			final Set<ExecutionVertex> alreadyVisited) {
 
-		if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
+		if(!alreadyVisited.add(vertex)) {
+			return;
+		}
+		
+		if (vertex.compareAndUpdateExecutionState(ExecutionState.ASSIGNED, ExecutionState.READY)) {
 			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
 			if (instance instanceof DummyInstance) {
@@ -210,7 +217,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 				verticesToBeDeployed.put(instance, verticesForInstance);
 			}
 
-			vertex.updateExecutionState(ExecutionState.READY);
 			verticesForInstance.add(vertex);
 		}
 
@@ -242,7 +248,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
 							outputChannel.getConnectedChannelID());
-					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed);
+					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed, alreadyVisited);
 				}
 			}
 		}
@@ -260,6 +266,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
 		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
 
+		final Set<ExecutionVertex> alreadyVisited = new HashSet<ExecutionVertex>();
+
 		for (int i = 0; i < executionStage.getNumberOfStageMembers(); ++i) {
 
 			final ExecutionGroupVertex startVertex = executionStage.getStageMember(i);
@@ -269,7 +277,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 			for (int j = 0; j < startVertex.getCurrentNumberOfGroupMembers(); ++j) {
 				final ExecutionVertex vertex = startVertex.getGroupMember(j);
-				findVerticesToBeDeployed(vertex, verticesToBeDeployed);
+				findVerticesToBeDeployed(vertex, verticesToBeDeployed, alreadyVisited);
 			}
 		}
 
@@ -477,7 +485,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 */
 	@Override
 	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
-		
-		//TODO: Don't forget to synchronize on stage here
+
+		// TODO: Don't forget to synchronize on stage here
 	}
 }
