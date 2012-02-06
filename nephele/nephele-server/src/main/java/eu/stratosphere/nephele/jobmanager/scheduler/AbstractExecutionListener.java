@@ -86,13 +86,17 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 			}
 		}
 
-		if (newExecutionState == ExecutionState.CANCELED) {
-			if (this.scheduler.getVerticesToBeRestarted().remove(this.executionVertex.getID()) != null) {
-				this.executionVertex.updateExecutionState(ExecutionState.ASSIGNED, "Restart as part of recovery");
+		if (newExecutionState == ExecutionState.CANCELED || newExecutionState == ExecutionState.FINISHED) {
 
-				// Run through the deployment procedure
-				this.scheduler.deployAssignedVertices(eg);
-				return;
+			synchronized (this.executionVertex.getExecutionGraph()) {
+
+				if (this.scheduler.getVerticesToBeRestarted().remove(this.executionVertex.getID()) != null) {
+					this.executionVertex.updateExecutionState(ExecutionState.ASSIGNED, "Restart as part of recovery");
+
+					// Run through the deployment procedure
+					this.scheduler.deployAssignedVertices(eg);
+					return;
+				}
 			}
 		}
 

@@ -71,68 +71,72 @@ public final class RecoveryLogic {
 			return false;
 		}
 
-		LOG.info("Starting recovery for failed vertex " + failedVertex);
+		final ExecutionGraph eg = failedVertex.getExecutionGraph();
+		synchronized (eg) {
 
-		final Set<ExecutionVertex> verticesToBeCanceled = new HashSet<ExecutionVertex>();
+			LOG.info("Starting recovery for failed vertex " + failedVertex);
 
-		final Set<ExecutionVertex> checkpointsToBeReplayed = new HashSet<ExecutionVertex>();
+			final Set<ExecutionVertex> verticesToBeCanceled = new HashSet<ExecutionVertex>();
 
-		findVerticesToRestart(failedVertex, verticesToBeCanceled, checkpointsToBeReplayed);
+			final Set<ExecutionVertex> checkpointsToBeReplayed = new HashSet<ExecutionVertex>();
 
-		// Restart all predecessors without checkpoint
-		final Iterator<ExecutionVertex> cancelIterator = verticesToBeCanceled.iterator();
-		while (cancelIterator.hasNext()) {
+			findVerticesToRestart(failedVertex, verticesToBeCanceled, checkpointsToBeReplayed);
 
-			final ExecutionVertex vertex = cancelIterator.next();
-			final ExecutionState state = vertex.getExecutionState();
-			System.out.println("Canceling " + vertex + " with state " + vertex.getExecutionState());
-			if (state == ExecutionState.FINISHED) {
-				// Restart vertex right away
-				restart(vertex);
-			} else {
+			// Restart all predecessors without checkpoint
+			final Iterator<ExecutionVertex> cancelIterator = verticesToBeCanceled.iterator();
+			while (cancelIterator.hasNext()) {
+
+				final ExecutionVertex vertex = cancelIterator.next();
+
+				if (vertex.compareAndUpdateExecutionState(ExecutionState.FINISHED, getStateToUpdate(vertex))) {
+					LOG.info("Vertex " + vertex + " has already finished and will not be canceled");
+					continue;
+				}
 
 				LOG.info(vertex + " is canceled by recovery logic");
-				final TaskCancelResult cancelResult = vertex.cancelTask();
 				verticesToBeRestarted.put(vertex.getID(), vertex);
-				if (cancelResult.getReturnCode() != ReturnCode.SUCCESS) {
+				final TaskCancelResult cancelResult = vertex.cancelTask();
+
+				if (cancelResult.getReturnCode() != ReturnCode.SUCCESS
+						&& cancelResult.getReturnCode() != ReturnCode.TASK_NOT_FOUND) {
+
 					verticesToBeRestarted.remove(vertex.getID());
-					if (cancelResult.getReturnCode() == ReturnCode.TASK_NOT_FOUND) {
-						restart(vertex);
-					} else {
-						LOG.error(cancelResult.getDescription());
-						return false;
-					}
+					LOG.error(cancelResult.getDescription());
+					return false;
 				}
 			}
 
+			LOG.info("Starting cache invalidation");
+
+			// Invalidate the lookup caches
+			if (!invalidateReceiverLookupCaches(failedVertex, verticesToBeCanceled)) {
+				return false;
+			}
+
+			LOG.info("Cache invalidation complete");
+
+			// Replay all necessary checkpoints
+			final Iterator<ExecutionVertex> checkpointIterator = checkpointsToBeReplayed.iterator();
+
+			while (checkpointIterator.hasNext()) {
+
+				checkpointIterator.next().updateExecutionState(ExecutionState.ASSIGNED);
+			}
+
+			// Restart failed vertex
+			failedVertex.updateExecutionState(getStateToUpdate(failedVertex));
 		}
-
-		// Invalidate the lookup caches
-		if (!invalidateReceiverLookupCaches(failedVertex, verticesToBeCanceled)) {
-			return false;
-		}
-
-		// Replay all necessary checkpoints
-		final Iterator<ExecutionVertex> checkpointIterator = checkpointsToBeReplayed.iterator();
-
-		while (checkpointIterator.hasNext()) {
-
-			checkpointIterator.next().updateExecutionState(ExecutionState.ASSIGNED);
-		}
-
-		// Restart failed vertex
-		restart(failedVertex);
 
 		return true;
 	}
 
-	private static void restart(final ExecutionVertex vertex) {
+	private static ExecutionState getStateToUpdate(final ExecutionVertex vertex) {
 
 		if (vertex.getAllocatedResource().getInstance() instanceof DummyInstance) {
-			vertex.updateExecutionState(ExecutionState.CREATED);
-		} else {
-			vertex.updateExecutionState(ExecutionState.ASSIGNED);
+			return ExecutionState.CREATED;
 		}
+
+		return ExecutionState.ASSIGNED;
 	}
 
 	private static void findVerticesToRestart(final ExecutionVertex failedVertex,
