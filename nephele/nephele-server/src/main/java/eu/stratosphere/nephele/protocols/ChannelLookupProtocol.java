@@ -41,6 +41,8 @@ public interface ChannelLookupProtocol extends VersionedProtocol {
 	 * @param sourceChannelID
 	 *        the ID of the channel to resolve
 	 * @return the lookup response containing the connection info and a return code
+	 * @throws IOException
+	 *         thrown if an error occurs during the IPC call
 	 */
 	ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
 			ChannelID sourceChannelID) throws IOException;
