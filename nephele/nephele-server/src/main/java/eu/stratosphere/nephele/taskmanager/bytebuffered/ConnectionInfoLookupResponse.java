@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.util.SerializableArrayList;
 public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 	private enum ReturnCode {
-		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY, FOUND_BUT_RECEIVER_FINISHED
+		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY
 	};
 
 	// was request successful?
@@ -104,11 +104,6 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		return (this.returnCode == ReturnCode.FOUND_AND_RECEIVER_READY);
 	}
 
-	public boolean receiverHasFinished() {
-
-		return (this.returnCode == ReturnCode.FOUND_BUT_RECEIVER_FINISHED);
-	}
-
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(ChannelID targetChannelID) {
 
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
@@ -150,13 +145,6 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	public static ConnectionInfoLookupResponse createReceiverNotReady() {
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
 		response.setReturnCode(ReturnCode.FOUND_BUT_RECEIVER_NOT_READY);
-
-		return response;
-	}
-
-	public static ConnectionInfoLookupResponse createReceiverFinished() {
-		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
-		response.setReturnCode(ReturnCode.FOUND_BUT_RECEIVER_FINISHED);
 
 		return response;
 	}

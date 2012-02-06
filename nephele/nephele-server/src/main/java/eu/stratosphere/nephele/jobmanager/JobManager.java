@@ -810,12 +810,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			// Check execution state
 			final ExecutionState executionState = targetVertex.getExecutionState();
 
-			if (executionState == ExecutionState.FINISHED) {
-				return ConnectionInfoLookupResponse.createReceiverFinished();
-			}
-
 			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.REPLAYING
-				&& executionState != ExecutionState.FINISHING) {
+				&& executionState != ExecutionState.FINISHING && executionState != ExecutionState.FINISHED) {
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 

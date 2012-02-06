@@ -390,9 +390,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 			// Check the status of the task threads to detect unexpected thread terminations
 			checkTaskExecution();
-
-			// Clean up set of recently unregistered channels
-			this.byteBufferedChannelManager.cleanUpRecentlyRemovedChannelIDSet();
 		}
 
 		// Shutdown the individual components of the task manager

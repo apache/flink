@@ -16,6 +16,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroker, OutputChannelForwarder {
@@ -57,6 +58,11 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 	private boolean closeAcknowledgementReceived = false;
 
 	/**
+	 * Stores the last sequence number of the transfer envelope for which the receiver could not be found.
+	 */
+	private int lastSequenceNumberWithReceiverNotFound = -1;
+
+	/**
 	 * The sequence number for the next {@link TransferEnvelope} to be created.
 	 */
 	private int sequenceNumber = 0;
@@ -89,7 +95,15 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 	@Override
 	public boolean hasDataLeft() {
 
-		return (!this.closeAcknowledgementReceived);
+		if (this.closeAcknowledgementReceived) {
+			return false;
+		}
+
+		if ((this.lastSequenceNumberWithReceiverNotFound + 1) == this.sequenceNumber) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
@@ -100,6 +114,8 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 
 		if (event instanceof ByteBufferedChannelCloseEvent) {
 			this.closeAcknowledgementReceived = true;
+		} else if (event instanceof ReceiverNotFoundEvent) {
+			this.lastSequenceNumberWithReceiverNotFound = ((ReceiverNotFoundEvent) event).getSequenceNumber();
 		} else if (event instanceof AbstractTaskEvent) {
 			this.byteBufferedOutputChannel.processEvent(event);
 		}
