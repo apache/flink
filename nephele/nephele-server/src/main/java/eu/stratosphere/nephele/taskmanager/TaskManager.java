@@ -488,14 +488,13 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			if (task == null) {
 				final TaskSubmissionResult result = new TaskSubmissionResult(id,
 					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
-				result.setDescription("Task with ID " + id + " was already running");
+				result.setDescription("Task " + re.getTaskNameWithIndex() + " (" + id + ") was already running");
 				LOG.error(result.getDescription());
 				submissionResultList.add(result);
 			} else {
 				submissionResultList.add(new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS));
+				tasksToStart.add(task);
 			}
-
-			tasksToStart.add(task);
 		}
 
 		// Now start the tasks
