@@ -74,6 +74,12 @@ public final class InputSplitManager {
 	private final Map<Class<? extends InputSplit>, InputSplitAssigner> loadedAssigners = new HashMap<Class<? extends InputSplit>, InputSplitAssigner>();
 
 	/**
+	 * The input split tracker makes sure that a vertex retrieves the same sequence of input splits after being
+	 * restarted.
+	 */
+	private final InputSplitTracker inputSplitTracker = new InputSplitTracker();
+
+	/**
 	 * The default input split assigner which is always used if a more specific assigner cannot be found.
 	 */
 	private final InputSplitAssigner defaultAssigner = new DefaultInputSplitAssigner();
@@ -118,6 +124,8 @@ public final class InputSplitManager {
 			assigner.registerGroupVertex(groupVertex);
 		}
 
+		// Register job with the input split tracker
+		this.inputSplitTracker.registerJob(executionGraph);
 	}
 
 	/**
@@ -151,6 +159,9 @@ public final class InputSplitManager {
 
 			assigner.unregisterGroupVertex(groupVertex);
 		}
+
+		// Unregister job from input split tracker
+		this.inputSplitTracker.unregisterJob(executionGraph);
 	}
 
 	/**
@@ -165,6 +176,12 @@ public final class InputSplitManager {
 	 */
 	public InputSplit getNextInputSplit(final ExecutionVertex vertex, final int sequenceNumber) {
 
+		InputSplit nextInputSplit = this.inputSplitTracker.getInputSplitFromLog(vertex, sequenceNumber);
+		if (nextInputSplit != null) {
+			LOG.info("Input split " + nextInputSplit.getSplitNumber() + " for vertex " + vertex + " replayed from log");
+			return nextInputSplit;
+		}
+
 		final ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
 		final InputSplitAssigner inputSplitAssigner = this.assignerCache.get(groupVertex);
 		if (inputSplitAssigner == null) {
@@ -173,8 +190,9 @@ public final class InputSplitManager {
 			return null;
 		}
 
-		final InputSplit nextInputSplit = inputSplitAssigner.getNextInputSplit(vertex);
+		nextInputSplit = inputSplitAssigner.getNextInputSplit(vertex);
 		if (nextInputSplit != null) {
+			this.inputSplitTracker.addInputSplitToLog(vertex, sequenceNumber, nextInputSplit);
 			LOG.info(vertex + " receives input split " + nextInputSplit.getSplitNumber());
 		}
 
