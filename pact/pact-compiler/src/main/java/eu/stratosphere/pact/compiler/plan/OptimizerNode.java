@@ -19,8 +19,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.AbstractPact;
@@ -151,6 +153,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
 
 	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
+	
+	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // the fields which are unique
 
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
@@ -720,6 +724,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		CompilerHints hints = getPactContract().getCompilerHints();
 
+		computeUniqueFields();
+		
 		// check if preceding nodes are available
 		if (!allPredsAvailable) {
 			// Preceding node is not available, we take hints as given
@@ -792,6 +798,16 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 			this.estimatedCardinality.putAll(hints.getCardinalities());	
 
+			
+			if (this.getUniqueFields() != null) {
+				for (FieldSet uniqueFieldSet : this.uniqueFields) {
+					if (this.estimatedCardinality.get(uniqueFieldSet) == null) {
+						this.estimatedCardinality.put(uniqueFieldSet, 1L);
+					}
+				}
+			}
+			
+			
 			for (int input = 0; input < getIncomingConnections().size(); input++) {
 				int[] keyColumns;
 				if ((keyColumns = getConstantKeySet(input)) != null) {
@@ -1423,6 +1439,56 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			}
 		}
 		return keyColumns;
+	}
+	
+	public void computeUniqueFields() {
+		
+		if (stubOutCardUB > 1 || stubOutCardUB < 0) {
+			return;
+		}
+		
+		//check for inputs
+		List<List<PactConnection>> inConnections = getIncomingConnections();
+		
+		for (int i = 0; i < inConnections.size(); i++) {
+			List<PactConnection> inConnection = inConnections.get(i);
+		
+			if (inConnection.size() != 1) {
+				continue;
+			}
+			
+			Set<FieldSet> uniqueInChild = inConnection.get(0).getSourcePact().getUniqueFields();
+			
+			for (FieldSet uniqueField : uniqueInChild) {
+				if (keepsUniqueProperty(uniqueField, i)) {
+					this.uniqueFields.add(uniqueField);
+				}
+			}
+		}
+		
+		//check which uniqueness properties are created by this node
+		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
+		if (uniqueFields != null ) {
+			this.uniqueFields.addAll(uniqueFields);
+		}
+		
+	}
+	
+	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
+		for (Integer uniqueField : uniqueSet) {
+			if (isFieldKept(uniqueField, input) == false) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public List<FieldSet> createUniqueFieldsForNode() {
+		return null;
+	}
+	
+	public Set<FieldSet> getUniqueFields() {
+		return uniqueFields;
 	}
 	
 }

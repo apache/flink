@@ -17,6 +17,7 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -621,6 +622,8 @@ public class CoGroupNode extends TwoInputNode {
 		// determine the properties of the data before it goes to the user code
 		GlobalProperties outGp = new GlobalProperties();
 		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFields());
+		
+		outGp.addUniqueField(new FieldSet(keyColumns1));
 
 		// create a new cogroup node for this input
 		CoGroupNode n = new CoGroupNode(this, allPreds1, allPreds2, this.input1, this.input2, outGp, new LocalProperties());
@@ -636,6 +639,7 @@ public class CoGroupNode extends TwoInputNode {
 		// output will have ascending order
 		n.getLocalProperties().setOrdering(ordering1);
 		n.getLocalProperties().setGrouped(true, new FieldSet(keyColumns1));
+		n.getLocalProperties().addUniqueField(new FieldSet(keyColumns1));
 		
 		if(n.getLocalStrategy() == LocalStrategy.NONE) {
 			// local strategy was NOT set with compiler hint
@@ -672,7 +676,8 @@ public class CoGroupNode extends TwoInputNode {
 		// determine the properties of the data before it goes to the user code
 		outGp = new GlobalProperties();
 		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFields());
-
+		outGp.addUniqueField(new FieldSet(keyColumns2));
+		
 		// create a new cogroup node for this input
 		n = new CoGroupNode(this, allPreds1, allPreds2, input1, input2, outGp, new LocalProperties());
 
@@ -686,10 +691,9 @@ public class CoGroupNode extends TwoInputNode {
 		}
 
 		// output will have ascending order
-		//TODO generate for both inputs and filter later on
-		
 		n.getLocalProperties().setOrdering(ordering2);
 		n.getLocalProperties().setGrouped(true, new FieldSet(keyColumns2));
+		n.getLocalProperties().addUniqueField(new FieldSet(keyColumns2));
 		
 		if(n.getLocalStrategy() == LocalStrategy.NONE) {
 			// local strategy was NOT set with compiler hint
@@ -875,5 +879,43 @@ public class CoGroupNode extends TwoInputNode {
 		}
 		
 		return scrambledKeys;
+	}
+	
+	@Override
+	public List<FieldSet> createUniqueFieldsForNode() {
+		List<FieldSet> uniqueFields = null;
+		if (keySet1 != null) {
+			boolean isKept = true;
+			for (int keyField : keySet1) {
+				if (isFieldKept(0, keyField) == false) {
+					isKept = false;
+					break;
+				}
+			}
+			
+			if (isKept) {
+				uniqueFields = new LinkedList<FieldSet>();
+				uniqueFields.add(new FieldSet(keySet1));
+			}
+		}
+		
+		if (keySet2 != null) {
+			boolean isKept = true;
+			for (int keyField : keySet2) {
+				if (isFieldKept(1, keyField) == false) {
+					isKept = false;
+					break;
+				}
+			}
+			
+			if (isKept) {
+				if (uniqueFields == null) {
+					uniqueFields = new LinkedList<FieldSet>();	
+				}
+				uniqueFields.add(new FieldSet(keySet2));
+			}
+		}
+		
+		return uniqueFields;
 	}
 }

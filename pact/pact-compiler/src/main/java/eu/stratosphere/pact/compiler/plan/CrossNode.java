@@ -340,57 +340,6 @@ public class CrossNode extends TwoInputNode {
 		boolean keepFirstOrder = false;
 		boolean keepSecondOrder = false;
 
-//		OutputContract oc = getOutputContract();
-
-//<<<<<<< HEAD
-//=======
-//		boolean isFirst = false;
-
-// union version by mjsax
-//		if (oc.appliesToFirstInput()) {
-//			if(allPreds1.size() == 1) {
-//				gp = PactConnection.getGlobalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
-//				lp = PactConnection.getLocalPropertiesAfterConnection(allPreds1.get(0), this, ss1);
-//			} else {
-//				// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
-//				gp = new GlobalProperties();
-//				lp = new LocalProperties();
-//			}
-//			isFirst = true;
-//		} else if (oc.appliesToSecondInput()) {
-//			if(allPreds2.size() == 1) {
-//				gp = PactConnection.getGlobalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
-//				lp = PactConnection.getLocalPropertiesAfterConnection(allPreds2.get(0), this, ss2);
-//			} else {
-//				// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
-//				gp = new GlobalProperties();
-//				lp = new LocalProperties();
-//			}
-//		} else {
-//			gp = new GlobalProperties();
-//			lp = new LocalProperties();
-//		}
-// end union version
-		
-//		if (oc.appliesToFirstInput()) {
-//			gp = PactConnection.getGlobalPropertiesAfterConnection(pred1, this, ss1);
-//			lp = PactConnection.getLocalPropertiesAfterConnection(pred1, this, ss1);
-//			isFirst = true;
-//		} else if (oc.appliesToSecondInput()) {
-//			gp = PactConnection.getGlobalPropertiesAfterConnection(pred2, this, ss2);
-//			lp = PactConnection.getLocalPropertiesAfterConnection(pred2, this, ss2);
-//		} else {
-//			gp = new GlobalProperties();
-//			lp = new LocalProperties();
-////		}
-//
-//		gp.setKeyUnique(false);
-//		lp.setKeyUnique(false);
-//
-//		GlobalProperties gpNoOrder = gp.createCopy();
-//		gpNoOrder.setKeyOrder(Order.NONE);
-//
-//>>>>>>> 0db9086c724037e9b88dc5d50c2fb619a56a3e1d
 		// for the streamed nested loop strategies, the local properties (except uniqueness) of the
 		// outer side are preserved
 
@@ -468,8 +417,8 @@ public class CrossNode extends TwoInputNode {
 			lp = new LocalProperties();
 		}
 		
-//		gp.setUniqe(false);
-//		lp.setUniqe(false);
+		gp.setUniqueFields(null);
+		lp.setUniqueFields(null);
 		
 		if (keepFirstOrder == false) {
 			gp.setOrdering(null);
@@ -505,8 +454,8 @@ public class CrossNode extends TwoInputNode {
 			lp = new LocalProperties();
 		}
 		
-//		gp.setUniqe(false);
-//		lp.setUniqe(false);
+		gp.setUniqueFields(null);
+		lp.setUniqueFields(null);
 		
 		if (keepSecondOrder == false) {
 			gp.setOrdering(null);
@@ -522,9 +471,6 @@ public class CrossNode extends TwoInputNode {
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
-//		n.getGlobalProperties().filterByOutputContract(getOutputContract());
-//		n.getLocalProperties().filterByOutputContract(getOutputContract());
-		
 		n.getGlobalProperties().filterByNodesConstantSet(this, 1);
 		n.getLocalProperties().filterByNodesConstantSet(this, 1);
 		
@@ -612,6 +558,11 @@ public class CrossNode extends TwoInputNode {
 		}	
 
 		return numRecords1 * numRecords2;
+	}
+	
+	
+	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
+		return false;
 	}
 
 }

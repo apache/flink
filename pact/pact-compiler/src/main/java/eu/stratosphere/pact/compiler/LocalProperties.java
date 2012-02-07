@@ -16,6 +16,9 @@
 package eu.stratosphere.pact.compiler;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
@@ -35,6 +38,7 @@ public final class LocalProperties implements Cloneable {
 	private boolean grouped = false; // flag indicating whether the keys are grouped
 
 //	private boolean keyUnique = false; // flag indicating whether the keys are unique
+	private List<FieldSet> uniqueFields = null;
 
 	/**
 	 * Default constructor. Initiates the order to NONE and the uniqueness to false.
@@ -43,10 +47,16 @@ public final class LocalProperties implements Cloneable {
 	}
 	
 	
-	public LocalProperties(boolean grouped, FieldSet groupedFields, Ordering ordering) {
+	public LocalProperties(boolean grouped, FieldSet groupedFields, Ordering ordering, List<FieldSet> uniqueFields) {
 		this.grouped = grouped;
 		this.groupedFields = groupedFields;
 		this.ordering = ordering;
+		if (uniqueFields != null) {
+			this.uniqueFields = new LinkedList<FieldSet>();
+			for (FieldSet uniqueField : uniqueFields) {
+				this.uniqueFields.add((FieldSet)uniqueField.clone());
+			}
+		}
 	}
 
 
@@ -101,6 +111,47 @@ public final class LocalProperties implements Cloneable {
 		return this.groupedFields;
 	}
 	
+	public List<FieldSet> getUniqueFields() {
+		return uniqueFields;
+	}
+	
+	public void setUniqueFields(List<FieldSet> uniqueFields) {
+		this.uniqueFields = uniqueFields;
+	}
+	
+	public void addUniqueField(FieldSet newUniqueField) {
+		if (this.uniqueFields == null) {
+			this.uniqueFields = new LinkedList<FieldSet>();
+		}
+		
+		for (FieldSet uniqueField : this.uniqueFields) {
+			if (newUniqueField.containsAll(uniqueField)) {
+				//we already have a more general unique field in the set
+				return;
+			}
+		}
+		
+		this.uniqueFields.add(newUniqueField);
+	}
+	
+	public boolean isFieldSetUnique(FieldSet fieldSet) {
+		if (fieldSet == null) {
+			return true;
+		}
+		if (this.uniqueFields == null) {
+			return false;
+		}
+		
+		for (FieldSet uniqueField : this.uniqueFields) {
+			if (fieldSet.containsAll(uniqueField)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+
 	/**
 	 * Sets the flag that indicates whether the keys are grouped.
 	 * 
@@ -119,7 +170,7 @@ public final class LocalProperties implements Cloneable {
 	 */
 	public boolean isTrivial() {
 		//return keyOrder == Order.NONE && !keyUnique && !keysGrouped;
-		return !this.grouped && ordering == null;
+		return !this.grouped && ordering == null && this.uniqueFields == null;
 	}
 
 	/**
@@ -132,6 +183,7 @@ public final class LocalProperties implements Cloneable {
 		this.ordering = null;
 		this.grouped = false;
 		this.groupedFields = null;
+		this.uniqueFields = null;
 	}
 
 //	/**
@@ -198,6 +250,34 @@ public final class LocalProperties implements Cloneable {
 		}
 		
 		
+		//check whether the uniqueness property is preserved
+		if (this.uniqueFields != null) {
+			if (node.getStubOutCardUpperBound() > 1) {
+				this.uniqueFields = null;
+			}
+			else {
+				Iterator<FieldSet> uniqueFieldIterator = this.uniqueFields.iterator();
+				while (uniqueFieldIterator.hasNext()) {
+					FieldSet uniqueField = uniqueFieldIterator.next();
+					boolean isKept = true;
+					for (Integer field : uniqueField) {
+						if (node.isFieldKept(input, field) == false) {
+							isKept = false;
+							break;
+						}
+					}
+					
+					if (isKept == false) {
+						uniqueFieldIterator.remove();
+					}
+				}
+				
+				if (this.uniqueFields.size() == 0) {
+					this.uniqueFields = null;
+				}
+			}
+		} 	
+		
 		return !isTrivial();
 		
 	}
@@ -245,7 +325,7 @@ public final class LocalProperties implements Cloneable {
 			return null;	
 		}
 		else {
-			return new LocalProperties(newGrouped, newGroupedFields, newOrdering);
+			return new LocalProperties(newGrouped, newGroupedFields, newOrdering, null);
 		}
 	}
 
@@ -286,9 +366,32 @@ public final class LocalProperties implements Cloneable {
 			}
 		}
 		// check the order
-		return (this.ordering == null || this.ordering.isMetBy(other.getOrdering()));
+		if (this.ordering != null && this.ordering.isMetBy(other.getOrdering()) == false) {
+			return false;
+		}
 		
-//		return this.keyUnique == other.keyUnique;
+		
+		if (this.uniqueFields != null) {
+			if (other.uniqueFields == null) {
+				return false;
+			}
+			
+			for (FieldSet requiredUniqueField : this.uniqueFields) {
+				boolean found = false;
+				for (FieldSet actualUniqueField : other.uniqueFields) {
+					if (actualUniqueField.containsAll(requiredUniqueField)) {
+						found = true;
+						break;
+					}
+				}
+				
+				if (found == false) {
+					return false;
+				}
+			}
+		}
+		
+		return true;
 	}
 
 	// ------------------------------------------------------------------------
@@ -303,7 +406,7 @@ public final class LocalProperties implements Cloneable {
 		int result = 1;
 		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
 		result = prime * result + ((groupedFields == null) ? 0 : groupedFields.hashCode());
-		//result = prime * result + (keyUnique ? 1231 : 1237);
+		result = prime * result + ((uniqueFields == null) ? 0 : uniqueFields.hashCode());
 		result = prime * result + (grouped ? 1231 : 1237);
 		
 
@@ -325,9 +428,10 @@ public final class LocalProperties implements Cloneable {
 		}
 
 		LocalProperties other = (LocalProperties) obj;
-		if (this.ordering == other.ordering // && this.keyUnique == other.keyUnique
-			&& this.grouped == other.grouped && 
-			(this.groupedFields == other.groupedFields || (this.groupedFields != null && this.groupedFields.equals(other.groupedFields)))) {
+		if ((ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
+			&& this.grouped == other.grouped 
+			&& (uniqueFields == other.getUniqueFields() || (uniqueFields != null && uniqueFields.equals(other.getUniqueFields())))
+			&& (this.groupedFields == other.groupedFields || (this.groupedFields != null && this.groupedFields.equals(other.groupedFields)))) {
 			return true;
 		} else {
 			return false;
@@ -358,6 +462,12 @@ public final class LocalProperties implements Cloneable {
 		}
 		if (this.groupedFields != null) {
 			newProps.groupedFields = (FieldSet) this.groupedFields.clone();	
+		}
+		if (newProps.uniqueFields != null) {
+			newProps.uniqueFields = new LinkedList<FieldSet>();
+			for (FieldSet uniqueField : this.uniqueFields) {
+				newProps.uniqueFields.add((FieldSet)uniqueField.clone());
+			}
 		}
 		return newProps;
 	}

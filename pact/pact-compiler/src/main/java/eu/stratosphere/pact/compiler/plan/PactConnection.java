@@ -430,10 +430,7 @@ public class PactConnection {
 		else if (shipMode == ShipStrategy.FORWARD) {
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
 				// any order is destroyed by the random merging of the inputs
-//				lp.setKeyOrder(Order.NONE);
 				lp.setOrdering(null);
-				// keys are only grouped if they are unique
-				//lp.setKeysGrouped(lp.isKeyUnique());
 				lp.setGrouped(false, null);
 			}
 		}

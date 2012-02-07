@@ -18,8 +18,10 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -850,13 +852,15 @@ public class MatchNode extends TwoInputNode {
 		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFields());
 		outGp.setOrdering(gp1.getOrdering());
 		
+		int[] keyColumns1 = getPactContract().getKeyColumnNumbers(0);
+		int[] keyColumns2 = getPactContract().getKeyColumnNumbers(1);
+		
 		if (outLpp == null) {
-			int[] keyColumns = getPactContract().getKeyColumnNumbers(0);
 			
 			outLp = new LocalProperties();
 			if (order != Order.NONE) {
 				Ordering ordering = new Ordering();
-				for (int keyColumn : keyColumns) {
+				for (int keyColumn : keyColumns1) {
 					ordering.appendOrdering(keyColumn, order);
 				}
 				outLp.setOrdering(ordering);
@@ -864,7 +868,21 @@ public class MatchNode extends TwoInputNode {
 			else {
 				outLp.setOrdering(null);	
 			}
-			outLp.setGrouped(grouped, new FieldSet(keyColumns));
+			outLp.setGrouped(grouped, new FieldSet(keyColumns1));
+		}
+		
+		if (gp1.getUniqueFields() != null) {
+			if (gp2.isFieldSetUnique(new FieldSet(keyColumns2))) {
+				List<FieldSet> localUniqueFields = new LinkedList<FieldSet>();
+				List<FieldSet> globalUniqueFields = new LinkedList<FieldSet>();
+				for (FieldSet uniqueField : gp1.getUniqueFields()) {
+					localUniqueFields.add((FieldSet)uniqueField.clone());
+					globalUniqueFields.add((FieldSet)uniqueField.clone());
+				}
+				outGp.setUniqueFields(globalUniqueFields);
+				outLp.setUniqueFields(localUniqueFields);
+				
+			}
 		}
 				
 		// create a new reduce node for this input
@@ -897,12 +915,11 @@ public class MatchNode extends TwoInputNode {
 		outGp.setOrdering(gp2.getOrdering());
 		
 		if (outLpp == null) {
-			int[] keyColumns = getPactContract().getKeyColumnNumbers(1);
 			
 			outLp = new LocalProperties();
 			if (order != Order.NONE) {
 				Ordering ordering = new Ordering();
-				for (int keyColumn : keyColumns) {
+				for (int keyColumn : keyColumns2) {
 					ordering.appendOrdering(keyColumn, order);
 				}
 				outLp.setOrdering(ordering);
@@ -910,7 +927,21 @@ public class MatchNode extends TwoInputNode {
 			else {
 				outLp.setOrdering(null);	
 			}
-			outLp.setGrouped(grouped, new FieldSet(keyColumns));
+			outLp.setGrouped(grouped, new FieldSet(keyColumns2));
+		}
+		
+		if (gp2.getUniqueFields() != null) {
+			if (gp1.isFieldSetUnique(new FieldSet(keyColumns1))) {
+				List<FieldSet> localUniqueFields = new LinkedList<FieldSet>();
+				List<FieldSet> globalUniqueFields = new LinkedList<FieldSet>();
+				for (FieldSet uniqueField : gp2.getUniqueFields()) {
+					localUniqueFields.add((FieldSet)uniqueField.clone());
+					globalUniqueFields.add((FieldSet)uniqueField.clone());
+				}
+				outGp.setUniqueFields(globalUniqueFields);
+				outLp.setUniqueFields(localUniqueFields);
+				
+			}
 		}
 				
 		// create a new reduce node for this input
@@ -1109,6 +1140,43 @@ public class MatchNode extends TwoInputNode {
 		}
 		
 		return scrambledKeys;
+	}
+	
+	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
+		
+		FieldSet keyColumnsOtherInput;
+		
+		switch (input) {
+		case 0:
+			keyColumnsOtherInput = new FieldSet(keySet2);
+			break;
+		case 1:
+			keyColumnsOtherInput = new FieldSet(keySet1);
+			break;
+		default:
+			throw new RuntimeException("Input num out of bounds");
+		}
+		
+		
+		List<PactConnection> otherInConnections = getIncomingConnections().get(1-input);
+		
+		if (otherInConnections.size() != 1) {
+			return false;
+		}
+		
+		PactConnection inConnection = otherInConnections.get(0);
+		
+		Set<FieldSet> uniqueInChild = inConnection.getSourcePact().getUniqueFields();
+		
+		boolean otherKeyIsUnique = false;
+		for (FieldSet uniqueFields : uniqueInChild) {
+			if (keyColumnsOtherInput.containsAll(uniqueFields)) {
+				otherKeyIsUnique = true;
+				break;
+			}
+		}
+		
+		return otherKeyIsUnique;	
 	}
 	
 }

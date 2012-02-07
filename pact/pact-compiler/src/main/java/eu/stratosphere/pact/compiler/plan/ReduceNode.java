@@ -238,6 +238,8 @@ public class ReduceNode extends SingleInputNode {
 			CostEstimator estimator, List<OptimizerNode> outputPlans)
 	{
 
+		FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+		
 		for(List<OptimizerNode> predList : alternativeSubPlanCominations) {
 			// we have to check if all shipStrategies are the same or at least compatible
 			ShipStrategy ss = ShipStrategy.NONE;
@@ -272,7 +274,8 @@ public class ReduceNode extends SingleInputNode {
 					gp = predList.get(0).getGlobalProperties();
 					lp = predList.get(0).getLocalProperties();
 	
-					if (partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) { //|| gp.isKeyUnique()) {
+					if ((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) 
+						 || gp.isFieldSetUnique(keySet)	){
 						ss = ShipStrategy.FORWARD;
 					} else {
 						ss = ShipStrategy.PARTITION_HASH;
@@ -299,15 +302,13 @@ public class ReduceNode extends SingleInputNode {
 					lp = new LocalProperties();
 				}
 
-//				if (!(gp.getPartitioning().isPartitioned() || gp.isKeyUnique())) {
-				if (!(partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned())) {
+				if (!((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned())
+						|| gp.isFieldSetUnique(keySet))) {
 					// the shipping strategy is fixed to a value that does not leave us with
 					// the necessary properties. this candidate cannot produce a valid child
 					continue;
 				}
 			}
-			
-			FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
 
 			boolean localStrategyNeeded = false;
 			if (lp.getOrdering() == null || lp.getOrdering().groupsFieldSet(keySet) == false) {
@@ -318,11 +319,14 @@ public class ReduceNode extends SingleInputNode {
 				localStrategyNeeded = !lp.getGroupedFields().equals(keySet);
 			}
 			
+			if (localStrategyNeeded) {
+				localStrategyNeeded = !lp.isFieldSetUnique(keySet);
+			}
+			
 
 			LocalStrategy ls = getLocalStrategy();
 
 			// see, whether we need a local strategy
-//			if (!(lp.areKeysGrouped() || lp.getKeyOrder().isOrdered() || lp.isKeyUnique())) {
 			if (localStrategyNeeded) {
 			
 				// we need one
@@ -363,6 +367,10 @@ public class ReduceNode extends SingleInputNode {
 					++index;
 				}
 			}
+			
+			//add unique properties, they are filtered later on if they do not actually hold
+			gp.addUniqueField((FieldSet)keySet.clone());
+			lp.addUniqueField((FieldSet)keySet.clone());
 			
 			ReduceNode n = new ReduceNode(this, predList, this.input, gp, lp);
 			for(PactConnection cc : n.getInputConnections()) {
@@ -514,6 +522,19 @@ public class ReduceNode extends SingleInputNode {
 		}
 		
 		return true;
+	}
+	
+	@Override
+	public List<FieldSet> createUniqueFieldsForNode() {
+		if (keySet != null) {
+			for (int keyField : keySet) {
+				if (isFieldKept(0, keyField) == false) {
+					return null;
+				}
+			}
+			return Collections.singletonList(new FieldSet(keySet));
+		}
+		return null;
 	}
 
 }
