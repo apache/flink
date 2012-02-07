@@ -26,7 +26,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.util.Tuple;
+import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 
 /**
  * Filters the line item tuples according to the filter condition

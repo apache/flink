@@ -40,9 +40,9 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
-import eu.stratosphere.pact.example.relational.util.StringTupleDataOutFormat;
-import eu.stratosphere.pact.example.relational.util.Tuple;
+import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
+import eu.stratosphere.pact.test.testPrograms.util.StringTupleDataOutFormat;
+import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 
 /**
  * Implementation of the TPC-H Query 4 as a PACT program.

@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -25,8 +26,8 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.io.OutputSchemaProvider;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.Costs;
@@ -204,10 +205,10 @@ public class DataSourceNode extends OptimizerNode
 		// or we assume for robustness reasons that every record has a unique key. 
 		// Key cardinality overestimation results in more robust plans
 		
-		this.estimatedCardinality.putAll(hints.getCardinalities());
+		this.estimatedCardinality.putAll(hints.getDistinctCounts());
 		
 		if(this.estimatedNumRecords != -1) {
-			for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumValuesPerDistinctValues().entrySet()) {
+			for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
 				if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
 					long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
 							(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;
@@ -221,8 +222,8 @@ public class DataSourceNode extends OptimizerNode
 			this.estimatedNumRecords = 0;
 			int count = 0;
 			
-			for (Entry<FieldSet, Long> cardinality : hints.getCardinalities().entrySet()) {
-				float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 				if (avgNumValues != -1) {
 					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
 					count++;
@@ -314,9 +315,50 @@ public class DataSourceNode extends OptimizerNode
 		}
 	}
 
+	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		return false;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
+	 */
+	@Override
+	protected void readCopyProjectionAnnotations() {
+		// DO NOTHING		
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
+	 */
+	@Override
+	protected void readReadsAnnotation() {
+		// DO NOTHING
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public void deriveOutputSchema() {
+		
+		this.outputSchema = this.computeOutputSchema(Collections.EMPTY_LIST);
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public int[] computeOutputSchema(List<int[]> inputSchemas) {
+		
+		if(inputSchemas.size() > 0)
+			throw new IllegalArgumentException("DataSourceNode do not have input nodes");
 		
 		// get the input format class
 		Class<InputFormat<?>> clazz = (Class<InputFormat<?>>)((GenericDataSource<? extends InputFormat<?>>)getPactContract()).getFormatClass();
@@ -328,11 +370,11 @@ public class DataSourceNode extends OptimizerNode
 			if(inputFormat instanceof OutputSchemaProvider) {
 				
 				inputFormat.configure(getPactContract().getParameters());
-				this.outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
-				return;
+				int[] outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
+				Arrays.sort(outputSchema);
+				return outputSchema;
 			} else {
-				this.outputSchema = null;
-				return;
+				return null;
 			}
 			
 		} catch (InstantiationException e) {
@@ -340,14 +382,43 @@ public class DataSourceNode extends OptimizerNode
 		} catch (IllegalAccessException e) {
 			e.printStackTrace();
 		}
+		return null;
+		
 	}
-
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
+	 */
 	@Override
-	public int[] getInputConstantSet(int inputNum) {
+	public int[] getReadSet(int input) {
 		return null;
 	}
 	
-	public boolean isFieldKept(int input, int fieldNumber) {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
+	 */
+	@Override
+	public int[] getWriteSet(int input) {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
+	 */
+	@Override
+	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
+	 */
+	@Override
+	public boolean isValidInputSchema(int input, int[] inputSchema) {
 		return false;
 	}
 }

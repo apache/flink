@@ -1033,11 +1033,11 @@ public class MatchNode extends TwoInputNode {
 		double callsPerKey = 1;
 		
 		if(numKey1 != -1) {
-			callsPerKey *= numKey1 / (double)numRecords1;
+			callsPerKey *= (double)numRecords1 / numKey1;
 		}
 		
 		if(numKey2 != -1) {
-			callsPerKey *= numKey2 / (double)numRecords2;
+			callsPerKey *= (double)numRecords2 / numKey2;
 		}
 
 		return callsPerKey;

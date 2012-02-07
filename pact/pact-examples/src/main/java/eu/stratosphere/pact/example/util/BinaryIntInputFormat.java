@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.example.io;
+package eu.stratosphere.pact.example.util;
 
 
 import eu.stratosphere.nephele.configuration.Configuration;

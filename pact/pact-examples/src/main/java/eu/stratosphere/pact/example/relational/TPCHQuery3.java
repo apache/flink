@@ -17,9 +17,6 @@ package eu.stratosphere.pact.example.relational;
 
 import java.util.Iterator;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
@@ -36,26 +33,27 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextDoubleParser;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextLongParser;
 import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
-import eu.stratosphere.pact.example.relational.util.Tuple;
+import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -76,21 +74,16 @@ import eu.stratosphere.pact.example.relational.util.Tuple;
  */
 public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
-	private static Log LOGGER = LogFactory.getLog(TPCHQuery3.class);
-	
 	public static final String YEAR_FILTER = "parameter.YEAR_FILTER";
 	public static final String PRIO_FILTER = "parameter.PRIO_FILTER";
 
 	/**
 	 * Map PACT implements the selection and projection on the orders table.
-	 * <p>
-	 * The records enter the map as fields of type {@link Tuple}. Tuples are created by the
-	 * input format in a very fast manner, without actual field parsing. They only index the
-	 * delimiters. The parsed fields in the Pact Records are set after projection only
 	 */
-	@ReadSet(fields={2,3,4})
-	@ConstantSet(fields={2,3,4}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@Reads(fields={2,3,4})
+	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={2,3,4})
+	@ExplicitModifications(fields={})
 	@OutCardBounds(lowerBound=0, upperBound=1)
 	public static class FilterO extends MapStub
 	{
@@ -98,9 +91,9 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		private int yearFilter;			// filter literal for the year
 		
 		// reusable variables for the fields touched in the mapper
-		private final PactString orderStatus = new PactString();
-		private final PactString orderDate = new PactString();
-		private final PactString orderPrio = new PactString();
+		private PactString orderStatus;
+		private PactString orderDate;
+		private PactString orderPrio;
 		
 		/**
 		 * Reads the filter literals from the configuration.
@@ -125,21 +118,24 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		@Override
 		public void map(final PactRecord record, final Collector out)
 		{
-			record.getFieldInto(2, orderStatus);
-			record.getFieldInto(3, orderDate);
-			record.getFieldInto(4, orderPrio);
 			
-			if (Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter
-				&& orderStatus.getValue().equals("F") && orderPrio.getValue().startsWith(this.prioFilter))
-			{
-				record.setNull(2);
-				record.setNull(3);
-				record.setNull(4);
+			orderStatus = record.getField(2, PactString.class);
+			if (!orderStatus.getValue().equals("F"))
+				return;
+			
+			orderPrio = record.getField(4, PactString.class);
+			if(!orderPrio.getValue().startsWith(this.prioFilter))
+				return;
+			
+			orderDate = record.getField(3, PactString.class);
+			if (!(Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter))
+				return;
+			
+			record.setNull(2);
+			record.setNull(3);
+			record.setNull(4);
 	
-				out.collect(record);
-				// Output Schema - 0:ORDERKEY, 1:SHIPPRIORITYfunction
-
-			}
+			out.collect(record);
 		}
 	}
 
@@ -149,60 +145,46 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * built of the keys of the inputs.
 	 *
 	 */
-	@ReadSetFirst(fields={})
-	@ReadSetSecond(fields={})
-	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Update)
-	@ConstantSetSecond(fields={}, setMode=ConstantSetMode.Constant)
-	@AddSet(fields={5})
+	@ReadsFirst(fields={})
+	@ReadsSecond(fields={})
+	@ImplicitOperationFirst(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={})
+	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Projection)
+	@ExplicitCopies(fields={})
+	@ExplicitModifications(fields={2})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinLiO extends MatchStub
 	{
 		/**
-		 * Implements the join between LineItem and Order table on the 
-		 * order key.
+		 * Implements the join between LineItem and Order table on the order key.
 		 * 
-		 * WHERE l_orderkey = o_orderkey
-		 * 
-		 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICE
+		 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 5:EXTENDEDPRICE
 		 */
 		@Override
 		public void match(PactRecord order, PactRecord lineitem, Collector out)
 		{
-			// we can simply union the fields since the first input has its fields on (0, 1) and the
-			// second inputs has its fields in (0, 2). The conflicting field (0) is the key which is guaranteed
-			// to be identical anyways 
-			// <-- to do when union fields is implemented
 			order.setField(5, lineitem.getField(1, PactDouble.class));
 			out.collect(order);
 		}
 	}
 
 	/**
-	 * Reduce PACT implements the aggregation of the results. The 
-	 * Combinable annotation is set as the partial sums can be calculated
+	 * Reduce PACT implements the sum aggregation. 
+	 * The Combinable annotation is set as the partial sums can be calculated
 	 * already in the combiner
 	 *
+	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 5:SUM(EXTENDEDPRICE)
 	 */
 	@Combinable
-	@ReadSet(fields={5})
-	@ConstantSet(fields={2,5}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@Reads(fields={2})
+	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={})
+	@ExplicitModifications(fields={2})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggLiO extends ReduceStub
 	{
 		private final PactDouble extendedPrice = new PactDouble();
 		
-		/**
-		 * Does the aggregation of the query. 
-		 * 
-		 * sum(l_extendedprice) as revenue
-		 * GROUP BY l_orderkey, o_shippriority;
-		 * 
-		 * Output Schema:
-		 *  Key: ORDERKEY
-		 *  Value: 0:ORDERKEY, 1:SHIPPRIORITY, 2:EXTENDEDPRICESUM
-		 *
-		 */
 		@Override
 		public void reduce(Iterator<PactRecord> values, Collector out)
 		{
@@ -215,7 +197,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			}
 
 			this.extendedPrice.setValue(partExtendedPriceSum);
-			rec.setField(2, this.extendedPrice);
+			rec.setField(5, this.extendedPrice);
 			out.collect(rec);
 		}
 
@@ -225,17 +207,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		@Override
 		public void combine(Iterator<PactRecord> values, Collector out)
 		{
-			PactRecord rec = null;
-			double partExtendedPriceSum = 0;
-
-			while (values.hasNext()) {
-				rec = values.next();
-				partExtendedPriceSum += rec.getField(5, PactDouble.class).getValue();
-			}
-
-			this.extendedPrice.setValue(partExtendedPriceSum);
-			rec.setField(5, this.extendedPrice);
-			out.collect(rec);
+			reduce(values, out);
 		}
 	}
 
@@ -274,8 +246,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+4, VarLengthStringParser.class);
 		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+4, 5);
 		// compiler hints
-//		orders.getCompilerHints().setAvgNumValuesPerKey(1);
-		orders.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 1);
+		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders.getCompilerHints().setAvgBytesPerRecord(16);
 
 		// create DataSourceContract for LineItems input
@@ -292,8 +263,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextDoubleParser.class);
 		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 5);
 		// compiler hints	
-//		lineitems.getCompilerHints().setAvgNumValuesPerKey(4);
-		lineitems.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 4);
+		lineitems.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 4);
 		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MapContract for filtering Orders tuples
@@ -305,20 +275,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// compiler hints
 		filterO.getCompilerHints().setAvgBytesPerRecord(16);
 		filterO.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.05f);
-//		filterO.getCompilerHints().setAvgNumValuesPerKey(1);
-		filterO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(0), 1);
+		filterO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 
 		// create MatchContract for joining Orders and LineItems
 		MatchContract joinLiO = new MatchContract(JoinLiO.class, PactLong.class, 0, 0, filterO, lineitems, "JoinLiO");
 		joinLiO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
-		joinLiO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0, 1}), 4);
-//		joinLiO.getCompilerHints().setAvgNumValuesPerKey(4);
-		// fixing the strategy
-		// TODO: remove
-		joinLiO.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_BROADCAST");
-		joinLiO.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_FIRST");
+		joinLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 4);
 
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
@@ -328,7 +292,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// compiler hints
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
 		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
-		aggLiO.getCompilerHints().setAvgNumValuesPerDistinctValue(new FieldSet(new int[]{0, 1}), 1);
+		aggLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
@@ -338,8 +302,11 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		result.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
 		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
 		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
+		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
 		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
 		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactDouble.class);
+		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 5);
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3");

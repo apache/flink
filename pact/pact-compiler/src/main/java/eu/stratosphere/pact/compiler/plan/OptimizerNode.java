@@ -37,9 +37,9 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -123,7 +123,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
 	
-	protected int[] addSet; // The set of fields added to the schema by the stub
+	protected int[] explWrites; // The set of explicitly written fields
 	
 	protected int[] outputSchema; // The fields are present in the output records
 	
@@ -188,8 +188,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.localProps = new LocalProperties();
 		this.globalProps = new GlobalProperties();
 
-		this.readAddSetAnnotation();
-		this.readOutputCardBoundAnnotation();
+		this.readStubAnnotations();
 	}
 
 	/**
@@ -227,14 +226,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		this.stubOutCardLB = toClone.stubOutCardLB;
 		this.stubOutCardUB = toClone.stubOutCardUB;
-		this.addSet = toClone.addSet;
-		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length);
 		
 		if (toClone.uniqueFields != null && toClone.uniqueFields.size() > 0) {
 			for (FieldSet uniqueField : toClone.uniqueFields) {
 				this.uniqueFields.add((FieldSet)uniqueField.clone());
 			}
 		}
+		
+		this.explWrites = toClone.explWrites;
+		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length); 
 
 		// check, if this node branches. if yes, this candidate must be associated with
 		// the branching template node.
@@ -400,13 +400,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public PactType getPactType() {
 		return PactType.getType(this.pactContract.getClass());
 	}
-
-	/**
-	 * Gets the output contract declared on the user function that is wrapped in the PACT of this node.
-	 * 
-	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
-	 */
-	public abstract int[] getInputConstantSet(int inputNum);
 
 	/**
 	 * Gets the degree of parallelism for the contract represented by this optimizer node.
@@ -736,13 +729,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		if (!allPredsAvailable) {
 			// Preceding node is not available, we take hints as given
 			//this.estimatedKeyCardinality = hints.getKeyCardinality();
-			this.estimatedCardinality.putAll(hints.getCardinalities());
+			this.estimatedCardinality.putAll(hints.getDistinctCounts());
 			
 			this.estimatedNumRecords = 0;
 			int count = 0;
 			
-			for (Entry<FieldSet, Long> cardinality : hints.getCardinalities().entrySet()) {
-				float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 				if (avgNumValues != -1) {
 					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
 					count++;
@@ -774,8 +767,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 			//If we have cardinalities and avg num values available for some fields, calculate 
 			//the average of those
-			for (Entry<FieldSet, Long> cardinality : hints.getCardinalities().entrySet()) {
-				float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 				if (avgNumValues != -1) {
 					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
 					count++;
@@ -802,7 +795,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 						
 			// ############# output key cardinality estimation ##########
 
-			this.estimatedCardinality.putAll(hints.getCardinalities());	
+			this.estimatedCardinality.putAll(hints.getDistinctCounts());	
 
 			
 			if (this.getUniqueFields() != null) {
@@ -839,7 +832,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			}
 			
 			if(this.estimatedNumRecords != -1) {
-				for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumValuesPerDistinctValues().entrySet()) {
+				for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
 					if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
 						long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
 								(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;
@@ -856,7 +849,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 				count = 0;
 				
 				for (Entry<FieldSet, Long> cardinality : estimatedCardinality.entrySet()) {
-					float avgNumValues = hints.getAvgNumValuesPerDistinctValue(cardinality.getKey());
+					float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 					if (avgNumValues != -1) {
 						// we have a hint for average values per key
 						newEstimatedNumRecords += cardinality.getValue() * avgNumValues;
@@ -1275,6 +1268,40 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return result;
 	}
 
+	// ------------------------------------------------------------------------
+	// Reading of stub annotations
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Reads all stub annotations
+	 */
+	private void readStubAnnotations() {
+		this.readReadsAnnotation();
+		this.readCopyProjectionAnnotations();
+		this.readWritesAnnotation();
+		this.readOutputCardBoundAnnotation();
+	}
+
+	/**
+	 * Reads the explicit writes stub annotation
+	 */
+	protected void readWritesAnnotation() {
+
+		// get readSet annotation from stub
+		ExplicitModifications addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(ExplicitModifications.class);
+		
+		// extract addSet from annotation
+		if(addSetAnnotation == null) {
+			this.explWrites = null;
+		} else {
+			this.explWrites = addSetAnnotation.fields();
+			Arrays.sort(this.explWrites);
+		}
+	}
+
+	/**
+	 * Reads the output cardinality stub annotations
+	 */
 	protected void readOutputCardBoundAnnotation() {
 		
 		// get readSet annotation from stub
@@ -1290,41 +1317,104 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 	}
 	
-	protected void readAddSetAnnotation() {
-
-		// get readSet annotation from stub
-		AddSet addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(AddSet.class);
-		
-		// extract addSet from annotation
-		if(addSetAnnotation == null) {
-			this.addSet = null;
-		} else {
-			this.addSet = addSetAnnotation.fields();
-			Arrays.sort(this.addSet);
-		}
-	}
+	/**
+	 * Reads all reads stub annotations.
+	 * Reads stub annotations are defined per input.
+	 */
+	protected abstract void readReadsAnnotation();
 	
+	/**
+	 * Reads the copy and projection stub annotations.
+	 * These annotations are defined per input.
+	 */
+	protected abstract void readCopyProjectionAnnotations();
+	
+	/**
+	 * Reads and sets the output schema of the node.
+	 * The schema can change if the input schema changes.
+	 */
 	public abstract void deriveOutputSchema();
 	
-	public int[] getAddSet() {
-		return this.addSet;
-	}
+	// ------------------------------------------------------------------------
+	// Access of stub annotations
+	// ------------------------------------------------------------------------
 	
-	public int[] getStubOutCardBounds() {
-		return new int[]{this.stubOutCardLB, this.stubOutCardUB};
-	}
-	
+	/**
+	 * Returns the lower output cardinality bound of the node.
+	 * 
+	 * @return the lower output cardinality bound of the node.
+	 */
 	public int getStubOutCardLowerBound() {
 		return this.stubOutCardLB;
 	}
 	
+	/**
+	 * Returns the upper output cardinality bound of the node.
+	 * 
+	 * @return the upper output cardinality bound of the node.
+	 */
 	public int getStubOutCardUpperBound() {
 		return this.stubOutCardUB;
 	}
 	
+	/**
+	 * Returns the output schema of the node.
+	 * 
+	 * @return the output schema of the node.
+	 */
 	public int[] getOutputSchema() {
 		return this.outputSchema;
 	}
+	
+	/**
+	 * Computes the output schema of the node for given input schemas (one per input).
+	 * 
+	 * @param inputSchemas A list of input schemas. Element 0 of the list refers to the first input, and so on.
+	 * @return The output schema of the node for the given input schemas.
+	 */
+	public abstract int[] computeOutputSchema(List<int[]> inputSchemas);
+
+	/**
+	 * Determines whether the node can on the given input schema for the specified input.
+	 * 
+	 * @param input The input for which the input schema is assumed.
+	 * @param inputSchema The input schema for the specified input
+	 * @return True, if the node can operate on the the schema for the specified input, false otherwise.
+	 */
+	public abstract boolean isValidInputSchema(int input, int[] inputSchema);
+	
+	/**
+	 * Gives the read set of the node. 
+	 * The read set is used to decide about reordering of nodes.
+	 * 
+	 * @param id of input for which the read set should be returned. 
+	 *        -1 if the unioned read set over all inputs is requested. 
+	 *  
+	 * @return the read set for the requested input(s)
+	 */
+	public abstract int[] getReadSet(int input);
+	
+	/**
+	 * Give the write set of the node.
+	 * The write set is used to decide about reordering of nodes.
+	 * 
+	 * @param id of input for which the write set should be returned. 
+	 *        -1 if the unioned write set over all inputs is requested. 
+	 *  
+	 * @return the write set for the requested input(s)
+	 */
+	public abstract int[] getWriteSet(int input);
+	
+	/**
+	 * Give the write set of the node.
+	 * 
+	 * @param id of input for which the write set should be returned. 
+	 *        -1 if the unioned write set over all inputs is requested. 
+	 * @param inputNodes for which the write set should be computed 
+	 *  
+	 * @return the write set for the requested input(s)
+	 */
+	public abstract int[] getWriteSet(int input, List<int[]> inputSchemas);
 	
 	protected static final class UnclosedBranchDescriptor
 	{

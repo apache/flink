@@ -802,22 +802,22 @@ public class CoGroupNode extends TwoInputNode {
 		int[] keyColumns = getConstantKeySet(0); 
 		if (keyColumns != null) {
 			FieldSet keySet = new FieldSet(keyColumns);
-			if (hints.getAvgNumValuesPerDistinctValue(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
-				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerDistinctValue(keySet));
+			if (hints.getAvgNumRecordsPerDistinctFields(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
 			}
-			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerDistinctValue(keySet) == -1) {
-				hints.setAvgNumValuesPerDistinctValue(keySet, hints.getAvgRecordsEmittedPerStubCall());
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
+				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
 			}
 		}
 		
 		keyColumns = getConstantKeySet(1); 
 		if (keyColumns != null) {
 			FieldSet keySet = new FieldSet(keyColumns);
-			if (hints.getAvgNumValuesPerDistinctValue(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
-				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumValuesPerDistinctValue(keySet));
+			if (hints.getAvgNumRecordsPerDistinctFields(keySet) != -1 && hints.getAvgRecordsEmittedPerStubCall() == -1) {
+				hints.setAvgRecordsEmittedPerStubCall(hints.getAvgNumRecordsPerDistinctFields(keySet));
 			}
-			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumValuesPerDistinctValue(keySet) == -1) {
-				hints.setAvgNumValuesPerDistinctValue(keySet, hints.getAvgRecordsEmittedPerStubCall());
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1 && hints.getAvgNumRecordsPerDistinctFields(keySet) == -1) {
+				hints.setAvgNumRecordsPerDistinctFields(keySet, hints.getAvgRecordsEmittedPerStubCall());
 			}
 		}
 		

@@ -163,12 +163,12 @@ public class TPCHQuery10ITCase extends TestBase {
 		+ "23|UNITED KINGDOM|3|eans boost carefully special requests. accounts are. carefull|\n"
 		+ "24|UNITED STATES|1|y final packages. slow foxes cajole quickly. quickly silent platelets breach ironic accounts. unusual pinto be|\n";
 
-	private final String EXPECTED_RESULT = "JORDAN|Customer#000036901|TBb1yDZcf 8Zepk7apFJ|23-644-998-4944|4809.84|nstructions sleep final, regular deposits. quick accounts sleep furiously after the final accounts; instructions wa|36901|167183.2296|\n"
-		+ "MOROCCO|Customer#000016252|Ha0SZbzPcuno,WTyMl1ipU0YtpeuR1|25-830-891-9338|7140.55|furiously unusual packages! theodolites haggle along the quickly speci|16252|105699.9336|\n"
-		+ "INDONESIA|Customer#000130057|jQDBlCU2IlHmzkDfcqgIHg2eLsN|19-938-862-4157|5009.55| blithely regular packages. carefully bold accounts sle|130057|200081.3676|\n"
-		+ "IRAN|Customer#000078002|v7Jkg5XIqM|20-715-308-7926|4128.41|ly after the special deposits. careful packages|78002|44694.46|\n"
-		+ "INDIA|Customer#000081763|mZtn4M5r0KIw4aooP BXF3ReR RUlPJcAb|18-425-613-5972|8368.23|ronic frays. slyly pending pinto beans are furiously grouches. permanen|81763|325542.7507|\n"
-		+ "ALGERIA|Customer#000086116|63BSp8bODm1dImPJEPTRmsSa4GqNA1SeRqFgx|10-356-493-3518|3205.60| ironic ideas. quickly pending ideas sleep blith|86116|197710.546|\n";
+	private final String EXPECTED_RESULT = "36901|Customer#000036901|167183.2296|4809.84|JORDAN|TBb1yDZcf 8Zepk7apFJ|23-644-998-4944|nstructions sleep final, regular deposits. quick accounts sleep furiously after the final accounts; instructions wa|\n"
+		+ "16252|Customer#000016252|105699.9336|7140.55|MOROCCO|Ha0SZbzPcuno,WTyMl1ipU0YtpeuR1|25-830-891-9338|furiously unusual packages! theodolites haggle along the quickly speci|\n"
+		+ "130057|Customer#000130057|200081.3676|5009.55|INDONESIA|jQDBlCU2IlHmzkDfcqgIHg2eLsN|19-938-862-4157| blithely regular packages. carefully bold accounts sle|\n"
+		+ "78002|Customer#000078002|44694.46|4128.41|IRAN|v7Jkg5XIqM|20-715-308-7926|ly after the special deposits. careful packages|\n"
+		+ "81763|Customer#000081763|325542.7507|8368.23|INDIA|mZtn4M5r0KIw4aooP BXF3ReR RUlPJcAb|18-425-613-5972|ronic frays. slyly pending pinto beans are furiously grouches. permanen|\n"
+		+ "86116|Customer#000086116|197710.546|3205.60|ALGERIA|63BSp8bODm1dImPJEPTRmsSa4GqNA1SeRqFgx|10-356-493-3518| ironic ideas. quickly pending ideas sleep blith|\n";
 
 	private String ordersPath;
 

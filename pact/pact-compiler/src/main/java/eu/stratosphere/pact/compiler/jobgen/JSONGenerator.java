@@ -413,7 +413,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			this.jsonString.append(",\n\t\t\"compiler_hints\": [\n");
 
 			String hintCardinality = "(none)";
-			if (hints.getCardinalities().size() > 0) {
+			if (hints.getDistinctCounts().size() > 0) {
 				hintCardinality = "";
 				for (Entry<FieldSet, Long> entry : visitable.getEstimatedCardinalities().entrySet()) {
 					hintCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
@@ -424,9 +424,9 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 					getAvgRecordsEmittedPerStubCall() ? "(none)" : String.valueOf(hints.getAvgRecordsEmittedPerStubCall()), false);
 			
 			String valuesKey = "(none)";
-			if (hints.getAvgNumValuesPerDistinctValues().size() > 0) {
+			if (hints.getAvgNumRecordsPerDistinctFields().size() > 0) {
 				valuesKey = "";
-				for (Entry<FieldSet, Float> entry : hints.getAvgNumValuesPerDistinctValues().entrySet()) {
+				for (Entry<FieldSet, Float> entry : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
 					valuesKey += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
 				}
 			}
