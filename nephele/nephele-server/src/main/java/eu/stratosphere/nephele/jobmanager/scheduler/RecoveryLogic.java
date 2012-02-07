@@ -71,51 +71,72 @@ public final class RecoveryLogic {
 			return false;
 		}
 
-		LOG.info("Starting recovery for failed vertex " + failedVertex);
+		final ExecutionGraph eg = failedVertex.getExecutionGraph();
+		synchronized (eg) {
 
-		final Set<ExecutionVertex> verticesToBeCanceled = new HashSet<ExecutionVertex>();
+			LOG.info("Starting recovery for failed vertex " + failedVertex);
 
-		final Set<ExecutionVertex> checkpointsToBeReplayed = new HashSet<ExecutionVertex>();
+			final Set<ExecutionVertex> verticesToBeCanceled = new HashSet<ExecutionVertex>();
 
-		findVerticesToRestart(failedVertex, verticesToBeCanceled, checkpointsToBeReplayed);
+			final Set<ExecutionVertex> checkpointsToBeReplayed = new HashSet<ExecutionVertex>();
 
-		// Restart all predecessors without checkpoint
-		final Iterator<ExecutionVertex> cancelIterator = verticesToBeCanceled.iterator();
-		while (cancelIterator.hasNext()) {
+			findVerticesToRestart(failedVertex, verticesToBeCanceled, checkpointsToBeReplayed);
 
-			final ExecutionVertex vertex = cancelIterator.next();
-			LOG.info(vertex + " is canceled by recovery logic");
-			final TaskCancelResult cancelResult = vertex.cancelTask();
-			verticesToBeRestarted.put(vertex.getID(), vertex);
-			if (cancelResult.getReturnCode() != ReturnCode.SUCCESS) {
-				verticesToBeRestarted.remove(vertex.getID());
-				LOG.error(cancelResult.getDescription());
+			// Restart all predecessors without checkpoint
+			final Iterator<ExecutionVertex> cancelIterator = verticesToBeCanceled.iterator();
+			while (cancelIterator.hasNext()) {
+
+				final ExecutionVertex vertex = cancelIterator.next();
+
+				if (vertex.compareAndUpdateExecutionState(ExecutionState.FINISHED, getStateToUpdate(vertex))) {
+					LOG.info("Vertex " + vertex + " has already finished and will not be canceled");
+					continue;
+				}
+
+				LOG.info(vertex + " is canceled by recovery logic");
+				verticesToBeRestarted.put(vertex.getID(), vertex);
+				final TaskCancelResult cancelResult = vertex.cancelTask();
+
+				if (cancelResult.getReturnCode() != ReturnCode.SUCCESS
+						&& cancelResult.getReturnCode() != ReturnCode.TASK_NOT_FOUND) {
+
+					verticesToBeRestarted.remove(vertex.getID());
+					LOG.error(cancelResult.getDescription());
+					return false;
+				}
+			}
+
+			LOG.info("Starting cache invalidation");
+
+			// Invalidate the lookup caches
+			if (!invalidateReceiverLookupCaches(failedVertex, verticesToBeCanceled)) {
 				return false;
 			}
 
-		}
+			LOG.info("Cache invalidation complete");
 
-		// Invalidate the lookup caches
-		if (!invalidateReceiverLookupCaches(failedVertex, verticesToBeCanceled)) {
-			return false;
-		}
+			// Replay all necessary checkpoints
+			final Iterator<ExecutionVertex> checkpointIterator = checkpointsToBeReplayed.iterator();
 
-		// Replay all necessary checkpoints
-		final Iterator<ExecutionVertex> checkpointIterator = checkpointsToBeReplayed.iterator();
+			while (checkpointIterator.hasNext()) {
 
-		while (checkpointIterator.hasNext()) {
+				checkpointIterator.next().updateExecutionState(ExecutionState.ASSIGNED);
+			}
 
-			checkpointIterator.next().updateExecutionState(ExecutionState.ASSIGNED);
-		}
-
-		// Restart failed vertex
-		if (failedVertex.getAllocatedResource().getInstance() instanceof DummyInstance) {
-			failedVertex.updateExecutionState(ExecutionState.CREATED);
-		} else {
-			failedVertex.updateExecutionState(ExecutionState.ASSIGNED);
+			// Restart failed vertex
+			failedVertex.updateExecutionState(getStateToUpdate(failedVertex));
 		}
 
 		return true;
+	}
+
+	private static ExecutionState getStateToUpdate(final ExecutionVertex vertex) {
+
+		if (vertex.getAllocatedResource().getInstance() instanceof DummyInstance) {
+			return ExecutionState.CREATED;
+		}
+
+		return ExecutionState.ASSIGNED;
 	}
 
 	private static void findVerticesToRestart(final ExecutionVertex failedVertex,
@@ -127,7 +148,7 @@ public final class RecoveryLogic {
 		verticesToTest.add(failedVertex);
 
 		System.out.println("++++" + failedVertex + " failed");
-		
+
 		while (!verticesToTest.isEmpty()) {
 
 			final ExecutionVertex vertex = verticesToTest.poll();
@@ -139,7 +160,8 @@ public final class RecoveryLogic {
 			// Predecessors must be either checkpoints or need to be restarted, too
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
 				final ExecutionVertex predecessor = vertex.getPredecessor(j);
-				System.out.println("++++ Predecessor " + predecessor + " has checkpoint state " + predecessor.getCheckpointState());
+				System.out.println("++++ Predecessor " + predecessor + " has checkpoint state "
+					+ predecessor.getCheckpointState());
 				if (predecessor.getCheckpointState() != CheckpointState.PARTIAL
 						&& predecessor.getCheckpointState() != CheckpointState.COMPLETE) {
 
@@ -160,9 +182,35 @@ public final class RecoveryLogic {
 
 		final Map<AbstractInstance, Set<ChannelID>> entriesToInvalidate = new HashMap<AbstractInstance, Set<ChannelID>>();
 
-		final ExecutionGraph eg = failedVertex.getExecutionGraph();
+		collectCacheEntriesToInvalidate(failedVertex, entriesToInvalidate);
+		for (final Iterator<ExecutionVertex> it = verticesToBeCanceled.iterator(); it.hasNext();) {
+			collectCacheEntriesToInvalidate(it.next(), entriesToInvalidate);
+		}
 
-		final RuntimeEnvironment env = failedVertex.getEnvironment();
+		final Iterator<Map.Entry<AbstractInstance, Set<ChannelID>>> it = entriesToInvalidate.entrySet().iterator();
+
+		while (it.hasNext()) {
+
+			final Map.Entry<AbstractInstance, Set<ChannelID>> entry = it.next();
+			final AbstractInstance instance = entry.getKey();
+
+			try {
+				instance.invalidateLookupCacheEntries(entry.getValue());
+			} catch (IOException ioe) {
+				LOG.error(StringUtils.stringifyException(ioe));
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private static void collectCacheEntriesToInvalidate(final ExecutionVertex vertex,
+			final Map<AbstractInstance, Set<ChannelID>> entriesToInvalidate) {
+
+		final ExecutionGraph eg = vertex.getExecutionGraph();
+
+		final RuntimeEnvironment env = vertex.getEnvironment();
 		for (int i = 0; i < env.getNumberOfOutputGates(); ++i) {
 
 			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
@@ -178,11 +226,6 @@ public final class RecoveryLogic {
 				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
 				if (connectedVertex == null) {
 					LOG.error("Connected vertex is null");
-					continue;
-				}
-
-				if (verticesToBeCanceled.contains(connectedVertex)) {
-					// Vertex will be canceled anyways
 					continue;
 				}
 
@@ -215,11 +258,6 @@ public final class RecoveryLogic {
 					continue;
 				}
 
-				if (verticesToBeCanceled.contains(connectedVertex)) {
-					// Vertex will be canceled anyways
-					continue;
-				}
-
 				final AbstractInstance instance = connectedVertex.getAllocatedResource().getInstance();
 				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
 				if (channelIDs == null) {
@@ -230,22 +268,5 @@ public final class RecoveryLogic {
 				channelIDs.add(connectedChannelID);
 			}
 		}
-
-		final Iterator<Map.Entry<AbstractInstance, Set<ChannelID>>> it = entriesToInvalidate.entrySet().iterator();
-
-		while (it.hasNext()) {
-
-			final Map.Entry<AbstractInstance, Set<ChannelID>> entry = it.next();
-			final AbstractInstance instance = entry.getKey();
-
-			try {
-				instance.invalidateLookupCacheEntries(entry.getValue());
-			} catch (IOException ioe) {
-				LOG.error(StringUtils.stringifyException(ioe));
-				return false;
-			}
-		}
-
-		return true;
 	}
 }

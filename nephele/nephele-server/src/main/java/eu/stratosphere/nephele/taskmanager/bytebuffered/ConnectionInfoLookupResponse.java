@@ -121,9 +121,10 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 		return response;
 	}
-	
+
 	/**
 	 * Constructor used to generate a plain ConnectionInfoLookupResponse object to be filled with multicast targets.
+	 * 
 	 * @return
 	 */
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady() {
@@ -132,7 +133,7 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
 
 		return response;
-	}	
+	}
 
 	public static ConnectionInfoLookupResponse createReceiverNotFound() {
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
@@ -147,16 +148,16 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 		return response;
 	}
-	
+
 	@Override
-	public String toString(){
+	public String toString() {
 		StringBuilder returnstring = new StringBuilder();
 		returnstring.append("local targets (total: " + this.localTargets.size() + "):\n");
-		for(ChannelID i: this.localTargets){
+		for (ChannelID i : this.localTargets) {
 			returnstring.append(i + "\n");
 		}
 		returnstring.append("remote targets: (total: " + this.remoteTargets.size() + "):\n");
-		for(InstanceConnectionInfo i: this.remoteTargets){
+		for (InstanceConnectionInfo i : this.remoteTargets) {
 			returnstring.append(i + "\n");
 		}
 		return returnstring.toString();

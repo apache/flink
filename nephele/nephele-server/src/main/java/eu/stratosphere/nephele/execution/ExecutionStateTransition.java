@@ -3,6 +3,8 @@ package eu.stratosphere.nephele.execution;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.util.StringUtils;
+
 /**
  * This class is a utility class to check the consistency of Nephele's execution state model.
  * 
@@ -24,6 +26,9 @@ public final class ExecutionStateTransition {
 	/**
 	 * Checks the transition of the execution state and outputs an error in case of an unexpected state transition.
 	 * 
+	 * @param jobManager
+	 *        <code>true</code> to indicate the method is called by the job manager,
+	 *        <code>false/<code> to indicate it is called by a task manager
 	 * @param taskName
 	 *        the name of the task whose execution has changed
 	 * @param oldState
@@ -31,16 +36,11 @@ public final class ExecutionStateTransition {
 	 * @param newState
 	 *        the new execution state
 	 */
-	public static void checkTransition(final String taskName, final ExecutionState oldState,
+	public static void checkTransition(final boolean jobManager, final String taskName, final ExecutionState oldState,
 			final ExecutionState newState) {
 
-		// Ignore state changes in final states
-		if (oldState == ExecutionState.CANCELED || oldState == ExecutionState.FINISHED
-				|| oldState == ExecutionState.FAILED) {
-			return;
-		}
-
-		LOG.info("ExecutionState set from " + oldState + " to " + newState + " for task " + taskName);
+		LOG.info((jobManager ? "JM: " : "TM: ") + "ExecutionState set from " + oldState + " to " + newState
+			+ " for task " + taskName);
 
 		boolean unexpectedStateChange = true;
 
@@ -60,89 +60,110 @@ public final class ExecutionStateTransition {
 		if (oldState == ExecutionState.STARTING && newState == ExecutionState.RUNNING) {
 			unexpectedStateChange = false;
 		}
-		if (oldState == ExecutionState.STARTING && newState == ExecutionState.REPLAYING) {
-			unexpectedStateChange = false;
-		}
 		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.FINISHING) {
-			unexpectedStateChange = false;
-		}
-		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.FINISHING) {
 			unexpectedStateChange = false;
 		}
 		if (oldState == ExecutionState.FINISHING && newState == ExecutionState.FINISHED) {
 			unexpectedStateChange = false;
 		}
 
-		if (oldState == ExecutionState.CREATED && newState == ExecutionState.ASSIGNED) {
-			/**
-			 * A vertex might skip the SCHEDULED state if its resource has been allocated in a previous stage.
-			 */
+		// These transitions may occur during a task recovery
+		if (oldState == ExecutionState.FAILED && newState == ExecutionState.ASSIGNED) {
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.FAILED && newState == ExecutionState.CREATED) {
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.FINISHED && newState == ExecutionState.ASSIGNED) {
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.FINISHED && newState == ExecutionState.CREATED) {
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.CANCELED && newState == ExecutionState.ASSIGNED) {
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.CANCELED && newState == ExecutionState.CREATED) {
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.STARTING && newState == ExecutionState.REPLAYING) {
+			unexpectedStateChange = false;
+		}
+		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.FINISHING) {
 			unexpectedStateChange = false;
 		}
 
-		if (oldState == ExecutionState.SCHEDULED && newState == ExecutionState.CANCELED) {
-			/**
-			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
-			 */
+		// A vertex might skip the SCHEDULED state if its resource has been allocated in a previous stage.
+		if (oldState == ExecutionState.CREATED && newState == ExecutionState.ASSIGNED) {
 			unexpectedStateChange = false;
 		}
-		if (oldState == ExecutionState.ASSIGNED && newState == ExecutionState.CANCELED) {
-			/**
-			 * This transition can appear if a task in a stage which is not yet executed gets canceled.
-			 */
+
+		// This transition can appear if a task in a stage which is not yet executed gets canceled.
+		if (oldState == ExecutionState.SCHEDULED && newState == ExecutionState.CANCELING) {
 			unexpectedStateChange = false;
 		}
-		if (oldState == ExecutionState.READY && newState == ExecutionState.CANCELED) {
-			/**
-			 * This transition can appear if a task is canceled that is not yet running on the task manager.
-			 */
+
+		// This transition can appear if a task in a stage which is not yet executed gets canceled.
+		if (oldState == ExecutionState.ASSIGNED && newState == ExecutionState.CANCELING) {
 			unexpectedStateChange = false;
 		}
+
+		// This transition can appear if a task is canceled that is not yet running on the task manager.
+		if (oldState == ExecutionState.READY && newState == ExecutionState.CANCELING) {
+			unexpectedStateChange = false;
+		}
+
+		// This transition can appear if a task cannot be deployed at the assigned task manager.
 		if (oldState == ExecutionState.STARTING && newState == ExecutionState.FAILED) {
-			/**
-			 * This transition can appear if a task cannot be deployed at the assigned task manager.
-			 */
 			unexpectedStateChange = false;
 		}
+
+		// This is a regular transition in case of a task error.
 		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.FAILED) {
-			/**
-			 * This is a regular transition in case of a task error.
-			 */
 			unexpectedStateChange = false;
 		}
-		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.ASSIGNED) {
-			/**
-			 * This is a regular transition in case a task replay is triggered.
-			 */
-			unexpectedStateChange = false;
-		}
+
 		if (oldState == ExecutionState.FINISHING && newState == ExecutionState.FAILED) {
-			/**
-			 * This is a regular transition in case of a task error.
-			 */
+			// This is a regular transition in case of a task error.
 			unexpectedStateChange = false;
 		}
+
+		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.FAILED) {
+			// This is a regular transition in case of a task error.
+			unexpectedStateChange = false;
+		}
+
+		// This is a regular transition in case a task replay is triggered.
+		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.ASSIGNED) {
+			unexpectedStateChange = false;
+		}
+
+		// This is a regular transition in case a task replay is triggered.
+		if (oldState == ExecutionState.FINISHING && newState == ExecutionState.ASSIGNED) {
+			unexpectedStateChange = false;
+		}
+
+		// This is a regular transition as a result of a cancel operation.
 		if (oldState == ExecutionState.RUNNING && newState == ExecutionState.CANCELING) {
-			/**
-			 * This is a regular transition as a result of a cancel operation.
-			 */
 			unexpectedStateChange = false;
 		}
+
+		// This is a regular transition as a result of a cancel operation.
 		if (oldState == ExecutionState.FINISHING && newState == ExecutionState.CANCELING) {
-			/**
-			 * This is a regular transition as a result of a cancel operation.
-			 */
 			unexpectedStateChange = false;
 		}
+
+		// This is a regular transition as a result of a cancel operation.
 		if (oldState == ExecutionState.CANCELING && newState == ExecutionState.CANCELED) {
-			/**
-			 * This is a regular transition as a result of a cancel operation.
-			 */
 			unexpectedStateChange = false;
 		}
 
 		if (unexpectedStateChange) {
-			LOG.error("Unexpected state change: " + oldState + " -> " + newState);
+			try {
+				throw new IllegalStateException("Unexpected state change: " + oldState + " -> " + newState);
+			} catch (IllegalStateException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
 		}
 	}
 }

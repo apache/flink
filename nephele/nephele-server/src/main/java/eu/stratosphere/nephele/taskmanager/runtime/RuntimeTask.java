@@ -103,7 +103,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public void executionStateChanged(final ExecutionState newExecutionState, final String optionalMessage) {
 
 		// Check the state transition
-		ExecutionStateTransition.checkTransition(getTaskName(), this.executionState, newExecutionState);
+		ExecutionStateTransition.checkTransition(false, getTaskName(), this.executionState, newExecutionState);
 
 		// Make sure the reason for a transition to FAILED appears in the log files
 		if (newExecutionState == ExecutionState.FAILED) {
@@ -229,6 +229,13 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			return;
 		}
 
+		if (this.executionState != ExecutionState.RUNNING && this.executionState != ExecutionState.REPLAYING
+			&& this.executionState != ExecutionState.FINISHING) {
+			return;
+		}
+
+		LOG.info((cancel ? "Canceling " : "Killing ") + this.environment.getTaskNameWithIndex());
+
 		if (cancel) {
 			this.isCanceled = true;
 			// Change state
@@ -250,14 +257,8 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 			executingThread.interrupt();
 
-			if (cancel) {
-				if (this.executionState == ExecutionState.CANCELED) {
-					break;
-				}
-			} else {
-				if (this.executionState == ExecutionState.FAILED) {
-					break;
-				}
+			if (!executingThread.isAlive()) {
+				break;
 			}
 
 			try {
@@ -265,6 +266,9 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			} catch (InterruptedException e) {
 				break;
 			}
+
+			LOG.info((cancel == true ? "Canceling " : "Killing ") + this.environment.getTaskName()
+				+ " with state " + this.executionState);
 		}
 	}
 

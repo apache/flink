@@ -28,44 +28,66 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
  * 
  * @author warneke
  */
-public final class UnknownReceiverEvent extends AbstractEvent {
+public final class ReceiverNotFoundEvent extends AbstractEvent {
 
 	/**
-	 * The ID of the unknown receiver.
+	 * The ID of the receiver which could not be found
 	 */
-	private ChannelID unknownReceiverID;
+	private ChannelID receiverID;
+
+	/**
+	 * The sequence number of the envelope this event refers to
+	 */
+	private int sequenceNumber;
 
 	/**
 	 * Constructs a new unknown receiver event.
 	 * 
-	 * @param unknownReceiverID
-	 *        the ID of the unknown receiver
+	 * @param receiverID
+	 *        the ID of the receiver which could not be found
+	 * @param sequenceNumber
+	 *        the sequence number of the envelope this event refers to
 	 */
-	public UnknownReceiverEvent(final ChannelID unknownReceiverID) {
+	public ReceiverNotFoundEvent(final ChannelID receiverID, final int sequenceNumber) {
 
-		if (unknownReceiverID == null) {
+		if (receiverID == null) {
 			throw new IllegalArgumentException("Argument unknownReceiverID must not be null");
 		}
 
-		this.unknownReceiverID = unknownReceiverID;
+		if (sequenceNumber < 0) {
+			throw new IllegalArgumentException("Argument sequenceNumber must be non-negative");
+		}
+
+		this.receiverID = receiverID;
+		this.sequenceNumber = sequenceNumber;
 	}
 
 	/**
 	 * Default constructor for serialization/deserialization.
 	 */
-	public UnknownReceiverEvent() {
+	public ReceiverNotFoundEvent() {
 
-		this.unknownReceiverID = new ChannelID();
+		this.receiverID = new ChannelID();
 	}
 
 	/**
-	 * Returns the ID of the unknown receiver.
+	 * Returns the ID of the receiver which could not be found.
 	 * 
-	 * @return the ID of the unknown receiver
+	 * @return the ID of the receiver which could not be found
 	 */
-	public ChannelID getUnknownReceiverID() {
+	public ChannelID getReceiverID() {
 
-		return this.unknownReceiverID;
+		return this.receiverID;
+	}
+
+	/**
+	 * Returns the sequence number of the envelope this event refers to.
+	 * 
+	 * @return the sequence number of the envelope this event refers to
+	 */
+	public int getSequenceNumber() {
+
+		return this.sequenceNumber;
 	}
 
 	/**
@@ -74,7 +96,8 @@ public final class UnknownReceiverEvent extends AbstractEvent {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
-		this.unknownReceiverID.write(out);
+		this.receiverID.write(out);
+		out.writeInt(this.sequenceNumber);
 	}
 
 	/**
@@ -83,7 +106,8 @@ public final class UnknownReceiverEvent extends AbstractEvent {
 	@Override
 	public void read(final DataInput in) throws IOException {
 
-		this.unknownReceiverID.read(in);
+		this.receiverID.read(in);
+		this.sequenceNumber = in.readInt();
 	}
 
 }

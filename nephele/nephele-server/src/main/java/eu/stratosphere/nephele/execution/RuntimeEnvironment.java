@@ -944,6 +944,17 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	}
 
 	/**
+	 * Returns the name of the task with its index in the subtask group and the total number of subtasks.
+	 * 
+	 * @return the name of the task with its index in the subtask group and the total number of subtasks
+	 */
+	public String getTaskNameWithIndex() {
+
+		return this.taskName + " (" + (getIndexInSubtaskGroup() + 1) + "/"
+			+ getCurrentNumberOfSubtasks() + ")";
+	}
+
+	/**
 	 * Sets the execution observer for this environment.
 	 * 
 	 * @param executionObserver

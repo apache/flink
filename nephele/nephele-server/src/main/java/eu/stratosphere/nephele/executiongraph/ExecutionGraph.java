@@ -1234,7 +1234,7 @@ public class ExecutionGraph implements ExecutionListener {
 			}
 			break;
 		case RUNNING:
-			if (latestStateChange == ExecutionState.CANCELING || latestStateChange == ExecutionState.CANCELED) {
+			if (latestStateChange == ExecutionState.CANCELED) {
 				return InternalJobStatus.CANCELING;
 			}
 			if (latestStateChange == ExecutionState.FAILED) {

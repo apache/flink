@@ -28,6 +28,8 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
@@ -70,8 +72,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints = new ConcurrentHashMap<ExecutionVertexID, RuntimeTaskContext>();
 
 	private final NetworkConnectionManager networkConnectionManager;
-
-	private final RecentlyRemovedChannelIDSet recentlyRemovedChannelIDSet = new RecentlyRemovedChannelIDSet();
 
 	private final ChannelLookupProtocol channelLookupService;
 
@@ -222,9 +222,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		final Environment environment = task.getEnvironment();
 
-		// Mark all channel IDs to be recently removed
-		this.recentlyRemovedChannelIDSet.add(environment);
-
 		Iterator<ChannelID> channelIterator = environment.getOutputChannelIDs().iterator();
 
 		while (channelIterator.hasNext()) {
@@ -290,20 +287,31 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 	}
 
-	private void sendReceiverNotFoundEvent(final JobID jobID, final ChannelID unknownReceiver) {
+	private void sendReceiverNotFoundEvent(final TransferEnvelope envelope, final ChannelID receiver) {
 
-		if (ChannelID.SYSTEM_ID.equals(unknownReceiver)) {
-			LOG.error("Requested to send unknown receiver event from the system, dropping request...");
-			return;
+		if (envelope.getBuffer() == null && envelope.getSequenceNumber() == 0) {
+
+			final EventList eventList = envelope.getEventList();
+			if (eventList.size() == 1) {
+				final AbstractEvent event = eventList.get(0);
+				if (event instanceof ReceiverNotFoundEvent) {
+					LOG.info("Dropping request to send ReceiverNotFoundEvent as response to ReceiverNotFoundEvent");
+					return;
+				}
+			}
 		}
 
-		final TransferEnvelope transferEnvelope = new TransferEnvelope(0, jobID, ChannelID.SYSTEM_ID);
-		final UnknownReceiverEvent unknownReceiverEvent = new UnknownReceiverEvent(unknownReceiver);
+		final JobID jobID = envelope.getJobID();
+
+		final TransferEnvelope transferEnvelope = new TransferEnvelope(0, jobID, receiver);
+
+		final ReceiverNotFoundEvent unknownReceiverEvent = new ReceiverNotFoundEvent(receiver,
+			envelope.getSequenceNumber());
 		transferEnvelope.addEvent(unknownReceiverEvent);
 
-		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, unknownReceiver);
+		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, receiver);
 		if (receiverList == null) {
-			LOG.error("Cannot determine receiver list for source channel ID " + unknownReceiver);
+			LOG.error("Cannot determine receiver list for source channel ID " + receiver);
 			return;
 		}
 
@@ -344,10 +352,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			final ChannelContext cc = this.registeredChannels.get(localReceiver);
 			if (cc == null) {
 
-				if (!this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
-					sendReceiverNotFoundEvent(transferEnvelope.getJobID(), localReceiver);
-				}
-
+				sendReceiverNotFoundEvent(transferEnvelope, localReceiver);
 				recycleBuffer(transferEnvelope);
 				return;
 			}
@@ -374,10 +379,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final ChannelContext cc = this.registeredChannels.get(localReceiver);
 				if (cc == null) {
 
-					if (!this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
-						sendReceiverNotFoundEvent(transferEnvelope.getJobID(), localReceiver);
-					}
-
+					sendReceiverNotFoundEvent(transferEnvelope, localReceiver);
 					continue;
 				}
 
@@ -443,10 +445,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 			final ChannelContext channelContext = this.registeredChannels.get(localReceiver);
 			if (channelContext == null) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Cannot find local receiver " + localReceiver + " for job "
-						+ transferEnvelope.getJobID());
-				}
+				sendReceiverNotFoundEvent(transferEnvelope, localReceiver);
 				continue;
 			}
 			channelContext.queueTransferEnvelope(transferEnvelope);
@@ -481,8 +480,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			try {
 				while (true) {
 
-					final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
+					ConnectionInfoLookupResponse lookupResponse;
+					synchronized (this.channelLookupService) {
+						lookupResponse = this.channelLookupService.lookupConnectionInfo(
 							this.localConnectionInfo, jobID, sourceChannelID);
+					}
 
 					if (lookupResponse.receiverNotFound()) {
 						throw new IOException("Cannot find task(s) waiting for data from source channel with ID "
@@ -500,9 +502,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					}
 				}
 
-				if (receiverList == null) {
-					LOG.error("Receiver list is null for source channel ID " + sourceChannelID);
-				} else {
+				if (receiverList != null) {
+
 					this.receiverCache.put(sourceChannelID, receiverList);
 
 					if (LOG.isDebugEnabled()) {
@@ -607,6 +608,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public BufferProvider getBufferProvider(final JobID jobID, final ChannelID sourceChannelID) throws IOException,
 			InterruptedException {
@@ -623,12 +627,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final ChannelContext cc = this.registeredChannels.get(localReceiver);
 				if (cc == null) {
 
-					if (this.recentlyRemovedChannelIDSet.contains(localReceiver)) {
-						// Use the transit buffer for this purpose, data will be discarded in most cases anyway.
-						return this.transitBufferPool;
-					} else {
-						throw new IOException("Cannot find channel context for local receiver " + localReceiver);
-					}
+					// Use the transit buffer for this purpose, data will be discarded in most cases anyway.
+					return this.transitBufferPool;
 				}
 
 				if (!cc.isInputChannel()) {
@@ -718,14 +718,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		this.networkConnectionManager.registerSpillingQueueWithNetworkConnection(remoteReceivers.get(0), spillingQueue);
 
 		return true;
-	}
-
-	/**
-	 * Triggers the clean-up method of the canceled channel ID set.
-	 */
-	public void cleanUpRecentlyRemovedChannelIDSet() {
-
-		this.recentlyRemovedChannelIDSet.cleanup();
 	}
 
 	/**

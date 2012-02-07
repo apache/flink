@@ -105,12 +105,12 @@ final class ReplayThread extends Thread {
 
 	private void waitForAllOutputBrokerToFinish() throws IOException, InterruptedException {
 
-		while (true) {
+		while (!this.executionObserver.isCanceled()) {
 			boolean finished = true;
 			final Iterator<ReplayOutputBroker> it = this.outputBrokerMap.values().iterator();
 			while (it.hasNext()) {
 
-				if (it.next().hasFinished()) {
+				if (!it.next().hasFinished()) {
 					finished = false;
 				}
 			}
