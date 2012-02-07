@@ -275,7 +275,7 @@ public class ReduceNode extends SingleInputNode {
 					lp = predList.get(0).getLocalProperties();
 	
 					if ((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) 
-						 || gp.isFieldSetUnique(keySet)	){
+						 || isFieldSetUnique(keySet)	){
 						ss = ShipStrategy.FORWARD;
 					} else {
 						ss = ShipStrategy.PARTITION_HASH;
@@ -303,7 +303,7 @@ public class ReduceNode extends SingleInputNode {
 				}
 
 				if (!((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned())
-						|| gp.isFieldSetUnique(keySet))) {
+						|| isFieldSetUnique(keySet))) {
 					// the shipping strategy is fixed to a value that does not leave us with
 					// the necessary properties. this candidate cannot produce a valid child
 					continue;
@@ -320,7 +320,7 @@ public class ReduceNode extends SingleInputNode {
 			}
 			
 			if (localStrategyNeeded) {
-				localStrategyNeeded = !lp.isFieldSetUnique(keySet);
+				localStrategyNeeded = !isFieldSetUnique(keySet);
 			}
 			
 
@@ -367,10 +367,6 @@ public class ReduceNode extends SingleInputNode {
 					++index;
 				}
 			}
-			
-			//add unique properties, they are filtered later on if they do not actually hold
-			gp.addUniqueField((FieldSet)keySet.clone());
-			lp.addUniqueField((FieldSet)keySet.clone());
 			
 			ReduceNode n = new ReduceNode(this, predList, this.input, gp, lp);
 			for(PactConnection cc : n.getInputConnections()) {

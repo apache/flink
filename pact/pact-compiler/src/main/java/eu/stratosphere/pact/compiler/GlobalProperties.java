@@ -16,12 +16,8 @@
 package eu.stratosphere.pact.compiler;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 
 /**
@@ -40,9 +36,6 @@ public final class GlobalProperties implements Cloneable
 
 	private Ordering ordering; // order across all partitions
 
-//	private boolean keyUnique = false; // flag indicating whether the keys are unique
-	private List<FieldSet> uniqueFields;
-
 	// across all partitions
 
 	/**
@@ -51,7 +44,6 @@ public final class GlobalProperties implements Cloneable
 	public GlobalProperties() {
 		partitioning = PartitionProperty.NONE;
 		ordering = null;
-		uniqueFields = null;
 	}
 
 	/**
@@ -64,19 +56,10 @@ public final class GlobalProperties implements Cloneable
 	 * @param keyUnique
 	 *        The flag that indicates, whether the keys are unique.
 	 */
-	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, int[] partitionedFields, List<FieldSet> uniqueFields) {
+	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, int[] partitionedFields) {
 		this.partitioning = partitioning;
 		this.ordering = ordering;
 		this.partitionedFields = partitionedFields;
-		if (uniqueFields != null) {
-			this.uniqueFields = new LinkedList<FieldSet>();
-			for (FieldSet uniqueField : uniqueFields) {
-				this.uniqueFields.add((FieldSet)uniqueField.clone());
-			}
-		}
-		else {
-			this.uniqueFields = null;
-		}
 	}
 
 	
@@ -122,72 +105,13 @@ public final class GlobalProperties implements Cloneable
 		this.ordering = ordering;
 	}
 
-	/**
-	 * Checks whether the key is unique.
-	 * 
-	 * @return The keyUnique property.
-	 */
-	public List<FieldSet> getUniqueFields() {
-		return uniqueFields;
-	}
-
-//	public boolean isFieldUnique(FieldSet fieldSet) {
-//		
-//	}
-	
-	
-	public void setUniqueFields(List<FieldSet> uniqueFields) {
-		this.uniqueFields = uniqueFields;
-	}
-	
-	public void addUniqueField(FieldSet newUniqueField) {
-		if (this.uniqueFields == null) {
-			this.uniqueFields = new LinkedList<FieldSet>();
-		}
-		
-		for (FieldSet uniqueField : this.uniqueFields) {
-			if (newUniqueField.containsAll(uniqueField)) {
-				//we already have a more general unique field in the set
-				return;
-			}
-		}
-		
-		this.uniqueFields.add(newUniqueField);
-	}
-	
-	public boolean isFieldSetUnique(FieldSet fieldSet) {
-		if (fieldSet == null) {
-			return true;
-		}
-		if (this.uniqueFields == null) {
-			return false;
-		}
-		
-		for (FieldSet uniqueField : this.uniqueFields) {
-			if (fieldSet.containsAll(uniqueField)) {
-				return true;
-			}
-		}
-		
-		return false;
-	}
 
 	/**
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
 	public boolean isTrivial() {
-		return partitioning == PartitionProperty.NONE && ordering == null && this.uniqueFields == null;
+		return partitioning == PartitionProperty.NONE && ordering == null;
 	}
-
-	/**
-	 * Sets the flag that indicates whether the key is unique.
-	 * 
-	 * @param keyUnique
-	 *        The keyUnique to set.
-	 */
-//	public void setKeyUnique(boolean keyUnique) {
-//		this.keyUnique = keyUnique;
-//	}
 
 	/**
 	 * This method resets the properties to a state where no properties are given.
@@ -196,47 +120,15 @@ public final class GlobalProperties implements Cloneable
 		this.partitionedFields = null;
 		this.partitioning = PartitionProperty.NONE;
 		this.ordering = null;
-		this.uniqueFields = null;
 	}
 
-//	/**
-//	 * Filters these properties by what can be preserved through the given output contract.
-//	 * 
-//	 * @param contract
-//	 *        The output contract.
-//	 * @return True, if any non-default value is preserved, false otherwise.
-//	 */
-//	public boolean filterByOutputContract(OutputContract contract) {
-//		boolean nonTrivial = false;
-//
-//		// check, if the partitioning survives
-//		if (partitioning == PartitionProperty.HASH_PARTITIONED || partitioning == PartitionProperty.RANGE_PARTITIONED
-//			|| partitioning == PartitionProperty.ANY) {
-//			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
-//				|| contract == OutputContract.SameKeySecond || contract == OutputContract.SuperKey
-//				|| contract == OutputContract.SuperKeyFirst || contract == OutputContract.SuperKeySecond) {
-//				nonTrivial = true;
-//			} else {
-//				partitioning = PartitionProperty.NONE;
-//			}
-//		}
-//
-//		// check, whether the global order is preserved
-//		if (keyOrder != Order.NONE) {
-//			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
-//				|| contract == OutputContract.SameKeySecond) {
-//				nonTrivial = true;
-//			} else {
-//				keyOrder = Order.NONE;
-//			}
-//		}
-//
-//		// check, whether we have key uniqueness
-//		nonTrivial |= (keyUnique = contract == OutputContract.UniqueKey);
-//
-//		return nonTrivial;
-//	}
-	
+	/**
+	 * Filters these properties by what can be preserved through the given output contract.
+	 * 
+	 * @param contract
+	 *        The output contract.
+	 * @return True, if any non-default value is preserved, false otherwise.
+	 */
 	public boolean filterByNodesConstantSet(OptimizerNode node, int input) {
 		
 		//check if partitioning survives
@@ -256,35 +148,6 @@ public final class GlobalProperties implements Cloneable
 				if (node.isFieldKept(input, i) == false) {
 					ordering = ordering.createNewOrderingUpToIndex(i);
 					break;
-				}
-			}
-		}
-		
-		//check whether the uniqueness property is preserved
-		if (this.uniqueFields != null) {
-			
-			if (node.getStubOutCardUpperBound() > 1) {
-				this.uniqueFields = null;
-			}
-			else {
-				Iterator<FieldSet> uniqueFieldIterator = this.uniqueFields.iterator();
-				while (uniqueFieldIterator.hasNext()) {
-					FieldSet uniqueField = uniqueFieldIterator.next();
-					boolean isKept = true;
-					for (Integer field : uniqueField) {
-						if (node.isFieldKept(input, field) == false) {
-							isKept = false;
-							break;
-						}
-					}
-					
-					if (isKept == false) {
-						uniqueFieldIterator.remove();
-					}
-				}
-				
-				if (this.uniqueFields.size() == 0) {
-					this.uniqueFields = null;
 				}
 			}
 		}
@@ -333,7 +196,7 @@ public final class GlobalProperties implements Cloneable
 			for (int i = 0; i < newPartitionedFields.size(); i++) {
 				newPartitionedFieldsArray[i] = newPartitionedFields.get(i);
 			}
-			return new GlobalProperties(newPartitioning, newOrdering, newPartitionedFieldsArray, null);
+			return new GlobalProperties(newPartitioning, newOrdering, newPartitionedFieldsArray);
 		}
 		
 	}
@@ -383,43 +246,7 @@ public final class GlobalProperties implements Cloneable
 			return false;
 		}
 		
-		if (this.uniqueFields != null) {
-			if (other.uniqueFields == null) {
-				return false;
-			}
-			
-			for (FieldSet requiredUniqueField : this.uniqueFields) {
-				boolean found = false;
-				for (FieldSet actualUniqueField : other.uniqueFields) {
-					if (actualUniqueField.containsAll(requiredUniqueField)) {
-						found = true;
-						break;
-					}
-				}
-				
-				if (found == false) {
-					return false;
-				}
-			}
-		}
-		
 		return true;
-
-//		// check the order
-//		// if this one request no order, everything is good
-//		if (this.keyOrder != Order.NONE) {
-//			if (this.keyOrder == Order.ANY) {
-//				// if any order is requested, any not NONE order is good
-//				if (other.keyOrder == Order.NONE) {
-//					return false;
-//				}
-//			} else if (other.keyOrder != this.keyOrder) {
-//				// the orders must be equal
-//				return false;
-//			}
-//		}
-
-//		return this.keyUnique == other.keyUnique;
 	}
 
 	// ------------------------------------------------------------------------
@@ -435,9 +262,6 @@ public final class GlobalProperties implements Cloneable
 		result = prime * result + ((partitioning == null) ? 0 : partitioning.hashCode());
 		result = prime * result + ((partitionedFields == null) ? 0 : partitionedFields.hashCode());
 		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
-		result = prime * result + ((uniqueFields == null) ? 0 : uniqueFields.hashCode());
-//		result = prime * result + (keyUnique ? 1231 : 1237);
-
 		return result;
 	}
 
@@ -457,7 +281,6 @@ public final class GlobalProperties implements Cloneable
 
 		GlobalProperties other = (GlobalProperties) obj;
 		if ((ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
-				&& (uniqueFields == other.getUniqueFields() || (uniqueFields != null && uniqueFields.equals(other.getUniqueFields())))
 				&& partitioning == other.getPartitioning() && partitionedFields.equals(other.getPartitionedFields())) {
 			return true;
 		} else {
@@ -483,12 +306,6 @@ public final class GlobalProperties implements Cloneable
 		GlobalProperties newProps = (GlobalProperties) super.clone();
 		if (this.ordering != null) {
 			newProps.ordering = this.ordering.clone();	
-		}
-		if (newProps.uniqueFields != null) {
-			newProps.uniqueFields = new LinkedList<FieldSet>();
-			for (FieldSet uniqueField : this.uniqueFields) {
-				newProps.uniqueFields.add((FieldSet)uniqueField.clone());
-			}
 		}
 		
 		return newProps;

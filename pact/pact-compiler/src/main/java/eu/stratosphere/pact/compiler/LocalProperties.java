@@ -16,9 +16,6 @@
 package eu.stratosphere.pact.compiler;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
@@ -37,9 +34,6 @@ public final class LocalProperties implements Cloneable {
 	
 	private boolean grouped = false; // flag indicating whether the keys are grouped
 
-//	private boolean keyUnique = false; // flag indicating whether the keys are unique
-	private List<FieldSet> uniqueFields = null;
-
 	/**
 	 * Default constructor. Initiates the order to NONE and the uniqueness to false.
 	 */
@@ -47,16 +41,10 @@ public final class LocalProperties implements Cloneable {
 	}
 	
 	
-	public LocalProperties(boolean grouped, FieldSet groupedFields, Ordering ordering, List<FieldSet> uniqueFields) {
+	public LocalProperties(boolean grouped, FieldSet groupedFields, Ordering ordering) {
 		this.grouped = grouped;
 		this.groupedFields = groupedFields;
 		this.ordering = ordering;
-		if (uniqueFields != null) {
-			this.uniqueFields = new LinkedList<FieldSet>();
-			for (FieldSet uniqueField : uniqueFields) {
-				this.uniqueFields.add((FieldSet)uniqueField.clone());
-			}
-		}
 	}
 
 
@@ -79,24 +67,6 @@ public final class LocalProperties implements Cloneable {
 		this.ordering = ordering;
 	}
 
-//	/**
-//	 * Checks whether the key is unique.
-//	 * 
-//	 * @return The keyUnique property.
-//	 */
-//	public boolean isKeyUnique() {
-//		return keyUnique;
-//	}
-
-//	/**
-//	 * Sets the flag that indicates whether the key is unique.
-//	 * 
-//	 * @param keyUnique
-//	 *        The uniqueness flag to set.
-//	 */
-//	public void setKeyUnique(boolean keyUnique) {
-//		this.keyUnique = keyUnique;
-//	}
 
 	/**
 	 * Checks whether the keys are grouped.
@@ -111,46 +81,6 @@ public final class LocalProperties implements Cloneable {
 		return this.groupedFields;
 	}
 	
-	public List<FieldSet> getUniqueFields() {
-		return uniqueFields;
-	}
-	
-	public void setUniqueFields(List<FieldSet> uniqueFields) {
-		this.uniqueFields = uniqueFields;
-	}
-	
-	public void addUniqueField(FieldSet newUniqueField) {
-		if (this.uniqueFields == null) {
-			this.uniqueFields = new LinkedList<FieldSet>();
-		}
-		
-		for (FieldSet uniqueField : this.uniqueFields) {
-			if (newUniqueField.containsAll(uniqueField)) {
-				//we already have a more general unique field in the set
-				return;
-			}
-		}
-		
-		this.uniqueFields.add(newUniqueField);
-	}
-	
-	public boolean isFieldSetUnique(FieldSet fieldSet) {
-		if (fieldSet == null) {
-			return true;
-		}
-		if (this.uniqueFields == null) {
-			return false;
-		}
-		
-		for (FieldSet uniqueField : this.uniqueFields) {
-			if (fieldSet.containsAll(uniqueField)) {
-				return true;
-			}
-		}
-		
-		return false;
-	}
-
 
 	/**
 	 * Sets the flag that indicates whether the keys are grouped.
@@ -170,58 +100,25 @@ public final class LocalProperties implements Cloneable {
 	 */
 	public boolean isTrivial() {
 		//return keyOrder == Order.NONE && !keyUnique && !keysGrouped;
-		return !this.grouped && ordering == null && this.uniqueFields == null;
+		return !this.grouped && ordering == null;
 	}
 
 	/**
 	 * This method resets the local properties to a state where no properties are given.
 	 */
 	public void reset() {
-//		this.keyOrder = Order.NONE;
-//		this.keyUnique = false;
-//		this.keysGrouped = false;
 		this.ordering = null;
 		this.grouped = false;
 		this.groupedFields = null;
-		this.uniqueFields = null;
 	}
 
-//	/**
-//	 * Filters these properties by what can be preserved through the given output contract.
-//	 * 
-//	 * @param contract
-//	 *        The output contract.
-//	 * @return True, if any non-default value is preserved, false otherwise.
-//	 */
-//	public boolean filterByOutputContract(OutputContract contract) {
-//		boolean nonTrivial = false;
-//
-//		// check, whether the local order is preserved
-//		if (keyOrder != Order.NONE) {
-//			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
-//				|| contract == OutputContract.SameKeySecond) {
-//				nonTrivial = true;
-//			} else {
-//				keyOrder = Order.NONE;
-//			}
-//		}
-//
-//		// check, whether the local key grouping is preserved
-//		if (keysGrouped) {
-//			if (contract == OutputContract.SameKey || contract == OutputContract.SameKeyFirst
-//				|| contract == OutputContract.SameKeySecond) {
-//				nonTrivial = true;
-//			} else {
-//				keysGrouped = false;
-//			}
-//		}
-//
-//		// check, whether we have key uniqueness
-//		nonTrivial |= (keyUnique = (contract == OutputContract.UniqueKey));
-//
-//		return nonTrivial;
-//	}
-	
+	/**
+	 * Filters these properties by what can be preserved through the given output contract.
+	 * 
+	 * @param contract
+	 *        The output contract.
+	 * @return True, if any non-default value is preserved, false otherwise.
+	 */
 	public boolean filterByNodesConstantSet(OptimizerNode node, int input) {
 		
 		// check, whether the local order is preserved
@@ -248,35 +145,6 @@ public final class LocalProperties implements Cloneable {
 		else {
 			this.grouped = false;
 		}
-		
-		
-		//check whether the uniqueness property is preserved
-		if (this.uniqueFields != null) {
-			if (node.getStubOutCardUpperBound() > 1) {
-				this.uniqueFields = null;
-			}
-			else {
-				Iterator<FieldSet> uniqueFieldIterator = this.uniqueFields.iterator();
-				while (uniqueFieldIterator.hasNext()) {
-					FieldSet uniqueField = uniqueFieldIterator.next();
-					boolean isKept = true;
-					for (Integer field : uniqueField) {
-						if (node.isFieldKept(input, field) == false) {
-							isKept = false;
-							break;
-						}
-					}
-					
-					if (isKept == false) {
-						uniqueFieldIterator.remove();
-					}
-				}
-				
-				if (this.uniqueFields.size() == 0) {
-					this.uniqueFields = null;
-				}
-			}
-		} 	
 		
 		return !isTrivial();
 		
@@ -325,7 +193,7 @@ public final class LocalProperties implements Cloneable {
 			return null;	
 		}
 		else {
-			return new LocalProperties(newGrouped, newGroupedFields, newOrdering, null);
+			return new LocalProperties(newGrouped, newGroupedFields, newOrdering);
 		}
 	}
 
@@ -370,27 +238,6 @@ public final class LocalProperties implements Cloneable {
 			return false;
 		}
 		
-		
-		if (this.uniqueFields != null) {
-			if (other.uniqueFields == null) {
-				return false;
-			}
-			
-			for (FieldSet requiredUniqueField : this.uniqueFields) {
-				boolean found = false;
-				for (FieldSet actualUniqueField : other.uniqueFields) {
-					if (actualUniqueField.containsAll(requiredUniqueField)) {
-						found = true;
-						break;
-					}
-				}
-				
-				if (found == false) {
-					return false;
-				}
-			}
-		}
-		
 		return true;
 	}
 
@@ -406,7 +253,6 @@ public final class LocalProperties implements Cloneable {
 		int result = 1;
 		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
 		result = prime * result + ((groupedFields == null) ? 0 : groupedFields.hashCode());
-		result = prime * result + ((uniqueFields == null) ? 0 : uniqueFields.hashCode());
 		result = prime * result + (grouped ? 1231 : 1237);
 		
 
@@ -430,7 +276,6 @@ public final class LocalProperties implements Cloneable {
 		LocalProperties other = (LocalProperties) obj;
 		if ((ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
 			&& this.grouped == other.grouped 
-			&& (uniqueFields == other.getUniqueFields() || (uniqueFields != null && uniqueFields.equals(other.getUniqueFields())))
 			&& (this.groupedFields == other.groupedFields || (this.groupedFields != null && this.groupedFields.equals(other.groupedFields)))) {
 			return true;
 		} else {
@@ -462,12 +307,6 @@ public final class LocalProperties implements Cloneable {
 		}
 		if (this.groupedFields != null) {
 			newProps.groupedFields = (FieldSet) this.groupedFields.clone();	
-		}
-		if (newProps.uniqueFields != null) {
-			newProps.uniqueFields = new LinkedList<FieldSet>();
-			for (FieldSet uniqueField : this.uniqueFields) {
-				newProps.uniqueFields.add((FieldSet)uniqueField.clone());
-			}
 		}
 		return newProps;
 	}

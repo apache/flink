@@ -18,7 +18,6 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -870,20 +869,6 @@ public class MatchNode extends TwoInputNode {
 			}
 			outLp.setGrouped(grouped, new FieldSet(keyColumns1));
 		}
-		
-		if (gp1.getUniqueFields() != null) {
-			if (gp2.isFieldSetUnique(new FieldSet(keyColumns2))) {
-				List<FieldSet> localUniqueFields = new LinkedList<FieldSet>();
-				List<FieldSet> globalUniqueFields = new LinkedList<FieldSet>();
-				for (FieldSet uniqueField : gp1.getUniqueFields()) {
-					localUniqueFields.add((FieldSet)uniqueField.clone());
-					globalUniqueFields.add((FieldSet)uniqueField.clone());
-				}
-				outGp.setUniqueFields(globalUniqueFields);
-				outLp.setUniqueFields(localUniqueFields);
-				
-			}
-		}
 				
 		// create a new reduce node for this input
 		MatchNode n = new MatchNode(this, preds1, preds2, this.input1, this.input2, outGp, outLp);
@@ -928,20 +913,6 @@ public class MatchNode extends TwoInputNode {
 				outLp.setOrdering(null);	
 			}
 			outLp.setGrouped(grouped, new FieldSet(keyColumns2));
-		}
-		
-		if (gp2.getUniqueFields() != null) {
-			if (gp1.isFieldSetUnique(new FieldSet(keyColumns1))) {
-				List<FieldSet> localUniqueFields = new LinkedList<FieldSet>();
-				List<FieldSet> globalUniqueFields = new LinkedList<FieldSet>();
-				for (FieldSet uniqueField : gp2.getUniqueFields()) {
-					localUniqueFields.add((FieldSet)uniqueField.clone());
-					globalUniqueFields.add((FieldSet)uniqueField.clone());
-				}
-				outGp.setUniqueFields(globalUniqueFields);
-				outLp.setUniqueFields(localUniqueFields);
-				
-			}
 		}
 				
 		// create a new reduce node for this input

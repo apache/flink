@@ -228,7 +228,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.stubOutCardLB = toClone.stubOutCardLB;
 		this.stubOutCardUB = toClone.stubOutCardUB;
 		this.addSet = toClone.addSet;
-		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length); 
+		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length);
+		
+		if (toClone.uniqueFields != null && toClone.uniqueFields.size() > 0) {
+			for (FieldSet uniqueField : toClone.uniqueFields) {
+				this.uniqueFields.add((FieldSet)uniqueField.clone());
+			}
+		}
 
 		// check, if this node branches. if yes, this candidate must be associated with
 		// the branching template node.
@@ -886,56 +892,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 	
 
-//	/**
-//	 * Utility method that gets the output contract declared on a user function.
-//	 * 
-//	 * @return The <tt>OutputContract</tt> enum for the declared output contract, or <tt>OutputContract.None</tt>,
-//	 *         if none is declared.
-//	 * @throws CompilerException
-//	 *         Thrown, if more than one output contract is declared on the user function.
-//	 */
-//	protected OutputContract determineOutputContractFromStub() {
-//		Class<? extends Annotation> clazz = null;
-//		OutputContract oc = null;
-//
-//		// Check whether output Contact is overridden
-//		if (getPactContract() instanceof OutputContractConfigurable) {
-//			clazz = ((OutputContractConfigurable) getPactContract()).getOutputContract();
-//			if (clazz != null) {
-//				OutputContract cc = OutputContract.getOutputContract(clazz);
-//				if (cc != null) {
-//					oc = cc;
-//				}
-//			}
-//		}
-//
-//		// get all annotations on the class
-//		if (oc == null) {
-//			Class<?> stubClass = getPactContract().getUserCodeClass();
-//			Annotation[] allAnnotations = stubClass.getAnnotations();
-//
-//			// for each annotation, see if it is a output contract annotation
-//			for (int i = 0; i < allAnnotations.length; i++) {
-//				clazz = allAnnotations[i].annotationType();
-//
-//				// check if this is an output contract annotation
-//				if (clazz.getEnclosingClass().equals(eu.stratosphere.pact.common.contract.OutputContract.class)) {
-//					OutputContract cc = OutputContract.getOutputContract(clazz);
-//					if (cc != null) {
-//						if (oc == null) {
-//							oc = cc;
-//						} else {
-//							throw new CompilerException("Contract '" + pactContract.getName() + "' ("
-//								+ getPactType().name() + ") has more than one output contract.");
-//						}
-//					}
-//				}
-//			}
-//		}
-//
-//		return oc == null ? OutputContract.None : oc;
-//	}
-
 	/**
 	 * Takes the given list of plans that are candidates for this node in the final plan and retains for each distinct
 	 * set of interesting properties only the cheapest plan.
@@ -1489,6 +1445,24 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	public Set<FieldSet> getUniqueFields() {
 		return uniqueFields;
+	}
+	
+	public boolean isFieldSetUnique(FieldSet fieldSet) {
+
+		if (fieldSet == null || fieldSet.size() == 0) {
+			return true;
+		}
+		
+		if (this.uniqueFields == null) {
+			return false;
+		}
+		
+		for (FieldSet uniqueField : this.uniqueFields) {
+			if (fieldSet.containsAll(uniqueField)) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 }

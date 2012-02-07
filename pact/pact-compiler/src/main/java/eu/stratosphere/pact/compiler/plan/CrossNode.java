@@ -417,9 +417,6 @@ public class CrossNode extends TwoInputNode {
 			lp = new LocalProperties();
 		}
 		
-		gp.setUniqueFields(null);
-		lp.setUniqueFields(null);
-		
 		if (keepFirstOrder == false) {
 			gp.setOrdering(null);
 			lp.setOrdering(null);
@@ -453,9 +450,6 @@ public class CrossNode extends TwoInputNode {
 			gp = new GlobalProperties();
 			lp = new LocalProperties();
 		}
-		
-		gp.setUniqueFields(null);
-		lp.setUniqueFields(null);
 		
 		if (keepSecondOrder == false) {
 			gp.setOrdering(null);

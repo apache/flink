@@ -327,16 +327,16 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 				addProperty(jsonString, "Partitioned on", Arrays.toString(gp.getPartitionedFields()), false);
 			}
 			if (gp.getOrdering() != null) {
-				addProperty(jsonString, "Key-Order", gp.getOrdering().toString(), false);	
+				addProperty(jsonString, "Order", gp.getOrdering().toString(), false);	
 			}
 			else {
-				addProperty(jsonString, "Key-Order", "(none)", false);
+				addProperty(jsonString, "Order", "(none)", false);
 			}
-			if (gp.getUniqueFields() == null) {
-				addProperty(jsonString, "Key-Uniqueness", "not unique", false);
+			if (visitable.getUniqueFields() == null || visitable.getUniqueFields().size() == 0) {
+				addProperty(jsonString, "Uniqueness", "not unique", false);
 			}
 			else {
-				addProperty(jsonString, "Key-Uniqueness", gp.getUniqueFields().toString(), false);	
+				addProperty(jsonString, "Uniqueness", visitable.getUniqueFields().toString(), false);	
 			}
 
 			this.jsonString.append("\n\t\t]");
@@ -354,11 +354,11 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			else {
 				addProperty(jsonString, "Order", "(none)", true);
 			}
-			if (lp.getUniqueFields() == null) {
-				addProperty(jsonString, "Key-Uniqueness", "not unique", false);
+			if (visitable.getUniqueFields() == null || visitable.getUniqueFields().size() == 0) {
+				addProperty(jsonString, "Uniqueness", "not unique", false);
 			}
 			else {
-				addProperty(jsonString, "Key-Uniqueness", lp.getUniqueFields().toString(), false);	
+				addProperty(jsonString, "Uniqueness", visitable.getUniqueFields().toString(), false);	
 			}
 			addProperty(jsonString, "Grouping", lp.isGrouped() ? "grouped": "not grouped", false);
 			if (lp.isGrouped()) {
@@ -380,7 +380,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 				estCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
 			}
 		}
-		addProperty(jsonString, "Est. Cardinality", estCardinality, false);	
+		addProperty(jsonString, "Est. Cardinality/fields", estCardinality, false);	
 		addProperty(jsonString, "Est. Output Size", visitable.getEstimatedOutputSize() == -1 ? "(unknown)"
 			: formatNumber(visitable.getEstimatedOutputSize(), "B"), false);
 
