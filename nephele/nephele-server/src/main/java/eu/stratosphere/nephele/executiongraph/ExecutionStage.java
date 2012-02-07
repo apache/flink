@@ -408,15 +408,14 @@ public final class ExecutionStage {
 						.getConnectedChannelID());
 
 					boolean recurse = false;
-					
-					if(!alreadyVisited.contains(connectedVertex)) {
+
+					if (!alreadyVisited.contains(connectedVertex)) {
 						recurse = true;
-					} else if(channelType == ChannelType.INMEMORY && !pipeline.equals(connectedVertex.getExecutionPipeline())) {
-						recurse = true;
-					}
-					
-					if (channelType == ChannelType.INMEMORY) {
+					} else if (channelType == ChannelType.INMEMORY
+						&& !pipeline.equals(connectedVertex.getExecutionPipeline())) {
+
 						connectedVertex.setExecutionPipeline(pipeline);
+						recurse = true;
 					}
 
 					if (recurse) {
@@ -439,15 +438,14 @@ public final class ExecutionStage {
 						.getConnectedChannelID());
 
 					boolean recurse = false;
-					
-					if(!alreadyVisited.contains(connectedVertex)) {
+
+					if (!alreadyVisited.contains(connectedVertex)) {
 						recurse = true;
-					} else if(channelType == ChannelType.INMEMORY && !pipeline.equals(connectedVertex.getExecutionPipeline())) {
-						recurse = true;
-					}
-					
-					if (channelType == ChannelType.INMEMORY) {
+					} else if (channelType == ChannelType.INMEMORY
+						&& !pipeline.equals(connectedVertex.getExecutionPipeline())) {
+
 						connectedVertex.setExecutionPipeline(pipeline);
+						recurse = true;
 					}
 
 					if (recurse) {
