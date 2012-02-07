@@ -1525,7 +1525,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
 		for (Integer uniqueField : uniqueSet) {
-			if (isFieldKept(uniqueField, input) == false) {
+			if (isFieldKept(input, uniqueField) == false) {
 				return false;
 			}
 		}
