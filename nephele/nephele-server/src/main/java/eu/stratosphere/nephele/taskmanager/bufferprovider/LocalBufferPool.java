@@ -264,7 +264,7 @@ public final class LocalBufferPool implements BufferProvider {
 		synchronized (this.buffers) {
 
 			if (this.isDestroyed) {
-				this.globalBufferPool.releaseGlobalBuffer(this.buffers.poll());
+				this.globalBufferPool.releaseGlobalBuffer(byteBuffer);
 				this.requestedNumberOfBuffers--;
 				return;
 			}
