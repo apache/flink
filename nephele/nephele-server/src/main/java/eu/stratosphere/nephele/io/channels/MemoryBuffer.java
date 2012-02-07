@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import eu.stratosphere.nephele.io.channels.InternalBuffer;
@@ -32,14 +31,14 @@ public class MemoryBuffer implements InternalBuffer {
 
 	private final AtomicBoolean writeMode = new AtomicBoolean(true);
 
-	MemoryBuffer(final int bufferSize, final ByteBuffer byteBuffer, final Queue<ByteBuffer> queueForRecycledBuffers) {
+	MemoryBuffer(final int bufferSize, final ByteBuffer byteBuffer, final MemoryBufferPoolConnector bufferPoolConnector) {
 
 		if (bufferSize > byteBuffer.capacity()) {
 			throw new IllegalArgumentException("Requested buffer size is " + bufferSize
 				+ ", but provided byte buffer only has a capacity of " + byteBuffer.capacity());
 		}
 
-		this.bufferRecycler = new MemoryBufferRecycler(byteBuffer, queueForRecycledBuffers);
+		this.bufferRecycler = new MemoryBufferRecycler(byteBuffer, bufferPoolConnector);
 
 		this.byteBuffer = byteBuffer;
 		this.byteBuffer.position(0);

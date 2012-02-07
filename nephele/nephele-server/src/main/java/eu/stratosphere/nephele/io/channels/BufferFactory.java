@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.io.channels;
 
 import java.nio.ByteBuffer;
-import java.util.Queue;
 
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
@@ -35,14 +34,14 @@ public abstract class BufferFactory {
 			final AbstractID ownerID, final FileBufferManager fileBufferManager) {
 
 		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, fileID, offset, ownerID, fileBufferManager);
-		
+
 		return new Buffer(internalBuffer);
 	}
 
 	public static Buffer createFromMemory(final int bufferSize, final ByteBuffer byteBuffer,
-			final Queue<ByteBuffer> queueForRecycledBuffers) {
+			final MemoryBufferPoolConnector bufferPoolConnector) {
 
-		final InternalBuffer internalBuffer = new MemoryBuffer(bufferSize, byteBuffer, queueForRecycledBuffers);
+		final InternalBuffer internalBuffer = new MemoryBuffer(bufferSize, byteBuffer, bufferPoolConnector);
 		return new Buffer(internalBuffer);
 	}
 }

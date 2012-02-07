@@ -58,6 +58,9 @@ public final class ForwardingBarrier implements OutputChannelForwarder {
 		return false;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void processEvent(final AbstractEvent event) {
 

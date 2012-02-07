@@ -30,9 +30,11 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
+import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
@@ -170,6 +172,10 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 		AbstractEvent eventToSend = null;
 
+		if (ReceiverNotFoundEvent.isReceiverNotFoundEvent(transferEnvelope)) {
+			return;
+		}
+
 		synchronized (this.queuedEnvelopes) {
 
 			if (this.destroyCalled) {
@@ -193,8 +199,13 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 					}
 				} else {
 
-					// Tell the sender that we are expecting an envelope with a higher sequence number
-					eventToSend = new UnexpectedEnvelopeEvent(expectedSequenceNumber);
+					eventToSend = lookForCloseEvent(transferEnvelope);
+					if (eventToSend == null) {
+
+						// Tell the sender to skip all envelopes until the next envelope that could potentially include
+						// the close event
+						eventToSend = new UnexpectedEnvelopeEvent(expectedSequenceNumber - 1);
+					}
 				}
 
 				LOG.warn("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
@@ -222,6 +233,35 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 				LOG.error(StringUtils.stringifyException(e));
 			}
 		}
+	}
+
+	/**
+	 * Looks for a {@link ByteBufferedChannelCloseEvent} in the given envelope returns it if it is found.
+	 * 
+	 * @param envelope
+	 *        the envelope to be inspected
+	 * @return the found {@link ByteBufferedChannelCloseEvent} or <code>null</code> if no such event was stored inside
+	 *         the given envelope
+	 */
+	private AbstractEvent lookForCloseEvent(final TransferEnvelope envelope) {
+
+		final EventList eventList = envelope.getEventList();
+		if (eventList == null) {
+			return null;
+		}
+
+		final Iterator<AbstractEvent> it = eventList.iterator();
+		while (it.hasNext()) {
+
+			final AbstractEvent event = it.next();
+
+			if (event instanceof ByteBufferedChannelCloseEvent) {
+				LOG.info("Found close event in unexpected envelope");
+				return event;
+			}
+		}
+
+		return null;
 	}
 
 	@Override

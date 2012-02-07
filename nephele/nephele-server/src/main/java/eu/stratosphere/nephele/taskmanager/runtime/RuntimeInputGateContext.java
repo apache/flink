@@ -39,13 +39,10 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final InputGate<? extends Record> inputGate;
 
-	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+	RuntimeInputGateContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final InputGate<? extends Record> inputGate) {
 
-		final String poolOwnerName = (taskName == null ? "Unknown task" : taskName + " (Input Gate "
-			+ inputGate.getIndex() + ")");
-
-		this.localBufferPool = new LocalBufferPool(poolOwnerName, 1, false);
+		this.localBufferPool = new LocalBufferPool(1, false);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.inputGate = inputGate;
@@ -117,7 +114,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 	@Override
 	public void clearLocalBufferPool() {
 
-		this.localBufferPool.clear();
+		this.localBufferPool.destroy();
 	}
 
 	/**

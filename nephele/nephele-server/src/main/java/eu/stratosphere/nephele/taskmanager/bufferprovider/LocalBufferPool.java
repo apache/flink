@@ -25,12 +25,30 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
+import eu.stratosphere.nephele.io.channels.MemoryBufferPoolConnector;
 
 public final class LocalBufferPool implements BufferProvider {
 
-	private final static Log LOG = LogFactory.getLog(LocalBufferPool.class);
+	private static final class LocalBufferPoolConnector implements MemoryBufferPoolConnector {
 
-	private final String ownerName;
+		private final LocalBufferPool localBufferPool;
+
+		private LocalBufferPoolConnector(final LocalBufferPool localBufferPool) {
+			this.localBufferPool = localBufferPool;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void recycle(final ByteBuffer byteBuffer) {
+
+			this.localBufferPool.recycleBuffer(byteBuffer);
+		}
+
+	}
+
+	private final static Log LOG = LogFactory.getLog(LocalBufferPool.class);
 
 	private final GlobalBufferPool globalBufferPool;
 
@@ -44,23 +62,27 @@ public final class LocalBufferPool implements BufferProvider {
 
 	private boolean asynchronousEventOccurred = false;
 
+	private boolean isDestroyed = false;
+
 	private final AsynchronousEventListener eventListener;
 
 	private final Queue<ByteBuffer> buffers = new ArrayDeque<ByteBuffer>();
 
-	public LocalBufferPool(final String ownerName, final int designatedNumberOfBuffers, final boolean isShared,
+	private final LocalBufferPoolConnector bufferPoolConnector;
+
+	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared,
 			final AsynchronousEventListener eventListener) {
 
-		this.ownerName = ownerName;
 		this.globalBufferPool = GlobalBufferPool.getInstance();
 		this.maximumBufferSize = this.globalBufferPool.getMaximumBufferSize();
 		this.designatedNumberOfBuffers = designatedNumberOfBuffers;
 		this.isShared = isShared;
 		this.eventListener = eventListener;
+		this.bufferPoolConnector = new LocalBufferPoolConnector(this);
 	}
 
-	public LocalBufferPool(final String ownerName, final int designatedNumberOfBuffers, final boolean isShared) {
-		this(ownerName, designatedNumberOfBuffers, isShared, null);
+	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared) {
+		this(designatedNumberOfBuffers, isShared, null);
 	}
 
 	/**
@@ -142,7 +164,7 @@ public final class LocalBufferPool implements BufferProvider {
 
 				if (!async) {
 					final ByteBuffer byteBuffer = this.buffers.poll();
-					return BufferFactory.createFromMemory(minimumSizeOfBuffer, byteBuffer, this.buffers);
+					return BufferFactory.createFromMemory(minimumSizeOfBuffer, byteBuffer, this.bufferPoolConnector);
 				}
 			}
 
@@ -188,15 +210,16 @@ public final class LocalBufferPool implements BufferProvider {
 		}
 	}
 
-	public void clear() {
+	public void destroy() {
 
 		synchronized (this.buffers) {
 
-			if (this.requestedNumberOfBuffers != this.buffers.size()) {
-
-				LOG.error(this.ownerName + ": Requested number of buffers is " + this.requestedNumberOfBuffers
-					+ ", but only " + this.buffers.size() + " buffers in local pool");
+			if (this.isDestroyed) {
+				LOG.error("destroy is called on LocalBufferPool multiple times");
+				return;
 			}
+
+			this.isDestroyed = true;
 
 			while (!this.buffers.isEmpty()) {
 				this.globalBufferPool.releaseGlobalBuffer(this.buffers.poll());
@@ -204,7 +227,6 @@ public final class LocalBufferPool implements BufferProvider {
 
 			this.requestedNumberOfBuffers = 0;
 		}
-
 	}
 
 	/**
@@ -235,6 +257,22 @@ public final class LocalBufferPool implements BufferProvider {
 		synchronized (this.buffers) {
 			return this.requestedNumberOfBuffers;
 		}
+	}
+
+	private void recycleBuffer(final ByteBuffer byteBuffer) {
+
+		synchronized (this.buffers) {
+
+			if (this.isDestroyed) {
+				this.globalBufferPool.releaseGlobalBuffer(byteBuffer);
+				this.requestedNumberOfBuffers--;
+				return;
+			}
+
+			this.buffers.add(byteBuffer);
+			this.buffers.notify();
+		}
+
 	}
 
 	/**

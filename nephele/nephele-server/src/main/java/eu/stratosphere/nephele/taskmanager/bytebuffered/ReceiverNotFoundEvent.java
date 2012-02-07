@@ -20,7 +20,10 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**
  * An unknown receiver event can be used by the framework to inform a sender task that the delivery of a
@@ -29,6 +32,11 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
  * @author warneke
  */
 public final class ReceiverNotFoundEvent extends AbstractEvent {
+
+	/**
+	 * The sequence number that will be set for transfer envelopes which contain the receiver not found event.
+	 */
+	private static final int RECEIVER_NOT_FOUND_SEQUENCE_NUMBER = 0;
 
 	/**
 	 * The ID of the receiver which could not be found
@@ -110,4 +118,59 @@ public final class ReceiverNotFoundEvent extends AbstractEvent {
 		this.sequenceNumber = in.readInt();
 	}
 
+	/**
+	 * Creates a transfer envelope which only contains a ReceiverNotFoundEvent.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the event relates to.
+	 * @param receiver
+	 *        the channel ID of the receiver that could not be found
+	 * @param sequenceNumber
+	 *        the sequence number of the transfer envelope which caused the creation of this event
+	 * @return a transfer envelope which only contains a ReceiverNotFoundEvent
+	 */
+	public static TransferEnvelope createEnvelopeWithEvent(final JobID jobID, final ChannelID receiver,
+			final int sequenceNumber) {
+
+		final TransferEnvelope transferEnvelope = new TransferEnvelope(RECEIVER_NOT_FOUND_SEQUENCE_NUMBER, jobID,
+			receiver);
+
+		final ReceiverNotFoundEvent unknownReceiverEvent = new ReceiverNotFoundEvent(receiver, sequenceNumber);
+		transferEnvelope.addEvent(unknownReceiverEvent);
+
+		return transferEnvelope;
+	}
+
+	/**
+	 * Checks if the given envelope only contains a ReceiverNotFoundEvent.
+	 * 
+	 * @param transferEnvelope
+	 *        the envelope to be checked
+	 * @return <code>true</code> if the envelope only contains a ReceiverNotFoundEvent, <code>false</code> otherwise
+	 */
+	public static boolean isReceiverNotFoundEvent(final TransferEnvelope transferEnvelope) {
+
+		if (transferEnvelope.getSequenceNumber() != RECEIVER_NOT_FOUND_SEQUENCE_NUMBER) {
+			return false;
+		}
+
+		if (transferEnvelope.getBuffer() != null) {
+			return false;
+		}
+
+		final EventList eventList = transferEnvelope.getEventList();
+		if (eventList == null) {
+			return false;
+		}
+
+		if (eventList.size() != 1) {
+			return false;
+		}
+
+		if (!(eventList.get(0) instanceof ReceiverNotFoundEvent)) {
+			return false;
+		}
+
+		return true;
+	}
 }
