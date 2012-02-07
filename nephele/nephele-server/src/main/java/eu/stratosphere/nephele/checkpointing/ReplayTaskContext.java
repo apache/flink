@@ -34,8 +34,8 @@ final class ReplayTaskContext implements TaskContext {
 	 */
 	@Override
 	public InputGateContext createInputGateContext(final GateID gateID) {
-		// TODO Auto-generated method stub
-		return null;
+
+		return new ReplayInputGateContext(gateID);
 	}
 
 	/**

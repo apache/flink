@@ -26,7 +26,7 @@ final class ReplayInputGateContext extends AbstractReplayGateContext implements 
 	 */
 	@Override
 	public LocalBufferPoolOwner getLocalBufferPoolOwner() {
-		// TODO Auto-generated method stub
+
 		return null;
 	}
 
