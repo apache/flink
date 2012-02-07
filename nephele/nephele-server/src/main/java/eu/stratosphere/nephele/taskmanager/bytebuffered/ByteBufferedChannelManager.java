@@ -28,8 +28,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
@@ -289,25 +287,16 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private void sendReceiverNotFoundEvent(final TransferEnvelope envelope, final ChannelID receiver) {
 
-		if (envelope.getBuffer() == null && envelope.getSequenceNumber() == 0) {
+		if (ReceiverNotFoundEvent.isReceiverNotFoundEvent(envelope)) {
 
-			final EventList eventList = envelope.getEventList();
-			if (eventList.size() == 1) {
-				final AbstractEvent event = eventList.get(0);
-				if (event instanceof ReceiverNotFoundEvent) {
-					LOG.info("Dropping request to send ReceiverNotFoundEvent as response to ReceiverNotFoundEvent");
-					return;
-				}
-			}
+			LOG.info("Dropping request to send ReceiverNotFoundEvent as response to ReceiverNotFoundEvent");
+			return;
 		}
 
 		final JobID jobID = envelope.getJobID();
 
-		final TransferEnvelope transferEnvelope = new TransferEnvelope(0, jobID, receiver);
-
-		final ReceiverNotFoundEvent unknownReceiverEvent = new ReceiverNotFoundEvent(receiver,
+		final TransferEnvelope transferEnvelope = ReceiverNotFoundEvent.createEnvelopeWithEvent(jobID, receiver,
 			envelope.getSequenceNumber());
-		transferEnvelope.addEvent(unknownReceiverEvent);
 
 		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, receiver);
 		if (receiverList == null) {
