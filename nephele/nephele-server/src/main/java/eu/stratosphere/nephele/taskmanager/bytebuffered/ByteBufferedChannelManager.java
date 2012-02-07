@@ -105,7 +105,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		GlobalBufferPool.getInstance();
 
 		// Initialize the transit buffer pool
-		this.transitBufferPool = new LocalBufferPool("Transit buffer pool", 128, true);
+		this.transitBufferPool = new LocalBufferPool(128, true);
 
 		this.networkConnectionManager = new NetworkConnectionManager(this,
 			localInstanceConnectionInfo.getAddress(), localInstanceConnectionInfo.getDataPort());

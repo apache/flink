@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.io.channels;
 
 import java.nio.ByteBuffer;
-import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -43,68 +43,53 @@ public final class MemoryBufferRecycler {
 	private final ByteBuffer originalBuffer;
 
 	/**
-	 * The queue to which the byte buffer shall be appended after all copies have been processed.
+	 * The connection to the pool from which the byte buffer has originally been taken.
 	 */
-	private final Queue<ByteBuffer> queueForRecycledBuffers;
+	private final MemoryBufferPoolConnector bufferPoolConnector;
 
 	/**
 	 * The number of memory buffer objects which may still access the physical buffer.
 	 */
-	private int referenceCounter = 1;
-
-	/**
-	 * Stores if the physical buffer has already been recycled.
-	 */
-	private boolean bufferAlreadyRecycled = false;
+	private final AtomicInteger referenceCounter = new AtomicInteger(1);
 
 	/**
 	 * Constructs a new memory buffer recycler.
 	 * 
 	 * @param originalBuffer
 	 *        the original byte buffer
-	 * @param queueForRecycledBuffers
-	 *        the queue to append the buffer for recycling
+	 * @param bufferPoolConnector
+	 *        the connection to the pool from which the byte buffer has originally been taken
 	 */
-	MemoryBufferRecycler(final ByteBuffer originalBuffer, final Queue<ByteBuffer> queueForRecycledBuffers) {
+	MemoryBufferRecycler(final ByteBuffer originalBuffer, final MemoryBufferPoolConnector bufferPoolConnector) {
 
 		this.originalBuffer = originalBuffer;
-		this.queueForRecycledBuffers = queueForRecycledBuffers;
+		this.bufferPoolConnector = bufferPoolConnector;
 	}
 
 	/**
 	 * Increases the number of references to the physical buffer by one.
 	 */
-	synchronized void increaseReferenceCounter() {
+	void increaseReferenceCounter() {
 
-		if (this.bufferAlreadyRecycled) {
-			LOG.error("increaseReferenceCounter called although buffer has already been recycled");
+		if (this.referenceCounter.getAndIncrement() == 0) {
+			LOG.error("Increasing reference counter from 0 to 1");
 		}
-
-		++this.referenceCounter;
 	}
 
 	/**
 	 * Decreases the number of references to the physical buffer by one. If the number of references becomes zero the
 	 * physical buffer is recycled.
 	 */
-	synchronized void decreaseReferenceCounter() {
+	void decreaseReferenceCounter() {
 
-		if (this.bufferAlreadyRecycled) {
-			LOG.error("decreaseReferenceCounter called although buffer has already been recycled");
-		}
-
-		--this.referenceCounter;
-		
-		if (this.referenceCounter <= 0) {
+		final int val = this.referenceCounter.decrementAndGet();
+		if (val == 0) {
 
 			this.originalBuffer.clear();
-			
-			synchronized (this.queueForRecycledBuffers) {
-				this.queueForRecycledBuffers.add(this.originalBuffer);
-				this.queueForRecycledBuffers.notify();
-			}
-			
-			this.bufferAlreadyRecycled = true;
+			this.bufferPoolConnector.recycle(this.originalBuffer);
+
+		} else if (val < 0) {
+			LOG.error("reference counter is negative");
 		}
 	}
 }

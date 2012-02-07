@@ -60,10 +60,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	RuntimeTaskContext(final RuntimeTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints) {
 
-		final String poolOwnerName = (task.getEnvironment().getTaskName() == null ? "Unkown task" : task
-			.getEnvironment().getTaskName());
-
-		this.localBufferPool = new LocalBufferPool(poolOwnerName, 1, false, this);
+		this.localBufferPool = new LocalBufferPool(1, false, this);
 		this.task = task;
 
 		final RuntimeEnvironment environment = task.getRuntimeEnvironment();
@@ -134,7 +131,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	public void clearLocalBufferPool() {
 
 		// Clear the buffer cache
-		this.localBufferPool.clear();
+		this.localBufferPool.destroy();
 	}
 
 	/**
@@ -273,8 +270,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalStateException("Cannot find input gate with ID " + gateID);
 		}
 
-		return new RuntimeInputGateContext(this.task.getEnvironment().getTaskName(), this.transferEnvelopeDispatcher,
-			inputGate);
+		return new RuntimeInputGateContext(this.transferEnvelopeDispatcher, inputGate);
 	}
 
 	/**
