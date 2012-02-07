@@ -801,7 +801,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			if (this.getUniqueFields() != null) {
 				for (FieldSet uniqueFieldSet : this.uniqueFields) {
 					if (this.estimatedCardinality.get(uniqueFieldSet) == null) {
-						this.estimatedCardinality.put(uniqueFieldSet, 1L);
+						this.estimatedCardinality.put(uniqueFieldSet, this.estimatedNumRecords);
 					}
 				}
 			}
@@ -825,7 +825,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 					}
 					
 					FieldSet fieldSet = new FieldSet(keyColumns);
-					if (estimatedCardinality.get(fieldSet) != null) {
+					if (estimatedCardinality.get(fieldSet) == null) {
 						estimatedCardinality.put(fieldSet, estimatedKeyCardinality);	
 					}
 				}
@@ -1476,10 +1476,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			AbstractPact<?> abstractPact = (AbstractPact<?>) contract;
 			keyColumns = abstractPact.getKeyColumnNumbers(input);
 			if (keyColumns != null) {
+				if (keyColumns.length == 0) {
+					return null;
+				}
+				
 				for (int keyColumn : keyColumns) {
 					if (isFieldKept(input, keyColumn) == false) {
-						keyColumns = null;
-						break;	
+						return null;	
 					}
 				}
 			}
