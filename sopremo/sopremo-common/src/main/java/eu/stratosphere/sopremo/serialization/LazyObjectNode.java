@@ -30,8 +30,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.NullNode;
-import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
@@ -71,7 +70,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
-		this.record.read(in);
+		throw new UnsupportedOperationException("Use other ObjectNode Implementation instead");
 	}
 
 	/*
@@ -80,7 +79,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		this.record.write(out);
+		throw new UnsupportedOperationException("Use other ObjectNode Implementation instead");
 
 	}
 
@@ -153,10 +152,17 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 		if (fieldInSchema(index)) {
 			this.record.setField(index, value);
 		} else {
-			((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
-				JsonNodeWrapper.class))).put(fieldName, value);
+			((IObjectNode) getOtherField()).put(fieldName, value);
 		}
 		return this;
+	}
+
+	/**
+	 * @return
+	 */
+	private IJsonNode getOtherField() {
+		return SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize(),
+			JsonNodeWrapper.class));
 	}
 
 	/*
@@ -169,8 +175,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 		if (fieldInSchema(index)) {
 			return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
 		} else {
-			return ((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
-				JsonNodeWrapper.class))).get(fieldName);
+			return ((IObjectNode) getOtherField()).get(fieldName);
 		}
 	}
 
@@ -191,11 +196,10 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 		int index = this.schema.hasMapping(fieldName);
 		if (fieldInSchema(index)) {
 			IJsonNode node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
-			this.record.setField(index, NullNode.getInstance());
+			this.record.setField(index, MissingNode.getInstance());
 			return node;
 		} else {
-			return ((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
-				JsonNodeWrapper.class))).remove(fieldName);
+			return ((IObjectNode) getOtherField()).remove(fieldName);
 		}
 	}
 
@@ -206,10 +210,9 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public IObjectNode removeAll() {
 		for (int i = 0; i < this.schema.getMappingSize(); i++) {
-			this.record.setField(i, NullNode.getInstance());
+			this.record.setField(i, MissingNode.getInstance());
 		}
-		((IObjectNode) SopremoUtil
-			.unwrap(this.record.getField(this.schema.getMappingSize() + 1, JsonNodeWrapper.class))).removeAll();
+		((IObjectNode) getOtherField()).removeAll();
 		return this;
 	}
 
@@ -252,8 +255,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public Iterator<String> getFieldNames() {
 		return new ConcatenatingIterator<String>(this.schema.getMappings().iterator(),
-			((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
-				JsonNodeWrapper.class))).getFieldNames());
+			((IObjectNode) getOtherField()).getFieldNames());
 	}
 
 	/*
@@ -263,8 +265,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public Iterator<Entry<String, IJsonNode>> iterator() {
 		
-		Iterator<Entry<String, IJsonNode>> iterator2 = ((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
-			JsonNodeWrapper.class))).iterator();
+		Iterator<Entry<String, IJsonNode>> iterator2 = ((IObjectNode) getOtherField()).iterator();
 		Iterator<Entry<String, IJsonNode>> iterator1 = new AbstractIterator<Map.Entry<String,IJsonNode>>() {
 
 			int lastIndex = 0;
@@ -294,9 +295,14 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 */
 	@Override
 	public int size() {
-		final IObjectNode others = (IObjectNode) SopremoUtil.unwrap(this.record.getField(
-			this.schema.getMappingSize() + 1, JsonNodeWrapper.class));
-		return this.schema.getMappingSize() + others.size();
+		final IObjectNode others = (IObjectNode) getOtherField();
+		//we have to manually iterate over our record to get his size
+		//because there is a difference between NullNode and MissingNode
+		int count = 0;
+		for(int i=0; i < this.schema.getMappingSize(); i++){
+			//TODO XXX
+		}
+		return count + others.size();
 	}
 
 }

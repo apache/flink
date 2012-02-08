@@ -15,7 +15,9 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 public class ObjectNode extends JsonNode implements IObjectNode {
 
 	/**
-	 * 
+	 * @author Michael Hopstock
+	 * @author Tommy Neubert
+	 *
 	 */
 	private static final long serialVersionUID = 222657144282059523L;
 

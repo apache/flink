@@ -23,7 +23,8 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
- * @author strato
+ * @author Michael Hopstock
+ * @author Tommy Neubert
  *
  */
 public interface IJsonNode extends Serializable, Value, Key, Cloneable{

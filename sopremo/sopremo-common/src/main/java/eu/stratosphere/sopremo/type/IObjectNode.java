@@ -19,7 +19,8 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 /**
- * @author strato
+ * @author Michael Hopstock
+ * @author Tommy Neubert
  *
  */
 public interface IObjectNode extends IJsonNode, Iterable<Entry<String, IJsonNode>>{
