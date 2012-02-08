@@ -20,7 +20,7 @@ public class ObjectSchema implements Schema {
 	 */
 	private static final long serialVersionUID = 4037447354469753483L;
 
-	List<String> mapping = new ArrayList<String>();
+	private List<String> mapping = new ArrayList<String>();
 	
 	@Override
 	public Class<? extends Value>[] getPactSchema() {	
@@ -33,8 +33,20 @@ public class ObjectSchema implements Schema {
 		return schema;
 	}
 	
+	public List<String> getMappings(){
+		return this.mapping;
+	}
+	
 	public void setMappings(String... schema) {
 		this.mapping = Arrays.asList(schema);
+	}
+	
+	public int hasMapping(String key){
+		return this.mapping.indexOf(key);
+	}
+	
+	public int getMappingSize(){
+		return this.mapping.size();
 	}
 
 	@Override

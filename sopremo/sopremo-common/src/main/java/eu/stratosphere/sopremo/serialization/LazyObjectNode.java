@@ -17,145 +17,286 @@ package eu.stratosphere.sopremo.serialization;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.AbstractMap;
+import java.util.AbstractSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
+import eu.stratosphere.util.AbstractIterator;
+import eu.stratosphere.util.ConcatenatingIterator;
 
 /**
  * @author Michael Hopstock
  * @author Tommy Neubert
- *
  */
-public class LazyObjectNode extends JsonNode implements IObjectNode{
+public class LazyObjectNode extends JsonNode implements IObjectNode {
 
-	/* (non-Javadoc)
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5777496928208571589L;
+
+	protected PactRecord record;
+
+	protected ObjectSchema schema;
+
+	public LazyObjectNode(PactRecord record, ObjectSchema schema) {
+		this.record = record;
+		this.schema = schema;
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#getType()
 	 */
 	@Override
 	public Type getType() {
-		// TODO auto generated method stub
-		return null;
+		return Type.ObjectNode;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#read(java.io.DataInput)
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
-		// TODO auto generated method stub
-		
+		this.record.read(in);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#write(java.io.DataOutput)
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		// TODO auto generated method stub
-		
+		this.record.write(out);
+
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#getJavaValue()
 	 */
 	@Override
-	public Object getJavaValue() {
-		// TODO auto generated method stub
-		return null;
+	public PactRecord getJavaValue() {
+		return this.record;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#compareToSameType(eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
 	public int compareToSameType(IJsonNode other) {
-		// TODO auto generated method stub
+		final LazyObjectNode node = (LazyObjectNode) other;
+		final Iterator<Entry<String, IJsonNode>> entries1 = this.iterator(), entries2 = node.iterator();
+
+		while (entries1.hasNext() && entries2.hasNext()) {
+			final Entry<String, IJsonNode> entry1 = entries1.next(), entry2 = entries2.next();
+			final int keyComparison = entry1.getKey().compareTo(entry2.getKey());
+			if (keyComparison != 0)
+				return keyComparison;
+
+			final int valueComparison = entry1.getValue().compareTo(node.get(entry1.getKey()));
+			if (valueComparison != 0)
+				return valueComparison;
+		}
+
+		if (!entries1.hasNext())
+			return entries2.hasNext() ? -1 : 0;
+		if (!entries2.hasNext())
+			return 1;
 		return 0;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#toString(java.lang.StringBuilder)
 	 */
 	@Override
 	public StringBuilder toString(StringBuilder sb) {
-		// TODO auto generated method stub
-		return null;
+		sb.append('{');
+
+		int count = 0;
+		for (final Map.Entry<String, IJsonNode> en : this) {
+			if (count > 0)
+				sb.append(',');
+			++count;
+
+			TextNode.appendQuoted(sb, en.getKey());
+			sb.append(':');
+			en.getValue().toString(sb);
+		}
+
+		sb.append('}');
+		return sb;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#put(java.lang.String, eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
 	public IObjectNode put(String fieldName, IJsonNode value) {
-		// TODO auto generated method stub
-		return null;
+		int index = this.schema.hasMapping(fieldName);
+		if (fieldInSchema(index)) {
+			this.record.setField(index, value);
+		} else {
+			((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
+				JsonNodeWrapper.class))).put(fieldName, value);
+		}
+		return this;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#get(java.lang.String)
 	 */
 	@Override
 	public IJsonNode get(String fieldName) {
-		// TODO auto generated method stub
-		return null;
+		int index = this.schema.hasMapping(fieldName);
+		if (fieldInSchema(index)) {
+			return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
+		} else {
+			return ((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
+				JsonNodeWrapper.class))).get(fieldName);
+		}
 	}
 
-	/* (non-Javadoc)
+	/**
+	 * @param index
+	 * @return
+	 */
+	private boolean fieldInSchema(int index) {
+		return index != -1;
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#remove(java.lang.String)
 	 */
 	@Override
 	public IJsonNode remove(String fieldName) {
-		// TODO auto generated method stub
-		return null;
+		int index = this.schema.hasMapping(fieldName);
+		if (fieldInSchema(index)) {
+			IJsonNode node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
+			this.record.setField(index, NullNode.getInstance());
+			return node;
+		} else {
+			return ((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
+				JsonNodeWrapper.class))).remove(fieldName);
+		}
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#removeAll()
 	 */
 	@Override
 	public IObjectNode removeAll() {
-		// TODO auto generated method stub
-		return null;
+		for (int i = 0; i < this.schema.getMappingSize(); i++) {
+			this.record.setField(i, NullNode.getInstance());
+		}
+		((IObjectNode) SopremoUtil
+			.unwrap(this.record.getField(this.schema.getMappingSize() + 1, JsonNodeWrapper.class))).removeAll();
+		return this;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#getEntries()
 	 */
 	@Override
 	public Set<Entry<String, IJsonNode>> getEntries() {
-		// TODO auto generated method stub
-		return null;
+		return new AbstractSet<Entry<String, IJsonNode>>() {
+
+			@Override
+			public Iterator<Entry<String, IJsonNode>> iterator() {
+				return LazyObjectNode.this.iterator();
+			}
+
+			@Override
+			public int size() {
+				return LazyObjectNode.this.size();
+			}
+		};
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#putAll(eu.stratosphere.sopremo.type.JsonObject)
 	 */
 	@Override
 	public IObjectNode putAll(IObjectNode jsonNode) {
-		// TODO auto generated method stub
-		return null;
+		for ( Entry<String, IJsonNode>entry : jsonNode){
+			this.put(entry.getKey(), entry.getValue());
+		}
+		return this;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#getFieldNames()
 	 */
 	@Override
 	public Iterator<String> getFieldNames() {
-		// TODO auto generated method stub
-		return null;
+		return new ConcatenatingIterator<String>(this.schema.getMappings().iterator(),
+			((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
+				JsonNodeWrapper.class))).getFieldNames());
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#iterator()
+	 */
+	@Override
+	public Iterator<Entry<String, IJsonNode>> iterator() {
+		
+		Iterator<Entry<String, IJsonNode>> iterator2 = ((IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize() + 1,
+			JsonNodeWrapper.class))).iterator();
+		Iterator<Entry<String, IJsonNode>> iterator1 = new AbstractIterator<Map.Entry<String,IJsonNode>>() {
+
+			int lastIndex = 0;
+			
+			@Override
+			protected Entry<String, IJsonNode> loadNext() {
+				if(this.lastIndex >= LazyObjectNode.this.schema.getMappingSize()){
+					return noMoreElements();
+				}
+				
+				String key = LazyObjectNode.this.schema.getMappings().get(this.lastIndex);
+				IJsonNode value = SopremoUtil.unwrap(LazyObjectNode.this.record.getField(this.lastIndex, JsonNodeWrapper.class));
+				
+				this.lastIndex++;
+				
+				return new AbstractMap.SimpleEntry<String, IJsonNode>(key, value);
+			}
+		};
+		
+		
+		return new ConcatenatingIterator<Map.Entry<String,IJsonNode>>(iterator1, iterator2);
+				
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.JsonObject#getFields()
+	 * @see eu.stratosphere.sopremo.type.IObjectNode#size()
 	 */
 	@Override
-	public Iterator<Entry<String, IJsonNode>> getFields() {
-		// TODO auto generated method stub
-		return null;
+	public int size() {
+		final IObjectNode others = (IObjectNode) SopremoUtil.unwrap(this.record.getField(
+			this.schema.getMappingSize() + 1, JsonNodeWrapper.class));
+		return this.schema.getMappingSize() + others.size();
 	}
 
 }

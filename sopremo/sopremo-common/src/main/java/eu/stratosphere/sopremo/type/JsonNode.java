@@ -3,10 +3,8 @@ package eu.stratosphere.sopremo.type;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.Serializable;
 
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
 public abstract class JsonNode implements IJsonNode {
 

@@ -22,7 +22,7 @@ import java.util.Map.Entry;
  * @author strato
  *
  */
-public interface IObjectNode extends IJsonNode{
+public interface IObjectNode extends IJsonNode, Iterable<Entry<String, IJsonNode>>{
 
 	public abstract IObjectNode put(final String fieldName, final IJsonNode value);
 
@@ -38,6 +38,8 @@ public interface IObjectNode extends IJsonNode{
 
 	public abstract Iterator<String> getFieldNames();
 
-	public abstract Iterator<Entry<String, IJsonNode>> getFields();
+	public abstract Iterator<Entry<String, IJsonNode>> iterator();
+	
+	public abstract int size();
 
 }

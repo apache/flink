@@ -24,6 +24,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 	 */
 	protected Map<String, IJsonNode> children = new TreeMap<String, IJsonNode>();
 
+	@Override
 	public int size() {
 		return this.children.size();
 	}
@@ -176,10 +177,10 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.JsonObject#getFields()
+	 * @see eu.stratosphere.sopremo.type.JsonObject#iterator()
 	 */
 	@Override
-	public Iterator<Entry<String, IJsonNode>> getFields() {
+	public Iterator<Entry<String, IJsonNode>> iterator() {
 		return this.children.entrySet().iterator();
 	}
 
