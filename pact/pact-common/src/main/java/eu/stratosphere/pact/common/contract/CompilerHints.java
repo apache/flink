@@ -15,8 +15,10 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.pact.common.util.FieldSet;
 
@@ -60,6 +62,8 @@ public class CompilerHints {
 	private Map<FieldSet, Float> avgNumRecordsPerDistinctFields = new HashMap<FieldSet, Float>();
 
 	private Class<? extends DataDistribution> inputDistribution = null;
+	
+	private Set<FieldSet> uniqueFields = null;
 
 	/**
 	 * Default constructor. Creates a new <tt>CompilerHints</tt> object
@@ -201,5 +205,35 @@ public class CompilerHints {
 		}
 		this.avgRecordsEmittedPerStubCall = avgRecordsEmittedPerStubCall;
 	}
+	
+
+	/**
+	 * Gets the FieldSets that are unique
+	 * 
+	 * @return List of FieldSet that are unique
+	 */
+	public Set<FieldSet> getUniqueFields() {
+		return this.uniqueFields;
+	}
+	
+	/**
+	 * Sets a FieldSet to be unique
+	 * 
+	 * @param uniqueFieldSet The unique FieldSet
+	 */
+	public void setUniqueField(FieldSet uniqueFieldSet) {
+		this.uniqueFields = Collections.singleton(uniqueFieldSet);
+	}
+	
+	/**
+	 * Sets multiple FieldSets to be unique
+	 * 
+	 * @param uniqueFieldSets A set of unique FieldSet
+	 */
+	public void setUniqueField(Set<FieldSet> uniqueFieldSets) {
+		this.uniqueFields = uniqueFieldSets;
+	}
+	
+	
 
 }

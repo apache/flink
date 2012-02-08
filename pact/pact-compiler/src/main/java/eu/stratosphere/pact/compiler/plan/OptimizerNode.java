@@ -1280,6 +1280,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.readCopyProjectionAnnotations();
 		this.readWritesAnnotation();
 		this.readOutputCardBoundAnnotation();
+		this.readUniqueFieldsAnnotation();
 	}
 
 	/**
@@ -1297,6 +1298,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			this.explWrites = addSetAnnotation.fields();
 			Arrays.sort(this.explWrites);
 		}
+	}
+	
+	protected void readUniqueFieldsAnnotation() {
+		if (pactContract.getCompilerHints() != null) {
+			Set<FieldSet> uniqueFieldSets = pactContract.getCompilerHints().getUniqueFields();
+			if (uniqueFieldSets != null) {
+				this.uniqueFields.addAll(uniqueFieldSets);
+			}
+		}	
 	}
 
 	/**

@@ -248,6 +248,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		// compiler hints
 		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders.getCompilerHints().setAvgBytesPerRecord(16);
+		orders.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
