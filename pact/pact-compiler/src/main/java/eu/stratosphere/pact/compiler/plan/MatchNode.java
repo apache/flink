@@ -1128,16 +1128,7 @@ public class MatchNode extends TwoInputNode {
 			throw new RuntimeException("Input num out of bounds");
 		}
 		
-		
-		List<PactConnection> otherInConnections = getIncomingConnections().get(1-input);
-		
-		if (otherInConnections.size() != 1) {
-			return false;
-		}
-		
-		PactConnection inConnection = otherInConnections.get(0);
-		
-		Set<FieldSet> uniqueInChild = inConnection.getSourcePact().getUniqueFields();
+		Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(1-input);
 		
 		boolean otherKeyIsUnique = false;
 		for (FieldSet uniqueFields : uniqueInChild) {

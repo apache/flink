@@ -1510,13 +1510,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		List<List<PactConnection>> inConnections = getIncomingConnections();
 		
 		for (int i = 0; i < inConnections.size(); i++) {
-			List<PactConnection> inConnection = inConnections.get(i);
 		
-			if (inConnection.size() != 1) {
-				continue;
-			}
-			
-			Set<FieldSet> uniqueInChild = inConnection.get(0).getSourcePact().getUniqueFields();
+			Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(i);
 			
 			for (FieldSet uniqueField : uniqueInChild) {
 				if (keepsUniqueProperty(uniqueField, i)) {
@@ -1546,21 +1541,30 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return null;
 	}
 	
+	/**
+	 * Gets the FieldSets which are unique in the output of the node 
+	 * 
+	 * @return
+	 */
 	public Set<FieldSet> getUniqueFields() {
 		return uniqueFields;
 	}
 	
-	public boolean isFieldSetUnique(FieldSet fieldSet) {
+	
+	/**
+	 * Checks whether the FieldSet is unique in the input of the node
+	 * 
+	 * @param fieldSet
+	 * @param input
+	 * @return
+	 */
+	public boolean isFieldSetUnique(FieldSet fieldSet, int input) {
 
 		if (fieldSet == null || fieldSet.size() == 0) {
 			return true;
 		}
 		
-		if (this.uniqueFields == null) {
-			return false;
-		}
-		
-		for (FieldSet uniqueField : this.uniqueFields) {
+		for (FieldSet uniqueField : this.getUniqueFieldsForInput(input)) {
 			if (fieldSet.containsAll(uniqueField)) {
 				return true;
 			}
@@ -1568,4 +1572,23 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return false;
 	}
 	
+	/**
+	 * Get the unique FieldSets of the given input
+	 */
+	protected Set<FieldSet> getUniqueFieldsForInput(int input) {
+		
+		if (input < 0 || input >= getIncomingConnections().size()) {
+			return Collections.emptySet();
+		}
+		
+		List<PactConnection> inConnection = getIncomingConnections().get(input);
+		
+		if (inConnection.size() != 1) {
+			return Collections.emptySet();
+		}
+		
+		return inConnection.get(0).getSourcePact().getUniqueFields();
+		
+		
+	}
 }
