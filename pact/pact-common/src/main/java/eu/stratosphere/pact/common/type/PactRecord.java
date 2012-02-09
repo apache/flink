@@ -682,7 +682,7 @@ public final class PactRecord implements Value
 						if (off == NULL_INDICATOR_OFFSET) {
 							offsets[k] = NULL_INDICATOR_OFFSET;
 						} else {
-							end = k;
+							end = sourceForRemainder.offsets[k]+sourceForRemainder.lengths[k];
 							if (begin == -1) {
 								// first non null column in the remainder
 								begin = sourceForRemainder.offsets[k];
@@ -695,7 +695,7 @@ public final class PactRecord implements Value
 					// copy the remaining fields directly as binary
 					if (begin != -1) {
 						this.serializer.write(sourceForRemainder.binaryData, begin, 
-								sourceForRemainder.offsets[end] + sourceForRemainder.lengths[end] - begin);
+								end - begin);
 					}
 					
 					// the lengths can be copied directly

@@ -491,18 +491,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		TaskConfig reduceConfig = new TaskConfig(reduceVertex.getConfiguration());
 		// set user code class
 		reduceConfig.setStubClass(reduceNode.getPactContract().getUserCodeClass());
+		// set contract's key information
+		reduceConfig.setLocalStrategyKeyTypes(0, reduceNode.getPactContract().getKeyColumnNumbers(0));
+		reduceConfig.setLocalStrategyKeyTypes(reduceNode.getPactContract().getKeyClasses());
 
 		// set local strategy
 		switch (reduceNode.getLocalStrategy()) {
 		case SORT:
 			reduceConfig.setLocalStrategy(LocalStrategy.SORT);
-			reduceConfig.setLocalStrategyKeyTypes(0, reduceNode.getPactContract().getKeyColumnNumbers(0));
-			reduceConfig.setLocalStrategyKeyTypes(reduceNode.getPactContract().getKeyClasses());
 			break;
 		case COMBININGSORT:
 			reduceConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
-			reduceConfig.setLocalStrategyKeyTypes(0, reduceNode.getPactContract().getKeyColumnNumbers(0));
-			reduceConfig.setLocalStrategyKeyTypes(reduceNode.getPactContract().getKeyClasses());
 			break;
 		case NONE:
 			reduceConfig.setLocalStrategy(LocalStrategy.NONE);
