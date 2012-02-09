@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -36,13 +35,13 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.util.FieldSetOperations;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -59,25 +58,25 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	final protected List<PactConnection> input2 = new ArrayList<PactConnection>(); // The second input edge
 
-	protected int[] keySet1; // The set of key fields for the first input (order is relevant!)
+	protected FieldSet keySet1; // The set of key fields for the first input (order is relevant!)
 	
-	protected int[] keySet2; // The set of key fields for the second input (order is relevant!)
+	protected FieldSet keySet2; // The set of key fields for the second input (order is relevant!)
 	
 	// ------------- Stub Annotations
 	
-	protected int[] reads1; // set of fields that are read by the stub
+	protected FieldSet reads1; // set of fields that are read by the stub
 	
-	protected int[] explProjections1; // set of fields that are explicitly projected from the first input
+	protected FieldSet explProjections1; // set of fields that are explicitly projected from the first input
 	
-	protected int[] explCopies1; // set of fields that are copied from the first input to output 
+	protected FieldSet explCopies1; // set of fields that are copied from the first input to output 
 	
 	protected ImplicitOperationMode implOpMode1; // implicit operation of the stub on the first input
 	
-	protected int[] reads2; // set of fields that are read by the stub
+	protected FieldSet reads2; // set of fields that are read by the stub
 	
-	protected int[] explProjections2; // set of fields that are explicitly projected from the second input
+	protected FieldSet explProjections2; // set of fields that are explicitly projected from the second input
 	
-	protected int[] explCopies2; // set of fields that are copied from the second input to output 
+	protected FieldSet explCopies2; // set of fields that are copied from the second input to output 
 	
 	protected ImplicitOperationMode implOpMode2; // implicit operation of the stub on the second input
 	
@@ -90,8 +89,8 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		this.keySet1 = pactContract.getKeyColumnNumbers(0);
-		this.keySet2 = pactContract.getKeyColumnNumbers(1);
+		this.keySet1 = new FieldSet(pactContract.getKeyColumnNumbers(0));
+		this.keySet2 = new FieldSet(pactContract.getKeyColumnNumbers(1));
 		
 	}
 
@@ -622,15 +621,13 @@ public abstract class TwoInputNode extends OptimizerNode
 		if(readSet1Annotation == null) {
 			this.reads1 = null;
 		} else {
-			this.reads1 = readSet1Annotation.fields();
-			Arrays.sort(this.reads1);
+			this.reads1 = new FieldSet(readSet1Annotation.fields());
 		}
 		
 		if(readSet2Annotation == null) {
 			this.reads2 = null;
 		} else {
-			this.reads2 = readSet2Annotation.fields();
-			Arrays.sort(this.reads2);
+			this.reads2 = new FieldSet(readSet2Annotation.fields());
 		}
 	}
 	
@@ -658,8 +655,7 @@ public abstract class TwoInputNode extends OptimizerNode
 				ExplicitProjectionsFirst explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjectionsFirst.class);
 				if(explProjAnnotation != null) {
 					this.implOpMode1 = ImplicitOperationMode.Copy;
-					this.explProjections1 = explProjAnnotation.fields();
-					Arrays.sort(this.explProjections1);
+					this.explProjections1 = new FieldSet(explProjAnnotation.fields());
 				}
 				break;
 			case Projection:
@@ -667,8 +663,7 @@ public abstract class TwoInputNode extends OptimizerNode
 				ExplicitCopiesFirst explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopiesFirst.class);
 				if(explCopyjAnnotation != null) {
 					this.implOpMode1 = ImplicitOperationMode.Projection;
-					this.explCopies1 = explCopyjAnnotation.fields();
-					Arrays.sort(this.explCopies1);
+					this.explCopies1 = new FieldSet(explCopyjAnnotation.fields());
 				}
 				break;
 			}
@@ -686,8 +681,7 @@ public abstract class TwoInputNode extends OptimizerNode
 				ExplicitProjectionsSecond explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjectionsSecond.class);
 				if(explProjAnnotation != null) {
 					this.implOpMode2 = ImplicitOperationMode.Copy;
-					this.explProjections2 = explProjAnnotation.fields();
-					Arrays.sort(this.explProjections2);
+					this.explProjections2 = new FieldSet(explProjAnnotation.fields());
 				}
 				break;
 			case Projection:
@@ -695,8 +689,7 @@ public abstract class TwoInputNode extends OptimizerNode
 				ExplicitCopiesSecond explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopiesSecond.class);
 				if(explCopyjAnnotation != null) {
 					this.implOpMode2 = ImplicitOperationMode.Projection;
-					this.explCopies2 = explCopyjAnnotation.fields();
-					Arrays.sort(this.explCopies2);
+					this.explCopies2 = new FieldSet(explCopyjAnnotation.fields());
 				}
 				break;
 			}
@@ -708,14 +701,14 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
 	 */
 	@Override
-	public int[] computeOutputSchema(List<int[]> inputSchemas) {
+	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
 
 		if(inputSchemas.size() != 2)
 			throw new IllegalArgumentException("TwoInputNode requires exactly 2 input nodes");
 		
 		// fields that are kept constant from the inputs
-		int[] constFields1 = null;
-		int[] constFields2 = null;
+		FieldSet constFields1 = null;
+		FieldSet constFields2 = null;
 		
 		// explicit writes must be defined
 		if(explWrites == null) {
@@ -730,7 +723,9 @@ public abstract class TwoInputNode extends OptimizerNode
 			case Copy:
 				// implicit copy -> we keep everything, except for explicit projections
 				if(this.explProjections1 != null) {
-					constFields1 = FieldSetOperations.setDifference(inputSchemas.get(0), this.explProjections1);
+					constFields1 = new FieldSet(inputSchemas.get(0));
+					constFields1.removeAll(this.explProjections1);
+					
 				} else {
 					constFields1 = null;
 				}
@@ -750,7 +745,8 @@ public abstract class TwoInputNode extends OptimizerNode
 			case Copy:
 				// implicit copy -> we keep everything, except for explicit projections
 				if(this.explProjections2 != null) {
-					constFields2 = FieldSetOperations.setDifference(inputSchemas.get(1), this.explProjections2);
+					constFields2 = new FieldSet(inputSchemas.get(1));
+					constFields2.removeAll(this.explProjections2);
 				} else {
 					constFields2 = null;
 				}
@@ -764,9 +760,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		
 		if(constFields1 != null && constFields2 != null) {
 			// output schema are kept fields plus explicit writes
-			return FieldSetOperations.unionSets( 
-				FieldSetOperations.unionSets(constFields1, constFields2),
-				this.explWrites);
+			return new FieldSet(constFields1, new FieldSet(constFields2, this.explWrites));
 		} else {
 			return null;
 		}
@@ -785,7 +779,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 		
 		// collect input schema of node
-		List<int[]> inputSchemas = new ArrayList<int[]>(2);
+		List<FieldSet> inputSchemas = new ArrayList<FieldSet>(2);
 		inputSchemas.add(this.input1.get(0).getSourcePact().getOutputSchema());
 		inputSchemas.add(this.input2.get(0).getSourcePact().getOutputSchema());
 		
@@ -799,7 +793,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
 	 */
 	@Override
-	public boolean isValidInputSchema(int input, int[] inputSchema) {
+	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
 		
 		if(input < 0 || input > 1)
 			throw new IndexOutOfBoundsException("TwoInputNode has inputs 0 or 1");
@@ -807,10 +801,10 @@ public abstract class TwoInputNode extends OptimizerNode
 		// check for first input
 		if(input == 0) {
 			// check that we can perform all required reads on the input schema
-			if(this.reads1 != null && !FieldSetOperations.fullyContained(inputSchema, this.reads1))
+			if(this.reads1 != null && !inputSchema.containsAll(this.reads1))
 				return false;
 			// check that the input schema contains all keys
-			if(this.keySet1 != null && !FieldSetOperations.fullyContained(inputSchema, this.keySet1))
+			if(this.keySet1 != null && !inputSchema.containsAll(this.keySet1))
 				return false;
 			// check that implicit mode is set
 			if(this.implOpMode1 == null) {
@@ -818,19 +812,19 @@ public abstract class TwoInputNode extends OptimizerNode
 			}
 			// check that explicit projections can be performed
 			if(this.implOpMode1 == ImplicitOperationMode.Copy && 
-					!FieldSetOperations.fullyContained(inputSchema, this.explProjections1))
+					!inputSchema.containsAll(this.explProjections1))
 				return false;
 			// check that explicit copies can be performed
 			if(this.implOpMode1 == ImplicitOperationMode.Projection &&
-					!FieldSetOperations.fullyContained(inputSchema, this.explCopies1))
+					!inputSchema.containsAll(this.explCopies1))
 				return false;
 		// check for second input
 		} else {
 			// check that we can perform all required reads on the input schema
-			if(this.reads2 != null && !FieldSetOperations.fullyContained(inputSchema, this.reads2))
+			if(this.reads2 != null && !inputSchema.containsAll(this.reads2))
 				return false;
 			// check that the input schema contains all keys
-			if(this.keySet2 != null && !FieldSetOperations.fullyContained(inputSchema, this.keySet2))
+			if(this.keySet2 != null && !inputSchema.containsAll(this.keySet2))
 				return false;
 			// check that implicit mode is set
 			if(this.implOpMode2 == null) {
@@ -838,11 +832,11 @@ public abstract class TwoInputNode extends OptimizerNode
 			}
 			// check that explicit projections can be performed
 			if(this.implOpMode2 == ImplicitOperationMode.Copy && 
-					!FieldSetOperations.fullyContained(inputSchema, this.explProjections2))
+					!inputSchema.containsAll(this.explProjections2))
 				return false;
 			// check that explicit copies can be performed
 			if(this.implOpMode2 == ImplicitOperationMode.Projection &&
-					!FieldSetOperations.fullyContained(inputSchema, this.explCopies2))
+					!inputSchema.containsAll(this.explCopies2))
 				return false;
 		}
 		
@@ -854,7 +848,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
 	 */
 	@Override
-	public int[] getReadSet(int input) {
+	public FieldSet getReadSet(int input) {
 
 		switch(input) {
 		case 0:
@@ -862,7 +856,7 @@ public abstract class TwoInputNode extends OptimizerNode
 		case 1:
 			return this.reads2;
 		case -1:
-			return FieldSetOperations.unionSets(this.reads1, this.reads2);
+			return new FieldSet(this.reads1, this.reads2);
 		default:
 			throw new IndexOutOfBoundsException();
 		}
@@ -873,14 +867,14 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
 	 */
 	@Override
-	public int[] getWriteSet(int input) {
+	public FieldSet getWriteSet(int input) {
 		
 		if(this.input1.size() > 1 || this.input2.size() > 1) {
 			throw new UnsupportedOperationException("Can not compute output schema for nodes with unioned inputs");
 		}
 		
 		// get the input schemas of the node
-		List<int[]> inputSchemas = new ArrayList<int[]>(2);
+		List<FieldSet> inputSchemas = new ArrayList<FieldSet>(2);
 		inputSchemas.add(this.input1.get(0).getSourcePact().getOutputSchema());
 		inputSchemas.add(this.input2.get(0).getSourcePact().getOutputSchema());
 		
@@ -893,7 +887,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
 	 */
 	@Override
-	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
+	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
 
 		if(inputSchemas.size() != 2)
 			throw new IllegalArgumentException("TwoInputNode requires exactly 2 input nodes");
@@ -906,16 +900,19 @@ public abstract class TwoInputNode extends OptimizerNode
 				case Copy:
 					// implicit copy -> write set are all explicit projections plus writes
 					if(this.explProjections1 != null) {
-						return FieldSetOperations.unionSets(this.explProjections1, this.explWrites);
+						return new FieldSet(this.explProjections1, this.explWrites);
 					} else {
 						return null;
 					}
 				case Projection:
 					// implicit projection -> write set are all input fields minus copied fields plus writes
 					if(this.explCopies1 != null) {
-						return FieldSetOperations.unionSets(
-							FieldSetOperations.setDifference(inputSchemas.get(0), this.explCopies1),
-							this.explWrites);
+						
+						FieldSet writeSet = new FieldSet(inputSchemas.get(0));
+						writeSet.removeAll(this.explCopies1);
+						writeSet.addAll(this.explWrites);
+						return writeSet;
+						
 					} else {
 						return null;
 					}
@@ -932,16 +929,19 @@ public abstract class TwoInputNode extends OptimizerNode
 				case Copy:
 					// implicit copy -> write set are all explicit projections plus writes
 					if(this.explProjections2 != null) {
-						return FieldSetOperations.unionSets(this.explProjections2, this.explWrites);
+						return new FieldSet(this.explProjections2, this.explWrites);
 					} else {
 						return null;
 					}
 				case Projection:
 					// implicit projection -> write set are all input fields minus copied fields plus writes
 					if(this.explCopies2 != null) {
-						return FieldSetOperations.unionSets(
-								FieldSetOperations.setDifference(inputSchemas.get(1), this.explCopies2),
-								this.explWrites);
+						
+						FieldSet writeSet = new FieldSet(inputSchemas.get(1));
+						writeSet.removeAll(this.explCopies2);
+						writeSet.addAll(this.explWrites);
+						return writeSet;
+						
 					} else {
 						return null;
 					}
@@ -956,8 +956,8 @@ public abstract class TwoInputNode extends OptimizerNode
 			if(this.implOpMode1 != null && this.implOpMode2 != null && this.explWrites != null) {
 				
 				// sets of projected (and hence written) fields
-				int[] projection1 = null;
-				int[] projection2 = null;
+				FieldSet projection1 = null;
+				FieldSet projection2 = null;
 				
 				switch(this.implOpMode1) {
 				case Copy:
@@ -967,7 +967,8 @@ public abstract class TwoInputNode extends OptimizerNode
 				case Projection:
 					// implicit projection -> input schema minus copied fields
 					if(this.explCopies1 != null) {
-						projection1 = FieldSetOperations.setDifference(inputSchemas.get(0), this.explCopies1);
+						projection1 = new FieldSet(inputSchemas.get(0));
+						projection1.removeAll(this.explCopies1);
 					} else {
 						return null;
 					}
@@ -984,7 +985,8 @@ public abstract class TwoInputNode extends OptimizerNode
 				case Projection:
 					// implicit projection -> input schema minus copied fields
 					if(this.explCopies2 != null) {
-						projection2 = FieldSetOperations.setDifference(inputSchemas.get(1), this.explCopies2);
+						projection2 = new FieldSet(inputSchemas.get(0));
+						projection2.removeAll(this.explCopies2);
 					} else {
 						return null;
 					}
@@ -995,10 +997,8 @@ public abstract class TwoInputNode extends OptimizerNode
 		
 				if(projection1 != null && projection2 != null) {
 					// write set are projected and explicitly written fields
-					return FieldSetOperations.unionSets(
-							FieldSetOperations.unionSets(projection1, projection2),
-							this.explWrites);
-					
+					return new FieldSet(projection1, new FieldSet(projection2, this.explWrites));
+	
 				} else {
 					return null;
 				}
@@ -1081,7 +1081,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @param input The input for which key fields must be returned.
 	 * @return the key fields of the given input.
 	 */
-	public int[] getInputKeySet(int input) {
+	public FieldSet getInputKeySet(int input) {
 		switch(input) {
 		case 0: return keySet1;
 		case 1: return keySet2;
@@ -1098,13 +1098,12 @@ public abstract class TwoInputNode extends OptimizerNode
 			}
 			switch (implOpMode1) {
 			case Projection:
-				return (explCopies1 == null ? false : 
-					Arrays.binarySearch(explCopies1, fieldNumber) >= 0);
+				return (explCopies1 == null ? false : this.explCopies1.contains(fieldNumber));
 			case Copy:
-				return (explProjections1 == null || explWrites == null ? false :  
-					Arrays.binarySearch(FieldSetOperations.unionSets(explWrites, explProjections1), fieldNumber) < 0);
+				return (explProjections1 == null || explWrites == null ? false : 
+					!(new FieldSet(this.explWrites, this.explProjections1)).contains(fieldNumber));
 			default:
-					return false;
+				return false;
 			}
 		case 1:
 			if (implOpMode2 == null) {
@@ -1112,13 +1111,12 @@ public abstract class TwoInputNode extends OptimizerNode
 			}
 			switch (implOpMode2) {
 			case Projection:
-				return (explCopies2 == null ? false : 
-					Arrays.binarySearch(explCopies2, fieldNumber) >= 0);
+				return (explCopies2 == null ? false : this.explCopies2.contains(fieldNumber));
 			case Copy:
-				return (explProjections2 == null || explWrites == null ? false :  
-					Arrays.binarySearch(FieldSetOperations.unionSets(explWrites, explProjections2), fieldNumber) < 0);
+				return (explProjections2 == null || explWrites == null ? false : 
+					!(new FieldSet(explWrites, explProjections2)).contains(fieldNumber));
 			default:
-					return false;
+				return false;
 			}
 		default:
 			throw new IndexOutOfBoundsException();

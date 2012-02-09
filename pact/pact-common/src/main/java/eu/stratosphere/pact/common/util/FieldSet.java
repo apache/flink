@@ -17,4 +17,13 @@ public class FieldSet  extends HashSet<Integer>{
 		for (int columnIndex : columnIndexes)
 			this.add(columnIndex);
 	}
+	
+	public FieldSet(FieldSet o) {
+		this.addAll(o);
+	}
+	
+	public FieldSet(FieldSet o1, FieldSet o2) {
+		this.addAll(o1);
+		this.addAll(o2);
+	}
 }

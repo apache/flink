@@ -165,7 +165,7 @@ public class CombinerNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
 	 */
 	@Override
-	public int[] getWriteSet(int input) {
+	public FieldSet getWriteSet(int input) {
 		return null;
 	}
 	
@@ -174,7 +174,7 @@ public class CombinerNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
 	 */
 	@Override
-	public int[] getReadSet(int input) {
+	public FieldSet getReadSet(int input) {
 		return null;
 	}
 
@@ -183,7 +183,7 @@ public class CombinerNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
 	 */
 	@Override
-	public int[] computeOutputSchema(List<int[]> inputSchemas) {
+	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
 		return null;
 	}
 
@@ -192,7 +192,7 @@ public class CombinerNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
 	 */
 	@Override
-	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
+	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
 		return null;
 	}
 
@@ -201,7 +201,7 @@ public class CombinerNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
 	 */
 	@Override
-	public boolean isValidInputSchema(int input, int[] inputSchema) {
+	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
 		return false;
 	}
 }

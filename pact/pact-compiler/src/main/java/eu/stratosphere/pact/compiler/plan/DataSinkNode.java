@@ -25,6 +25,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -437,7 +438,7 @@ public class DataSinkNode extends OptimizerNode {
 		// check if the list does not contain any plan. That may happen, if the channels specify
 		// incompatible shipping strategies.
 		if (outputPlans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the DataSource contract '"
+			throw new CompilerException("Could not create a valid plan for the DataSink contract '"
 				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
 		}
 
@@ -501,8 +502,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
 	 */
 	@Override
-	public int[] computeOutputSchema(List<int[]> inputSchemas) {
-		return new int[0];
+	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
+		return new FieldSet();
 	}
 	
 	/*
@@ -510,7 +511,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
 	 */
 	@Override
-	public int[] getWriteSet(int input) {
+	public FieldSet getWriteSet(int input) {
 		return null;
 	}
 
@@ -519,7 +520,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
 	 */
 	@Override
-	public int[] getReadSet(int input) {
+	public FieldSet getReadSet(int input) {
 		return null;
 	}
 
@@ -528,7 +529,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
 	 */
 	@Override
-	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
+	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
 		return null;
 	}
 
@@ -537,7 +538,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
 	 */
 	@Override
-	public boolean isValidInputSchema(int input, int[] inputSchema) {
+	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
 		return false;
 	}
 	

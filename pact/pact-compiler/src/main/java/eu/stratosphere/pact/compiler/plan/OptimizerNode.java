@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -123,9 +122,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
 	
-	protected int[] explWrites; // The set of explicitly written fields
+	protected FieldSet explWrites; // The set of explicitly written fields
 	
-	protected int[] outputSchema; // The fields are present in the output records
+	protected FieldSet outputSchema; // The fields are present in the output records
 	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
@@ -234,7 +233,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 		
 		this.explWrites = toClone.explWrites;
-		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length); 
+		this.outputSchema = toClone.outputSchema == null ? null : (FieldSet)toClone.outputSchema.clone(); 
 
 		// check, if this node branches. if yes, this candidate must be associated with
 		// the branching template node.
@@ -1295,8 +1294,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		if(addSetAnnotation == null) {
 			this.explWrites = null;
 		} else {
-			this.explWrites = addSetAnnotation.fields();
-			Arrays.sort(this.explWrites);
+			this.explWrites = new FieldSet(addSetAnnotation.fields());
 		}
 	}
 	
@@ -1372,7 +1370,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * 
 	 * @return the output schema of the node.
 	 */
-	public int[] getOutputSchema() {
+	public FieldSet getOutputSchema() {
 		return this.outputSchema;
 	}
 	
@@ -1382,7 +1380,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @param inputSchemas A list of input schemas. Element 0 of the list refers to the first input, and so on.
 	 * @return The output schema of the node for the given input schemas.
 	 */
-	public abstract int[] computeOutputSchema(List<int[]> inputSchemas);
+	public abstract FieldSet computeOutputSchema(List<FieldSet> inputSchemas);
 
 	/**
 	 * Determines whether the node can on the given input schema for the specified input.
@@ -1391,7 +1389,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @param inputSchema The input schema for the specified input
 	 * @return True, if the node can operate on the the schema for the specified input, false otherwise.
 	 */
-	public abstract boolean isValidInputSchema(int input, int[] inputSchema);
+	public abstract boolean isValidInputSchema(int input, FieldSet inputSchema);
 	
 	/**
 	 * Gives the read set of the node. 
@@ -1402,7 +1400,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 *  
 	 * @return the read set for the requested input(s)
 	 */
-	public abstract int[] getReadSet(int input);
+	public abstract FieldSet getReadSet(int input);
 	
 	/**
 	 * Give the write set of the node.
@@ -1413,7 +1411,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 *  
 	 * @return the write set for the requested input(s)
 	 */
-	public abstract int[] getWriteSet(int input);
+	public abstract FieldSet getWriteSet(int input);
 	
 	/**
 	 * Give the write set of the node.
@@ -1424,7 +1422,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 *  
 	 * @return the write set for the requested input(s)
 	 */
-	public abstract int[] getWriteSet(int input, List<int[]> inputSchemas);
+	public abstract FieldSet getWriteSet(int input, List<FieldSet> inputSchemas);
 	
 	protected static final class UnclosedBranchDescriptor
 	{

@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -355,7 +354,7 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public int[] computeOutputSchema(List<int[]> inputSchemas) {
+	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
 		
 		if(inputSchemas.size() > 0)
 			throw new IllegalArgumentException("DataSourceNode do not have input nodes");
@@ -370,9 +369,7 @@ public class DataSourceNode extends OptimizerNode
 			if(inputFormat instanceof OutputSchemaProvider) {
 				
 				inputFormat.configure(getPactContract().getParameters());
-				int[] outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
-				Arrays.sort(outputSchema);
-				return outputSchema;
+				return new FieldSet(((OutputSchemaProvider) inputFormat).getOutputSchema());
 			} else {
 				return null;
 			}
@@ -391,7 +388,7 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
 	 */
 	@Override
-	public int[] getReadSet(int input) {
+	public FieldSet getReadSet(int input) {
 		return null;
 	}
 	
@@ -400,7 +397,7 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
 	 */
 	@Override
-	public int[] getWriteSet(int input) {
+	public FieldSet getWriteSet(int input) {
 		return null;
 	}
 
@@ -409,7 +406,7 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
 	 */
 	@Override
-	public int[] getWriteSet(int input, List<int[]> inputSchemas) {
+	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
 		return null;
 	}
 
@@ -418,7 +415,7 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
 	 */
 	@Override
-	public boolean isValidInputSchema(int input, int[] inputSchema) {
+	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
 		return false;
 	}
 }
