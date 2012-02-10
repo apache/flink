@@ -58,7 +58,7 @@ public class JsonNodeWrapper extends JsonNode {
 	 * @param value
 	 *        the value to set
 	 */
-	public void setValue(final JsonNode value) {
+	public void setValue(final IJsonNode value) {
 		if (value == null)
 			throw new NullPointerException("value must not be null");
 

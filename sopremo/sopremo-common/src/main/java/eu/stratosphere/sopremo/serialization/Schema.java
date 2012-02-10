@@ -24,6 +24,7 @@ import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 /**
  * @author Arvid Heise
@@ -51,8 +52,7 @@ public interface Schema extends Serializable {
 		 */
 		private static final long serialVersionUID = 4142913511513235355L;
 
-		private static final Class<? extends Value>[] PactSchema = SchemaUtils.combineSchema(JsonNodeWrapper.class,
-			JsonNodeWrapper.class);
+		private static final Class<? extends Value>[] PactSchema = SchemaUtils.combineSchema(JsonNodeWrapper.class);
 
 		/*
 		 * (non-Javadoc)
@@ -71,10 +71,18 @@ public interface Schema extends Serializable {
 		@Override
 		public PactRecord jsonToRecord(final IJsonNode value, PactRecord target) {
 			if (target == null)
-				target = new PactRecord(2);
-			// target.setField(0, new PactInteger(value.getType().ordinal()));
-			target.setField(0, new JsonNodeWrapper(((ArrayNode) value).get(0)));
-			target.setField(1, new JsonNodeWrapper(((ArrayNode) value).get(1)));
+				target = new PactRecord(new JsonNodeWrapper());
+			else if (target.getNumFields() < 1) {
+				target.setField(0, new JsonNodeWrapper());
+			}
+			target.getField(0, JsonNodeWrapper.class).setValue(value);
+//			if (value instanceof IArrayNode) {
+//				target.getField(0, JsonNodeWrapper.class).setValue(((IArrayNode) value).get(0));
+//				target.getField(1, JsonNodeWrapper.class).setValue(((IArrayNode) value).get(1));
+//			} else {
+//				target.getField(0, JsonNodeWrapper.class).setValue(NullNode.getInstance());
+//				target.getField(1, JsonNodeWrapper.class).setValue(value);
+//			}
 			return target;
 		}
 
@@ -85,9 +93,10 @@ public interface Schema extends Serializable {
 		 */
 		@Override
 		public IJsonNode recordToJson(final PactRecord record, final IJsonNode target) {
-			final JsonNodeWrapper key = record.getField(0, JsonNodeWrapper.class);
-			final JsonNodeWrapper value = record.getField(1, JsonNodeWrapper.class);
-			return JsonUtil.asArray(key.getValue(), value.getValue());
+			return record.getField(0, JsonNodeWrapper.class).getValue();
+//			final JsonNodeWrapper key = record.getField(0, JsonNodeWrapper.class);
+//			final JsonNodeWrapper value = record.getField(1, JsonNodeWrapper.class);
+//			return JsonUtil.asArray(key.getValue(), value.getValue());
 			// IJsonNode.Type type = IJsonNode.Type.values()[record.getField(0, JsonNodeWrapper.class).getValue()];
 			// if (target == null || target.getType() != type)
 			// target = InstantiationUtil.instantiate(type.getClazz(), IJsonNode.class);

@@ -22,14 +22,11 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
-import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -49,7 +46,6 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
-import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -100,7 +96,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		@Override
 		public boolean isCanceled() {
-			return isCanceled;
+			return this.isCanceled;
 		}
 
 		@Override
@@ -123,8 +119,6 @@ class MockTaskManager implements TaskOperationProtocol {
 				return;
 			}
 
-			System.out.println(id + " " + executionState);
-
 			final Runnable taskStateChangeRunnable = new Runnable() {
 				@Override
 				public void run() {
@@ -136,18 +130,18 @@ class MockTaskManager implements TaskOperationProtocol {
 
 			eg.checkAndUpdateJobStatus(executionState);
 
-			finishedTasks.add(environment);
+			MockTaskManager.this.finishedTasks.add(this.environment);
 		}
 
 		/**
 		 * 
 		 */
 		public void cancel() {
-			isCanceled = true;
-			ConcurrentUtil.invokeLater(new Runnable() {				
+			this.isCanceled = true;
+			ConcurrentUtil.invokeLater(new Runnable() {
 				@Override
 				public void run() {
-					executionStateChanged(ExecutionState.CANCELING, null);
+					TaskObserver.this.executionStateChanged(ExecutionState.CANCELING, null);
 				}
 			});
 		}
@@ -172,7 +166,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	private final Map<ExecutionVertexID, Environment> runningTasks = new HashMap<ExecutionVertexID, Environment>();
 
 	private final Map<Environment, TaskObserver> observers = new IdentityHashMap<Environment, TaskObserver>();
-	
+
 	private MockTaskManager() {
 		// 256 mb
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, (int) (MEMORY_SIZE / 10));
@@ -188,15 +182,14 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		Environment environment = this.runningTasks.get(id);
 		final Thread executingThread = environment.getExecutingThread();
-		
-		finishedTasks.add(environment);
+
+		this.finishedTasks.add(environment);
 		this.observers.get(environment).cancel();
 		// Request user code to shut down
 		try {
 			final AbstractInvokable invokable = environment.getInvokable();
-			if (invokable != null) {
+			if (invokable != null)
 				invokable.cancel();
-			}
 			executingThread.interrupt();
 		} catch (Throwable e) {
 			LOG.error(StringUtils.stringifyException(e));
@@ -335,9 +328,9 @@ class MockTaskManager implements TaskOperationProtocol {
 	 * @param executionGraph
 	 */
 	public void cleanupJob(ExecutionGraph executionGraph) {
-		for (Environment task : finishedTasks) {
+		for (Environment task : this.finishedTasks) {
 			this.channelManager.unregisterChannels(task);
-			observers.remove(task);
+			this.observers.remove(task);
 		}
 		this.finishedTasks.clear();
 	}

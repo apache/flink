@@ -200,6 +200,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		public static class Implementation extends SopremoMap {
 			@Override
 			protected void map(final IJsonNode value, final JsonCollector out) {
+				System.out.println(value);
 				out.collect(value);
 			}
 		}
