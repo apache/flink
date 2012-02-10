@@ -33,15 +33,18 @@ import eu.stratosphere.nephele.types.Record;
 
 final class RuntimeInputGateContext implements BufferProvider, InputGateContext, LocalBufferPoolOwner {
 
+	private final String taskName;
+
 	private final LocalBufferPool localBufferPool;
 
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
 	private final InputGate<? extends Record> inputGate;
 
-	RuntimeInputGateContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final InputGate<? extends Record> inputGate) {
 
+		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
@@ -128,7 +131,8 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		final int des = this.localBufferPool.getDesignatedNumberOfBuffers();
 
 		System.out
-			.println("\t\tInputGateContext: " + ava + " available, " + req + " requested, " + des + " designated");
+			.println("\t\tInput gate " + this.inputGate.getIndex() + " of " + this.taskName + ": " + ava
+				+ " available, " + req + " requested, " + des + " designated");
 	}
 
 	/**

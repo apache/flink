@@ -155,8 +155,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		final RuntimeEnvironment environment = this.task.getRuntimeEnvironment();
 
-		System.out.println("\t\t" + environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
-			+ des + " designated");
+		System.out.println("\t\t" + environment.getTaskNameWithIndex() + ": " + ava + " available, " + req
+			+ " requested, " + des + " designated");
 	}
 
 	/**
@@ -270,7 +270,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalStateException("Cannot find input gate with ID " + gateID);
 		}
 
-		return new RuntimeInputGateContext(this.transferEnvelopeDispatcher, inputGate);
+		return new RuntimeInputGateContext(re.getTaskNameWithIndex(), this.transferEnvelopeDispatcher, inputGate);
 	}
 
 	/**
