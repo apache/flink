@@ -143,9 +143,9 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			withPrefabValues(TestRecords.class,
 				new TestRecords().add(PactNull.getInstance(), new PactString("red")),
 				new TestRecords().add(PactNull.getInstance(), new PactString("black"))).
-			withPrefabValues(SopremoTestPlan.ActualOutput.class,
-				new SopremoTestPlan.ActualOutput(0).addValue(0),
-				new SopremoTestPlan.ActualOutput(1).addValue(1)).
+//			withPrefabValues(SopremoTestPlan.ActualOutput.class,
+//				new SopremoTestPlan.ActualOutput(0).addValue(0),
+//				new SopremoTestPlan.ActualOutput(1).addValue(1)).
 			withPrefabValues(SopremoTestPlan.ExpectedOutput.class,
 				new SopremoTestPlan.ExpectedOutput(0).addValue(0),
 				new SopremoTestPlan.ExpectedOutput(1).addValue(1)).
@@ -169,10 +169,10 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			addValue("test3").
 			addValue("test4");
 		testPlan.getExpectedOutputForStream(cartesianProduct.getOutput(0)).
-			add(createArrayNode(new Object[] { null, null }), createArrayNode(new Object[] { "test1", "test3" })).
-			add(createArrayNode(new Object[] { null, null }), createArrayNode(new Object[] { "test1", "test4" })).
-			add(createArrayNode(new Object[] { null, null }), createArrayNode(new Object[] { "test2", "test3" })).
-			add(createArrayNode(new Object[] { null, null }), createArrayNode(new Object[] { "test2", "test4" }));
+			addArray("test1", "test3").
+			addArray("test1", "test4").
+			addArray("test2", "test3").
+			addArray("test2", "test4");
 		testPlan.run();
 	}
 

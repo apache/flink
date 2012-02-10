@@ -18,6 +18,7 @@ package eu.stratosphere.pact.testing;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -122,8 +123,7 @@ class MockTaskManager implements TaskOperationProtocol {
 				return;
 			}
 
-			if (executionState == ExecutionState.CANCELED)
-				isCanceled = true;
+			System.out.println(id + " " + executionState);
 
 			final Runnable taskStateChangeRunnable = new Runnable() {
 				@Override
@@ -137,6 +137,19 @@ class MockTaskManager implements TaskOperationProtocol {
 			eg.checkAndUpdateJobStatus(executionState);
 
 			finishedTasks.add(environment);
+		}
+
+		/**
+		 * 
+		 */
+		public void cancel() {
+			isCanceled = true;
+			ConcurrentUtil.invokeLater(new Runnable() {				
+				@Override
+				public void run() {
+					executionStateChanged(ExecutionState.CANCELING, null);
+				}
+			});
 		}
 	}
 
@@ -158,6 +171,8 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	private final Map<ExecutionVertexID, Environment> runningTasks = new HashMap<ExecutionVertexID, Environment>();
 
+	private final Map<Environment, TaskObserver> observers = new IdentityHashMap<Environment, TaskObserver>();
+	
 	private MockTaskManager() {
 		// 256 mb
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, (int) (MEMORY_SIZE / 10));
@@ -173,8 +188,9 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		Environment environment = this.runningTasks.get(id);
 		final Thread executingThread = environment.getExecutingThread();
-
+		
 		finishedTasks.add(environment);
+		this.observers.get(environment).cancel();
 		// Request user code to shut down
 		try {
 			final AbstractInvokable invokable = environment.getInvokable();
@@ -244,10 +260,12 @@ class MockTaskManager implements TaskOperationProtocol {
 			environment.setMemoryManager(this.memoryManager);
 			environment.setIOManager(this.ioManager);
 
-			environment.setExecutionObserver(new TaskObserver(id, environment));
+			TaskObserver observer = new TaskObserver(id, environment);
+			environment.setExecutionObserver(observer);
 
 			this.channelManager.registerChannels(environment);
 			this.runningTasks.put(id, environment);
+			this.observers.put(environment, observer);
 		}
 
 		for (final TaskSubmissionWrapper tsw : tasks) {
@@ -271,10 +289,12 @@ class MockTaskManager implements TaskOperationProtocol {
 		// Register task manager components in environment
 		environment.setMemoryManager(this.memoryManager);
 		environment.setIOManager(this.ioManager);
-		environment.setExecutionObserver(new TaskObserver(id, environment));
+		TaskObserver observer = new TaskObserver(id, environment);
+		environment.setExecutionObserver(observer);
 
 		this.channelManager.registerChannels(environment);
 		this.runningTasks.put(id, environment);
+		this.observers.put(environment, observer);
 
 		final Thread thread = environment.getExecutingThread();
 		thread.start();
@@ -315,8 +335,10 @@ class MockTaskManager implements TaskOperationProtocol {
 	 * @param executionGraph
 	 */
 	public void cleanupJob(ExecutionGraph executionGraph) {
-		for (Environment task : finishedTasks) 
+		for (Environment task : finishedTasks) {
 			this.channelManager.unregisterChannels(task);
+			observers.remove(task);
+		}
 		this.finishedTasks.clear();
 	}
 }

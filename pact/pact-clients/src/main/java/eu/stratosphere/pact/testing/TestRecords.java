@@ -84,13 +84,10 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  */
 public class TestRecords implements Closeable, Iterable<PactRecord> {
 	private static final class TestPairsReader implements MutableObjectIterator<PactRecord> {
-		PactRecord currentPair;
-
 		private final InputFileIterator inputFileIterator;
 
-		private TestPairsReader(final InputFileIterator inputFileIterator, final PactRecord actualPair) {
+		private TestPairsReader(final InputFileIterator inputFileIterator) {
 			this.inputFileIterator = inputFileIterator;
-			this.currentPair = actualPair;
 		}
 
 		/*
@@ -99,7 +96,6 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		 */
 		@Override
 		public boolean next(PactRecord target) throws IOException {
-			final PactRecord current = this.currentPair;
 			if (this.inputFileIterator.hasNext()) {
 				this.inputFileIterator.next().copyTo(target);
 				return true;
@@ -201,6 +197,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 */
 	public void setEmpty() {
 		this.setEmpty(true);
+		this.inputFormatClass = null;
+		this.records.clear();
 	}
 
 	/**
@@ -214,6 +212,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		for (final PactRecord record : records)
 			this.records.add(record);
 		this.setEmpty(false);
+		this.inputFormatClass = null;
 		return this;
 	}
 
@@ -299,16 +298,11 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 			if (info == null)
 				return inputFileIterator;
-			PactRecord actualRecord = new PactRecord();
-			actualRecord.makeSpace(this.emptyTuple.length);
-			for (int index = 0; index < this.emptyTuple.length; index++)
-				actualRecord.setField(index, this.emptyTuple[index]);
 			@SuppressWarnings("unchecked")
 			final UnilateralSortMerger sortMerger = new UnilateralSortMerger(
 				MockTaskManager.INSTANCE.getMemoryManager(), MockTaskManager.INSTANCE.getIoManager(), totalMemory,
 				numFileHandles, info.comparators.toArray(new Comparator[0]), info.sortKeys.toIntArray(),
-				info.keyClasses.toArray(new Class[0]), new TestPairsReader(inputFileIterator, actualRecord),
-				parentTask, 0.7f);
+				info.keyClasses.toArray(new Class[0]), new TestPairsReader(inputFileIterator), parentTask, 0.7f);
 
 			this.closableManager.add(sortMerger);
 
@@ -584,6 +578,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		this.inputFormatClass = inputFormatClass;
 		this.configuration = configuration;
 		this.setEmpty(false);
+		this.records.clear();
 		return this;
 	}
 
