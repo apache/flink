@@ -469,7 +469,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 				if (this.taskName == null) {
 					this.executingThread = new Thread(this);
 				} else {
-					this.executingThread = new Thread(this, this.taskName);
+					this.executingThread = new Thread(this, getTaskNameWithIndex());
 				}
 			}
 
