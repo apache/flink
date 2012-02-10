@@ -1,5 +1,6 @@
 package eu.stratosphere.pact.common.util;
 
+import java.util.Collection;
 import java.util.HashSet;
 
 public class FieldSet  extends HashSet<Integer>{
@@ -18,11 +19,11 @@ public class FieldSet  extends HashSet<Integer>{
 			this.add(columnIndex);
 	}
 	
-	public FieldSet(FieldSet o) {
+	public FieldSet(Collection<Integer> o) {
 		this.addAll(o);
 	}
 	
-	public FieldSet(FieldSet o1, FieldSet o2) {
+	public FieldSet(Collection<Integer> o1, Collection<Integer> o2) {
 		this.addAll(o1);
 		this.addAll(o2);
 	}

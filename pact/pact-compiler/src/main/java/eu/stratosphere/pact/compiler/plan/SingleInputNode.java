@@ -31,6 +31,7 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
@@ -61,7 +62,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	protected ImplicitOperationMode implOpMode; // implicit operation of the stub
 	
-	protected FieldSet keySet; // The set of key fields (order is relevant!)
+	protected FieldList keySet; // The set of key fields (order is relevant!)
 
 	// ------------------------------
 	
@@ -73,7 +74,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
-		this.keySet = new FieldSet(pactContract.getKeyColumnNumbers(0));
+		this.keySet = new FieldList(pactContract.getKeyColumnNumbers(0));
 	}
 
 	/**
@@ -605,7 +606,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 		
-	public FieldSet getKeySet() {
+	public FieldList getKeySet() {
 		return this.keySet;
 	}
 }

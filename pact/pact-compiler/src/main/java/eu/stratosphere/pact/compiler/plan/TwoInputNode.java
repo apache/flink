@@ -35,6 +35,7 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
@@ -58,9 +59,9 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	final protected List<PactConnection> input2 = new ArrayList<PactConnection>(); // The second input edge
 
-	protected FieldSet keySet1; // The set of key fields for the first input (order is relevant!)
+	protected FieldList keySet1; // The set of key fields for the first input (order is relevant!)
 	
-	protected FieldSet keySet2; // The set of key fields for the second input (order is relevant!)
+	protected FieldList keySet2; // The set of key fields for the second input (order is relevant!)
 	
 	// ------------- Stub Annotations
 	
@@ -89,8 +90,8 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		this.keySet1 = new FieldSet(pactContract.getKeyColumnNumbers(0));
-		this.keySet2 = new FieldSet(pactContract.getKeyColumnNumbers(1));
+		this.keySet1 = new FieldList(pactContract.getKeyColumnNumbers(0));
+		this.keySet2 = new FieldList(pactContract.getKeyColumnNumbers(1));
 		
 	}
 
@@ -1081,7 +1082,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @param input The input for which key fields must be returned.
 	 * @return the key fields of the given input.
 	 */
-	public FieldSet getInputKeySet(int input) {
+	public FieldList getInputKeySet(int input) {
 		switch(input) {
 		case 0: return keySet1;
 		case 1: return keySet2;
