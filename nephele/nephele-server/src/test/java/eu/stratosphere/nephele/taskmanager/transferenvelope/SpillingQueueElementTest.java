@@ -16,6 +16,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.util.BufferPoolConnector;
 
 public class SpillingQueueElementTest {
 
@@ -33,8 +34,10 @@ public class SpillingQueueElementTest {
 		final JobID jobID = new JobID();
 		final ChannelID source = new ChannelID();
 
-		final Buffer buf1 = BufferFactory.createFromMemory(BUFFER_SIZE, byteBuf1, queue);
-		final Buffer buf2 = BufferFactory.createFromMemory(BUFFER_SIZE, byteBuf2, queue);
+		final BufferPoolConnector connector = new BufferPoolConnector(queue);
+
+		final Buffer buf1 = BufferFactory.createFromMemory(BUFFER_SIZE, byteBuf1, connector);
+		final Buffer buf2 = BufferFactory.createFromMemory(BUFFER_SIZE, byteBuf2, connector);
 
 		final TransferEnvelope te1 = new TransferEnvelope(0, jobID, source);
 		te1.setBuffer(buf1);

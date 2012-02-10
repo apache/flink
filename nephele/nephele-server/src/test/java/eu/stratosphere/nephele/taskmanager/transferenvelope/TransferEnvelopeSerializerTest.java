@@ -36,6 +36,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
+import eu.stratosphere.nephele.util.BufferPoolConnector;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
@@ -147,7 +148,8 @@ public class TransferEnvelopeSerializerTest {
 
 		for (int i = 0; i < BUFFER_SIZE; i++) {
 
-			final Buffer buffer = BufferFactory.createFromMemory(i, recycleQueue.poll(), recycleQueue);
+			final Buffer buffer = BufferFactory.createFromMemory(i, recycleQueue.poll(), new BufferPoolConnector(
+				recycleQueue));
 
 			// Initialize buffer
 			for (int j = 0; j < i; j++) {
