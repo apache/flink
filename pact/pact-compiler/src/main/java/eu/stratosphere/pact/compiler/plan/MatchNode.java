@@ -334,7 +334,7 @@ public class MatchNode extends TwoInputNode {
 							}
 							else {
 								if (gp1.getPartitioning().isCompatibleWith(gp2.getPartitioning()) &&
-										Arrays.equals(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
+										partitioningIsOnSameSubkey(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
 									ss2 = ShipStrategy.FORWARD;
 								} else {
 									// both sides are partitioned, but in an incompatible way
@@ -473,7 +473,7 @@ public class MatchNode extends TwoInputNode {
 							break;
 						case PARTITION_HASH:
 							int[] keyFields2 = getPactContract().getKeyColumnNumbers(1);
-							ss1 = (Arrays.equals(keyFields2, gp1.getPartitionedFields()) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+							ss1 = (partitioningIsOnSameSubkey(gp1.getPartitionedFields(), keyFields2) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 								: ShipStrategy.PARTITION_HASH;
 							break;
 						case PARTITION_RANGE:
@@ -530,7 +530,7 @@ public class MatchNode extends TwoInputNode {
 						break;
 					case PARTITION_HASH:
 						int[] keyFields1 = getPactContract().getKeyColumnNumbers(0);
-						ss2 = (Arrays.equals(keyFields1, gp2.getPartitionedFields()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
+						ss2 = (partitioningIsOnSameSubkey(keyFields1, gp2.getPartitionedFields()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
 							: ShipStrategy.PARTITION_HASH;
 						break;
 					case PARTITION_RANGE:
@@ -568,7 +568,7 @@ public class MatchNode extends TwoInputNode {
 						}
 
 						if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
-								Arrays.equals(gp1.getPartitionedFields(), gp2.getPartitionedFields())) {
+								partitioningIsOnSameSubkey(gp1.getPartitionedFields(), gp2.getPartitionedFields())) {
 							// partitioning there and equal
 							createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
 						} else {
@@ -1083,6 +1083,35 @@ public class MatchNode extends TwoInputNode {
 			}
 			if (foundField == false) {
 				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	public boolean partitioningIsOnSameSubkey(int[] subkey1, int[] subkey2) {
+		if (subkey1 == null && subkey2 == null) {
+			return true;
+		}
+		if (subkey1 == null || subkey2 == null || subkey1.length != subkey2.length) {
+			return false;
+		}
+		int[] key1 = getPactContract().getKeyColumnNumbers(0);
+		int[] key2 = getPactContract().getKeyColumnNumbers(1);
+		
+		for (int i = 0; i < subkey1.length; i++) {
+			boolean found = false;
+			for (int j = 0; j < key1.length; j++) {
+				if (subkey1[i] == key1[j]) {
+					if (subkey2[i] != key2[j]) {
+						return false;
+					}
+					found = true;
+					break;
+				}
+			}
+			if (found == false) {
+				throw new RuntimeException("Partitioned field is no subset of the key");
 			}
 		}
 		
