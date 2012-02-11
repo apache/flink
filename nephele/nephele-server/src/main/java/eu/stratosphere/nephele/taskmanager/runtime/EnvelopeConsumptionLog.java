@@ -66,7 +66,8 @@ final class EnvelopeConsumptionLog {
 				this.numberOfInitialLogEntries = length / SIZE_OF_INTEGER;
 			}
 
-			System.out.println("PREVIOUS FILE FOUND with length " + length);
+			LOG.info("Found existing consumption log for task " + this.vertexID + " with a size of " + length
+				+ " bytes");
 
 		} else {
 			this.numberOfInitialLogEntries = 0L;
@@ -120,29 +121,19 @@ final class EnvelopeConsumptionLog {
 
 			if (!found) {
 
-				System.out.println("Entry not found for channel " + channelIndex + " - "
-					+ this.outstandingEnvelopesAsIntBuffer.limit() + ", "
-					+ this.outstandingEnvelopesAsIntBuffer.capacity());
-
 				if (this.outstandingEnvelopesAsIntBuffer.limit() == this.outstandingEnvelopesAsIntBuffer.capacity()) {
 					loadNextOutstandingEnvelopes();
-					showOustandingEnvelopeLog();
 					continue;
 				}
 
-				System.out.println("Adding new entry for channel " + channelIndex + " to index "
-					+ this.outstandingEnvelopesAsIntBuffer.limit());
 				final int newEntry = setDataAvailability(entryToTest, true);
 				final int limit = this.outstandingEnvelopesAsIntBuffer.limit();
 				this.outstandingEnvelopesAsIntBuffer.limit(limit + 1);
 				this.outstandingEnvelopesAsIntBuffer.put(limit, newEntry);
-
 			}
 
 			break;
 		}
-
-		showOustandingEnvelopeLog();
 
 		int newPosition = this.outstandingEnvelopesAsIntBuffer.position();
 		int count = 0;
@@ -166,6 +157,7 @@ final class EnvelopeConsumptionLog {
 			System.out.println("Initial log entries: " + this.numberOfInitialLogEntries + ", announced "
 				+ this.numberOfAnnouncedEnvelopes);
 			System.out.println("Outstanding buffer: " + this.outstandingEnvelopesAsIntBuffer.remaining());
+			showOustandingEnvelopeLog();
 		}
 
 		if (!this.outstandingEnvelopesAsIntBuffer.hasRemaining()) {
@@ -212,8 +204,6 @@ final class EnvelopeConsumptionLog {
 
 	private void loadNextOutstandingEnvelopes() {
 
-		System.out.println("++++++++++++ Entering loadNextOutstandingEnvelopes");
-
 		final int pos = this.outstandingEnvelopesAsIntBuffer.position();
 
 		if (pos > 0) {
@@ -255,8 +245,6 @@ final class EnvelopeConsumptionLog {
 				totalBytesRead += bytesRead;
 			}
 
-			System.out.println("Total bytes read: " + totalBytesRead);
-
 			if (totalBytesRead % SIZE_OF_INTEGER != 0) {
 				LOG.error("Read " + totalBytesRead + " from " + this.logFile.getAbsolutePath()
 					+ ", file may be corrupt");
@@ -294,8 +282,6 @@ final class EnvelopeConsumptionLog {
 			this.announcedEnvelopesAsByteBuffer.position(this.announcedEnvelopesAsIntBuffer.position()
 				* SIZE_OF_INTEGER);
 			this.announcedEnvelopesAsByteBuffer.limit(this.announcedEnvelopesAsIntBuffer.limit() * SIZE_OF_INTEGER);
-
-			System.out.println("WRITING TO DISK " + this.announcedEnvelopesAsByteBuffer);
 
 			fc = new FileOutputStream(this.logFile, true).getChannel();
 
