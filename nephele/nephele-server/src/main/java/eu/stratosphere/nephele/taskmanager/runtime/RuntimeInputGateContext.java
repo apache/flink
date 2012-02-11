@@ -41,14 +41,17 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final InputGate<? extends Record> inputGate;
 
+	private final EnvelopeConsumptionTracker envelopeConsumptionTracker;
+
 	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final InputGate<? extends Record> inputGate) {
+			final InputGate<? extends Record> inputGate, final EnvelopeConsumptionTracker envelopeConsumptionTracker) {
 
 		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.inputGate = inputGate;
+		this.envelopeConsumptionTracker = envelopeConsumptionTracker;
 	}
 
 	/**
@@ -170,7 +173,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		}
 
 		return new RuntimeInputChannelContext(this, this.transferEnvelopeDispatcher,
-			(AbstractByteBufferedInputChannel<? extends Record>) channel);
+			(AbstractByteBufferedInputChannel<? extends Record>) channel, this.envelopeConsumptionTracker);
 	}
 
 	/**

@@ -118,8 +118,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the distribution pattern to determine the concrete wiring between to groups of vertices
 	 */
 	public RuntimeInputGate(final JobID jobID, final GateID gateID, final RecordDeserializer<T> deserializer,
-			final int index,
-			final DistributionPattern distributionPattern) {
+			final int index, final DistributionPattern distributionPattern) {
 
 		super(jobID, gateID, index);
 
@@ -533,5 +532,14 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void notifyDataUnitConsumed(final int channelIndex) {
+
+		this.channelToReadFrom = -1;
 	}
 }

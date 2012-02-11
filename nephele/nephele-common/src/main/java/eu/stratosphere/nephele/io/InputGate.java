@@ -71,8 +71,19 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	/**
 	 * Notify the gate that the channel with the given index has
 	 * at least one record available.
+	 * 
+	 * @param channelIndex
+	 *        the index of the channel which has at least one record available
 	 */
 	void notifyRecordIsAvailable(int channelIndex);
+
+	/**
+	 * Notify the gate that is has consumed a data unit from the channel with the given index
+	 * 
+	 * @param channelIndex
+	 *        the index of the channel from which a data unit has been consumed
+	 */
+	void notifyDataUnitConsumed(int channelIndex);
 
 	/**
 	 * Activates all of the task's input channels.

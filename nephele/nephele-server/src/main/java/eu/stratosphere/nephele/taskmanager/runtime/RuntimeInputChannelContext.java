@@ -52,18 +52,22 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
+	private final EnvelopeConsumptionTracker envelopeConsumptionTracker;
+
 	private int lastReceivedEnvelope = -1;
 
 	private boolean destroyCalled = false;
 
 	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext,
-				final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-				final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel) {
+			final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel,
+			final EnvelopeConsumptionTracker envelopeConsumptionTracker) {
 
 		this.inputGateContext = inputGateContext;
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.byteBufferedInputChannel = byteBufferedInputChannel;
 		this.byteBufferedInputChannel.setInputChannelBroker(this);
+		this.envelopeConsumptionTracker = envelopeConsumptionTracker;
 	}
 
 	@Override
@@ -98,6 +102,9 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 					}
 				}
 			}
+
+			// Notify the channel that an envelope has been consumed
+			this.envelopeConsumptionTracker.reportEnvelopeConsumed(this.byteBufferedInputChannel);
 
 			return null;
 		}
@@ -134,6 +141,9 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 				}
 			}
 		}
+
+		// Notify the channel that an envelope has been consumed
+		this.envelopeConsumptionTracker.reportEnvelopeConsumed(this.byteBufferedInputChannel);
 
 		final Buffer consumedBuffer = transferEnvelope.getBuffer();
 		if (consumedBuffer == null) {
@@ -195,7 +205,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 						// This is a problem, now we are actually missing some data
 						this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
 							+ expectedSequenceNumber + " but received " + sequenceNumber));
-						this.byteBufferedInputChannel.checkForNetworkEvents();
+						this.envelopeConsumptionTracker.reportEnvelopeAvailability(this.byteBufferedInputChannel);
 					}
 				} else {
 
@@ -224,7 +234,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		}
 
 		// Notify the channel about the new data
-		this.byteBufferedInputChannel.checkForNetworkEvents();
+		this.envelopeConsumptionTracker.reportEnvelopeAvailability(this.byteBufferedInputChannel);
 
 		if (eventToSend != null) {
 			try {

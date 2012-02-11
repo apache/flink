@@ -70,6 +70,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	private Buffer uncompressedDataBuffer = null;
 
 	private IOException ioException = null;
+
 	/**
 	 * Stores the number of bytes read through this input channel since its instantiation.
 	 */
@@ -322,5 +323,13 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	public long getAmountOfDataTransmitted() {
 
 		return this.amountOfDataTransmitted;
+	}
+
+	/**
+	 * Notify the channel that a data unit has been consumed.
+	 */
+	public void notifyDataUnitConsumed() {
+
+		this.getInputGate().notifyDataUnitConsumed(getChannelIndex());
 	}
 }
