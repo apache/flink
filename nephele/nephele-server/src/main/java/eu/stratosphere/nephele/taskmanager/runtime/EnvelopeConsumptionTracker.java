@@ -24,6 +24,11 @@ final class EnvelopeConsumptionTracker {
 
 		this.log.add(inputChannel.getInputGate().getIndex(), inputChannel.getChannelIndex());
 	}
+	
+	public boolean followsLog() {
+		
+		return this.log.followsLog();
+	}
 
 	public synchronized void finishLog() {
 		this.log.finish();

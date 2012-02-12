@@ -21,7 +21,10 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
@@ -43,6 +46,8 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final EnvelopeConsumptionTracker envelopeConsumptionTracker;
 
+	private final FileBufferManager fileBufferManager;
+
 	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final InputGate<? extends Record> inputGate, final EnvelopeConsumptionTracker envelopeConsumptionTracker) {
 
@@ -52,6 +57,8 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.inputGate = inputGate;
 		this.envelopeConsumptionTracker = envelopeConsumptionTracker;
+
+		this.fileBufferManager = FileBufferManager.getInstance();
 	}
 
 	/**
@@ -68,6 +75,15 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 	 */
 	@Override
 	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
+
+		final Buffer buffer = this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer);
+		if (buffer != null) {
+			return buffer;
+		}
+
+		if (this.envelopeConsumptionTracker.followsLog()) {
+			return BufferFactory.createFromFile(minimumSizeOfBuffer, this.inputGate.getGateID(), fileBufferManager);
+		}
 
 		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}

@@ -205,7 +205,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 						// This is a problem, now we are actually missing some data
 						this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
 							+ expectedSequenceNumber + " but received " + sequenceNumber));
-						this.envelopeConsumptionTracker.reportEnvelopeAvailability(this.byteBufferedInputChannel);
+						this.byteBufferedInputChannel.checkForNetworkEvents();
 					}
 				} else {
 
@@ -228,13 +228,12 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 			} else {
 
 				this.queuedEnvelopes.add(transferEnvelope);
-
 				this.lastReceivedEnvelope = sequenceNumber;
+				
+				// Notify the channel about the new data
+				this.envelopeConsumptionTracker.reportEnvelopeAvailability(this.byteBufferedInputChannel);
 			}
 		}
-
-		// Notify the channel about the new data
-		this.envelopeConsumptionTracker.reportEnvelopeAvailability(this.byteBufferedInputChannel);
 
 		if (eventToSend != null) {
 			try {

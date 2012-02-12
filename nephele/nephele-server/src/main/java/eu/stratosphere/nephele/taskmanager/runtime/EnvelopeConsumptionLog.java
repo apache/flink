@@ -20,7 +20,7 @@ final class EnvelopeConsumptionLog {
 
 	private static final Log LOG = LogFactory.getLog(EnvelopeConsumptionLog.class);
 
-	private static final int LOG_WINDOW_SIZE = 8192;
+	private static final int LOG_WINDOW_SIZE = 65536;
 
 	private static final int SIZE_OF_INTEGER = 4;
 
@@ -100,6 +100,11 @@ final class EnvelopeConsumptionLog {
 		writeAnnouncedEnvelopesBufferToDisk();
 	}
 
+	boolean followsLog() {
+
+		return (this.numberOfInitialLogEntries > 0L);
+	}
+
 	private void addOutstandingEnvelope(final int gateIndex, final int channelIndex) {
 
 		final int entryToTest = toEntry(gateIndex, channelIndex, false);
@@ -152,11 +157,11 @@ final class EnvelopeConsumptionLog {
 		this.outstandingEnvelopesAsIntBuffer.position(Math.min(this.outstandingEnvelopesAsIntBuffer.limit(),
 			newPosition));
 
-		if (count > 0) {
-			System.out.println("Announced " + count + " buffers from log");
-			System.out.println("Initial log entries: " + this.numberOfInitialLogEntries + ", announced "
+		if (count > 0 && LOG.isDebugEnabled()) {
+			LOG.debug("Announced " + count + " buffers from log");
+			LOG.debug("Initial log entries: " + this.numberOfInitialLogEntries + ", announced "
 				+ this.numberOfAnnouncedEnvelopes);
-			System.out.println("Outstanding buffer: " + this.outstandingEnvelopesAsIntBuffer.remaining());
+			LOG.debug("Outstanding buffer: " + this.outstandingEnvelopesAsIntBuffer.remaining());
 			showOustandingEnvelopeLog();
 		}
 
@@ -172,15 +177,17 @@ final class EnvelopeConsumptionLog {
 		final int pos = this.outstandingEnvelopesAsIntBuffer.position();
 		final int limit = this.outstandingEnvelopesAsIntBuffer.limit();
 
+		final StringBuilder sb = new StringBuilder();
+
 		for (int i = 0; i < this.outstandingEnvelopesAsIntBuffer.capacity(); ++i) {
 
 			if (i < pos) {
-				System.out.print('_');
+				sb.append('_');
 				continue;
 			}
 
 			if (i >= limit) {
-				System.out.print('_');
+				sb.append('_');
 				continue;
 			}
 
@@ -194,12 +201,11 @@ final class EnvelopeConsumptionLog {
 
 			char ch = (char) (((int) 'A') + channelIndex + (dataAvailable ? 0 : 32));
 
-			System.out.print(ch);
+			sb.append(ch);
 
 		}
 
-		System.out.println("");
-		System.out.println("Data available: " + dataAvailableCounter);
+		LOG.debug(sb.toString());
 	}
 
 	private void loadNextOutstandingEnvelopes() {

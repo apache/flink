@@ -20,7 +20,9 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -63,7 +65,7 @@ public class OutgoingConnection {
 	/**
 	 * The queue of transfer envelopes to be transmitted.
 	 */
-	private final TransferEnvelopeQueue queuedEnvelopes = new TransferEnvelopeQueue();
+	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
 	/**
 	 * The {@link DefaultSerializer} object used to transform the envelopes into a byte stream.
@@ -554,9 +556,9 @@ public class OutgoingConnection {
 	 */
 	void registerSpillingQueue(final SpillingQueue spillingQueue) {
 
-		synchronized (this.queuedEnvelopes) {
+		/*synchronized (this.queuedEnvelopes) {
 			checkConnection();
 			this.queuedEnvelopes.registerSpillingQueue(spillingQueue);
-		}
+		}*/
 	}
 }
