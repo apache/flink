@@ -156,7 +156,7 @@ public final class LocalBufferPool implements BufferProvider {
 					}
 
 					if (block) {
-						this.buffers.wait();
+						this.buffers.wait(100);
 					} else {
 						return null;
 					}
