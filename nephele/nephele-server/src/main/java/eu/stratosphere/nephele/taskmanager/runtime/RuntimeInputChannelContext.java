@@ -52,7 +52,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
-	private final EnvelopeConsumptionTracker envelopeConsumptionTracker;
+	private final EnvelopeConsumptionLog envelopeConsumptionLog;
 
 	private int lastReceivedEnvelope = -1;
 
@@ -61,13 +61,13 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext,
 			final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel,
-			final EnvelopeConsumptionTracker envelopeConsumptionTracker) {
+			final EnvelopeConsumptionLog envelopeConsumptionLog) {
 
 		this.inputGateContext = inputGateContext;
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.byteBufferedInputChannel = byteBufferedInputChannel;
 		this.byteBufferedInputChannel.setInputChannelBroker(this);
-		this.envelopeConsumptionTracker = envelopeConsumptionTracker;
+		this.envelopeConsumptionLog = envelopeConsumptionLog;
 	}
 
 	@Override
@@ -104,7 +104,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 			}
 
 			// Notify the channel that an envelope has been consumed
-			this.envelopeConsumptionTracker.reportEnvelopeConsumed(this.byteBufferedInputChannel);
+			this.envelopeConsumptionLog.reportEnvelopeConsumed(this.byteBufferedInputChannel);
 
 			return null;
 		}
@@ -143,7 +143,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		}
 
 		// Notify the channel that an envelope has been consumed
-		this.envelopeConsumptionTracker.reportEnvelopeConsumed(this.byteBufferedInputChannel);
+		this.envelopeConsumptionLog.reportEnvelopeConsumed(this.byteBufferedInputChannel);
 
 		final Buffer consumedBuffer = transferEnvelope.getBuffer();
 		if (consumedBuffer == null) {
@@ -231,7 +231,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 				this.lastReceivedEnvelope = sequenceNumber;
 				
 				// Notify the channel about the new data
-				this.envelopeConsumptionTracker.reportEnvelopeAvailability(this.byteBufferedInputChannel);
+				this.envelopeConsumptionLog.reportEnvelopeAvailability(this.byteBufferedInputChannel);
 			}
 		}
 

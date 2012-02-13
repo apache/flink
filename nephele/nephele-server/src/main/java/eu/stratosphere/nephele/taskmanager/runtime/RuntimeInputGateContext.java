@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
@@ -44,19 +43,19 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final InputGate<? extends Record> inputGate;
 
-	private final EnvelopeConsumptionTracker envelopeConsumptionTracker;
+	private final EnvelopeConsumptionLog envelopeConsumptionLog;
 
 	private final FileBufferManager fileBufferManager;
 
 	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final InputGate<? extends Record> inputGate, final EnvelopeConsumptionTracker envelopeConsumptionTracker) {
+			final InputGate<? extends Record> inputGate, final EnvelopeConsumptionLog envelopeConsumptionLog) {
 
 		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.inputGate = inputGate;
-		this.envelopeConsumptionTracker = envelopeConsumptionTracker;
+		this.envelopeConsumptionLog = envelopeConsumptionLog;
 
 		this.fileBufferManager = FileBufferManager.getInstance();
 	}
@@ -81,7 +80,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 			return buffer;
 		}
 
-		if (this.envelopeConsumptionTracker.followsLog()) {
+		if (this.envelopeConsumptionLog.followsLog()) {
 			return BufferFactory.createFromFile(minimumSizeOfBuffer, this.inputGate.getGateID(), fileBufferManager);
 		}
 
@@ -189,7 +188,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		}
 
 		return new RuntimeInputChannelContext(this, this.transferEnvelopeDispatcher,
-			(AbstractByteBufferedInputChannel<? extends Record>) channel, this.envelopeConsumptionTracker);
+			(AbstractByteBufferedInputChannel<? extends Record>) channel, this.envelopeConsumptionLog);
 	}
 
 	/**

@@ -13,7 +13,11 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
 final class EnvelopeConsumptionLog {
@@ -38,16 +42,16 @@ final class EnvelopeConsumptionLog {
 
 	private final ExecutionVertexID vertexID;
 
-	private final EnvelopeConsumptionTracker tracker;
+	private final RuntimeEnvironment environment;
 
 	private long numberOfAnnouncedEnvelopes = 0L;
 
 	private long numberOfEntriesReadFromLog = 0L;
 
-	EnvelopeConsumptionLog(final ExecutionVertexID vertexID, final EnvelopeConsumptionTracker tracker) {
+	EnvelopeConsumptionLog(final ExecutionVertexID vertexID, final RuntimeEnvironment environment) {
 
 		this.vertexID = vertexID;
-		this.tracker = tracker;
+		this.environment = environment;
 
 		// Check if there is a log file from a previous execution
 		final String fileName = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
@@ -86,28 +90,44 @@ final class EnvelopeConsumptionLog {
 		}
 	}
 
-	void add(final int gateIndex, final int channelIndex) {
+	void reportEnvelopeAvailability(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
 
-		if (this.outstandingEnvelopesAsIntBuffer.hasRemaining()) {
-			addOutstandingEnvelope(gateIndex, channelIndex);
-		} else {
-			announce(gateIndex, channelIndex);
+		synchronized (this) {
+
+			if (this.outstandingEnvelopesAsIntBuffer.hasRemaining()) {
+				addOutstandingEnvelope(inputChannel);
+			} else {
+				announce(inputChannel);
+			}
 		}
 	}
 
 	void finish() {
 
-		writeAnnouncedEnvelopesBufferToDisk();
+		synchronized (this) {
+			writeAnnouncedEnvelopesBufferToDisk();
+		}
 	}
 
 	boolean followsLog() {
 
-		return (this.numberOfInitialLogEntries > 0L);
+		if (this.numberOfInitialLogEntries == 0) {
+			return false;
+		}
+
+		synchronized (this) {
+			return this.announcedEnvelopesAsIntBuffer.hasRemaining();
+		}
 	}
 
-	private void addOutstandingEnvelope(final int gateIndex, final int channelIndex) {
+	void reportEnvelopeConsumed(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
 
-		final int entryToTest = toEntry(gateIndex, channelIndex, false);
+		inputChannel.notifyDataUnitConsumed();
+	}
+
+	private void addOutstandingEnvelope(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
+
+		final int entryToTest = toEntry(inputChannel.getInputGate().getIndex(), inputChannel.getChannelIndex(), false);
 
 		boolean found = false;
 
@@ -146,7 +166,7 @@ final class EnvelopeConsumptionLog {
 
 			final int entry = this.outstandingEnvelopesAsIntBuffer.get(i);
 			if (getDataAvailability(entry)) {
-				announce(getInputGate(entry), getInputChannel(entry));
+				announce(toInputChannel(getInputGate(entry), getInputChannel(entry)));
 				newPosition = i + 1;
 				++count;
 			} else {
@@ -312,15 +332,24 @@ final class EnvelopeConsumptionLog {
 
 	}
 
-	private void announce(final int gateIndex, final int channelIndex) {
+	private AbstractByteBufferedInputChannel<? extends Record> toInputChannel(final int gateIndex,
+			final int channelIndex) {
 
-		this.tracker.announceData(gateIndex, channelIndex);
+		final InputGate<? extends Record> inputGate = this.environment.getInputGate(gateIndex);
 
+		return (AbstractByteBufferedInputChannel<? extends Record>) inputGate.getInputChannel(channelIndex);
+	}
+
+	private void announce(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
+
+		inputChannel.checkForNetworkEvents();
+		
 		if (++this.numberOfAnnouncedEnvelopes < this.numberOfInitialLogEntries) {
 			return;
 		}
 
-		this.announcedEnvelopesAsIntBuffer.put(toEntry(gateIndex, channelIndex, false));
+		this.announcedEnvelopesAsIntBuffer.put(toEntry(inputChannel.getInputGate().getIndex(),
+			inputChannel.getChannelIndex(), false));
 
 		if (!this.announcedEnvelopesAsIntBuffer.hasRemaining()) {
 			writeAnnouncedEnvelopesBufferToDisk();

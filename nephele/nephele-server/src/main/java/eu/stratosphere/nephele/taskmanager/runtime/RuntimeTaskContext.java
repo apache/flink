@@ -52,7 +52,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
-	private final EnvelopeConsumptionTracker envelopeConsumptionTracker;
+	private final EnvelopeConsumptionLog envelopeConsumptionLog;
 
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
@@ -87,7 +87,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.runtimeDispatcher = new RuntimeDispatcher(transferEnvelopeDispatcher);
 
-		this.envelopeConsumptionTracker = new EnvelopeConsumptionTracker(task.getVertexID(), environment);
+		this.envelopeConsumptionLog = new EnvelopeConsumptionLog(task.getVertexID(), environment);
 	}
 
 	RuntimeDispatcher getRuntimeDispatcher() {
@@ -138,7 +138,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		this.localBufferPool.destroy();
 
 		// Finish the envelope consumption log
-		this.envelopeConsumptionTracker.finishLog();
+		this.envelopeConsumptionLog.finish();
 	}
 
 	/**
@@ -278,7 +278,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		}
 
 		return new RuntimeInputGateContext(re.getTaskNameWithIndex(), this.transferEnvelopeDispatcher, inputGate,
-			this.envelopeConsumptionTracker);
+			this.envelopeConsumptionLog);
 	}
 
 	/**
