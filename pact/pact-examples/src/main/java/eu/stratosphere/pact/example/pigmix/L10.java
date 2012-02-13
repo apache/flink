@@ -13,8 +13,6 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 public class L10 implements PlanAssembler{
@@ -43,8 +41,8 @@ public class L10 implements PlanAssembler{
 	@Override
 	public Plan getPlan(String... args)
 	{
-		final int parallelism = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-		final String pageViewsFile = "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/pigmix625k/page_views";
+		final int parallelism = (args != null && args.length > 0) ? Integer.parseInt(args[0]) : 1;
+		final String pageViewsFile = "hdfs://marrus.local:50040/user/pig/tests/data/pigmix/page_views";
 
 		FileDataSource pageViews = new FileDataSource(TextInputFormat.class, pageViewsFile, "Read PageViews");
 		pageViews.setDegreeOfParallelism(parallelism);
@@ -54,7 +52,7 @@ public class L10 implements PlanAssembler{
 		projectPageViews.setDegreeOfParallelism(parallelism);
 
 
-		FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/result_L10", projectPageViews, "Result");
+		FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://marrus.local:50040/pigmix/result_L10", projectPageViews, "Result");
 		sink.setDegreeOfParallelism(parallelism);
 		sink.setGlobalOrder(Order.ASCENDING);
 		sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 1);

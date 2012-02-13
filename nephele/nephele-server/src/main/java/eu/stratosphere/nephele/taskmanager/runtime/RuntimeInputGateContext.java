@@ -21,7 +21,10 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
@@ -33,19 +36,29 @@ import eu.stratosphere.nephele.types.Record;
 
 final class RuntimeInputGateContext implements BufferProvider, InputGateContext, LocalBufferPoolOwner {
 
+	private final String taskName;
+
 	private final LocalBufferPool localBufferPool;
 
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
 	private final InputGate<? extends Record> inputGate;
 
-	RuntimeInputGateContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final InputGate<? extends Record> inputGate) {
+	private final EnvelopeConsumptionTracker envelopeConsumptionTracker;
 
+	private final FileBufferManager fileBufferManager;
+
+	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			final InputGate<? extends Record> inputGate, final EnvelopeConsumptionTracker envelopeConsumptionTracker) {
+
+		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.inputGate = inputGate;
+		this.envelopeConsumptionTracker = envelopeConsumptionTracker;
+
+		this.fileBufferManager = FileBufferManager.getInstance();
 	}
 
 	/**
@@ -62,6 +75,15 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 	 */
 	@Override
 	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
+
+		final Buffer buffer = this.localBufferPool.requestEmptyBuffer(minimumSizeOfBuffer);
+		if (buffer != null) {
+			return buffer;
+		}
+
+		if (this.envelopeConsumptionTracker.followsLog()) {
+			return BufferFactory.createFromFile(minimumSizeOfBuffer, this.inputGate.getGateID(), fileBufferManager);
+		}
 
 		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);
 	}
@@ -128,7 +150,8 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		final int des = this.localBufferPool.getDesignatedNumberOfBuffers();
 
 		System.out
-			.println("\t\tInputGateContext: " + ava + " available, " + req + " requested, " + des + " designated");
+			.println("\t\tInput gate " + this.inputGate.getIndex() + " of " + this.taskName + ": " + ava
+				+ " available, " + req + " requested, " + des + " designated");
 	}
 
 	/**
@@ -166,7 +189,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		}
 
 		return new RuntimeInputChannelContext(this, this.transferEnvelopeDispatcher,
-			(AbstractByteBufferedInputChannel<? extends Record>) channel);
+			(AbstractByteBufferedInputChannel<? extends Record>) channel, this.envelopeConsumptionTracker);
 	}
 
 	/**

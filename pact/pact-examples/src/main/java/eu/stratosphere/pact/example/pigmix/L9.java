@@ -41,8 +41,8 @@ public class L9 implements PlanAssembler{
 	@Override
 	public Plan getPlan(String... args)
 	{
-		final int parallelism = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-		final String pageViewsFile = "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/pigmix625k/page_views";
+		final int parallelism = (args != null && args.length > 0) ? Integer.parseInt(args[0]) : 1;
+		final String pageViewsFile = "hdfs://marrus.local:50040/user/pig/tests/data/pigmix/page_views";
 
 		FileDataSource pageViews = new FileDataSource(TextInputFormat.class, pageViewsFile, "Read PageViews");
 		pageViews.setDegreeOfParallelism(parallelism);
@@ -52,10 +52,11 @@ public class L9 implements PlanAssembler{
 		projectPageViews.setDegreeOfParallelism(parallelism);
 
 
-		FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/result_L9", projectPageViews, "Result");
+		FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://marrus.local:50040/pigmix/result_L9", projectPageViews, "Result");
 		sink.setDegreeOfParallelism(parallelism);
 		sink.setGlobalOrder(Order.ASCENDING);
-		sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 1);
+		sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+		sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
 		sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
 
 		Plan plan = new Plan(sink, "L9 order by");

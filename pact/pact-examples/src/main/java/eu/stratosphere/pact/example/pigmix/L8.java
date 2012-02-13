@@ -1,6 +1,5 @@
 package eu.stratosphere.pact.example.pigmix;
 
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
@@ -33,8 +32,16 @@ public class L8 implements PlanAssembler{
 				List<PactString> fields = Library.splitLine(str, '');
 				
 				rec.setField(0, new PactString("all"));
-				rec.setField(1, new PactInteger(Integer.parseInt(fields.get(2).getValue())));
-				rec.setField(2, new PactDouble(Double.parseDouble(fields.get(6).getValue())));
+				if(!fields.get(2).getValue().isEmpty()){
+					rec.setField(1, new PactInteger(Integer.parseInt(fields.get(2).getValue())));
+					}else{
+						rec.setField(1, new PactInteger(0));
+					}
+				if(!fields.get(6).getValue().isEmpty()){
+					rec.setField(2, new PactDouble(Double.parseDouble(fields.get(6).getValue())));
+					}else{
+						rec.setField(2, new PactDouble(0));
+					}
 				out.collect(rec);
 			}
 		}	
@@ -65,8 +72,8 @@ public class L8 implements PlanAssembler{
 		@Override
 		public Plan getPlan(String... args)
 		{
-			final int parallelism = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-			final String pageViewsFile = "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/pigmix625k/page_views";
+			final int parallelism = (args != null && args.length > 0) ? Integer.parseInt(args[0]) : 1;
+			final String pageViewsFile = "hdfs://marrus.local:50040/user/pig/tests/data/pigmix/page_views";
 			
 			FileDataSource pageViews = new FileDataSource(TextInputFormat.class, pageViewsFile, "Read PageViews");
 			pageViews.setDegreeOfParallelism(parallelism);
@@ -78,7 +85,7 @@ public class L8 implements PlanAssembler{
 			ReduceContract group = new ReduceContract(Group.class, PactString.class, 0, projectPageViews, "Group all");
 			group.setDegreeOfParallelism(40);
 			
-			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/result_L8", group, "Result");
+			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://marrus.local:50040/pigmix/result_L8", group, "Result");
 			sink.setDegreeOfParallelism(parallelism);
 			sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);

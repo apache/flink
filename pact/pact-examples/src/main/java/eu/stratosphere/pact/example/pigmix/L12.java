@@ -1,10 +1,13 @@
 package eu.stratosphere.pact.example.pigmix;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
@@ -36,9 +39,17 @@ public class L12 implements PlanAssembler{
 				if(fields.get(0).length() != 0 &&  fields.get(3).length() != 0){
 					rec.setField(0, fields.get(0));
 					rec.setField(1, fields.get(1));
-					rec.setField(2, new PactInteger(Integer.parseInt(fields.get(2).getValue())));
+					if(!fields.get(2).getValue().isEmpty()){
+						rec.setField(2, new PactInteger(Integer.parseInt(fields.get(2).getValue())));
+						}else{
+							rec.setField(2, new PactInteger(0));
+						}
 					rec.setField(3, fields.get(3));
-					rec.setField(4, new PactDouble(Double.parseDouble(fields.get(6).getValue())));
+					if(!fields.get(6).getValue().isEmpty()){
+						rec.setField(4, new PactDouble(Double.parseDouble(fields.get(6).getValue())));
+						}else{
+							rec.setField(4, new PactDouble(0));
+						}
 					out.collect(rec);
 				}
 				
@@ -126,14 +137,14 @@ public class L12 implements PlanAssembler{
 		@Override
 		public void reduce(Iterator<PactRecord> records, Collector out)
 		throws Exception {
-			double sum  = 0;
+			int sum  = 0;
 		    PactRecord rec = new PactRecord();
             while (records.hasNext()) {
             	rec = records.next();
-                sum += rec.getField(1, PactDouble.class).getValue();
+                sum += rec.getField(1, PactInteger.class).getValue();
             }
         
-			out.collect(new PactRecord(rec.getField(0, PactString.class), new PactDouble(sum)));
+			out.collect(new PactRecord(rec.getField(0, PactString.class), new PactInteger(sum)));
 
 		}
 	}
@@ -145,8 +156,8 @@ public class L12 implements PlanAssembler{
 	@Override
 	public Plan getPlan(String... args)
 	{
-		final int parallelism = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-		final String pageViewsFile = "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/pigmix625k/page_views";
+		final int parallelism = (args != null && args.length > 0) ? Integer.parseInt(args[0]) : 1;
+		final String pageViewsFile = "hdfs://marrus.local:50040/user/pig/tests/data/pigmix/page_views";
 		FileDataSource pageViews = new FileDataSource(TextInputFormat.class, pageViewsFile, "Read PageViews");
 		pageViews.setDegreeOfParallelism(parallelism);
 
@@ -155,7 +166,7 @@ public class L12 implements PlanAssembler{
 		projectintoD.setDegreeOfParallelism(parallelism);
 		ReduceContract highestValuePagePerUser = new ReduceContract(HighestValuePagePerUser.class, PactString.class, 0, projectintoD, "HighestValuePagePerUser");
 		highestValuePagePerUser.setDegreeOfParallelism(40);
-		FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/result_L12_HighestValuePagePerUser", highestValuePagePerUser, "Result");
+		FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://marrus.local:50040/pigmix/result_L12_HighestValuePagePerUser", highestValuePagePerUser, "Result");
 		sink.setDegreeOfParallelism(parallelism);
 		sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 		sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
@@ -165,7 +176,7 @@ public class L12 implements PlanAssembler{
 		projectintoaleph.setDegreeOfParallelism(parallelism);
 		ReduceContract queriesPerAction = new ReduceContract(QueriesPerAction.class, PactString.class, 0, projectintoaleph, "QueriesPerAction");
 		queriesPerAction.setDegreeOfParallelism(40);
-		FileDataSink querysink = new FileDataSink(RecordOutputFormat.class, "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/result_L12_QueriesPerAction", queriesPerAction, "Result");
+		FileDataSink querysink = new FileDataSink(RecordOutputFormat.class, "hdfs://marrus.local:50040/pigmix/result_L12_QueriesPerAction", queriesPerAction, "Result");
 		querysink.setDegreeOfParallelism(parallelism);
 		querysink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 		querysink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
@@ -175,13 +186,18 @@ public class L12 implements PlanAssembler{
 		projectintoalpha.setDegreeOfParallelism(parallelism);
 		ReduceContract  totalTimespentPerTerm = new ReduceContract(TotalTimespentPerTerm.class, PactString.class, 0, projectintoalpha, "TotalTimespentPerTerm");
 		totalTimespentPerTerm.setDegreeOfParallelism(40);
-		FileDataSink timespentsink = new FileDataSink(RecordOutputFormat.class, "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/result_L12_TotalTimespentPerTerm", totalTimespentPerTerm, "Result");
+		FileDataSink timespentsink = new FileDataSink(RecordOutputFormat.class, "hdfs://marrus.local:50040/pigmix/result_L12_TotalTimespentPerTerm", totalTimespentPerTerm, "Result");
 		timespentsink.setDegreeOfParallelism(parallelism);
 		timespentsink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 		timespentsink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
 		timespentsink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
 		
-		Plan plan = new Plan(sink, "L11 distinct, union and widerow");
+		Collection<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		sinks.add(sink);
+		sinks.add(querysink);
+		sinks.add(timespentsink);
+		Plan plan = new Plan(sinks, "L12 multi-store query");
+		
 		return plan;
 	}
 }

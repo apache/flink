@@ -52,6 +52,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
+	private final EnvelopeConsumptionTracker envelopeConsumptionTracker;
+
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
 	 */
@@ -84,6 +86,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.runtimeDispatcher = new RuntimeDispatcher(transferEnvelopeDispatcher);
+
+		this.envelopeConsumptionTracker = new EnvelopeConsumptionTracker(task.getVertexID(), environment);
 	}
 
 	RuntimeDispatcher getRuntimeDispatcher() {
@@ -132,6 +136,9 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		// Clear the buffer cache
 		this.localBufferPool.destroy();
+
+		// Finish the envelope consumption log
+		this.envelopeConsumptionTracker.finishLog();
 	}
 
 	/**
@@ -155,8 +162,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		final RuntimeEnvironment environment = this.task.getRuntimeEnvironment();
 
-		System.out.println("\t\t" + environment.getTaskName() + ": " + ava + " available, " + req + " requested, "
-			+ des + " designated");
+		System.out.println("\t\t" + environment.getTaskNameWithIndex() + ": " + ava + " available, " + req
+			+ " requested, " + des + " designated");
 	}
 
 	/**
@@ -270,7 +277,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalStateException("Cannot find input gate with ID " + gateID);
 		}
 
-		return new RuntimeInputGateContext(this.transferEnvelopeDispatcher, inputGate);
+		return new RuntimeInputGateContext(re.getTaskNameWithIndex(), this.transferEnvelopeDispatcher, inputGate,
+			this.envelopeConsumptionTracker);
 	}
 
 	/**

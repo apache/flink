@@ -340,7 +340,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 		if (this.environment.getInvokable().getClass().isAnnotationPresent(Stateful.class)
 			&& !this.environment.getInvokable().getClass().isAnnotationPresent(Stateless.class)) {
-			// Don't checkpoint statefull tasks
+			// Don't checkpoint stateful tasks
 			force = false;
 		} else {
 			// look for a forced decision from the user

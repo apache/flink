@@ -31,7 +31,11 @@ public class L6 implements PlanAssembler{
 				List<PactString> fields = Library.splitLine(str, '');
 				String key = fields.get(0).getValue() + ""+ fields.get(3).getValue() +""+ fields.get(4).getValue() + ""+fields.get(5).getValue();
 				rec.setField(0,new PactString( key));
+				if(!fields.get(2).getValue().isEmpty()){
 				rec.setField(1, new PactInteger(Integer.parseInt(fields.get(2).getValue())));
+				}else{
+					rec.setField(1, new PactInteger(0));
+				}
 				out.collect(rec);
 			}
 		}	
@@ -57,8 +61,8 @@ public class L6 implements PlanAssembler{
 		@Override
 		public Plan getPlan(String... args)
 		{
-			final int parallelism = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-			final String pageViewsFile = "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/pigmix625k/page_views";
+			final int parallelism = (args != null && args.length > 0) ? Integer.parseInt(args[0]) : 1;
+			final String pageViewsFile = "hdfs://marrus.local:50040/user/pig/tests/data/pigmix/page_views";
 			
 			FileDataSource pageViews = new FileDataSource(TextInputFormat.class, pageViewsFile, "Read PageViews");
 			pageViews.setDegreeOfParallelism(parallelism);
@@ -70,7 +74,7 @@ public class L6 implements PlanAssembler{
 			ReduceContract group = new ReduceContract(Group.class, PactString.class, 0, projectTimeSpent, "Group");
 			group.setDegreeOfParallelism(40);
 			
-			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://cloud-7.dima.tu-berlin.de:40010/pigmix/result_L6", group, "Result");
+			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, "hdfs://marrus.local:50040/pigmix/result_L6", group, "Result");
 			sink.setDegreeOfParallelism(parallelism);
 			sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
 			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);

@@ -102,7 +102,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * The thread which executes the task connected to the input gate.
 	 */
 	private Thread executingThread = null;
-	
+
 	/**
 	 * The Systemtime at the first arrival of a record
 	 */
@@ -124,8 +124,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the distribution pattern to determine the concrete wiring between to groups of vertices
 	 */
 	public RuntimeInputGate(final JobID jobID, final GateID gateID, final RecordDeserializer<T> deserializer,
-			final int index,
-			final DistributionPattern distributionPattern) {
+			final int index, final DistributionPattern distributionPattern) {
 
 		super(jobID, gateID, index);
 
@@ -198,15 +197,15 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		switch (newChannelType) {
 		case FILE:
 			newInputChannel = new FileInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
+					oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
 			break;
 		case INMEMORY:
 			newInputChannel = new InMemoryInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
+					oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
 			break;
 		case NETWORK:
 			newInputChannel = new NetworkInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
+					oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
 			break;
 		default:
 			LOG.error("Unknown input channel type");
@@ -264,10 +263,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+		final CompressionLevel compressionLevel) {
 
 		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, compressionLevel);
+				this.deserializer, channelID, compressionLevel);
 		addInputChannel(enic);
 
 		return enic;
@@ -278,10 +277,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+		final CompressionLevel compressionLevel) {
 
 		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, compressionLevel);
+				this.deserializer, channelID, compressionLevel);
 		addInputChannel(efic);
 
 		return efic;
@@ -292,10 +291,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+		final CompressionLevel compressionLevel) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, compressionLevel);
+				this.deserializer, channelID, compressionLevel);
 		addInputChannel(eimic);
 
 		return eimic;
@@ -544,12 +543,17 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 
 		return true;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public long getExecutionStart(){
 		return this.executionstart;
+	}
+	public void notifyDataUnitConsumed(final int channelIndex) {
+
+		this.channelToReadFrom = -1;
+
 	}
 }
