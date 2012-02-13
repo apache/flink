@@ -186,4 +186,11 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 * @throws InterruptedException
 	 */
 	boolean hasRecordAvailable() throws IOException, InterruptedException;
+	
+	/**
+	 * returns the time of the first reading of a record.
+	 * @return time of execution start
+	 */
+	public long getExecutionStart();
+
 }

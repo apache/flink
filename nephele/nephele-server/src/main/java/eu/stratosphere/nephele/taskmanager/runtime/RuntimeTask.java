@@ -304,11 +304,14 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 		// Construct a resource utilization snapshot
 		final long timestamp = System.currentTimeMillis();
+		if(this.environment.getInputGate(0) != null && this.environment.getInputGate(0).getExecutionStart() < timestamp ){
+			this.startTime = this.environment.getInputGate(0).getExecutionStart();
+		}
 		// Get CPU-Usertime in percent
 		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
 		long userCPU = (threadBean.getCurrentThreadUserTime() / NANO_TO_MILLISECONDS) * 100
 			/ (timestamp - this.startTime);
-
+		LOG.info("USER CPU for " + this.getTaskName() + " : " + userCPU);
 		// collect outputChannelUtilization
 		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
 		long totalOutputAmount = 0;
@@ -321,6 +324,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 				totalOutputAmount += outputChannel.getAmountOfDataTransmitted();
 			}
 		}
+		//FIXME (marrus) it is not about what we received but what we processed yet
 		long totalInputAmount = 0;
 		for (int i = 0; i < this.environment.getNumberOfInputGates(); ++i) {
 			final InputGate<? extends Record> inputGate = this.environment.getInputGate(i);
@@ -336,7 +340,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 		if (this.environment.getInvokable().getClass().isAnnotationPresent(Stateful.class)
 			&& !this.environment.getInvokable().getClass().isAnnotationPresent(Stateless.class)) {
-			// Don't checkpoint statefull tasks
+			// Don't checkpoint stateful tasks
 			force = false;
 		} else {
 			// look for a forced decision from the user
