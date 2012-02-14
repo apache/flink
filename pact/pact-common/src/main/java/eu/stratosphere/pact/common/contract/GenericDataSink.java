@@ -36,9 +36,9 @@ public class GenericDataSink extends Contract
 
 	private List<Contract> input = new ArrayList<Contract>();
 
-	private Order globalOrder = Order.NONE;
+	private Ordering globalOrder = null;
 
-	private Order localOrder = Order.NONE;
+	private Ordering localOrder = null;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -169,7 +169,7 @@ public class GenericDataSink extends Contract
 	 * @return NONE, if the sink writes data in any order, or ASCENDING (resp. DESCENDING),
 	 *         if the sink writes it data with a globally ascending (resp. descending) order.
 	 */
-	public Order getGlobalOrder() {
+	public Ordering getGlobalOrder() {
 		return this.globalOrder;
 	}
 	
@@ -180,7 +180,7 @@ public class GenericDataSink extends Contract
 	 * 
 	 * @param globalOrder The order to write the data in.
 	 */
-	public void setGlobalOrder(Order globalOrder) {
+	public void setGlobalOrder(Ordering globalOrder) {
 		this.globalOrder = globalOrder;
 	}
 
@@ -192,7 +192,7 @@ public class GenericDataSink extends Contract
 	 * @return NONE, if the sink writes data in any order, or ASCENDING (resp. DESCENDING),
 	 *         if the sink writes it data with a local ascending (resp. descending) order.
 	 */
-	public Order getLocalOrder() {
+	public Ordering getLocalOrder() {
 		return this.localOrder;
 	}
 	
@@ -203,7 +203,7 @@ public class GenericDataSink extends Contract
 	 * 
 	 * @param localOrder The local order to write the data in.
 	 */
-	public void setLocalOrder(Order localOrder) {
+	public void setLocalOrder(Ordering localOrder) {
 		this.localOrder = localOrder;
 	}
 	

@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 //import java.util.ArrayList;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.compiler.Costs;
@@ -306,4 +307,40 @@ public class InterestingProperties implements Cloneable {
 //			return preserved;
 //		}
 //	}
+	
+	
+	public static final List<InterestingProperties> createInterestingPropertiesForInput(List<InterestingProperties> props,
+			OptimizerNode node, int input) {
+		List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
+		
+		for (InterestingProperties p : props) {
+//			GlobalProperties preservedGp = p.getGlobalProperties().createCopy();
+//			LocalProperties preservedLp = p.getLocalProperties().createCopy();
+//			boolean nonTrivial = preservedGp.filterByNodesConstantSet(node, input);
+//			nonTrivial |= preservedLp.filterByNodesConstantSet(node, input);
+			
+			GlobalProperties preservedGp =
+					p.getGlobalProperties().createInterestingGlobalProperties(node, input);
+			LocalProperties preservedLp = 
+					p.getLocalProperties().createInterestingLocalProperties(node, input);
+
+			if (preservedGp != null || preservedLp != null) {
+				try {
+					if (preservedGp == null) {
+						preservedGp = new GlobalProperties();
+					}
+					if (preservedLp == null) {
+						preservedLp = new LocalProperties();
+					}
+					InterestingProperties newIp = new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp);
+					mergeUnionOfInterestingProperties(preserved, newIp);
+				} catch (CloneNotSupportedException cnse) {
+					// should never happen, but propagate just in case
+					throw new RuntimeException(cnse);
+				}
+			}
+		}
+
+		return preserved;
+	}
 }

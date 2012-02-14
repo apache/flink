@@ -40,6 +40,7 @@ import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
+import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
@@ -744,7 +745,12 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// set the degree-of-parallelism into the config to have it available during the output path checking.
 		sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, sinkNode.getDegreeOfParallelism());
 		// set the sort order into config (can also be NONE)
-		sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getKeyOrder().name());
+		if (sinkNode.getLocalProperties().getOrdering() != null) {
+			sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getOrdering().getOrder(0).name());	
+		}
+		else {
+			sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
+		}
 		// get task configuration object
 		TaskConfig sinkConfig = new TaskConfig(sinkVertex.getConfiguration());
 		// set user code class
@@ -1003,7 +1009,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		partitionConfig.setStubClass(sourceStub);
 		Configuration partitionStubConfig = new Configuration();
 		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
-			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
+			connection.getTargetPact().getGlobalProperties().getOrdering().getOrder(0).name());
 		partitionConfig.setStubParameters(partitionStubConfig);
 			
 		//Add temp vertex to avoid blocking
@@ -1084,7 +1090,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		partitionConfig.setStubClass(sourceStub);
 		Configuration partitionStubConfig = new Configuration();
 		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
-			connection.getTargetPact().getGlobalProperties().getKeyOrder().name());
+			connection.getTargetPact().getGlobalProperties().getOrdering().getOrder(0).name());
 		partitionStubConfig.setBoolean(PartitionTask.PARTITION_BY_SAMPLING, false);
 		partitionStubConfig.setInteger(PartitionTask.NUMBER_OF_PARTITIONS, targetDOP);
 		partitionStubConfig.setClass(PartitionTask.DATA_DISTRIBUTION_CLASS,
@@ -1111,6 +1117,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @throws JobGraphDefinitionException
 	 * @throws CompilerException
 	 */
+	@SuppressWarnings("unchecked")
 	private void connectJobVertices(PactConnection connection, int inputNumber,
 			final AbstractJobVertex outputVertex, final TaskConfig outputConfig,
 			final AbstractJobVertex inputVertex, final TaskConfig inputConfig)
@@ -1148,8 +1155,22 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		final Contract targetContract = connection.getTargetPact().getPactContract();
 		if (targetContract instanceof AbstractPact<?>) {
 			AbstractPact<?> pact = (AbstractPact<?>) targetContract;
-			keyPositions = pact.getKeyColumnNumbers(inputNumber-1);
-			keyTypes = pact.getKeyClasses();
+			if (connection.getScramblePartitionedFields() != null) {
+				int[] originalKeyPositions = pact.getKeyColumnNumbers(inputNumber-1);
+				Class<? extends Key>[] originalKeyTypes = pact.getKeyClasses();
+				int [] scrambleArray = connection.getScramblePartitionedFields();
+				keyTypes = new Class[scrambleArray.length];
+				keyPositions = new int[scrambleArray.length];
+				
+				for (int i = 0; i < scrambleArray.length; i++) {
+					keyPositions[i] = originalKeyPositions[scrambleArray[i]];
+					keyTypes[i] = originalKeyTypes[scrambleArray[i]];
+				}
+			}
+			else {
+				keyPositions = pact.getKeyColumnNumbers(inputNumber-1);
+				keyTypes = pact.getKeyClasses();	
+			}
 		} else {
 			keyPositions = null;
 			keyTypes = null;

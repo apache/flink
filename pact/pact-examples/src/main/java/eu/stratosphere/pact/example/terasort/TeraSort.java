@@ -18,6 +18,7 @@ package eu.stratosphere.pact.example.terasort;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -62,7 +63,7 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 		final FileDataSink sink = 
 				new FileDataSink(TeraOutputFormat.class, output, "Data Sink");
 		sink.setDegreeOfParallelism(noSubTasks);
-		sink.setGlobalOrder(Order.ASCENDING);
+		sink.setGlobalOrder(new Ordering(0, Order.ASCENDING));
 		sink.getCompilerHints().setInputDistributionClass(TeraDistribution.class);
 
 		sink.addInput(source);
