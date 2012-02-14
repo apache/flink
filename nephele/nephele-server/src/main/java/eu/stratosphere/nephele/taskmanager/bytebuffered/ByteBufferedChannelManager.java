@@ -380,21 +380,37 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				final InputChannelContext inputChannelContext = (InputChannelContext) cc;
 
-				Buffer destBuffer = null;
-				try {
-					destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
-					srcBuffer.copyToBuffer(destBuffer);
-				} catch (Exception e) {
-					LOG.error(StringUtils.stringifyException(e));
-					if (destBuffer != null) {
-						destBuffer.recycleBuffer();
+				if (srcBuffer.isBackedByMemory()) {
+
+					Buffer destBuffer = null;
+					try {
+						destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
+						srcBuffer.copyToBuffer(destBuffer);
+					} catch (Exception e) {
+						LOG.error(StringUtils.stringifyException(e));
+						if (destBuffer != null) {
+							destBuffer.recycleBuffer();
+						}
+						continue;
 					}
-					continue;
+					// TODO: See if we can save one duplicate step here
+					final TransferEnvelope dup = transferEnvelope.duplicateWithoutBuffer();
+					dup.setBuffer(destBuffer);
+					inputChannelContext.queueTransferEnvelope(dup);
+
+				} else {
+
+					// This is a file buffer, we can simply duplicate the envelope
+					TransferEnvelope dup = null;
+					try {
+						dup = transferEnvelope.duplicate();
+					} catch (Exception e) {
+						LOG.error(StringUtils.stringifyException(e));
+						continue;
+					}
+
+					inputChannelContext.queueTransferEnvelope(dup);
 				}
-				// TODO: See if we can save one duplicate step here
-				final TransferEnvelope dup = transferEnvelope.duplicateWithoutBuffer();
-				dup.setBuffer(destBuffer);
-				inputChannelContext.queueTransferEnvelope(dup);
 			}
 		}
 
