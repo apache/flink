@@ -31,7 +31,7 @@ public final class ReplayOutputChannelContext extends AbstractOutputChannelConte
 	@Override
 	public boolean isInputChannel() {
 
-		return true;
+		return false;
 	}
 
 	/**
