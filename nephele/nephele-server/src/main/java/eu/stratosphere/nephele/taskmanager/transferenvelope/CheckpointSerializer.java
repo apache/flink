@@ -19,11 +19,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.FileBuffer;
-import eu.stratosphere.nephele.io.channels.InternalBuffer;
-import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 
 /**
  * A checkpoint serializer is a special implementation of a transfer envelope serializer. Unlike the
@@ -39,39 +36,29 @@ public class CheckpointSerializer extends AbstractSerializer {
 
 	private boolean bufferDataSerializationStarted = false;
 
-	private boolean fileIDSerialized = false;
-
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	protected boolean writeBufferData(final WritableByteChannel writableByteChannel, final Buffer buffer)
-			throws IOException {
+	protected boolean writeBufferData(final WritableByteChannel writableByteChannel, final Buffer buffer) throws IOException {
 
 		final ByteBuffer tempBuffer = getTempBuffer();
 
 		if (!this.bufferDataSerializationStarted) {
 
-			final SerializationBuffer<IOReadableWritable> serializationBuffer = getSerializationBuffer();
-
 			if (buffer == null) {
 				throw new IllegalArgumentException("Argument buffer must not be null");
 			}
 
-			final InternalBuffer internalBuffer = buffer.getInternalBuffer();
-
-			if (internalBuffer.isInWriteMode()) {
+			if (buffer.isInWriteMode()) {
 				throw new IllegalStateException("Buffer to be serialized is still in write mode");
 			}
 
-			if (!(internalBuffer instanceof FileBuffer)) {
+			if (!(buffer instanceof FileBuffer)) {
 				throw new IllegalArgumentException("Provided buffer is not a file buffer");
 			}
 
-			final FileBuffer fileBuffer = (FileBuffer) internalBuffer;
-
-			serializationBuffer.clear();
-			serializationBuffer.serialize(fileBuffer.getFileID());
+			final FileBuffer fileBuffer = (FileBuffer) buffer;
 
 			tempBuffer.clear();
 			longToByteBuffer(fileBuffer.getOffset(), tempBuffer);
@@ -79,22 +66,10 @@ public class CheckpointSerializer extends AbstractSerializer {
 			this.bufferDataSerializationStarted = true;
 		}
 
-		if (!this.fileIDSerialized) {
-
-			final SerializationBuffer<IOReadableWritable> serializationBuffer = getSerializationBuffer();
-
-			if (serializationBuffer.dataLeftFromPreviousSerialization()) {
-				serializationBuffer.read(writableByteChannel);
-			} else {
-				this.fileIDSerialized = true;
-			}
+		if (tempBuffer.hasRemaining()) {
+			writableByteChannel.write(tempBuffer);
 		} else {
-
-			if (tempBuffer.hasRemaining()) {
-				writableByteChannel.write(tempBuffer);
-			} else {
-				return false;
-			}
+			return false;
 		}
 
 		return true;
@@ -109,8 +84,6 @@ public class CheckpointSerializer extends AbstractSerializer {
 		super.reset();
 
 		this.bufferDataSerializationStarted = false;
-		this.fileIDSerialized = false;
-
 	}
 
 	private void longToByteBuffer(long longToSerialize, ByteBuffer byteBuffer) throws IOException {

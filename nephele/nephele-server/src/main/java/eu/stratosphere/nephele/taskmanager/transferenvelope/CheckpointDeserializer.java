@@ -20,12 +20,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 
 import eu.stratosphere.nephele.io.AbstractID;
-import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
-import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.io.channels.FileID;
 
 public final class CheckpointDeserializer extends AbstractDeserializer {
 
@@ -34,11 +31,6 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 	private final AbstractID ownerID;
 
 	private final FileBufferManager fileBufferManager;
-
-	private FileID deserializedFileID = null;
-
-	private DeserializationBuffer<FileID> fileIDDeserializationBuffer = new DeserializationBuffer<FileID>(
-			new DefaultRecordDeserializer<FileID>(FileID.class), true);
 
 	public CheckpointDeserializer(final AbstractID ownerID) {
 		this.ownerID = ownerID;
@@ -50,16 +42,6 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 
 		final ByteBuffer tempBuffer = getTempBuffer();
 
-		if (this.deserializedFileID == null) {
-			this.deserializedFileID = this.fileIDDeserializationBuffer.readData(null, readableByteChannel);
-			if (this.deserializedFileID != null) {
-				tempBuffer.position(0);
-				tempBuffer.limit(8);
-			} else {
-				return true;
-			}
-		}
-
 		readableByteChannel.read(tempBuffer);
 		if (tempBuffer.hasRemaining()) {
 			return true;
@@ -67,14 +49,10 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 
 		final long offset = byteBufferToLong(tempBuffer);
 
-		final Buffer fileBuffer = BufferFactory.createFromCheckpoint(getSizeOfBuffer(), this.deserializedFileID,
-			offset, this.ownerID, this.fileBufferManager);
+		final Buffer fileBuffer = BufferFactory.createFromCheckpoint(getSizeOfBuffer(), offset, this.ownerID,
+			this.fileBufferManager);
 
 		setBuffer(fileBuffer);
-
-		this.fileBufferManager.registerExternalReadableSpillingFile(this.ownerID, this.deserializedFileID);
-
-		this.deserializedFileID = null;
 
 		return false;
 	}
