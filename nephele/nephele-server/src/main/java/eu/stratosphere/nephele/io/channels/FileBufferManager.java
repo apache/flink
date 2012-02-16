@@ -17,9 +17,11 @@ package eu.stratosphere.nephele.io.channels;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -29,7 +31,6 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * The file buffer manager manages the physical files which may be used to store the output or input of
@@ -39,257 +40,358 @@ import eu.stratosphere.nephele.util.StringUtils;
  * This class is thread-safe.
  * 
  * @author warneke
+ * @author Stephan Ewen
  */
-public final class FileBufferManager {
+public final class FileBufferManager
+{
+	/**
+	 * The prefix with which spill files are stored.
+	 */
+	public static final String FILE_BUFFER_PREFIX = "fb_";
 
 	/**
 	 * The logging object.
 	 */
 	private static final Log LOG = LogFactory.getLog(FileBufferManager.class);
 
-	public static final String FILE_BUFFER_PREFIX = "fb_";
+	/**
+	 * The singleton instance of the file buffer manager.
+	 */
+	private static final FileBufferManager instance = new FileBufferManager();
 
 	/**
-	 * Stores the location of the directory for temporary files.
+	 * The minimal size for an extend allocated for a channel.
 	 */
-	private final String tmpDir;
+	private static final int MIN_EXTEND_SIZE = 64 * 1024;
 
-	private final Map<AbstractID, WritableSpillingFile> writableSpillingFileMap = new HashMap<AbstractID, WritableSpillingFile>();
-
-	private final Map<AbstractID, Map<FileID, ReadableSpillingFile>> readableSpillingFileMap = new HashMap<AbstractID, Map<FileID, ReadableSpillingFile>>();
-
-	private static FileBufferManager instance = null;
-
-	public static synchronized FileBufferManager getInstance() {
-
-		if (instance == null) {
-			instance = new FileBufferManager();
-		}
-
+	/**
+	 * Gets the singleton instance of the file buffer manager.
+	 * 
+	 * @return The file buffer manager singleton instance.
+	 */
+	public static FileBufferManager getInstance()
+	{
 		return instance;
 	}
 
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * The map from owner IDs to files
+	 */
+	private final ConcurrentHashMap<AbstractID, ChannelWithAccessInfo> fileMap;
+
+	/**
+	 * The directories for temporary files.
+	 */
+	private final String[] tmpDirs;
+
+	/**
+	 * The size of the extend to allocate for each channel.
+	 */
+	private final int extendSize;
+
+	/**
+	 * 
+	 */
 	private FileBufferManager() {
 
-		this.tmpDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":")[0];
-	}
+		this.tmpDirs = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
 
-	private ReadableSpillingFile getReadableSpillingFile(final AbstractID ownerID, final FileID fileID)
-			throws IOException, InterruptedException {
+		final int extendSize = GlobalConfiguration.getConfiguration().getInteger(
+			ConfigConstants.TASKMANAGER_FILECHANNEL_EXTENDSIZE,
+			ConfigConstants.DEFAULT_FILECHANNEL_EXTEND_SIZE);
 
-		if (ownerID == null) {
-			throw new IllegalStateException("ownerID is null");
+		// check extend size
+		if (extendSize < MIN_EXTEND_SIZE) {
+			LOG.error("Invalid extend size " + extendSize + ". Minimum extend size is " + MIN_EXTEND_SIZE +
+				". Falling back to default extend size of " + ConfigConstants.DEFAULT_FILECHANNEL_EXTEND_SIZE);
+			this.extendSize = ConfigConstants.DEFAULT_FILECHANNEL_EXTEND_SIZE;
+		} else if ((extendSize & (extendSize - 1)) != 0) {
+			// not a power of two
+			this.extendSize = Integer.highestOneBit(extendSize);
+			LOG.warn("Changing extend size from " + extendSize + " to " + this.extendSize
+				+ " to make it a power of two.");
+		} else {
+			this.extendSize = extendSize;
 		}
 
-		if (fileID == null) {
-			throw new IllegalStateException("fileID is null");
-		}
-
-		Map<FileID, ReadableSpillingFile> map = null;
-		synchronized (this.readableSpillingFileMap) {
-			map = this.readableSpillingFileMap.get(ownerID);
-			if (map == null) {
-				map = new HashMap<FileID, ReadableSpillingFile>();
-				this.readableSpillingFileMap.put(ownerID, map);
+		// check temp dirs
+		for (int i = 0; i < this.tmpDirs.length; i++) {
+			File f = new File(this.tmpDirs[i]);
+			if (!(f.exists() && f.isDirectory() && f.canWrite())) {
+				LOG.error("Temp directory '" + f.getAbsolutePath() + "' is not a writable directory. " +
+					"Replacing path with default temp directory: " + ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+				this.tmpDirs[i] = ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH;
 			}
+			this.tmpDirs[i] = this.tmpDirs[i] + File.separator + FILE_BUFFER_PREFIX;
 		}
 
-		synchronized (map) {
-
-			while (!map.containsKey(fileID)) {
-
-				synchronized (this.writableSpillingFileMap) {
-					WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(ownerID);
-					if (writableSpillingFile != null) {
-						writableSpillingFile.requestReadAccess();
-
-						if (writableSpillingFile.isSafeToClose()) {
-							writableSpillingFile.close();
-							this.writableSpillingFileMap.remove(ownerID);
-							map.put(
-								writableSpillingFile.getFileID(),
-								writableSpillingFile.toReadableSpillingFile());
-						}
-					}
-				}
-
-				if (!map.containsKey(fileID)) {
-					map.wait(WritableSpillingFile.MAXIMUM_TIME_WITHOUT_WRITE_ACCESS);
-				}
-			}
-
-			return map.get(fileID);
-		}
+		this.fileMap = new ConcurrentHashMap<AbstractID, ChannelWithAccessInfo>(2048, 0.8f, 64);
 	}
 
-	public FileChannel getFileChannelForReading(final AbstractID ownerID, final FileID fileID) throws IOException,
-			InterruptedException {
+	// --------------------------------------------------------------------------------------------
 
-		return getReadableSpillingFile(ownerID, fileID).lockReadableFileChannel();
-	}
+	/**
+	 * Gets the file channel to for the owner with the given id.
+	 * 
+	 * @param id
+	 *        The id for which to retrieve the channel.
+	 * @throws IllegalStateException
+	 *         Thrown, if the channel has not been registered or has already been removed.
+	 */
+	public FileChannel getChannel(final AbstractID id) throws IOException {
 
-	public void increaseBufferCounter(final AbstractID ownerID, final FileID fileID) throws IOException,
-			InterruptedException {
-
-		getReadableSpillingFile(ownerID, fileID).increaseNumberOfBuffers();
-	}
-
-	public void decreaseBufferCounter(final AbstractID ownerID, final FileID fileID) {
-
-		try {
-			Map<FileID, ReadableSpillingFile> map = null;
-			synchronized (this.readableSpillingFileMap) {
-				map = this.readableSpillingFileMap.get(ownerID);
-				if (map == null) {
-					throw new IOException("Cannot find readable spilling file queue for owner ID " + ownerID);
-				}
-
-				ReadableSpillingFile readableSpillingFile = null;
-				synchronized (map) {
-					readableSpillingFile = map.get(fileID);
-					if (readableSpillingFile == null) {
-						throw new IOException("Cannot find readable spilling file for owner ID " + ownerID);
-					}
-
-					if (readableSpillingFile.checkForEndOfFile()) {
-						map.remove(fileID);
-						if (map.isEmpty()) {
-							this.readableSpillingFileMap.remove(ownerID);
-						}
-					}
-				}
-			}
-		} catch (IOException ioe) {
-			LOG.error(StringUtils.stringifyException(ioe));
-		}
-	}
-
-	public void releaseFileChannelForReading(final AbstractID ownerID, final FileID fileID) {
-
-		try {
-			getReadableSpillingFile(ownerID, fileID).unlockReadableFileChannel();
-		} catch (Exception e) {
-			LOG.error(StringUtils.stringifyException(e));
+		final ChannelWithAccessInfo info = getChannelInternal(id, false);
+		if (info != null) {
+			return info.getChannel();
+		} else {
+			throw new IllegalStateException("No channel is registered (any more) for the given id.");
 		}
 	}
 
 	/**
-	 * Locks and returns a file channel from a {@link WritableSpillingFile}.
+	 * Gets the file channel to for the owner with the given id and increments the references to that channel by one.
 	 * 
-	 * @param ownerID
-	 *        the ID of the owner the file channel shall be locked for
-	 * @return the file channel object if the lock could be acquired or <code>null</code> if the locking operation
-	 *         failed
-	 * @throws IOException
-	 *         thrown if no spilling for the given channel ID could be allocated
+	 * @param id
+	 *        The id for which to retrieve the channel.
+	 * @throws IllegalStateException
+	 *         Thrown, if the channel has not been registered or has already been removed.
 	 */
-	public FileChannel getFileChannelForWriting(final AbstractID ownerID) throws IOException {
+	public FileChannel getChannelAndIncrementReferences(final AbstractID owner) throws IOException {
 
-		synchronized (this.writableSpillingFileMap) {
-
-			WritableSpillingFile writableSpillingFile = this.writableSpillingFileMap.get(ownerID);
-			if (writableSpillingFile == null) {
-				final FileID fileID = new FileID();
-				final String filename = this.tmpDir + File.separator + FILE_BUFFER_PREFIX + fileID;
-				writableSpillingFile = new WritableSpillingFile(fileID, new File(filename));
-				this.writableSpillingFileMap.put(ownerID, writableSpillingFile);
-			}
-
-			return writableSpillingFile.lockWritableFileChannel();
+		final ChannelWithAccessInfo info = getChannelInternal(owner, false);
+		if (info != null) {
+			return info.getAndIncrementReferences();
+		} else {
+			throw new IllegalStateException("No channel is registered (any more) for the given id.");
 		}
 	}
 
 	/**
-	 * Returns the lock for a file channel of a {@link WritableSpillingFile}.
+	 * Gets the file channel to for the owner with the given id and reserved the portion of the given size for
+	 * writing. The position where the reserved space starts is contained in the return value. This method
+	 * automatically increments the number of references to the channel by one.
+	 * <p>
+	 * This method always returns a channel. If no channel exists (yet or any more) for the given id, one is created.
 	 * 
-	 * @param ownerID
-	 *        the ID of the owner the lock has been acquired for
-	 * @param currentFileSize
-	 *        the size of the file after the last write operation using the locked file channel
-	 * @throws IOException
-	 *         thrown if the lock could not be released
+	 * @param id
+	 *        The id for which to get the channel and reserve space.
 	 */
-	public FileID reportEndOfWritePhase(final AbstractID ownerID, final long currentFileSize) throws IOException {
+	public ChannelWithPosition getChannelForWriteAndIncrementReferences(final AbstractID id, final int spaceToReserve)
+			throws IOException {
 
-		WritableSpillingFile writableSpillingFile = null;
-		boolean removed = false;
-		synchronized (this.writableSpillingFileMap) {
+		ChannelWithPosition c = null;
+		do {
+			// the return value may be zero, if someone asynchronously decremented the counter to zero
+			// and caused the disposal of the channel. falling through the loop will create a
+			// new channel.
+			c = getChannelInternal(id, true).reserveWriteSpaceAndIncrementReferences(spaceToReserve);
+		} while (c == null);
 
-			writableSpillingFile = this.writableSpillingFileMap.get(ownerID);
-			if (writableSpillingFile == null) {
-				throw new IOException("Cannot find writable spilling file for owner ID " + ownerID);
+		return c;
+	}
+
+	/**
+	 * Increments the references to the given channel.
+	 * 
+	 * @param id
+	 *        The channel to increment the references for.
+	 * @throws IllegalStateException
+	 *         Thrown, if the channel has not been registered or has already been removed.
+	 */
+	public void incrementReferences(final AbstractID id) {
+
+		ChannelWithAccessInfo entry = this.fileMap.get(id);
+		if (entry == null || !entry.incrementReferences()) {
+			throw new IllegalStateException("No channel is registered (any more) for the given id.");
+		}
+	}
+
+	/**
+	 * Decrements the references to the given channel. If the channel reaches zero references, it will be removed.
+	 * 
+	 * @param id
+	 *        The channel to decrement the references for.
+	 * @throws IllegalStateException
+	 *         Thrown, if the channel has not been registered or has already been removed.
+	 */
+	public void decrementReferences(final AbstractID id) {
+
+		ChannelWithAccessInfo entry = this.fileMap.get(id);
+		if (entry != null) {
+			if (entry.decrementReferences() <= 0) {
+				this.fileMap.remove(id);
 			}
+		} else {
+			throw new IllegalStateException("Channel is not (or no longer) registered at the file buffer manager.");
+		}
+	}
 
-			writableSpillingFile.unlockWritableFileChannel(currentFileSize);
+	// --------------------------------------------------------------------------------------------
 
-			if (writableSpillingFile.isReadRequested() && writableSpillingFile.isSafeToClose()) {
-				this.writableSpillingFileMap.remove(ownerID);
-				removed = true;
+	private final ChannelWithAccessInfo getChannelInternal(final AbstractID id, final boolean createIfAbsent)
+			throws IOException {
+
+		ChannelWithAccessInfo cwa = this.fileMap.get(id);
+		if (cwa == null) {
+			if (createIfAbsent) {
+
+				// Construct the filename
+				final int dirIndex = Math.abs(id.hashCode()) % this.tmpDirs.length;
+				final File file = new File(this.tmpDirs[dirIndex] + id.toString());
+
+				cwa = new ChannelWithAccessInfo(file);
+				final ChannelWithAccessInfo alreadyContained = this.fileMap.putIfAbsent(id, cwa);
+				if (alreadyContained != null) {
+					// we had a race (should be a very rare event) and have created an
+					// unneeded channel. dispose it and use the already contained one.
+					cwa.disposeSilently();
+					cwa = alreadyContained;
+				}
+			} else {
+				return null;
 			}
 		}
 
-		if (removed) {
-			writableSpillingFile.close();
-			Map<FileID, ReadableSpillingFile> map = null;
-			synchronized (this.readableSpillingFileMap) {
-				map = this.readableSpillingFileMap.get(ownerID);
-				if (map == null) {
-					map = new HashMap<FileID, ReadableSpillingFile>();
-					this.readableSpillingFileMap.put(ownerID, map);
+		return cwa;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static final class ChannelWithAccessInfo {
+
+		private final File file;
+
+		private final FileChannel channel;
+
+		private final AtomicLong reservedWritePosition;
+
+		private final AtomicInteger referenceCounter;
+
+		private ChannelWithAccessInfo(final File file) throws IOException {
+
+			this.file = file;
+			this.channel = new RandomAccessFile(file, "rw").getChannel();
+			this.reservedWritePosition = new AtomicLong(0);
+			this.referenceCounter = new AtomicInteger(0);
+		}
+
+		FileChannel getChannel() {
+
+			return this.channel;
+		}
+
+		FileChannel getAndIncrementReferences() {
+
+			if (incrementReferences()) {
+				return this.channel;
+			} else {
+				return null;
+			}
+		}
+
+		ChannelWithPosition reserveWriteSpaceAndIncrementReferences(final int spaceToReserve) {
+
+			if (incrementReferences()) {
+				return new ChannelWithPosition(this.channel, this.reservedWritePosition.getAndAdd(spaceToReserve));
+			} else {
+				return null;
+			}
+		}
+
+		/**
+		 * Decrements the number of references to this channel. If the number of references is zero after the
+		 * decrement, the channel is deleted.
+		 * 
+		 * @return The number of references remaining after the decrement.
+		 * @throws IllegalStateException
+		 *         Thrown, if the number of references is already zero or below.
+		 */
+		int decrementReferences() {
+
+			int current = this.referenceCounter.get();
+			while (true) {
+				if (current <= 0) {
+					// this is actually an error case, because the channel was deleted before
+					throw new IllegalStateException("The references to the file were already at zero.");
+				}
+
+				if (current == 1) {
+					// this call decrements to zero, so mark it as deleted
+					if (this.referenceCounter.compareAndSet(current, Integer.MIN_VALUE)) {
+						current = 0;
+						break;
+					}
+				}
+				else if (this.referenceCounter.compareAndSet(current, current - 1)) {
+					current = current - 1;
+					break;
+				}
+				current = this.referenceCounter.get();
+			}
+
+			if (current > 0) {
+				return current;
+			}
+			else if (current == 0) {
+				// delete the channel
+				this.referenceCounter.set(Integer.MIN_VALUE);
+				this.reservedWritePosition.set(Long.MIN_VALUE);
+				try {
+					this.channel.close();
+				} catch (IOException ioex) {
+					if (FileBufferManager.LOG.isErrorEnabled())
+						FileBufferManager.LOG.error("Error while closing spill file for file buffers: " +
+							ioex.getMessage(), ioex);
+				}
+				this.file.delete();
+				return current;
+			}
+			else {
+				throw new IllegalStateException("The references to the file were already at zero.");
+			}
+		}
+
+		/**
+		 * Increments the references to this channel. Returns <code>true</code>, if successful, and <code>false</code>,
+		 * if the channel has been disposed in the meantime.
+		 * 
+		 * @return True, if successful, false, if the channel has been disposed.
+		 */
+		boolean incrementReferences() {
+
+			int current = this.referenceCounter.get();
+			while (true) {
+				// check whether it was disposed in the meantime
+				if (current < 0) {
+					return false;
+				}
+				// atomically check and increment
+				if (this.referenceCounter.compareAndSet(current, current + 1)) {
+					return true;
+				}
+				current = this.referenceCounter.get();
+			}
+		}
+
+		/**
+		 * Disposes the channel without further notice. Tries to close it (swallowing all exceptions) and tries
+		 * to delete the file.
+		 */
+		void disposeSilently() {
+
+			this.referenceCounter.set(Integer.MIN_VALUE);
+			this.reservedWritePosition.set(Long.MIN_VALUE);
+
+			if (this.channel.isOpen()) {
+				try {
+					this.channel.close();
+				} catch (Throwable t) {
 				}
 			}
-
-			synchronized (map) {
-				map.put(writableSpillingFile.getFileID(),
-					writableSpillingFile.toReadableSpillingFile());
-				map.notify();
-			}
-		}
-
-		return writableSpillingFile.getFileID();
-	}
-
-	public void registerExternalReadableSpillingFile(final AbstractID ownerID, final FileID fileID) throws IOException {
-
-		Map<FileID, ReadableSpillingFile> map = null;
-		synchronized (this.readableSpillingFileMap) {
-			map = this.readableSpillingFileMap.get(ownerID);
-			if (map == null) {
-				map = new HashMap<FileID, ReadableSpillingFile>();
-				this.readableSpillingFileMap.put(ownerID, map);
-			}
-		}
-
-		ReadableSpillingFile readableSpillingFile = null;
-		synchronized (map) {
-			readableSpillingFile = map.get(fileID);
-			if (readableSpillingFile == null) {
-				final String filename = this.tmpDir + File.separator + FILE_BUFFER_PREFIX + fileID;
-				readableSpillingFile = new ReadableSpillingFile(new File(filename), 1); // Use 1 here to make sure the
-																						// file is not immediately
-																						// deleted
-				map.put(fileID, readableSpillingFile);
-				map.notify();
-			}
-		}
-
-		readableSpillingFile.increaseNumberOfBuffers();
-
-	}
-
-	public void forceCloseOfWritableSpillingFile(final AbstractID ownerID) throws IOException, InterruptedException {
-
-		FileID fileID = null;
-		synchronized (this.writableSpillingFileMap) {
-			final WritableSpillingFile w = this.writableSpillingFileMap.get(ownerID);
-			if (w != null) {
-				fileID = w.getFileID();
-			}
-		}
-
-		if (fileID != null) {
-			getReadableSpillingFile(ownerID, fileID);
+			this.file.delete();
 		}
 	}
 }

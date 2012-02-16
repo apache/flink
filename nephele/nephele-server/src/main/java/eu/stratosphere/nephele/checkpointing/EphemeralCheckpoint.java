@@ -267,7 +267,8 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 				+ this.task.getVertexID() + "_final").close();
 
 			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.
-			this.fileBufferManager.forceCloseOfWritableSpillingFile(this.task.getVertexID());
+			//TODO: Fix me
+			//this.fileBufferManager.forceCloseOfWritableSpillingFile(this.task.getVertexID());
 
 			LOG.info("Finished persistent checkpoint for vertex " + this.task.getVertexID());
 

@@ -15,33 +15,34 @@
 
 package eu.stratosphere.nephele.io.channels;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.AbstractID;
-import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.InternalBuffer;
 
-public abstract class BufferFactory {
+public final class BufferFactory {
 
-	public static Buffer createFromFile(final int bufferSize, final AbstractID ownerID,
-			final FileBufferManager fileBufferManager) {
+	public static FileBuffer createFromFile(final int bufferSize, final AbstractID ownerID,
+			final FileBufferManager fileBufferManager) throws IOException {
 
-		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, ownerID, fileBufferManager);
-		return new Buffer(internalBuffer);
+		return new FileBuffer(bufferSize, ownerID, fileBufferManager);
 	}
 
-	public static Buffer createFromCheckpoint(final int bufferSize, final FileID fileID, final long offset,
-			final AbstractID ownerID, final FileBufferManager fileBufferManager) {
+	public static FileBuffer createFromCheckpoint(final int bufferSize, final long offset,
+			final AbstractID ownerID, final FileBufferManager fileBufferManager) throws IOException {
 
-		final InternalBuffer internalBuffer = new FileBuffer(bufferSize, fileID, offset, ownerID, fileBufferManager);
-
-		return new Buffer(internalBuffer);
+		return new FileBuffer(bufferSize, offset, ownerID, fileBufferManager);
 	}
 
 	public static Buffer createFromMemory(final int bufferSize, final ByteBuffer byteBuffer,
 			final MemoryBufferPoolConnector bufferPoolConnector) {
 
-		final InternalBuffer internalBuffer = new MemoryBuffer(bufferSize, byteBuffer, bufferPoolConnector);
-		return new Buffer(internalBuffer);
+		return new MemoryBuffer(bufferSize, byteBuffer, bufferPoolConnector);
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private BufferFactory() {
 	}
 }

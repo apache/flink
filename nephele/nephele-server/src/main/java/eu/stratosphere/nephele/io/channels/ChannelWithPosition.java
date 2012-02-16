@@ -15,29 +15,30 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import java.io.IOException;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
+import java.nio.channels.FileChannel;
 
-public interface InternalBuffer extends ReadableByteChannel, WritableByteChannel {
+/**
+ * A simple encapsulation of a file channel with an offset. This object is used for purposes, where
+ * the channel is accessed by multiple threads and its internal position may be changed.
+ */
+public class ChannelWithPosition {
 
-	int write(ReadableByteChannel readableByteChannel) throws IOException;
+	private final FileChannel channel;
 
-	int read(WritableByteChannel writableByteChannel) throws IOException;
+	private final long offset;
 
-	int remaining();
+	ChannelWithPosition(final FileChannel channel, final long offset) {
+		this.channel = channel;
+		this.offset = offset;
+	}
 
-	int size();
+	public FileChannel getChannel() {
 
-	void recycleBuffer();
+		return this.channel;
+	}
 
-	void finishWritePhase() throws IOException;
+	public long getOffset() {
 
-	boolean isBackedByMemory();
-
-	InternalBuffer duplicate() throws IOException, InterruptedException;
-	
-	boolean isInWriteMode();
-	
-	void copyToBuffer(Buffer destinationBuffer) throws IOException;
+		return this.offset;
+	}
 }

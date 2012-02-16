@@ -20,7 +20,6 @@ import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.InternalBuffer;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 
 public abstract class AbstractCompressor implements Compressor {
@@ -73,12 +72,11 @@ public abstract class AbstractCompressor implements Compressor {
 	 */
 	private ByteBuffer getInternalByteBuffer(Buffer buffer) {
 
-		final InternalBuffer internalBuffer = buffer.getInternalBuffer();
-		if (!(internalBuffer instanceof MemoryBuffer)) {
+		if (!(buffer instanceof MemoryBuffer)) {
 			throw new RuntimeException("Provided buffer is not a memory buffer and cannot be used for compression");
 		}
 
-		final MemoryBuffer memoryBuffer = (MemoryBuffer) internalBuffer;
+		final MemoryBuffer memoryBuffer = (MemoryBuffer) buffer;
 
 		return memoryBuffer.getByteBuffer();
 	}
