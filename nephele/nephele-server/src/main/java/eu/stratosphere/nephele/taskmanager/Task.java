@@ -25,6 +25,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
@@ -97,7 +98,6 @@ public interface Task {
 	 */
 	void registerIOManager(IOManager ioManager);
 
-
 	/**
 	 * Registers the input splits provider with the task.
 	 * 
@@ -138,7 +138,8 @@ public interface Task {
 	 * @return the current execution state of the task
 	 */
 	ExecutionState getExecutionState();
-	
+
 	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints);
+			Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints,
+			LocalBufferPoolOwner previousBufferPoolOwner);
 }

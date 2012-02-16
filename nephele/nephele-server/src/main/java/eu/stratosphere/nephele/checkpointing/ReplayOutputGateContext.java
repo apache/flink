@@ -34,7 +34,8 @@ final class ReplayOutputGateContext extends AbstractReplayGateContext implements
 		final OutputChannelForwardingChain forwardingChain = new OutputChannelForwardingChain();
 		final IncomingEventQueue incomingEventQueue = AbstractOutputChannelContext
 			.createIncomingEventQueue(forwardingChain);
-		final ReplayOutputBroker outputBroker = new ReplayOutputBroker(forwardingChain, incomingEventQueue);
+		final ReplayOutputBroker outputBroker = new ReplayOutputBroker(this.taskContext, forwardingChain,
+			incomingEventQueue);
 		forwardingChain.addForwarder(outputBroker);
 		forwardingChain.addForwarder(new ForwardingBarrier(channelID));
 		forwardingChain.addForwarder(new SpillingBarrier(isReceiverRunning, mergeSpillBuffers));

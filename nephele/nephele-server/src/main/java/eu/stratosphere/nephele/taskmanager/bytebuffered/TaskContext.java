@@ -18,11 +18,9 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 
-public interface TaskContext {
+public interface TaskContext extends LocalBufferPoolOwner {
 
 	OutputGateContext createOutputGateContext(GateID gateID);
 
 	InputGateContext createInputGateContext(GateID gateID);
-
-	LocalBufferPoolOwner getLocalBufferPoolOwner();
 }

@@ -50,6 +50,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -304,7 +305,8 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 		// Construct a resource utilization snapshot
 		final long timestamp = System.currentTimeMillis();
-		if(this.environment.getInputGate(0) != null && this.environment.getInputGate(0).getExecutionStart() < timestamp ){
+		if (this.environment.getInputGate(0) != null
+			&& this.environment.getInputGate(0).getExecutionStart() < timestamp) {
 			this.startTime = this.environment.getInputGate(0).getExecutionStart();
 		}
 		// Get CPU-Usertime in percent
@@ -324,7 +326,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 				totalOutputAmount += outputChannel.getAmountOfDataTransmitted();
 			}
 		}
-		//FIXME (marrus) it is not about what we received but what we processed yet
+		// FIXME (marrus) it is not about what we received but what we processed yet
 		long totalInputAmount = 0;
 		for (int i = 0; i < this.environment.getNumberOfInputGates(); ++i) {
 			final InputGate<? extends Record> inputGate = this.environment.getInputGate(i);
@@ -494,7 +496,12 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 */
 	@Override
 	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints) {
+			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints,
+			final LocalBufferPoolOwner previousBufferPoolOwner) {
+
+		if (previousBufferPoolOwner != null) {
+			throw new IllegalStateException("Vertex " + this.vertexID + " has a previous buffer pool owner");
+		}
 
 		return new RuntimeTaskContext(this, transferEnvelopeDispatcher, tasksWithUndecidedCheckpoints);
 	}
