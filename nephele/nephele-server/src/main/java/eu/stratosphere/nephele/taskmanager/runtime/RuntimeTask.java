@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.taskmanager.runtime;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.util.HashMap;
@@ -307,6 +308,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		if(this.environment.getInputGate(0) != null && this.environment.getInputGate(0).getExecutionStart() < timestamp ){
 			this.startTime = this.environment.getInputGate(0).getExecutionStart();
 		}
+		LOG.info("Task " + this.getTaskName() + " started " + this.startTime);
 		// Get CPU-Usertime in percent
 		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
 		long userCPU = (threadBean.getCurrentThreadUserTime() / NANO_TO_MILLISECONDS) * 100
@@ -315,8 +317,11 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		// collect outputChannelUtilization
 		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
 		long totalOutputAmount = 0;
+		int numrec = 0;
+		long averageOutputRecordSize= 0;
 		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
+			 numrec += outputGate.getNumRecords();
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 				channelUtilization.put(outputChannel.getID(),
@@ -324,20 +329,39 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 				totalOutputAmount += outputChannel.getAmountOfDataTransmitted();
 			}
 		}
+		if(numrec != 0){
+			averageOutputRecordSize = totalOutputAmount/numrec;
+		}
 		//FIXME (marrus) it is not about what we received but what we processed yet
+		boolean allClosed = true;
+		int numinrec = 0;
 		long totalInputAmount = 0;
+		long averageInputRecordSize = 0;
 		for (int i = 0; i < this.environment.getNumberOfInputGates(); ++i) {
 			final InputGate<? extends Record> inputGate = this.environment.getInputGate(i);
+			numrec += inputGate.getNumRecords();
 			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
 				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
 				channelUtilization.put(inputChannel.getID(),
 					Long.valueOf(inputChannel.getAmountOfDataTransmitted()));
 				totalInputAmount += inputChannel.getAmountOfDataTransmitted();
+				try {
+					if(!inputChannel.isClosed()){
+						allClosed = false;
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 
 			}
 		}
+		if(numinrec != 0){
+			averageInputRecordSize = totalInputAmount/numinrec;
+		}
 		Boolean force = null;
-
+		Boolean stateful = false;
 		if (this.environment.getInvokable().getClass().isAnnotationPresent(Stateful.class)
 			&& !this.environment.getInvokable().getClass().isAnnotationPresent(Stateless.class)) {
 			// Don't checkpoint stateful tasks
@@ -349,8 +373,9 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 				force = forced.checkpoint();
 			}
 		}
+
 		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization, userCPU,
-			force, totalInputAmount, totalOutputAmount);
+			force, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize);
 
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
