@@ -24,7 +24,7 @@ final class EnvelopeConsumptionLog {
 
 	private static final Log LOG = LogFactory.getLog(EnvelopeConsumptionLog.class);
 
-	private static final int LOG_WINDOW_SIZE = 65536;
+	private static final int LOG_WINDOW_SIZE = 262144;
 
 	private static final int SIZE_OF_INTEGER = 4;
 
@@ -105,7 +105,40 @@ final class EnvelopeConsumptionLog {
 	void finish() {
 
 		synchronized (this) {
-			writeAnnouncedEnvelopesBufferToDisk();
+
+			if (this.announcedEnvelopesAsIntBuffer.position() == 0) {
+				return;
+			}
+		}
+
+		final EnvelopeConsumptionLog lock = this;
+
+		// Run this in a separate thread, so we will be distributed by the thread trying to interrupt this
+		// thread. However, wait for the thread to finish.
+
+		final Thread finisherThread = new Thread("Log finisher for " + this.environment.getTaskNameWithIndex()) {
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void run() {
+
+				synchronized (lock) {
+					writeAnnouncedEnvelopesBufferToDisk();
+				}
+			}
+		};
+
+		finisherThread.start();
+
+		boolean regularExit = false;
+		while (!regularExit) {
+			try {
+				finisherThread.join();
+				regularExit = true;
+			} catch (InterruptedException ie) {
+			}
 		}
 	}
 
@@ -343,7 +376,7 @@ final class EnvelopeConsumptionLog {
 	private void announce(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
 
 		inputChannel.checkForNetworkEvents();
-		
+
 		if (++this.numberOfAnnouncedEnvelopes < this.numberOfInitialLogEntries) {
 			return;
 		}
