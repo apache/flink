@@ -202,7 +202,7 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			if (buffer.isBackedByMemory()) {
 
 				// Make sure we transfer the encapsulated buffer to a file and release the memory buffer again
-				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.task.getVertexID(),
+				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), transferEnvelope.getSource(),
 					this.fileBufferManager);
 				buffer.copyToBuffer(fileBuffer);
 				transferEnvelope.setBuffer(fileBuffer);
