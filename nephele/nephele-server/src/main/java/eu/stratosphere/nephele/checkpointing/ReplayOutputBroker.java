@@ -6,24 +6,31 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-final class ReplayOutputBroker implements OutputChannelForwarder {
+final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider {
 
 	/**
 	 * The logger to report information and problems.
 	 */
 	private static final Log LOG = LogFactory.getLog(ReplayOutputBroker.class);
 
+	private final BufferProvider bufferProvider;
+
 	private final OutputChannelForwardingChain forwardingChain;
 
 	private final IncomingEventQueue incomingEventQueue;
 
-	ReplayOutputBroker(final OutputChannelForwardingChain forwardingChain, final IncomingEventQueue incomingEventQueue) {
+	ReplayOutputBroker(final BufferProvider bufferProvider, final OutputChannelForwardingChain forwardingChain,
+			final IncomingEventQueue incomingEventQueue) {
+
+		this.bufferProvider = bufferProvider;
 		this.forwardingChain = forwardingChain;
 		this.incomingEventQueue = incomingEventQueue;
 	}
@@ -77,5 +84,50 @@ final class ReplayOutputBroker implements OutputChannelForwarder {
 		this.incomingEventQueue.processQueuedEvents();
 
 		return (!this.forwardingChain.anyForwarderHasDataLeft());
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
+
+		return this.bufferProvider.requestEmptyBuffer(minimumSizeOfBuffer);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Buffer requestEmptyBufferBlocking(final int minimumSizeOfBuffer) throws IOException, InterruptedException {
+
+		return this.bufferProvider.requestEmptyBufferBlocking(minimumSizeOfBuffer);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getMaximumBufferSize() {
+
+		return this.bufferProvider.getMaximumBufferSize();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean isShared() {
+
+		return this.bufferProvider.isShared();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void reportAsynchronousEvent() {
+
+		this.bufferProvider.reportAsynchronousEvent();
 	}
 }

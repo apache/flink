@@ -35,6 +35,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
@@ -406,9 +407,11 @@ public final class ReplayTask implements Task {
 	 */
 	@Override
 	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints) {
+			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints,
+			final LocalBufferPoolOwner previousBufferPoolOwner) {
 
-		return new ReplayTaskContext(this, transferEnvelopeDispatcher);
+		return new ReplayTaskContext(this, transferEnvelopeDispatcher, previousBufferPoolOwner, this.environment
+			.getOutputChannelIDs().size());
 	}
 
 	private void reportExecutionStateChange(final boolean replayTaskStateChanged, final String optionalMessage) {

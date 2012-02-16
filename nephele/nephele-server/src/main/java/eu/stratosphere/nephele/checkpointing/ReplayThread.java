@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointDeserializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -136,7 +137,7 @@ final class ReplayThread extends Thread {
 	}
 
 	private void replayCheckpoint() throws Exception {
-		
+
 		final CheckpointDeserializer deserializer = new CheckpointDeserializer(this.vertexID);
 
 		int metaDataIndex = 0;
@@ -167,7 +168,7 @@ final class ReplayThread extends Thread {
 				}
 
 				// Wait for the file to be created
-				Thread.sleep(100);
+				Thread.sleep(10);
 
 			}
 
@@ -184,7 +185,22 @@ final class ReplayThread extends Thread {
 
 						final TransferEnvelope transferEnvelope = deserializer.getFullyDeserializedTransferEnvelope();
 						if (transferEnvelope != null) {
-							outputEnvelope(transferEnvelope);
+
+							final ReplayOutputBroker broker = this.outputBrokerMap.get(transferEnvelope.getSource());
+							if (broker == null) {
+								throw new IOException("Cannot find output broker for channel "
+									+ transferEnvelope.getSource());
+							}
+
+							final Buffer srcBuffer = transferEnvelope.getBuffer();
+							if (srcBuffer != null) {
+								final Buffer destBuffer = broker.requestEmptyBufferBlocking(srcBuffer.size());
+								srcBuffer.copyToBuffer(destBuffer);
+								transferEnvelope.setBuffer(destBuffer);
+								srcBuffer.recycleBuffer();								
+							}
+
+							broker.outputEnvelope(transferEnvelope);
 						}
 					} catch (EOFException eof) {
 						// Close the file channel
@@ -200,15 +216,5 @@ final class ReplayThread extends Thread {
 				}
 			}
 		}
-	}
-
-	private void outputEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
-
-		final ReplayOutputBroker outputBroker = this.outputBrokerMap.get(transferEnvelope.getSource());
-		if (outputBroker == null) {
-			throw new IOException("Cannot find output broker for channel " + transferEnvelope.getSource());
-		}
-
-		outputBroker.outputEnvelope(transferEnvelope);
 	}
 }

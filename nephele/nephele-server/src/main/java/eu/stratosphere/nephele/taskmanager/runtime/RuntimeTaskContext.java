@@ -30,15 +30,13 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.types.Record;
 
-public final class RuntimeTaskContext implements BufferProvider, AsynchronousEventListener, LocalBufferPoolOwner,
-		TaskContext {
+public final class RuntimeTaskContext implements BufferProvider, AsynchronousEventListener, TaskContext {
 
 	private final LocalBufferPool localBufferPool;
 
@@ -280,13 +278,9 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		return new RuntimeInputGateContext(re.getTaskNameWithIndex(), this.transferEnvelopeDispatcher, inputGate,
 			this.envelopeConsumptionLog);
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public LocalBufferPoolOwner getLocalBufferPoolOwner() {
-
-		return this;
+	
+	public LocalBufferPool getLocalBufferPool() {
+		
+		return this.localBufferPool;
 	}
 }

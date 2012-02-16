@@ -131,7 +131,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		final Environment environment = task.getEnvironment();
 
-		final TaskContext taskContext = task.createTaskContext(this, this.tasksWithUndecidedCheckpoints);
+		final TaskContext taskContext = task.createTaskContext(this, this.tasksWithUndecidedCheckpoints,
+			this.localBufferPoolOwner.remove(task.getVertexID()));
 
 		final Set<GateID> outputGateIDs = environment.getOutputGateIDs();
 		for (final Iterator<GateID> gateIt = outputGateIDs.iterator(); gateIt.hasNext();) {
@@ -200,10 +201,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		}
 
-		final LocalBufferPoolOwner bufferPoolOwner = taskContext.getLocalBufferPoolOwner();
-		if (bufferPoolOwner != null) {
-			this.localBufferPoolOwner.put(task.getVertexID(), bufferPoolOwner);
-		}
+		this.localBufferPoolOwner.put(task.getVertexID(), taskContext);
 
 		redistributeGlobalBuffers();
 	}
@@ -380,37 +378,21 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				final InputChannelContext inputChannelContext = (InputChannelContext) cc;
 
-				if (srcBuffer.isBackedByMemory()) {
-
-					Buffer destBuffer = null;
-					try {
-						destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
-						srcBuffer.copyToBuffer(destBuffer);
-					} catch (Exception e) {
-						LOG.error(StringUtils.stringifyException(e));
-						if (destBuffer != null) {
-							destBuffer.recycleBuffer();
-						}
-						continue;
+				Buffer destBuffer = null;
+				try {
+					destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
+					srcBuffer.copyToBuffer(destBuffer);
+				} catch (Exception e) {
+					LOG.error(StringUtils.stringifyException(e));
+					if (destBuffer != null) {
+						destBuffer.recycleBuffer();
 					}
-					// TODO: See if we can save one duplicate step here
-					final TransferEnvelope dup = transferEnvelope.duplicateWithoutBuffer();
-					dup.setBuffer(destBuffer);
-					inputChannelContext.queueTransferEnvelope(dup);
-
-				} else {
-
-					// This is a file buffer, we can simply duplicate the envelope
-					TransferEnvelope dup = null;
-					try {
-						dup = transferEnvelope.duplicate();
-					} catch (Exception e) {
-						LOG.error(StringUtils.stringifyException(e));
-						continue;
-					}
-
-					inputChannelContext.queueTransferEnvelope(dup);
+					continue;
 				}
+				// TODO: See if we can save one duplicate step here
+				final TransferEnvelope dup = transferEnvelope.duplicateWithoutBuffer();
+				dup.setBuffer(destBuffer);
+				inputChannelContext.queueTransferEnvelope(dup);
 			}
 		}
 

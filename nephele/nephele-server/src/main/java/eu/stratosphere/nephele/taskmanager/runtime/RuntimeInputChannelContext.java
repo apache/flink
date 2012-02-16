@@ -201,7 +201,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 				if (sequenceNumber > expectedSequenceNumber) {
 
-					if (expectedSequenceNumber > 0) {
+					if (expectedSequenceNumber > 2000) {
 						// This is a problem, now we are actually missing some data
 						this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
 							+ expectedSequenceNumber + " but received " + sequenceNumber));

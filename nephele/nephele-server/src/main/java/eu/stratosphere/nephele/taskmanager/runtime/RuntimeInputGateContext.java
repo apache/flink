@@ -23,6 +23,7 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
@@ -80,7 +81,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 			return buffer;
 		}
 
-		if (this.envelopeConsumptionLog.followsLog()) {
+		if (this.envelopeConsumptionLog.followsLog() || this.inputGate.getChannelType() == ChannelType.NETWORK) {
 			return BufferFactory.createFromFile(minimumSizeOfBuffer, this.inputGate.getGateID(), fileBufferManager);
 		}
 
