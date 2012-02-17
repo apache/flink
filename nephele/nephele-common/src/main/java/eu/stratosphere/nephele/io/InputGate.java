@@ -193,4 +193,6 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 */
 	public long getExecutionStart();
 
+	int getNumRecords();
+
 }

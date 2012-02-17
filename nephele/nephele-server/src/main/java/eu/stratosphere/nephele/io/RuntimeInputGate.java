@@ -108,7 +108,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	private long executionstart = -1;
 
-
+	private int numrecords = 0;
 	/**
 	 * Constructs a new runtime input gate.
 	 * 
@@ -347,7 +347,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				this.channelToReadFrom = -1;
 			}
 		}
-
+		this.numrecords++;
 		return record;
 	}
 
@@ -555,5 +555,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 
 		this.channelToReadFrom = -1;
 
+	}
+
+	@Override
+	public int getNumRecords() {
+		return this.numrecords;
 	}
 }

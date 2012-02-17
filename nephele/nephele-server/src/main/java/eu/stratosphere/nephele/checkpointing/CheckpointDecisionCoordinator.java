@@ -99,6 +99,8 @@ public final class CheckpointDecisionCoordinator {
 		synchronized (decidedVertices) {
 			if (!decidedVertices.contains(vertex.getID())) {
 				boolean checkpointDecision = getDecision(vertex, rus);
+				if(checkpointDecision)
+					LOG.info("Creating Checkpoint for " + vertex.getName() );
 				final ExecutionGraph graph = vertex.getExecutionGraph();
 				final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
 				List<CheckpointDecision> checkpointDecisionList = null;
