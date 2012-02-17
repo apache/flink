@@ -87,6 +87,12 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 	private long startTime;
 
+	// DW: Start of temporary code
+	private double pactInputOutputRatioSum = 0.0;
+	
+	private int numberOfPactInputOutputRatioEntries = 0;
+	// DW: End of temporay code
+	
 	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
 			final TaskManager taskManager) {
 
@@ -298,6 +304,8 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 */
 	public void initialExecutionResourcesExhausted() {
 
+		System.out.println("PACT input/output for task " + this.environment.getTaskNameWithIndex() + ": " + getPACTInputOutputRatio());
+		
 		// if (this.environment.getExecutingThread() != Thread.currentThread()) {
 		// throw new ConcurrentModificationException(
 		// "initialExecutionResourcesExhausted must be called from the task that executes the user code");
@@ -514,4 +522,23 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 		return this.executionState;
 	}
+
+	// DW: Start of temporary code
+	@Override
+	public void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes) {
+				
+		this.pactInputOutputRatioSum += ((double) numberOfProducedBytes / (double) numberOfConsumedBytes);
+		++this.numberOfPactInputOutputRatioEntries;
+	}
+	
+	private double getPACTInputOutputRatio() {
+		
+		if(this.numberOfPactInputOutputRatioEntries == 0) {
+			return -1.0;
+		}
+		
+		return (this.pactInputOutputRatioSum / (double) this.numberOfPactInputOutputRatioEntries);
+	}
+	// DW: End of temporary code
+	
 }

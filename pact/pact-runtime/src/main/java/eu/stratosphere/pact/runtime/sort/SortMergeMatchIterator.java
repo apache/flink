@@ -22,6 +22,7 @@ import java.util.Iterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -35,6 +36,7 @@ import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
@@ -96,6 +98,9 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	
 	private final float spillingThreshold;
 
+	// DW: Start of temporary code
+	private final Environment environment;
+	// DW: End of temporary code
 	
 	private SortMerger sortMerger1;
 
@@ -147,6 +152,10 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		
 		this.blockIt = new BlockResettableIterator(this.memoryManager,
 			memoryForBlockNestedLoops - SpillingResettableIterator.MIN_TOTAL_MEMORY, 1, parentTask);
+		
+		// DW: Start of temporary code
+		this.environment = parentTask.getEnvironment();
+		// DW: End of temporary code
 	}
 
 	/* (non-Javadoc)
@@ -275,6 +284,11 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		Key[] keys1 = this.iterator1.getKeys();
 		Key[] keys2 = this.iterator2.getKeys();
 
+		// DW: Start of temporary code
+		final Environment env = this.environment;
+		final OutputCollector oc = (OutputCollector) collector;
+		// DW: End of temporary code
+		
 		// zig zag
 		while (true) {
 			// determine the relation between the (possibly composite) keys
@@ -324,7 +338,17 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		// then we can derive the local strategy (with build side).
 		if (!v1HasNext && !v2HasNext) {
 			// both sides contain only one value
+			
+			// DW : Start of temporary code
+			final long r1 = firstV1.getBinaryLength();
+			final long r2 = firstV2.getBinaryLength();
+			// DW: End of temporary code
+			
 			matchFunction.match(firstV1, firstV2, collector);
+			// DW: Start of temporary code
+			env.reportPACTDataStatistics(r1 + r2,  
+				oc.getCollectedPactRecordsInBytes());
+			// DW: End of temporary code
 		}
 		else if (!v1HasNext) {
 			crossFirst1withNValues(firstV1, firstV2, values2, matchFunction, collector);
@@ -364,8 +388,24 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 			Iterator<PactRecord> valsN, MatchStub matchFunction, Collector collector)
 	throws Exception
 	{
+		// DW: Start of temporary code
+		final Environment env = this.environment;
+		final OutputCollector oc = (OutputCollector) collector;
+		// DW: End of temporary code
+		
 		val1.copyTo(this.copy1);
+		
+		// DW : Start of temporary code
+		long r1 = val1.getBinaryLength();
+		long r2 = firstValN.getBinaryLength();
+		// DW: End of temporary code
+		
 		matchFunction.match(val1, firstValN, collector);
+		
+		// DW: Start of temporary code
+		env.reportPACTDataStatistics(r1 + r2,  
+			oc.getCollectedPactRecordsInBytes());
+		// DW: End of temporary code
 		
 		// set copy and match first element
 		boolean more = true;
@@ -374,9 +414,33 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 			
 			if (valsN.hasNext()) {
 				this.copy1.copyToIfModified(val1);
+				
+				// DW : Start of temporary code
+				r1 = val1.getBinaryLength();
+				r2 = nRec.getBinaryLength();
+				// DW: End of temporary code
+				
 				matchFunction.match(val1, nRec, collector);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
+				
 			} else {
+				
+				// DW : Start of temporary code
+				r1 = this.copy1.getBinaryLength();
+				r2 = nRec.getBinaryLength();
+				// DW: End of temporary code
+				
 				matchFunction.match(this.copy1, nRec, collector);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
+				
 				more = false;
 			}
 		}
@@ -398,7 +462,23 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	throws Exception
 	{
 		val1.copyTo(this.copy1);
+		
+		// DW: Start of temporary code
+		final Environment env = this.environment;
+		final OutputCollector oc = (OutputCollector) collector;
+		// DW: End of temporary code
+		
+		// DW : Start of temporary code
+		long r1 = firstValN.getBinaryLength();
+		long r2 = val1.getBinaryLength();
+		// DW: End of temporary code
+		
 		matchFunction.match(firstValN, val1, collector);
+		
+		// DW: Start of temporary code
+		env.reportPACTDataStatistics(r1 + r2,  
+			oc.getCollectedPactRecordsInBytes());
+		// DW: End of temporary code
 		
 		// set copy and match first element
 		boolean more = true;
@@ -407,9 +487,33 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 			
 			if (valsN.hasNext()) {
 				this.copy1.copyToIfModified(val1);
+				
+				// DW : Start of temporary code
+				r1 = nRec.getBinaryLength();
+				r2 = val1.getBinaryLength();
+				// DW: End of temporary code
+				
 				matchFunction.match(nRec, val1, collector);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
+				
 			} else {
+				
+				// DW : Start of temporary code
+				r1 = nRec.getBinaryLength();
+				r2 = this.copy1.getBinaryLength();
+				// DW: End of temporary code
+				
 				matchFunction.match(nRec, this.copy1, collector);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
+				
 				more = false;
 			}
 		}
@@ -447,8 +551,23 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		firstV1.copyTo(this.copy1);
 		firstV2.copyTo(this.copy2);
 		
+		// DW: Start of temporary code
+		final Environment env = this.environment;
+		final OutputCollector oc = (OutputCollector) collector;
+		// DW: End of temporary code
+		
+		// DW: Start of temporary code
+		long r1 = firstV1.getBinaryLength();
+		long r2 = firstV2.getBinaryLength();
+		// DW: End of temporary code
+		
 		// --------------- 1) Cross the heads -------------------
 		matchFunction.match(firstV1, firstV2, collector);
+		
+		// DW: Start of temporary code
+		env.reportPACTDataStatistics(r1 + r2,  
+			oc.getCollectedPactRecordsInBytes());
+		// DW: End of temporary code
 		
 		// for the remaining values, we do a block-nested-loops join
 		SpillingResettableIterator<PactRecord> spillIt = null;
@@ -461,7 +580,18 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 			while (blockIt.hasNext()) {
 				PactRecord nextBlockRec = blockIt.next();
 				this.copy1.copyTo(this.instance);
+				
+				// DW: Start of temporary code
+				r1 = this.instance.getBinaryLength();
+				r2 = nextBlockRec.getBinaryLength();
+				// DW: End of temporary code
+				
 				matchFunction.match(this.instance, nextBlockRec, collector);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
 			}
 			blockIt.reset();
 			
@@ -489,7 +619,18 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 				
 				// -------- 3) cross the iterator of the spilling side with the head of the block side --------
 				this.copy2.copyTo(this.instance);
+				
+				// DW: Start of temporary code
+				r1 = nextSpillVal.getBinaryLength();
+				r2 = this.instance.getBinaryLength();
+				// DW: End of temporary code
+				
 				matchFunction.match(nextSpillVal, this.instance, collector);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
 				
 				// -------- 4) cross the iterator of the spilling side with the first block --------
 				while (blockIt.hasNext()) {
@@ -497,7 +638,18 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 					
 					// get instances of key and block value
 					nextSpillVal = repeatableIter.repeatLast();
-					matchFunction.match(nextSpillVal, nextBlockRec, collector);						
+					
+					// DW: Start of temporary code
+					r1 = nextSpillVal.getBinaryLength();
+					r2 = nextBlockRec.getBinaryLength();
+					// DW: End of temporary code
+					
+					matchFunction.match(nextSpillVal, nextBlockRec, collector);
+					
+					// DW: Start of temporary code
+					env.reportPACTDataStatistics(r1 + r2,  
+						oc.getCollectedPactRecordsInBytes());
+					// DW: End of temporary code
 				}
 				// reset block iterator
 				blockIt.reset();
@@ -520,7 +672,18 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 				while (blockIt.hasNext()) {
 					this.copy1.copyTo(this.instance);
 					final PactRecord nextBlockVal = blockIt.next();
+					
+					// DW: Start of temporary code
+					r1 = this.instance.getBinaryLength();
+					r2 = nextBlockVal.getBinaryLength();
+					// DW: End of temporary code
+					
 					matchFunction.match(this.instance, nextBlockVal, collector);
+					
+					// DW: Start of temporary code
+					env.reportPACTDataStatistics(r1 + r2,  
+						oc.getCollectedPactRecordsInBytes());
+					// DW: End of temporary code
 				}
 				blockIt.reset();
 				
@@ -533,7 +696,19 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 					while (blockIt.hasNext()) {
 						// get instances of key and block value							
 						final PactRecord nextBlockVal = blockIt.next();
-						matchFunction.match(nextSpillVal, nextBlockVal, collector);	
+						
+						// DW: Start of temporary code
+						r1 = nextSpillVal.getBinaryLength();
+						r2 = nextBlockVal.getBinaryLength();
+						// DW: End of temporary code
+						
+						matchFunction.match(nextSpillVal, nextBlockVal, collector);
+						
+						// DW: Start of temporary code
+						env.reportPACTDataStatistics(r1 + r2,  
+							oc.getCollectedPactRecordsInBytes());
+						// DW: End of temporary code
+						
 						// get new instance of resettable value
 						if (blockIt.hasNext())
 							nextSpillVal = spillIt.repeatLast();

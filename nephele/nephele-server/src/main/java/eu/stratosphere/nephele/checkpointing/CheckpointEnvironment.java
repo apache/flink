@@ -302,4 +302,12 @@ final class CheckpointEnvironment implements Environment {
 			return this.executingThread;
 		}
 	}
+
+	// DW: Start of temporary code
+	@Override
+	public void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes) {
+		
+		throw new IllegalStateException("reportPACTDataStatistics called on CheckpointEnvironment");
+	}
+	// DW: End of temporary code
 }

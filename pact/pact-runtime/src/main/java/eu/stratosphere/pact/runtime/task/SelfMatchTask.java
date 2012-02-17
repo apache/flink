@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -29,6 +30,7 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
@@ -270,6 +272,11 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		// allocate buffer
 		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];
 		
+		// DW: Start of temporary code
+		final Environment env = getEnvironment();
+		final OutputCollector oc = (OutputCollector) out;
+		// DW: End of temporary code
+		
 		// fill value buffer for the first time
 		int bufferValCnt;
 		for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
@@ -292,7 +299,20 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 				if (!this.running) return;
 				
 				// match
-				stub.match(valBuffer[i].createCopy(), valBuffer[j].createCopy(), out);
+				
+				// DW : Start of temporary code
+				final PactRecord copy1 = valBuffer[i].createCopy();
+				final PactRecord copy2 =  valBuffer[j].createCopy();
+				final long r1 = copy1.getBinaryLength();
+				final long r2 = copy2.getBinaryLength();
+				// DW: End of temporary code
+				
+				stub.match(copy1, copy2, out);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
 			}
 			
 		}
@@ -311,7 +331,21 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 					
 					for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
 						try {
-							stub.match(valBuffer[i].createCopy(),target.createCopy(),out);
+							
+							// DW : Start of temporary code
+							final PactRecord copy1 = valBuffer[i].createCopy();
+							final PactRecord copy2 =  target.createCopy();
+							final long r1 = copy1.getBinaryLength();
+							final long r2 = copy2.getBinaryLength();
+							// DW: End of temporary code
+							
+							stub.match(copy1, copy2 ,out);
+							
+							// DW: Start of temporary code
+							env.reportPACTDataStatistics(r1 + r2,  
+								oc.getCollectedPactRecordsInBytes());
+							// DW: End of temporary code
+							
 						} catch (Exception e) {
 							exceptionInMatchForValReader = e;
 							return false;
@@ -363,7 +397,18 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 							
 							for(int i=0;i<bufferValCnt;i++) {
 								
-								stub.match(valBuffer[i].createCopy(), innerRecord, out);
+								// DW : Start of temporary code
+								final PactRecord copy1 = valBuffer[i].createCopy();
+								final long r1 = copy1.getBinaryLength();
+								final long r2 = innerRecord.getBinaryLength();
+								// DW: End of temporary code
+								
+								stub.match(copy1, innerRecord, out);
+								
+								// DW: Start of temporary code
+								env.reportPACTDataStatistics(r1 + r2,  
+									oc.getCollectedPactRecordsInBytes());
+								// DW: End of temporary code
 								
 								if(i < bufferValCnt - 1)
 									innerValResettableIterator.repeatLast(innerRecord);
@@ -404,6 +449,11 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		// allocate buffer
 		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];
 		
+		// DW: Start of temporary code
+		final Environment env = getEnvironment();
+		final OutputCollector oc = (OutputCollector) out;
+		// DW: End of temporary code
+		
 		// fill value buffer for the first time
 		int bufferValCnt;
 		for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
@@ -426,7 +476,20 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 				if (!this.running) return;
 				
 				// match
-				stub.match(valBuffer[i].createCopy(), valBuffer[j].createCopy(), out);
+				
+				// DW : Start of temporary code
+				final PactRecord copy1 = valBuffer[i].createCopy();
+				final PactRecord copy2 =  valBuffer[j].createCopy();
+				final long r1 = copy1.getBinaryLength();
+				final long r2 = copy2.getBinaryLength();
+				// DW: End of temporary code
+				
+				stub.match(copy1, copy2, out);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
 			}
 			
 		}
@@ -445,7 +508,21 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 					
 					for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
 						try {
-							stub.match(valBuffer[i].createCopy(),target.createCopy(),out);
+							
+							// DW : Start of temporary code
+							final PactRecord copy1 = valBuffer[i].createCopy();
+							final PactRecord copy2 = target.createCopy();
+							final long r1 = copy1.getBinaryLength();
+							final long r2 = copy2.getBinaryLength();
+							// DW: End of temporary code
+							
+							stub.match(copy1,copy2,out);
+							
+							// DW: Start of temporary code
+							env.reportPACTDataStatistics(r1 + r2,  
+								oc.getCollectedPactRecordsInBytes());
+							// DW: End of temporary code
+							
 						} catch (Exception e) {
 							exceptionInMatchForValReader = e;
 							return false;
@@ -501,7 +578,17 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 								
 								if(outerConsumedRecordCnt+i <= innerConsumedRecordCnt) {
 									
-									stub.match(valBuffer[i].createCopy(), innerRecord, out);
+									// DW : Start of temporary code
+									final PactRecord copy1 = valBuffer[i].createCopy();
+									final long r1 = copy1.getBinaryLength();
+									final long r2 = innerRecord.getBinaryLength();
+									// DW: End of temporary code
+									
+									stub.match(copy1, innerRecord, out);
+									// DW: Start of temporary code
+									env.reportPACTDataStatistics(r1 + r2,  
+										oc.getCollectedPactRecordsInBytes());
+									// DW: End of temporary code
 									
 									if(i < bufferValCnt - 1)
 										innerValResettableIterator.repeatLast(innerRecord);
@@ -545,6 +632,11 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		// allocate buffer
 		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];
 		
+		// DW: Start of temporary code
+		final Environment env = getEnvironment();
+		final OutputCollector oc = (OutputCollector) out;
+		// DW: End of temporary code
+		
 		// fill value buffer for the first time
 		int bufferValCnt;
 		for(bufferValCnt = 0; bufferValCnt < VALUE_BUFFER_SIZE; bufferValCnt++) {
@@ -567,7 +659,22 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 				if (!this.running) return;
 				
 				// match
-				stub.match(valBuffer[i].createCopy(), valBuffer[j].createCopy(), out);
+				
+				// DW : Start of temporary code
+				final PactRecord copy1 = valBuffer[i].createCopy();
+				final PactRecord copy2 =  valBuffer[j].createCopy();
+				final long r1 = copy1.getBinaryLength();
+				final long r2 = copy2.getBinaryLength();
+				// DW: End of temporary code
+				
+				stub.match(copy1, copy2, out);
+				
+				// DW: Start of temporary code
+				env.reportPACTDataStatistics(r1 + r2,  
+					oc.getCollectedPactRecordsInBytes());
+				// DW: End of temporary code
+				
+				
 			}
 			
 		}
@@ -586,7 +693,21 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 					
 					for(int i=0;i<VALUE_BUFFER_SIZE;i++) {
 						try {
-							stub.match(valBuffer[i].createCopy(),target.createCopy(),out);
+							
+							// DW : Start of temporary code
+							final PactRecord copy1 = valBuffer[i].createCopy();
+							final PactRecord copy2 =  target.createCopy();
+							final long r1 = copy1.getBinaryLength();
+							final long r2 = copy2.getBinaryLength();
+							// DW: End of temporary code
+							
+							stub.match(copy1,copy2,out);
+							
+							// DW: Start of temporary code
+							env.reportPACTDataStatistics(r1 + r2,  
+								oc.getCollectedPactRecordsInBytes());
+							// DW: End of temporary code
+							
 						} catch (Exception e) {
 							exceptionInMatchForValReader = e;
 							return false;
@@ -642,7 +763,18 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 								
 								if(outerConsumedRecordCnt+i < innerConsumedRecordCnt) {
 									
-									stub.match(valBuffer[i].createCopy(), innerRecord, out);
+									// DW : Start of temporary code
+									final PactRecord copy1 = valBuffer[i].createCopy();
+									final long r1 = copy1.getBinaryLength();
+									final long r2 = innerRecord.getBinaryLength();
+									// DW: End of temporary code
+									
+									stub.match(copy1, innerRecord, out);
+									
+									// DW: Start of temporary code
+									env.reportPACTDataStatistics(r1 + r2,  
+										oc.getCollectedPactRecordsInBytes());
+									// DW: End of temporary code
 									
 									if(i < bufferValCnt - 1)
 										innerValResettableIterator.repeatLast(innerRecord);

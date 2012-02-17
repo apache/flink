@@ -22,6 +22,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.AbstractPactTask;
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 
@@ -109,6 +110,12 @@ public class ChainedMapTask implements ChainedTask
 	
 	// --------------------------------------------------------------------------------------------
 	
+	// DW: Start of temporary code
+	private int count = 0;
+	
+	private long consumedPactRecordsInBytes = 0L;
+	// DW: End of temporary code
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
 	 */
@@ -116,7 +123,20 @@ public class ChainedMapTask implements ChainedTask
 	public void collect(PactRecord record)
 	{
 		try {
+			// DW: Start of temporary code
+			this.consumedPactRecordsInBytes += record.getBinaryLength();
+			// DW: End of temporary code
 			this.mapper.map(record, this.collector);
+			// DW: Start of temporary code
+			if(++this.count == 10) {
+				parent.getEnvironment().reportPACTDataStatistics(
+					this.consumedPactRecordsInBytes,
+					((OutputCollector) this.collector).getCollectedPactRecordsInBytes());
+				this.consumedPactRecordsInBytes = 0L;
+				this.count = 0;
+			}
+			// DW: End of temporary code
+			
 		}
 		catch (Exception ex) {
 			throw new ExceptionInChainedStubException(this.taskName, ex);
