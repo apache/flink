@@ -1356,6 +1356,19 @@ public final class PactRecord implements Value
 		initFields(this.binaryData, 0, this.binaryLen);
 	}
 	
+	// DW: Start of temporary code
+	/**
+	 * Returns the length of this record's binary representation in bytes.
+	 * 
+	 * @return the length of this record's binary representation in bytes
+	 */
+	public int getBinaryLength()
+	{
+		updateBinaryRepresenation();
+		return this.binaryLen;
+	}
+	// DW: End of temporary code
+	
 	// --------------------------------------------------------------------------------------------
 	//                                     Utilities
 	// --------------------------------------------------------------------------------------------

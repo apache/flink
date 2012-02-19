@@ -74,6 +74,18 @@ public final class KeyGroupedIterator
 		}
 	}
 
+	// DW: Start of temporary code
+	private long consumedPactRecordsInBytes = 0L;
+	
+	public long getConsumedPactRecordsInBytes() {
+		
+		final long retVal = this.consumedPactRecordsInBytes;
+		this.consumedPactRecordsInBytes = 0L;
+		
+		return retVal;
+	}
+	// DW: End of temporary code
+	
 	/**
 	 * Moves the iterator to the next key. This method may skip any values that have not yet been returned by the
 	 * iterator created by the {@link #getValues()} method. Hence, if called multiple times it "removes" pairs.
@@ -216,6 +228,11 @@ public final class KeyGroupedIterator
 		public PactRecord next() {
 			if (this.nextIsUnconsumed || hasNext()) {
 				this.nextIsUnconsumed = false;
+				
+				// DW: Start of temporary code
+				KeyGroupedIterator.this.consumedPactRecordsInBytes += KeyGroupedIterator.this.next.getBinaryLength();
+				// DW: End of temporary code
+				
 				return KeyGroupedIterator.this.next;
 			} else {
 				throw new NoSuchElementException();
