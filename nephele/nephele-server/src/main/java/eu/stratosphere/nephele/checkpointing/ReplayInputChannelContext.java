@@ -31,7 +31,7 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	 */
 	@Override
 	public JobID getJobID() {
-		
+
 		return this.encapsulatedContext.getJobID();
 	}
 
@@ -40,7 +40,7 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	 */
 	@Override
 	public ChannelID getChannelID() {
-		
+
 		return this.encapsulatedContext.getChannelID();
 	}
 
@@ -49,7 +49,7 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	 */
 	@Override
 	public ChannelID getConnectedChannelID() {
-		
+
 		return this.encapsulatedContext.getConnectedChannelID();
 	}
 
@@ -120,27 +120,17 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getNumberOfQueuedEnvelopes() {
-
-		return this.encapsulatedContext.getNumberOfQueuedEnvelopes();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getNumberOfQueuedMemoryBuffers() {
-
-		return this.encapsulatedContext.getNumberOfQueuedMemoryBuffers();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public void destroy() {
-		
+
 		this.encapsulatedContext.destroy();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void logQueuedEnvelopes() {
+
+		this.encapsulatedContext.logQueuedEnvelopes();
+	}
 }

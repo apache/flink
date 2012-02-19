@@ -200,4 +200,14 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 		return this;
 	}
+
+	/**
+	 * Returns the name of the task this gate belongs to.
+	 * 
+	 * @return the name of the task this gate belongs to
+	 */
+	String getTaskName() {
+
+		return this.taskName;
+	}
 }
