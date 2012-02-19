@@ -32,6 +32,8 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 
 	private final FileBufferManager fileBufferManager;
 
+	private boolean bufferDataSerializationStarted = false;
+
 	public CheckpointDeserializer(final AbstractID ownerID) {
 		this.ownerID = ownerID;
 		this.fileBufferManager = FileBufferManager.getInstance();
@@ -41,6 +43,11 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 	protected boolean readBufferData(final ReadableByteChannel readableByteChannel) throws IOException {
 
 		final ByteBuffer tempBuffer = getTempBuffer();
+
+		if (!this.bufferDataSerializationStarted) {
+			tempBuffer.clear();
+			this.bufferDataSerializationStarted = true;
+		}
 
 		readableByteChannel.read(tempBuffer);
 		if (tempBuffer.hasRemaining()) {
@@ -54,6 +61,7 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 
 		setBuffer(fileBuffer);
 
+		this.bufferDataSerializationStarted = false;
 		return false;
 	}
 
