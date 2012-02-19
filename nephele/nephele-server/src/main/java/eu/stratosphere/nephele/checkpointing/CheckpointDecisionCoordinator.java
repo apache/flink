@@ -15,16 +15,19 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
@@ -54,10 +57,8 @@ public final class CheckpointDecisionCoordinator {
 	 * The object in charge of propagating checkpoint decisions to the respective task managers.
 	 */
 	private final CheckpointDecisionPropagator decisionPropagator;
-	
 
-	
-	private List<ExecutionVertexID> decidedVertices = new ArrayList<ExecutionVertexID>();
+	private final Set<ExecutionVertexID> decidedVertices;
 
 	/**
 	 * Constructs a new checkpoint decision coordinator.
@@ -67,6 +68,8 @@ public final class CheckpointDecisionCoordinator {
 	 */
 	public CheckpointDecisionCoordinator(final CheckpointDecisionPropagator decisionPropagator) {
 		this.decisionPropagator = decisionPropagator;
+
+		this.decidedVertices = Collections.newSetFromMap(new ConcurrentHashMap<ExecutionVertexID, Boolean>());
 	}
 
 	/**
@@ -94,96 +97,109 @@ public final class CheckpointDecisionCoordinator {
 	 *        the current resource utilization of the vertex
 	 */
 	void checkpointDecisionRequired(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
+
 		LOG.info("Checkpoint decision for vertex " + vertex + " required");
 
-		synchronized (decidedVertices) {
-			if (!decidedVertices.contains(vertex.getID())) {
-				boolean checkpointDecision = getDecision(vertex, rus);
-				final ExecutionGraph graph = vertex.getExecutionGraph();
-				final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
-				List<CheckpointDecision> checkpointDecisionList = null;
+		if (!this.decidedVertices.contains(vertex.getID())) {
+			boolean checkpointDecision = getDecision(vertex, rus);
+			final ExecutionGraph graph = vertex.getExecutionGraph();
+			final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
+			List<CheckpointDecision> checkpointDecisionList = null;
 
-
-				synchronized (graph) {
-					ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
-					LOG.info("Forcing decision to " + checkpointDecision + " for all of " + groupVertex.getName());
-					//force decision to all groupVertex members
-					for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
-						ExecutionVertex member = groupVertex.getGroupMember(i);
-						AbstractInstance instance = member.getAllocatedResource().getInstance();
-						if(checkpointDecisions.containsKey(instance)){
-							//if instance already in list append new decision
-							checkpointDecisionList = checkpointDecisions.get(instance);
-						}else{
-							//make an new list for each instance
-							checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
-						}
-						checkpointDecisionList.add(new CheckpointDecision(member.getID(), checkpointDecision));
-						checkpointDecisions.put(instance, checkpointDecisionList);
-						
-						this.decidedVertices.add(member.getID());
+			synchronized (graph) {
+				ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
+				LOG.info("Forcing decision to " + checkpointDecision + " for all of " + groupVertex.getName());
+				// force decision to all groupVertex members
+				for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
+					ExecutionVertex member = groupVertex.getGroupMember(i);
+					AbstractInstance instance = member.getAllocatedResource().getInstance();
+					if (checkpointDecisions.containsKey(instance)) {
+						// if instance already in list append new decision
+						checkpointDecisionList = checkpointDecisions.get(instance);
+					} else {
+						// make an new list for each instance
+						checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
 					}
-				}
+					checkpointDecisionList.add(new CheckpointDecision(member.getID(), checkpointDecision));
+					checkpointDecisions.put(instance, checkpointDecisionList);
 
-				// Propagate checkpoint decisions
-				this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
+					this.decidedVertices.add(member.getID());
+				}
 			}
+
+			// Propagate checkpoint decisions
+			this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
+			
+		} else {
+			
+			// Propagate checkpoint decisions
+			final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
+			final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
+			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), vertex.getCheckpointState() != CheckpointState.NONE));
+			checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
+			this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
+			
 		}
-//		LOG.info("Checkpoint decision for vertex " + vertex + " required");
-//
-//		// TODO: Provide sensible implementation here
-//		boolean checkpointDecision = getDecision(vertex, rus);
-//		final ExecutionGraph graph = vertex.getExecutionGraph();
-//		final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance, List<CheckpointDecision>>();
-//		final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
-//
-//		synchronized (graph) {
-//			checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), checkpointDecision));
-//			checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
-//		}
-//
-//		// Propagate checkpoint decisions
-//		this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
+
+		// LOG.info("Checkpoint decision for vertex " + vertex + " required");
+		//
+		// // TODO: Provide sensible implementation here
+		// boolean checkpointDecision = getDecision(vertex, rus);
+		// final ExecutionGraph graph = vertex.getExecutionGraph();
+		// final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions = new HashMap<AbstractInstance,
+		// List<CheckpointDecision>>();
+		// final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
+		//
+		// synchronized (graph) {
+		// checkpointDecisionList.add(new CheckpointDecision(vertex.getID(), checkpointDecision));
+		// checkpointDecisions.put(vertex.getAllocatedResource().getInstance(), checkpointDecisionList);
+		// }
+		//
+		// // Propagate checkpoint decisions
+		// this.decisionPropagator.propagateCheckpointDecisions(checkpointDecisions);
 	}
 
 	private boolean getDecision(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
 		// This implementation always creates the checkpoint
-		if(rus.getForced() == null){
-			if(rus.getTotalInputAmount() != 0 ){
-			LOG.info("selektivity is " + (double)rus.getTotalOutputAmount()  /  rus.getTotalInputAmount());
-			LOG.info("out " + rus.getTotalOutputAmount() + " in " + rus.getTotalInputAmount());
+		if (rus.getForced() == null) {
+			if (rus.getTotalInputAmount() != 0) {
+				LOG.info("selektivity is " + (double) rus.getTotalOutputAmount() / rus.getTotalInputAmount());
+				LOG.info("out " + rus.getTotalOutputAmount() + " in " + rus.getTotalInputAmount());
 			}
-			if(rus.getTotalInputAmount() != 0 && ((double)rus.getTotalOutputAmount() /  rus.getTotalInputAmount() > 2.0)){
-				//estimated size of checkpoint
-				//TODO progress estimation would make sense here
-				LOG.info(vertex.getEnvironment().getTaskName() + "Chechpoint to large selektivity " + ((double)rus.getTotalOutputAmount()/  rus.getTotalInputAmount() > 2.0));
+			if (rus.getTotalInputAmount() != 0
+				&& ((double) rus.getTotalOutputAmount() / rus.getTotalInputAmount() > 2.0)) {
+				// estimated size of checkpoint
+				// TODO progress estimation would make sense here
+				LOG.info(vertex.getEnvironment().getTaskName() + "Chechpoint to large selektivity "
+					+ ((double) rus.getTotalOutputAmount() / rus.getTotalInputAmount() > 2.0));
 				return false;
-				
-			}
-			if (rus.getUserCPU() >= 90) { 
-				LOG.info(vertex.getEnvironment().getTaskName() + "CPU-Bottleneck");
-				//CPU bottleneck 
-				return true;
-			} 
 
-			if ( vertex.getNumberOfSuccessors() != 0 
-					&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) { 
-				
-				LOG.info(vertex.getEnvironment().getTaskName() + " vertex.getNumberOfPredecessors() " + vertex.getNumberOfPredecessors() +" / vertex.getNumberOfSuccessors() " + vertex.getNumberOfSuccessors() +" > 1.5");
-				//less output-channels than input-channels 
-				//checkpoint at this position probably saves network-traffic 
+			}
+			if (rus.getUserCPU() >= 90) {
+				LOG.info(vertex.getEnvironment().getTaskName() + "CPU-Bottleneck");
+				// CPU bottleneck
 				return true;
-			} 
-	
-		}else{
+			}
+
+			if (vertex.getNumberOfSuccessors() != 0
+					&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) {
+
+				LOG.info(vertex.getEnvironment().getTaskName() + " vertex.getNumberOfPredecessors() "
+					+ vertex.getNumberOfPredecessors() + " / vertex.getNumberOfSuccessors() "
+					+ vertex.getNumberOfSuccessors() + " > 1.5");
+				// less output-channels than input-channels
+				// checkpoint at this position probably saves network-traffic
+				return true;
+			}
+
+		} else {
 			LOG.info("Checkpoint decision was forced");
-			//checkpoint decision was forced by the user
+			// checkpoint decision was forced by the user
 			return rus.getForced();
 		}
 		LOG.info("always create Checkpoint for testing");
-		//FIXME always create checkpoint for testing
+		// FIXME always create checkpoint for testing
 		return true;
 	}
 
 }
-
