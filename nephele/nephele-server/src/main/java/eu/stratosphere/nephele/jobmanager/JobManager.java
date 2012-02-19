@@ -954,6 +954,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final AbstractInstance instance = this.instanceManager.getInstanceByName(instanceName.toString());
 		if (instance == null) {
 			LOG.error("Cannot find instance with name " + instanceName + " to kill it");
+			return;
 		}
 
 		LOG.info("Killing task manager on instance " + instance);
