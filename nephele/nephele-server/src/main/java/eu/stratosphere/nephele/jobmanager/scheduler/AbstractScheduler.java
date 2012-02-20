@@ -39,6 +39,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
@@ -204,10 +205,10 @@ public abstract class AbstractScheduler implements InstanceListener {
 			final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed,
 			final Set<ExecutionVertex> alreadyVisited) {
 
-		if(!alreadyVisited.add(vertex)) {
+		if (!alreadyVisited.add(vertex)) {
 			return;
 		}
-		
+
 		if (vertex.compareAndUpdateExecutionState(ExecutionState.ASSIGNED, ExecutionState.READY)) {
 			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
@@ -446,19 +447,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 		if (resourceCanBeReleased) {
 
-			final DummyInstance dummyInstance = DummyInstance.createDummyInstance(allocatedResource.getInstance()
-				.getType());
-			final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
-				allocatedResource.getInstanceType(), new AllocationID());
-
-			// Assign vertices back to a dummy resource in case we need the resource information once more for another
-			// execution.
-			it = assignedVertices.iterator();
-			while (it.hasNext()) {
-				final ExecutionVertex vertex = it.next();
-				vertex.setAllocatedResource(dummyResource);
-			}
-
 			LOG.info("Releasing instance " + allocatedResource.getInstance());
 			try {
 				getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
@@ -503,44 +491,89 @@ public abstract class AbstractScheduler implements InstanceListener {
 	@Override
 	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
-		// TODO: Don't forget to synchronize on stage here
+		final ExecutionGraph eg = getExecutionGraphByID(jobID);
 
-		for (final AllocatedResource allocatedResource : allocatedResources) {
+		if (eg == null) {
+			LOG.error("Cannot find execution graph for job with ID " + jobID);
+			return;
+		}
 
-			LOG.info("Resource on " + allocatedResource.getInstance().getName() + " for Job " + jobID + " died.");
-			// TODO (marrus)
+		synchronized (eg) {
 
-			final ExecutionGraph executionGraph = getExecutionGraphByID(jobID);
+			for (final AllocatedResource allocatedResource : allocatedResources) {
 
-			if (executionGraph == null) {
-				LOG.error("Cannot find execution graph for job " + jobID);
-				return;
-			}
+				LOG.info("Resource " + allocatedResource.getInstance().getName() + " for Job " + jobID + " died.");
 
-			final List<ExecutionVertex> vertices = executionGraph.getVerticesAssignedToResource(allocatedResource);
-			final Iterator<ExecutionVertex> vertexIter = vertices.iterator();
-			while (vertexIter.hasNext()) {
-				final ExecutionVertex vertex = vertexIter.next();
+				final ExecutionGraph executionGraph = getExecutionGraphByID(jobID);
 
-				// Even if the vertex had a checkpoint before, it is now gone
-				vertex.updateCheckpointState(CheckpointState.NONE);
-
-				final ExecutionState state = vertex.getExecutionState();
-
-				switch (state) {
-				case ASSIGNED:
-				case READY:
-				case STARTING:
-				case RUNNING:
-				case FINISHING:
-
-					vertex.updateExecutionState(ExecutionState.FAILED, "The resource "
-						+ allocatedResource.getInstance().getName() + " the vertex "
-						+ vertex.getEnvironment().getTaskName() + " was assigned to died");
-
-					break;
-				default:
+				if (executionGraph == null) {
+					LOG.error("Cannot find execution graph for job " + jobID);
+					return;
 				}
+
+				final List<ExecutionVertex> vertices = executionGraph.getVerticesAssignedToResource(allocatedResource);
+				Iterator<ExecutionVertex> vertexIter = vertices.iterator();
+
+				// Assign vertices back to a dummy resource.
+				final DummyInstance dummyInstance = DummyInstance.createDummyInstance(allocatedResource.getInstance()
+					.getType());
+				final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
+					allocatedResource.getInstanceType(), new AllocationID());
+
+				while (vertexIter.hasNext()) {
+					final ExecutionVertex vertex = vertexIter.next();
+					vertex.setAllocatedResource(dummyResource);
+				}
+
+				final String failureMessage = allocatedResource.getInstance().getName() + " died";
+
+				vertexIter = vertices.iterator();
+
+				while (vertexIter.hasNext()) {
+					final ExecutionVertex vertex = vertexIter.next();
+
+					// Even if the vertex had a checkpoint before, it is now gone
+					vertex.updateCheckpointState(CheckpointState.NONE);
+
+					final ExecutionState state = vertex.getExecutionState();
+
+					switch (state) {
+					case ASSIGNED:
+					case READY:
+					case STARTING:
+					case RUNNING:
+					case FINISHING:
+
+						vertex.updateExecutionState(ExecutionState.FAILED, failureMessage);
+
+						break;
+					default:
+					}
+				}
+
+				/*
+				 * try {
+				 * requestInstances(this.executionVertex.getGroupVertex().getExecutionStage());
+				 * } catch (InstanceException e) {
+				 * e.printStackTrace();
+				 * // TODO: Cancel the entire job in this case
+				 * }
+				 */
+			}
+		}
+
+		final InternalJobStatus js = eg.getJobStatus();
+		if (js != InternalJobStatus.FAILING && js != InternalJobStatus.FAILED) {
+
+			deployAssignedVertices(eg);
+
+			final ExecutionStage stage = eg.getCurrentExecutionStage();
+
+			try {
+				requestInstances(stage);
+			} catch (InstanceException e) {
+				e.printStackTrace();
+				// TODO: Cancel the entire job in this case
 			}
 		}
 	}

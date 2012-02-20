@@ -659,6 +659,10 @@ public final class ExecutionVertex {
 
 		final ExecutionState previousState = this.executionState.get();
 
+		if(previousState == ExecutionState.CANCELED) {
+			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+		}
+		
 		if (updateExecutionState(ExecutionState.CANCELING) != ExecutionState.CANCELING) {
 
 			if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {

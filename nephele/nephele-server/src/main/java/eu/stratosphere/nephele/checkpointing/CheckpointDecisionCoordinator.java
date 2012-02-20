@@ -15,16 +15,19 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
@@ -54,10 +57,8 @@ public final class CheckpointDecisionCoordinator {
 	 * The object in charge of propagating checkpoint decisions to the respective task managers.
 	 */
 	private final CheckpointDecisionPropagator decisionPropagator;
-	
 
-	
-	private List<ExecutionVertexID> decidedVertices = new ArrayList<ExecutionVertexID>();
+	private final Set<ExecutionVertexID> decidedVertices;
 
 	/**
 	 * Constructs a new checkpoint decision coordinator.
@@ -67,6 +68,8 @@ public final class CheckpointDecisionCoordinator {
 	 */
 	public CheckpointDecisionCoordinator(final CheckpointDecisionPropagator decisionPropagator) {
 		this.decisionPropagator = decisionPropagator;
+
+		this.decidedVertices = Collections.newSetFromMap(new ConcurrentHashMap<ExecutionVertexID, Boolean>());
 	}
 
 	/**
@@ -94,8 +97,8 @@ public final class CheckpointDecisionCoordinator {
 	 *        the current resource utilization of the vertex
 	 */
 	void checkpointDecisionRequired(final ExecutionVertex vertex, final ResourceUtilizationSnapshot rus) {
-		LOG.info("Checkpoint decision for vertex " + vertex + " required");
 
+		LOG.info("Checkpoint decision for vertex " + vertex + " required");
 				boolean checkpointDecision = getDecision(vertex, rus);
 				if(checkpointDecision)
 					LOG.info("Creating Checkpoint for " +  vertex.getEnvironment().getTaskNameWithIndex() );
@@ -127,31 +130,33 @@ public final class CheckpointDecisionCoordinator {
 				//TODO progress estimation would make sense here
 				LOG.info(vertex.getEnvironment().getTaskName() + "Checkpoint to large selektivity " + ((double)rus.getTotalOutputAmount()/  rus.getTotalInputAmount() > 2.0));
 				return false;
-				
-			}
-			if (rus.getUserCPU() >= 90) { 
-				LOG.info(vertex.getEnvironment().getTaskName() + "CPU-Bottleneck");
-				//CPU bottleneck 
-				return true;
-			} 
 
-			if ( vertex.getNumberOfSuccessors() != 0 
-					&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) { 
-				
-				LOG.info(vertex.getEnvironment().getTaskName() + " vertex.getNumberOfPredecessors() " + vertex.getNumberOfPredecessors() +" / vertex.getNumberOfSuccessors() " + vertex.getNumberOfSuccessors() +" > 1.5");
-				//less output-channels than input-channels 
-				//checkpoint at this position probably saves network-traffic 
+			}
+			if (rus.getUserCPU() >= 90) {
+				LOG.info(vertex.getEnvironment().getTaskName() + "CPU-Bottleneck");
+				// CPU bottleneck
 				return true;
-			} 
-	
-		}else{
+			}
+
+			if (vertex.getNumberOfSuccessors() != 0
+					&& vertex.getNumberOfPredecessors() * 1.0 / vertex.getNumberOfSuccessors() > 1.5) {
+
+				LOG.info(vertex.getEnvironment().getTaskName() + " vertex.getNumberOfPredecessors() "
+					+ vertex.getNumberOfPredecessors() + " / vertex.getNumberOfSuccessors() "
+					+ vertex.getNumberOfSuccessors() + " > 1.5");
+				// less output-channels than input-channels
+				// checkpoint at this position probably saves network-traffic
+				return true;
+			}
+
+		} else {
 			LOG.info("Checkpoint decision was forced");
-			//checkpoint decision was forced by the user
+			// checkpoint decision was forced by the user
 			return rus.getForced();
 		}
 
 		return false;
+
 	}
 
 }
-

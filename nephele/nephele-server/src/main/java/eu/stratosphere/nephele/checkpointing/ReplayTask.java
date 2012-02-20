@@ -120,6 +120,17 @@ public final class ReplayTask implements Task {
 
 			return isCanceled;
 		}
+
+		// DW: Start of temporary code
+		@Override
+		public void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes) {
+
+			if (this.encapsulatedRuntimeTask != null) {
+				this.encapsulatedRuntimeTask.reportPACTDataStatistics(numberOfConsumedBytes, numberOfProducedBytes);
+			}
+
+		}
+		// DW: End of temporary code
 	}
 
 	/**

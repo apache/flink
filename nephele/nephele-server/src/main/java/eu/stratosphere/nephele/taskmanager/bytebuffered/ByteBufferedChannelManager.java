@@ -586,11 +586,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			if (context.isInputChannel()) {
 
 				final InputChannelContext inputChannelContext = (InputChannelContext) context;
-				final int numberOfQueuedEnvelopes = inputChannelContext.getNumberOfQueuedEnvelopes();
-				final int numberOfQueuedMemoryBuffers = inputChannelContext.getNumberOfQueuedMemoryBuffers();
-
-				System.out.println("\t\t" + entry.getKey() + ": " + numberOfQueuedMemoryBuffers + " ("
-						+ numberOfQueuedEnvelopes + ")");
+				inputChannelContext.logQueuedEnvelopes();
 			}
 		}
 	}

@@ -252,6 +252,10 @@ public class ClusterManager implements InstanceManager {
 					}
 				}
 
+				registeredHosts.entrySet().removeAll(hostsToRemove);
+
+				updateInstaceTypeDescriptionMap();
+				
 				final Iterator<Map.Entry<JobID, List<AllocatedResource>>> it = staleResources.entrySet().iterator();
 				while (it.hasNext()) {
 					final Map.Entry<JobID, List<AllocatedResource>> entry = it.next();
@@ -259,10 +263,6 @@ public class ClusterManager implements InstanceManager {
 						instanceListener.allocatedResourcesDied(entry.getKey(), entry.getValue());
 					}
 				}
-
-				registeredHosts.entrySet().removeAll(hostsToRemove);
-
-				updateInstaceTypeDescriptionMap();
 			}
 		}
 	};

@@ -19,7 +19,5 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 
 public interface InputChannelContext extends ChannelContext, BufferProvider {
 
-	int getNumberOfQueuedEnvelopes();
-
-	int getNumberOfQueuedMemoryBuffers();
+	void logQueuedEnvelopes();
 }

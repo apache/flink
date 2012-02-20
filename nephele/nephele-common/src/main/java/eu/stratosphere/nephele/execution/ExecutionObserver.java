@@ -49,4 +49,8 @@ public interface ExecutionObserver {
 	 * @return <code>true</code> if the task has been canceled, <code>false</code> otherwise
 	 */
 	boolean isCanceled();
+	
+	// DW: Start of temporary code
+	void reportPACTDataStatistics(long numberOfConsumedBytes, long numberOfProducedBytes);
+	// DW: End of temporary code
 }

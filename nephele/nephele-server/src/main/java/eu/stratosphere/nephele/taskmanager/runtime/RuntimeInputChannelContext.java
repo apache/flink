@@ -218,7 +218,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 					}
 				}
 
-				LOG.warn("Input channel " + getChannelID() + " expected envelope " + expectedSequenceNumber
+				LOG.warn("Input channel " + getChannelName() + " expected envelope " + expectedSequenceNumber
 							+ " but received " + sequenceNumber);
 
 				final Buffer buffer = transferEnvelope.getBuffer();
@@ -229,7 +229,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 				this.queuedEnvelopes.add(transferEnvelope);
 				this.lastReceivedEnvelope = sequenceNumber;
-				
+
 				// Notify the channel about the new data
 				this.envelopeConsumptionLog.reportEnvelopeAvailability(this.byteBufferedInputChannel);
 			}
@@ -265,7 +265,6 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 			final AbstractEvent event = it.next();
 
 			if (event instanceof ByteBufferedChannelCloseEvent) {
-				LOG.info("Found close event in unexpected envelope");
 				return event;
 			}
 		}
@@ -322,35 +321,39 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int getNumberOfQueuedEnvelopes() {
+	public void logQueuedEnvelopes() {
+
+		int numberOfQueuedEnvelopes = 0;
+		int numberOfQueuedEnvelopesWithMemoryBuffers = 0;
+		int numberOfQueuedEnvelopesWithFileBuffers = 0;
 
 		synchronized (this.queuedEnvelopes) {
-
-			return this.queuedEnvelopes.size();
-		}
-	}
-
-	@Override
-	public int getNumberOfQueuedMemoryBuffers() {
-
-		synchronized (this.queuedEnvelopes) {
-
-			int count = 0;
 
 			final Iterator<TransferEnvelope> it = this.queuedEnvelopes.iterator();
 			while (it.hasNext()) {
 
 				final TransferEnvelope envelope = it.next();
-				if (envelope.getBuffer() != null) {
-					if (envelope.getBuffer().isBackedByMemory()) {
-						++count;
-					}
+				++numberOfQueuedEnvelopes;
+				final Buffer buffer = envelope.getBuffer();
+				if (buffer == null) {
+					continue;
+				}
+
+				if (buffer.isBackedByMemory()) {
+					++numberOfQueuedEnvelopesWithMemoryBuffers;
+				} else {
+					++numberOfQueuedEnvelopesWithFileBuffers;
 				}
 			}
-
-			return count;
 		}
+
+		System.out.println("\t\t" + getChannelName() + ": " + numberOfQueuedEnvelopes + " ("
+				+ numberOfQueuedEnvelopesWithMemoryBuffers + ", " + numberOfQueuedEnvelopesWithFileBuffers + ")");
+
 	}
 
 	/**
@@ -405,5 +408,25 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	public ChannelType getType() {
 
 		return this.byteBufferedInputChannel.getType();
+	}
+
+	/**
+	 * Constructs and returns a human-readable name of this channel used for debugging.
+	 * 
+	 * @return a human-readable name of this channel used for debugging
+	 */
+	private String getChannelName() {
+
+		final StringBuilder sb = new StringBuilder(this.inputGateContext.getTaskName());
+
+		sb.append(' ');
+		sb.append('(');
+		sb.append(this.byteBufferedInputChannel.getChannelIndex());
+		sb.append(',');
+		sb.append(' ');
+		sb.append(this.byteBufferedInputChannel.getID());
+		sb.append(')');
+
+		return sb.toString();
 	}
 }
