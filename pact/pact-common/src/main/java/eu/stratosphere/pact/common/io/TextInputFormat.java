@@ -262,9 +262,11 @@ public abstract class TextInputFormat<K extends Key, V extends Value> extends Fi
 			stats.setFileSize(0);
 			
 			// calculate the whole length
+			long totalInputSize = 0;
 			for (FileStatus s : files) {
-				stats.setFileSize(s.getLen());
+				totalInputSize += s.getLen(); 
 			}
+			stats.setFileSize(totalInputSize);
 			
 			// sanity check
 			if (stats.getTotalInputSize() <= 0) {
