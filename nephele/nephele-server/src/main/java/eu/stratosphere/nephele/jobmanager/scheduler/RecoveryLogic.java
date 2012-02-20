@@ -130,13 +130,18 @@ public final class RecoveryLogic {
 		return true;
 	}
 
+	static boolean hasInstanceAssigned(final ExecutionVertex vertex) {
+
+		return !(vertex.getAllocatedResource().getInstance() instanceof DummyInstance);
+	}
+
 	private static ExecutionState getStateToUpdate(final ExecutionVertex vertex) {
 
-		if (vertex.getAllocatedResource().getInstance() instanceof DummyInstance) {
-			return ExecutionState.CREATED;
+		if (hasInstanceAssigned(vertex)) {
+			return ExecutionState.ASSIGNED;
 		}
 
-		return ExecutionState.ASSIGNED;
+		return ExecutionState.CREATED;
 	}
 
 	private static void findVerticesToRestart(final ExecutionVertex failedVertex,
@@ -147,30 +152,26 @@ public final class RecoveryLogic {
 		final Set<ExecutionVertex> visited = new HashSet<ExecutionVertex>();
 		verticesToTest.add(failedVertex);
 
-		System.out.println("++++" + failedVertex + " failed");
-
 		while (!verticesToTest.isEmpty()) {
 
 			final ExecutionVertex vertex = verticesToTest.poll();
 
-			if (!vertex.getID().equals(failedVertex.getID())) {
-				verticesToBeCanceled.add(vertex);
-			}
-
 			// Predecessors must be either checkpoints or need to be restarted, too
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
 				final ExecutionVertex predecessor = vertex.getPredecessor(j);
-				System.out.println("++++ Predecessor " + predecessor + " has checkpoint state "
-					+ predecessor.getCheckpointState());
-				if (predecessor.getCheckpointState() != CheckpointState.PARTIAL
-						&& predecessor.getCheckpointState() != CheckpointState.COMPLETE) {
 
-					verticesToBeCanceled.add(predecessor);
-					if (!visited.contains(predecessor)) {
-						verticesToTest.add(predecessor);
+				if (hasInstanceAssigned(predecessor)) {
+
+					if (predecessor.getCheckpointState() == CheckpointState.NONE) {
+						verticesToBeCanceled.add(predecessor);
+					} else {
+						checkpointsToBeReplayed.add(predecessor);
+						continue;
 					}
-				} else {
-					checkpointsToBeReplayed.add(predecessor);
+				}
+
+				if (!visited.contains(predecessor)) {
+					verticesToTest.add(predecessor);
 				}
 			}
 			visited.add(vertex);
@@ -230,6 +231,10 @@ public final class RecoveryLogic {
 				}
 
 				final AbstractInstance instance = connectedVertex.getAllocatedResource().getInstance();
+				if (instance instanceof DummyInstance) {
+					continue;
+				}
+
 				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
 				if (channelIDs == null) {
 					channelIDs = new SerializableHashSet<ChannelID>();
@@ -259,6 +264,10 @@ public final class RecoveryLogic {
 				}
 
 				final AbstractInstance instance = connectedVertex.getAllocatedResource().getInstance();
+				if (instance instanceof DummyInstance) {
+					continue;
+				}
+
 				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
 				if (channelIDs == null) {
 					channelIDs = new SerializableHashSet<ChannelID>();
