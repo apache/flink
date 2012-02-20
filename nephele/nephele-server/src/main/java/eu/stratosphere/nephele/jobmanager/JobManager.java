@@ -1262,6 +1262,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
+	@Deprecated
 	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
 			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) throws IOException {
 
@@ -1329,6 +1330,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
+	@Deprecated
 	public void propagateCheckpointDecisions(final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions) {
 
 		final Iterator<Map.Entry<AbstractInstance, List<CheckpointDecision>>> it = checkpointDecisions.entrySet()

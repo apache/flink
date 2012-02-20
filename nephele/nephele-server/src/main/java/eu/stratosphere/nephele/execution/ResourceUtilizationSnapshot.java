@@ -65,8 +65,12 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 
 	private long averageInputRecordSize;
 
+	private double pactRatio;
 
-	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU) {
+	private boolean isDam;
+
+
+	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, Boolean force, long totalInputAmount2, long totalOutputAmount2, long averageOutputRecordSize2, long averageInputRecordSize2, double pactRatio, boolean isDam) {
 
 		if (timestamp <= 0L) {
 			throw new IllegalArgumentException("Argument timestamp must be larger than zero");
@@ -79,6 +83,12 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.timestamp = timestamp;
 		this.channelUtilization = channelUtilization;
 		this.userCPU = userCPU;
+		this.totalInputAmount = totalInputAmount2;
+		this.totalOutputAmount = totalOutputAmount2;
+		this.averageInputRecordSize = averageInputRecordSize2;
+		this.averageOutputRecordSize = averageOutputRecordSize2;
+		this.pactRatio = pactRatio;
+		this.isDam = isDam;
 		
 	}
 	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, final Boolean forced, final long totalInputAmount, final long totalOutputAmount) {
@@ -247,4 +257,10 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		return averageInputRecordSize;
 	}
 	
+	public double getPactRatio(){
+		return this.pactRatio;
+	}
+	public boolean isDam(){
+		return this.isDam;
+	}
 }

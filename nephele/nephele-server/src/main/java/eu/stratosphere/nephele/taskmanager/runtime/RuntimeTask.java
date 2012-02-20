@@ -351,7 +351,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		long averageInputRecordSize = 0;
 		for (int i = 0; i < this.environment.getNumberOfInputGates(); ++i) {
 			final InputGate<? extends Record> inputGate = this.environment.getInputGate(i);
-			numrec += inputGate.getNumRecords();
+			numinrec += inputGate.getNumRecords();
 			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
 				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
 				channelUtilization.put(inputChannel.getID(),
@@ -387,7 +387,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		}
 
 		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization, userCPU,
-			force, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize);
+			force, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize, getPACTInputOutputRatio(), allClosed);
 
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
