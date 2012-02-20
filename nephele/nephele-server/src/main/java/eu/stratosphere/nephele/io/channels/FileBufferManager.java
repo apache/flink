@@ -42,8 +42,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutp
  * @author warneke
  * @author Stephan Ewen
  */
-public final class FileBufferManager
-{
+public final class FileBufferManager {
 	/**
 	 * The prefix with which spill files are stored.
 	 */
@@ -60,17 +59,11 @@ public final class FileBufferManager
 	private static final FileBufferManager instance = new FileBufferManager();
 
 	/**
-	 * The minimal size for an extend allocated for a channel.
-	 */
-	private static final int MIN_EXTEND_SIZE = 64 * 1024;
-
-	/**
 	 * Gets the singleton instance of the file buffer manager.
 	 * 
-	 * @return The file buffer manager singleton instance.
+	 * @return the file buffer manager singleton instance
 	 */
-	public static FileBufferManager getInstance()
-	{
+	public static FileBufferManager getInstance() {
 		return instance;
 	}
 
@@ -87,35 +80,12 @@ public final class FileBufferManager
 	private final String[] tmpDirs;
 
 	/**
-	 * The size of the extend to allocate for each channel.
-	 */
-	private final int extendSize;
-
-	/**
-	 * 
+	 * Constructs a new file buffer manager object.
 	 */
 	private FileBufferManager() {
 
 		this.tmpDirs = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
-
-		final int extendSize = GlobalConfiguration.getConfiguration().getInteger(
-			ConfigConstants.TASKMANAGER_FILECHANNEL_EXTENDSIZE,
-			ConfigConstants.DEFAULT_FILECHANNEL_EXTEND_SIZE);
-
-		// check extend size
-		if (extendSize < MIN_EXTEND_SIZE) {
-			LOG.error("Invalid extend size " + extendSize + ". Minimum extend size is " + MIN_EXTEND_SIZE +
-				". Falling back to default extend size of " + ConfigConstants.DEFAULT_FILECHANNEL_EXTEND_SIZE);
-			this.extendSize = ConfigConstants.DEFAULT_FILECHANNEL_EXTEND_SIZE;
-		} else if ((extendSize & (extendSize - 1)) != 0) {
-			// not a power of two
-			this.extendSize = Integer.highestOneBit(extendSize);
-			LOG.warn("Changing extend size from " + extendSize + " to " + this.extendSize
-				+ " to make it a power of two.");
-		} else {
-			this.extendSize = extendSize;
-		}
 
 		// check temp dirs
 		for (int i = 0; i < this.tmpDirs.length; i++) {
@@ -324,8 +294,7 @@ public final class FileBufferManager
 						current = 0;
 						break;
 					}
-				}
-				else if (this.referenceCounter.compareAndSet(current, current - 1)) {
+				} else if (this.referenceCounter.compareAndSet(current, current - 1)) {
 					current = current - 1;
 					break;
 				}
@@ -334,8 +303,7 @@ public final class FileBufferManager
 
 			if (current > 0) {
 				return current;
-			}
-			else if (current == 0) {
+			} else if (current == 0) {
 				// delete the channel
 				this.referenceCounter.set(Integer.MIN_VALUE);
 				this.reservedWritePosition.set(Long.MIN_VALUE);
@@ -348,8 +316,7 @@ public final class FileBufferManager
 				}
 				this.file.delete();
 				return current;
-			}
-			else {
+			} else {
 				throw new IllegalStateException("The references to the file were already at zero.");
 			}
 		}

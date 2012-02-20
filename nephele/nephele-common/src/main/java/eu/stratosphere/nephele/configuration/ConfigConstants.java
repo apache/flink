@@ -66,19 +66,6 @@ public final class ConfigConstants {
 	 * The key for the config parameter defining flag to terminate a job at job-client shutdown.
 	 */
 	public static final String JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY = "jobclient.shutdown.terminatejob";
-	
-	/**
-	 * The key for the config parameter defining how many channels spill into the same physical file.
-	 */
-	public static final String TASKMANAGER_FILECHANNEL_NUMMERGED = "taskmanager.filechannel.nummerged";
-	
-	/**
-	 * The key for the config parameter defining the size (in bytes) of the chunk that is contiguously
-	 * allocated for write operations from the same channel. Only relevant when multiple channels
-	 * write into the same file.
-	 */
-	public static final String TASKMANAGER_FILECHANNEL_EXTENDSIZE = "taskmanager.filechannel.extendsize";
-	
 
 	// ------------------------------------------------------------------------
 	// Default Values
@@ -123,16 +110,6 @@ public final class ConfigConstants {
 	 * The default scheduler to be used when Nephele is started in local mode.
 	 */
 	public static final String DEFAULT_LOCAL_MODE_SCHEDULER = "eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler";
-	
-	/**
-	 * The default scheduler to be used when Nephele is started in local mode.
-	 */
-	public static final int DEFAULT_NUM_FILECHANNELS_MERGED = 16;
-	
-	/**
-	 * The default size of an extend allocated for a channel in a merged file. 4 MiBytes.
-	 */
-	public static final int DEFAULT_FILECHANNEL_EXTEND_SIZE = 4 * 1024 * 1024;
 
 	// ----------------------------- Instances --------------------------------
 
