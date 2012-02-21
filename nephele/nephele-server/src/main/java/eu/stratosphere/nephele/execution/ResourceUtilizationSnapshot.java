@@ -61,8 +61,16 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 	 */
 	private long totalOutputAmount;
 
+	private long averageOutputRecordSize;
 
-	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU) {
+	private long averageInputRecordSize;
+
+	private double pactRatio;
+
+	private boolean isDam;
+
+
+	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, Boolean force, long totalInputAmount2, long totalOutputAmount2, long averageOutputRecordSize2, long averageInputRecordSize2, double pactRatio, boolean isDam) {
 
 		if (timestamp <= 0L) {
 			throw new IllegalArgumentException("Argument timestamp must be larger than zero");
@@ -75,6 +83,13 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.timestamp = timestamp;
 		this.channelUtilization = channelUtilization;
 		this.userCPU = userCPU;
+		this.forced = force;
+		this.totalInputAmount = totalInputAmount2;
+		this.totalOutputAmount = totalOutputAmount2;
+		this.averageInputRecordSize = averageInputRecordSize2;
+		this.averageOutputRecordSize = averageOutputRecordSize2;
+		this.pactRatio = pactRatio;
+		this.isDam = isDam;
 		
 	}
 	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, final Boolean forced, final long totalInputAmount, final long totalOutputAmount) {
@@ -99,6 +114,27 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.channelUtilization = new HashMap<ChannelID, Long>();
 	}
 
+	public ResourceUtilizationSnapshot(long timestamp, Map<ChannelID, Long> channelUtilization, long userCPU,
+			Boolean force, long totalInputAmount, long totalOutputAmount, long averageOutputRecordSize,
+			long averageInputRecordSize) {
+		if (timestamp <= 0L) {
+			throw new IllegalArgumentException("Argument timestamp must be larger than zero");
+		}
+
+		if (channelUtilization == null) {
+			throw new IllegalArgumentException("Argument channelUtilization is null");
+		}
+
+		this.timestamp = timestamp;
+		this.channelUtilization = channelUtilization;
+		this.userCPU = userCPU;
+		this.forced = force;
+		this.totalInputAmount = totalInputAmount;
+		this.totalOutputAmount  = totalOutputAmount;
+		this.averageOutputRecordSize = averageOutputRecordSize;
+		this.averageInputRecordSize = averageInputRecordSize;
+		
+	}
 	/**
 	 * {@inheritDoc}
 	 */
@@ -128,6 +164,8 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		}
 		out.writeLong(this.totalInputAmount);
 		out.writeLong(this.totalOutputAmount);
+		out.writeLong(this.averageInputRecordSize);
+		out.writeLong(this.averageOutputRecordSize);
 	}
 
 	/**
@@ -155,7 +193,8 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		}
 		this.totalInputAmount = in.readLong();
 		this.totalOutputAmount = in.readLong();
-		
+		this.averageInputRecordSize = in.readLong();
+		this.averageOutputRecordSize = in.readLong();
 	}
 
 	/**
@@ -211,5 +250,18 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 
 	public long getTotalOutputAmount() {
 		return this.totalOutputAmount;
+	}
+	public long getAverageOutputRecordSize() {
+		return averageOutputRecordSize;
+	}
+	public long getAverageInputRecordSize() {
+		return averageInputRecordSize;
+	}
+	
+	public double getPactRatio(){
+		return this.pactRatio;
+	}
+	public boolean isDam(){
+		return this.isDam;
 	}
 }

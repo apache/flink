@@ -127,6 +127,7 @@ public final class RecoveryLogic {
 			failedVertex.updateExecutionState(getStateToUpdate(failedVertex));
 		}
 
+		LOG.info("Recovery FINISHED at " + System.currentTimeMillis());
 		return true;
 	}
 

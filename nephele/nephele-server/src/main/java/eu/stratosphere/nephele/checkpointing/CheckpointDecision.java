@@ -42,7 +42,7 @@ public final class CheckpointDecision implements IOReadableWritable {
 	 * @param checkpointRequired
 	 *        <code>true</code> to indicate the checkpoint shall be materialized, <code>false</code> to discard it
 	 */
-	CheckpointDecision(final ExecutionVertexID vertexID, final boolean checkpointRequired) {
+	public CheckpointDecision(final ExecutionVertexID vertexID, final boolean checkpointRequired) {
 		this.vertexID = vertexID;
 		this.checkpointRequired = checkpointRequired;
 	}

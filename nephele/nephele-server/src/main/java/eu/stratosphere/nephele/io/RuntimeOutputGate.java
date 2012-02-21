@@ -82,6 +82,11 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * Stores whether all records passed to this output gate shall be transmitted through all connected output channels.
 	 */
 	private final boolean isBroadcast;
+	
+	/**
+	 * Stores the number of emitted records
+	 */
+	private int numrecords = 0;
 
 	/**
 	 * Constructs a new runtime output gate.
@@ -367,6 +372,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 				}
 			}
 		}
+		this.numrecords++;
 	}
 
 	/**
@@ -479,5 +485,8 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	public void outputBufferSent(final ChannelID channelID) {
 
 		// Nothing to do here
+	}
+	public int getNumRecords(){
+		return this.numrecords;
 	}
 }

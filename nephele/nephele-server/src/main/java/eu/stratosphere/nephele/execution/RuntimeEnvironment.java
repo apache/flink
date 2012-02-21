@@ -164,6 +164,8 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 */
 	private volatile String taskName;
 
+	private Boolean force = null;
+
 	/**
 	 * Creates a new runtime environment object which contains the runtime information for the encapsulated Nephele
 	 * task.
@@ -1166,4 +1168,14 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		}
 	}
 	// DW: End of temporary code
+
+	@Override
+	public void isForced(boolean force) {
+		this.force = force;
+	}
+
+	@Override
+	public Boolean getForced() {
+		return this.force;
+	}
 }

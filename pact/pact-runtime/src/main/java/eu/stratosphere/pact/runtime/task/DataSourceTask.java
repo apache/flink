@@ -22,6 +22,7 @@ import java.util.Iterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
@@ -79,6 +80,9 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		catch (IOException ioe) {
 			throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
 						getEnvironment().getJobID(), ioe);
+		}
+		if(cl.getClass().isAnnotationPresent(ForceCheckpoint.class)){
+			getEnvironment().isForced(cl.getClass().getAnnotation(ForceCheckpoint.class).checkpoint());
 		}
 		
 		initInputFormat(cl);

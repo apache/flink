@@ -187,4 +187,9 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 *        the ID of the output channel which has forwarded its buffer
 	 */
 	void outputBufferSent(ChannelID channelID);
+	/**
+	 * Returns the number of emitted records for this gate.
+	 * 
+	 */
+	int getNumRecords();
 }
