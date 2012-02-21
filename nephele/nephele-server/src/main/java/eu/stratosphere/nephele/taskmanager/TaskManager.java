@@ -151,6 +151,12 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	private final double CPupper;
 
 	private final double CPlower;
+	
+	private final boolean usePACT;
+	
+	private final boolean useAVG;
+	
+	private final boolean noCheckpointing;
 
 	/**
 	 * Constructs a new task manager, starts its IPC service and attempts to discover the job manager to
@@ -332,6 +338,14 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		
 		this.CPupper = Double.parseDouble(GlobalConfiguration.getString("checkpoint.upperbound","0.9"));
 		this.CPlower = Double.parseDouble(GlobalConfiguration.getString("checkpoint.lowerbound","1.5"));
+		this.usePACT = GlobalConfiguration.getBoolean("checkpoint.usepact",false);		
+		this.useAVG = GlobalConfiguration.getBoolean("checkpoint.useavg",false);
+		this.noCheckpointing = GlobalConfiguration.getBoolean("checkpoint.no",false);
+		LOG.info("Checkpointing Summary: UpperBound=" + this.CPupper + " LowerBound=" + this.CPlower 
+				+ " ForcedValues: usePACT=" + this.usePACT + " useAVG=" + this.useAVG 
+				+ " NOCheckpoting="+this.noCheckpointing);
+		
+
 	}
 
 	/**
@@ -742,10 +756,12 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	}
 	private boolean getDecision(final Task task, final ResourceUtilizationSnapshot rus) {
+		if(this.noCheckpointing){
+			return false;
+		}
+		
 		if(rus.getForced() == null){
-
-
-			if(rus.getPactRatio() != -1){ 
+			if(rus.getPactRatio() != -1 || this.usePACT){ 
 				System.out.println("Ratio = " + rus.getPactRatio());
 				if(rus.getPactRatio()>=this.CPlower){
 					//amount of data is small so we checkpoint
@@ -757,7 +773,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 				}
 			}else{
 				//no info from upper layer so use average sizes
-				if(rus.isDam()){
+				if(rus.isDam() || this.useAVG){
 					System.out.println("is Dam");
 
 					if(rus.getAverageOutputRecordSize() != 0){
