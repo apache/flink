@@ -310,4 +310,13 @@ final class CheckpointEnvironment implements Environment {
 		throw new IllegalStateException("reportPACTDataStatistics called on CheckpointEnvironment");
 	}
 	// DW: End of temporary code
+
+	@Override
+	public void isForced(boolean force) {
+	}
+
+	@Override
+	public Boolean getForced() {
+		return null;
+	}
 }

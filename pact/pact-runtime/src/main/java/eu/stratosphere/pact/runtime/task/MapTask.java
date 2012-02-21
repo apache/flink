@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
@@ -80,7 +81,9 @@ public class MapTask extends AbstractPactTask<MapStub>
 		final Environment env = getEnvironment();
 		final OutputCollector oc = (OutputCollector) output;
 		// DW: End of temporary code
-		
+		if(this.stub.getClass().isAnnotationPresent(ForceCheckpoint.class)){
+			env.isForced(this.stub.getClass().getAnnotation(ForceCheckpoint.class).checkpoint());
+		}
 		while (this.running && input.next(record)) {
 			// DW: Start to temporary code
 			consumedPactRecordsInBytes =+ record.getBinaryLength();

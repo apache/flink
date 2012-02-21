@@ -237,4 +237,8 @@ public interface Environment {
 	 * @return the IDs of all the input channels connected to the gate with the given ID
 	 */
 	Set<ChannelID> getInputChannelIDsOfGate(GateID gateID);
+	
+	void isForced(boolean force);
+	
+	Boolean getForced();
 }

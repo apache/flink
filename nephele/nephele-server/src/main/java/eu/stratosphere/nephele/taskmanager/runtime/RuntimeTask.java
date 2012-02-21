@@ -379,10 +379,19 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			// Don't checkpoint stateful tasks
 			force = false;
 		} else {
+			System.out.println(this.environment.getInvokable().getClass().getAnnotation(ForceCheckpoint.class));
+			if(this.environment.getForced() != null){
+				force = this.environment.getForced();
+				System.out.println("force " + force);
+			}else{
 			// look for a forced decision from the user
 			ForceCheckpoint forced = this.environment.getInvokable().getClass().getAnnotation(ForceCheckpoint.class);
+			
+			//this.environment.getInvokable().getTaskConfiguration().getBoolean("forced_checkpoint", false)
+		
 			if (forced != null) {
 				force = forced.checkpoint();
+			}
 			}
 		}
 

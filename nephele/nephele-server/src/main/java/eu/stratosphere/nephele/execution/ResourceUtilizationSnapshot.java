@@ -83,6 +83,7 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.timestamp = timestamp;
 		this.channelUtilization = channelUtilization;
 		this.userCPU = userCPU;
+		this.forced = force;
 		this.totalInputAmount = totalInputAmount2;
 		this.totalOutputAmount = totalOutputAmount2;
 		this.averageInputRecordSize = averageInputRecordSize2;

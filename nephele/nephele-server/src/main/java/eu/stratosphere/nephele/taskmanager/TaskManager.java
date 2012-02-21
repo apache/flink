@@ -735,7 +735,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	}
 	private boolean getDecision(final Task task, final ResourceUtilizationSnapshot rus) {
-
+		System.out.println("rus force " + rus.getForced());
 		if(rus.getForced() == null){
 
 
@@ -805,7 +805,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 
 		} else {
-			System.out.println("Checkpoint decision was forced");
+			System.out.println("Checkpoint decision was forced too " + rus.getForced());
 			// checkpoint decision was forced by the user
 			return rus.getForced();
 		}

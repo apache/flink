@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -154,7 +155,9 @@ public class MatchTask extends AbstractPactTask<MatchStub>
 		final MatchStub matchStub = this.stub;
 		final Collector collector = this.output;
 		final MatchTaskIterator matchIterator = this.matchIterator;
-		
+		if(this.stub.getClass().isAnnotationPresent(ForceCheckpoint.class)){
+			getEnvironment().isForced(this.stub.getClass().getAnnotation(ForceCheckpoint.class).checkpoint());
+		}
 		while (this.running && matchIterator.callWithNextKey(matchStub, collector));
 	}
 
