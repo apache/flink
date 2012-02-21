@@ -30,7 +30,6 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 
 
 /**
@@ -108,9 +107,6 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	public boolean callWithNextKey(MatchStub matchFunction, Collector collector)
 	throws Exception
 	{
-		// DW: Start of temporary code
-		final OutputCollector oc = (OutputCollector) collector;
-		// DW: End of temporary code
 		
 		if (this.hashJoin.nextRecord())
 		{
@@ -137,7 +133,7 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 					matchFunction.match(nextBuildSidePair, probeRecord, collector);
 					// DW: Start of temporary code
 					this.environment.reportPACTDataStatistics(r1 + r2,  
-						oc.getCollectedPactRecordsInBytes());
+						collector.getCollectedPactRecordsInBytes());
 					// DW: End of temporary code
 					
 					// call match on the second pair
@@ -152,7 +148,7 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 					matchFunction.match(tmpPair, probeRecord, collector);
 					// DW: Start of temporary code
 					this.environment.reportPACTDataStatistics(r1 + r2,  
-						oc.getCollectedPactRecordsInBytes());
+						collector.getCollectedPactRecordsInBytes());
 					// DW: End of temporary code
 					
 					tmpPair = new PactRecord();
@@ -169,7 +165,7 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 						matchFunction.match(tmpPair, probeRecord, collector);
 						// DW: Start of temporary code
 						this.environment.reportPACTDataStatistics(r1 + r2,  
-							oc.getCollectedPactRecordsInBytes());
+							collector.getCollectedPactRecordsInBytes());
 						// DW: End of temporary code
 						tmpPair = new PactRecord();
 					}
@@ -187,7 +183,7 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 					matchFunction.match(nextBuildSidePair, probeRecord, collector);
 					// DW: Start of temporary code
 					this.environment.reportPACTDataStatistics(r1 + r2,  
-						oc.getCollectedPactRecordsInBytes());
+						collector.getCollectedPactRecordsInBytes());
 					// DW: End of temporary code
 				}
 			}

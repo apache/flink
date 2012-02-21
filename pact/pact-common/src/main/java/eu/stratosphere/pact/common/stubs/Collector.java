@@ -37,4 +37,6 @@ public interface Collector
 	 * Closes the collector.
 	 */
 	void close();
+	
+	long getCollectedPactRecordsInBytes();
 }

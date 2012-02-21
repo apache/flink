@@ -30,7 +30,6 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 
 
 /**
@@ -103,7 +102,6 @@ private final MemoryManager memManager;
 	{
 		// DW: Start of temporary code
 		final Environment env = this.environment;
-		final OutputCollector oc = (OutputCollector) collector;
 		// DW: End of temporary code
 		
 		
@@ -132,7 +130,7 @@ private final MemoryManager memManager;
 					matchFunction.match(probeRecord, nextBuildSidePair, collector);
 					// DW: Start of temporary code
 					env.reportPACTDataStatistics(r1 + r2,  
-						oc.getCollectedPactRecordsInBytes());
+						collector.getCollectedPactRecordsInBytes());
 					// DW: End of temporary code
 					
 					// call match on the second pair
@@ -147,7 +145,7 @@ private final MemoryManager memManager;
 					matchFunction.match(probeRecord, tmpPair, collector);
 					// DW: Start of temporary code
 					env.reportPACTDataStatistics(r1 + r2,  
-						oc.getCollectedPactRecordsInBytes());
+						collector.getCollectedPactRecordsInBytes());
 					// DW: End of temporary code
 					
 					tmpPair = new PactRecord();
@@ -164,7 +162,7 @@ private final MemoryManager memManager;
 						matchFunction.match(probeRecord, tmpPair, collector);
 						// DW: Start of temporary code
 						env.reportPACTDataStatistics(r1 + r2,  
-							oc.getCollectedPactRecordsInBytes());
+							collector.getCollectedPactRecordsInBytes());
 						// DW: End of temporary code
 						tmpPair = new PactRecord();
 					}
@@ -182,7 +180,7 @@ private final MemoryManager memManager;
 					matchFunction.match(probeRecord, nextBuildSidePair, collector);
 					// DW: Start of temporary code
 					env.reportPACTDataStatistics(r1 + r2,  
-						oc.getCollectedPactRecordsInBytes());
+						collector.getCollectedPactRecordsInBytes());
 					// DW: End of temporary code
 				}
 			}

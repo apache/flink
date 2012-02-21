@@ -122,9 +122,14 @@ public class ChainedMapTask implements ChainedTask
 	@Override
 	public void collect(PactRecord record)
 	{
+		// DW: Start of temporary code
+		final int recordLength = record.getBinaryLength();
+		this.collectedPactRecordsInBytes += recordLength;
+		// DW: End of temporary code
+		
 		try {
 			// DW: Start of temporary code
-			this.consumedPactRecordsInBytes += record.getBinaryLength();
+			this.consumedPactRecordsInBytes += recordLength;
 			// DW: End of temporary code
 			this.mapper.map(record, this.collector);
 			// DW: Start of temporary code
@@ -151,4 +156,17 @@ public class ChainedMapTask implements ChainedTask
 	{
 		this.collector.close();
 	}
+
+	// DW: Start of temporary code
+	private long collectedPactRecordsInBytes = 0L;
+	
+	@Override
+	public long getCollectedPactRecordsInBytes() {
+		
+		final long retVal = this.collectedPactRecordsInBytes;
+		this.collectedPactRecordsInBytes = 0L;
+		
+		return retVal;
+	}
+	// DW: End of temporary code
 }
