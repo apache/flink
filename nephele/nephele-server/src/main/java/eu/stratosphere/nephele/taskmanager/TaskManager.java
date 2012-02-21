@@ -148,6 +148,10 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private boolean isShutDown = false;
 
+	private final double CPupper;
+
+	private final double CPlower;
+
 	/**
 	 * Constructs a new task manager, starts its IPC service and attempts to discover the job manager to
 	 * receive an initial configuration.
@@ -325,6 +329,9 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
+		
+		this.CPupper = Double.parseDouble(GlobalConfiguration.getString("checkpoint.upperbound","0.9"));
+		this.CPlower = Double.parseDouble(GlobalConfiguration.getString("checkpoint.lowerbound","1.5"));
 	}
 
 	/**
@@ -741,11 +748,11 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 			if(rus.getPactRatio() != -1){ 
 				System.out.println("Ratio = " + rus.getPactRatio());
-				if(rus.getPactRatio()>=5.0){
+				if(rus.getPactRatio()>=this.CPlower){
 					//amount of data is small so we checkpoint
 					return true;
 				}
-				if(rus.getPactRatio()<=0.6){
+				if(rus.getPactRatio()<=this.CPupper){
 					//amount of data is too big
 					return false;
 				}
@@ -754,17 +761,17 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 				if(rus.isDam()){
 					System.out.println("is Dam");
 
-					if(rus.getAverageInputRecordSize() != 0){
-						System.out.println( "avg ratio" + rus.getAverageOutputRecordSize()/rus.getAverageInputRecordSize());
+					if(rus.getAverageOutputRecordSize() != 0){
+						System.out.println( "avg ratio" + rus.getAverageInputRecordSize()/rus.getAverageOutputRecordSize());
 					}
 					
-					if(rus.getAverageInputRecordSize() != 0 && 
-							rus.getAverageOutputRecordSize()/rus.getAverageInputRecordSize() < 0.6){
+					if(rus.getAverageOutputRecordSize() != 0 && 
+							rus.getAverageInputRecordSize()/rus.getAverageOutputRecordSize() >=this.CPlower){
 						return true;
 					}
 
-					if(rus.getAverageInputRecordSize() != 0 && 
-							rus.getAverageOutputRecordSize()/rus.getAverageInputRecordSize() > 2.0){
+					if(rus.getAverageOutputRecordSize() != 0 && 
+							rus.getAverageInputRecordSize()/rus.getAverageOutputRecordSize() <=this.CPupper){
 						return false;
 					}
 				}else{
@@ -777,17 +784,17 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 						System.out.println("selektivity is " + (double)rus.getTotalOutputAmount()  /  rus.getTotalInputAmount());
 
 					}
-					if(rus.getTotalInputAmount() != 0 && ((double)rus.getTotalOutputAmount() /  rus.getTotalInputAmount() > 2.0)){
+					if(rus.getTotalOutputAmount() != 0 && ((double)rus.getTotalInputAmount() /  rus.getTotalOutputAmount() >=this.CPlower)){
 						//size off checkpoint would be to large: do not checkpoint
 						//TODO progress estimation would make sense here
-						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity " + ((double)rus.getTotalOutputAmount()/  rus.getTotalInputAmount() > 2.0));
+						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity " + ((double)rus.getTotalInputAmount()/  rus.getTotalOutputAmount() > 2.0));
 						return false;
 
 					}
-					if(rus.getTotalInputAmount() != 0 && ((double)rus.getTotalOutputAmount() /  rus.getTotalInputAmount() < 0.6)){
+					if(rus.getTotalOutputAmount() != 0 && ((double)rus.getTotalInputAmount() /  rus.getTotalOutputAmount() <=this.CPupper)){
 						//size of checkpoint will be small enough: checkpoint 
 						//TODO progress estimation would make sense here
-						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity " + ((double)rus.getTotalOutputAmount()/  rus.getTotalInputAmount() > 2.0));
+						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity " + ((double)rus.getTotalInputAmount()/  rus.getTotalOutputAmount() > 2.0));
 						return true;
 
 					}
