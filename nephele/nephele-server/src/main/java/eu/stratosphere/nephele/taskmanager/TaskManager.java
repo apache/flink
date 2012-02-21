@@ -742,7 +742,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	}
 	private boolean getDecision(final Task task, final ResourceUtilizationSnapshot rus) {
-		System.out.println("rus force " + rus.getForced());
 		if(rus.getForced() == null){
 
 
