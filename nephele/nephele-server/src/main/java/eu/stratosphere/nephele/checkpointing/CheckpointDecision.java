@@ -41,8 +41,7 @@ public final class CheckpointDecision {
 
 		final double CPupper = CheckpointUtils.getCPUpper();
 
-<<<<<<< HEAD
-		if (rus.getPactRatio() >= 0 && CheckpointUtils.usePACT()) {
+		if (rus.getPactRatio() >= 0.0 && !CheckpointUtils.useAVG()) {
 			System.out.println("Ratio = " + rus.getPactRatio());
 			if (rus.getPactRatio() >= CPlower) {
 				// amount of data is small so we checkpoint
@@ -54,41 +53,21 @@ public final class CheckpointDecision {
 			}
 		} else {
 			// no info from upper layer so use average sizes
-			if (rus.isDam() && CheckpointUtils.useAVG()) {
+			if (rus.isDam()) {
 				System.out.println("is Dam");
 
 				if (rus.getAverageOutputRecordSize() != 0) {
-					System.out.println("avg ratio" + rus.getAverageInputRecordSize()
-=======
-		if (rus.getForced() == null) {
-			if (rus.getPactRatio() != -1 && !CheckpointUtils.useAVG()) {
-				System.out.println("Ratio = " + rus.getPactRatio());
-				if (rus.getPactRatio() >= CPlower) {
-					// amount of data is small so we checkpoint
-					return true;
-				}
-				if (rus.getPactRatio() <= CPupper) {
-					// amount of data is too big
-					return false;
-				}
-			} else {
-				// no info from upper layer so use average sizes
-				if (rus.isDam()) {
-					System.out.println("is Dam");
-
-					if (rus.getAverageOutputRecordSize() != 0) {
-						System.out.println("avg ratio " + rus.getAverageInputRecordSize()
->>>>>>> marrus_checkpointing
-							/ rus.getAverageOutputRecordSize());
+					System.out.println("avg ratio " + rus.getAverageInputRecordSize()
+						/ rus.getAverageOutputRecordSize());
 				}
 
 				if (rus.getAverageOutputRecordSize() != 0 &&
-							rus.getAverageInputRecordSize() / rus.getAverageOutputRecordSize() >= CPlower) {
+						rus.getAverageInputRecordSize() / rus.getAverageOutputRecordSize() >= CPlower) {
 					return true;
 				}
 
 				if (rus.getAverageOutputRecordSize() != 0 &&
-							rus.getAverageInputRecordSize() / rus.getAverageOutputRecordSize() <= CPupper) {
+						rus.getAverageInputRecordSize() / rus.getAverageOutputRecordSize() <= CPupper) {
 					return false;
 				}
 			} else {
@@ -97,43 +76,25 @@ public final class CheckpointDecision {
 				System.out.println("out " + rus.getTotalOutputAmount() + " in " + rus.getTotalInputAmount());
 				if (rus.getTotalInputAmount() != 0) {
 					System.out.println("selektivity is " + (double) rus.getTotalOutputAmount()
-							/ rus.getTotalInputAmount());
+						/ rus.getTotalInputAmount());
 
 				}
 				if (rus.getTotalOutputAmount() != 0
-						&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() >= CPlower)) {
-<<<<<<< HEAD
+					&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() >= CPlower)) {
 					// size off checkpoint would be to large: do not checkpoint
 					// TODO progress estimation would make sense here
-					System.out.println(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity "
-							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() > 2.0));
+					System.out.println(task.getEnvironment().getTaskName() + " Checkpoint to large selektivity "
+						+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount()));
 					return false;
-=======
-						// size off checkpoint would be to large: do not checkpoint
-						// TODO progress estimation would make sense here
-						System.out.println(task.getEnvironment().getTaskName() + " Checkpoint to large selektivity "
-							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount()));
-						return false;
->>>>>>> marrus_checkpointing
 
 				}
 				if (rus.getTotalOutputAmount() != 0
-						&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() <= CPupper)) {
-<<<<<<< HEAD
+					&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() <= CPupper)) {
 					// size of checkpoint will be small enough: checkpoint
-					// TODO progress estimation would make sense here
-					System.out.println(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity "
-							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() > 2.0));
+					// TODO progress estimation would make sense here 
+					System.out.println(task.getEnvironment().getTaskName() + " Checkpoint small selektivity "
+						+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount()));
 					return true;
-=======
-						// size of checkpoint will be small enough: checkpoint
-						// TODO progress estimation would make sense here 
-						System.out.println(task.getEnvironment().getTaskName() + " Checkpoint small selektivity "
-							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount()));
-						return true;
-
-					}
->>>>>>> marrus_checkpointing
 
 				}
 
@@ -145,6 +106,7 @@ public final class CheckpointDecision {
 			// CPU bottleneck
 			return true;
 		}
+		
 		System.out.println("Checkpoint decision false by default");
 		// in case of doubt do not checkpoint
 		return false;
