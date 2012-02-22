@@ -14,6 +14,11 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.type;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
 import junit.framework.Assert;
 
 import org.junit.Before;
@@ -27,7 +32,7 @@ import org.junit.Test;
 @Ignore
 public abstract class ObjectNodeBaseTest<T extends IObjectNode>{
 	
-	T node;
+	protected T node;
 	
 	@Before
 	public abstract void initObjectNode();
@@ -44,6 +49,40 @@ public abstract class ObjectNodeBaseTest<T extends IObjectNode>{
 		Assert.assertEquals(0, node.size());
 		node.put("key1", IntNode.valueOf(23)).put("key2", IntNode.valueOf(42));
 		Assert.assertEquals(2, node.size());
+	}
+	
+	@Test
+	public void shouldReturnMissingNodeIfFieldNotSet(){
+		Assert.assertSame(MissingNode.getInstance(), this.node.get("thisFieldShouldNotBeAssigned"));
+	}
+	
+	@Test
+	public void shouldRemoveNode(){
+		this.node.put("testkey", NullNode.getInstance() );
+		Assert.assertSame(NullNode.getInstance(), this.node.remove("testkey"));
+		Assert.assertSame(MissingNode.getInstance(), this.node.get("testkey"));
+	}
+	
+	@Test
+	public void shouldCreateIterator(){
+		this.node.removeAll();
+		Map<String, IJsonNode> expected = new HashMap<String, IJsonNode>();
+		
+		for(int i=0; i<5; i++){
+			String key = "key"+i;
+			IJsonNode value = IntNode.valueOf(i);
+			
+			expected.put(key, value);
+			this.node.put(key, value);
+		}
+		
+		Set<Entry<String, IJsonNode>> it = this.node.getEntries();
+		Assert.assertEquals(expected.entrySet(), it);
+	}
+	
+	@Test
+	public void shouldPutAll(){
+		Assert.assertEquals(this.node, this.node.putAll(this.node));
 	}
 
 }

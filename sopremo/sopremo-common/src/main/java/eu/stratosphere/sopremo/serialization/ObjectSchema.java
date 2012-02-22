@@ -58,8 +58,7 @@ public class ObjectSchema implements Schema {
 		}
 		
 		for(int i=0; i<this.mapping.size(); i++){
-			target.setField(i, new JsonNodeWrapper(((IObjectNode)value).get(this.mapping.get(i))));
-			((IObjectNode)value).remove(this.mapping.get(i));
+			target.setField(i, new JsonNodeWrapper(((IObjectNode)value).remove(this.mapping.get(i))));
 		}
 		
 		target.setField(this.mapping.size(), new JsonNodeWrapper(value));

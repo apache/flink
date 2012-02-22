@@ -14,29 +14,21 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.type;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.sopremo.serialization.LazyObjectNode;
-import eu.stratosphere.sopremo.serialization.ObjectSchema;
-
 /**
- * @author strato
- *
+ * @author Michael Hopstock
+ * @author Tommy Neubert
  */
-public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
+public class ObjectNodeTest extends ObjectNodeBaseTest<ObjectNode> {
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.ObjectNodeBaseTest#initObjectNode()
 	 */
 	@Override
 	public void initObjectNode() {
-		ObjectSchema schema = new ObjectSchema();
-		schema.setMappings("key1");
-		PactRecord record = new PactRecord();
-		schema.jsonToRecord(new ObjectNode(), record);
-		this.node = new LazyObjectNode(record, schema);
-		
+		this.node = new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
+			.put("gender", TextNode.valueOf("male"));
+
 	}
-	
-	
 
 }

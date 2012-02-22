@@ -206,9 +206,9 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 		int index = this.schema.hasMapping(fieldName);
 		if (fieldInSchema(index)) {
 			IJsonNode node;
-			if(this.record.isNull(index)){
+			if (this.record.isNull(index)) {
 				node = MissingNode.getInstance();
-			}else {
+			} else {
 				node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
 				this.record.setNull(index);
 			}
@@ -287,17 +287,21 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 
 			@Override
 			protected Entry<String, IJsonNode> loadNext() {
-				if (this.lastIndex >= LazyObjectNode.this.schema.getMappingSize()) {
-					return noMoreElements();
+				while (this.lastIndex < LazyObjectNode.this.schema.getMappingSize()) {
+					String key = LazyObjectNode.this.schema.getMappings().get(this.lastIndex);
+					if (!LazyObjectNode.this.record.isNull(lastIndex)) {
+						IJsonNode value = SopremoUtil.unwrap(LazyObjectNode.this.record.getField(this.lastIndex,
+							JsonNodeWrapper.class));
+						this.lastIndex++;
+						return new AbstractMap.SimpleEntry<String, IJsonNode>(key, value);
+					}
+
+					this.lastIndex++;
+
+					
 				}
-
-				String key = LazyObjectNode.this.schema.getMappings().get(this.lastIndex);
-				IJsonNode value = SopremoUtil.unwrap(LazyObjectNode.this.record.getField(this.lastIndex,
-					JsonNodeWrapper.class));
-
-				this.lastIndex++;
-
-				return new AbstractMap.SimpleEntry<String, IJsonNode>(key, value);
+				return noMoreElements();
+				
 			}
 		};
 
@@ -316,11 +320,15 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 		// because there is a difference between NullNode and MissingNode
 		int count = 0;
 		for (int i = 0; i < this.schema.getMappingSize(); i++) {
-			if (!this.record.isNull(i)){
+			if (!this.record.isNull(i)) {
 				count++;
 			}
 		}
 		return count + others.size();
+	}
+	
+	PactRecord getPactRecord(){
+		return this.record;
 	}
 
 }
