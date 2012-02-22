@@ -16,13 +16,17 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Map.Entry;
 
+import eu.stratosphere.pact.common.contract.AbstractPact;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
+import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
@@ -32,8 +36,9 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -117,9 +122,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
 	
-	protected int[] addSet; // The set of fields added to the schema by the stub
+	protected FieldSet explWrites; // The set of explicitly written fields
 	
-	protected int[] outputSchema; // The fields are present in the output records
+	protected FieldSet outputSchema; // The fields are present in the output records
 	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
@@ -146,7 +151,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
 
-	protected long estimatedKeyCardinality = -1; // the estimated number of distinct keys in the output
+	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
+	
+	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // the fields which are unique
 
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
@@ -180,8 +187,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.localProps = new LocalProperties();
 		this.globalProps = new GlobalProperties();
 
-		this.readAddSetAnnotation();
-		this.readOutputCardBoundAnnotation();
+		this.readStubAnnotations();
 	}
 
 	/**
@@ -209,7 +215,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.globalProps = globalProps;
 
 		this.estimatedOutputSize = toClone.estimatedOutputSize;
-		this.estimatedKeyCardinality = toClone.estimatedKeyCardinality;
+		
+		this.estimatedCardinality.putAll(toClone.estimatedCardinality);
 		this.estimatedNumRecords = toClone.estimatedNumRecords;
 
 		this.id = toClone.id;
@@ -218,8 +225,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		this.stubOutCardLB = toClone.stubOutCardLB;
 		this.stubOutCardUB = toClone.stubOutCardUB;
-		this.addSet = toClone.addSet;
-		this.outputSchema = toClone.outputSchema == null ? null : Arrays.copyOf(toClone.outputSchema, toClone.outputSchema.length); 
+		
+		if (toClone.uniqueFields != null && toClone.uniqueFields.size() > 0) {
+			for (FieldSet uniqueField : toClone.uniqueFields) {
+				this.uniqueFields.add((FieldSet)uniqueField.clone());
+			}
+		}
+		
+		this.explWrites = toClone.explWrites;
+		this.outputSchema = toClone.outputSchema == null ? null : (FieldSet)toClone.outputSchema.clone(); 
 
 		// check, if this node branches. if yes, this candidate must be associated with
 		// the branching template node.
@@ -264,17 +278,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 */
 	public abstract List<List<PactConnection>> getIncomingConnections();
 
-	/**
-	 * Causes this node to compute its output estimates (such as number of rows, size in bytes)
-	 * based on the inputs and the compiler hints. The compiler hints are instantiated with conservative
-	 * default values which are used if no other values are provided. Nodes may access the statistics to
-	 * determine relevant information.
-	 * 
-	 * @param statistics
-	 *        The statistics object which may be accessed to get statistical information.
-	 *        The parameter may be null, if no statistics are available.
-	 */
-	public abstract void computeOutputEstimates(DataStatistics statistics);
 
 	/**
 	 * Tells the node to compute the interesting properties for its inputs. The interesting properties
@@ -396,15 +399,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public PactType getPactType() {
 		return PactType.getType(this.pactContract.getClass());
 	}
-
-//	/**
-//	 * Gets the output contract declared on the user function that is wrapped in the PACT of this node.
-//	 * 
-//	 * @return The declared output contract, or <tt>OutputContract.None</tt>, if none was declared.
-//	 */
-//	public OutputContract getOutputContract() {
-//		return this.outputContract;
-//	}
 
 	/**
 	 * Gets the degree of parallelism for the contract represented by this optimizer node.
@@ -568,13 +562,17 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return this.estimatedNumRecords;
 	}
 
-	/**
-	 * Gets the estimated key cardinality of this node's output.
-	 * 
-	 * @return The estimated key cardinality.
-	 */
-	public long getEstimatedKeyCardinality() {
-		return this.estimatedKeyCardinality;
+	
+	public Map<FieldSet, Long> getEstimatedCardinalities() {
+		return estimatedCardinality;
+	}
+	
+	public long getEstimatedCardinality(FieldSet cP) {
+		Long estimate;
+		if ((estimate = estimatedCardinality.get(cP)) == null) {
+			estimate = -1L;
+		}
+		return estimate;
 	}
 
 	/**
@@ -692,56 +690,199 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 		this.intProps = props.isEmpty() ? Collections.<InterestingProperties> emptyList() : props;
 	}
+	
+	
+	/**
+	 * Causes this node to compute its output estimates (such as number of rows, size in bytes)
+	 * based on the inputs and the compiler hints. The compiler hints are instantiated with conservative
+	 * default values which are used if no other values are provided. Nodes may access the statistics to
+	 * determine relevant information.
+	 * 
+	 * @param statistics
+	 *        The statistics object which may be accessed to get statistical information.
+	 *        The parameter may be null, if no statistics are available.
+	 */
+	public void computeOutputEstimates(DataStatistics statistics) {
+		
+		boolean allPredsAvailable = true;
+		
+		for (List<PactConnection> incomingConnections : getIncomingConnections()) {
+			if (allPredsAvailable) {
+				for (PactConnection incomingConnection : incomingConnections) {
+					if (incomingConnection.getSourcePact() == null) {
+						allPredsAvailable = false;
+						break;
+					}
+				}	
+			}
+			else {
+				break;
+			}
+		}
+		
+		CompilerHints hints = getPactContract().getCompilerHints();
 
-//	/**
-//	 * Utility method that gets the output contract declared on a user function.
-//	 * 
-//	 * @return The <tt>OutputContract</tt> enum for the declared output contract, or <tt>OutputContract.None</tt>,
-//	 *         if none is declared.
-//	 * @throws CompilerException
-//	 *         Thrown, if more than one output contract is declared on the user function.
-//	 */
-//	protected OutputContract determineOutputContractFromStub() {
-//		Class<? extends Annotation> clazz = null;
-//		OutputContract oc = null;
-//
-//		// Check whether output Contact is overridden
-//		if (getPactContract() instanceof OutputContractConfigurable) {
-//			clazz = ((OutputContractConfigurable) getPactContract()).getOutputContract();
-//			if (clazz != null) {
-//				OutputContract cc = OutputContract.getOutputContract(clazz);
-//				if (cc != null) {
-//					oc = cc;
-//				}
-//			}
-//		}
-//
-//		// get all annotations on the class
-//		if (oc == null) {
-//			Class<?> stubClass = getPactContract().getUserCodeClass();
-//			Annotation[] allAnnotations = stubClass.getAnnotations();
-//
-//			// for each annotation, see if it is a output contract annotation
-//			for (int i = 0; i < allAnnotations.length; i++) {
-//				clazz = allAnnotations[i].annotationType();
-//
-//				// check if this is an output contract annotation
-//				if (clazz.getEnclosingClass().equals(eu.stratosphere.pact.common.contract.OutputContract.class)) {
-//					OutputContract cc = OutputContract.getOutputContract(clazz);
-//					if (cc != null) {
-//						if (oc == null) {
-//							oc = cc;
-//						} else {
-//							throw new CompilerException("Contract '" + pactContract.getName() + "' ("
-//								+ getPactType().name() + ") has more than one output contract.");
-//						}
-//					}
-//				}
-//			}
-//		}
-//
-//		return oc == null ? OutputContract.None : oc;
-//	}
+		computeUniqueFields();
+		
+		// check if preceding nodes are available
+		if (!allPredsAvailable) {
+			// Preceding node is not available, we take hints as given
+			//this.estimatedKeyCardinality = hints.getKeyCardinality();
+			this.estimatedCardinality.putAll(hints.getDistinctCounts());
+			
+			this.estimatedNumRecords = 0;
+			int count = 0;
+			
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
+				if (avgNumValues != -1) {
+					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
+					count++;
+				}
+			}
+			
+			if (count > 0) {
+				this.estimatedNumRecords = (this.estimatedNumRecords /count) >= 1 ?
+						(this.estimatedNumRecords /count) : 1;
+			}
+			else {
+				this.estimatedNumRecords = -1;
+			}
+			
+			if (this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
+				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
+						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
+			}
+			
+		} else {
+			// We have a preceding node
+		
+			// ############# output cardinality estimation ##############
+			
+			boolean outputCardEstimated = true;
+				
+			this.estimatedNumRecords = 0;
+			int count = 0;
+
+			//If we have cardinalities and avg num values available for some fields, calculate 
+			//the average of those
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
+				if (avgNumValues != -1) {
+					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
+					count++;
+				}
+			}
+			
+			if (count > 0) {
+				this.estimatedNumRecords = (this.estimatedNumRecords /count) >= 1 ?
+						(this.estimatedNumRecords /count) : 1;
+			}
+			else {
+
+				// default output cardinality is equal to number of stub calls
+				this.estimatedNumRecords = this.computeNumberOfStubCalls();
+				
+				if(hints.getAvgRecordsEmittedPerStubCall() != -1.0 && this.computeNumberOfStubCalls() != -1) {
+					// we know how many records are in average emitted per stub call
+					this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
+							(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
+				} else {
+					outputCardEstimated = false;
+				}
+			}
+						
+			// ############# output key cardinality estimation ##########
+
+			this.estimatedCardinality.putAll(hints.getDistinctCounts());	
+
+			
+			if (this.getUniqueFields() != null) {
+				for (FieldSet uniqueFieldSet : this.uniqueFields) {
+					if (this.estimatedCardinality.get(uniqueFieldSet) == null) {
+						this.estimatedCardinality.put(uniqueFieldSet, this.estimatedNumRecords);
+					}
+				}
+			}
+			
+			
+			for (int input = 0; input < getIncomingConnections().size(); input++) {
+				int[] keyColumns;
+				if ((keyColumns = getConstantKeySet(input)) != null) {
+					long estimatedKeyCardinality; 
+					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
+						// in average less than one record is emitted per stub call
+						
+						// compute the probability that at least one stub call emits a record for a given key 
+						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
+
+						estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
+								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
+					} else {
+						// in average more than one record is emitted per stub call. We assume all keys are kept.
+						estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
+					}
+					
+					FieldSet fieldSet = new FieldSet(keyColumns);
+					if (estimatedCardinality.get(fieldSet) == null) {
+						estimatedCardinality.put(fieldSet, estimatedKeyCardinality);	
+					}
+				}
+			}
+			
+			if(this.estimatedNumRecords != -1) {
+				for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
+					if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
+						long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
+								(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;
+						estimatedCardinality.put(avgNumValues.getKey(), estimatedCard);
+					}
+				}
+			}
+			 
+			// try to reversely estimate output cardinality from key cardinality
+			if(!outputCardEstimated) { //this.estimatedKeyCardinality != -1 &&
+				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
+				
+				long newEstimatedNumRecords = 0;
+				count = 0;
+				
+				for (Entry<FieldSet, Long> cardinality : estimatedCardinality.entrySet()) {
+					float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
+					if (avgNumValues != -1) {
+						// we have a hint for average values per key
+						newEstimatedNumRecords += cardinality.getValue() * avgNumValues;
+						count++;
+					}
+				}
+				
+				if (count > 0) {
+					newEstimatedNumRecords = (newEstimatedNumRecords /count) >= 1 ?
+							(newEstimatedNumRecords /count) : 1;
+				}
+			}
+			
+				
+			// ############# output size estimation #####################
+
+			double estAvgRecordWidth = this.computeAverageRecordWidth();
+			
+			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
+				// we have a cardinality estimate and width estimate
+
+				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
+						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
+			}
+			
+			// check that the key-card is maximally as large as the number of rows
+			for (Entry<FieldSet, Long> cardinality : this.estimatedCardinality.entrySet()) {
+				if (cardinality.getValue() > this.estimatedNumRecords) {
+					cardinality.setValue(this.estimatedNumRecords);
+				}
+			}
+		}
+	}
+	
 
 	/**
 	 * Takes the given list of plans that are candidates for this node in the final plan and retains for each distinct
@@ -929,6 +1070,26 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return bld.toString();
 	}
 
+	
+	/**
+	 * Computes the width of output records
+	 * 
+	 * @return width of output records
+	 */
+	protected double computeAverageRecordWidth() {
+		return -1;
+	}
+	
+	/**
+	 * Computes the number of stub calls.
+	 * 
+	 * @return the number of stub calls.
+	 */
+	protected long computeNumberOfStubCalls() {
+		return -1;
+	}
+	
+	
 	// ------------------------------------------------------------------------
 	// Handling of branches
 	// ------------------------------------------------------------------------
@@ -1106,6 +1267,49 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return result;
 	}
 
+	// ------------------------------------------------------------------------
+	// Reading of stub annotations
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Reads all stub annotations
+	 */
+	private void readStubAnnotations() {
+		this.readReadsAnnotation();
+		this.readCopyProjectionAnnotations();
+		this.readWritesAnnotation();
+		this.readOutputCardBoundAnnotation();
+		this.readUniqueFieldsAnnotation();
+	}
+
+	/**
+	 * Reads the explicit writes stub annotation
+	 */
+	protected void readWritesAnnotation() {
+
+		// get readSet annotation from stub
+		ExplicitModifications addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(ExplicitModifications.class);
+		
+		// extract addSet from annotation
+		if(addSetAnnotation == null) {
+			this.explWrites = null;
+		} else {
+			this.explWrites = new FieldSet(addSetAnnotation.fields());
+		}
+	}
+	
+	protected void readUniqueFieldsAnnotation() {
+		if (pactContract.getCompilerHints() != null) {
+			Set<FieldSet> uniqueFieldSets = pactContract.getCompilerHints().getUniqueFields();
+			if (uniqueFieldSets != null) {
+				this.uniqueFields.addAll(uniqueFieldSets);
+			}
+		}	
+	}
+
+	/**
+	 * Reads the output cardinality stub annotations
+	 */
 	protected void readOutputCardBoundAnnotation() {
 		
 		// get readSet annotation from stub
@@ -1121,41 +1325,104 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 	}
 	
-	protected void readAddSetAnnotation() {
-
-		// get readSet annotation from stub
-		AddSet addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(AddSet.class);
-		
-		// extract addSet from annotation
-		if(addSetAnnotation == null) {
-			this.addSet = null;
-		} else {
-			this.addSet = addSetAnnotation.fields();
-			Arrays.sort(this.addSet);
-		}
-	}
+	/**
+	 * Reads all reads stub annotations.
+	 * Reads stub annotations are defined per input.
+	 */
+	protected abstract void readReadsAnnotation();
 	
+	/**
+	 * Reads the copy and projection stub annotations.
+	 * These annotations are defined per input.
+	 */
+	protected abstract void readCopyProjectionAnnotations();
+	
+	/**
+	 * Reads and sets the output schema of the node.
+	 * The schema can change if the input schema changes.
+	 */
 	public abstract void deriveOutputSchema();
 	
-	public int[] getAddSet() {
-		return this.addSet;
-	}
+	// ------------------------------------------------------------------------
+	// Access of stub annotations
+	// ------------------------------------------------------------------------
 	
-	public int[] getStubOutCardBounds() {
-		return new int[]{this.stubOutCardLB, this.stubOutCardUB};
-	}
-	
+	/**
+	 * Returns the lower output cardinality bound of the node.
+	 * 
+	 * @return the lower output cardinality bound of the node.
+	 */
 	public int getStubOutCardLowerBound() {
 		return this.stubOutCardLB;
 	}
 	
+	/**
+	 * Returns the upper output cardinality bound of the node.
+	 * 
+	 * @return the upper output cardinality bound of the node.
+	 */
 	public int getStubOutCardUpperBound() {
 		return this.stubOutCardUB;
 	}
 	
-	public int[] getOutputSchema() {
+	/**
+	 * Returns the output schema of the node.
+	 * 
+	 * @return the output schema of the node.
+	 */
+	public FieldSet getOutputSchema() {
 		return this.outputSchema;
 	}
+	
+	/**
+	 * Computes the output schema of the node for given input schemas (one per input).
+	 * 
+	 * @param inputSchemas A list of input schemas. Element 0 of the list refers to the first input, and so on.
+	 * @return The output schema of the node for the given input schemas.
+	 */
+	public abstract FieldSet computeOutputSchema(List<FieldSet> inputSchemas);
+
+	/**
+	 * Determines whether the node can on the given input schema for the specified input.
+	 * 
+	 * @param input The input for which the input schema is assumed.
+	 * @param inputSchema The input schema for the specified input
+	 * @return True, if the node can operate on the the schema for the specified input, false otherwise.
+	 */
+	public abstract boolean isValidInputSchema(int input, FieldSet inputSchema);
+	
+	/**
+	 * Gives the read set of the node. 
+	 * The read set is used to decide about reordering of nodes.
+	 * 
+	 * @param id of input for which the read set should be returned. 
+	 *        -1 if the unioned read set over all inputs is requested. 
+	 *  
+	 * @return the read set for the requested input(s)
+	 */
+	public abstract FieldSet getReadSet(int input);
+	
+	/**
+	 * Give the write set of the node.
+	 * The write set is used to decide about reordering of nodes.
+	 * 
+	 * @param id of input for which the write set should be returned. 
+	 *        -1 if the unioned write set over all inputs is requested. 
+	 *  
+	 * @return the write set for the requested input(s)
+	 */
+	public abstract FieldSet getWriteSet(int input);
+	
+	/**
+	 * Give the write set of the node.
+	 * 
+	 * @param id of input for which the write set should be returned. 
+	 *        -1 if the unioned write set over all inputs is requested. 
+	 * @param inputNodes for which the write set should be computed 
+	 *  
+	 * @return the write set for the requested input(s)
+	 */
+	public abstract FieldSet getWriteSet(int input, List<FieldSet> inputSchemas);
 	
 	protected static final class UnclosedBranchDescriptor
 	{
@@ -1180,5 +1447,146 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		public long getJoinedPathsVector() {
 			return this.joinedPathsVector;
 		}
+	}
+	
+	public abstract boolean isFieldKept(int input, int fieldNumber);
+	
+	/**
+	 * Computes the number of keys that are processed by the PACT.
+	 * 
+	 * @return the number of keys processed by the PACT.
+	 */
+	protected long computeNumberOfProcessedKeys() {
+		return -1;
+	}
+	
+	/**
+	 * Computes the number of stub calls for one processed key. 
+	 * 
+	 * @return the number of stub calls for one processed key.
+	 */
+	protected double computeStubCallsPerProcessedKey() {
+		return -1;
+	}
+	
+	
+	/**
+	 * Returns the key column numbers for the specific input if it
+	 * is preserved by this node. Null, otherwise.
+	 * 
+	 * @param input
+	 * @return
+	 */
+	protected int[] getConstantKeySet(int input) {
+		int[] keyColumns = null;
+		Contract contract = getPactContract();
+		if (contract instanceof AbstractPact<?>) {
+			AbstractPact<?> abstractPact = (AbstractPact<?>) contract;
+			keyColumns = abstractPact.getKeyColumnNumbers(input);
+			if (keyColumns != null) {
+				if (keyColumns.length == 0) {
+					return null;
+				}
+				
+				for (int keyColumn : keyColumns) {
+					if (isFieldKept(input, keyColumn) == false) {
+						return null;	
+					}
+				}
+			}
+		}
+		return keyColumns;
+	}
+	
+	public void computeUniqueFields() {
+		
+		if (stubOutCardUB > 1 || stubOutCardUB < 0) {
+			return;
+		}
+		
+		//check for inputs
+		List<List<PactConnection>> inConnections = getIncomingConnections();
+		
+		for (int i = 0; i < inConnections.size(); i++) {
+		
+			Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(i);
+			
+			for (FieldSet uniqueField : uniqueInChild) {
+				if (keepsUniqueProperty(uniqueField, i)) {
+					this.uniqueFields.add(uniqueField);
+				}
+			}
+		}
+		
+		//check which uniqueness properties are created by this node
+		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
+		if (uniqueFields != null ) {
+			this.uniqueFields.addAll(uniqueFields);
+		}
+		
+	}
+	
+	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
+		for (Integer uniqueField : uniqueSet) {
+			if (isFieldKept(input, uniqueField) == false) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public List<FieldSet> createUniqueFieldsForNode() {
+		return null;
+	}
+	
+	/**
+	 * Gets the FieldSets which are unique in the output of the node 
+	 * 
+	 * @return
+	 */
+	public Set<FieldSet> getUniqueFields() {
+		return uniqueFields;
+	}
+	
+	
+	/**
+	 * Checks whether the FieldSet is unique in the input of the node
+	 * 
+	 * @param fieldSet
+	 * @param input
+	 * @return
+	 */
+	public boolean isFieldSetUnique(FieldSet fieldSet, int input) {
+
+		if (fieldSet == null || fieldSet.size() == 0) {
+			return true;
+		}
+		
+		for (FieldSet uniqueField : this.getUniqueFieldsForInput(input)) {
+			if (fieldSet.containsAll(uniqueField)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * Get the unique FieldSets of the given input
+	 */
+	protected Set<FieldSet> getUniqueFieldsForInput(int input) {
+		
+		if (input < 0 || input >= getIncomingConnections().size()) {
+			return Collections.emptySet();
+		}
+		
+		List<PactConnection> inConnection = getIncomingConnections().get(input);
+		
+		if (inConnection.size() != 1) {
+			return Collections.emptySet();
+		}
+		
+		return inConnection.get(0).getSourcePact().getUniqueFields();
+		
+		
 	}
 }

@@ -16,26 +16,29 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.util.FieldSetOperations;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -51,15 +54,15 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	// ------------- Stub Annotations
 	
-	protected int[] readSet; // set of fields that are read by the stub
+	protected FieldSet reads; // set of fields that are read by the stub
 	
-	protected int[] updateSet; // set of fields that are modified by the stub
+	protected FieldSet explProjections; // set of fields that are explicitly projected by the stub
 	
-	protected int[] constantSet; // set of fields that remain constant from input to output 
+	protected FieldSet explCopies; // set of fields that explicitly copied from input to output 
 	
-	protected ConstantSetMode constantSetMode;
+	protected ImplicitOperationMode implOpMode; // implicit operation of the stub
 	
-	protected int[] keySet; // The set of key fields (order is relevant!)
+	protected FieldList keySet; // The set of key fields (order is relevant!)
 
 	// ------------------------------
 	
@@ -71,9 +74,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
-		this.keySet = pactContract.getKeyColumnNumbers(0);
-		readReadSetAnnotation();
-		readConstantSetAnnotation();
+		this.keySet = new FieldList(pactContract.getKeyColumnNumbers(0));
 	}
 
 	/**
@@ -96,11 +97,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 			GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, globalProps, localProps);
 
-		this.readSet = template.readSet;
-		this.updateSet = template.updateSet;
-		this.constantSet = template.constantSet;
+		this.reads = template.reads;
+		this.explProjections = template.explProjections;
+		this.explCopies = template.explCopies;
+		this.implOpMode = template.implOpMode;
 		this.keySet = template.keySet;
-		this.constantSetMode = template.constantSetMode;
 		
 		int i = 0;
 		for(PactConnection c: conn) {
@@ -325,102 +326,287 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 	
-	private void readReadSetAnnotation() {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
+	 */
+	@Override
+	protected void readReadsAnnotation() {
 		
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
 		// get readSet annotation from stub
-		ReadSet readSetAnnotation = c.getUserCodeClass().getAnnotation(ReadSet.class);
+		Reads readSetAnnotation = c.getUserCodeClass().getAnnotation(Reads.class);
 		
 		// extract readSet from annotation
 		if(readSetAnnotation == null) {
-			this.readSet = null;
+			this.reads = null;
 			return;
 		} else {
-			this.readSet = readSetAnnotation.fields();
-			Arrays.sort(this.readSet);
+			this.reads = new FieldSet(readSetAnnotation.fields());
 		}
-
 	}
 	
-	private void readConstantSetAnnotation() {
-		
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
+	 */
+	@Override
+	protected void readCopyProjectionAnnotations() {
+
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
 		// get updateSet annotation from stub
-		ConstantSet updateSetAnnotation = c.getUserCodeClass().getAnnotation(ConstantSet.class);
+		ImplicitOperation implOpAnnotation = c.getUserCodeClass().getAnnotation(ImplicitOperation.class);
+		
+		this.implOpMode = null;
+		this.explCopies = null;
+		this.explProjections = null;
 		
 		// extract readSet from annotation
-		if(updateSetAnnotation == null) {
-			this.updateSet = null;
-			this.constantSet = null;
-			return;
-		} else {
-			
-			switch(updateSetAnnotation.setMode()) {
-			case Update:
-				// we have a write set
-				this.updateSet = updateSetAnnotation.fields();
-				this.constantSet = null;
-				Arrays.sort(this.updateSet);
-				this.constantSetMode = ConstantSetMode.Update;
-				return;
-			case Constant:
-				// we have a constant set
-				this.updateSet = null;
-				this.constantSet = updateSetAnnotation.fields();
-				Arrays.sort(this.constantSet);
-				this.constantSetMode = ConstantSetMode.Constant;
-				return;
-			default:
-				this.updateSet = null;
-				this.constantSet = null;
-				this.constantSetMode = null;
-				return;
+		if(implOpAnnotation != null) {
+			switch(implOpAnnotation.implicitOperation()) {
+			case Copy:
+				// implicit copies -> we have explicit projection
+				ExplicitProjections explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjections.class);
+				if(explProjAnnotation != null) {
+					this.implOpMode = ImplicitOperationMode.Copy;
+					this.explProjections = new FieldSet(explProjAnnotation.fields());
+				}
+				break;
+			case Projection:
+				// implicit projections -> we have explicit copies
+				ExplicitCopies explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopies.class);
+				if(explCopyjAnnotation != null) {
+					this.implOpMode = ImplicitOperationMode.Projection;
+					this.explCopies = new FieldSet(explCopyjAnnotation.fields());
+				}
+				break;
 			}
 		}
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
+	 */
 	@Override
 	public void deriveOutputSchema() {
-
-		if(this.addSet == null) {
-			this.outputSchema = null;
-			return;
+		
+		if(this.input.size() > 1) {
+			throw new UnsupportedOperationException("Can not compute output schema for unioned inputs");
+		}
+		// compute and set the output schema for the node's input schema
+		this.outputSchema = computeOutputSchema(Collections.singletonList(this.input.get(0).getSourcePact().getOutputSchema()));
+		
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
+	 */
+	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
+		
+		if(inputSchemas.size() != 1)
+			throw new IllegalArgumentException("SingleInputNode must have exactly one input");
+		
+		if(implOpMode == null) {
+			return null;
 		} else {
-			outputSchema = this.addSet;
-		}
-		
-		for(PactConnection pc : this.getInputConnections()) {
-			if(pc.getSourcePact().outputSchema == null) {
-				this.outputSchema = null;
-				return;
+			
+			switch(implOpMode) {
+			case Copy:
+				// implicit copy -> output schema are input fields minus explicitly projected fields plus explicit writes
+				if(this.explProjections != null && this.explWrites != null) {
+					
+					FieldSet outputSchema = new FieldSet(inputSchemas.get(0));
+					outputSchema.removeAll(this.explProjections);
+					outputSchema.addAll(this.explWrites);
+					return outputSchema;
+					
+				} else {
+					return null;
+				}
+			case Projection:
+				// implicit projection -> output schema are explicitly copied and written fields
+				if(this.explCopies != null && this.explWrites != null) {
+					return new FieldSet(this.explCopies, this.explWrites);
+				} else {
+					return null;
+				}
+			default:
+				return null;
 			}
-			outputSchema = FieldSetOperations.unionSets(outputSchema, pc.getSourcePact().outputSchema);
 		}
 	}
 	
-	public ConstantSetMode getInputConstantSetMode() {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
+	 */
+	@Override
+	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
 		
-		return constantSetMode;
+		if(input != 0)
+			throw new IndexOutOfBoundsException("SingleInputNode must have exactly one input");
+		
+		// check that input schema includes all read fields
+		if(this.reads != null && !inputSchema.containsAll(this.reads))
+			return false;
+		// check that input schema includes all key fields
+		if(this.keySet != null && !inputSchema.containsAll(this.keySet))
+			return false;
+		// check that implicit operation mode is set
+		if(this.implOpMode == null) {
+			return false;
+		}
+		// check that input schema has explicitly projected fields
+		if(this.implOpMode == ImplicitOperationMode.Copy && 
+				!inputSchema.containsAll(this.explProjections))
+			return false;
+		// check that input schema has explicitly copied fields
+		if(this.implOpMode == ImplicitOperationMode.Projection &&
+				!inputSchema.containsAll(this.explCopies))
+			return false;
+		
+		return true;
 	}
 	
-	public int[] getInputReadSet() {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
+	 */
+	@Override
+	public FieldSet getReadSet(int input) {
 		
-		return this.readSet;
+		if(input < -1 || input > 0)
+			throw new IndexOutOfBoundsException();
+		
+		return this.reads;
 	}
 	
-	public int[] getInputUpdateSet() {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
+	 */
+	@Override
+	public FieldSet getWriteSet(int input) {
+		if(this.input.size() > 1) {
+			throw new UnsupportedOperationException("Can not compute write set for nodes with unioned inputs");
+		}
 		
-		return this.updateSet;
+		// compute and return write set for the node's input schema
+		return this.getWriteSet(input, Collections.singletonList(this.input.get(0).getSourcePact().getOutputSchema()));
 	}
 	
-	public int[] getInputConstantSet() {
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
+	 */
+	@Override
+	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
 		
-		return this.constantSet;
+		if(this.input.size() > 1) 
+			throw new IllegalArgumentException("SingleInputNode have only one input");
+		
+		if(input < -1 || input > 0)
+			throw new IndexOutOfBoundsException();
+		
+		// check that implicit operation mode is set
+		if(this.implOpMode == null) {
+			return null;
+		}
+		
+		switch(this.implOpMode) {
+		case Copy:
+			// implicit copy -> write set are explicitly projected and written fields
+			if(this.explProjections != null) {
+				return new FieldSet(this.explProjections, this.explWrites);
+			} else {
+				return null;
+			}
+		case Projection:
+			// implicit projection -> write set is input schema minus explicit copies plus explicit writes
+			if(this.explCopies != null) {
+				
+				FieldSet writeSet = new FieldSet(inputSchemas.get(0));
+				writeSet.removeAll(this.explCopies);
+				writeSet.addAll(this.explWrites);
+				return writeSet;
+
+			} else {
+				return null;
+			}
+		default:
+			return null;
+		}
+		
 	}
 	
-	public int[] getKeySet() {
+	/**
+	 * Computes the width of output records
+	 * 
+	 * @return width of output records
+	 */
+	protected double computeAverageRecordWidth() {
+		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		// use hint if available
+		if(hints != null && hints.getAvgBytesPerRecord() != -1) {
+			return hints.getAvgBytesPerRecord();
+		}
+
+		long numRecords = computeNumberOfStubCalls();
+		// if unioned number of records is unknown,
+		// we are pessimistic and return "unknown" as well
+		if(numRecords == -1)
+			return -1;
+		
+		long outputSize = 0;
+		for(PactConnection c : this.input) {
+			OptimizerNode pred = c.getSourcePact();
+			
+			if(pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its output size, we a pessimistic and return "unknown" as well
+				if(pred.estimatedOutputSize == -1)
+					return -1;
+				
+				outputSize += pred.estimatedOutputSize;
+			}
+		}
+		
+		double result = outputSize / (double)numRecords;
+		// a record must have at least one byte...
+		if(result < 1)
+			return 1;
+		
+		return result;
+	}
+	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+		
+		if (implOpMode == null) {
+			return false;
+		}
+		
+		switch (implOpMode) {
+		case Projection:
+			return (explCopies == null ? false : 
+				explCopies.contains(fieldNumber));
+		case Copy:
+			return (explProjections == null || explWrites == null ? false :
+				!((new FieldSet(explWrites, explProjections)).contains(fieldNumber)));
+		default:
+				return false;
+		}
+	}
+		
+	public FieldList getKeySet() {
 		return this.keySet;
 	}
 }

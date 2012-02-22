@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.relational.util;
+package eu.stratosphere.pact.test.testPrograms.util;
 
 import java.io.DataInput;
 import java.io.DataOutput;

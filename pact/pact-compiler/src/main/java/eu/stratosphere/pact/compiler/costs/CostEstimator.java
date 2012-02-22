@@ -132,7 +132,7 @@ public abstract class CostEstimator {
 		}
 
 		// if we have a second input, add its costs
-		if (secConn != null) {
+		if (secConn != null && secConn.size() > 0) {
 			Costs secCost = new Costs();
 
 			// we assume that all connections in the list have the same ship strategy;
