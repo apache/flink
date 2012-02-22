@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.serialization;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
@@ -51,17 +52,33 @@ public class ObjectSchema implements Schema {
 
 	@Override
 	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
+		IObjectNode others;
 		if(target == null){
 			
 			//the last element is the field "others"
 			target = new PactRecord(this.mapping.size() + 1);
+			others = new ObjectNode();
+			target.setField(this.mapping.size(), new JsonNodeWrapper(others));
+		} else {
+			others = (IObjectNode)SopremoUtil.unwrap(target.getField(target.getNumFields() - 1, JsonNodeWrapper.class));
+			others.removeAll();
 		}
 		
 		for(int i=0; i<this.mapping.size(); i++){
-			target.setField(i, new JsonNodeWrapper(((IObjectNode)value).remove(this.mapping.get(i))));
+			IJsonNode node = ((IObjectNode)value).get(this.mapping.get(i));
+			if(node.isMissing()){
+				target.setNull(i);
+			} else {
+				target.setField(i, new JsonNodeWrapper(node));
+			}
+			
 		}
-		
-		target.setField(this.mapping.size(), new JsonNodeWrapper(value));
+		 
+		for(Entry<String, IJsonNode> entry : ((IObjectNode)value).getEntries()){
+			if(!this.mapping.contains(entry.getKey())){
+				others.put(entry.getKey(), entry.getValue());
+			}
+		}
 		
 		return target;
 	}

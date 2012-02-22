@@ -183,7 +183,15 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	public IJsonNode get(String fieldName) {
 		int index = this.schema.hasMapping(fieldName);
 		if (fieldInSchema(index)) {
-			return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
+			IJsonNode node;
+			if (this.record.isNull(index)) {
+				node = MissingNode.getInstance();
+			} else {
+				node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
+			}
+			return node;
+			
+			//return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
 		} else {
 			return ((IObjectNode) getOtherField()).get(fieldName);
 		}
