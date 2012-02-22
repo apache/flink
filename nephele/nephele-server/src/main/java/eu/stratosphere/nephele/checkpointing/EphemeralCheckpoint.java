@@ -125,8 +125,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	 */
 	private CheckpointingDecisionState checkpointingDecision;
 
-	private volatile CheckpointingDecisionState asynchronousCheckpointingDecision;
-
 	public EphemeralCheckpoint(final RuntimeTask task, final boolean ephemeral) {
 
 		this.task = task;
@@ -141,7 +139,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
 			: CheckpointingDecisionState.CHECKPOINTING);
-		this.asynchronousCheckpointingDecision = this.checkpointingDecision;
 
 		this.fileBufferManager = FileBufferManager.getInstance();
 
@@ -276,37 +273,23 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			this.task.checkpointStateChanged(CheckpointState.COMPLETE);
 		}
 	}
-
-	public void setCheckpointDecisionAsynchronously(final boolean checkpointDecision) {
-
-		if (checkpointDecision) {
-			this.asynchronousCheckpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
-		} else {
-			this.asynchronousCheckpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
-		}
-	}
-
-	public void checkAsynchronousCheckpointDecision() throws IOException, InterruptedException {
-
-		if (this.asynchronousCheckpointingDecision == this.checkpointingDecision) {
+	
+	public void setCheckpointDecisionSynchronously(final boolean checkpointDecision) throws IOException, InterruptedException {
+		
+		if(this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED) {
 			return;
 		}
-
-		if (this.asynchronousCheckpointingDecision == CheckpointingDecisionState.UNDECIDED) {
-			LOG.error("Asynchronous checkpoint decision is UNDECIDED");
-			return;
-		}
-
-		if (this.asynchronousCheckpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
+		
+		if(checkpointDecision) {
+			this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 			// Write the data which has been queued so far and update checkpoint state
 			write();
 			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
 		} else {
+			this.checkpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
 			// Simply destroy the checkpoint
 			destroy();
 		}
-
-		this.checkpointingDecision = this.asynchronousCheckpointingDecision;
 	}
 
 	/**

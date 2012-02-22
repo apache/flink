@@ -27,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.annotations.Stateful;
 import eu.stratosphere.nephele.annotations.Stateless;
+import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
@@ -72,7 +73,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private final EnvelopeConsumptionLog envelopeConsumptionLog;
 
-	private final long startTime;
+	private long startTime;
 
 	/**
 	 * Stores whether the initial exhaustion of memory buffers has already been reported
@@ -195,7 +196,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	/**
 	 * Called by an {@link OutputGateContext} to indicate that the task has temporarily run out of memory buffers.
 	 */
-	void reportExhaustionOfMemoryBuffers() {
+	void reportExhaustionOfMemoryBuffers() throws IOException, InterruptedException {
 
 		if (!this.initialExhaustionOfMemoryBuffersReported) {
 
@@ -297,10 +298,9 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 				force, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize,
 				this.task.getPACTInputOutputRatio(), allClosed);
 
-			
-			// Finally, propagate event to the job manager
-			this.taskManager.initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID, rus);
 
+			final boolean checkpointDecision = CheckpointDecision.getDecision(this.task, rus); 
+			this.ephemeralCheckpoint.setCheckpointDecisionSynchronously(checkpointDecision);
 		}
 	}
 
@@ -319,8 +319,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	@Override
 	public void asynchronousEventOccurred() throws IOException, InterruptedException {
 
-		// Check if the checkpoint decision changed
-		this.ephemeralCheckpoint.checkAsynchronousCheckpointDecision();
 	}
 
 	/**
@@ -344,12 +342,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	AbstractID getFileOwnerID() {
 
 		return this.task.getVertexID();
-	}
-
-	public void setCheckpointDecisionAsynchronously(final boolean checkpointDecision) {
-
-		// Simply delegate call
-		this.ephemeralCheckpoint.setCheckpointDecisionAsynchronously(checkpointDecision);
 	}
 
 	/**
