@@ -36,7 +36,7 @@ public final class CheckpointDecision {
 		final double CPupper = CheckpointUtils.getCPUpper();
 
 		if (rus.getForced() == null) {
-			if (rus.getPactRatio() != -1 && CheckpointUtils.usePACT()) {
+			if (rus.getPactRatio() != -1 && !CheckpointUtils.useAVG()) {
 				System.out.println("Ratio = " + rus.getPactRatio());
 				if (rus.getPactRatio() >= CPlower) {
 					// amount of data is small so we checkpoint
@@ -48,11 +48,11 @@ public final class CheckpointDecision {
 				}
 			} else {
 				// no info from upper layer so use average sizes
-				if (rus.isDam() && CheckpointUtils.useAVG()) {
+				if (rus.isDam()) {
 					System.out.println("is Dam");
 
 					if (rus.getAverageOutputRecordSize() != 0) {
-						System.out.println("avg ratio" + rus.getAverageInputRecordSize()
+						System.out.println("avg ratio " + rus.getAverageInputRecordSize()
 							/ rus.getAverageOutputRecordSize());
 					}
 
@@ -78,17 +78,17 @@ public final class CheckpointDecision {
 						&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() >= CPlower)) {
 						// size off checkpoint would be to large: do not checkpoint
 						// TODO progress estimation would make sense here
-						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity "
-							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() > 2.0));
+						System.out.println(task.getEnvironment().getTaskName() + " Checkpoint to large selektivity "
+							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount()));
 						return false;
 
 					}
 					if (rus.getTotalOutputAmount() != 0
 						&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() <= CPupper)) {
 						// size of checkpoint will be small enough: checkpoint
-						// TODO progress estimation would make sense here
-						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity "
-							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() > 2.0));
+						// TODO progress estimation would make sense here 
+						System.out.println(task.getEnvironment().getTaskName() + " Checkpoint small selektivity "
+							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount()));
 						return true;
 
 					}
@@ -107,7 +107,7 @@ public final class CheckpointDecision {
 			// checkpoint decision was forced by the user
 			return rus.getForced();
 		}
-
+		System.out.println("Checkpoint decision false by default");
 		// in case of doubt do not checkpoint
 		return false;
 
