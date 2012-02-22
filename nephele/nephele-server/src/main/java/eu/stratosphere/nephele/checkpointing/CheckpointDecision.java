@@ -127,6 +127,7 @@ public final class CheckpointDecision {
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 
 			if (environment.getOutputGate(i).getChannelType() == ChannelType.NETWORK) {
+				LOG.info(environment.getTaskNameWithIndex() + " is a network task");
 				return true;
 			}
 		}

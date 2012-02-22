@@ -112,12 +112,12 @@ public final class CheckpointUtils {
 			final String mode = GlobalConfiguration.getString("checkpoint.mode", "never").toLowerCase();
 			if ("always".equals(mode)) {
 				CHECKPOINT_MODE = CheckpointMode.ALWAYS;
-			} else if ("netork".equals(mode)) {
+			} else if ("network".equals(mode)) {
 				CHECKPOINT_MODE = CheckpointMode.NETWORK;
 			} else if ("dynamic".equals(mode)) {
 				CHECKPOINT_MODE = CheckpointMode.DYNAMIC;
 			} else {
-				CHECKPOINT_MODE = CheckpointMode.NETWORK;
+				CHECKPOINT_MODE = CheckpointMode.NEVER;
 			}
 		}
 
@@ -156,6 +156,6 @@ public final class CheckpointUtils {
 
 		return "Checkpointing Summary: UpperBound=" + getCPUpper() + " LowerBound=" + getCPLower()
 			+ " ForcedValues: usePACT=" + usePACT() + " useAVG=" + useAVG()
-			+ " Mode=" + getCheckpointMode();
+			+ " mode=" + getCheckpointMode();
 	}
 }
