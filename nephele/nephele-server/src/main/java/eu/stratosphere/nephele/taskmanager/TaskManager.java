@@ -761,7 +761,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 		
 		if(rus.getForced() == null){
-			if(rus.getPactRatio() != -1 || this.usePACT){ 
+			if((rus.getPactRatio() != -1 || this.usePACT)&& !this.useAVG){ 
 				System.out.println("Ratio = " + rus.getPactRatio());
 				if(rus.getPactRatio()>=this.CPlower){
 					//amount of data is small so we checkpoint
