@@ -560,12 +560,15 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		for (int i = 0; i < numOuputGates; ++i) {
 			final OutputGate<? extends Record> outputGate = this.outputGates.get(i);
 			final int numberOfOutputChannels = in.readInt();
+			ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
+			outputGate.setChannelType(channelType);
+
 			for (int j = 0; j < numberOfOutputChannels; ++j) {
 				final ChannelID channelID = new ChannelID();
 				channelID.read(in);
 				final ChannelID connectedChannelID = new ChannelID();
 				connectedChannelID.read(in);
-				final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
+				channelType = EnumUtils.readEnum(in, ChannelType.class);
 				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
 
 				AbstractOutputChannel<? extends Record> outputChannel = null;
@@ -597,12 +600,15 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		for (int i = 0; i < numInputGates; ++i) {
 			final InputGate<? extends Record> inputGate = this.inputGates.get(i);
 			final int numberOfInputChannels = in.readInt();
+			ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
+			inputGate.setChannelType(channelType);
+
 			for (int j = 0; j < numberOfInputChannels; ++j) {
 				final ChannelID channelID = new ChannelID();
 				channelID.read(in);
 				final ChannelID connectedChannelID = new ChannelID();
 				connectedChannelID.read(in);
-				final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
+				channelType = EnumUtils.readEnum(in, ChannelType.class);
 				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
 
 				AbstractInputChannel<? extends Record> inputChannel = null;
@@ -691,6 +697,8 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 			final OutputGate<? extends Record> outputGate = this.outputGates.get(i);
 			final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
 			out.writeInt(numberOfOutputChannels);
+			EnumUtils.writeEnum(out, outputGate.getChannelType());
+
 			for (int j = 0; j < numberOfOutputChannels; ++j) {
 				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 				outputChannel.getID().write(out);
@@ -705,6 +713,8 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 			final InputGate<? extends Record> inputGate = this.inputGates.get(i);
 			final int numberOfInputChannels = inputGate.getNumberOfInputChannels();
 			out.writeInt(numberOfInputChannels);
+			EnumUtils.writeEnum(out, inputGate.getChannelType());
+
 			for (int j = 0; j < numberOfInputChannels; ++j) {
 				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
 				inputChannel.getID().write(out);
@@ -1150,23 +1160,24 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 
 		return Collections.unmodifiableSet(inputChannelIDs);
 	}
-	
+
 	// DW: Start of temporary code
 	@Override
 	public void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes) {
-		
-		if(numberOfConsumedBytes < 0L) {
+
+		if (numberOfConsumedBytes < 0L) {
 			return;
 		}
-		
-		if(numberOfProducedBytes < 0L) {
+
+		if (numberOfProducedBytes < 0L) {
 			return;
 		}
-		
+
 		if (this.executionObserver != null) {
 			this.executionObserver.reportPACTDataStatistics(numberOfConsumedBytes, numberOfProducedBytes);
 		}
 	}
+
 	// DW: End of temporary code
 
 	@Override
