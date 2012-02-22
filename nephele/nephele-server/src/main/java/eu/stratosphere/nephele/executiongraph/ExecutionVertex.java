@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
@@ -376,17 +375,6 @@ public final class ExecutionVertex {
 		final Iterator<CheckpointStateListener> it = this.checkpointStateListeners.iterator();
 		while (it.hasNext()) {
 			it.next().checkpointStateChanged(this.getExecutionGraph().getJobID(), this.vertexID, newCheckpointState);
-		}
-	}
-
-	public void initialExecutionResourcesExhausted(
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-
-		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
-		while (it.hasNext()) {
-			it.next().initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID,
-				resourceUtilizationSnapshot);
 		}
 	}
 

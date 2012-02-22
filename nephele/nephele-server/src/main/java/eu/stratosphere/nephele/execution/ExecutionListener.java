@@ -77,18 +77,4 @@ public interface ExecutionListener {
 	 *        the user thread which has finished
 	 */
 	void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread);
-
-	/**
-	 * Called when the task has exhausted its initial execution resources (for example its initial memory buffers to
-	 * transmit output records) and requires a decision how to proceed.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the task belongs to
-	 * @param vertexID
-	 *        the ID of the task that ran out of its initial execution resources
-	 * @param resourceUtilizationSnapshot
-	 *        a snapshot of the task's current resource utilization
-	 */
-	void initialExecutionResourcesExhausted(JobID jobID, ExecutionVertexID vertexID,
-			ResourceUtilizationSnapshot resourceUtilizationSnapshot);
 }

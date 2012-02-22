@@ -15,82 +15,101 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.taskmanager.Task;
 
-public final class CheckpointDecision implements IOReadableWritable {
+public final class CheckpointDecision {
 
-	/**
-	 * The ID of the vertex the checkpoint decision applies to.
-	 */
-	private final ExecutionVertexID vertexID;
+	private static final Log LOG = LogFactory.getLog(CheckpointDecision.class);
 
-	/**
-	 * The checkpoint decision itself.
-	 */
-	private boolean checkpointRequired = false;
+	public static boolean getDecision(final Task task, final ResourceUtilizationSnapshot rus) {
 
-	/**
-	 * Constructs a new checkpoint decision object.
-	 * 
-	 * @param vertexID
-	 *        the ID of the vertex the checkpoint decision applies to
-	 * @param checkpointRequired
-	 *        <code>true</code> to indicate the checkpoint shall be materialized, <code>false</code> to discard it
-	 */
-	public CheckpointDecision(final ExecutionVertexID vertexID, final boolean checkpointRequired) {
-		this.vertexID = vertexID;
-		this.checkpointRequired = checkpointRequired;
-	}
+		if (CheckpointUtils.isCheckpointingDisabled()) {
+			return false;
+		}
 
-	/**
-	 * Default constructor required for serialized/deserialization.
-	 */
-	public CheckpointDecision() {
-		this.vertexID = new ExecutionVertexID();
-	}
+		final double CPlower = CheckpointUtils.getCPLower();
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
+		final double CPupper = CheckpointUtils.getCPUpper();
 
-		this.vertexID.write(out);
-		out.writeBoolean(this.checkpointRequired);
-	}
+		if (rus.getForced() == null) {
+			if (rus.getPactRatio() != -1 && CheckpointUtils.usePACT()) {
+				System.out.println("Ratio = " + rus.getPactRatio());
+				if (rus.getPactRatio() >= CPlower) {
+					// amount of data is small so we checkpoint
+					return true;
+				}
+				if (rus.getPactRatio() <= CPupper) {
+					// amount of data is too big
+					return false;
+				}
+			} else {
+				// no info from upper layer so use average sizes
+				if (rus.isDam() && CheckpointUtils.useAVG()) {
+					System.out.println("is Dam");
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
+					if (rus.getAverageOutputRecordSize() != 0) {
+						System.out.println("avg ratio" + rus.getAverageInputRecordSize()
+							/ rus.getAverageOutputRecordSize());
+					}
 
-		this.vertexID.read(in);
-		this.checkpointRequired = in.readBoolean();
-	}
+					if (rus.getAverageOutputRecordSize() != 0 &&
+							rus.getAverageInputRecordSize() / rus.getAverageOutputRecordSize() >= CPlower) {
+						return true;
+					}
 
-	/**
-	 * Returns the ID of the vertex the checkpoint decision applies to.
-	 * 
-	 * @return the ID of the vertex the checkpoint decision applies to
-	 */
-	public ExecutionVertexID getVertexID() {
+					if (rus.getAverageOutputRecordSize() != 0 &&
+							rus.getAverageInputRecordSize() / rus.getAverageOutputRecordSize() <= CPupper) {
+						return false;
+					}
+				} else {
 
-		return this.vertexID;
-	}
+					// we have no data dam so we can estimate the input/output-ratio
+					System.out.println("out " + rus.getTotalOutputAmount() + " in " + rus.getTotalInputAmount());
+					if (rus.getTotalInputAmount() != 0) {
+						System.out.println("selektivity is " + (double) rus.getTotalOutputAmount()
+							/ rus.getTotalInputAmount());
 
-	/**
-	 * Returns the checkpoint decision itself.
-	 * 
-	 * @return <code>true</code> to indicate that the checkpoint shall be materialized, <code>false</code> to discard it
-	 */
-	public boolean getCheckpointDecision() {
+					}
+					if (rus.getTotalOutputAmount() != 0
+						&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() >= CPlower)) {
+						// size off checkpoint would be to large: do not checkpoint
+						// TODO progress estimation would make sense here
+						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity "
+							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() > 2.0));
+						return false;
 
-		return this.checkpointRequired;
+					}
+					if (rus.getTotalOutputAmount() != 0
+						&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() <= CPupper)) {
+						// size of checkpoint will be small enough: checkpoint
+						// TODO progress estimation would make sense here
+						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity "
+							+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() > 2.0));
+						return true;
+
+					}
+
+				}
+			}
+			// between thresholds check CPU Usage.
+			if (rus.getUserCPU() >= 90) {
+				System.out.println(task.getEnvironment().getTaskName() + "CPU-Bottleneck");
+				// CPU bottleneck
+				return true;
+			}
+
+		} else {
+			System.out.println("Checkpoint decision was forced too " + rus.getForced());
+			// checkpoint decision was forced by the user
+			return rus.getForced();
+		}
+
+		// in case of doubt do not checkpoint
+		return false;
+
 	}
 }

@@ -33,7 +33,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -1478,16 +1477,6 @@ public class ExecutionGraph implements ExecutionListener {
 	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 		// TODO Auto-generated method stub
 
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-
-		// Nothing to do here
 	}
 
 	/**

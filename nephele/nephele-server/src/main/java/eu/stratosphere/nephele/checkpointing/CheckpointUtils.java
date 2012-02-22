@@ -33,6 +33,10 @@ public final class CheckpointUtils {
 
 	private static String CHECKPOINT_DIRECTORY = null;
 
+	private static double CP_UPPER = -1.0;
+
+	private static double CP_LOWER = -1.0;
+
 	private CheckpointUtils() {
 	}
 
@@ -97,5 +101,45 @@ public final class CheckpointUtils {
 		if (file.exists()) {
 			file.delete();
 		}
+	}
+
+	public static boolean isCheckpointingDisabled() {
+
+		return GlobalConfiguration.getBoolean("checkpoint.no", false);
+	}
+
+	public static double getCPLower() {
+
+		if (CP_LOWER < 0.0f) {
+			CP_LOWER = Double.parseDouble(GlobalConfiguration.getString("checkpoint.lowerbound", "0.9"));
+		}
+
+		return CP_LOWER;
+	}
+
+	public static double getCPUpper() {
+
+		if (CP_UPPER < 0.0f) {
+			CP_UPPER = Double.parseDouble(GlobalConfiguration.getString("checkpoint.upperbound", "0.9"));
+		}
+
+		return CP_UPPER;
+	}
+
+	public static boolean usePACT() {
+
+		return GlobalConfiguration.getBoolean("checkpoint.usepact", false);
+	}
+
+	public static boolean useAVG() {
+
+		return GlobalConfiguration.getBoolean("checkpoint.useavg", false);
+	}
+
+	public static String getSummary() {
+
+		return "Checkpointing Summary: UpperBound=" + getCPUpper() + " LowerBound=" + getCPLower()
+			+ " ForcedValues: usePACT=" + usePACT() + " useAVG=" + useAVG()
+			+ " NOCheckpoting=" + isCheckpointingDisabled();
 	}
 }

@@ -20,7 +20,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,6 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.ReplayTask;
 import eu.stratosphere.nephele.checkpointing.CheckpointUtils;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -49,17 +47,13 @@ import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
-import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
@@ -147,16 +141,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * Stores whether the task manager has already been shut down.
 	 */
 	private boolean isShutDown = false;
-
-	private final double CPupper;
-
-	private final double CPlower;
-	
-	private final boolean usePACT;
-	
-	private final boolean useAVG;
-	
-	private final boolean noCheckpointing;
 
 	/**
 	 * Constructs a new task manager, starts its IPC service and attempts to discover the job manager to
@@ -335,17 +319,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
-		
-		this.CPupper = Double.parseDouble(GlobalConfiguration.getString("checkpoint.upperbound","0.9"));
-		this.CPlower = Double.parseDouble(GlobalConfiguration.getString("checkpoint.lowerbound","1.5"));
-		this.usePACT = GlobalConfiguration.getBoolean("checkpoint.usepact",false);		
-		this.useAVG = GlobalConfiguration.getBoolean("checkpoint.useavg",false);
-		this.noCheckpointing = GlobalConfiguration.getBoolean("checkpoint.no",false);
-		LOG.info("Checkpointing Summary: UpperBound=" + this.CPupper + " LowerBound=" + this.CPlower 
-				+ " ForcedValues: usePACT=" + this.usePACT + " useAVG=" + this.useAVG 
-				+ " NOCheckpoting="+this.noCheckpointing);
-		
 
+		LOG.info(CheckpointUtils.getSummary());
 	}
 
 	/**
@@ -358,7 +333,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	public static void main(String[] args) {
 
 		Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg().withDescription(
-		"Specify configuration directory.").create("configDir");
+			"Specify configuration directory.").create("configDir");
 
 		Options options = new Options();
 		options.addOption(configDirOpt);
@@ -724,119 +699,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 	}
 
-	/**
-	 * Called by an {@link EnvironmentWrapper} object to indicate that a task has exhausted its initial execution
-	 * resources.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the task belongs to
-	 * @param id
-	 *        the ID of the vertex representing the task
-	 * @param resourceUtilizationSnapshot
-	 *        snapshot of the task's resource utilization taken at the point in time when the exhaustion occurred
-	 */
-	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID id,
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-		Task task = this.runningTasks.get(id);
-		LOG.info("Checkpoint decision for vertex " + task.getEnvironment().getTaskName() + " required");
-		boolean checkpointDecision = getDecision(task, resourceUtilizationSnapshot);
-		if(checkpointDecision)
-			LOG.info("Creating Checkpoint for " +  task.getEnvironment().getTaskName() + " (" +task.getEnvironment().getIndexInSubtaskGroup() +"/" +task.getEnvironment().getCurrentNumberOfSubtasks() +  " )");
-
-		final List<CheckpointDecision> checkpointDecisionList = new SerializableArrayList<CheckpointDecision>();
-
-		checkpointDecisionList.add(new CheckpointDecision(id, checkpointDecision));
-
-		// Propagate checkpoint decisions
-		try {
-			propagateCheckpointDecisions(checkpointDecisionList);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-	}
-	private boolean getDecision(final Task task, final ResourceUtilizationSnapshot rus) {
-		if(this.noCheckpointing){
-			return false;
-		}
-		
-		if(rus.getForced() == null){
-			if(rus.getPactRatio() != -1 || this.usePACT){ 
-				System.out.println("Ratio = " + rus.getPactRatio());
-				if(rus.getPactRatio()>=this.CPlower){
-					//amount of data is small so we checkpoint
-					return true;
-				}
-				if(rus.getPactRatio()<=this.CPupper){
-					//amount of data is too big
-					return false;
-				}
-			}else{
-				//no info from upper layer so use average sizes
-				if(rus.isDam() || this.useAVG){
-					System.out.println("is Dam");
-
-					if(rus.getAverageOutputRecordSize() != 0){
-						System.out.println( "avg ratio" + rus.getAverageInputRecordSize()/rus.getAverageOutputRecordSize());
-					}
-					
-					if(rus.getAverageOutputRecordSize() != 0 && 
-							rus.getAverageInputRecordSize()/rus.getAverageOutputRecordSize() >=this.CPlower){
-						return true;
-					}
-
-					if(rus.getAverageOutputRecordSize() != 0 && 
-							rus.getAverageInputRecordSize()/rus.getAverageOutputRecordSize() <=this.CPupper){
-						return false;
-					}
-				}else{
-
-
-
-					// we have no data dam so we can estimate the input/output-ratio
-					System.out.println("out " + rus.getTotalOutputAmount() + " in " + rus.getTotalInputAmount());
-					if(rus.getTotalInputAmount() != 0 ){
-						System.out.println("selektivity is " + (double)rus.getTotalOutputAmount()  /  rus.getTotalInputAmount());
-
-					}
-					if(rus.getTotalOutputAmount() != 0 && ((double)rus.getTotalInputAmount() /  rus.getTotalOutputAmount() >=this.CPlower)){
-						//size off checkpoint would be to large: do not checkpoint
-						//TODO progress estimation would make sense here
-						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity " + ((double)rus.getTotalInputAmount()/  rus.getTotalOutputAmount() > 2.0));
-						return false;
-
-					}
-					if(rus.getTotalOutputAmount() != 0 && ((double)rus.getTotalInputAmount() /  rus.getTotalOutputAmount() <=this.CPupper)){
-						//size of checkpoint will be small enough: checkpoint 
-						//TODO progress estimation would make sense here
-						LOG.info(task.getEnvironment().getTaskName() + "Checkpoint to large selektivity " + ((double)rus.getTotalInputAmount()/  rus.getTotalOutputAmount() > 2.0));
-						return true;
-
-					}
-
-
-				}
-			}
-			//between thresholds check CPU Usage.
-			if (rus.getUserCPU() >= 90) {
-				System.out.println(task.getEnvironment().getTaskName() + "CPU-Bottleneck");
-				// CPU bottleneck
-				return true;
-			}
-
-
-
-		} else {
-			System.out.println("Checkpoint decision was forced too " + rus.getForced());
-			// checkpoint decision was forced by the user
-			return rus.getForced();
-		}
-
-		//in case of doubt do not checkpoint
-		return false;
-
-	}
-
 	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id,
 			final CheckpointState newCheckpointState) {
 
@@ -945,15 +807,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions) throws IOException {
-
-		this.byteBufferedChannelManager.reportCheckpointDecisions(checkpointDecisions);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public void killTaskManager() throws IOException {
 
 		// Kill the entire JVM after a delay of 10ms, so this RPC will finish properly before
@@ -1009,7 +862,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 *         thrown if an I/O error occurs during the RPC call
 	 */
 	public IOReadableWritable requestDataFromJobManager(final PluginID pluginID, final IOReadableWritable data)
-	throws IOException {
+			throws IOException {
 
 		synchronized (this.pluginCommunicationService) {
 			return this.pluginCommunicationService.requestData(pluginID, data);

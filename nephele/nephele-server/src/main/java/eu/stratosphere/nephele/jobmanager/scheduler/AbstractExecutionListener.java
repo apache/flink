@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.jobmanager.scheduler;
 
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionPipeline;
@@ -138,14 +137,6 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	@Override
 	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
 		// Nothing to do here
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
 	}
 
 	/**
