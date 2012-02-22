@@ -150,9 +150,19 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	public IObjectNode put(String fieldName, IJsonNode value) {
 		int index = this.schema.hasMapping(fieldName);
 		if (fieldInSchema(index)) {
-			this.record.setField(index, value);
+			if (value.isMissing()) {
+				this.record.setNull(index);
+			} else {
+				this.record.setField(index, value);
+			}
+
 		} else {
-			((IObjectNode) getOtherField()).put(fieldName, value);
+			if (value.isMissing()) {
+				((IObjectNode) getOtherField()).remove(fieldName);
+			} else {
+				((IObjectNode) getOtherField()).put(fieldName, value);
+			}
+
 		}
 		return this;
 	}
@@ -195,8 +205,13 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	public IJsonNode remove(String fieldName) {
 		int index = this.schema.hasMapping(fieldName);
 		if (fieldInSchema(index)) {
-			IJsonNode node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
-			this.record.setField(index, MissingNode.getInstance());
+			IJsonNode node;
+			if(this.record.isNull(index)){
+				node = MissingNode.getInstance();
+			}else {
+				node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
+				this.record.setNull(index);
+			}
 			return node;
 		} else {
 			return ((IObjectNode) getOtherField()).remove(fieldName);
@@ -210,7 +225,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public IObjectNode removeAll() {
 		for (int i = 0; i < this.schema.getMappingSize(); i++) {
-			this.record.setField(i, MissingNode.getInstance());
+			this.record.setNull(i);
 		}
 		((IObjectNode) getOtherField()).removeAll();
 		return this;
@@ -242,7 +257,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 */
 	@Override
 	public IObjectNode putAll(IObjectNode jsonNode) {
-		for ( Entry<String, IJsonNode>entry : jsonNode){
+		for (Entry<String, IJsonNode> entry : jsonNode) {
 			this.put(entry.getKey(), entry.getValue());
 		}
 		return this;
@@ -264,43 +279,46 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 */
 	@Override
 	public Iterator<Entry<String, IJsonNode>> iterator() {
-		
+
 		Iterator<Entry<String, IJsonNode>> iterator2 = ((IObjectNode) getOtherField()).iterator();
-		Iterator<Entry<String, IJsonNode>> iterator1 = new AbstractIterator<Map.Entry<String,IJsonNode>>() {
+		Iterator<Entry<String, IJsonNode>> iterator1 = new AbstractIterator<Map.Entry<String, IJsonNode>>() {
 
 			int lastIndex = 0;
-			
+
 			@Override
 			protected Entry<String, IJsonNode> loadNext() {
-				if(this.lastIndex >= LazyObjectNode.this.schema.getMappingSize()){
+				if (this.lastIndex >= LazyObjectNode.this.schema.getMappingSize()) {
 					return noMoreElements();
 				}
-				
+
 				String key = LazyObjectNode.this.schema.getMappings().get(this.lastIndex);
-				IJsonNode value = SopremoUtil.unwrap(LazyObjectNode.this.record.getField(this.lastIndex, JsonNodeWrapper.class));
-				
+				IJsonNode value = SopremoUtil.unwrap(LazyObjectNode.this.record.getField(this.lastIndex,
+					JsonNodeWrapper.class));
+
 				this.lastIndex++;
-				
+
 				return new AbstractMap.SimpleEntry<String, IJsonNode>(key, value);
 			}
 		};
-		
-		
-		return new ConcatenatingIterator<Map.Entry<String,IJsonNode>>(iterator1, iterator2);
-				
+
+		return new ConcatenatingIterator<Map.Entry<String, IJsonNode>>(iterator1, iterator2);
+
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IObjectNode#size()
 	 */
 	@Override
 	public int size() {
 		final IObjectNode others = (IObjectNode) getOtherField();
-		//we have to manually iterate over our record to get his size
-		//because there is a difference between NullNode and MissingNode
+		// we have to manually iterate over our record to get his size
+		// because there is a difference between NullNode and MissingNode
 		int count = 0;
-		for(int i=0; i < this.schema.getMappingSize(); i++){
-			//TODO XXX
+		for (int i = 0; i < this.schema.getMappingSize(); i++) {
+			if (!this.record.isNull(i)){
+				count++;
+			}
 		}
 		return count + others.size();
 	}

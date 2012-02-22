@@ -14,47 +14,36 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.type;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.io.Serializable;
+import junit.framework.Assert;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 
 /**
  * @author Michael Hopstock
- * @author Tommy Neubert
  *
  */
-public interface IJsonNode extends Serializable, Value, Key, Cloneable{
-
-	public abstract JsonNode.Type getType();
-
-	public abstract IJsonNode canonicalize();
-
-	public abstract IJsonNode clone();
-
-	public abstract void read(DataInput in) throws IOException;
-
-	public abstract void write(DataOutput out) throws IOException;
-
-	public abstract boolean isNull();
+@Ignore
+public abstract class ObjectNodeBaseTest<T extends IObjectNode>{
 	
-	public abstract boolean isMissing();
-
-	public abstract boolean isObject();
-
-	public abstract boolean isArray();
-
-	public abstract boolean isTextual();
-
-	public abstract Object getJavaValue();
-
-	public abstract int compareTo(final Key other);
-
-	public abstract int compareToSameType(IJsonNode other);
-
-	public abstract StringBuilder toString(StringBuilder sb);
+	T node;
+	
+	@Before
+	public abstract void initObjectNode();
+	
+	@Test
+	public void shouldSetAndGetValue(){
+		node.put("key", IntNode.valueOf(42));
+		Assert.assertEquals(IntNode.valueOf(42), node.get("key"));
+	}
+	
+	@Test
+	public void shouldHaveCorrectSize(){
+		node.removeAll();
+		Assert.assertEquals(0, node.size());
+		node.put("key1", IntNode.valueOf(23)).put("key2", IntNode.valueOf(42));
+		Assert.assertEquals(2, node.size());
+	}
 
 }

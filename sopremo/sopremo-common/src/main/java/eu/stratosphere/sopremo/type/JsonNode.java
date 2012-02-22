@@ -96,6 +96,14 @@ public abstract class JsonNode implements IJsonNode {
 	}
 
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#isMissing()
+	 */
+	@Override
+	public boolean isMissing() {
+		return false;
+	}
+	
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#isObject()
 	 */
 	@Override

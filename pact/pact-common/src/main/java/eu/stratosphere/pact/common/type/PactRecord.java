@@ -464,6 +464,16 @@ public final class PactRecord implements Value
 		return this.firstModifiedPos != Integer.MAX_VALUE;
 	}
 	
+	public final boolean isNull(int fieldNum) {
+		// range check
+		if (fieldNum < 0 || fieldNum >= this.numFields) {
+			throw new IndexOutOfBoundsException();
+		}
+		
+		// get offset and check for null
+		final int offset = this.offsets[fieldNum];
+		return offset == NULL_INDICATOR_OFFSET;
+	}
 //	/**
 //	 * Removes the field at the given position.
 //	 * 

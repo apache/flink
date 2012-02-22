@@ -44,7 +44,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		if (value == null)
 			throw new NullPointerException();
 
-		if (value.isNull())
+		if (value.isMissing())
 			this.children.remove(fieldName);
 		else
 			this.children.put(fieldName, value);
@@ -59,7 +59,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		final IJsonNode node = this.children.get(fieldName);
 		if (node != null)
 			return node;
-		return NullNode.getInstance();
+		return MissingNode.getInstance();
 	}
 
 	/* (non-Javadoc)
@@ -70,7 +70,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		final IJsonNode node = this.children.remove(fieldName);
 		if (node != null)
 			return node;
-		return NullNode.getInstance();
+		return MissingNode.getInstance();
 	}
 
 	/* (non-Javadoc)
