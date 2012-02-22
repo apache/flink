@@ -158,6 +158,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	
 	private final boolean noCheckpointing;
 
+	private boolean alwaysCheckpointing;
+
 	/**
 	 * Constructs a new task manager, starts its IPC service and attempts to discover the job manager to
 	 * receive an initial configuration.
@@ -341,9 +343,10 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		this.usePACT = GlobalConfiguration.getBoolean("checkpoint.usepact",false);		
 		this.useAVG = GlobalConfiguration.getBoolean("checkpoint.useavg",false);
 		this.noCheckpointing = GlobalConfiguration.getBoolean("checkpoint.no",false);
+		this.alwaysCheckpointing = GlobalConfiguration.getBoolean("checkpoint.always",false);
 		LOG.info("Checkpointing Summary: UpperBound=" + this.CPupper + " LowerBound=" + this.CPlower 
 				+ " ForcedValues: usePACT=" + this.usePACT + " useAVG=" + this.useAVG 
-				+ " NOCheckpoting="+this.noCheckpointing);
+				+ " NOCheckpoting="+this.noCheckpointing + " AlwaysCheckpointing=" + this.alwaysCheckpointing);
 		
 
 	}
@@ -759,7 +762,9 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		if(this.noCheckpointing){
 			return false;
 		}
-		
+		if(this.alwaysCheckpointing){
+			return true;
+		}
 		if(rus.getForced() == null){
 			if((rus.getPactRatio() != -1 || this.usePACT)&& !this.useAVG){ 
 				System.out.println("Ratio = " + rus.getPactRatio());
