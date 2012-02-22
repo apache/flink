@@ -198,110 +198,111 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	 */
 	void reportExhaustionOfMemoryBuffers() throws IOException, InterruptedException {
 
-		if (!this.initialExhaustionOfMemoryBuffersReported) {
+		if (!this.ephemeralCheckpoint.isUndecided()) {
+			return;
+		}
 
-			this.initialExhaustionOfMemoryBuffersReported = true;
+		final RuntimeEnvironment environment = this.task.getRuntimeEnvironment();
 
-			final RuntimeEnvironment environment = this.task.getRuntimeEnvironment();
-
-			System.out.println("PACT input/output for task " + environment.getTaskNameWithIndex() + ": "
+		System.out.println("PACT input/output for task " + environment.getTaskNameWithIndex() + ": "
 				+ this.task.getPACTInputOutputRatio());
 
-			// if (this.environment.getExecutingThread() != Thread.currentThread()) {
-			// throw new ConcurrentModificationException(
-			// "initialExecutionResourcesExhausted must be called from the task that executes the user code");
-			// }
+		// if (this.environment.getExecutingThread() != Thread.currentThread()) {
+		// throw new ConcurrentModificationException(
+		// "initialExecutionResourcesExhausted must be called from the task that executes the user code");
+		// }
 
-			// Construct a resource utilization snapshot
-			final long timestamp = System.currentTimeMillis();
-			if (environment.getInputGate(0) != null
+		// Construct a resource utilization snapshot
+		final long timestamp = System.currentTimeMillis();
+		if (environment.getInputGate(0) != null
 				&& environment.getInputGate(0).getExecutionStart() < timestamp) {
-				this.startTime = environment.getInputGate(0).getExecutionStart();
-			}
-			LOG.info("Task " + environment.getTaskNameWithIndex() + " started " + this.startTime);
-			// Get CPU-Usertime in percent
-			ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-			long userCPU = (threadBean.getCurrentThreadUserTime() / NANO_TO_MILLISECONDS) * 100
+			this.startTime = environment.getInputGate(0).getExecutionStart();
+		}
+		LOG.info("Task " + environment.getTaskNameWithIndex() + " started " + this.startTime);
+		// Get CPU-Usertime in percent
+		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+		long userCPU = (threadBean.getCurrentThreadUserTime() / NANO_TO_MILLISECONDS) * 100
 				/ (timestamp - this.startTime);
-			LOG.info("USER CPU for " + environment.getTaskNameWithIndex() + " : " + userCPU);
-			// collect outputChannelUtilization
-			final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
-			long totalOutputAmount = 0;
-			int numrec = 0;
-			long averageOutputRecordSize = 0;
-			for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-				final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
-				numrec += outputGate.getNumRecords();
-				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-					channelUtilization.put(outputChannel.getID(),
+		LOG.info("USER CPU for " + environment.getTaskNameWithIndex() + " : " + userCPU);
+		// collect outputChannelUtilization
+		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
+		long totalOutputAmount = 0;
+		int numrec = 0;
+		long averageOutputRecordSize = 0;
+		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
+			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			numrec += outputGate.getNumRecords();
+			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
+				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+				channelUtilization.put(outputChannel.getID(),
 						Long.valueOf(outputChannel.getAmountOfDataTransmitted()));
-					totalOutputAmount += outputChannel.getAmountOfDataTransmitted();
-				}
+				totalOutputAmount += outputChannel.getAmountOfDataTransmitted();
 			}
+		}
 
-			if (numrec != 0) {
-				averageOutputRecordSize = totalOutputAmount / numrec;
-			}
-			// FIXME (marrus) it is not about what we received but what we processed yet
-			boolean allClosed = true;
-			int numinrec = 0;
+		if (numrec != 0) {
+			averageOutputRecordSize = totalOutputAmount / numrec;
+		}
+		// FIXME (marrus) it is not about what we received but what we processed yet
+		boolean allClosed = true;
+		int numinrec = 0;
 
-			long totalInputAmount = 0;
-			long averageInputRecordSize = 0;
-			for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
-				final InputGate<? extends Record> inputGate = environment.getInputGate(i);
-				numinrec += inputGate.getNumRecords();
-				for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
-					final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
-					channelUtilization.put(inputChannel.getID(),
+		long totalInputAmount = 0;
+		long averageInputRecordSize = 0;
+		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
+			final InputGate<? extends Record> inputGate = environment.getInputGate(i);
+			numinrec += inputGate.getNumRecords();
+			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
+				channelUtilization.put(inputChannel.getID(),
 						Long.valueOf(inputChannel.getAmountOfDataTransmitted()));
-					totalInputAmount += inputChannel.getAmountOfDataTransmitted();
-					try {
-						if (!inputChannel.isClosed()) {
-							allClosed = false;
-						}
-					} catch (IOException e) {
-						e.printStackTrace();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
+				totalInputAmount += inputChannel.getAmountOfDataTransmitted();
+				try {
+					if (!inputChannel.isClosed()) {
+						allClosed = false;
 					}
-
+				} catch (IOException e) {
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
 				}
+
 			}
-			if (numinrec != 0) {
-				averageInputRecordSize = totalInputAmount / numinrec;
-			}
-			Boolean force = null;
-			Boolean stateful = false;
-			if (environment.getInvokable().getClass().isAnnotationPresent(Stateful.class)
+		}
+		if (numinrec != 0) {
+			averageInputRecordSize = totalInputAmount / numinrec;
+		}
+		Boolean force = null;
+		if (environment.getInvokable().getClass().isAnnotationPresent(Stateful.class)
 				&& !environment.getInvokable().getClass().isAnnotationPresent(Stateless.class)) {
-				// Don't checkpoint stateful tasks
-				force = false;
+			// Don't checkpoint stateful tasks
+			force = false;
+		} else {
+			if (environment.getForced() != null) {
+				force = environment.getForced();
 			} else {
-				if (environment.getForced() != null) {
-					force = environment.getForced();
-				} else {
-					// look for a forced decision from the user
-					ForceCheckpoint forced = environment.getInvokable().getClass().getAnnotation(ForceCheckpoint.class);
+				// look for a forced decision from the user
+				ForceCheckpoint forced = environment.getInvokable().getClass().getAnnotation(ForceCheckpoint.class);
 
-					// this.environment.getInvokable().getTaskConfiguration().getBoolean("forced_checkpoint", false)
+				// this.environment.getInvokable().getTaskConfiguration().getBoolean("forced_checkpoint", false)
 
-					if (forced != null) {
-						force = forced.checkpoint();
-					}
+				if (forced != null) {
+					force = forced.checkpoint();
 				}
 			}
+		}
 
-			final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization,
+		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization,
 				userCPU,
 				force, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize,
 				this.task.getPACTInputOutputRatio(), allClosed);
 
+		System.out.println("Making checkpoint decision for " + environment.getTaskNameWithIndex());
+		final boolean checkpointDecision = CheckpointDecision.getDecision(this.task, rus);
+		System.out.println("Checkpoint decision for " + environment.getTaskNameWithIndex() + " is "
+			+ checkpointDecision);
+		this.ephemeralCheckpoint.setCheckpointDecisionSynchronously(checkpointDecision);
 
-			final boolean checkpointDecision = CheckpointDecision.getDecision(this.task, rus); 
-			this.ephemeralCheckpoint.setCheckpointDecisionSynchronously(checkpointDecision);
-		}
 	}
 
 	/**

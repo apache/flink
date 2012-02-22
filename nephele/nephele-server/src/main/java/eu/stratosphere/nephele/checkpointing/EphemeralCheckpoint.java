@@ -313,6 +313,11 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 		return true;
 	}
 
+	public boolean isUndecided() {
+		
+		return (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED);
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */
