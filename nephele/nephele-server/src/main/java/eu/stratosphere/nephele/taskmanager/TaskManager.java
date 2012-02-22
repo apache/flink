@@ -699,6 +699,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 	}
 
+
 	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id,
 			final CheckpointState newCheckpointState) {
 
