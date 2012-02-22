@@ -56,9 +56,6 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.checkpointing.CheckpointDecisionCoordinator;
-import eu.stratosphere.nephele.checkpointing.CheckpointDecisionPropagator;
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobProgressResult;
@@ -71,7 +68,6 @@ import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -141,8 +137,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author warneke
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, CheckpointDecisionPropagator,
-		PluginCommunicationProtocol {
+		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, PluginCommunicationProtocol {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -159,8 +154,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final MulticastManager multicastManager;
 
 	private InstanceManager instanceManager;
-
-	private final CheckpointDecisionCoordinator checkpointDecisionCoordinator;
 
 	private final Map<PluginID, JobManagerPlugin> jobManagerPlugins;
 
@@ -215,9 +208,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Load the input split manager
 		this.inputSplitManager = new InputSplitManager();
-
-		// Load the checkpoint decision coordinator
-		this.checkpointDecisionCoordinator = new CheckpointDecisionCoordinator(this);
 
 		// Determine own RPC address
 		final InetSocketAddress rpcServerAddress = new InetSocketAddress(ipcAddress, ipcPort);
@@ -553,9 +543,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Register job with the dynamic input split assigner
 		this.inputSplitManager.registerJob(eg);
-
-		// Register with the checkpoint decision coordinator
-		this.checkpointDecisionCoordinator.registerJob(eg);
 
 		// Register for updates on the job status
 		eg.registerJobStatusListener(this);
@@ -1262,40 +1249,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
-	@Deprecated
-	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) throws IOException {
-
-		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
-		if (graph == null) {
-			LOG.error("Cannot find execution graph to job ID " + jobID);
-			return;
-		}
-
-		final ExecutionVertex vertex = graph.getVertexByID(vertexID);
-		if (vertex == null) {
-			LOG.error("Cannot find execution vertex with ID " + vertexID);
-			return;
-		}
-
-		final Runnable taskStateChangeRunnable = new Runnable() {
-
-			@Override
-			public void run() {
-
-				// The registered listeners of the vertex will make sure the appropriate actions are taken
-				vertex.initialExecutionResourcesExhausted(resourceUtilizationSnapshot);
-			}
-		};
-
-		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
-		this.executorService.execute(taskStateChangeRunnable);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public void updateCheckpointState(final TaskCheckpointState taskCheckpointState) throws IOException {
 
 		// Get the graph object for this
@@ -1324,42 +1277,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
 		this.executorService.execute(taskStateChangeRunnable);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	@Deprecated
-	public void propagateCheckpointDecisions(final Map<AbstractInstance, List<CheckpointDecision>> checkpointDecisions) {
-
-		final Iterator<Map.Entry<AbstractInstance, List<CheckpointDecision>>> it = checkpointDecisions.entrySet()
-			.iterator();
-		while (it.hasNext()) {
-
-			final Map.Entry<AbstractInstance, List<CheckpointDecision>> entry = it.next();
-			final AbstractInstance instance = entry.getKey();
-			final List<CheckpointDecision> decisions = entry.getValue();
-
-			final Runnable runnable = new Runnable() {
-
-				/**
-				 * {@inheritDoc}
-				 */
-				@Override
-				public void run() {
-
-					try {
-						instance.propagateCheckpointDecisions(decisions);
-					} catch (IOException ioe) {
-						LOG.error(StringUtils.stringifyException(ioe));
-					}
-				}
-			};
-
-			this.executorService.execute(runnable);
-		}
-
 	}
 
 	/**

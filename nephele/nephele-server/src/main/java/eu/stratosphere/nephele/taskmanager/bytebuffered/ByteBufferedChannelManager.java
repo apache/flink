@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
@@ -660,22 +659,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		if (this.multicastEnabled) {
 			this.transitBufferPool.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel
 				* numberOfChannelsForMulticast));
-		}
-	}
-
-	public void reportCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions) {
-
-		for (final CheckpointDecision cd : checkpointDecisions) {
-
-			final RuntimeTaskContext taskContext = this.tasksWithUndecidedCheckpoints.remove(cd.getVertexID());
-
-			if (taskContext == null) {
-				LOG.error("Cannot report checkpoint decision for vertex " + cd.getVertexID());
-				continue;
-			}
-			LOG.info("reporting checkpoint decision for " + cd.getVertexID());
-			taskContext.setCheckpointDecisionAsynchronously(cd.getCheckpointDecision());
-			taskContext.reportAsynchronousEvent();
 		}
 	}
 

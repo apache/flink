@@ -20,7 +20,6 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
@@ -209,12 +208,6 @@ public abstract class AbstractInstance extends NetworkNode {
 			throws IOException {
 
 		return getTaskManager().submitTasks(tasks);
-	}
-
-	public synchronized void propagateCheckpointDecisions(final List<CheckpointDecision> checkpointDecisions)
-			throws IOException {
-
-		getTaskManager().propagateCheckpointDecisions(checkpointDecisions);
 	}
 
 	/**

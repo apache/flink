@@ -24,7 +24,7 @@ final class EnvelopeConsumptionLog {
 
 	private static final Log LOG = LogFactory.getLog(EnvelopeConsumptionLog.class);
 
-	private static final int LOG_WINDOW_SIZE = 262144;
+	private static final int LOG_WINDOW_SIZE = 64 * 1024;
 
 	private static final int SIZE_OF_INTEGER = 4;
 
@@ -223,7 +223,7 @@ final class EnvelopeConsumptionLog {
 		}
 	}
 
-	private void showOustandingEnvelopeLog() {
+	void showOustandingEnvelopeLog() {
 
 		int dataAvailableCounter = 0;
 
@@ -258,7 +258,10 @@ final class EnvelopeConsumptionLog {
 
 		}
 
-		LOG.debug(sb.toString());
+		System.out.println(sb.toString());
+		System.out.println("Initial log entries: " + this.numberOfInitialLogEntries + ", announced "
+			+ this.numberOfAnnouncedEnvelopes);
+		System.out.println("Outstanding buffer: " + this.outstandingEnvelopesAsIntBuffer.remaining());
 	}
 
 	private void loadNextOutstandingEnvelopes() {

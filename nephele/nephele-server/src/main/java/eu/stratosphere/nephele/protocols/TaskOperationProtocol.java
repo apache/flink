@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
@@ -96,8 +95,6 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
-
-	void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException;
 
 	/**
 	 * Removes the checkpoints which are identified by the provided list of vertex IDs.

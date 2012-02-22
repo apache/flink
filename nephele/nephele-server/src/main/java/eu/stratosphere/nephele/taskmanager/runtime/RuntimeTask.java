@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.taskmanager.runtime;
 
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
@@ -27,24 +23,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.annotations.ForceCheckpoint;
-import eu.stratosphere.nephele.annotations.Stateful;
-import eu.stratosphere.nephele.annotations.Stateless;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -56,7 +43,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public final class RuntimeTask implements Task, ExecutionObserver {
@@ -65,8 +51,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 * The log object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(RuntimeTask.class);
-
-	private static final long NANO_TO_MILLISECONDS = 1000 * 1000;
 
 	private final ExecutionVertexID vertexID;
 
@@ -85,9 +69,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	private volatile ExecutionState executionState = ExecutionState.STARTING;
 
 	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
-
-	private long startTime;
-
+	
 	// DW: Start of temporary code
 	private double pactInputOutputRatioSum = 0.0;
 	
@@ -227,7 +209,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 * Cancels or kills the task.
 	 * 
 	 * @param cancel
-	 *        <code>true/code> if the task shall be cancelled, <code>false</code> if it shall be killed
+	 *        <code>true/code> if the task shall be canceled, <code>false</code> if it shall be killed
 	 */
 	private void cancelOrKillExecution(final boolean cancel) {
 
@@ -288,7 +270,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 		final Thread thread = this.environment.getExecutingThread();
 		thread.start();
-		this.startTime = System.currentTimeMillis();
 	}
 
 	/**
@@ -298,112 +279,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public boolean isCanceled() {
 
 		return this.isCanceled;
-	}
-
-	/**
-	 * Triggers the notification that the task has run out of its initial execution resources.
-	 */
-	public void initialExecutionResourcesExhausted() {
-
-		System.out.println("PACT input/output for task " + this.environment.getTaskNameWithIndex() + ": " + getPACTInputOutputRatio());
-		
-		// if (this.environment.getExecutingThread() != Thread.currentThread()) {
-		// throw new ConcurrentModificationException(
-		// "initialExecutionResourcesExhausted must be called from the task that executes the user code");
-		// }
-
-		// Construct a resource utilization snapshot
-		final long timestamp = System.currentTimeMillis();
-		if (this.environment.getInputGate(0) != null
-			&& this.environment.getInputGate(0).getExecutionStart() < timestamp) {
-			this.startTime = this.environment.getInputGate(0).getExecutionStart();
-		}
-		LOG.info("Task " + this.getTaskName() + " started " + this.startTime);
-		// Get CPU-Usertime in percent
-		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-		long userCPU = (threadBean.getCurrentThreadUserTime() / NANO_TO_MILLISECONDS) * 100
-			/ (timestamp - this.startTime);
-		LOG.info("USER CPU for " + this.getTaskName() + " : " + userCPU);
-		// collect outputChannelUtilization
-		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
-		long totalOutputAmount = 0;
-		int numrec = 0;
-		long averageOutputRecordSize= 0;
-		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
-			 numrec += outputGate.getNumRecords();
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-				channelUtilization.put(outputChannel.getID(),
-					Long.valueOf(outputChannel.getAmountOfDataTransmitted()));
-				totalOutputAmount += outputChannel.getAmountOfDataTransmitted();
-			}
-		}
-
-		if(numrec != 0){
-			averageOutputRecordSize = totalOutputAmount/numrec;
-		}
-		//FIXME (marrus) it is not about what we received but what we processed yet
-		boolean allClosed = true;
-		int numinrec = 0;
-
-		long totalInputAmount = 0;
-		long averageInputRecordSize = 0;
-		for (int i = 0; i < this.environment.getNumberOfInputGates(); ++i) {
-			final InputGate<? extends Record> inputGate = this.environment.getInputGate(i);
-			numinrec += inputGate.getNumRecords();
-			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
-				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
-				channelUtilization.put(inputChannel.getID(),
-					Long.valueOf(inputChannel.getAmountOfDataTransmitted()));
-				totalInputAmount += inputChannel.getAmountOfDataTransmitted();
-				try {
-					if(!inputChannel.isClosed()){
-						allClosed = false;
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-
-			}
-		}
-		if(numinrec != 0){
-			averageInputRecordSize = totalInputAmount/numinrec;
-		}
-		Boolean force = null;
-		Boolean stateful = false;
-		if (this.environment.getInvokable().getClass().isAnnotationPresent(Stateful.class)
-			&& !this.environment.getInvokable().getClass().isAnnotationPresent(Stateless.class)) {
-			// Don't checkpoint stateful tasks
-			force = false;
-		} else {
-			if(this.environment.getForced() != null){
-				force = this.environment.getForced();
-			}else{
-			// look for a forced decision from the user
-			ForceCheckpoint forced = this.environment.getInvokable().getClass().getAnnotation(ForceCheckpoint.class);
-			
-			//this.environment.getInvokable().getTaskConfiguration().getBoolean("forced_checkpoint", false)
-		
-			if (forced != null) {
-				force = forced.checkpoint();
-			}
-			}
-		}
-
-		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization, userCPU,
-			force, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize, getPACTInputOutputRatio(), allClosed);
-
-		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
-		while (it.hasNext()) {
-			it.next().initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID, rus);
-		}
-
-		// Finally, propagate event to the job manager
-		this.taskManager.initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID, rus);
 	}
 
 	public void checkpointStateChanged(final CheckpointState newCheckpointState) {
@@ -565,7 +440,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		++this.numberOfPactInputOutputRatioEntries;
 	}
 	
-	private double getPACTInputOutputRatio() {
+	double getPACTInputOutputRatio() {
 		
 		if(this.numberOfPactInputOutputRatioEntries == 0) {
 			return -1.0;

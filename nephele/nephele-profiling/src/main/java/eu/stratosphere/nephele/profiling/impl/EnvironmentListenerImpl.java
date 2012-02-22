@@ -20,7 +20,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -92,15 +91,6 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 		}
 
 		this.taskManagerProfiler.registerUserThreadForCPUProfiling(this.environment, userThread);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-		// Nothing to do here
 	}
 
 	/**
