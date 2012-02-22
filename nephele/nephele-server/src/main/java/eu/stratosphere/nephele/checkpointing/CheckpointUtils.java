@@ -37,6 +37,8 @@ public final class CheckpointUtils {
 
 	private static double CP_LOWER = -1.0;
 
+	private static CheckpointMode CHECKPOINT_MODE = null;
+
 	private CheckpointUtils() {
 	}
 
@@ -103,9 +105,23 @@ public final class CheckpointUtils {
 		}
 	}
 
-	public static boolean isCheckpointingDisabled() {
+	public static CheckpointMode getCheckpointMode() {
 
-		return GlobalConfiguration.getBoolean("checkpoint.no", false);
+		if (CHECKPOINT_MODE == null) {
+
+			final String mode = GlobalConfiguration.getString("checkpoint.mode", "never").toLowerCase();
+			if ("always".equals(mode)) {
+				CHECKPOINT_MODE = CheckpointMode.ALWAYS;
+			} else if ("netork".equals(mode)) {
+				CHECKPOINT_MODE = CheckpointMode.NETWORK;
+			} else if ("dynamic".equals(mode)) {
+				CHECKPOINT_MODE = CheckpointMode.DYNAMIC;
+			} else {
+				CHECKPOINT_MODE = CheckpointMode.NETWORK;
+			}
+		}
+
+		return CHECKPOINT_MODE;
 	}
 
 	public static double getCPLower() {
@@ -140,6 +156,6 @@ public final class CheckpointUtils {
 
 		return "Checkpointing Summary: UpperBound=" + getCPUpper() + " LowerBound=" + getCPLower()
 			+ " ForcedValues: usePACT=" + usePACT() + " useAVG=" + useAVG()
-			+ " NOCheckpoting=" + isCheckpointingDisabled();
+			+ " Mode=" + getCheckpointMode();
 	}
 }
