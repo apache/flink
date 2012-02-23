@@ -47,9 +47,9 @@ public class ArraySchema implements Schema {
 	 */
 	@Override
 	public Class<? extends Value>[] getPactSchema() {
-		Class<? extends Value>[] schema = new Class[mappingSize()];
+		Class<? extends Value>[] schema = new Class[mappingSize() + 1];
 
-		for (int i = 0; i < mappingSize(); i++) {
+		for (int i = 0; i <= mappingSize() ; i++) {
 			schema[i] = JsonNodeWrapper.class;
 		}
 
@@ -67,7 +67,7 @@ public class ArraySchema implements Schema {
 		if (target == null) {
 
 			// the last element is the field "others"
-			target = new PactRecord(this.headSize /*+ this.tailSize*/ + 1);
+			target = new PactRecord(this.headSize + 1);
 			others = new ArrayNode();
 			target.setField(headSize, new JsonNodeWrapper(others));
 		} else {
@@ -80,13 +80,10 @@ public class ArraySchema implements Schema {
 		for (int i = 0; i < this.headSize; i++) {
 				arrayElement = ((IArrayNode) value).get(i);
 				if(!arrayElement.isMissing()){
-					target.setField(i, new JsonNodeWrapper());
+					target.setField(i, new JsonNodeWrapper(arrayElement));
 				} else{
-					target.setNull(i);
-				
-				
+					target.setNull(i);				
 			}
-
 		}
 		
 		//if there are still remaining elements in the array we put insert them into the others field

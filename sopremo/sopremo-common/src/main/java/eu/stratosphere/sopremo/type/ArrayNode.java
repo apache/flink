@@ -66,7 +66,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	public IJsonNode get(final int index) {
 		if (0 <= index && index < this.children.size())
 			return this.children.get(index);
-		throw new ArrayIndexOutOfBoundsException();
+		return MissingNode.getInstance();
 	}
 
 	/* (non-Javadoc)
@@ -86,7 +86,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	public IJsonNode remove(final int index) {
 		if (0 <= index && index < this.children.size())
 			return this.children.remove(index);
-		throw new ArrayIndexOutOfBoundsException();
+		//throw new ArrayIndexOutOfBoundsException();
+		return MissingNode.getInstance();
 	}
 
 	/* (non-Javadoc)
