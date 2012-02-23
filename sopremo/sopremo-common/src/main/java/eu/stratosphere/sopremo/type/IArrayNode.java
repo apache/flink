@@ -17,16 +17,23 @@ package eu.stratosphere.sopremo.type;
 import java.util.Collection;
 
 /**
- * @author strato
- *
+ * @author Michael Hopstock
+ * @author Tommy Neubert
  */
-public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode{
+public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 
 	public abstract int size();
 
 	public abstract IArrayNode add(final IJsonNode node);
 
 	public abstract void add(final int index, final IJsonNode element);
+
+	/**
+	 * @param index
+	 *        the index which should be returned
+	 * @return element at <code>index</code> or {@link eu.stratosphere.sopremo.type.MissingNode MissingNode}, when
+	 *         <code>index</code> is out of bounds or not present
+	 */
 
 	public abstract IJsonNode get(final int index);
 
