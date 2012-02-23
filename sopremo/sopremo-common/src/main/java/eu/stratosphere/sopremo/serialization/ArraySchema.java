@@ -17,6 +17,7 @@ package eu.stratosphere.sopremo.serialization;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -27,7 +28,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  */
 public class ArraySchema implements Schema {
 
-	// [ head, tail, ArrayNode(others) ]
+	// [ head, ArrayNode(others) ]
 
 	/**
 	 * 
@@ -36,14 +37,8 @@ public class ArraySchema implements Schema {
 
 	private int headSize;
 
-	private int tailSize;
-
 	public void setHeadSize(int headSize) {
 		this.headSize = headSize;
-	}
-
-	public void setTailSize(int tailSize) {
-		this.tailSize = tailSize;
 	}
 
 	/*
@@ -68,32 +63,39 @@ public class ArraySchema implements Schema {
 	 */
 	@Override
 	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
+		IArrayNode others;
 		if (target == null) {
 
 			// the last element is the field "others"
-			target = new PactRecord(this.headSize + this.tailSize + 1);
+			target = new PactRecord(this.headSize /*+ this.tailSize*/ + 1);
+			others = new ArrayNode();
+			target.setField(headSize, new JsonNodeWrapper(others));
+		} else {
+			//clear the others field if target was already used
+			others = (IArrayNode) SopremoUtil.unwrap(target.getField(this.headSize, JsonNodeWrapper.class));
+			others.clear();
 		}
 
-		for (int i = 0; i < mappingSize(); i++) {
-			if (i < this.headSize) {
-				// traverse head
-				target.setField(i, new JsonNodeWrapper(((IArrayNode) value).get(i)));
-			} else {
-				// traverse tail, insert them after head
-				target.setField(
-					i,
-					new JsonNodeWrapper(((IArrayNode) value).get(((IArrayNode) value).size() - this.tailSize
-						+ (i - this.headSize))));
+		IJsonNode arrayElement;
+		for (int i = 0; i < this.headSize; i++) {
+				arrayElement = ((IArrayNode) value).get(i);
+				if(!arrayElement.isMissing()){
+					target.setField(i, new JsonNodeWrapper());
+				} else{
+					target.setNull(i);
+				
+				
 			}
 
 		}
-
-		if (this.headSize + this.tailSize >= ((IArrayNode) value).size()) {
-			target.setField(this.mappingSize(), new JsonNodeWrapper(new ArrayNode()));
-		} else {
-
-		}
-
+		
+		//if there are still remaining elements in the array we put insert them into the others field
+		if (this.mappingSize() < ((IArrayNode) value).size()) {
+			for (int i = this.headSize; i < ((IArrayNode) value).size(); i++){
+				others.add(((IArrayNode)value).get(i));
+			}
+		} 
+		
 		return target;
 	}
 
@@ -113,7 +115,7 @@ public class ArraySchema implements Schema {
 	 * @return
 	 */
 	private int mappingSize() {
-		return this.headSize + this.tailSize;
+		return this.headSize;
 	}
 
 }
