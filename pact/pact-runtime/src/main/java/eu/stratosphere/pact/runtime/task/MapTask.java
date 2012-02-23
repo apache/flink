@@ -86,7 +86,7 @@ public class MapTask extends AbstractPactTask<MapStub>
 		}
 		while (this.running && input.next(record)) {
 			// DW: Start to temporary code
-			consumedPactRecordsInBytes =+ record.getBinaryLength();
+			consumedPactRecordsInBytes += record.getBinaryLength();
 			// DW: End of temporary code
 			stub.map(record, output);
 			
