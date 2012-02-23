@@ -8,9 +8,8 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.testing.PactRecordEqualer;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
-import eu.stratosphere.sopremo.serialization.ObjectSchema;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -36,6 +35,7 @@ public class ObjectSchemaTest {
 		PactRecord expected = new PactRecord();
 		expected.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
 		expected.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
+		expected.setField(2, new JsonNodeWrapper(new ObjectNode()));
 
 		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
 	}
@@ -64,6 +64,7 @@ public class ObjectSchemaTest {
 			.put("lastname", TextNode.valueOf("testln"));
 
 		PactRecord target = new PactRecord();
+		target.setField(2, new JsonNodeWrapper(new ObjectNode()));
 		PactRecord result = this.schema.jsonToRecord(object, target);
 
 		Assert.assertSame(target, result);

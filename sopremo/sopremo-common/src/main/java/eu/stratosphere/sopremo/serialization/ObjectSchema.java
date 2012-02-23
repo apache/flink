@@ -25,9 +25,9 @@ public class ObjectSchema implements Schema {
 	
 	@Override
 	public Class<? extends Value>[] getPactSchema() {	
-		Class<? extends Value>[] schema = new Class[this.mapping.size()];
+		Class<? extends Value>[] schema = new Class[this.mapping.size() + 1];
 		
-		for(int i=0; i<this.mapping.size(); i++){
+		for(int i=0; i<=this.mapping.size(); i++){
 			schema[i] = JsonNodeWrapper.class;
 		}
 		
