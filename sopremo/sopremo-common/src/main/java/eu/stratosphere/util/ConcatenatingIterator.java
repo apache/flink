@@ -2,6 +2,7 @@ package eu.stratosphere.util;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -17,7 +18,10 @@ import java.util.List;
  *        the element type
  */
 public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
-	private final Deque<Iterator<? extends T>> inputs;
+	private final Iterator<? extends Iterator<? extends T>> inputs;
+
+	@SuppressWarnings("unchecked")
+	private Iterator<? extends T> currentIterator = Collections.EMPTY_LIST.iterator();
 
 	/**
 	 * Initializes a ConcatenatingIterator with an array of iterators. This constructor is not type-safe.
@@ -25,9 +29,12 @@ public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	 * @param iterators
 	 *        the iterators to concatenate
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public ConcatenatingIterator(final Iterator<?>... iterators) {
-		this.inputs = new LinkedList<Iterator<? extends T>>((Collection) Arrays.asList(iterators));
+	public ConcatenatingIterator(final Iterator<T>... iterators) {
+		this.inputs = Arrays.asList(iterators).iterator();
+	}
+
+	public ConcatenatingIterator(final Iterator<? extends Iterator<? extends T>> iterators) {
+		this.inputs = iterators;
 	}
 
 	/**
@@ -37,17 +44,16 @@ public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	 *        the iterators to concatenate
 	 */
 	public ConcatenatingIterator(final List<? extends Iterator<? extends T>> iterators) {
-		this.inputs = new LinkedList<Iterator<? extends T>>(iterators);
+		this.inputs = iterators.iterator();
 	}
 
 	@Override
 	protected T loadNext() {
-		while (!this.inputs.isEmpty()) {
-			final Iterator<? extends T> iterator = this.inputs.getFirst();
-			if (!iterator.hasNext())
-				this.inputs.pop();
-			else
-				return iterator.next();
+		boolean curHasNext;
+		while ((curHasNext = currentIterator.hasNext()) || this.inputs.hasNext()) {
+			if (curHasNext)
+				return currentIterator.next();
+			currentIterator = this.inputs.next();
 		}
 		return this.noMoreElements();
 	}

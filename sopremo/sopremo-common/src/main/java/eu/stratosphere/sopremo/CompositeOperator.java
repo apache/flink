@@ -1,9 +1,16 @@
 package eu.stratosphere.sopremo;
 
+import java.util.Iterator;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.util.CollectionUtil;
+import eu.stratosphere.util.ConversionIterator;
+import eu.stratosphere.util.IteratorUtil;
+import eu.stratosphere.util.WrappingIterable;
 
 /**
  * A composite operator may be composed of several {@link ElementaryOperator}s and other CompositeOperators.<br>
@@ -36,6 +43,31 @@ public abstract class CompositeOperator<Self extends CompositeOperator<Self>> ex
 	 */
 	public CompositeOperator() {
 		super();
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.Operator#getKeyExpression()
+	 */
+	@Override
+	public Iterable<EvaluationExpression> getKeyExpression() {
+		final SopremoModule elementaryPlan = this.asElementaryOperators();		
+		return CollectionUtil.mergeUnique(new WrappingIterable<Operator, Iterable<EvaluationExpression>>() {
+			/* (non-Javadoc)
+			 * @see eu.stratosphere.util.WrappingIterable#wrap(java.util.Iterator)
+			 */
+			@Override
+			protected Iterator<Iterable<EvaluationExpression>> wrap(Iterator<Operator> iterator) {
+				return new ConversionIterator<Operator, Iterable<EvaluationExpression>>() {
+					/* (non-Javadoc)
+					 * @see eu.stratosphere.util.ConversionIterator#convert(java.lang.Object)
+					 */
+					@Override
+					protected Iterable<EvaluationExpression> convert(Operator op) {
+						return op.getKeyExpression();
+					}
+				};
+			}
+		});
 	}
 
 	/**

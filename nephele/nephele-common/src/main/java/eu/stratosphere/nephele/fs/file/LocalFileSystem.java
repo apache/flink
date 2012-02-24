@@ -141,7 +141,7 @@ public class LocalFileSystem extends FileSystem {
 	@Override
 	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
 		// TODO Auto-generated method stub
-		return null;
+		return open(f);
 	}
 
 	/**

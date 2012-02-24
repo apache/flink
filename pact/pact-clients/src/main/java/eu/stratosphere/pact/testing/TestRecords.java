@@ -44,6 +44,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.FormatUtil;
+import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
@@ -53,8 +55,6 @@ import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
-import eu.stratosphere.pact.testing.ioformats.FormatUtil;
-import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Represents the input or output values of a {@link TestPlan}. The class is
@@ -677,7 +677,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	protected InputFileIterator getInputFileIterator() {
 		final InputFileIterator inputFileIterator;
 		try {
-			inputFileIterator = new InputFileIterator(FormatUtil.createInputFormats(this.inputFormatClass, this.path,
+			inputFileIterator = new InputFileIterator(FormatUtil.openAllInputs(this.inputFormatClass, this.path,
 				this.configuration));
 		} catch (final IOException e) {
 			Assert.fail("reading values from " + this.path + ": " + StringUtils.stringifyException(e));
@@ -709,12 +709,13 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 */
 	@SuppressWarnings("unchecked")
 	public void saveToFile(final String path) throws IOException {
-		final SequentialOutputFormat outputFormat = FormatUtil.createOutputFormat(SequentialOutputFormat.class, path,
+		final SequentialOutputFormat outputFormat = FormatUtil.openOutput(SequentialOutputFormat.class, path,
 			null);
 
 		final Iterator<PactRecord> iterator = this.iterator();
 		while (iterator.hasNext())
 			outputFormat.writeRecord(iterator.next());
+		outputFormat.close();
 	}
 
 	@Override

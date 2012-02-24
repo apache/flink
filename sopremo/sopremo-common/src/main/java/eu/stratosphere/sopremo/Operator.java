@@ -15,12 +15,14 @@ import java.lang.reflect.Method;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.util.CollectionUtil;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
@@ -95,6 +97,10 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 			return null;
 		}
 	}
+
+	protected static Iterable<EvaluationExpression> NO_KEYS = Collections.emptyList();
+
+	public abstract Iterable<EvaluationExpression> getKeyExpression();
 
 	@Override
 	public boolean equals(final Object obj) {

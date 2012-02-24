@@ -15,13 +15,13 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.FormatUtil;
+import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestRecords;
-import eu.stratosphere.pact.testing.ioformats.FormatUtil;
-import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -121,7 +121,7 @@ public class JsonInputFormatTest {
 		jsonWriter.write("[{\"id\": 1}, {\"id\": 2}, {\"id\": 3}, {\"id\": 4}, {\"id\": 5}]");
 		jsonWriter.close();
 
-		final JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
+		final JsonInputFormat inputFormat = FormatUtil.openInput(JsonInputFormat.class, file.toURI()
 			.toString(), null);
 		final PactRecord record = new PactRecord();
 		for (int index = 1; index <= 5; index++) {
@@ -148,7 +148,7 @@ public class JsonInputFormatTest {
 		jsonWriter.write("{\"array\": [{\"id\": 1}, {\"id\": 2}, {\"id\": 3}, {\"id\": 4}, {\"id\": 5}]}");
 		jsonWriter.close();
 
-		final JsonInputFormat inputFormat = FormatUtil.createInputFormat(JsonInputFormat.class, file.toURI()
+		final JsonInputFormat inputFormat = FormatUtil.openInput(JsonInputFormat.class, file.toURI()
 			.toString(), null);
 		final PactRecord record = new PactRecord();
 

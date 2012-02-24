@@ -19,7 +19,7 @@ import java.util.Iterator;
 /**
  * @author Arvid Heise
  */
-public class FilteringIterable<T> extends AbstractIterable<T, T> {
+public class FilteringIterable<T> extends WrappingIterable<T, T> {
 
 	private final Predicate<T> selector;
 

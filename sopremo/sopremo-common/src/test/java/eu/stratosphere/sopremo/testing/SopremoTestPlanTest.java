@@ -15,7 +15,6 @@
 
 package eu.stratosphere.sopremo.testing;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -30,7 +29,6 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
-import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.testing.TestRecords;
@@ -43,7 +41,6 @@ import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
@@ -143,9 +140,9 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			withPrefabValues(TestRecords.class,
 				new TestRecords().add(PactNull.getInstance(), new PactString("red")),
 				new TestRecords().add(PactNull.getInstance(), new PactString("black"))).
-//			withPrefabValues(SopremoTestPlan.ActualOutput.class,
-//				new SopremoTestPlan.ActualOutput(0).addValue(0),
-//				new SopremoTestPlan.ActualOutput(1).addValue(1)).
+			// withPrefabValues(SopremoTestPlan.ActualOutput.class,
+			// new SopremoTestPlan.ActualOutput(0).addValue(0),
+			// new SopremoTestPlan.ActualOutput(1).addValue(1)).
 			withPrefabValues(SopremoTestPlan.ExpectedOutput.class,
 				new SopremoTestPlan.ExpectedOutput(0).addValue(0),
 				new SopremoTestPlan.ExpectedOutput(1).addValue(1)).

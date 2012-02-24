@@ -20,6 +20,7 @@ import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
@@ -67,6 +68,8 @@ import eu.stratosphere.util.reflect.ReflectUtil;
 public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> extends Operator<Self> {
 	private static final org.apache.commons.logging.Log LOG = LogFactory.getLog(ElementaryOperator.class);
 
+	private Iterable<EvaluationExpression> keyExpressions = NO_KEYS;
+
 	/**
 	 * 
 	 */
@@ -87,6 +90,29 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 */
 	public ElementaryOperator() {
 		super();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.Operator#getKeyExpression()
+	 */
+	@Override
+	public Iterable<EvaluationExpression> getKeyExpression() {
+		return this.keyExpressions;
+	}
+
+	/**
+	 * Sets the keyExpressions to the specified value.
+	 * 
+	 * @param keyExpressions
+	 *        the keyExpressions to set
+	 */
+	@Property(hidden = true)
+	public void setKeyExpressions(Iterable<EvaluationExpression> keyExpressions) {
+		if (keyExpressions == null)
+			throw new NullPointerException("keyExpressions must not be null");
+
+		this.keyExpressions = keyExpressions;
 	}
 
 	@Override
