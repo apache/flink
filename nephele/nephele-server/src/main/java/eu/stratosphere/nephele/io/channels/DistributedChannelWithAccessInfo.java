@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.fs.FileChannelWrapper;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 
@@ -22,7 +23,7 @@ final class DistributedChannelWithAccessInfo implements ChannelWithAccessInfo {
 
 	private final Path checkpointFile;
 
-	private final DistributedFileChannel channel;
+	private final FileChannelWrapper channel;
 
 	private final AtomicLong reservedWritePosition;
 
@@ -33,7 +34,7 @@ final class DistributedChannelWithAccessInfo implements ChannelWithAccessInfo {
 
 		this.fs = fs;
 		this.checkpointFile = checkpointFile;
-		this.channel = new DistributedFileChannel(fs, checkpointFile, bufferSize);
+		this.channel = new FileChannelWrapper(fs, checkpointFile, bufferSize, (short) 2);
 		this.reservedWritePosition = new AtomicLong(0);
 		this.referenceCounter = new AtomicInteger(0);
 	}

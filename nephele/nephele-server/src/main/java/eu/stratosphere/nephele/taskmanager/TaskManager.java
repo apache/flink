@@ -516,7 +516,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * @return the task to be started or <code>null</code> if a task with the same ID was already running
 	 */
 	private Task createAndRegisterTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final RuntimeEnvironment environment, final Set<ChannelID> activeOutputChannels) {
+			final RuntimeEnvironment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
 
 		if (id == null) {
 			throw new IllegalArgumentException("Argument id is null");

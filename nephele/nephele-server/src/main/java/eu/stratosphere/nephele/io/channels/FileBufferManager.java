@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointUtils;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -81,7 +82,7 @@ public final class FileBufferManager {
 
 	private final int bufferSize;
 
-	private final String distributedTempPath;
+	private final Path distributedTempPath;
 
 	private final FileSystem distributedFileSystem;
 
@@ -111,17 +112,15 @@ public final class FileBufferManager {
 
 		this.fileMap = new ConcurrentHashMap<AbstractID, ChannelWithAccessInfo>(2048, 0.8f, 64);
 
-		this.distributedTempPath = GlobalConfiguration.getString("taskmanager.tmp.distdir",
-			"hdfs://master:9000/checkpoints");
+		this.distributedTempPath = CheckpointUtils.getDistributedCheckpointPath();
 		FileSystem distFS = null;
 		if (this.distributedTempPath != null) {
 
 			try {
 
-				final Path p = new Path(this.distributedTempPath);
-				distFS = FileSystem.get(p.toUri());
-				if (!distFS.exists(p)) {
-					distFS.mkdirs(p);
+				distFS = this.distributedTempPath.getFileSystem();
+				if (!distFS.exists(this.distributedTempPath)) {
+					distFS.mkdirs(this.distributedTempPath);
 				}
 
 			} catch (IOException e) {

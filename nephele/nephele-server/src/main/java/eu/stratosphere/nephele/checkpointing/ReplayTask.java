@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -167,7 +168,7 @@ public final class ReplayTask implements Task {
 
 		this.vertexID = vertexID;
 		this.environment = new CheckpointEnvironment(this.vertexID, environment,
-			CheckpointUtils.hasCompleteCheckpointAvailable(vertexID), this.outputBrokerMap);
+			hasCompleteCheckpointAvailable(this.vertexID), this.outputBrokerMap);
 		this.environment.setExecutionObserver(new ReplayTaskExecutionObserver(null));
 
 		this.encapsulatedTask = null;
@@ -178,7 +179,7 @@ public final class ReplayTask implements Task {
 
 		this.vertexID = encapsulatedTask.getVertexID();
 		this.environment = new CheckpointEnvironment(this.vertexID, encapsulatedTask.getEnvironment(),
-			CheckpointUtils.hasCompleteCheckpointAvailable(vertexID), this.outputBrokerMap);
+			hasCompleteCheckpointAvailable(this.vertexID), this.outputBrokerMap);
 		this.environment.setExecutionObserver(new ReplayTaskExecutionObserver(null));
 
 		this.encapsulatedTask = encapsulatedTask;
@@ -187,6 +188,16 @@ public final class ReplayTask implements Task {
 			new ReplayTaskExecutionObserver(this.encapsulatedTask));
 		this.encapsulatedExecutionState = this.encapsulatedTask.getExecutionState();
 		this.taskManager = taskManager;
+	}
+
+	private static boolean hasCompleteCheckpointAvailable(final ExecutionVertexID vertexID) {
+
+		try {
+			return CheckpointUtils.hasCompleteCheckpointAvailable(vertexID);
+		} catch (IOException ioe) {
+		}
+
+		return false;
 	}
 
 	/**

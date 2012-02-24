@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -30,12 +29,14 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
+import eu.stratosphere.nephele.fs.FileChannelWrapper;
+import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
@@ -64,6 +65,11 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	 * The number of envelopes to be stored in a single meta data file.
 	 */
 	private static final int ENVELOPES_PER_META_DATA_FILE = 10000;
+
+	/**
+	 * The buffer size in bytes to use for the meta data file channel.
+	 */
+	private static final int BUFFER_SIZE = 4096;
 
 	/**
 	 * The enveloped which are currently queued until the state of the checkpoint is decided.
@@ -103,6 +109,16 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	private final FileBufferManager fileBufferManager;
 
 	/**
+	 * The path to which the checkpoint meta data shall be written to.
+	 */
+	private final Path checkpointPath;
+
+	/**
+	 * The file system to write the checkpoint's to.
+	 */
+	private FileSystem fileSystem;
+
+	/**
 	 * The file channel to write the checkpoint's meta data.
 	 */
 	private FileChannel metaDataFileChannel = null;
@@ -139,7 +155,7 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 		}
 		this.numberOfConnectedChannels = nooc;
 
-		this.distributed = CheckpointUtils.createDistributedCheckpoint();
+		final boolean dist = CheckpointUtils.createDistributedCheckpoint();
 
 		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
 			: CheckpointingDecisionState.CHECKPOINTING);
@@ -151,6 +167,22 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 		if (this.checkpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
 			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
+		}
+
+		if (dist) {
+			final Path p = CheckpointUtils.getDistributedCheckpointPath();
+			System.out.println("Distributed checkpoint path is " + p);
+			if (p == null) {
+				LOG.error("No distributed checkpoint path configured, writing local checkpoints instead");
+				this.checkpointPath = CheckpointUtils.getLocalCheckpointPath();
+				this.distributed = false;
+			} else {
+				this.checkpointPath = p;
+				this.distributed = true;
+			}
+		} else {
+			this.checkpointPath = CheckpointUtils.getLocalCheckpointPath();
+			this.distributed = false;
 		}
 	}
 
@@ -173,18 +205,16 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 		}
 	}
 
-	private boolean renameCheckpointPart(final String checkpointDir) {
+	private boolean renameCheckpointPart() throws IOException {
 
-		final File oldFile = new File(checkpointDir + File.separator
-			+ CheckpointUtils.METADATA_PREFIX + "_"
+		final Path oldFile = this.checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX + "_"
 			+ this.task.getVertexID() + "_part");
 
-		final File newFile = new File(checkpointDir + File.separator
-			+ CheckpointUtils.METADATA_PREFIX + "_"
+		final Path newFile = this.checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX + "_"
 			+ this.task.getVertexID() + "_" + this.metaDataSuffix);
 
-		if (!oldFile.renameTo(newFile)) {
-			LOG.error("Unable to rename " + oldFile.getAbsoluteFile() + " to " + newFile.getAbsoluteFile());
+		if (!this.fileSystem.rename(oldFile, newFile)) {
+			LOG.error("Unable to rename " + oldFile + " to " + newFile);
 			return false;
 		}
 
@@ -193,10 +223,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 	private void writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
-
-		final String checkpointDir = GlobalConfiguration.getString(
-			CheckpointUtils.CHECKPOINT_DIRECTORY_KEY,
-			CheckpointUtils.DEFAULT_CHECKPOINT_DIRECTORY);
 
 		final Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer != null) {
@@ -214,12 +240,16 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 		// Write the meta data of the transfer envelope to disk
 		if (this.numberOfSerializedTransferEnvelopes % ENVELOPES_PER_META_DATA_FILE == 0) {
 
+			if (this.fileSystem == null) {
+				this.fileSystem = this.checkpointPath.getFileSystem();
+			}
+
 			if (this.metaDataFileChannel != null) {
 				this.metaDataFileChannel.close();
 				this.metaDataFileChannel = null;
 
 				// Rename file
-				renameCheckpointPart(checkpointDir);
+				renameCheckpointPart();
 
 				// Increase the meta data suffix
 				++this.metaDataSuffix;
@@ -227,14 +257,7 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 		}
 
 		if (this.metaDataFileChannel == null) {
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Writing checkpointing meta data to directory " + checkpointDir);
-			}
-			final FileOutputStream fos = new FileOutputStream(checkpointDir + File.separator
-				+ CheckpointUtils.METADATA_PREFIX
-				+ "_" + this.task.getVertexID() + "_part");
-			this.metaDataFileChannel = fos.getChannel();
+			this.metaDataFileChannel = getMetaDataFileChannel("_part");
 		}
 
 		this.transferEnvelopeSerializer.setTransferEnvelope(transferEnvelope);
@@ -261,11 +284,10 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 				this.metaDataFileChannel.close();
 
 				// Rename file
-				renameCheckpointPart(checkpointDir);
+				renameCheckpointPart();
 			}
 
-			new FileOutputStream(checkpointDir + File.separator + CheckpointUtils.METADATA_PREFIX + "_"
-				+ this.task.getVertexID() + "_final").close();
+			getMetaDataFileChannel(CheckpointUtils.COMPLETED_CHECKPOINT_SUFFIX).close();
 
 			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.
 			// TODO: Fix me
@@ -276,6 +298,28 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			// Send notification that checkpoint is completed
 			this.task.checkpointStateChanged(CheckpointState.COMPLETE);
 		}
+	}
+
+	private FileChannel getMetaDataFileChannel(final String suffix) throws IOException {
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Writing checkpointing meta data to directory " + this.checkpointPath);
+		}
+
+		// Bypass FileSystem API for local checkpoints
+		if (!this.distributed) {
+
+			final FileOutputStream fos = new FileOutputStream(this.checkpointPath.toUri().getPath()
+				+ Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX + "_" + this.task.getVertexID() + suffix);
+
+			return fos.getChannel();
+		}
+
+		return new FileChannelWrapper(this.fileSystem, this.checkpointPath.suffix(Path.SEPARATOR
+			+ CheckpointUtils.METADATA_PREFIX + "_" + this.task.getVertexID() + suffix), BUFFER_SIZE, (short) 2); // TODO:
+																													// Make
+																													// replication
+																													// configurable
 	}
 
 	public void setCheckpointDecisionSynchronously(final boolean checkpointDecision) throws IOException,

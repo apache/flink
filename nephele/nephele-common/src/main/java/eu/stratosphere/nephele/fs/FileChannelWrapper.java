@@ -1,4 +1,4 @@
-package eu.stratosphere.nephele.io.channels;
+package eu.stratosphere.nephele.fs;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -8,13 +8,7 @@ import java.nio.channels.FileLock;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-import eu.stratosphere.nephele.fs.FSDataOutputStream;
-import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.fs.Path;
-
-final class DistributedFileChannel extends FileChannel {
-
-	private static final short REPLICATION = 2;
+public final class FileChannelWrapper extends FileChannel {
 
 	private final FileSystem fs;
 
@@ -22,15 +16,19 @@ final class DistributedFileChannel extends FileChannel {
 
 	private final byte[] buf;
 
+	private final short replication;
+
 	private FSDataOutputStream outputStream = null;
 
 	private long nextExpectedWritePosition = 0L;
 
-	DistributedFileChannel(final FileSystem fs, final Path checkpointFile, final int bufferSize) {
+	public FileChannelWrapper(final FileSystem fs, final Path checkpointFile, final int bufferSize,
+			final short replication) {
 
 		this.fs = fs;
 		this.checkpointFile = checkpointFile;
 		this.buf = new byte[bufferSize];
+		this.replication = replication;
 	}
 
 	@Override
@@ -147,15 +145,18 @@ final class DistributedFileChannel extends FileChannel {
 		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public int write(ByteBuffer src) throws IOException {
 
-		System.out.println("write called");
-
-		// TODO Auto-generated method stub
-		return 0;
+		return write(src, this.nextExpectedWritePosition);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public int write(final ByteBuffer src, final long position) throws IOException {
 
@@ -163,10 +164,7 @@ final class DistributedFileChannel extends FileChannel {
 			throw new IOException("Next expected write position is " + this.nextExpectedWritePosition);
 		}
 
-		if (this.outputStream == null) {
-			this.outputStream = this.fs.create(this.checkpointFile, false, this.buf.length, REPLICATION,
-				this.fs.getDefaultBlockSize());
-		}
+		final FSDataOutputStream outputStream = getOutputStream();
 
 		int totalBytesWritten = 0;
 
@@ -174,7 +172,7 @@ final class DistributedFileChannel extends FileChannel {
 
 			final int length = Math.min(this.buf.length, src.remaining());
 			src.get(this.buf, 0, length);
-			this.outputStream.write(this.buf, 0, length);
+			outputStream.write(this.buf, 0, length);
 			totalBytesWritten += length;
 		}
 
@@ -192,11 +190,22 @@ final class DistributedFileChannel extends FileChannel {
 		return 0;
 	}
 
-	@Override
-	protected void implCloseChannel() throws IOException {
-		// TODO Auto-generated method stub
+	private FSDataOutputStream getOutputStream() throws IOException {
 
-		System.out.println("implCloseChannel called");
+		if (this.outputStream == null) {
+			this.outputStream = this.fs.create(this.checkpointFile, false, this.buf.length, this.replication,
+				this.fs.getDefaultBlockSize());
+		}
+
+		return this.outputStream;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected void implCloseChannel() throws IOException {
+
+		getOutputStream().close();
+	}
 }

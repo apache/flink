@@ -15,10 +15,12 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
-import java.io.File;
+import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.Path;
 
 public final class CheckpointUtils {
 
@@ -27,11 +29,17 @@ public final class CheckpointUtils {
 	 */
 	public static final String METADATA_PREFIX = "checkpoint";
 
-	public static final String CHECKPOINT_DIRECTORY_KEY = "channel.checkpoint.directory";
+	public static final String LOCAL_CHECKPOINT_PATH_KEY = "checkpoint.local.path";
 
-	public static final String DEFAULT_CHECKPOINT_DIRECTORY = "/tmp";
+	public static final String DISTRIBUTED_CHECKPOINT_PATH_KEY = "checkpoint.distributed.path";
 
-	private static String CHECKPOINT_DIRECTORY = null;
+	public static final String DEFAULT_LOCAL_CHECKPOINT_PATH = "file:///tmp";
+
+	public static final String COMPLETED_CHECKPOINT_SUFFIX = "_final";
+
+	private static Path LOCAL_CHECKPOINT_PATH = null;
+
+	private static Path DISTRIBUTED_CHECKPOINT_PATH = null;
 
 	private static double CP_UPPER = -1.0;
 
@@ -42,40 +50,64 @@ public final class CheckpointUtils {
 	private CheckpointUtils() {
 	}
 
-	static String getCheckpointDirectory() {
+	public static Path getLocalCheckpointPath() {
 
-		if (CHECKPOINT_DIRECTORY == null) {
-			CHECKPOINT_DIRECTORY = GlobalConfiguration
-				.getString(CHECKPOINT_DIRECTORY_KEY, DEFAULT_CHECKPOINT_DIRECTORY);
+		if (LOCAL_CHECKPOINT_PATH == null) {
+			LOCAL_CHECKPOINT_PATH = new Path(GlobalConfiguration.getString(LOCAL_CHECKPOINT_PATH_KEY,
+				DEFAULT_LOCAL_CHECKPOINT_PATH));
 		}
 
-		return CHECKPOINT_DIRECTORY;
+		return LOCAL_CHECKPOINT_PATH;
 	}
 
-	public static boolean hasCompleteCheckpointAvailable(final ExecutionVertexID vertexID) {
+	public static Path getDistributedCheckpointPath() {
 
-		final File file = new File(getCheckpointDirectory() + File.separator + METADATA_PREFIX + "_" + vertexID
-			+ "_final");
-		if (file.exists()) {
-			return true;
+		if (DISTRIBUTED_CHECKPOINT_PATH == null) {
+
+			final String path = GlobalConfiguration.getString(DISTRIBUTED_CHECKPOINT_PATH_KEY, null);
+			if (path == null) {
+				return null;
+			}
+
+			DISTRIBUTED_CHECKPOINT_PATH = new Path(path);
 		}
 
-		return false;
+		return DISTRIBUTED_CHECKPOINT_PATH;
 	}
 
-	public static boolean hasPartialCheckpointAvailable(final ExecutionVertexID vertexID) {
+	public static boolean hasCompleteCheckpointAvailable(final ExecutionVertexID vertexID) throws IOException {
 
-		File file = new File(getCheckpointDirectory() + File.separator + METADATA_PREFIX + "_" + vertexID + "_0");
-		if (file.exists()) {
+		return checkForCheckpoint(vertexID, COMPLETED_CHECKPOINT_SUFFIX);
+	}
+
+	public static boolean hasPartialCheckpointAvailable(final ExecutionVertexID vertexID) throws IOException {
+
+		return checkForCheckpoint(vertexID, "_0");
+	}
+
+	private static boolean checkForCheckpoint(final ExecutionVertexID vertexID, final String suffix) throws IOException {
+
+		final Path local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
+			+ COMPLETED_CHECKPOINT_SUFFIX);
+
+		final FileSystem localFs = local.getFileSystem();
+
+		if (localFs.exists(local)) {
 			return true;
 		}
 
-		file = new File(getCheckpointDirectory() + File.separator + METADATA_PREFIX + "_" + vertexID + "_part");
-		if (file.exists()) {
-			return true;
+		final Path distributedCheckpointPath = getDistributedCheckpointPath();
+		if (distributedCheckpointPath == null) {
+			return false;
 		}
 
-		return false;
+		final Path distributed = new Path(distributedCheckpointPath + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
+			+ COMPLETED_CHECKPOINT_SUFFIX);
+
+		final FileSystem distFs = distributed.getFileSystem();
+
+		return distFs.exists(distributed);
+
 	}
 
 	/**
@@ -86,22 +118,37 @@ public final class CheckpointUtils {
 	 */
 	public static void removeCheckpoint(final ExecutionVertexID vertexID) {
 
-		final String checkpointDirectory = getCheckpointDirectory();
+		final Path localChPath = getLocalCheckpointPath();
 
-		File file = new File(checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID
-				+ "_final");
-		if (file.exists()) {
-			file.delete();
+		try {
+			removeCheckpoint(new Path(localChPath + Path.SEPARATOR + METADATA_PREFIX));
+
+			final Path distributedChPath = getDistributedCheckpointPath();
+			if (distributedChPath != null) {
+				removeCheckpoint(new Path(distributedChPath + Path.SEPARATOR + METADATA_PREFIX));
+			}
+		} catch (IOException e) {
+		}
+	}
+
+	private static void removeCheckpoint(final Path pathPrefix) throws IOException {
+
+		
+		Path p = pathPrefix.suffix(COMPLETED_CHECKPOINT_SUFFIX);
+		FileSystem fs = p.getFileSystem();
+		if(fs.exists(p)) {
+			fs.delete(p, false);
 			return;
 		}
-		file = new File(checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_0");
-		if (file.exists()) {
-			file.delete();
+		
+		p = pathPrefix.suffix("_0");
+		if(fs.exists(p)) {
+			fs.delete(p, false);
 		}
-
-		file = new File(checkpointDirectory + File.separator + METADATA_PREFIX + "_" + vertexID + "_part");
-		if (file.exists()) {
-			file.delete();
+		
+		p = pathPrefix.suffix("_part");
+		if(fs.exists(p)) {
+			fs.delete(p, false);
 		}
 	}
 
