@@ -152,6 +152,11 @@ public final class CheckpointUtils {
 		return GlobalConfiguration.getBoolean("checkpoint.useavg", false);
 	}
 
+	public static boolean createDistributedCheckpoint() {
+
+		return GlobalConfiguration.getBoolean("checkpoint.distributed", true);
+	}
+
 	public static String getSummary() {
 
 		return "Checkpointing Summary: UpperBound=" + getCPUpper() + " LowerBound=" + getCPLower()

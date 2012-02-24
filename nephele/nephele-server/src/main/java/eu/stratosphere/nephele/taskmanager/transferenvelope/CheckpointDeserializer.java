@@ -57,7 +57,7 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 		final long offset = byteBufferToLong(tempBuffer);
 
 		final Buffer fileBuffer = BufferFactory.createFromCheckpoint(getSizeOfBuffer(), offset, this.ownerID,
-			this.fileBufferManager);
+			this.fileBufferManager, true);
 
 		setBuffer(fileBuffer);
 

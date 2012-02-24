@@ -82,7 +82,8 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		}
 
 		if (this.envelopeConsumptionLog.followsLog() || this.inputGate.getChannelType() == ChannelType.NETWORK) {
-			return BufferFactory.createFromFile(minimumSizeOfBuffer, this.inputGate.getGateID(), fileBufferManager);
+			return BufferFactory.createFromFile(minimumSizeOfBuffer, this.inputGate.getGateID(),
+				this.fileBufferManager, false);
 		}
 
 		return this.localBufferPool.requestEmptyBufferBlocking(minimumSizeOfBuffer);

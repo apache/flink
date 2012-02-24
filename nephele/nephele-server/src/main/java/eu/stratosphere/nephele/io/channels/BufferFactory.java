@@ -23,15 +23,16 @@ import eu.stratosphere.nephele.io.AbstractID;
 public final class BufferFactory {
 
 	public static FileBuffer createFromFile(final int bufferSize, final AbstractID ownerID,
-			final FileBufferManager fileBufferManager) throws IOException {
+			final FileBufferManager fileBufferManager, final boolean distributed) throws IOException {
 
-		return new FileBuffer(bufferSize, ownerID, fileBufferManager);
+		return new FileBuffer(bufferSize, ownerID, fileBufferManager, distributed);
 	}
 
 	public static FileBuffer createFromCheckpoint(final int bufferSize, final long offset,
-			final AbstractID ownerID, final FileBufferManager fileBufferManager) throws IOException {
+			final AbstractID ownerID, final FileBufferManager fileBufferManager, final boolean distributed)
+			throws IOException {
 
-		return new FileBuffer(bufferSize, offset, ownerID, fileBufferManager);
+		return new FileBuffer(bufferSize, offset, ownerID, fileBufferManager, distributed);
 	}
 
 	public static Buffer createFromMemory(final int bufferSize, final ByteBuffer byteBuffer,

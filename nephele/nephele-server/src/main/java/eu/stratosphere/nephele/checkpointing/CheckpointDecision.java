@@ -48,13 +48,13 @@ public final class CheckpointDecision {
 
 		final double CPupper = CheckpointUtils.getCPUpper();
 
-		if (rus.getPactRatio() >= 0.0 && CheckpointUtils.usePACT()) {
+		if (rus.getPactRatio() >= 0.0 && !CheckpointUtils.useAVG()) {
 			LOG.info("Ratio = " + rus.getPactRatio());
-			if (rus.getPactRatio() >= CPlower) {
+			if (rus.getPactRatio() <= CPlower) {
 				// amount of data is small so we checkpoint
 				return true;
 			}
-			if (rus.getPactRatio() <= CPupper) {
+			if (rus.getPactRatio() >= CPupper) {
 				// amount of data is too big
 				return false;
 			}
@@ -63,18 +63,18 @@ public final class CheckpointDecision {
 			if (rus.isDam()) {
 				LOG.info("is Dam");
 
-				if (rus.getAverageOutputRecordSize() != 0) {
-					LOG.info("avg ratio " + rus.getAverageInputRecordSize()
-						/ rus.getAverageOutputRecordSize());
+				if (rus.getAverageInputRecordSize() != 0) {
+					LOG.info("avg ratio " + rus.getAverageOutputRecordSize()
+						/ rus.getAverageInputRecordSize());
 				}
 
-				if (rus.getAverageOutputRecordSize() != 0 &&
-						rus.getAverageInputRecordSize() / rus.getAverageOutputRecordSize() >= CPlower) {
+				if (rus.getAverageInputRecordSize() != 0 &&
+						rus.getAverageOutputRecordSize() / rus.getAverageInputRecordSize() <= CPlower) {
 					return true;
 				}
 
-				if (rus.getAverageOutputRecordSize() != 0 &&
-						rus.getAverageInputRecordSize() / rus.getAverageOutputRecordSize() <= CPupper) {
+				if (rus.getAverageInputRecordSize() != 0 &&
+						rus.getAverageOutputRecordSize() / rus.getAverageInputRecordSize() >= CPupper) {
 					return false;
 				}
 			} else {
@@ -86,22 +86,22 @@ public final class CheckpointDecision {
 						/ rus.getTotalInputAmount());
 
 				}
-				if (rus.getTotalOutputAmount() != 0
-					&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() >= CPlower)) {
-					// size off checkpoint would be to large: do not checkpoint
-					// TODO progress estimation would make sense here
-					LOG.info(task.getEnvironment().getTaskName() + " Checkpoint too large selectivity "
-						+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount()));
-					return false;
-
-				}
-				if (rus.getTotalOutputAmount() != 0
-					&& ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount() <= CPupper)) {
+				if (rus.getTotalInputAmount() != 0
+					&& ((double) rus.getTotalOutputAmount() / rus.getTotalInputAmount() <= CPlower)) {
 					// size of checkpoint will be small enough: checkpoint
 					// TODO progress estimation would make sense here
 					LOG.info(task.getEnvironment().getTaskName() + " Checkpoint small selectivity "
-						+ ((double) rus.getTotalInputAmount() / rus.getTotalOutputAmount()));
+						+ ((double) rus.getTotalOutputAmount() / rus.getTotalInputAmount()));
 					return true;
+
+				}
+				if (rus.getTotalInputAmount() != 0
+					&& ((double) rus.getTotalOutputAmount() / rus.getTotalInputAmount() >= CPupper)) {
+					// size off checkpoint would be to large: do not checkpoint
+					// TODO progress estimation would make sense here
+					LOG.info(task.getEnvironment().getTaskName() + " Checkpoint to large selectivity "
+						+ ((double) rus.getTotalOutputAmount() / rus.getTotalInputAmount()));
+					return false;
 
 				}
 

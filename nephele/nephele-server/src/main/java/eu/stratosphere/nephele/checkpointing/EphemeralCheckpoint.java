@@ -85,6 +85,8 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	 */
 	private final int numberOfConnectedChannels;
 
+	private final boolean distributed;
+
 	/**
 	 * The number of channels which can confirmed not to send any further data.
 	 */
@@ -136,6 +138,8 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			nooc += environment.getOutputGate(i).getNumberOfOutputChannels();
 		}
 		this.numberOfConnectedChannels = nooc;
+
+		this.distributed = CheckpointUtils.createDistributedCheckpoint();
 
 		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
 			: CheckpointingDecisionState.CHECKPOINTING);
@@ -200,7 +204,7 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 				// Make sure we transfer the encapsulated buffer to a file and release the memory buffer again
 				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.task.getVertexID(),
-					this.fileBufferManager);
+					this.fileBufferManager, this.distributed);
 				buffer.copyToBuffer(fileBuffer);
 				transferEnvelope.setBuffer(fileBuffer);
 				buffer.recycleBuffer();
@@ -264,8 +268,8 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 				+ this.task.getVertexID() + "_final").close();
 
 			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.
-			//TODO: Fix me
-			//this.fileBufferManager.forceCloseOfWritableSpillingFile(this.task.getVertexID());
+			// TODO: Fix me
+			// this.fileBufferManager.forceCloseOfWritableSpillingFile(this.task.getVertexID());
 
 			LOG.info("Finished persistent checkpoint for vertex " + this.task.getVertexID());
 
@@ -273,14 +277,15 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			this.task.checkpointStateChanged(CheckpointState.COMPLETE);
 		}
 	}
-	
-	public void setCheckpointDecisionSynchronously(final boolean checkpointDecision) throws IOException, InterruptedException {
-		
-		if(this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED) {
+
+	public void setCheckpointDecisionSynchronously(final boolean checkpointDecision) throws IOException,
+			InterruptedException {
+
+		if (this.checkpointingDecision != CheckpointingDecisionState.UNDECIDED) {
 			return;
 		}
-		
-		if(checkpointDecision) {
+
+		if (checkpointDecision) {
 			this.checkpointingDecision = CheckpointingDecisionState.CHECKPOINTING;
 			// Write the data which has been queued so far and update checkpoint state
 			write();
@@ -314,10 +319,10 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	}
 
 	public boolean isUndecided() {
-		
+
 		return (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED);
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */

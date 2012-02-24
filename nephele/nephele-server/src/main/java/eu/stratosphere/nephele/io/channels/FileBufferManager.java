@@ -17,20 +17,20 @@ package eu.stratosphere.nephele.io.channels;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * The file buffer manager manages the physical files which may be used to store the output or input of
@@ -79,6 +79,12 @@ public final class FileBufferManager {
 	 */
 	private final String[] tmpDirs;
 
+	private final int bufferSize;
+
+	private final String distributedTempPath;
+
+	private final FileSystem distributedFileSystem;
+
 	/**
 	 * Constructs a new file buffer manager object.
 	 */
@@ -98,7 +104,32 @@ public final class FileBufferManager {
 			this.tmpDirs[i] = this.tmpDirs[i] + File.separator + FILE_BUFFER_PREFIX;
 		}
 
+		this.bufferSize = GlobalConfiguration.getInteger("channel.network.bufferSizeInBytes", 64 * 1024); // TODO: Use
+																											// config
+																											// constants
+																											// here
+
 		this.fileMap = new ConcurrentHashMap<AbstractID, ChannelWithAccessInfo>(2048, 0.8f, 64);
+
+		this.distributedTempPath = GlobalConfiguration.getString("taskmanager.tmp.distdir",
+			"hdfs://master:9000/checkpoints");
+		FileSystem distFS = null;
+		if (this.distributedTempPath != null) {
+
+			try {
+
+				final Path p = new Path(this.distributedTempPath);
+				distFS = FileSystem.get(p.toUri());
+				if (!distFS.exists(p)) {
+					distFS.mkdirs(p);
+				}
+
+			} catch (IOException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
+		}
+
+		this.distributedFileSystem = distFS;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -111,9 +142,9 @@ public final class FileBufferManager {
 	 * @throws IllegalStateException
 	 *         Thrown, if the channel has not been registered or has already been removed.
 	 */
-	public FileChannel getChannel(final AbstractID id) throws IOException {
+	public FileChannel getChannel(final AbstractID id, final boolean distributed) throws IOException {
 
-		final ChannelWithAccessInfo info = getChannelInternal(id, false);
+		final ChannelWithAccessInfo info = getChannelInternal(id, false, distributed);
 		if (info != null) {
 			return info.getChannel();
 		} else {
@@ -129,9 +160,10 @@ public final class FileBufferManager {
 	 * @throws IllegalStateException
 	 *         Thrown, if the channel has not been registered or has already been removed.
 	 */
-	public FileChannel getChannelAndIncrementReferences(final AbstractID owner) throws IOException {
+	public FileChannel getChannelAndIncrementReferences(final AbstractID owner, final boolean distributed)
+			throws IOException {
 
-		final ChannelWithAccessInfo info = getChannelInternal(owner, false);
+		final ChannelWithAccessInfo info = getChannelInternal(owner, false, distributed);
 		if (info != null) {
 			return info.getAndIncrementReferences();
 		} else {
@@ -149,15 +181,15 @@ public final class FileBufferManager {
 	 * @param id
 	 *        The id for which to get the channel and reserve space.
 	 */
-	public ChannelWithPosition getChannelForWriteAndIncrementReferences(final AbstractID id, final int spaceToReserve)
-			throws IOException {
+	public ChannelWithPosition getChannelForWriteAndIncrementReferences(final AbstractID id, final int spaceToReserve,
+			final boolean distributed) throws IOException {
 
 		ChannelWithPosition c = null;
 		do {
 			// the return value may be zero, if someone asynchronously decremented the counter to zero
 			// and caused the disposal of the channel. falling through the loop will create a
 			// new channel.
-			c = getChannelInternal(id, true).reserveWriteSpaceAndIncrementReferences(spaceToReserve);
+			c = getChannelInternal(id, true, distributed).reserveWriteSpaceAndIncrementReferences(spaceToReserve);
 		} while (c == null);
 
 		return c;
@@ -201,18 +233,29 @@ public final class FileBufferManager {
 
 	// --------------------------------------------------------------------------------------------
 
-	private final ChannelWithAccessInfo getChannelInternal(final AbstractID id, final boolean createIfAbsent)
-			throws IOException {
+	private final ChannelWithAccessInfo getChannelInternal(final AbstractID id, final boolean createIfAbsent,
+			final boolean distributed) throws IOException {
 
 		ChannelWithAccessInfo cwa = this.fileMap.get(id);
 		if (cwa == null) {
 			if (createIfAbsent) {
 
-				// Construct the filename
-				final int dirIndex = Math.abs(id.hashCode()) % this.tmpDirs.length;
-				final File file = new File(this.tmpDirs[dirIndex] + id.toString());
+				if (distributed && this.distributedFileSystem != null) {
 
-				cwa = new ChannelWithAccessInfo(file);
+					final String checkpointFile = this.distributedTempPath + File.separator + FILE_BUFFER_PREFIX
+						+ id.toString();
+					final Path p = new Path(checkpointFile);
+					cwa = new DistributedChannelWithAccessInfo(this.distributedFileSystem, p, this.bufferSize);
+
+				} else {
+
+					// Construct the filename
+					final int dirIndex = Math.abs(id.hashCode()) % this.tmpDirs.length;
+					final File file = new File(this.tmpDirs[dirIndex] + id.toString());
+
+					cwa = new LocalChannelWithAccessInfo(file);
+				}
+
 				final ChannelWithAccessInfo alreadyContained = this.fileMap.putIfAbsent(id, cwa);
 				if (alreadyContained != null) {
 					// we had a race (should be a very rare event) and have created an
@@ -220,6 +263,7 @@ public final class FileBufferManager {
 					cwa.disposeSilently();
 					cwa = alreadyContained;
 				}
+
 			} else {
 				return null;
 			}
@@ -227,138 +271,6 @@ public final class FileBufferManager {
 
 		return cwa;
 	}
-
 	// --------------------------------------------------------------------------------------------
 
-	private static final class ChannelWithAccessInfo {
-
-		private final File file;
-
-		private final FileChannel channel;
-
-		private final AtomicLong reservedWritePosition;
-
-		private final AtomicInteger referenceCounter;
-
-		private ChannelWithAccessInfo(final File file) throws IOException {
-
-			this.file = file;
-			this.channel = new RandomAccessFile(file, "rw").getChannel();
-			this.reservedWritePosition = new AtomicLong(0);
-			this.referenceCounter = new AtomicInteger(0);
-		}
-
-		FileChannel getChannel() {
-
-			return this.channel;
-		}
-
-		FileChannel getAndIncrementReferences() {
-
-			if (incrementReferences()) {
-				return this.channel;
-			} else {
-				return null;
-			}
-		}
-
-		ChannelWithPosition reserveWriteSpaceAndIncrementReferences(final int spaceToReserve) {
-
-			if (incrementReferences()) {
-				return new ChannelWithPosition(this.channel, this.reservedWritePosition.getAndAdd(spaceToReserve));
-			} else {
-				return null;
-			}
-		}
-
-		/**
-		 * Decrements the number of references to this channel. If the number of references is zero after the
-		 * decrement, the channel is deleted.
-		 * 
-		 * @return The number of references remaining after the decrement.
-		 * @throws IllegalStateException
-		 *         Thrown, if the number of references is already zero or below.
-		 */
-		int decrementReferences() {
-
-			int current = this.referenceCounter.get();
-			while (true) {
-				if (current <= 0) {
-					// this is actually an error case, because the channel was deleted before
-					throw new IllegalStateException("The references to the file were already at zero.");
-				}
-
-				if (current == 1) {
-					// this call decrements to zero, so mark it as deleted
-					if (this.referenceCounter.compareAndSet(current, Integer.MIN_VALUE)) {
-						current = 0;
-						break;
-					}
-				} else if (this.referenceCounter.compareAndSet(current, current - 1)) {
-					current = current - 1;
-					break;
-				}
-				current = this.referenceCounter.get();
-			}
-
-			if (current > 0) {
-				return current;
-			} else if (current == 0) {
-				// delete the channel
-				this.referenceCounter.set(Integer.MIN_VALUE);
-				this.reservedWritePosition.set(Long.MIN_VALUE);
-				try {
-					this.channel.close();
-				} catch (IOException ioex) {
-					if (FileBufferManager.LOG.isErrorEnabled())
-						FileBufferManager.LOG.error("Error while closing spill file for file buffers: " +
-							ioex.getMessage(), ioex);
-				}
-				this.file.delete();
-				return current;
-			} else {
-				throw new IllegalStateException("The references to the file were already at zero.");
-			}
-		}
-
-		/**
-		 * Increments the references to this channel. Returns <code>true</code>, if successful, and <code>false</code>,
-		 * if the channel has been disposed in the meantime.
-		 * 
-		 * @return True, if successful, false, if the channel has been disposed.
-		 */
-		boolean incrementReferences() {
-
-			int current = this.referenceCounter.get();
-			while (true) {
-				// check whether it was disposed in the meantime
-				if (current < 0) {
-					return false;
-				}
-				// atomically check and increment
-				if (this.referenceCounter.compareAndSet(current, current + 1)) {
-					return true;
-				}
-				current = this.referenceCounter.get();
-			}
-		}
-
-		/**
-		 * Disposes the channel without further notice. Tries to close it (swallowing all exceptions) and tries
-		 * to delete the file.
-		 */
-		void disposeSilently() {
-
-			this.referenceCounter.set(Integer.MIN_VALUE);
-			this.reservedWritePosition.set(Long.MIN_VALUE);
-
-			if (this.channel.isOpen()) {
-				try {
-					this.channel.close();
-				} catch (Throwable t) {
-				}
-			}
-			this.file.delete();
-		}
-	}
 }
