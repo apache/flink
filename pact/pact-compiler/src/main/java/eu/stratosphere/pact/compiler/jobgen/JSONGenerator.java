@@ -18,14 +18,18 @@ package eu.stratosphere.pact.compiler.jobgen;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.PartitionProperty;
 //import eu.stratosphere.pact.compiler.OutputContract;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
@@ -318,9 +322,22 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 			this.jsonString.append(",\n\t\t\"global_properties\": [\n");
 
-			addProperty(this.jsonString, "Key-Partitioning", gp.getPartitioning().name(), true);
-			addProperty(this.jsonString, "Key-Order", gp.getKeyOrder().name(), false);
-			addProperty(this.jsonString, "Key-Uniqueness", gp.isKeyUnique() ? "unique" : "not unique", false);
+			addProperty(jsonString, "Partitioning", gp.getPartitioning().name(), true);
+			if (gp.getPartitioning() != PartitionProperty.NONE) {
+				addProperty(jsonString, "Partitioned on", Arrays.toString(gp.getPartitionedFields()), false);
+			}
+			if (gp.getOrdering() != null) {
+				addProperty(jsonString, "Order", gp.getOrdering().toString(), false);	
+			}
+			else {
+				addProperty(jsonString, "Order", "(none)", false);
+			}
+			if (visitable.getUniqueFields() == null || visitable.getUniqueFields().size() == 0) {
+				addProperty(jsonString, "Uniqueness", "not unique", false);
+			}
+			else {
+				addProperty(jsonString, "Uniqueness", visitable.getUniqueFields().toString(), false);	
+			}
 
 			this.jsonString.append("\n\t\t]");
 		}
@@ -331,9 +348,22 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 			this.jsonString.append(",\n\t\t\"local_properties\": [\n");
 
-			addProperty(this.jsonString, "Key-Order", lp.getKeyOrder().name(), true);
-			addProperty(this.jsonString, "Key-Uniqueness", lp.isKeyUnique() ? "unique" : "not unique", false);
-			addProperty(this.jsonString, "Key-Grouping", lp.areKeysGrouped() ? "grouped" : "not grouped", false);
+			if (lp.getOrdering() != null) {
+				addProperty(jsonString, "Order", lp.getOrdering().toString(), true);	
+			}
+			else {
+				addProperty(jsonString, "Order", "(none)", true);
+			}
+			if (visitable.getUniqueFields() == null || visitable.getUniqueFields().size() == 0) {
+				addProperty(jsonString, "Uniqueness", "not unique", false);
+			}
+			else {
+				addProperty(jsonString, "Uniqueness", visitable.getUniqueFields().toString(), false);	
+			}
+			addProperty(jsonString, "Grouping", lp.isGrouped() ? "grouped": "not grouped", false);
+			if (lp.isGrouped()) {
+				addProperty(jsonString, "Grouped on", lp.getGroupedFields().toString(), false);	
+			}
 
 			this.jsonString.append("\n\t\t]");
 		}
@@ -343,9 +373,15 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 		addProperty(this.jsonString, "Est. Cardinality", visitable.getEstimatedNumRecords() == -1 ? "(unknown)"
 			: formatNumber(visitable.getEstimatedNumRecords()), true);
-		addProperty(this.jsonString, "Est. Key-Cardinality", visitable.getEstimatedKeyCardinality() == -1 ? "(unknown)"
-			: formatNumber(visitable.getEstimatedKeyCardinality()), false);
-		addProperty(this.jsonString, "Est. Output Size", visitable.getEstimatedOutputSize() == -1 ? "(unknown)"
+		String estCardinality = "(unknown)";
+		if (visitable.getEstimatedCardinalities().size() > 0) {
+			estCardinality = "";
+			for (Entry<FieldSet, Long> entry : visitable.getEstimatedCardinalities().entrySet()) {
+				estCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
+			}
+		}
+		addProperty(jsonString, "Est. Cardinality/fields", estCardinality, false);	
+		addProperty(jsonString, "Est. Output Size", visitable.getEstimatedOutputSize() == -1 ? "(unknown)"
 			: formatNumber(visitable.getEstimatedOutputSize(), "B"), false);
 
 		this.jsonString.append("\t\t]");
@@ -376,13 +412,26 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 			this.jsonString.append(",\n\t\t\"compiler_hints\": [\n");
 
-			addProperty(this.jsonString, "Key-Cardinality",
-				hints.getKeyCardinality() == defaults.getKeyCardinality() ? "(none)" : formatNumber(hints
-					.getKeyCardinality()), true);
-			addProperty(this.jsonString, "Avg. Records/StubCall", String.valueOf(hints.getAvgRecordsEmittedPerStubCall()), false);
-			addProperty(this.jsonString, "Avg. Values/Key", hints.getAvgNumValuesPerKey() == defaults
-				.getAvgNumValuesPerKey() ? "(none)" : String.valueOf(hints.getAvgNumValuesPerKey()), false);
-			addProperty(this.jsonString, "Avg. Width (bytes)", hints.getAvgBytesPerRecord() == defaults
+			String hintCardinality = "(none)";
+			if (hints.getDistinctCounts().size() > 0) {
+				hintCardinality = "";
+				for (Entry<FieldSet, Long> entry : visitable.getEstimatedCardinalities().entrySet()) {
+					hintCardinality += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
+				}
+			}
+			addProperty(jsonString, "Cardinality", hintCardinality, true);
+			addProperty(jsonString, "Avg. Records/StubCall", hints.getAvgRecordsEmittedPerStubCall() == defaults.
+					getAvgRecordsEmittedPerStubCall() ? "(none)" : String.valueOf(hints.getAvgRecordsEmittedPerStubCall()), false);
+			
+			String valuesKey = "(none)";
+			if (hints.getAvgNumRecordsPerDistinctFields().size() > 0) {
+				valuesKey = "";
+				for (Entry<FieldSet, Float> entry : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
+					valuesKey += "[" + entry.getKey().toString() + "->" + entry.getValue() + "]"; 
+				}
+			}
+			addProperty(jsonString, "Avg. Values/Distinct fields", valuesKey, false);
+			addProperty(jsonString, "Avg. Width (bytes)", hints.getAvgBytesPerRecord() == defaults
 				.getAvgBytesPerRecord() ? "(none)" : String.valueOf(hints.getAvgBytesPerRecord()), false);
 
 			this.jsonString.append("\t\t]");

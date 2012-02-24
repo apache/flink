@@ -30,20 +30,23 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.AddSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSetSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSet;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadSetSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantSet.ConstantSetMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
 import eu.stratosphere.pact.common.type.base.parser.VarLengthStringParser;
+import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  * The TPC-H is a decision support benchmark on relational data.
@@ -68,11 +71,13 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Realizes the join between Customers and Order table.
 	 */
-	@ReadSetFirst(fields={})
-	@ReadSetSecond(fields={})
-	@ConstantSetFirst(fields={}, setMode=ConstantSetMode.Constant)
-	@ConstantSetSecond(fields={0}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@ReadsFirst(fields={})
+	@ReadsSecond(fields={})
+	@ImplicitOperationFirst(implicitOperation=ImplicitOperationMode.Projection)
+	@ExplicitCopies(fields={})
+	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={})
+	@ExplicitModifications(fields={0})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinCO extends MatchStub {
 
@@ -98,9 +103,10 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 *
 	 */
 	@Combinable
-	@ReadSet(fields={0})
-	@ConstantSet(fields={0}, setMode=ConstantSetMode.Update)
-	@AddSet(fields={})
+	@Reads(fields={0})
+	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
+	@ExplicitProjections(fields={})
+	@ExplicitModifications(fields={0})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggCO extends ReduceStub {
 
@@ -162,7 +168,8 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 1);
 		// compiler hints
 		orders.getCompilerHints().setAvgBytesPerRecord(5);
-		orders.getCompilerHints().setAvgNumValuesPerKey(10);
+//		orders.getCompilerHints().setAvgNumValuesPerKey(10);
+		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 10);
 		
 		// create DataSourceContract for Customer input
 		FileDataSource customers = new FileDataSource(RecordInputFormat.class, customerPath, "Customers");
@@ -177,7 +184,8 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		customers.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, VarLengthStringParser.class);
 		customers.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 6);
 		// compiler hints
-		customers.getCompilerHints().setAvgNumValuesPerKey(1);
+//		customers.getCompilerHints().setAvgNumValuesPerKey(1);
+		customers.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		
 		// create MatchContract for joining Orders and LineItems
@@ -191,7 +199,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		aggCO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
-		aggCO.getCompilerHints().setAvgNumValuesPerKey(1);
+		aggCO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, "Output");

@@ -37,6 +37,7 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  * Implements the following relational OLAP query as PACT program:
@@ -321,13 +322,13 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		filterDocs.setDegreeOfParallelism(noSubTasks);
 		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
-		filterDocs.getCompilerHints().setAvgNumValuesPerKey(1.0f);
+		filterDocs.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the ranks relation
 		MapContract filterRanks = new MapContract(FilterRanks.class, ranks, "Filter Ranks");
 		filterRanks.setDegreeOfParallelism(noSubTasks);
 		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
-		filterRanks.getCompilerHints().setAvgNumValuesPerKey(1.0f);
+		filterRanks.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the visits relation
 		MapContract filterVisits = new MapContract(FilterVisits.class, visits, "Filter Visits");

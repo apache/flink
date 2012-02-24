@@ -27,7 +27,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.example.relational.util.IntTupleDataInFormat;
+import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
 
 /**
  * Quote from the TPC-H homepage:
@@ -114,7 +114,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		partInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		partInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//partInput.setOutputContract(UniqueKey.class);
-		partInput.getCompilerHints().setAvgNumValuesPerKey(1);
+//		partInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* partsupp: (partkey | suppkey, availqty, supplycost, comment) */
 		FileDataSource partSuppInput = new FileDataSource(
@@ -128,7 +128,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		ordersInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		ordersInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//ordersInput.setOutputContract(UniqueKey.class);
-		ordersInput.getCompilerHints().setAvgNumValuesPerKey(1);
+//		ordersInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* lineitem: (orderkey | partkey, suppkey, linenumber, quantity, extendedprice, discount, tax, ...) */
 		FileDataSource lineItemInput = new FileDataSource(
@@ -142,7 +142,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		supplierInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		supplierInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//supplierInput.setOutputContract(UniqueKey.class);
-		supplierInput.getCompilerHints().setAvgNumValuesPerKey(1);
+//		supplierInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* nation: (nationkey | name, regionkey, comment) */
 		FileDataSource nationInput = new FileDataSource(
@@ -150,7 +150,7 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 		nationInput.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		nationInput.setDegreeOfParallelism(this.degreeOfParallelism);
 		//nationInput.setOutputContract(UniqueKey.class);
-		nationInput.getCompilerHints().setAvgNumValuesPerKey(1);
+//		nationInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* Filter on part's name, project values to NULL: */
 		MapContract filterPart = new MapContract(PartFilter.class, "filterParts");

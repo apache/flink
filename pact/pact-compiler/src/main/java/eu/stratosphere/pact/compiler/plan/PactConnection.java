@@ -20,7 +20,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.AbstractPact;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -57,6 +57,10 @@ public class PactConnection {
 	private TempMode tempMode; // indicates whether and where the connection needs to be temped by a TempTask
 	
 	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
+	
+	private int[] scramblePartitionedFields; // The fields which are used  for partitioning, this is only used if the partitioned fields
+									 // are not the key fields
+
 
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
@@ -356,21 +360,47 @@ public class PactConnection {
 	 */
 	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
 		GlobalProperties gp = source.getGlobalProperties().createCopy();
-
+		
+		//TODO make nicer
+		int[] keyFields = null;
+		int inputNum = 0;
+		for (List<PactConnection> connections : target.getIncomingConnections()) {
+			boolean isThisConnection = false;
+			for (PactConnection connection : connections) {
+				if (connection.getSourcePact().getId() == source.getId()) {
+					if (connection.getScramblePartitionedFields() != null) {
+						keyFields = connection.getScramblePartitionedFields();
+					}
+					else if (target.getPactContract() instanceof AbstractPact<?>) {
+						keyFields = ((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum);
+					}
+					break;
+				}	
+			}
+			if (isThisConnection) {
+				break;
+			}
+			else {
+				inputNum++;
+			}
+		}
+		
 		switch (shipMode) {
 		case BROADCAST:
 			gp.reset();
 			break;
 		case PARTITION_RANGE:
-			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED);
+			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, keyFields);
 			break;
 		case PARTITION_HASH:
-			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED);
-			gp.setKeyOrder(Order.NONE);
+			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, keyFields);
+//			gp.setKeyOrder(Order.NONE);
+			gp.setOrdering(null);
 			break;
 		case FORWARD:
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
-				gp.setKeyOrder(Order.NONE);
+//				gp.setKeyOrder(Order.NONE);
+				gp.setOrdering(null);
 			}
 			// nothing else changes
 			break;
@@ -400,9 +430,8 @@ public class PactConnection {
 		else if (shipMode == ShipStrategy.FORWARD) {
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
 				// any order is destroyed by the random merging of the inputs
-				lp.setKeyOrder(Order.NONE);
-				// keys are only grouped if they are unique
-				lp.setKeysGrouped(lp.isKeyUnique());
+				lp.setOrdering(null);
+				lp.setGrouped(false, null);
 			}
 		}
 		else {
@@ -410,5 +439,13 @@ public class PactConnection {
 		}
 
 		return lp;
+	}
+	
+	public int[] getScramblePartitionedFields() {
+		return scramblePartitionedFields;
+	}
+
+	public void setScramblePartitionedFields(int[] scramblePartitionedFields) {
+		this.scramblePartitionedFields = scramblePartitionedFields;
 	}
 }
