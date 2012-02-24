@@ -82,13 +82,34 @@ public final class CheckpointUtils {
 
 	public static boolean hasPartialCheckpointAvailable(final ExecutionVertexID vertexID) throws IOException {
 
-		return checkForCheckpoint(vertexID, "_0");
+		if (checkForCheckpoint(vertexID, "_0")) {
+			return true;
+		}
+
+		return checkForCheckpoint(vertexID, "_part");
+	}
+
+	public static boolean hasLocalCheckpointAvailable(final ExecutionVertexID vertexID) throws IOException {
+
+		Path local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
+			+ "_0");
+
+		final FileSystem localFs = local.getFileSystem();
+
+		if (localFs.exists(local)) {
+			return true;
+		}
+
+		local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
+			+ "_part");
+
+		return localFs.exists(local);
 	}
 
 	private static boolean checkForCheckpoint(final ExecutionVertexID vertexID, final String suffix) throws IOException {
 
 		final Path local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
-			+ COMPLETED_CHECKPOINT_SUFFIX);
+			+ suffix);
 
 		final FileSystem localFs = local.getFileSystem();
 
@@ -102,7 +123,7 @@ public final class CheckpointUtils {
 		}
 
 		final Path distributed = new Path(distributedCheckpointPath + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
-			+ COMPLETED_CHECKPOINT_SUFFIX);
+			+ suffix);
 
 		final FileSystem distFs = distributed.getFileSystem();
 
@@ -133,21 +154,20 @@ public final class CheckpointUtils {
 
 	private static void removeCheckpoint(final Path pathPrefix) throws IOException {
 
-		
 		Path p = pathPrefix.suffix(COMPLETED_CHECKPOINT_SUFFIX);
 		FileSystem fs = p.getFileSystem();
-		if(fs.exists(p)) {
+		if (fs.exists(p)) {
 			fs.delete(p, false);
 			return;
 		}
-		
+
 		p = pathPrefix.suffix("_0");
-		if(fs.exists(p)) {
+		if (fs.exists(p)) {
 			fs.delete(p, false);
 		}
-		
+
 		p = pathPrefix.suffix("_part");
-		if(fs.exists(p)) {
+		if (fs.exists(p)) {
 			fs.delete(p, false);
 		}
 	}

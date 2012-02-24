@@ -1,10 +1,10 @@
 package eu.stratosphere.nephele.checkpointing;
 
 import java.io.EOFException;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.util.Iterator;
 import java.util.Map;
@@ -13,6 +13,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.fs.FileChannelWrapper;
+import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointDeserializer;
@@ -23,27 +26,36 @@ final class ReplayThread extends Thread {
 
 	private static final String REPLAY_SUFFIX = " (Replay)";
 
-	private final ExecutionVertexID vertexID;
-
-	private final ExecutionObserver executionObserver;
-
-	private final boolean isCheckpointComplete;
-
-	private final Map<ChannelID, ReplayOutputBroker> outputBrokerMap;
-
 	/**
 	 * The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds).
 	 */
 	private static final int SLEEPINTERVAL = 100;
 
+	/**
+	 * The buffer size in bytes to use for the meta data file channel.
+	 */
+	private static final int BUFFER_SIZE = 4096;
+
+	private final ExecutionVertexID vertexID;
+
+	private final ExecutionObserver executionObserver;
+
+	private final boolean isCheckpointLocal;
+
+	private final boolean isCheckpointComplete;
+
+	private final Map<ChannelID, ReplayOutputBroker> outputBrokerMap;
+
 	private final AtomicBoolean restartRequested = new AtomicBoolean(false);
 
 	ReplayThread(final ExecutionVertexID vertexID, final ExecutionObserver executionObserver, final String taskName,
-			final boolean isCheckpointComplete, final Map<ChannelID, ReplayOutputBroker> outputBrokerMap) {
+			final boolean isCheckpointLocal, final boolean isCheckpointComplete,
+			final Map<ChannelID, ReplayOutputBroker> outputBrokerMap) {
 		super((taskName == null ? "Unkown" : taskName) + REPLAY_SUFFIX);
 
 		this.vertexID = vertexID;
 		this.executionObserver = executionObserver;
+		this.isCheckpointLocal = isCheckpointLocal;
 		this.isCheckpointComplete = isCheckpointComplete;
 		this.outputBrokerMap = outputBrokerMap;
 	}
@@ -138,7 +150,19 @@ final class ReplayThread extends Thread {
 
 	private void replayCheckpoint() throws Exception {
 
+		System.out.println("Replaying checkpoint for vertex " + this.vertexID);
+		
 		final CheckpointDeserializer deserializer = new CheckpointDeserializer(this.vertexID);
+
+		final Path checkpointPath = this.isCheckpointLocal ? CheckpointUtils.getLocalCheckpointPath() : CheckpointUtils
+			.getDistributedCheckpointPath();
+
+		if (checkpointPath == null) {
+			throw new IOException("Cannot determine checkpoint path for vertex " + this.vertexID);
+		}
+
+		// The file system the checkpoint's meta data is stored on
+		final FileSystem fileSystem = checkpointPath.getFileSystem();
 
 		int metaDataIndex = 0;
 
@@ -149,16 +173,16 @@ final class ReplayThread extends Thread {
 			}
 
 			// Try to locate the meta data file
-			final File metaDataFile = new File(CheckpointUtils.getCheckpointDirectory() + File.separator
-					+ CheckpointUtils.METADATA_PREFIX + "_" + this.vertexID + "_" + metaDataIndex);
+			final Path metaDataFile = checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX
+				+ "_" + this.vertexID + "_" + metaDataIndex);
 
-			while (!metaDataFile.exists()) {
+			while (!fileSystem.exists(metaDataFile)) {
 
 				// Try to locate the final meta data file
-				final File finalMetaDataFile = new File(CheckpointUtils.getCheckpointDirectory() + File.separator
-						+ CheckpointUtils.METADATA_PREFIX + "_" + this.vertexID + "_final");
+				final Path finalMetaDataFile = checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX
+					+ "_" + this.vertexID + "_final");
 
-				if (finalMetaDataFile.exists()) {
+				if (fileSystem.exists(finalMetaDataFile)) {
 					return;
 				}
 
@@ -168,16 +192,15 @@ final class ReplayThread extends Thread {
 				}
 
 				// Wait for the file to be created
-				Thread.sleep(10);
+				Thread.sleep(100);
 
 			}
 
-			FileInputStream fis = null;
+			FileChannel fileChannel = null;
 
 			try {
 
-				fis = new FileInputStream(metaDataFile);
-				final FileChannel fileChannel = fis.getChannel();
+				fileChannel = getFileChannel(fileSystem, metaDataFile);
 
 				while (true) {
 					try {
@@ -197,7 +220,7 @@ final class ReplayThread extends Thread {
 								final Buffer destBuffer = broker.requestEmptyBufferBlocking(srcBuffer.size());
 								srcBuffer.copyToBuffer(destBuffer);
 								transferEnvelope.setBuffer(destBuffer);
-								srcBuffer.recycleBuffer();								
+								srcBuffer.recycleBuffer();
 							}
 
 							broker.outputEnvelope(transferEnvelope);
@@ -211,10 +234,22 @@ final class ReplayThread extends Thread {
 					}
 				}
 			} finally {
-				if (fis != null) {
-					fis.close();
+				if (fileChannel != null) {
+					fileChannel.close();
 				}
 			}
 		}
+	}
+
+	private FileChannel getFileChannel(final FileSystem fs, final Path p) throws IOException {
+
+		// Bypass FileSystem API for local checkpoints
+		if (this.isCheckpointLocal) {
+
+			final URI uri = p.toUri();
+			return new FileInputStream(uri.getPath()).getChannel();
+		}
+
+		return new FileChannelWrapper(fs, p, BUFFER_SIZE, (short) -1);
 	}
 }

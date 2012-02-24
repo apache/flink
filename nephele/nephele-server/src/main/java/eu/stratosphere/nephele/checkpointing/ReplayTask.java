@@ -167,8 +167,11 @@ public final class ReplayTask implements Task {
 			final TaskManager taskManager) {
 
 		this.vertexID = vertexID;
+
 		this.environment = new CheckpointEnvironment(this.vertexID, environment,
-			hasCompleteCheckpointAvailable(this.vertexID), this.outputBrokerMap);
+			hasLocalCheckpointAvailable(this.vertexID), hasCompleteCheckpointAvailable(this.vertexID),
+			this.outputBrokerMap);
+
 		this.environment.setExecutionObserver(new ReplayTaskExecutionObserver(null));
 
 		this.encapsulatedTask = null;
@@ -178,8 +181,11 @@ public final class ReplayTask implements Task {
 	public ReplayTask(final RuntimeTask encapsulatedTask, final TaskManager taskManager) {
 
 		this.vertexID = encapsulatedTask.getVertexID();
+
 		this.environment = new CheckpointEnvironment(this.vertexID, encapsulatedTask.getEnvironment(),
-			hasCompleteCheckpointAvailable(this.vertexID), this.outputBrokerMap);
+			hasLocalCheckpointAvailable(this.vertexID), hasCompleteCheckpointAvailable(this.vertexID),
+			this.outputBrokerMap);
+
 		this.environment.setExecutionObserver(new ReplayTaskExecutionObserver(null));
 
 		this.encapsulatedTask = encapsulatedTask;
@@ -194,6 +200,16 @@ public final class ReplayTask implements Task {
 
 		try {
 			return CheckpointUtils.hasCompleteCheckpointAvailable(vertexID);
+		} catch (IOException ioe) {
+		}
+
+		return false;
+	}
+
+	private static boolean hasLocalCheckpointAvailable(final ExecutionVertexID vertexID) {
+
+		try {
+			return CheckpointUtils.hasLocalCheckpointAvailable(vertexID);
 		} catch (IOException ioe) {
 		}
 

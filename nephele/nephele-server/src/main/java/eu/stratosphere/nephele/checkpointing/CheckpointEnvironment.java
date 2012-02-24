@@ -26,6 +26,8 @@ final class CheckpointEnvironment implements Environment {
 
 	private final Environment environment;
 
+	private final boolean hasLocalCheckpoint;
+
 	private final boolean hasCompleteCheckpoint;
 
 	private final Map<ChannelID, ReplayOutputBroker> outputBrokerMap;
@@ -38,11 +40,12 @@ final class CheckpointEnvironment implements Environment {
 	private volatile ReplayThread executingThread = null;
 
 	CheckpointEnvironment(final ExecutionVertexID vertexID, final Environment environment,
-			final boolean hasCompleteCheckpoint,
+			final boolean hasLocalCheckpoint, final boolean hasCompleteCheckpoint,
 			final Map<ChannelID, ReplayOutputBroker> outputBrokerMap) {
 
 		this.vertexID = vertexID;
 		this.environment = environment;
+		this.hasLocalCheckpoint = hasLocalCheckpoint;
 		this.hasCompleteCheckpoint = hasCompleteCheckpoint;
 		this.outputBrokerMap = outputBrokerMap;
 	}
@@ -296,7 +299,7 @@ final class CheckpointEnvironment implements Environment {
 
 			if (this.executingThread == null) {
 				this.executingThread = new ReplayThread(this.vertexID, this.executionObserver, getTaskName(),
-					this.hasCompleteCheckpoint, this.outputBrokerMap);
+					this.hasLocalCheckpoint, this.hasCompleteCheckpoint, this.outputBrokerMap);
 			}
 
 			return this.executingThread;
@@ -306,9 +309,10 @@ final class CheckpointEnvironment implements Environment {
 	// DW: Start of temporary code
 	@Override
 	public void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes) {
-		
+
 		throw new IllegalStateException("reportPACTDataStatistics called on CheckpointEnvironment");
 	}
+
 	// DW: End of temporary code
 
 	@Override
