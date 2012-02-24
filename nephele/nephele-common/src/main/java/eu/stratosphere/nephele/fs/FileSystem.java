@@ -378,6 +378,18 @@ public abstract class FileSystem {
 	public abstract FSDataOutputStream create(Path f, boolean overwrite) throws IOException;
 
 	/**
+	 * Renames the file/directory src to dst.
+	 * 
+	 * @param src
+	 *        the file/directory to rename
+	 * @param dst
+	 *        the new name of the file/directory
+	 * @return <code>true</code> if the renaming was successful, <code>false</code> otherwise
+	 * @throws IOException
+	 */
+	public abstract boolean rename(Path src, Path dst) throws IOException;
+
+	/**
 	 * Returns the number of blocks this file/directory consists of
 	 * assuming the file system's standard block size.
 	 * 
