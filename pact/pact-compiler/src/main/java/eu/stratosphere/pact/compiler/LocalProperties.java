@@ -125,7 +125,7 @@ public final class LocalProperties implements Cloneable {
 		if (ordering != null) {
 			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (node.isFieldKept(input, i) == false) {
+				if (node.isFieldKept(input, involvedIndexes.get(i)) == false) {
 					ordering = ordering.createNewOrderingUpToIndex(i);
 					break;
 				}
