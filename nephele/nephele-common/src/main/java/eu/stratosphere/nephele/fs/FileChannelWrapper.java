@@ -20,7 +20,11 @@ public final class FileChannelWrapper extends FileChannel {
 
 	private FSDataOutputStream outputStream = null;
 
+	private FSDataInputStream inputStream = null;
+
 	private long nextExpectedWritePosition = 0L;
+
+	private long nextExpectedReadPosition = 0L;
 
 	public FileChannelWrapper(final FileSystem fs, final Path checkpointFile, final int bufferSize,
 			final short replication) {
@@ -73,22 +77,41 @@ public final class FileChannelWrapper extends FileChannel {
 		return null;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int read(ByteBuffer dst) throws IOException {
-		// TODO Auto-generated method stub
+	public int read(final ByteBuffer dst) throws IOException {
 
-		System.out.println("read called");
-
-		return 0;
+		return read(dst, this.nextExpectedReadPosition);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int read(ByteBuffer dst, long position) throws IOException {
-		// TODO Auto-generated method stub
+	public int read(final ByteBuffer dst, final long position) throws IOException {
 
-		System.out.println("read2 called");
+		final int length = Math.min(this.buf.length, dst.remaining());
 
-		return 0;
+		final FSDataInputStream inputStream = getInputStream();
+		if (position != this.nextExpectedReadPosition) {
+			System.out.println("Next expected position is " + this.nextExpectedReadPosition + ", seeking to "
+				+ position);
+			inputStream.seek(position);
+			this.nextExpectedReadPosition = position;
+		}
+
+		final int bytesRead = inputStream.read(this.buf, 0, length);
+		if (bytesRead == -1) {
+			return -1;
+		}
+
+		dst.put(this.buf, 0, length);
+
+		this.nextExpectedReadPosition += bytesRead;
+
+		return bytesRead;
 	}
 
 	@Override
@@ -200,6 +223,15 @@ public final class FileChannelWrapper extends FileChannel {
 		return this.outputStream;
 	}
 
+	private FSDataInputStream getInputStream() throws IOException {
+
+		if (this.inputStream == null) {
+			this.inputStream = this.fs.open(this.checkpointFile, this.buf.length);
+		}
+
+		return this.inputStream;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -207,5 +239,10 @@ public final class FileChannelWrapper extends FileChannel {
 	protected void implCloseChannel() throws IOException {
 
 		getOutputStream().close();
+
+		if (this.inputStream != null) {
+			this.inputStream.close();
+			this.inputStream = null;
+		}
 	}
 }

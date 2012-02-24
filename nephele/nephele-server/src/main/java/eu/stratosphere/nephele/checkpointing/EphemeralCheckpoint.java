@@ -128,6 +128,8 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	 */
 	private int numberOfSerializedTransferEnvelopes = 0;
 
+	private Buffer firstSerializedFileBuffer = null;
+
 	/**
 	 * This enumeration reflects the possible states an ephemeral
 	 * checkpoint can be in.
@@ -224,7 +226,7 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	private void writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException,
 			InterruptedException {
 
-		final Buffer buffer = transferEnvelope.getBuffer();
+		Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer != null) {
 			if (buffer.isBackedByMemory()) {
 
@@ -264,6 +266,16 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 		while (this.transferEnvelopeSerializer.write(this.metaDataFileChannel)) {
 		}
 
+		// The following code will prevent the underlying file from being closed
+		buffer = transferEnvelope.getBuffer();
+		if (buffer != null) {
+			if (this.firstSerializedFileBuffer == null) {
+				this.firstSerializedFileBuffer = buffer;
+			} else {
+				buffer.recycleBuffer();
+			}
+		}
+
 		// Look for close event
 		final EventList eventList = transferEnvelope.getEventList();
 		if (eventList != null) {
@@ -280,6 +292,12 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 		if (this.numberOfClosedChannels == this.numberOfConnectedChannels) {
 
+			// Finally, close the underlying file
+			if (this.firstSerializedFileBuffer != null) {
+				this.firstSerializedFileBuffer.recycleBuffer();
+			}
+
+			// Finish meta data file
 			if (this.metaDataFileChannel != null) {
 				this.metaDataFileChannel.close();
 
@@ -287,11 +305,8 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 				renameCheckpointPart();
 			}
 
+			// Write the meta data file to indicate the checkpoint is complete
 			getMetaDataFileChannel(CheckpointUtils.COMPLETED_CHECKPOINT_SUFFIX).close();
-
-			// Since it is unclear whether the underlying physical file will ever be read, we force to close it.
-			// TODO: Fix me
-			// this.fileBufferManager.forceCloseOfWritableSpillingFile(this.task.getVertexID());
 
 			LOG.info("Finished persistent checkpoint for vertex " + this.task.getVertexID());
 

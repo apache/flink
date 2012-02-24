@@ -150,8 +150,6 @@ final class ReplayThread extends Thread {
 
 	private void replayCheckpoint() throws Exception {
 
-		System.out.println("Replaying checkpoint for vertex " + this.vertexID);
-		
 		final CheckpointDeserializer deserializer = new CheckpointDeserializer(this.vertexID);
 
 		final Path checkpointPath = this.isCheckpointLocal ? CheckpointUtils.getLocalCheckpointPath() : CheckpointUtils
