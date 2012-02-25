@@ -75,11 +75,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private long startTime;
 
-	/**
-	 * Stores whether the initial exhaustion of memory buffers has already been reported
-	 */
-	private boolean initialExhaustionOfMemoryBuffersReported = false;
-
 	RuntimeTaskContext(final RuntimeTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints) {
 
