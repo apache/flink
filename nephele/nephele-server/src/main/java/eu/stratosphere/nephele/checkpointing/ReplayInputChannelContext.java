@@ -59,7 +59,7 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	@Override
 	public ChannelType getType() {
 
-		return this.encapsulatedContext.getType();
+		return null;
 	}
 
 	/**
