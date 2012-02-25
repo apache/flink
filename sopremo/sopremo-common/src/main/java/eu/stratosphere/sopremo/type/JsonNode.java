@@ -6,6 +6,10 @@ import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.Key;
 
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
 public abstract class JsonNode implements IJsonNode {
 
 	/**
