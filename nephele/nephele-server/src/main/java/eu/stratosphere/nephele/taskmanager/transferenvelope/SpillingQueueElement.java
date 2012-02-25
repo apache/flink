@@ -360,7 +360,7 @@ final class SpillingQueueElement {
 			}
 
 			final int size = buffer.size();
-			final Buffer fileBuffer = BufferFactory.createFromFile(size, ownerID, fileBufferManager, false);
+			final Buffer fileBuffer = BufferFactory.createFromFile(size, ownerID, fileBufferManager, false, true);
 			buffer.copyToBuffer(fileBuffer);
 			this.bufferRef = fileBuffer;
 			buffer.recycleBuffer();
@@ -389,7 +389,7 @@ final class SpillingQueueElement {
 			}
 
 			final int size = buffer.size();
-			final Buffer fileBuffer = BufferFactory.createFromFile(size, ownerID, fileBufferManager, false);
+			final Buffer fileBuffer = BufferFactory.createFromFile(size, ownerID, fileBufferManager, false, true);
 			buffer.copyToBuffer(fileBuffer);
 			bufferQueue.offer(fileBuffer);
 			buffer.recycleBuffer();

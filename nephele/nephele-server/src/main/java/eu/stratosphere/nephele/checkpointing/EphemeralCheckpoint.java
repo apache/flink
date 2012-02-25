@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.checkpointing;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -232,7 +233,7 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 				// Make sure we transfer the encapsulated buffer to a file and release the memory buffer again
 				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.task.getVertexID(),
-					this.fileBufferManager, this.distributed);
+					this.fileBufferManager, this.distributed, false);
 				buffer.copyToBuffer(fileBuffer);
 				transferEnvelope.setBuffer(fileBuffer);
 				buffer.recycleBuffer();
@@ -306,7 +307,9 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			}
 
 			// Write the meta data file to indicate the checkpoint is complete
-			getMetaDataFileChannel(CheckpointUtils.COMPLETED_CHECKPOINT_SUFFIX).close();
+			this.metaDataFileChannel = getMetaDataFileChannel(CheckpointUtils.COMPLETED_CHECKPOINT_SUFFIX);
+			this.metaDataFileChannel.write(ByteBuffer.allocate(0));
+			this.metaDataFileChannel.close();
 
 			LOG.info("Finished persistent checkpoint for vertex " + this.task.getVertexID());
 

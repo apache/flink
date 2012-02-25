@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -25,12 +26,15 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 
 	private final AtomicInteger referenceCounter;
 
-	LocalChannelWithAccessInfo(final File file) throws IOException {
+	private final AtomicBoolean deleteOnClose;
+
+	LocalChannelWithAccessInfo(final File file, final boolean deleteOnClose) throws IOException {
 
 		this.file = file;
 		this.channel = new RandomAccessFile(file, "rw").getChannel();
-		this.reservedWritePosition = new AtomicLong(0);
+		this.reservedWritePosition = new AtomicLong(0L);
 		this.referenceCounter = new AtomicInteger(0);
+		this.deleteOnClose = new AtomicBoolean(deleteOnClose);
 	}
 
 	/**
@@ -103,7 +107,9 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 				if (LOG.isErrorEnabled())
 					LOG.error("Error while closing spill file for file buffers: " + ioex.getMessage(), ioex);
 			}
-			this.file.delete();
+			if (this.deleteOnClose.get()) {
+				this.file.delete();
+			}
 			return current;
 		} else {
 			throw new IllegalStateException("The references to the file were already at zero.");
@@ -145,6 +151,18 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 			} catch (Throwable t) {
 			}
 		}
-		this.file.delete();
+
+		if (this.deleteOnClose.get()) {
+			this.file.delete();
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void updateDeleteOnCloseFlag(final boolean deleteOnClose) {
+
+		this.deleteOnClose.compareAndSet(true, deleteOnClose);
 	}
 }

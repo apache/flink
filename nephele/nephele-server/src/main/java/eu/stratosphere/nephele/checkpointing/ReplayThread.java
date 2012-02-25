@@ -164,39 +164,41 @@ final class ReplayThread extends Thread {
 
 		int metaDataIndex = 0;
 
-		while (true) {
+		Buffer firstDeserializedFileBuffer = null;
+		FileChannel fileChannel = null;
 
-			if (this.restartRequested.compareAndSet(true, false)) {
-				metaDataIndex = 0;
-			}
+		try {
 
-			// Try to locate the meta data file
-			final Path metaDataFile = checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX
-				+ "_" + this.vertexID + "_" + metaDataIndex);
+			while (true) {
 
-			while (!fileSystem.exists(metaDataFile)) {
-
-				// Try to locate the final meta data file
-				final Path finalMetaDataFile = checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX
-					+ "_" + this.vertexID + "_final");
-
-				if (fileSystem.exists(finalMetaDataFile)) {
-					return;
+				if (this.restartRequested.compareAndSet(true, false)) {
+					metaDataIndex = 0;
 				}
 
-				if (this.isCheckpointComplete) {
-					throw new FileNotFoundException("Cannot find meta data file " + metaDataIndex
+				// Try to locate the meta data file
+				final Path metaDataFile = checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX
+					+ "_" + this.vertexID + "_" + metaDataIndex);
+
+				while (!fileSystem.exists(metaDataFile)) {
+
+					// Try to locate the final meta data file
+					final Path finalMetaDataFile = checkpointPath.suffix(Path.SEPARATOR
+						+ CheckpointUtils.METADATA_PREFIX
+						+ "_" + this.vertexID + "_final");
+
+					if (fileSystem.exists(finalMetaDataFile)) {
+						return;
+					}
+
+					if (this.isCheckpointComplete) {
+						throw new FileNotFoundException("Cannot find meta data file " + metaDataIndex
 							+ " for checkpoint of vertex " + this.vertexID);
+					}
+
+					// Wait for the file to be created
+					Thread.sleep(100);
+
 				}
-
-				// Wait for the file to be created
-				Thread.sleep(100);
-
-			}
-
-			FileChannel fileChannel = null;
-
-			try {
 
 				fileChannel = getFileChannel(fileSystem, metaDataFile);
 
@@ -204,17 +206,25 @@ final class ReplayThread extends Thread {
 					try {
 						deserializer.read(fileChannel);
 
-						final TransferEnvelope transferEnvelope = deserializer.getFullyDeserializedTransferEnvelope();
+						final TransferEnvelope transferEnvelope = deserializer
+								.getFullyDeserializedTransferEnvelope();
 						if (transferEnvelope != null) {
 
-							final ReplayOutputBroker broker = this.outputBrokerMap.get(transferEnvelope.getSource());
+							final ReplayOutputBroker broker = this.outputBrokerMap
+									.get(transferEnvelope.getSource());
 							if (broker == null) {
 								throw new IOException("Cannot find output broker for channel "
-									+ transferEnvelope.getSource());
+										+ transferEnvelope.getSource());
 							}
 
 							final Buffer srcBuffer = transferEnvelope.getBuffer();
 							if (srcBuffer != null) {
+
+								// Prevent underlying file from being closed
+								if (firstDeserializedFileBuffer == null) {
+									firstDeserializedFileBuffer = srcBuffer.duplicate();
+								}
+
 								final Buffer destBuffer = broker.requestEmptyBufferBlocking(srcBuffer.size());
 								srcBuffer.copyToBuffer(destBuffer);
 								transferEnvelope.setBuffer(destBuffer);
@@ -226,15 +236,22 @@ final class ReplayThread extends Thread {
 					} catch (EOFException eof) {
 						// Close the file channel
 						fileChannel.close();
+						fileChannel = null;
 						// Increase the index of the meta data file
 						++metaDataIndex;
 						break;
 					}
 				}
-			} finally {
-				if (fileChannel != null) {
-					fileChannel.close();
-				}
+			}
+
+		} finally {
+			if (firstDeserializedFileBuffer != null) {
+				firstDeserializedFileBuffer.recycleBuffer();
+				firstDeserializedFileBuffer = null;
+			}
+			if (fileChannel != null) {
+				fileChannel.close();
+				fileChannel = null;
 			}
 		}
 	}

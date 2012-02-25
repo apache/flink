@@ -238,7 +238,10 @@ public final class FileChannelWrapper extends FileChannel {
 	@Override
 	protected void implCloseChannel() throws IOException {
 
-		getOutputStream().close();
+		if(this.outputStream != null) {
+			this.outputStream.close();
+			this.outputStream = null;
+		}
 
 		if (this.inputStream != null) {
 			this.inputStream.close();

@@ -50,7 +50,8 @@ public final class FileBuffer extends Buffer {
 	 * @param ownerID
 	 */
 	FileBuffer(final int bufferSize, final long offset, final AbstractID ownerID,
-			final FileBufferManager fileBufferManager, final boolean distributed) throws IOException {
+			final FileBufferManager fileBufferManager, final boolean distributed, final boolean deleteOnClose)
+			throws IOException {
 
 		this.ownerID = ownerID;
 		this.fileBufferManager = fileBufferManager;
@@ -58,7 +59,7 @@ public final class FileBuffer extends Buffer {
 		this.bufferSize = bufferSize;
 		this.writeMode.set(false);
 
-		this.fileChannel = fileBufferManager.getChannelAndIncrementReferences(ownerID, distributed);
+		this.fileChannel = fileBufferManager.getChannelAndIncrementReferences(ownerID, distributed, deleteOnClose);
 	}
 
 	/**
@@ -70,7 +71,7 @@ public final class FileBuffer extends Buffer {
 	 * @throws IOException
 	 */
 	FileBuffer(final int bufferSize, final AbstractID ownerID, final FileBufferManager fileBufferManager,
-			final boolean distributed) throws IOException {
+			final boolean distributed, final boolean deleteOnClose) throws IOException {
 
 		this.fileBufferManager = fileBufferManager;
 		this.ownerID = ownerID;
@@ -78,7 +79,8 @@ public final class FileBuffer extends Buffer {
 		this.writeMode.set(true);
 
 		final ChannelWithPosition cwp = fileBufferManager.getChannelForWriteAndIncrementReferences(ownerID, bufferSize,
-			distributed);
+			distributed, deleteOnClose);
+
 		this.fileChannel = cwp.getChannel();
 		this.offset = cwp.getOffset();
 	}

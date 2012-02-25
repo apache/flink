@@ -2,6 +2,7 @@ package eu.stratosphere.nephele.io.channels;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -29,14 +30,17 @@ final class DistributedChannelWithAccessInfo implements ChannelWithAccessInfo {
 
 	private final AtomicInteger referenceCounter;
 
-	DistributedChannelWithAccessInfo(final FileSystem fs, final Path checkpointFile, final int bufferSize)
-			throws IOException {
+	private final AtomicBoolean deleteOnClose;
+
+	DistributedChannelWithAccessInfo(final FileSystem fs, final Path checkpointFile, final int bufferSize,
+			final boolean deleteOnClose) throws IOException {
 
 		this.fs = fs;
 		this.checkpointFile = checkpointFile;
 		this.channel = new FileChannelWrapper(fs, checkpointFile, bufferSize, (short) 2);
-		this.reservedWritePosition = new AtomicLong(0);
+		this.reservedWritePosition = new AtomicLong(0L);
 		this.referenceCounter = new AtomicInteger(0);
+		this.deleteOnClose = new AtomicBoolean(deleteOnClose);
 	}
 
 	/**
@@ -105,7 +109,10 @@ final class DistributedChannelWithAccessInfo implements ChannelWithAccessInfo {
 			this.reservedWritePosition.set(Long.MIN_VALUE);
 			try {
 				this.channel.close();
-				this.fs.delete(this.checkpointFile, false);
+				if (this.deleteOnClose.get()) {
+					this.fs.delete(this.checkpointFile, false);
+				}
+
 			} catch (IOException ioex) {
 				if (LOG.isErrorEnabled())
 					LOG.error("Error while closing spill file for file buffers: " + ioex.getMessage(), ioex);
@@ -148,9 +155,20 @@ final class DistributedChannelWithAccessInfo implements ChannelWithAccessInfo {
 		if (this.channel.isOpen()) {
 			try {
 				this.channel.close();
-				this.fs.delete(this.checkpointFile, false);
+				if (this.deleteOnClose.get()) {
+					this.fs.delete(this.checkpointFile, false);
+				}
 			} catch (Throwable t) {
 			}
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void updateDeleteOnCloseFlag(final boolean deleteOnClose) {
+
+		this.deleteOnClose.compareAndSet(true, deleteOnClose);
 	}
 }

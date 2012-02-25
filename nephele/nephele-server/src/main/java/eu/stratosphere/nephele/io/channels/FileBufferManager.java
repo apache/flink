@@ -143,7 +143,7 @@ public final class FileBufferManager {
 	 */
 	public FileChannel getChannel(final AbstractID id, final boolean distributed) throws IOException {
 
-		final ChannelWithAccessInfo info = getChannelInternal(id, false, distributed);
+		final ChannelWithAccessInfo info = getChannelInternal(id, false, distributed, false);
 		if (info != null) {
 			return info.getChannel();
 		} else {
@@ -159,10 +159,10 @@ public final class FileBufferManager {
 	 * @throws IllegalStateException
 	 *         Thrown, if the channel has not been registered or has already been removed.
 	 */
-	public FileChannel getChannelAndIncrementReferences(final AbstractID owner, final boolean distributed)
-			throws IOException {
+	public FileChannel getChannelAndIncrementReferences(final AbstractID owner, final boolean distributed,
+			final boolean deleteOnClose) throws IOException {
 
-		final ChannelWithAccessInfo info = getChannelInternal(owner, false, distributed);
+		final ChannelWithAccessInfo info = getChannelInternal(owner, false, distributed, deleteOnClose);
 		if (info != null) {
 			return info.getAndIncrementReferences();
 		} else {
@@ -181,14 +181,16 @@ public final class FileBufferManager {
 	 *        The id for which to get the channel and reserve space.
 	 */
 	public ChannelWithPosition getChannelForWriteAndIncrementReferences(final AbstractID id, final int spaceToReserve,
-			final boolean distributed) throws IOException {
+			final boolean distributed, final boolean deleteOnClose) throws IOException {
 
 		ChannelWithPosition c = null;
 		do {
 			// the return value may be zero, if someone asynchronously decremented the counter to zero
 			// and caused the disposal of the channel. falling through the loop will create a
 			// new channel.
-			c = getChannelInternal(id, true, distributed).reserveWriteSpaceAndIncrementReferences(spaceToReserve);
+			c = getChannelInternal(id, true, distributed, deleteOnClose).reserveWriteSpaceAndIncrementReferences(
+				spaceToReserve);
+
 		} while (c == null);
 
 		return c;
@@ -232,29 +234,60 @@ public final class FileBufferManager {
 
 	// --------------------------------------------------------------------------------------------
 
+	private final Path constructDistributedPath(final AbstractID ownerID) {
+
+		return this.distributedTempPath.suffix(Path.SEPARATOR + FILE_BUFFER_PREFIX + ownerID.toString());
+	}
+
+	private final File constructLocalFile(final AbstractID ownerID) {
+
+		final int dirIndex = Math.abs(ownerID.hashCode()) % this.tmpDirs.length;
+
+		return new File(this.tmpDirs[dirIndex] + ownerID.toString());
+	}
+
 	private final ChannelWithAccessInfo getChannelInternal(final AbstractID id, final boolean createIfAbsent,
-			final boolean distributed) throws IOException {
+			final boolean distributed, final boolean deleteOnClose) throws IOException {
 
 		ChannelWithAccessInfo cwa = this.fileMap.get(id);
 		if (cwa == null) {
-			if (createIfAbsent) {
+
+			// Check if file exists
+			if (distributed && this.distributedFileSystem != null) {
+
+				final Path p = constructDistributedPath(id);
+
+				if (this.distributedFileSystem.exists(p)) {
+					cwa = new DistributedChannelWithAccessInfo(this.distributedFileSystem, p, this.bufferSize,
+						deleteOnClose);
+				}
+
+			} else {
+
+				final File f = constructLocalFile(id);
+				if (f.exists()) {
+					cwa = new LocalChannelWithAccessInfo(f, deleteOnClose);
+				}
+			}
+
+			// If file does not exist, check if we are allowed to create it
+			if (createIfAbsent && cwa == null) {
 
 				if (distributed && this.distributedFileSystem != null) {
 
-					final String checkpointFile = this.distributedTempPath + File.separator + FILE_BUFFER_PREFIX
-						+ id.toString();
-					final Path p = new Path(checkpointFile);
-					cwa = new DistributedChannelWithAccessInfo(this.distributedFileSystem, p, this.bufferSize);
+					final Path p = constructDistributedPath(id);
+					cwa = new DistributedChannelWithAccessInfo(this.distributedFileSystem, p, this.bufferSize,
+						deleteOnClose);
 
 				} else {
 
 					// Construct the filename
-					final int dirIndex = Math.abs(id.hashCode()) % this.tmpDirs.length;
-					final File file = new File(this.tmpDirs[dirIndex] + id.toString());
-
-					cwa = new LocalChannelWithAccessInfo(file);
+					final File f = constructLocalFile(id);
+					cwa = new LocalChannelWithAccessInfo(f, deleteOnClose);
 				}
+			}
 
+			if (cwa != null) {
 				final ChannelWithAccessInfo alreadyContained = this.fileMap.putIfAbsent(id, cwa);
 				if (alreadyContained != null) {
 					// we had a race (should be a very rare event) and have created an
@@ -262,11 +295,12 @@ public final class FileBufferManager {
 					cwa.disposeSilently();
 					cwa = alreadyContained;
 				}
-
 			} else {
 				return null;
 			}
 		}
+
+		cwa.updateDeleteOnCloseFlag(deleteOnClose);
 
 		return cwa;
 	}
