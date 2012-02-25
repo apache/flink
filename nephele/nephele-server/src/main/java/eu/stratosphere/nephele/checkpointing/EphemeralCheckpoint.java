@@ -63,11 +63,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	private static final Log LOG = LogFactory.getLog(EphemeralCheckpoint.class);
 
 	/**
-	 * The number of envelopes to be stored in a single meta data file.
-	 */
-	private static final int ENVELOPES_PER_META_DATA_FILE = 10000;
-
-	/**
 	 * The buffer size in bytes to use for the meta data file channel.
 	 */
 	private static final int BUFFER_SIZE = 4096;
@@ -115,9 +110,14 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	private final Path checkpointPath;
 
 	/**
-	 * The file system to write the checkpoint's to.
+	 * The file system to write the checkpoints to.
 	 */
 	private FileSystem fileSystem;
+
+	/**
+	 * The default block size of the file system to write the checkpoints to
+	 */
+	private long defaultBlockSize = -1L;
 
 	/**
 	 * The file channel to write the checkpoint's meta data.
@@ -125,9 +125,9 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	private FileChannel metaDataFileChannel = null;
 
 	/**
-	 * A counter for the number of serialized transfer envelopes.
+	 * A counter for the number of bytes in the checkpoint per meta data file.
 	 */
-	private int numberOfSerializedTransferEnvelopes = 0;
+	private long numberOfBytesPerMetaDataFile = 0;
 
 	private Buffer firstSerializedFileBuffer = null;
 
@@ -174,7 +174,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 		if (dist) {
 			final Path p = CheckpointUtils.getDistributedCheckpointPath();
-			System.out.println("Distributed checkpoint path is " + p);
 			if (p == null) {
 				LOG.error("No distributed checkpoint path configured, writing local checkpoints instead");
 				this.checkpointPath = CheckpointUtils.getLocalCheckpointPath();
@@ -240,12 +239,16 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			}
 		}
 
-		// Write the meta data of the transfer envelope to disk
-		if (this.numberOfSerializedTransferEnvelopes % ENVELOPES_PER_META_DATA_FILE == 0) {
+		if (this.fileSystem == null) {
+			this.fileSystem = this.checkpointPath.getFileSystem();
+		}
 
-			if (this.fileSystem == null) {
-				this.fileSystem = this.checkpointPath.getFileSystem();
-			}
+		if (this.defaultBlockSize < 0L) {
+			this.defaultBlockSize = this.fileSystem.getDefaultBlockSize();
+		}
+
+		// Finish meta data file when the corresponding checkpoint fraction is 10 times the file system's block size
+		if (this.numberOfBytesPerMetaDataFile > 10L * this.defaultBlockSize) {
 
 			if (this.metaDataFileChannel != null) {
 				this.metaDataFileChannel.close();
@@ -257,6 +260,9 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 				// Increase the meta data suffix
 				++this.metaDataSuffix;
 			}
+
+			// Reset counter
+			this.numberOfBytesPerMetaDataFile = 0L;
 		}
 
 		if (this.metaDataFileChannel == null) {
@@ -275,6 +281,9 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			} else {
 				buffer.recycleBuffer();
 			}
+
+			// Increase the number of serialized transfer envelopes
+			this.numberOfBytesPerMetaDataFile += buffer.size();
 		}
 
 		// Look for close event
@@ -287,9 +296,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 				}
 			}
 		}
-
-		// Increase the number of serialized transfer envelopes
-		++this.numberOfSerializedTransferEnvelopes;
 
 		if (this.numberOfClosedChannels == this.numberOfConnectedChannels) {
 
