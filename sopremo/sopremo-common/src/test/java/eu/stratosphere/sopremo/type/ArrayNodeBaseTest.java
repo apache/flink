@@ -1,8 +1,5 @@
 package eu.stratosphere.sopremo.type;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import junit.framework.Assert;
 
 import org.junit.Before;
@@ -71,9 +68,15 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 	}
 
 	@Test
-	public void shouldReturnMissingIfIndexOutOfRange() {
+	public void shouldReturnMissingIfGetIndexOutOfRange() {
 		// index range of node: 0 to size -1
 		Assert.assertSame(MissingNode.getInstance(), this.node.get(this.node.size()));
+	}
+
+	@Test
+	public void shouldReturnMissingIfRemoveIndexOutOfRange() {
+		// index range of node: 0 to size - 1
+		Assert.assertSame(MissingNode.getInstance(), this.node.remove(this.node.size()));
 	}
 
 	@Test(expected = IndexOutOfBoundsException.class)

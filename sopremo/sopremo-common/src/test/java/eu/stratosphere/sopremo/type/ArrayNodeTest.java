@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo.type;
 
+import java.util.Iterator;
+
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -27,5 +29,13 @@ public class ArrayNodeTest extends ArrayNodeBaseTest<ArrayNode> {
 		}
 		
 		Assert.assertEquals(result, this.node.subArray(startIndex, startIndex + numberOfNodesInSubarray));
+	}
+	
+	@Test
+	public void shouldCreateNewArrayNodeFromIterator(){
+		Iterator<IJsonNode> it = this.node.iterator();
+		ArrayNode newArray = ArrayNode.valueOf(it);
+		
+		Assert.assertEquals(this.node, newArray);
 	}
 }
