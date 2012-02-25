@@ -334,9 +334,4 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 		}
 		return count + others.size();
 	}
-	
-	PactRecord getPactRecord(){
-		return this.record;
-	}
-
 }
