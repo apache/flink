@@ -234,7 +234,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return 0;
 	}
 
-	public IJsonNode subList(final int fromIndex, final int toIndex) {
+	public IJsonNode subArray(final int fromIndex, final int toIndex) {
 		return new ArrayNode(this.children.subList(fromIndex, toIndex));
 	}
 
