@@ -86,6 +86,8 @@ final class ReplayThread extends Thread {
 
 		} catch (Exception e) {
 
+			e.printStackTrace();
+
 			if (this.executionObserver.isCanceled()) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
@@ -196,7 +198,7 @@ final class ReplayThread extends Thread {
 					}
 
 					// Wait for the file to be created
-					Thread.sleep(100);
+					Thread.sleep(1000);
 
 				}
 
@@ -206,12 +208,10 @@ final class ReplayThread extends Thread {
 					try {
 						deserializer.read(fileChannel);
 
-						final TransferEnvelope transferEnvelope = deserializer
-								.getFullyDeserializedTransferEnvelope();
+						final TransferEnvelope transferEnvelope = deserializer.getFullyDeserializedTransferEnvelope();
 						if (transferEnvelope != null) {
 
-							final ReplayOutputBroker broker = this.outputBrokerMap
-									.get(transferEnvelope.getSource());
+							final ReplayOutputBroker broker = this.outputBrokerMap.get(transferEnvelope.getSource());
 							if (broker == null) {
 								throw new IOException("Cannot find output broker for channel "
 										+ transferEnvelope.getSource());
@@ -223,6 +223,11 @@ final class ReplayThread extends Thread {
 								// Prevent underlying file from being closed
 								if (firstDeserializedFileBuffer == null) {
 									firstDeserializedFileBuffer = srcBuffer.duplicate();
+								}
+
+								if (transferEnvelope.getSequenceNumber() < broker.getNextEnvelopeToSend()) {
+									srcBuffer.recycleBuffer();
+									continue;
 								}
 
 								final Buffer destBuffer = broker.requestEmptyBufferBlocking(srcBuffer.size());

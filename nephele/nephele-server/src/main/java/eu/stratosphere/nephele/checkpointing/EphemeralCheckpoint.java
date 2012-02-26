@@ -248,7 +248,7 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 		}
 
 		// Finish meta data file when the corresponding checkpoint fraction is 10 times the file system's block size
-		if (this.numberOfBytesPerMetaDataFile > 10L * this.defaultBlockSize) {
+		if (this.numberOfBytesPerMetaDataFile > 10L * this.defaultBlockSize && !this.distributed) {
 
 			if (this.metaDataFileChannel != null) {
 				this.metaDataFileChannel.close();

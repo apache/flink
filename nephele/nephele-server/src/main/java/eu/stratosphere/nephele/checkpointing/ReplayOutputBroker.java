@@ -12,6 +12,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider {
@@ -26,6 +27,8 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 	private final OutputChannelForwardingChain forwardingChain;
 
 	private final IncomingEventQueue incomingEventQueue;
+
+	private int nextEnvelopeToSend = 0;
 
 	ReplayOutputBroker(final BufferProvider bufferProvider, final OutputChannelForwardingChain forwardingChain,
 			final IncomingEventQueue incomingEventQueue) {
@@ -66,6 +69,11 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 
 		if (event instanceof ByteBufferedChannelCloseEvent) {
 			LOG.info("Replay output broker received event to close channel");
+		} else if (event instanceof UnexpectedEnvelopeEvent) {
+			final UnexpectedEnvelopeEvent uee = (UnexpectedEnvelopeEvent) event;
+			if (uee.getExpectedSequenceNumber() > this.nextEnvelopeToSend) {
+				this.nextEnvelopeToSend = uee.getExpectedSequenceNumber();
+			}
 		} else {
 			LOG.warn("Received unknown event: " + event);
 		}
@@ -75,7 +83,16 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 
 		this.incomingEventQueue.processQueuedEvents();
 
+		if (transferEnvelope.getSequenceNumber() == this.nextEnvelopeToSend) {
+			++this.nextEnvelopeToSend;
+		}
+
 		this.forwardingChain.forwardEnvelope(transferEnvelope);
+	}
+
+	int getNextEnvelopeToSend() {
+
+		return this.nextEnvelopeToSend;
 	}
 
 	boolean hasFinished() {
