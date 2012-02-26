@@ -249,4 +249,12 @@ public final class DistributedFileSystem extends FileSystem {
 			new org.apache.hadoop.fs.Path(dst.toString()));
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public long getDefaultBlockSize() {
+
+		return this.fs.getDefaultBlockSize();
+	}
 }

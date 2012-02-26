@@ -292,6 +292,11 @@ public abstract class FileSystem {
 	 */
 	public abstract FSDataInputStream open(Path f) throws IOException;
 
+	/**
+	 * Return the number of bytes that large input files should be optimally be split into to minimize I/O time.
+	 * 
+	 * @return the number of bytes that large input files should be optimally be split into to minimize I/O time
+	 */
 	public long getDefaultBlockSize() {
 		return 32 * 1024 * 1024; // 32 MB;
 	}
