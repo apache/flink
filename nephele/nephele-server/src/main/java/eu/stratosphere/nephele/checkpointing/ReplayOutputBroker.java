@@ -147,4 +147,13 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 
 		this.bufferProvider.reportAsynchronousEvent();
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void destroy() {
+
+		// Nothing to do here
+	}
 }

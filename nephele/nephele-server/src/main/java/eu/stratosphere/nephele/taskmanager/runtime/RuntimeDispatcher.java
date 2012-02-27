@@ -12,7 +12,7 @@ public final class RuntimeDispatcher implements OutputChannelForwarder {
 	private final TransferEnvelopeDispatcher dispatcher;
 
 	public RuntimeDispatcher(final TransferEnvelopeDispatcher dispatcher) {
-		
+
 		this.dispatcher = dispatcher;
 	}
 
@@ -38,6 +38,17 @@ public final class RuntimeDispatcher implements OutputChannelForwarder {
 	 */
 	@Override
 	public void processEvent(final AbstractEvent event) {
+
+		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void destroy() {
+
+		// Nothing to do here
 	}
 
 }

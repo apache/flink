@@ -12,4 +12,6 @@ public interface OutputChannelForwarder {
 	boolean hasDataLeft();
 	
 	void processEvent(AbstractEvent event);
+	
+	void destroy();
 }

@@ -230,4 +230,13 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 			this.forwarder.forwardEnvelope(ephemeralTransferEnvelope);
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void destroy() {
+
+		// Nothing to do here
+	}
 }

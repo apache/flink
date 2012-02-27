@@ -31,12 +31,12 @@ public final class SpillingBarrier implements OutputChannelForwarder {
 	@Override
 	public boolean forward(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
-		/*if (!this.isReceiverRunning) {
-
-			// TODO: Add this to the spilling queue
-
-			return false;
-		}*/
+		/*
+		 * if (!this.isReceiverRunning) {
+		 * // TODO: Add this to the spilling queue
+		 * return false;
+		 * }
+		 */
 
 		return true;
 	}
@@ -59,6 +59,15 @@ public final class SpillingBarrier implements OutputChannelForwarder {
 		if (event instanceof ByteBufferedChannelActivateEvent) {
 			this.isReceiverRunning = true;
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void destroy() {
+
+		// Nothing to do here
 	}
 
 }

@@ -74,4 +74,13 @@ public final class ForwardingBarrier implements OutputChannelForwarder {
 			}
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void destroy() {
+
+		// Nothing to do here
+	}
 }
