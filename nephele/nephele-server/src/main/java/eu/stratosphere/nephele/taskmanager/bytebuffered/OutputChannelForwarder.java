@@ -9,7 +9,7 @@ public interface OutputChannelForwarder {
 
 	boolean forward(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException;
 	
-	boolean hasDataLeft();
+	boolean hasDataLeft() throws IOException, InterruptedException;
 	
 	void processEvent(AbstractEvent event);
 	

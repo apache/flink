@@ -67,6 +67,11 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	private final int numberOfConnectedChannels;
 
 	/**
+	 * Stores whether a completed checkpoint has already been announced to the task.
+	 */
+	private boolean completeCheckpointAnnounced = false;
+
+	/**
 	 * Reference to a write thread that may be spawned to write the checkpoint data asynchronously
 	 */
 	private WriteThread writeThread = null;
@@ -196,9 +201,27 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean hasDataLeft() {
+	public boolean hasDataLeft() throws IOException, InterruptedException {
 
-		return this.writeThread.hasDataLeft();
+		if (isUndecided()) {
+			setCheckpointDecisionSynchronously(true);
+		}
+
+		if (this.writeThread == null) {
+			return false;
+		}
+
+		if (this.writeThread.hasDataLeft()) {
+			return true;
+		}
+
+		if (!this.completeCheckpointAnnounced) {
+			this.completeCheckpointAnnounced = true;
+			// Send notification that checkpoint is completed
+			this.task.checkpointStateChanged(CheckpointState.COMPLETE);
+		}
+
+		return false;
 	}
 
 	/**

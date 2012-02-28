@@ -95,7 +95,7 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 		return this.nextEnvelopeToSend;
 	}
 
-	boolean hasFinished() {
+	boolean hasFinished() throws IOException, InterruptedException {
 
 		// Check for events
 		this.incomingEventQueue.processQueuedEvents();

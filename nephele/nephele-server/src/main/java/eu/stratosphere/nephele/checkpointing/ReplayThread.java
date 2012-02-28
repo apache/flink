@@ -152,7 +152,7 @@ final class ReplayThread extends Thread {
 
 	private void replayCheckpoint() throws Exception {
 
-		final CheckpointDeserializer deserializer = new CheckpointDeserializer(this.vertexID);
+		final CheckpointDeserializer deserializer = new CheckpointDeserializer(this.vertexID, !this.isCheckpointLocal);
 
 		final Path checkpointPath = this.isCheckpointLocal ? CheckpointUtils.getLocalCheckpointPath() : CheckpointUtils
 			.getDistributedCheckpointPath();

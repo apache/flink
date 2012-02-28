@@ -53,7 +53,7 @@ public final class OutputChannelForwardingChain {
 		}
 	}
 
-	public boolean anyForwarderHasDataLeft() {
+	public boolean anyForwarderHasDataLeft() throws IOException, InterruptedException {
 
 		final Iterator<OutputChannelForwarder> it = this.forwardingChain.iterator();
 		while (it.hasNext()) {

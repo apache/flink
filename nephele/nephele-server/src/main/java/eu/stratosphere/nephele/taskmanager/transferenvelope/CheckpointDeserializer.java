@@ -32,11 +32,14 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 
 	private final FileBufferManager fileBufferManager;
 
+	private final boolean distributed;
+
 	private boolean bufferDataSerializationStarted = false;
 
-	public CheckpointDeserializer(final AbstractID ownerID) {
+	public CheckpointDeserializer(final AbstractID ownerID, final boolean distributed) {
 		this.ownerID = ownerID;
 		this.fileBufferManager = FileBufferManager.getInstance();
+		this.distributed = distributed;
 	}
 
 	@Override
@@ -57,7 +60,7 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 		final long offset = byteBufferToLong(tempBuffer);
 
 		final Buffer fileBuffer = BufferFactory.createFromCheckpoint(getSizeOfBuffer(), offset, this.ownerID,
-			this.fileBufferManager, true);
+			this.fileBufferManager, this.distributed);
 
 		setBuffer(fileBuffer);
 

@@ -275,8 +275,6 @@ final class WriteThread extends Thread {
 
 			LOG.info("Finished persistent checkpoint for vertex " + this.vertexID);
 
-			// Send notification that checkpoint is completed
-			// this.task.checkpointStateChanged(CheckpointState.COMPLETE); //TODO: Fix me
 			return true;
 		}
 
