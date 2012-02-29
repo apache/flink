@@ -311,6 +311,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	@Override
 	public void asynchronousEventOccurred() throws IOException, InterruptedException {
 
+		// Trigger checkpoint decision here
+		reportExhaustionOfMemoryBuffers();
 	}
 
 	/**
