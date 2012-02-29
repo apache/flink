@@ -69,13 +69,14 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	private volatile ExecutionState executionState = ExecutionState.STARTING;
 
 	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
-	
+
 	// DW: Start of temporary code
 	private double pactInputOutputRatioSum = 0.0;
-	
+
 	private int numberOfPactInputOutputRatioEntries = 0;
+
 	// DW: End of temporay code
-	
+
 	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
 			final TaskManager taskManager) {
 
@@ -230,16 +231,16 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			this.isCanceled = true;
 			// Change state
 			executionStateChanged(ExecutionState.CANCELING, null);
-		}
 
-		// Request user code to shut down
-		try {
-			final AbstractInvokable invokable = this.environment.getInvokable();
-			if (invokable != null) {
-				invokable.cancel();
+			// Request user code to shut down
+			try {
+				final AbstractInvokable invokable = this.environment.getInvokable();
+				if (invokable != null) {
+					invokable.cancel();
+				}
+			} catch (Throwable e) {
+				LOG.error(StringUtils.stringifyException(e));
 			}
-		} catch (Throwable e) {
-			LOG.error(StringUtils.stringifyException(e));
 		}
 
 		// Continuously interrupt the user thread until it changed to state CANCELED
@@ -435,19 +436,19 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	// DW: Start of temporary code
 	@Override
 	public void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes) {
-				
+
 		this.pactInputOutputRatioSum += ((double) numberOfProducedBytes / (double) numberOfConsumedBytes);
 		++this.numberOfPactInputOutputRatioEntries;
 	}
-	
+
 	double getPACTInputOutputRatio() {
-		
-		if(this.numberOfPactInputOutputRatioEntries == 0) {
+
+		if (this.numberOfPactInputOutputRatioEntries == 0) {
 			return -1.0;
 		}
-		
+
 		return (this.pactInputOutputRatioSum / (double) this.numberOfPactInputOutputRatioEntries);
 	}
 	// DW: End of temporary code
-	
+
 }

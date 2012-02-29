@@ -325,19 +325,20 @@ public final class ReplayTask implements Task {
 			if (this.encapsulatedExecutionState != null) {
 				this.encapsulatedExecutionState = ExecutionState.CANCELING;
 			}
+
 			reportExecutionStateChange(true, null);
-		}
 
-		// Request user code to shut down
-		if (this.encapsulatedTask != null) {
+			// Request user code to shut down
+			if (this.encapsulatedTask != null) {
 
-			try {
-				final AbstractInvokable invokable = this.encapsulatedTask.getRuntimeEnvironment().getInvokable();
-				if (invokable != null) {
-					invokable.cancel();
+				try {
+					final AbstractInvokable invokable = this.encapsulatedTask.getRuntimeEnvironment().getInvokable();
+					if (invokable != null) {
+						invokable.cancel();
+					}
+				} catch (Throwable e) {
+					LOG.error(StringUtils.stringifyException(e));
 				}
-			} catch (Throwable e) {
-				LOG.error(StringUtils.stringifyException(e));
 			}
 		}
 
