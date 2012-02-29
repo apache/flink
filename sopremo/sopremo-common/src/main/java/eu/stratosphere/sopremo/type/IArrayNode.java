@@ -98,6 +98,6 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * Transforms this node into a standard Java-Array containing all saved nodes.
 	 * @return Array of all saved nodes
 	 */
-	public abstract Object[] toArray();
+	public abstract IJsonNode[] toArray();
 
 }

@@ -31,8 +31,6 @@ import eu.stratosphere.pact.common.type.Value;
  */
 public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 	
-	// TODO: Correct spelling of "wether" in java-doc
-	
 	/**
 	 * Returns the {@link eu.stratosphere.sopremo.type.JsonNode.Type} of this node.
 	 * @return nodetype
@@ -41,13 +39,13 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 
 	/**
 	 * Transforms this node into his standard representation.
-	 * @return standard represantation
+	 * @return standard representation
 	 */
 	public abstract IJsonNode canonicalize();
 
 	/**
 	 * Duplicates this node.
-	 * @return duplicate or null if Exception occures
+	 * @return duplicate or null if Exception occurs
 	 */
 	public abstract IJsonNode clone();
 
@@ -66,27 +64,27 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 	public abstract void write(DataOutput out) throws IOException;
 
 	/**
-	 * Returns wether this node is a representation for a null-value or not.
+	 * Returns either this node is a representation for a null-value or not.
 	 */
 	public abstract boolean isNull();
 	
 	/**
-	 * Returns wether this node is a representation for a missing value or not.
+	 * Returns either this node is a representation for a missing value or not.
 	 */
 	public abstract boolean isMissing();
 
 	/**
-	 * Returns wether this node is a representation of a Json-Object or not.
+	 * Returns either this node is a representation of a Json-Object or not.
 	 */
 	public abstract boolean isObject();
 
 	/**
-	 * Returns wether this node is a representation of a Json-Array or not.
+	 * Returns either this node is a representation of a Json-Array or not.
 	 */
 	public abstract boolean isArray();
 
 	/**
-	 * Returns wether this node is a representation of a Text-value or not.
+	 * Returns either this node is a representation of a Text-value or not.
 	 */
 	public abstract boolean isTextual();
 

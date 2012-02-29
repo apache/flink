@@ -50,7 +50,11 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	public ArrayNode add(final IJsonNode node) {
 		if (node == null)
 			throw new NullPointerException();
-		this.children.add(node);
+		
+		if(!node.isMissing()){
+			this.children.add(node);
+		}
+		
 		return this;
 	}
 
@@ -60,7 +64,15 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	 */
 	@Override
 	public IArrayNode add(final int index, final IJsonNode element) {
-		this.children.add(index, element);
+		if (element == null)
+			throw new NullPointerException();
+		
+		if(element.isMissing()){
+			this.children.remove(index);
+		} else {
+			this.children.add(index, element);
+		}
+		
 		return this;
 	}
 

@@ -158,9 +158,9 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 
 		} else {
 			if (value.isMissing()) {
-				((IObjectNode) getOtherField()).remove(fieldName);
+				this.getOtherField().remove(fieldName);
 			} else {
-				((IObjectNode) getOtherField()).put(fieldName, value);
+				this.getOtherField().put(fieldName, value);
 			}
 
 		}
@@ -170,8 +170,8 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	/**
 	 * @return
 	 */
-	private IJsonNode getOtherField() {
-		return SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize(),
+	private IObjectNode getOtherField() {
+		return (IObjectNode)SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize(),
 			JsonNodeWrapper.class));
 	}
 
@@ -193,7 +193,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 			
 			//return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
 		} else {
-			return ((IObjectNode) getOtherField()).get(fieldName);
+			return this.getOtherField().get(fieldName);
 		}
 	}
 
@@ -222,7 +222,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 			}
 			return node;
 		} else {
-			return ((IObjectNode) getOtherField()).remove(fieldName);
+			return this.getOtherField().remove(fieldName);
 		}
 	}
 
@@ -235,7 +235,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 		for (int i = 0; i < this.schema.getMappingSize(); i++) {
 			this.record.setNull(i);
 		}
-		((IObjectNode) getOtherField()).removeAll();
+		this.getOtherField().removeAll();
 		return this;
 	}
 
@@ -278,7 +278,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public Iterator<String> getFieldNames() {
 		return new ConcatenatingIterator<String>(this.schema.getMappings().iterator(),
-			((IObjectNode) getOtherField()).getFieldNames());
+			this.getOtherField().getFieldNames());
 	}
 
 	/*
@@ -288,7 +288,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public Iterator<Entry<String, IJsonNode>> iterator() {
 
-		Iterator<Entry<String, IJsonNode>> iterator2 = ((IObjectNode) getOtherField()).iterator();
+		Iterator<Entry<String, IJsonNode>> iterator2 = this.getOtherField().iterator();
 		Iterator<Entry<String, IJsonNode>> iterator1 = new AbstractIterator<Map.Entry<String, IJsonNode>>() {
 
 			int lastIndex = 0;
