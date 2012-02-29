@@ -12,8 +12,15 @@ public abstract class AbstractOutputChannelContext implements OutputChannelConte
 	 */
 	private final IncomingEventQueue incomingEventQueue;
 
-	public AbstractOutputChannelContext(final IncomingEventQueue incomingEventQueue) {
+	/**
+	 * The forwarding chain used by this output channel context.
+	 */
+	private final OutputChannelForwardingChain forwardingChain;
 
+	public AbstractOutputChannelContext(final OutputChannelForwardingChain forwardingChain,
+			final IncomingEventQueue incomingEventQueue) {
+
+		this.forwardingChain = forwardingChain;
 		this.incomingEventQueue = incomingEventQueue;
 	}
 
@@ -36,5 +43,14 @@ public abstract class AbstractOutputChannelContext implements OutputChannelConte
 		while (it.hasNext()) {
 			this.incomingEventQueue.offer(it.next());
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void destroy() {
+
+		this.forwardingChain.destroy();
 	}
 }

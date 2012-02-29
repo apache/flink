@@ -44,7 +44,7 @@ final class ReplayOutputGateContext extends AbstractReplayGateContext implements
 		// Register output broker
 		this.taskContext.registerReplayOutputBroker(channelID, outputBroker);
 
-		return new ReplayOutputChannelContext(null, channelID, incomingEventQueue, previousContext);
+		return new ReplayOutputChannelContext(null, channelID, forwardingChain, incomingEventQueue, previousContext);
 	}
 
 	private static void activateForwardingBarrier(final OutputChannelContext previousContext) {

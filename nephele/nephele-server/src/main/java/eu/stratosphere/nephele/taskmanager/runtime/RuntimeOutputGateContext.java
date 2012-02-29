@@ -161,6 +161,6 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 		forwardingChain.addForwarder(new SpillingBarrier(isReceiverRunning, mergeSpillBuffers));
 		forwardingChain.addForwarder(this.taskContext.getRuntimeDispatcher());
 
-		return new RuntimeOutputChannelContext(outputChannel, incomingEventQueue);
+		return new RuntimeOutputChannelContext(outputChannel, forwardingChain, incomingEventQueue);
 	}
 }

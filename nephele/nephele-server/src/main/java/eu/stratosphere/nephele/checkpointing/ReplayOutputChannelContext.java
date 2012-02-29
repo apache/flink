@@ -6,6 +6,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 public final class ReplayOutputChannelContext extends AbstractOutputChannelContext implements OutputChannelContext {
@@ -17,8 +18,9 @@ public final class ReplayOutputChannelContext extends AbstractOutputChannelConte
 	private final OutputChannelContext encapsulatedContext;
 
 	ReplayOutputChannelContext(final JobID jobID, final ChannelID channelID,
-			final IncomingEventQueue incomingEventQueue, final OutputChannelContext encapsulatedContext) {
-		super(incomingEventQueue);
+			final OutputChannelForwardingChain forwardingChain, final IncomingEventQueue incomingEventQueue,
+			final OutputChannelContext encapsulatedContext) {
+		super(forwardingChain, incomingEventQueue);
 
 		this.jobID = jobID;
 		this.channelID = channelID;
@@ -83,9 +85,10 @@ public final class ReplayOutputChannelContext extends AbstractOutputChannelConte
 	@Override
 	public void destroy() {
 
+		super.destroy();
+
 		if (this.encapsulatedContext != null) {
 			this.encapsulatedContext.destroy();
 		}
 	}
-
 }

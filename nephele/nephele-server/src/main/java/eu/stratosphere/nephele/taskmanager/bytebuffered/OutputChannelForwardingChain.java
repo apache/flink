@@ -74,4 +74,12 @@ public final class OutputChannelForwardingChain {
 		}
 	}
 
+	public void destroy() {
+
+		final Iterator<OutputChannelForwarder> it = this.forwardingChain.iterator();
+		while (it.hasNext()) {
+			it.next().destroy();
+		}
+	}
+
 }
