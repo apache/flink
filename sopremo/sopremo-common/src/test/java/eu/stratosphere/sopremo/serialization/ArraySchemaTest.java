@@ -22,6 +22,7 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.testing.PactRecordEqualer;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -48,8 +49,8 @@ public class ArraySchemaTest {
 		PactRecord result = this.schema.jsonToRecord(array, null);
 
 		PactRecord expected = new PactRecord(3);
-		expected.setField(0, new JsonNodeWrapper(IntNode.valueOf(1)));
-		expected.setField(2, new JsonNodeWrapper(new ArrayNode()));
+		expected.setField(0, SopremoUtil.wrap(IntNode.valueOf(1)));
+		expected.setField(2, SopremoUtil.wrap(new ArrayNode()));
 
 		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
 	}
@@ -59,9 +60,9 @@ public class ArraySchemaTest {
 		PactRecord record = new PactRecord();
 		this.schema.setHeadSize(2);
 
-		record.setField(0, new JsonNodeWrapper(IntNode.valueOf(0)));
-		record.setField(1, new JsonNodeWrapper(IntNode.valueOf(1)));
-		record.setField(2, new JsonNodeWrapper(new ArrayNode(IntNode.valueOf(2))));
+		record.setField(0, SopremoUtil.wrap(IntNode.valueOf(0)));
+		record.setField(1, SopremoUtil.wrap(IntNode.valueOf(1)));
+		record.setField(2, SopremoUtil.wrap(new ArrayNode(IntNode.valueOf(2))));
 
 		IArrayNode expected = new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2));
 		IJsonNode result = this.schema.recordToJson(record, null);
@@ -74,9 +75,9 @@ public class ArraySchemaTest {
 		PactRecord record = new PactRecord();
 		this.schema.setHeadSize(5);
 
-		record.setField(0, new JsonNodeWrapper(IntNode.valueOf(0)));
-		record.setField(1, new JsonNodeWrapper(IntNode.valueOf(1)));
-		record.setField(5, new JsonNodeWrapper(new ArrayNode()));
+		record.setField(0, SopremoUtil.wrap(IntNode.valueOf(0)));
+		record.setField(1, SopremoUtil.wrap(IntNode.valueOf(1)));
+		record.setField(5, SopremoUtil.wrap(new ArrayNode()));
 
 		IJsonNode node = this.schema.recordToJson(record, null);
 		PactRecord result = this.schema.jsonToRecord(node, null);

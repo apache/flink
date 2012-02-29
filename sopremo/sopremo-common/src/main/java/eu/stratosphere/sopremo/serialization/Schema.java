@@ -21,6 +21,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.SchemaUtils;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -73,8 +74,8 @@ public interface Schema extends Serializable {
 			if (target == null)
 				target = new PactRecord(2);
 			// target.setField(0, new PactInteger(value.getType().ordinal()));
-			target.setField(0, new JsonNodeWrapper(((ArrayNode) value).get(0)));
-			target.setField(1, new JsonNodeWrapper(((ArrayNode) value).get(1)));
+			target.setField(0, SopremoUtil.wrap(((ArrayNode) value).get(0)));
+			target.setField(1, SopremoUtil.wrap(((ArrayNode) value).get(1)));
 			return target;
 		}
 

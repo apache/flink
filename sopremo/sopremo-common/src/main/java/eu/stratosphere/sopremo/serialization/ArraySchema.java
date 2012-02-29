@@ -73,7 +73,7 @@ public class ArraySchema implements Schema {
 			// the last element is the field "others"
 			target = new PactRecord(this.headSize + 1);
 			others = new ArrayNode();
-			target.setField(headSize, new JsonNodeWrapper(others));
+			target.setField(headSize, SopremoUtil.wrap(others));
 		} else {
 			// clear the others field if target was already used
 			others = (IArrayNode) SopremoUtil.unwrap(target.getField(this.headSize, JsonNodeWrapper.class));
@@ -84,7 +84,7 @@ public class ArraySchema implements Schema {
 		for (int i = 0; i < this.headSize; i++) {
 			arrayElement = ((IArrayNode) value).get(i);
 			if (!arrayElement.isMissing()) {
-				target.setField(i, new JsonNodeWrapper(arrayElement));
+				target.setField(i, SopremoUtil.wrap(arrayElement));
 			} else {
 				target.setNull(i);
 			}

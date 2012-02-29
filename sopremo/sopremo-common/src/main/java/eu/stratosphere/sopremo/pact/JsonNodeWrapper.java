@@ -7,7 +7,7 @@ import java.io.IOException;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
-public class JsonNodeWrapper extends JsonNode {
+public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 
 	/**
 	 * 
@@ -93,6 +93,31 @@ public class JsonNodeWrapper extends JsonNode {
 	@Override
 	public StringBuilder toString(final StringBuilder sb) {
 		return this.value.toString(sb);
+	}
+
+	@Override
+	public boolean isNull() {
+		return this.value.isNull();
+	}
+
+	@Override
+	public boolean isMissing() {
+		return this.value.isMissing();
+	}
+
+	@Override
+	public boolean isObject() {
+		return this.value.isObject();
+	}
+
+	@Override
+	public boolean isArray() {
+		return this.value.isArray();
+	}
+
+	@Override
+	public boolean isTextual() {
+		return this.value.isTextual();
 	}
 
 }

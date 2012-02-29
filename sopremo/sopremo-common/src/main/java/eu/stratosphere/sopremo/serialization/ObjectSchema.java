@@ -58,7 +58,7 @@ public class ObjectSchema implements Schema {
 			//the last element is the field "others"
 			target = new PactRecord(this.mapping.size() + 1);
 			others = new ObjectNode();
-			target.setField(this.mapping.size(), new JsonNodeWrapper(others));
+			target.setField(this.mapping.size(), SopremoUtil.wrap(others));
 		} else {
 			others = (IObjectNode)SopremoUtil.unwrap(target.getField(target.getNumFields() - 1, JsonNodeWrapper.class));
 			others.removeAll();

@@ -46,6 +46,7 @@ public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
 		PactRecord record = schema.jsonToRecord(
 			new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
 				.put("gender", TextNode.valueOf("male")), null);
+		
 		this.node = new LazyObjectNode(record, schema);
 
 	}

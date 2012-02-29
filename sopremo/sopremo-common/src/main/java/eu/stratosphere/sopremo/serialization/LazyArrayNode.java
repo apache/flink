@@ -38,7 +38,7 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 		Iterator<IJsonNode> iterator1 = new AbstractIterator<IJsonNode>() {
 
 			int lastIndex = 0;
-			
+
 			@Override
 			protected IJsonNode loadNext() {
 				while (this.lastIndex < LazyArrayNode.this.schema.getHeadSize()) {
@@ -49,14 +49,14 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 						return value;
 					}
 
-					return noMoreElements();					
+					return noMoreElements();
 				}
 				return noMoreElements();
 			}
-			
+
 		};
 
-		return new ConcatenatingIterator<IJsonNode>(iterator1, iterator2); 
+		return new ConcatenatingIterator<IJsonNode>(iterator1, iterator2);
 	}
 
 	@Override
@@ -116,7 +116,7 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	public IArrayNode getOtherField() {
-		return (IArrayNode)SopremoUtil.unwrap(this.record.getField(this.schema.getHeadSize(),
+		return (IArrayNode) SopremoUtil.unwrap(this.record.getField(this.schema.getHeadSize(),
 			JsonNodeWrapper.class));
 	}
 
@@ -143,7 +143,7 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 		for (int i = 0; i < this.schema.getHeadSize(); i++) {
 			if (this.record.isNull(i) && !node.isMissing()) {
-				this.record.setField(i, new JsonNodeWrapper(node));
+				this.record.setField(i, SopremoUtil.wrap(node));
 				return this;
 			}
 		}
@@ -158,21 +158,40 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 			throw new NullPointerException();
 		}
 
-		if (index < this.schema.getHeadSize()) {
-			if (element.isMissing()) {
-				this.remove(index);
-			} else {
-				// recursive insertion
-				IJsonNode oldNode = this.record.getField(index, JsonNodeWrapper.class);
-				this.record.setField(index, element);
-				this.add(index + 1, oldNode);
-			}
+		if (element.isMissing()) {
+			this.remove(index);
+		}
 
-		} else {
-			this.getOtherField().add(index - this.schema.getHeadSize(), element);
+		if(index < 0 || index > this.size()){
+			throw new IndexOutOfBoundsException();
+		}
+		
+		if (index < this.schema.getHeadSize()) {
+			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
+				if (!this.record.isNull(i)) {
+					if (i == this.schema.getHeadSize() - 1) {
+						this.getOtherField().add(0, SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class)));
+					} else {
+						this.record.setField(i + 1, this.record.getField(i, JsonNodeWrapper.class));
+					}
+				}
+			}
+			this.record.setField(index, SopremoUtil.wrap(element));
 		}
 
 		return this;
+
+		// // recursive insertion
+		// if (!this.record.isNull(index)) {
+		// IJsonNode oldNode = this.record.getField(index, JsonNodeWrapper.class);
+		// this.record.setField(index, element);
+		// this.add(index + 1, oldNode);
+		// }
+		// } else {
+		// this.getOtherField().add(index - this.schema.getHeadSize(), element);
+		// }
+		//
+		// return this;
 	}
 
 	@Override
@@ -193,11 +212,11 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 		if (node == null) {
 			throw new NullPointerException();
 		}
-		
+
 		if (node.isMissing()) {
 			return this.remove(index);
 		}
-		
+
 		if (index < 0 || index >= this.size()) {
 			if (index == this.size()) {
 				this.add(node);
@@ -223,20 +242,27 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 	@Override
 	public IJsonNode remove(int index) {
 		if (index < 0 || index >= this.size()) {
-				throw new IndexOutOfBoundsException();
+			return MissingNode.getInstance();
 		}
-		
-		if(index < this.schema.getHeadSize()){
+
+		if (index < this.schema.getHeadSize()) {
 			IJsonNode oldNode = SopremoUtil.wrap(this.getOtherField().remove(0));
 			IJsonNode buffer;
-			
-			for(int i=this.schema.getHeadSize()-1; i>=index; i--){
-				buffer =this.record.getField(i, JsonNodeWrapper.class);
-				this.record.setField(i, oldNode);
+
+			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
+				buffer = this.record.getField(i, JsonNodeWrapper.class);
+				if(buffer == null){
+					buffer = MissingNode.getInstance();
+				}
+				if(oldNode.isMissing()){
+					this.record.setNull(i);
+				} else {
+					this.record.setField(i, oldNode);
+				}
 				oldNode = buffer;
 			}
 			return SopremoUtil.unwrap(oldNode);
-			
+
 		} else {
 			return this.getOtherField().remove(index - this.schema.getHeadSize());
 		}
@@ -244,28 +270,28 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public void clear() {
-		for(int i=0; i<this.schema.getHeadSize(); i++){
+		for (int i = 0; i < this.schema.getHeadSize(); i++) {
 			this.record.setNull(i);
 		}
-		
+
 		this.getOtherField().clear();
 	}
 
 	@Override
 	public IArrayNode addAll(Collection<? extends IJsonNode> c) {
-		for(IJsonNode node : c){
+		for (IJsonNode node : c) {
 			this.add(node);
 		}
-		
+
 		return this;
 	}
 
 	@Override
 	public IArrayNode addAll(IArrayNode arraynode) {
-		for(IJsonNode node : arraynode){
+		for (IJsonNode node : arraynode) {
 			this.add(node);
 		}
-		
+
 		return this;
 	}
 
@@ -273,10 +299,10 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 	public IJsonNode[] toArray() {
 		IJsonNode[] result = new IJsonNode[this.size()];
 		int i = 0;
-		for(IJsonNode node : this){
+		for (IJsonNode node : this) {
 			result[i++] = node;
 		}
-		
+
 		return result;
 	}
 

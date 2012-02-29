@@ -37,16 +37,29 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 
 	@Test
 	public void shouldRemoveNodes() {
+
 		this.node.add(0, TextNode.valueOf("firstname"));
 		this.node.add(1, TextNode.valueOf("lastname"));
 
 		int initialSize = this.node.size();
 
 		this.node.remove(0);
-		// index of following nodes should be decremented by 1 after removale of a node
+		// index of following nodes should be decremented by 1 after removal of a node
 		this.node.remove(0);
 
 		Assert.assertEquals(initialSize - 2, this.node.size());
+	}
+
+	@Test
+	public void shouldReturnCorrectNodesAfterRemoval() {
+		IJsonNode value1 = TextNode.valueOf("firstname");
+		IJsonNode value2 = TextNode.valueOf("lastname");
+
+		this.node.add(0, value1);
+		this.node.add(1, value2);
+
+		Assert.assertEquals(value1, this.node.remove(0));
+		Assert.assertEquals(value2, this.node.remove(0));
 	}
 
 	@Test
@@ -80,8 +93,7 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 	}
 
 	@Test(expected = IndexOutOfBoundsException.class)
-	public void shouldThrowExceptionIfSettingWrongIndex() {
-		// setting index = size should be possible to let the arraynode grow if needed
+	public void shouldThrowExceptionIfAddingWithWrongIndex() {
 		this.node.add(this.node.size() + 1, TextNode.valueOf("firstname"));
 	}
 }
