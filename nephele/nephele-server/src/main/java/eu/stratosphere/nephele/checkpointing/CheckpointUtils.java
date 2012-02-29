@@ -17,12 +17,18 @@ package eu.stratosphere.nephele.checkpointing;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.util.StringUtils;
 
 public final class CheckpointUtils {
+
+	private static final Log LOG = LogFactory.getLog(CheckpointUtils.class);
 
 	/**
 	 * The prefix for the name of the file containing the checkpoint meta data.
@@ -75,12 +81,12 @@ public final class CheckpointUtils {
 		return DISTRIBUTED_CHECKPOINT_PATH;
 	}
 
-	public static boolean hasCompleteCheckpointAvailable(final ExecutionVertexID vertexID) throws IOException {
+	public static boolean hasCompleteCheckpointAvailable(final ExecutionVertexID vertexID) {
 
 		return checkForCheckpoint(vertexID, COMPLETED_CHECKPOINT_SUFFIX);
 	}
 
-	public static boolean hasPartialCheckpointAvailable(final ExecutionVertexID vertexID) throws IOException {
+	public static boolean hasPartialCheckpointAvailable(final ExecutionVertexID vertexID) {
 
 		if (checkForCheckpoint(vertexID, "_0")) {
 			return true;
@@ -89,46 +95,61 @@ public final class CheckpointUtils {
 		return checkForCheckpoint(vertexID, "_part");
 	}
 
-	public static boolean hasLocalCheckpointAvailable(final ExecutionVertexID vertexID) throws IOException {
+	public static boolean hasLocalCheckpointAvailable(final ExecutionVertexID vertexID) {
 
-		Path local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
-			+ "_0");
+		try {
+			Path local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
+				+ "_0");
 
-		final FileSystem localFs = local.getFileSystem();
+			final FileSystem localFs = local.getFileSystem();
 
-		if (localFs.exists(local)) {
-			return true;
+			if (localFs.exists(local)) {
+				return true;
+			}
+
+			local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
+				+ "_part");
+
+			return localFs.exists(local);
+
+		} catch (IOException ioe) {
+			LOG.warn(StringUtils.stringifyException(ioe));
 		}
 
-		local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
-			+ "_part");
-
-		return localFs.exists(local);
+		return false;
 	}
 
-	private static boolean checkForCheckpoint(final ExecutionVertexID vertexID, final String suffix) throws IOException {
+	private static boolean checkForCheckpoint(final ExecutionVertexID vertexID, final String suffix) {
 
-		final Path local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
-			+ suffix);
+		try {
 
-		final FileSystem localFs = local.getFileSystem();
+			final Path local = new Path(getLocalCheckpointPath() + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
+				+ suffix);
 
-		if (localFs.exists(local)) {
-			return true;
+			final FileSystem localFs = local.getFileSystem();
+
+			if (localFs.exists(local)) {
+				return true;
+			}
+
+			final Path distributedCheckpointPath = getDistributedCheckpointPath();
+			if (distributedCheckpointPath == null) {
+				return false;
+			}
+
+			final Path distributed = new Path(distributedCheckpointPath + Path.SEPARATOR + METADATA_PREFIX + "_"
+				+ vertexID
+				+ suffix);
+
+			final FileSystem distFs = distributed.getFileSystem();
+
+			return distFs.exists(distributed);
+
+		} catch (IOException ioe) {
+			LOG.warn(StringUtils.stringifyException(ioe));
 		}
 
-		final Path distributedCheckpointPath = getDistributedCheckpointPath();
-		if (distributedCheckpointPath == null) {
-			return false;
-		}
-
-		final Path distributed = new Path(distributedCheckpointPath + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID
-			+ suffix);
-
-		final FileSystem distFs = distributed.getFileSystem();
-
-		return distFs.exists(distributed);
-
+		return false;
 	}
 
 	/**
