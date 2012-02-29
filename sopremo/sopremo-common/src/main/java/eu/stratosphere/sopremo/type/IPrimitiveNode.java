@@ -15,8 +15,8 @@
 package eu.stratosphere.sopremo.type;
 
 /**
- * @author strato
- *
+ * @author Michael Hopstock
+ * @author Tommy Neubert
  */
 public interface IPrimitiveNode extends IJsonNode{
 

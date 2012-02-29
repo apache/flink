@@ -23,38 +23,97 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
+ * Interface for all JsonNodes.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  *
  */
 public interface IJsonNode extends Serializable, Value, Key, Cloneable{
-
+	
+	// TODO: Correct spelling of "wether" in java-doc
+	
+	/**
+	 * Returns the {@link eu.stratosphere.sopremo.type.JsonNode.Type} of this node.
+	 * @return nodetype
+	 */
 	public abstract JsonNode.Type getType();
 
+	/**
+	 * Transforms this node into his standard representation.
+	 * @return standard represantation
+	 */
 	public abstract IJsonNode canonicalize();
 
+	/**
+	 * Duplicates this node.
+	 * @return duplicate or null if Exception occures
+	 */
 	public abstract IJsonNode clone();
 
+	/**
+	 * Deserializes this node from a DataInput.
+	 * @param {@link DataInput} in
+	 * @exception {@link IOException} 
+	 */
 	public abstract void read(DataInput in) throws IOException;
 
+	/**
+	 * Serializes this node into a DataOutput.
+	 * @param {@link DataOutput} out
+	 * @exception {@link IOException} 
+	 */
 	public abstract void write(DataOutput out) throws IOException;
 
+	/**
+	 * Returns wether this node is a representation for a null-value or not.
+	 */
 	public abstract boolean isNull();
 	
+	/**
+	 * Returns wether this node is a representation for a missing value or not.
+	 */
 	public abstract boolean isMissing();
 
+	/**
+	 * Returns wether this node is a representation of a Json-Object or not.
+	 */
 	public abstract boolean isObject();
 
+	/**
+	 * Returns wether this node is a representation of a Json-Array or not.
+	 */
 	public abstract boolean isArray();
 
+	/**
+	 * Returns wether this node is a representation of a Text-value or not.
+	 */
 	public abstract boolean isTextual();
 
 	public abstract Object getJavaValue();
 
+	/**
+	 * Compares this node with another.
+	 * @param other
+	 * 	the node this node should be compared with
+	 * @return result of the comparison
+	 */
 	public abstract int compareTo(final Key other);
 
+	/**
+	 * Compares this node with another {@link eu.stratosphere.sopremo.type.IJsonNode}.
+	 * @param other
+	 * 	the node this node should be compared with
+	 * @return result of the comparison
+	 */
 	public abstract int compareToSameType(IJsonNode other);
 
+	/**
+	 * Appends this nodes string representation to a given {@link StringBuilder}.
+	 * @param sb
+	 * 	the StringBuilder
+	 * @return a StringBuilder where this nodes string representation is appended
+	 */
 	public abstract StringBuilder toString(StringBuilder sb);
 
 }
