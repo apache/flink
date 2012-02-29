@@ -168,6 +168,7 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 			this.checkpointingDecision = CheckpointingDecisionState.NO_CHECKPOINTING;
 			// Simply destroy the checkpoint
 			destroy();
+			this.task.checkpointStateChanged(CheckpointState.NONE);
 		}
 	}
 
