@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.plugins.PluginID;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
+import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -225,6 +226,11 @@ public abstract class AbstractInstance extends NetworkNode {
 		return getTaskManager().cancelTask(id);
 	}
 
+	public synchronized TaskCheckpointResult requestCheckpointDecision(final ExecutionVertexID id) throws IOException {
+
+		return getTaskManager().requestCheckpointDecision(id);
+	}
+
 	/**
 	 * Kills the task identified by the given ID at the instance's
 	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
@@ -311,7 +317,7 @@ public abstract class AbstractInstance extends NetworkNode {
 		getTaskManager().killTaskManager();
 	}
 
-/**
+	/**
 	 * Connects to the plugin component of this instance's task manager and sends data to the plugin with the given ID.
 	 * 
 	 * @param pluginID

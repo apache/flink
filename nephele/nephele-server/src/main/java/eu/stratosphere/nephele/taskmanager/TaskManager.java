@@ -432,22 +432,15 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	@Override
 	public TaskKillResult killTask(final ExecutionVertexID id) throws IOException {
 
-		// Check if the task is registered with our task manager
-		Task tmpTask;
+		final Task task = this.runningTasks.get(id);
 
-		synchronized (this.runningTasks) {
-
-			tmpTask = this.runningTasks.get(id);
-
-			if (tmpTask == null) {
-				final TaskKillResult taskKillResult = new TaskKillResult(id,
+		if (task == null) {
+			final TaskKillResult taskKillResult = new TaskKillResult(id,
 					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
-				taskKillResult.setDescription("No task with ID + " + id + " is currently running");
-				return taskKillResult;
-			}
+			taskKillResult.setDescription("No task with ID + " + id + " is currently running");
+			return taskKillResult;
 		}
 
-		final Task task = tmpTask;
 		// Execute call in a new thread so IPC thread can return immediately
 		final Thread tmpThread = new Thread(new Runnable() {
 
@@ -461,6 +454,47 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		tmpThread.start();
 
 		return new TaskKillResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public TaskCheckpointResult requestCheckpointDecision(ExecutionVertexID id) throws IOException {
+
+		final Task task = this.runningTasks.get(id);
+
+		if (task == null) {
+			final TaskCheckpointResult taskCheckpointResult = new TaskCheckpointResult(id,
+					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
+			taskCheckpointResult.setDescription("No task with ID + " + id + " is currently running");
+			return taskCheckpointResult;
+		}
+
+		if (!(task instanceof RuntimeTask)) {
+			final TaskCheckpointResult taskCheckpointResult = new TaskCheckpointResult(id,
+				AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
+			taskCheckpointResult.setDescription("No task with ID + " + id + " is not a runtime task");
+			return taskCheckpointResult;
+		}
+
+		final RuntimeTask runtimeTask = (RuntimeTask) task;
+
+		// Request a checkpoint decision and return
+		if (!runtimeTask.requestCheckpointDecision()) {
+			final TaskCheckpointResult taskCheckpointResult = new TaskCheckpointResult(id,
+				AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
+			taskCheckpointResult.setDescription("No task with ID + " + id + " has not yet created a checkpoint");
+		}
+
+		reportAsyncronousEvent(id);
+
+		return new TaskCheckpointResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
+	}
+
+	private void reportAsyncronousEvent(final ExecutionVertexID vertexID) {
+
+		this.byteBufferedChannelManager.reportAsynchronousEvent(vertexID);
 	}
 
 	/**
@@ -698,7 +732,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			}
 		}
 	}
-
 
 	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id,
 			final CheckpointState newCheckpointState) {

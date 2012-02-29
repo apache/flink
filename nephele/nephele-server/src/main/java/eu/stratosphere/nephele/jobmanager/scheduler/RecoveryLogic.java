@@ -42,6 +42,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
+import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -162,6 +163,25 @@ public final class RecoveryLogic {
 				final ExecutionVertex predecessor = vertex.getPredecessor(j);
 
 				if (hasInstanceAssigned(predecessor)) {
+
+					// At the moment, there no checkpoint decision for this vertex
+					if (predecessor.getCheckpointState() == CheckpointState.UNDECIDED) {
+						final TaskCheckpointResult result = predecessor.requestCheckpointDecision();
+						if (result.getReturnCode() != ReturnCode.SUCCESS) {
+							// Assume we do not have a checkpoint in this case
+							predecessor.updateCheckpointState(CheckpointState.NONE);
+						} else {
+
+							try {
+								predecessor.waitForCheckpointStateChange(CheckpointState.UNDECIDED, 100L);
+							} catch (InterruptedException e) {
+							}
+
+							if (predecessor.getCheckpointState() == CheckpointState.UNDECIDED) {
+								predecessor.updateCheckpointState(CheckpointState.NONE);
+							}
+						}
+					}
 
 					if (predecessor.getCheckpointState() == CheckpointState.NONE) {
 						verticesToBeCanceled.add(predecessor);

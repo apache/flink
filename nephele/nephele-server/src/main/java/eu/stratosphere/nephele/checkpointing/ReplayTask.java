@@ -38,7 +38,6 @@ import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
-import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplitProvider;
@@ -427,7 +426,6 @@ public final class ReplayTask implements Task {
 	 */
 	@Override
 	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints,
 			final LocalBufferPoolOwner previousBufferPoolOwner) {
 
 		return new ReplayTaskContext(this, transferEnvelopeDispatcher, previousBufferPoolOwner, this.environment

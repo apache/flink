@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
@@ -75,8 +74,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private long startTime;
 
-	RuntimeTaskContext(final RuntimeTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints) {
+	RuntimeTaskContext(final RuntimeTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
 
 		this.localBufferPool = new LocalBufferPool(1, false, this);
 		this.task = task;
@@ -96,9 +94,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		this.numberOfOutputChannels = nooc;
 
 		this.ephemeralCheckpoint = new EphemeralCheckpoint(task, ephemeral);
-		if (ephemeral) {
-			tasksWithUndecidedCheckpoints.put(task.getVertexID(), this);
-		}
+		this.task.registerCheckpointDecisionRequester(this.ephemeralCheckpoint);
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.runtimeDispatcher = new RuntimeDispatcher(transferEnvelopeDispatcher);

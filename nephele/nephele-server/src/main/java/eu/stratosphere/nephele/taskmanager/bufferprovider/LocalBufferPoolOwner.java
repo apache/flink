@@ -48,4 +48,10 @@ public interface LocalBufferPoolOwner {
 	 * Logs the current status of the local buffer pool. This method is intended mainly for debugging purposes.
 	 */
 	void logBufferUtilization();
+
+	/**
+	 * Reports an asynchronous event. Calling this method interrupts each blocking method of the buffer pool owner and
+	 * allows the blocked thread to respond to the event.
+	 */
+	void reportAsynchronousEvent();
 }

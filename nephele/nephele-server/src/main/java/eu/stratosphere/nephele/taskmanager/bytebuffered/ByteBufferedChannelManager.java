@@ -44,7 +44,6 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
@@ -65,8 +64,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private final Map<ChannelID, ChannelContext> registeredChannels = new ConcurrentHashMap<ChannelID, ChannelContext>();
 
 	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
-
-	private final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints = new ConcurrentHashMap<ExecutionVertexID, RuntimeTaskContext>();
 
 	private final NetworkConnectionManager networkConnectionManager;
 
@@ -130,7 +127,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		final Environment environment = task.getEnvironment();
 
-		final TaskContext taskContext = task.createTaskContext(this, this.tasksWithUndecidedCheckpoints,
+		final TaskContext taskContext = task.createTaskContext(this,
 			this.localBufferPoolOwner.remove(task.getVertexID()));
 
 		final Set<GateID> outputGateIDs = environment.getOutputGateIDs();
@@ -699,5 +696,16 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 			this.receiverCache.remove(it.next());
 		}
+	}
+
+	public void reportAsynchronousEvent(final ExecutionVertexID vertexID) {
+
+		final LocalBufferPoolOwner lbpo = this.localBufferPoolOwner.get(vertexID);
+		if (lbpo == null) {
+			System.out.println("Cannot find local buffer pool owner for " + vertexID);
+			return;
+		}
+
+		lbpo.reportAsynchronousEvent();
 	}
 }

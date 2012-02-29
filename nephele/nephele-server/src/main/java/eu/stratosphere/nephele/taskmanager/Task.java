@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
-import java.util.Map;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -27,7 +25,6 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
-import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 
@@ -139,7 +136,5 @@ public interface Task {
 	 */
 	ExecutionState getExecutionState();
 
-	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints,
-			LocalBufferPoolOwner previousBufferPoolOwner);
+	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher, LocalBufferPoolOwner previousBufferPoolOwner);
 }

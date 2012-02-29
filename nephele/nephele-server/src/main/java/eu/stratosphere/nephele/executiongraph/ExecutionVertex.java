@@ -45,6 +45,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
+import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -379,6 +380,33 @@ public final class ExecutionVertex {
 		}
 	}
 
+	public void waitForCheckpointStateChange(final CheckpointState initialValue, final long timeout)
+			throws InterruptedException {
+
+		if (timeout <= 0L) {
+			throw new IllegalArgumentException("Argument timeout must be greather than zero");
+		}
+
+		final long startTime = System.currentTimeMillis();
+
+		while (this.checkpointState.get() == initialValue) {
+
+			Thread.sleep(1);
+
+			if (startTime + timeout < System.currentTimeMillis()) {
+				break;
+			}
+		}
+	}
+
+	public void waitForCheckpointStateChange(final CheckpointState initialValue) throws InterruptedException {
+
+		while (this.checkpointState.get() == initialValue) {
+
+			Thread.sleep(1);
+		}
+	}
+
 	/**
 	 * Assigns the execution vertex with an {@link AllocatedResource}.
 	 * 
@@ -631,6 +659,26 @@ public final class ExecutionVertex {
 			return this.allocatedResource.getInstance().killTask(this.vertexID);
 		} catch (IOException e) {
 			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.IPC_ERROR);
+			result.setDescription(StringUtils.stringifyException(e));
+			return result;
+		}
+	}
+
+	public TaskCheckpointResult requestCheckpointDecision() {
+
+		if (this.allocatedResource == null) {
+			final TaskCheckpointResult result = new TaskCheckpointResult(getID(),
+				AbstractTaskResult.ReturnCode.NO_INSTANCE);
+			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
+			return result;
+		}
+
+		try {
+			return this.allocatedResource.getInstance().requestCheckpointDecision(this.vertexID);
+
+		} catch (IOException e) {
+			final TaskCheckpointResult result = new TaskCheckpointResult(getID(),
+				AbstractTaskResult.ReturnCode.IPC_ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
 			return result;
 		}

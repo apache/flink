@@ -16,13 +16,13 @@
 package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.checkpointing.CheckpointDecisionRequester;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
@@ -67,6 +67,12 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 * The current execution state of the task
 	 */
 	private volatile ExecutionState executionState = ExecutionState.STARTING;
+
+	/**
+	 * If the task creates a checkpoint at runtime, a checkpoint decision can be asynchronously requested through this
+	 * interface.
+	 */
+	private volatile CheckpointDecisionRequester checkpointDecisionRequester = null;
 
 	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
 
@@ -414,14 +420,13 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 */
 	@Override
 	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final Map<ExecutionVertexID, RuntimeTaskContext> tasksWithUndecidedCheckpoints,
 			final LocalBufferPoolOwner previousBufferPoolOwner) {
 
 		if (previousBufferPoolOwner != null) {
 			throw new IllegalStateException("Vertex " + this.vertexID + " has a previous buffer pool owner");
 		}
 
-		return new RuntimeTaskContext(this, transferEnvelopeDispatcher, tasksWithUndecidedCheckpoints);
+		return new RuntimeTaskContext(this, transferEnvelopeDispatcher);
 	}
 
 	/**
@@ -449,6 +454,35 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 		return (this.pactInputOutputRatioSum / (double) this.numberOfPactInputOutputRatioEntries);
 	}
+
 	// DW: End of temporary code
 
+	/**
+	 * Registers a checkpoint decision requester object with this task.
+	 * 
+	 * @param checkpointDecisionRequester
+	 *        the checkpoint decision requester object to register
+	 */
+	void registerCheckpointDecisionRequester(final CheckpointDecisionRequester checkpointDecisionRequester) {
+		this.checkpointDecisionRequester = checkpointDecisionRequester;
+	}
+
+	/**
+	 * Requests a checkpoint decision from the task.
+	 * 
+	 * @return <code>true</code> if the operation was successful, <code>false</code> if the task has not yet created a
+	 *         checkpoint
+	 */
+	public boolean requestCheckpointDecision() {
+
+		if (this.checkpointDecisionRequester == null) {
+			return false;
+		}
+
+		LOG.info("Requesting checkpoint decision for task " + this.environment.getTaskNameWithIndex());
+
+		this.checkpointDecisionRequester.requestCheckpointDecision();
+
+		return true;
+	}
 }

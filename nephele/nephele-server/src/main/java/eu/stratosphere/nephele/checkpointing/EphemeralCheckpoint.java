@@ -44,7 +44,7 @@ import eu.stratosphere.nephele.io.channels.FileBufferManager;
  * 
  * @author warneke
  */
-public class EphemeralCheckpoint implements OutputChannelForwarder {
+public class EphemeralCheckpoint implements OutputChannelForwarder, CheckpointDecisionRequester {
 
 	/**
 	 * The log object used to report problems.
@@ -91,6 +91,20 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	 */
 	private CheckpointingDecisionState checkpointingDecision;
 
+	/**
+	 * Stores whether a checkpoint decision has been requested asynchronously.
+	 */
+	private volatile boolean asyncronousCheckpointDecisionRequested = false;
+
+	/**
+	 * Constructs a new ephemeral checkpoint.
+	 * 
+	 * @param task
+	 *        the task this checkpoint belongs to
+	 * @param ephemeral
+	 *        <code>true</code> if the checkpoint is initially ephemeral, <code>false</code> if the checkpoint shall be
+	 *        persistent from the beginning
+	 */
 	public EphemeralCheckpoint(final RuntimeTask task, final boolean ephemeral) {
 
 		this.task = task;
@@ -186,6 +200,12 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 
 		if (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED) {
 			this.queuedEnvelopes.add(dup);
+
+			if (this.asyncronousCheckpointDecisionRequested) {
+				// TODO: Move decision logic here
+				setCheckpointDecisionSynchronously(true);
+			}
+
 		} else {
 			this.writeThread.write(dup);
 		}
@@ -232,5 +252,14 @@ public class EphemeralCheckpoint implements OutputChannelForwarder {
 	public void processEvent(final AbstractEvent event) {
 		// TODO Auto-generated method stub
 
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void requestCheckpointDecision() {
+
+		this.asyncronousCheckpointDecisionRequested = true;
 	}
 }
