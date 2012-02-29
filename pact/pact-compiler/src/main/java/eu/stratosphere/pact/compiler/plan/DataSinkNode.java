@@ -23,9 +23,11 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -179,72 +181,58 @@ public class DataSinkNode extends OptimizerNode {
 	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
-// union version by mjsax
 //		this.estimatedKeyCardinality = 0;
-//		this.estimatedNumRecords = 0;
-//		this.estimatedOutputSize = 0;
-//
-//		// we copy the output estimates from the input
-//		for(PactConnection c : this.input) {
-//			OptimizerNode pred = c.getSourcePact();
-//
-//			if (pred != null) {
-//				// if one input (all of them are unioned) does not know
-//				// its key cardinality, we a pessimistic and return "unknown" as well
+		this.estimatedNumRecords = 0;
+		this.estimatedOutputSize = 0;
+
+		// we copy the output estimates from the input
+		for(PactConnection c : this.input) {
+			OptimizerNode pred = c.getSourcePact();
+
+			if (pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its key cardinality, we a pessimistic and return "unknown" as well
 //				if(pred.estimatedKeyCardinality == -1) {
 //					this.estimatedKeyCardinality = -1;
 //					break;
 //				}
 //				
 //				this.estimatedKeyCardinality += pred.estimatedKeyCardinality;
-//			}
-//		}
-//
-//		// we copy the output estimates from the input
-//		for(PactConnection c : this.input) {
-//			OptimizerNode pred = c.getSourcePact();
-//
-//			if (pred != null) {
-//				// if one input (all of them are unioned) does not know
-//				// its record count, we a pessimistic and return "unknown" as well
-//				if(pred.estimatedNumRecords == -1) {
-//					this.estimatedNumRecords = -1;
-//					break;
-//				}
-//				
-//				this.estimatedNumRecords += pred.estimatedNumRecords;
-//			}
-//		}
-//		
-//		// we copy the output estimates from the input
-//		for(PactConnection c : this.input) {
-//			OptimizerNode pred = c.getSourcePact();
-//
-//			if (pred != null) {
-//				// if one input (all of them are unioned) does not know
-//				// its output size, we a pessimistic and return "unknown" as well
-//				if(pred.estimatedOutputSize == -1) {
-//					this.estimatedOutputSize = -1;
-//					break;
-//				}
-//				
-//				this.estimatedOutputSize += pred.estimatedOutputSize;
-//			}
-//		}
-// end union version
+			}
+		}
 
-//		// we copy the output estimates from the input
-//		OptimizerNode pred = input == null ? null : input.getSourcePact();
-//
-//		if (pred != null) {
-//			this.estimatedKeyCardinality = pred.estimatedKeyCardinality;
-//			this.estimatedNumRecords = pred.estimatedNumRecords;
-//			this.estimatedOutputSize = pred.estimatedOutputSize;
-//		} else {
-//			this.estimatedKeyCardinality = -1;
-//			this.estimatedNumRecords = -1;
-//			this.estimatedOutputSize = -1;
-//		}
+		// we copy the output estimates from the input
+		for(PactConnection c : this.input) {
+			OptimizerNode pred = c.getSourcePact();
+
+			if (pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its record count, we a pessimistic and return "unknown" as well
+				if(pred.estimatedNumRecords == -1) {
+					this.estimatedNumRecords = -1;
+					break;
+				}
+				
+				this.estimatedNumRecords += pred.estimatedNumRecords;
+			}
+		}
+		
+		// we copy the output estimates from the input
+		for(PactConnection c : this.input) {
+			OptimizerNode pred = c.getSourcePact();
+
+			if (pred != null) {
+				// if one input (all of them are unioned) does not know
+				// its output size, we a pessimistic and return "unknown" as well
+				if(pred.estimatedOutputSize == -1) {
+					this.estimatedOutputSize = -1;
+					break;
+				}
+				
+				this.estimatedOutputSize += pred.estimatedOutputSize;
+			}
+		}
+
 	}
 
 	/*
@@ -257,69 +245,43 @@ public class DataSinkNode extends OptimizerNode {
 		// 1) an interest in globally sorted data
 		// 2) an interest in range-partitioned data
 		// 3) an interest in locally sorted data
+		Ordering o = getPactContract().getGlobalOrder();
+		if (o != null) {
+			InterestingProperties i1 = new InterestingProperties();
+			i1.getGlobalProperties().setOrdering(o);
 
-// union version by mjsax
-//		Order o = getPactContract().getGlobalOrder();
-//		if (o != Order.NONE) {
-//			InterestingProperties i1 = new InterestingProperties();
-//			i1.getGlobalProperties().setKeyOrder(o);
-//
-//			// costs are a range partitioning and a local sort
-//			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
-//			Costs c = new Costs();
-//			estimator.getLocalSortCost(this, this.input, c);
-//			i1.getMaximalCosts().addCosts(c);
-//
-//			InterestingProperties i2 = new InterestingProperties();
-//			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED);
-//			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
-//
-//			for(PactConnection pc : this.input) {
-//				pc.addInterestingProperties(i1);
-//				pc.addInterestingProperties(i2);
-//			}
-//		} else if (getPactContract().getLocalOrder() != Order.NONE) {
-//			InterestingProperties i = new InterestingProperties();
-//			i.getLocalProperties().setKeyOrder(getPactContract().getLocalOrder());
-//			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
-//			for(PactConnection c : this.input)
-//				c.addInterestingProperties(i);
-//		} else {
-//			for(PactConnection c : this.input)
-//				c.setNoInterestingProperties();
-//		}
-// end union version
-		
-//		Order o = getPactContract().getGlobalOrder();
-//		if (o != Order.NONE) {
-//			InterestingProperties i1 = new InterestingProperties();
-//			i1.getGlobalProperties().setKeyOrder(o);
-//
-//			// costs are a range partitioning and a local sort
-//			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
-//			Costs c = new Costs();
-//			estimator.getLocalSortCost(this, this.input, c);
-//			i1.getMaximalCosts().addCosts(c);
-//
-//			InterestingProperties i2 = new InterestingProperties();
-//			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED);
-//			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
-//
-//			input.addInterestingProperties(i1);
-//			input.addInterestingProperties(i2);
-//		} else if (getPactContract().getLocalOrder() != Order.NONE) {
-//			InterestingProperties i = new InterestingProperties();
-//			i.getLocalProperties().setKeyOrder(getPactContract().getLocalOrder());
-//			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
-//			input.addInterestingProperties(i);
-//		} else {
-			// by mjsax: union
-			//this.input.setNoInterestingProperties();
-			for(PactConnection c : this.input)
-				c.setNoInterestingProperties();
-//		}
-		
-		
+			// costs are a range partitioning and a local sort
+			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
+			Costs c = new Costs();
+			estimator.getLocalSortCost(this, this.input, c);
+			i1.getMaximalCosts().addCosts(c);
+
+			InterestingProperties i2 = new InterestingProperties();
+			int[] fieldSet = new int[o.getInvolvedIndexes().size()];
+			
+			for (int i = 0; i < 0; i++) {
+				fieldSet[i] = o.getInvolvedIndexes().get(i);
+			}
+			
+			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, fieldSet);
+			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
+
+			for(PactConnection pc : this.input) {
+				pc.addInterestingProperties(i1);
+				pc.addInterestingProperties(i2);
+			}
+		} else if (getPactContract().getLocalOrder() != null) {
+			InterestingProperties i = new InterestingProperties();
+			i.getLocalProperties().setOrdering(getPactContract().getLocalOrder());
+			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
+			for(PactConnection pc : this.input) {
+				pc.addInterestingProperties(i);
+			}
+		} else {
+			for(PactConnection pc : this.input) {
+				pc.setNoInterestingProperties();
+			}
+		}
 	}
 
 	/*
@@ -379,8 +341,8 @@ public class DataSinkNode extends OptimizerNode {
 				continue;
 			}
 
-			Order go = getPactContract().getGlobalOrder();
-			Order lo = getPactContract().getLocalOrder();
+			Ordering go = getPactContract().getGlobalOrder();
+			Ordering lo = getPactContract().getLocalOrder();
 
 			GlobalProperties gp;
 			LocalProperties lp;
@@ -397,7 +359,7 @@ public class DataSinkNode extends OptimizerNode {
 			ShipStrategy ss = null;
 			LocalStrategy ls = null;
 
-			if (go != Order.NONE && go != gp.getKeyOrder()) {
+			if (go != null && go != null) {
 				// requires global sort
 
 				for(PactConnection c : this.input) {
@@ -420,11 +382,18 @@ public class DataSinkNode extends OptimizerNode {
 					// this input plan cannot produce a valid plan
 					continue;
 				}
-
-				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED);
-				gp.setKeyOrder(go);
-				lp.setKeyOrder(go);
-			} else if (lo != Order.NONE && lo != lp.getKeyOrder()) {
+				
+				int[] fieldSet = new int[go.getInvolvedIndexes().size()];
+				
+				for (int i = 0; i < 0; i++) {
+					fieldSet[i] = go.getInvolvedIndexes().get(i);
+				}
+				
+				
+				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, fieldSet);
+				gp.setOrdering(go);
+				lp.setOrdering(go);
+			} else if (lo != null && lo.isMetBy(lp.getOrdering())) {
 
 				// requires local sort
 				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
@@ -437,7 +406,7 @@ public class DataSinkNode extends OptimizerNode {
 				}
 
 				ls = LocalStrategy.SORT;
-				lp.setKeyOrder(lo);
+				lp.setOrdering(lo);
 			}
 
 			// check, if a shipping strategy applies
@@ -469,7 +438,7 @@ public class DataSinkNode extends OptimizerNode {
 		// check if the list does not contain any plan. That may happen, if the channels specify
 		// incompatible shipping strategies.
 		if (outputPlans.isEmpty()) {
-			throw new CompilerException("Could not create a valid plan for the DataSource contract '"
+			throw new CompilerException("Could not create a valid plan for the DataSink contract '"
 				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
 		}
 
@@ -496,9 +465,81 @@ public class DataSinkNode extends OptimizerNode {
 		}
 	}
 
+	public boolean isFieldKept(int input, int fieldNumber) {
+		return false;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
+	 */
 	@Override
-	public void deriveOutputSchema() {
-		// DataSink has no output, do nothing
+	protected void readCopyProjectionAnnotations() {
+		// DO NOTHING		
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
+	 */
+	@Override
+	protected void readReadsAnnotation() {
+		// DO NOTHING
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
+	 */
+	@Override
+	public void deriveOutputSchema() {
+		// DataSink has no output
+		// DO NOTHING
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
+	 */
+	@Override
+	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
+		return new FieldSet();
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
+	 */
+	@Override
+	public FieldSet getWriteSet(int input) {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
+	 */
+	@Override
+	public FieldSet getReadSet(int input) {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
+	 */
+	@Override
+	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
+	 */
+	@Override
+	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
+		return false;
+	}
+	
 }

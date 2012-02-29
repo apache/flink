@@ -15,6 +15,13 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
+import eu.stratosphere.pact.common.util.FieldSet;
+
 /**
  * A class encapsulating compiler hints describing the behavior of the user function behind the contract.
  * If set, the optimizer will use them to estimate the sizes of the intermediate results that are processed
@@ -41,18 +48,22 @@ package eu.stratosphere.pact.common.contract;
  * </ul>
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Matthias Ringwald
+ * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
 public class CompilerHints {
 
-	private long keyCardinality = -1;
-
-	private float avgRecordsEmittedPerStubCall = 1.0f;
-
-	private float avgValuesPerKey = -1.0f;
+	private float avgRecordsEmittedPerStubCall = -1.0f;
 
 	private float avgBytesPerRecord = -1.0f;
+	
+	private Map<FieldSet, Long> distinctCounts = new HashMap<FieldSet, Long>();
+
+	private Map<FieldSet, Float> avgNumRecordsPerDistinctFields = new HashMap<FieldSet, Float>();
 
 	private Class<? extends DataDistribution> inputDistribution = null;
+	
+	private Set<FieldSet> uniqueFields = null;
 
 	/**
 	 * Default constructor. Creates a new <tt>CompilerHints</tt> object
@@ -62,12 +73,17 @@ public class CompilerHints {
 	}
 
 	/**
-	 * Gets the key cardinality for the contract containing these hints..
+	 * Gets the count of distinct values for the given set of fields.
 	 * 
-	 * @return The key cardinality, or -1, if unknown.
+	 * @param fieldSet The set of fields for which the count is requested. 
+	 * @return The count of distinct values for the given set of fields or -1, if unknown.
 	 */
-	public long getKeyCardinality() {
-		return keyCardinality;
+	public long getDistinctCount(FieldSet fieldSet) {
+		Long estimate;
+		if ((estimate = distinctCounts.get(fieldSet)) == null) {
+			estimate = -1L;
+		}
+		return estimate;
 	}
 
 	/**
@@ -76,13 +92,22 @@ public class CompilerHints {
 	 * @param keyCardinality
 	 *        The key cardinality to set.
 	 */
-	public void setKeyCardinality(long keyCardinality) {
-		if(keyCardinality < 0) {
-			throw new IllegalArgumentException("Key Cardinality must be >= 0!");
+	public void setDistinctCount(FieldSet fieldSet, long cardinality) {
+		if(cardinality < 0) {
+			throw new IllegalArgumentException("Cardinality must be >= 0!");
 		}
-		this.keyCardinality = keyCardinality;
+		this.distinctCounts.put(fieldSet, cardinality);
 	}
 
+	/**
+	 * Returns all specified distinct counts.
+	 * 
+	 * @return all specified distinct counts.
+	 */
+	public Map<FieldSet, Long> getDistinctCounts() {
+		return distinctCounts;
+	}
+	
 	/**
 	 * Gets the class that models the distribution of input data
 	 *
@@ -101,25 +126,38 @@ public class CompilerHints {
 	}
 
 	/**
-	 * Gets the average number of values per distinct key from the contract containing these hints.
+	 * Gets the average number of records per distinct field set from the contract containing these hints.
 	 * 
-	 * @return The average number of values per key, or -1.0, if not set.
+	 * @return The average number of records per distinct field set or -1.0, if not set.
 	 */
-	public float getAvgNumValuesPerKey() {
-		return avgValuesPerKey;
+	public float getAvgNumRecordsPerDistinctFields(FieldSet columnSet) {
+		Float avg;
+		if ((avg = avgNumRecordsPerDistinctFields.get(columnSet)) == null) {
+			avg = -1.0F;
+		}
+		return avg;
+	}
+	
+	/**
+	 * Gets the average number of records for all specified field sets.
+	 * 
+	 * @return The average number of records for all specified field sets.
+	 */
+	public Map<FieldSet, Float> getAvgNumRecordsPerDistinctFields() {
+		return avgNumRecordsPerDistinctFields;
 	}
 
 	/**
-	 * Sets the average number of values per distinct key for the contract containing these hints.
+	 * Sets the average number of records per distinct field set for the contract containing these hints.
 	 * 
-	 * @param avgNumValues
-	 *        The average number of values per key to set.
+	 * @param avgNumRecords
+	 *        The average number of records per distinct field set to set.
 	 */
-	public void setAvgNumValuesPerKey(float avgNumValues) {
-		if(avgNumValues < 0) {
-			throw new IllegalArgumentException("Average Number of Values per Key must be >= 0");
+	public void setAvgNumRecordsPerDistinctFields(FieldSet fieldSet, float avgNumRecords) {
+		if(avgNumRecords < 0) {
+			throw new IllegalArgumentException("Average Number of Values per distinct Values must be >= 0");
 		}
-		this.avgValuesPerKey = avgNumValues;
+		this.avgNumRecordsPerDistinctFields.put(fieldSet, avgNumRecords);
 	}
 
 	/**
@@ -167,5 +205,35 @@ public class CompilerHints {
 		}
 		this.avgRecordsEmittedPerStubCall = avgRecordsEmittedPerStubCall;
 	}
+	
+
+	/**
+	 * Gets the FieldSets that are unique
+	 * 
+	 * @return List of FieldSet that are unique
+	 */
+	public Set<FieldSet> getUniqueFields() {
+		return this.uniqueFields;
+	}
+	
+	/**
+	 * Sets a FieldSet to be unique
+	 * 
+	 * @param uniqueFieldSet The unique FieldSet
+	 */
+	public void setUniqueField(FieldSet uniqueFieldSet) {
+		this.uniqueFields = Collections.singleton(uniqueFieldSet);
+	}
+	
+	/**
+	 * Sets multiple FieldSets to be unique
+	 * 
+	 * @param uniqueFieldSets A set of unique FieldSet
+	 */
+	public void setUniqueField(Set<FieldSet> uniqueFieldSets) {
+		this.uniqueFields = uniqueFieldSets;
+	}
+	
+	
 
 }

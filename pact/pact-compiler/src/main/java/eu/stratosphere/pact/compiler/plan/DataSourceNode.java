@@ -19,16 +19,21 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
+import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.InputFormat;
 import eu.stratosphere.pact.common.io.OutputSchemaProvider;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -120,107 +125,125 @@ public class DataSourceNode extends OptimizerNode
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics)
 	{
-//		CompilerHints hints = getPactContract().getCompilerHints();
-//		
-//		// for unique keys, we can have only one value per key
+		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		// for unique keys, we can have only one value per key
 //		OutputContract oc = getOutputContract();
 //		if (oc == OutputContract.UniqueKey) {
 //			hints.setAvgNumValuesPerKey(1.0f);
 //		}
-//		
-//		// initialize basic estimates to unknown
-//		this.estimatedOutputSize = -1;
-//		this.estimatedNumRecords = -1;
-//		this.estimatedKeyCardinality = -1;
-//
-//		// see, if we have a statistics object that can tell us a bit about the file
-//		if (statistics != null)
-//		{
-//			// instantiate the input format, as this is needed by the statistics 
-//			InputFormat<?> format = null;
-//			String inFormatDescription = "<unknown>";
-//			
-//			try {
-//				Class<? extends InputFormat<?>> formatClass = getPactContract().getFormatClass();
-//				format = formatClass.newInstance();
-//				format.configure(getPactContract().getParameters());
-//			}
-//			catch (Throwable t) {
-//				if (PactCompiler.LOG.isWarnEnabled())
-//					PactCompiler.LOG.warn("Could not instantiate input format to obtain statistics."
-//						+ " Limited statistics will be available.", t);
-//				return;
-//			}
-//			try {
-//				inFormatDescription = format.toString();
-//			}
-//			catch (Throwable t) {}
-//			
-//			// first of all, get the statistics from the cache
-//			final String statisticsKey = getPactContract().getParameters().getString(InputFormat.STATISTICS_CACHE_KEY, null);
-//			final BaseStatistics cachedStatistics = statistics.getBaseStatistics(statisticsKey);
-//			
-//			BaseStatistics bs = null;
-//			try {
-//				bs = format.getStatistics(cachedStatistics);
-//			}
-//			catch (Throwable t) {
-//				if (PactCompiler.LOG.isWarnEnabled())
-//					PactCompiler.LOG.warn("Error obtaining statistics from input format: " + t.getMessage(), t);
-//			}
-//			
-//			if (bs != null) {
-//				final long len = bs.getTotalInputSize();
-//				if (len == BaseStatistics.UNKNOWN) {
-//					if (PactCompiler.LOG.isWarnEnabled())
-//						PactCompiler.LOG.warn("Pact compiler could not determine the size of input '" + inFormatDescription + "'.");
-//				}
-//				else if (len >= 0) {
-//					this.estimatedOutputSize = len;
-//				}
-//
-//				final float avgBytes = bs.getAverageRecordWidth();
-//				if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
-//					hints.setAvgBytesPerRecord(avgBytes);
-//				}
-//				
-//				final long card = bs.getNumberOfRecords();
-//				if (card != BaseStatistics.UNKNOWN) {
-//					this.estimatedNumRecords = card;
-//				}
-//			}
-//		}
-//
-//		// the estimated number of rows is depending on the average row width
-//		if (this.estimatedNumRecords == -1 && hints.getAvgBytesPerRecord() >= 1.0f && this.estimatedOutputSize > 0) {
-//			this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerRecord()) + 1;
-//		}
-//
-//		// the key cardinality is either explicitly specified, derived from an avgNumValuesPerKey hint, 
-//		// or we assume for robustness reasons that every record has a unique key. 
-//		// Key cardinality overestimation results in more robust plans
-//		
-//		if (hints.getKeyCardinality() != -1) {
-//			this.estimatedKeyCardinality = hints.getKeyCardinality();
-//		} else if (this.estimatedNumRecords != -1 && hints.getAvgNumValuesPerKey() != -1) {
-//			this.estimatedKeyCardinality = (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) >= 1 ?
-//					(long) (this.estimatedNumRecords / hints.getAvgNumValuesPerKey()) : 1;
-//		} else {
-//			this.estimatedKeyCardinality = this.estimatedNumRecords;
-//		}
-//
-//		// if we have the key cardinality and an average number of values per key, we can estimate the number
-//		// of rows
-//		if (this.estimatedNumRecords == -1 && this.estimatedKeyCardinality != -1 && hints.getAvgNumValuesPerKey() >= 1.0f) {
-//			this.estimatedNumRecords = (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) >= 1 ? 
-//				(long) (this.estimatedKeyCardinality * hints.getAvgNumValuesPerKey()) : 1;
-//		}
-//		
-//		// Estimate output size
-//		if (this.estimatedOutputSize == -1 && this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() >= 1.0f) {
-//			this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) >= 1 ? 
-//				(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
-//		}
+		
+		// initialize basic estimates to unknown
+		this.estimatedOutputSize = -1;
+		this.estimatedNumRecords = -1;
+
+		// see, if we have a statistics object that can tell us a bit about the file
+		if (statistics != null)
+		{
+			// instantiate the input format, as this is needed by the statistics 
+			InputFormat<?> format = null;
+			String inFormatDescription = "<unknown>";
+			
+			try {
+				Class<? extends InputFormat<?>> formatClass = getPactContract().getFormatClass();
+				format = formatClass.newInstance();
+				format.configure(getPactContract().getParameters());
+			}
+			catch (Throwable t) {
+				if (PactCompiler.LOG.isWarnEnabled())
+					PactCompiler.LOG.warn("Could not instantiate input format to obtain statistics."
+						+ " Limited statistics will be available.", t);
+				return;
+			}
+			try {
+				inFormatDescription = format.toString();
+			}
+			catch (Throwable t) {}
+			
+			// first of all, get the statistics from the cache
+			final String statisticsKey = getPactContract().getParameters().getString(InputFormat.STATISTICS_CACHE_KEY, null);
+			final BaseStatistics cachedStatistics = statistics.getBaseStatistics(statisticsKey);
+			
+			BaseStatistics bs = null;
+			try {
+				bs = format.getStatistics(cachedStatistics);
+			}
+			catch (Throwable t) {
+				if (PactCompiler.LOG.isWarnEnabled())
+					PactCompiler.LOG.warn("Error obtaining statistics from input format: " + t.getMessage(), t);
+			}
+			
+			if (bs != null) {
+				final long len = bs.getTotalInputSize();
+				if (len == BaseStatistics.UNKNOWN) {
+					if (PactCompiler.LOG.isWarnEnabled())
+						PactCompiler.LOG.warn("Pact compiler could not determine the size of input '" + inFormatDescription + "'.");
+				}
+				else if (len >= 0) {
+					this.estimatedOutputSize = len;
+				}
+
+				final float avgBytes = bs.getAverageRecordWidth();
+				if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
+					hints.setAvgBytesPerRecord(avgBytes);
+				}
+				
+				final long card = bs.getNumberOfRecords();
+				if (card != BaseStatistics.UNKNOWN) {
+					this.estimatedNumRecords = card;
+				}
+			}
+		}
+
+		// the estimated number of rows is depending on the average row width
+		if (this.estimatedNumRecords == -1 && hints.getAvgBytesPerRecord() >= 1.0f && this.estimatedOutputSize > 0) {
+			this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerRecord()) + 1;
+		}
+
+		// the key cardinality is either explicitly specified, derived from an avgNumValuesPerKey hint, 
+		// or we assume for robustness reasons that every record has a unique key. 
+		// Key cardinality overestimation results in more robust plans
+		
+		this.estimatedCardinality.putAll(hints.getDistinctCounts());
+		
+		if(this.estimatedNumRecords != -1) {
+			for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
+				if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
+					long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
+							(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;
+					estimatedCardinality.put(avgNumValues.getKey(), estimatedCard);
+				}
+			}
+		}
+		else {
+			// if we have the key cardinality and an average number of values per key, we can estimate the number
+			// of rows
+			this.estimatedNumRecords = 0;
+			int count = 0;
+			
+			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
+				if (avgNumValues != -1) {
+					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
+					count++;
+				}
+			}
+			
+			if (count > 0) {
+				this.estimatedNumRecords = (this.estimatedNumRecords /count) >= 1 ?
+						(this.estimatedNumRecords /count) : 1;
+			}
+			else {
+				this.estimatedNumRecords = -1;
+			}
+		}
+		
+		
+		// Estimate output size
+		if (this.estimatedOutputSize == -1 && this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() >= 1.0f) {
+			this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) >= 1 ? 
+				(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
+		}
 	}
 
 	/*
@@ -291,9 +314,50 @@ public class DataSourceNode extends OptimizerNode
 		}
 	}
 
+	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		return false;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
+	 */
+	@Override
+	protected void readCopyProjectionAnnotations() {
+		// DO NOTHING		
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
+	 */
+	@Override
+	protected void readReadsAnnotation() {
+		// DO NOTHING
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public void deriveOutputSchema() {
+		
+		this.outputSchema = this.computeOutputSchema(Collections.EMPTY_LIST);
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
+		
+		if(inputSchemas.size() > 0)
+			throw new IllegalArgumentException("DataSourceNode do not have input nodes");
 		
 		// get the input format class
 		Class<InputFormat<?>> clazz = (Class<InputFormat<?>>)((GenericDataSource<? extends InputFormat<?>>)getPactContract()).getFormatClass();
@@ -305,11 +369,9 @@ public class DataSourceNode extends OptimizerNode
 			if(inputFormat instanceof OutputSchemaProvider) {
 				
 				inputFormat.configure(getPactContract().getParameters());
-				this.outputSchema = ((OutputSchemaProvider) inputFormat).getOutputSchema();
-				return;
+				return new FieldSet(((OutputSchemaProvider) inputFormat).getOutputSchema());
 			} else {
-				this.outputSchema = null;
-				return;
+				return null;
 			}
 			
 		} catch (InstantiationException e) {
@@ -317,6 +379,43 @@ public class DataSourceNode extends OptimizerNode
 		} catch (IllegalAccessException e) {
 			e.printStackTrace();
 		}
+		return null;
+		
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
+	 */
+	@Override
+	public FieldSet getReadSet(int input) {
+		return null;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
+	 */
+	@Override
+	public FieldSet getWriteSet(int input) {
+		return null;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
+	 */
+	@Override
+	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
+	 */
+	@Override
+	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
+		return false;
+	}
 }

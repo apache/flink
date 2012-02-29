@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.relational.util;
+package eu.stratosphere.pact.test.testPrograms.util.tests;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -23,6 +23,8 @@ import java.io.IOException;
 
 import org.eclipse.jdt.internal.core.Assert;
 import org.junit.Test;
+
+import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 
 public class TupleTest {
 
