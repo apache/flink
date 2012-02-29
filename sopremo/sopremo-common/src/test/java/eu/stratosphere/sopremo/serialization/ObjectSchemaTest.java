@@ -121,4 +121,18 @@ public class ObjectSchemaTest {
 		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
 		this.schema.recordToJson(record, null);
 	}
+	
+	@Test(expected=NullPointerException.class)
+	public void shouldTestBla(){
+		this.schema.setMappings("firstname", "lastname");
+		ObjectNode object = new ObjectNode();
+		object.put("firstname", TextNode.valueOf("testfn"))
+			.put("lastnameasdf", TextNode.valueOf("testln123"));
+		
+		PactRecord record = this.schema.jsonToRecord(object, null);
+		
+		IJsonNode object2 = this.schema.recordToJson(record, null);
+		
+		Assert.assertEquals(object, object2);
+	}
 }

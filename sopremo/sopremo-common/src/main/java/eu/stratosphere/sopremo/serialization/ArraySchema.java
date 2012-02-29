@@ -103,7 +103,18 @@ public class ArraySchema implements Schema {
 	 */
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		// TODO
+		if(this.mappingSize()+1 != record.getNumFields()){
+			throw new IllegalStateException("Schema does not match to record!");
+		}
+		if(target == null){
+			target = new ArrayNode();
+		} else {
+			((IArrayNode)target).clear();
+		}
+		IJsonNode node;
+		for(int i = 0; i< this.mappingSize(); i++){
+			((IArrayNode)target).add(SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
+		}
 		return target;
 
 	}
