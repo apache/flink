@@ -87,6 +87,14 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	public abstract IArrayNode addAll(final Collection<? extends IJsonNode> c);
 
 	/**
+	 * Adds all {@link IJsonNode}s in the given {@link IArrayNode} to the end of this array. 
+	 * @param node
+	 * 	an IArrayNode with all nodes which should be added
+	 * @return this node
+	 */
+	public abstract IArrayNode addAll(final IArrayNode node);
+	
+	/**
 	 * Transforms this node into a standard Java-Array containing all saved nodes.
 	 * @return Array of all saved nodes
 	 */

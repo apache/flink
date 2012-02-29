@@ -96,7 +96,9 @@ public class ObjectSchema implements Schema {
 		}
 		
 		for(int i=0; i< this.mapping.size(); i++){
-			((IObjectNode)target).put(this.mapping.get(i), SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
+			if(record.getField(i, JsonNodeWrapper.class) != null){
+				((IObjectNode)target).put(this.mapping.get(i), SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
+			}
 		}
 		
 		((IObjectNode)target).putAll((IObjectNode)SopremoUtil.unwrap(record.getField(this.mapping.size(), JsonNodeWrapper.class)));	

@@ -40,6 +40,10 @@ public class ArraySchema implements Schema {
 	public void setHeadSize(int headSize) {
 		this.headSize = headSize;
 	}
+	
+	public int getHeadSize(){
+		return this.headSize;
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -49,7 +53,7 @@ public class ArraySchema implements Schema {
 	public Class<? extends Value>[] getPactSchema() {
 		Class<? extends Value>[] schema = new Class[mappingSize() + 1];
 
-		for (int i = 0; i <= mappingSize() ; i++) {
+		for (int i = 0; i <= mappingSize(); i++) {
 			schema[i] = JsonNodeWrapper.class;
 		}
 
@@ -71,28 +75,28 @@ public class ArraySchema implements Schema {
 			others = new ArrayNode();
 			target.setField(headSize, new JsonNodeWrapper(others));
 		} else {
-			//clear the others field if target was already used
+			// clear the others field if target was already used
 			others = (IArrayNode) SopremoUtil.unwrap(target.getField(this.headSize, JsonNodeWrapper.class));
 			others.clear();
 		}
 
 		IJsonNode arrayElement;
 		for (int i = 0; i < this.headSize; i++) {
-				arrayElement = ((IArrayNode) value).get(i);
-				if(!arrayElement.isMissing()){
-					target.setField(i, new JsonNodeWrapper(arrayElement));
-				} else{
-					target.setNull(i);				
+			arrayElement = ((IArrayNode) value).get(i);
+			if (!arrayElement.isMissing()) {
+				target.setField(i, new JsonNodeWrapper(arrayElement));
+			} else {
+				target.setNull(i);
 			}
 		}
-		
-		//if there are still remaining elements in the array we put insert them into the others field
+
+		// if there are still remaining elements in the array we insert them into the others field
 		if (this.mappingSize() < ((IArrayNode) value).size()) {
-			for (int i = this.headSize; i < ((IArrayNode) value).size(); i++){
-				others.add(((IArrayNode)value).get(i));
+			for (int i = this.headSize; i < ((IArrayNode) value).size(); i++) {
+				others.add(((IArrayNode) value).get(i));
 			}
-		} 
-		
+		}
+
 		return target;
 	}
 
@@ -103,18 +107,23 @@ public class ArraySchema implements Schema {
 	 */
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		if(this.mappingSize()+1 != record.getNumFields()){
+		if (this.mappingSize() + 1 != record.getNumFields()) {
 			throw new IllegalStateException("Schema does not match to record!");
 		}
-		if(target == null){
+		if (target == null) {
 			target = new ArrayNode();
 		} else {
-			((IArrayNode)target).clear();
+			((IArrayNode) target).clear();
 		}
-		IJsonNode node;
-		for(int i = 0; i< this.mappingSize(); i++){
-			((IArrayNode)target).add(SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
+		for (int i = 0; i < this.mappingSize(); i++) {
+			if (record.getField(i, JsonNodeWrapper.class) != null) {
+				((IArrayNode) target).add(SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
+			}
 		}
+
+		((IArrayNode) target).addAll((IArrayNode) SopremoUtil.unwrap(record.getField(this.mappingSize(),
+			JsonNodeWrapper.class)));
+
 		return target;
 
 	}

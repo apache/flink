@@ -24,12 +24,12 @@ import eu.stratosphere.pact.testing.PactRecordEqualer;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 
 /**
  * @author Michael Hopstock
  * @author Tommy Neubert
- *
  */
 public class ArraySchemaTest {
 
@@ -39,18 +39,48 @@ public class ArraySchemaTest {
 	public void setUp() {
 		this.schema = new ArraySchema();
 	}
-	
+
 	@Test
-	public void shouldConvertFromJsonToRecord(){
+	public void shouldConvertFromJsonToRecord() {
 		this.schema.setHeadSize(2);
 		IArrayNode array = new ArrayNode();
 		array.add(IntNode.valueOf(1));
 		PactRecord result = this.schema.jsonToRecord(array, null);
-		
+
 		PactRecord expected = new PactRecord(3);
 		expected.setField(0, new JsonNodeWrapper(IntNode.valueOf(1)));
 		expected.setField(2, new JsonNodeWrapper(new ArrayNode()));
-		
+
 		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
+	}
+
+	@Test
+	public void shouldConvertFromRecordToJson() {
+		PactRecord record = new PactRecord();
+		this.schema.setHeadSize(2);
+
+		record.setField(0, new JsonNodeWrapper(IntNode.valueOf(0)));
+		record.setField(1, new JsonNodeWrapper(IntNode.valueOf(1)));
+		record.setField(2, new JsonNodeWrapper(new ArrayNode(IntNode.valueOf(2))));
+
+		IArrayNode expected = new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2));
+		IJsonNode result = this.schema.recordToJson(record, null);
+
+		Assert.assertEquals(expected, result);
+	}
+
+	@Test
+	public void shouldKeepIdentityOnConversion() {
+		PactRecord record = new PactRecord();
+		this.schema.setHeadSize(5);
+
+		record.setField(0, new JsonNodeWrapper(IntNode.valueOf(0)));
+		record.setField(1, new JsonNodeWrapper(IntNode.valueOf(1)));
+		record.setField(5, new JsonNodeWrapper(new ArrayNode()));
+
+		IJsonNode node = this.schema.recordToJson(record, null);
+		PactRecord result = this.schema.jsonToRecord(node, null);
+
+		Assert.assertTrue(PactRecordEqualer.recordsEqual(record, result, this.schema.getPactSchema()));
 	}
 }

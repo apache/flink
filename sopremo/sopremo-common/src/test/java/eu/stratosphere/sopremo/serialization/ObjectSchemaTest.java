@@ -122,8 +122,8 @@ public class ObjectSchemaTest {
 		this.schema.recordToJson(record, null);
 	}
 	
-	@Test(expected=NullPointerException.class)
-	public void shouldTestBla(){
+	@Test
+	public void conversionShouldKeepIdentity(){
 		this.schema.setMappings("firstname", "lastname");
 		ObjectNode object = new ObjectNode();
 		object.put("firstname", TextNode.valueOf("testfn"))

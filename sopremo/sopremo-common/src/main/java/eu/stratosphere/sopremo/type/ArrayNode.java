@@ -33,7 +33,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 			this.add(node);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#size()
 	 */
 	@Override
@@ -41,7 +42,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return this.children.size();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#add(eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
@@ -52,7 +54,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return this;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#add(int, eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
@@ -61,7 +64,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return this;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#get(int)
 	 */
 	@Override
@@ -71,7 +75,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return MissingNode.getInstance();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#set(int, eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
@@ -81,18 +86,20 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return this.children.set(index, node);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#remove(int)
 	 */
 	@Override
 	public IJsonNode remove(final int index) {
 		if (0 <= index && index < this.children.size())
 			return this.children.remove(index);
-		//throw new ArrayIndexOutOfBoundsException();
+		// throw new ArrayIndexOutOfBoundsException();
 		return MissingNode.getInstance();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#clear()
 	 */
 	@Override
@@ -205,7 +212,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return this.children.toArray(new IJsonNode[this.children.size()]);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#addAll(java.util.Collection)
 	 */
 	@Override
@@ -238,6 +246,14 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 
 	public IJsonNode subArray(final int fromIndex, final int toIndex) {
 		return new ArrayNode(this.children.subList(fromIndex, toIndex));
+	}
+
+	@Override
+	public IArrayNode addAll(IArrayNode node) {
+		for (IJsonNode n : node) {
+			this.add(n);
+		}
+		return this;
 	}
 
 }

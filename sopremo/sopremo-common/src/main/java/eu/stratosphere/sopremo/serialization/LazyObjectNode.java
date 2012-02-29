@@ -41,7 +41,7 @@ import eu.stratosphere.util.ConcatenatingIterator;
  */
 public class LazyObjectNode extends JsonNode implements IObjectNode {
 
-	/**
+	/**.
 	 * 
 	 */
 	private static final long serialVersionUID = 5777496928208571589L;
