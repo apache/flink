@@ -1,10 +1,17 @@
 package eu.stratosphere.sopremo.type;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 import junit.framework.Assert;
 
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import eu.stratosphere.pact.testing.AssertUtil;
+import eu.stratosphere.pact.testing.Equaler;
 
 @Ignore
 public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
@@ -95,5 +102,21 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 	@Test(expected = IndexOutOfBoundsException.class)
 	public void shouldThrowExceptionIfAddingWithWrongIndex() {
 		this.node.add(this.node.size() + 1, TextNode.valueOf("firstname"));
+	}
+
+	@Test
+	public void shouldCreateIterator() {
+		this.node.clear();
+		List<IJsonNode> expected = new ArrayList<IJsonNode>();
+
+		for (int i = 0; i < 10; i++) {
+			IJsonNode value = IntNode.valueOf(i);
+
+			expected.add(value);
+			this.node.add(value);
+		}
+
+		Iterator<IJsonNode> it = this.node.iterator();
+		AssertUtil.assertIteratorEquals(expected.iterator(), it, Equaler.JavaEquals);
 	}
 }
