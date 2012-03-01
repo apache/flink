@@ -24,8 +24,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * 
- * 
  * @author Arvid Heise
  */
 public abstract class BinaryOutputFormat extends FileOutputFormat {
@@ -156,34 +154,33 @@ public abstract class BinaryOutputFormat extends FileOutputFormat {
 			this.totalCount++;
 		}
 
-		// /*
-		// * (non-Javadoc)
-		// * @see java.io.FilterOutputStream#write(byte[])
-		// */
-		// @Override
-		// public void write(byte[] b) throws IOException {
-		// this.write(b, 0, b.length);
-		// }
-		//
-		// /*
-		// * (non-Javadoc)
-		// * @see java.io.FilterOutputStream#write(byte[], int, int)
-		// */
-		// @Override
-		// public void write(byte[] b, int off, int len) throws IOException {
-		//
-		// // for (int remainingLength = len, offset = off; remainingLength > 0;) {
-		// // int blockLen = Math.min(remainingLength, this.maxPayloadSize - this.blockPos);
-		// // super.write(b, offset, blockLen);
-		// //
-		// //
-		// // this.blockPos += blockLen;
-		// // if (this.blockPos >= this.maxPayloadSize)
-		// // this.writeInfo();
-		// // remainingLength -= blockLen;
-		// // offset += blockLen;
-		// // }
-		// }
+		/*
+		 * (non-Javadoc)
+		 * @see java.io.FilterOutputStream#write(byte[])
+		 */
+		@Override
+		public void write(byte[] b) throws IOException {
+			this.write(b, 0, b.length);
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.io.FilterOutputStream#write(byte[], int, int)
+		 */
+		@Override
+		public void write(byte[] b, int off, int len) throws IOException {
+
+			for (int remainingLength = len, offset = off; remainingLength > 0;) {
+				int blockLen = Math.min(remainingLength, this.maxPayloadSize - this.blockPos);
+				out.write(b, offset, blockLen);
+
+				this.blockPos += blockLen;
+				if (this.blockPos >= this.maxPayloadSize)
+					this.writeInfo();
+				remainingLength -= blockLen;
+				offset += blockLen;
+			}
+		}
 
 		/*
 		 * (non-Javadoc)

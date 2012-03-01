@@ -36,6 +36,5 @@ public class SequentialInputFormat extends BinaryInputFormat {
 	@Override
 	protected void deserialize(PactRecord record, DataInput dataInput) throws IOException {
 		record.read(dataInput);
-		System.out.println("read " + record.getField(0, PactInteger.class) + " " + record.getField(1, PactInteger.class));
 	}
 }
