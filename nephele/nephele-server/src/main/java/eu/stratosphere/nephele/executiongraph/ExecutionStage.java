@@ -329,6 +329,8 @@ public final class ExecutionStage {
 	void reconstructExecutionPipelines() {
 
 		Iterator<ExecutionGroupVertex> it = this.stageMembers.iterator();
+		final Set<ExecutionVertex> alreadyVisited = new HashSet<ExecutionVertex>();
+
 		while (it.hasNext()) {
 
 			final ExecutionGroupVertex groupVertex = it.next();
@@ -342,11 +344,13 @@ public final class ExecutionStage {
 			while (vertexIt.hasNext()) {
 
 				final ExecutionVertex vertex = vertexIt.next();
-				reconstructExecutionPipeline(vertex, true);
+				reconstructExecutionPipeline(vertex, true, alreadyVisited);
 			}
 		}
 
 		it = this.stageMembers.iterator();
+		alreadyVisited.clear();
+
 		while (it.hasNext()) {
 
 			final ExecutionGroupVertex groupVertex = it.next();
@@ -360,7 +364,7 @@ public final class ExecutionStage {
 			while (vertexIt.hasNext()) {
 
 				final ExecutionVertex vertex = vertexIt.next();
-				reconstructExecutionPipeline(vertex, false);
+				reconstructExecutionPipeline(vertex, false, alreadyVisited);
 			}
 		}
 	}
@@ -372,9 +376,12 @@ public final class ExecutionStage {
 	 *        the vertex to start the depth-first search from
 	 * @param forward
 	 *        <code>true</code> to traverse the graph according to the original direction of the edges or
-	 *        <code>false</code> for the opposite direction.
+	 *        <code>false</code> for the opposite direction
+	 * @param alreadyVisited
+	 *        a set of vertices that have already been visited in the depth-first search
 	 */
-	private void reconstructExecutionPipeline(final ExecutionVertex vertex, final boolean forward) {
+	private void reconstructExecutionPipeline(final ExecutionVertex vertex, final boolean forward,
+			final Set<ExecutionVertex> alreadyVisited) {
 
 		ExecutionPipeline pipeline = vertex.getExecutionPipeline();
 		if (pipeline == null) {
@@ -382,6 +389,8 @@ public final class ExecutionStage {
 			vertex.setExecutionPipeline(pipeline);
 		}
 
+		alreadyVisited.add(vertex);
+		
 		final Environment env = vertex.getEnvironment();
 
 		if (forward) {
@@ -398,11 +407,21 @@ public final class ExecutionStage {
 					final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(outputChannel
 						.getConnectedChannelID());
 
+					boolean recurse = false;
+					
+					if(!alreadyVisited.contains(connectedVertex)) {
+						recurse = true;
+					} else if(channelType == ChannelType.INMEMORY && !pipeline.equals(connectedVertex.getExecutionPipeline())) {
+						recurse = true;
+					}
+					
 					if (channelType == ChannelType.INMEMORY) {
 						connectedVertex.setExecutionPipeline(pipeline);
 					}
 
-					reconstructExecutionPipeline(connectedVertex, true);
+					if (recurse) {
+						reconstructExecutionPipeline(connectedVertex, true, alreadyVisited);
+					}
 				}
 			}
 		} else {
@@ -419,11 +438,21 @@ public final class ExecutionStage {
 					final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(inputChannel
 						.getConnectedChannelID());
 
+					boolean recurse = false;
+					
+					if(!alreadyVisited.contains(connectedVertex)) {
+						recurse = true;
+					} else if(channelType == ChannelType.INMEMORY && !pipeline.equals(connectedVertex.getExecutionPipeline())) {
+						recurse = true;
+					}
+					
 					if (channelType == ChannelType.INMEMORY) {
 						connectedVertex.setExecutionPipeline(pipeline);
 					}
 
-					reconstructExecutionPipeline(connectedVertex, false);
+					if (recurse) {
+						reconstructExecutionPipeline(connectedVertex, false, alreadyVisited);
+					}
 				}
 			}
 		}
