@@ -20,14 +20,29 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 
 	private List<IJsonNode> children = new ArrayList<IJsonNode>();
 
+	/**
+	 * Initializes an empty ArrayNode.
+	 */
 	public ArrayNode() {
 	}
 
+	/**
+	 * Initializes an ArrayNode which contains the given {@link IJsonNode}s in proper sequence.
+	 *
+	 * @param nodes
+	 * 	the nodes which should be added to this ArrayNode
+	 */
 	public ArrayNode(final IJsonNode... nodes) {
 		for (final IJsonNode node : nodes)
 			this.add(node);
 	}
 
+	/**
+	 * Initializes an ArrayNode which cointains all {@link IJsonNode}s from the given Collection in proper sequence.
+	 *
+	 * @param nodes
+	 *  a Collection of nodes which should be added to this ArrayNode
+	 */
 	public ArrayNode(final Collection<? extends IJsonNode> nodes) {
 		for (final IJsonNode node : nodes)
 			this.add(node);
@@ -209,10 +224,14 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return true;
 	}
 
+	/**
+	 * Checks if this node is currently empty.
+	 */
 	public boolean isEmpty() {
 		return this.children.isEmpty();
 	}
 
+	
 	public static ArrayNode valueOf(final Iterator<IJsonNode> iterator) {
 		final ArrayNode array = new ArrayNode();
 		while (iterator.hasNext())
