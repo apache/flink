@@ -227,6 +227,6 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		}
 
 		// Deploy the assigned vertices
-		deployAssignedVertices(executionStage.getExecutionGraph());
+		deployAssignedInputVertices(executionStage.getExecutionGraph());
 	}
 }

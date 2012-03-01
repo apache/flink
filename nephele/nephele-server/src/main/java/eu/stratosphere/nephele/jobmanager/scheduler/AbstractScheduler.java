@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.jobmanager.scheduler;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,7 +29,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
@@ -72,16 +72,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 	protected static final Log LOG = LogFactory.getLog(AbstractScheduler.class);
 
 	/**
-	 * The configuration key to check whether task merging is allowed.
-	 */
-	private static final String ALLOW_TASK_MERGING_KEY = "scheduler.queue.allowTaskMerging";
-
-	/**
-	 * The default setting for task merging.
-	 */
-	private static final boolean DEFAULT_ALLOW_TASK_MERGING = false;
-
-	/**
 	 * The instance manager assigned to this scheduler.
 	 */
 	private final InstanceManager instanceManager;
@@ -90,11 +80,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * The deployment manager assigned to this scheduler.
 	 */
 	private final DeploymentManager deploymentManager;
-
-	/**
-	 * Stores whether task merging is allowed.
-	 */
-	private final boolean allowTaskMerging;
 
 	/**
 	 * Stores the vertices to be restarted once they have switched to the <code>CANCELED</code> state.
@@ -113,12 +98,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 		this.deploymentManager = deploymentManager;
 		this.instanceManager = instanceManager;
-		this.allowTaskMerging = GlobalConfiguration.getBoolean(ALLOW_TASK_MERGING_KEY,
-			DEFAULT_ALLOW_TASK_MERGING);
-
 		this.instanceManager.setInstanceListener(this);
-
-		LOG.info("initialized scheduler with task merging " + (this.allowTaskMerging ? "enabled" : "disabled"));
 	}
 
 	/**
@@ -240,7 +220,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 				deployTarget = false;
 				break;
 			case NETWORK:
-				deployTarget = !this.allowTaskMerging;
+				deployTarget = false;
 				break;
 			case INMEMORY:
 				deployTarget = true;
@@ -263,13 +243,80 @@ public abstract class AbstractScheduler implements InstanceListener {
 	}
 
 	/**
-	 * Collects all execution vertices with the state ASSIGNED from the current execution stage and deploys them on the
-	 * assigned {@link AllocatedResource} objects.
+	 * Collects all execution vertices with the state ASSIGNED starting from the given start vertex and
+	 * deploys them on the assigned {@link AllocatedResource} objects.
+	 * 
+	 * @param startVertex
+	 *        the execution vertex to start the deployment from
+	 */
+	public void deployAssignedVertices(final ExecutionVertex startVertex) {
+
+		final JobID jobID = startVertex.getExecutionGraph().getJobID();
+
+		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
+		final Set<ExecutionVertex> alreadyVisited = new HashSet<ExecutionVertex>();
+
+		findVerticesToBeDeployed(startVertex, verticesToBeDeployed, alreadyVisited);
+
+		if (!verticesToBeDeployed.isEmpty()) {
+
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
+				.entrySet()
+				.iterator();
+
+			while (it2.hasNext()) {
+
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+				this.deploymentManager.deploy(jobID, entry.getKey(), entry.getValue());
+			}
+		}
+	}
+
+	/**
+	 * Collects all execution vertices with the state ASSIGNED starting from the given collection of start vertices and
+	 * deploys them on the assigned {@link AllocatedResource} objects.
+	 * 
+	 * @param startVertices
+	 *        the collection of execution vertices to start the deployment from
+	 */
+	public void deployAssignedVertices(final Collection<ExecutionVertex> startVertices) {
+
+		JobID jobID = null;
+
+		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
+		final Set<ExecutionVertex> alreadyVisited = new HashSet<ExecutionVertex>();
+
+		for (final ExecutionVertex startVertex : startVertices) {
+
+			if (jobID == null) {
+				jobID = startVertex.getExecutionGraph().getJobID();
+			}
+
+			findVerticesToBeDeployed(startVertex, verticesToBeDeployed, alreadyVisited);
+		}
+
+		if (!verticesToBeDeployed.isEmpty()) {
+
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
+					.entrySet()
+					.iterator();
+
+			while (it2.hasNext()) {
+
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+				this.deploymentManager.deploy(jobID, entry.getKey(), entry.getValue());
+			}
+		}
+	}
+
+	/**
+	 * Collects all execution vertices with the state ASSIGNED starting from the input vertices of the current execution
+	 * stage and deploys them on the assigned {@link AllocatedResource} objects.
 	 * 
 	 * @param executionGraph
 	 *        the execution graph to collect the vertices from
 	 */
-	public void deployAssignedVertices(final ExecutionGraph executionGraph) {
+	public void deployAssignedInputVertices(final ExecutionGraph executionGraph) {
 
 		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
 		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
@@ -397,8 +444,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 		}
 
 		// Deploy the assigned vertices
-		deployAssignedVertices(eg);
-
+		deployAssignedInputVertices(eg);
 	}
 
 	/**
@@ -472,7 +518,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			vertex.updateExecutionState(ExecutionState.ASSIGNED);
 		}
 
-		deployAssignedVertices(executionGraph);
+		deployAssignedInputVertices(executionGraph);
 	}
 
 	/**
@@ -551,6 +597,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 					}
 				}
 
+				// TODO: Fix this
 				/*
 				 * try {
 				 * requestInstances(this.executionVertex.getGroupVertex().getExecutionStage());
@@ -565,7 +612,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final InternalJobStatus js = eg.getJobStatus();
 		if (js != InternalJobStatus.FAILING && js != InternalJobStatus.FAILED) {
 
-			deployAssignedVertices(eg);
+			// TODO: Fix this
+			// deployAssignedVertices(eg);
 
 			final ExecutionStage stage = eg.getCurrentExecutionStage();
 

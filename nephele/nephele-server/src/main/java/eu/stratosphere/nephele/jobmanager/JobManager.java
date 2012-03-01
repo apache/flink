@@ -757,7 +757,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			if (assignedInstance == null) {
 				LOG.error("Cannot resolve lookup: vertex found for channel ID " + connectedChannelID
 					+ " but no instance assigned");
-				//LOG.info("Created receiverNotReady for " + connectedVertex + " 1");
+				// LOG.info("Created receiverNotReady for " + connectedVertex + " 1");
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
@@ -769,7 +769,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.REPLAYING
 				&& executionState != ExecutionState.FINISHING) {
-				//LOG.info("Created receiverNotReady for " + connectedVertex + " in state " + executionState + " 2");
+				// LOG.info("Created receiverNotReady for " + connectedVertex + " in state " + executionState + " 2");
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
@@ -801,7 +801,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.REPLAYING
 				&& executionState != ExecutionState.FINISHING && executionState != ExecutionState.FINISHED) {
-				//LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 3");
+
+				if (executionState == ExecutionState.ASSIGNED) {
+					this.scheduler.deployAssignedVertices(targetVertex);
+				}
+
+				// LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 3");
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
@@ -810,7 +815,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				LOG.error("Cannot resolve lookup: vertex found for channel ID "
 					+ outputChannel.getConnectedChannelID()
 					+ " but no instance assigned");
-				//LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 4");
+				// LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 4");
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 

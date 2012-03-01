@@ -64,7 +64,8 @@ public final class RecoveryLogic {
 	}
 
 	public static boolean recover(final ExecutionVertex failedVertex,
-			final Map<ExecutionVertexID, ExecutionVertex> verticesToBeRestarted) {
+			final Map<ExecutionVertexID, ExecutionVertex> verticesToBeRestarted,
+			final Set<ExecutionVertex> assignedVertices) {
 
 		// Perform initial sanity check
 		if (failedVertex.getExecutionState() != ExecutionState.FAILED) {
@@ -91,6 +92,9 @@ public final class RecoveryLogic {
 
 				if (vertex.compareAndUpdateExecutionState(ExecutionState.FINISHED, getStateToUpdate(vertex))) {
 					LOG.info("Vertex " + vertex + " has already finished and will not be canceled");
+					if (vertex.getExecutionState() == ExecutionState.ASSIGNED) {
+						assignedVertices.add(vertex);
+					}
 					continue;
 				}
 
@@ -121,11 +125,16 @@ public final class RecoveryLogic {
 
 			while (checkpointIterator.hasNext()) {
 
-				checkpointIterator.next().updateExecutionState(ExecutionState.ASSIGNED);
+				final ExecutionVertex checkpoint = checkpointIterator.next();
+				checkpoint.updateExecutionState(ExecutionState.ASSIGNED);
+				assignedVertices.add(checkpoint);
 			}
 
 			// Restart failed vertex
 			failedVertex.updateExecutionState(getStateToUpdate(failedVertex));
+			if (failedVertex.getExecutionState() == ExecutionState.ASSIGNED) {
+				assignedVertices.add(failedVertex);
+			}
 		}
 
 		LOG.info("Recovery FINISHED at " + System.currentTimeMillis());

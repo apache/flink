@@ -15,6 +15,9 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -78,7 +81,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 					pipelineToBeDeployed.setAllocatedResource(this.executionVertex.getAllocatedResource());
 					pipelineToBeDeployed.updateExecutionState(ExecutionState.ASSIGNED);
 
-					this.scheduler.deployAssignedVertices(eg);
+					this.scheduler.deployAssignedVertices(groupMember);
 					return;
 				}
 			}
@@ -92,7 +95,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 					this.executionVertex.updateExecutionState(ExecutionState.ASSIGNED, "Restart as part of recovery");
 
 					// Run through the deployment procedure
-					this.scheduler.deployAssignedVertices(eg);
+					this.scheduler.deployAssignedVertices(this.executionVertex);
 					return;
 				}
 			}
@@ -108,11 +111,14 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		if (newExecutionState == ExecutionState.FAILED) {
 			if (this.executionVertex.decrementRetriesLeftAndCheck()) {
 
-				if (RecoveryLogic.recover(this.executionVertex, this.scheduler.getVerticesToBeRestarted())) {
+				final Set<ExecutionVertex> assignedVertices = new HashSet<ExecutionVertex>();
+
+				if (RecoveryLogic.recover(this.executionVertex, this.scheduler.getVerticesToBeRestarted(),
+					assignedVertices)) {
 
 					if (RecoveryLogic.hasInstanceAssigned(this.executionVertex)) {
 						// Run through the deployment procedure
-						this.scheduler.deployAssignedVertices(eg);
+						this.scheduler.deployAssignedVertices(assignedVertices);
 					}
 
 				} else {

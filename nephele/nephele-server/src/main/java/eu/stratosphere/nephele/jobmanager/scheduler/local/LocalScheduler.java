@@ -62,7 +62,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 	void removeJobFromSchedule(final ExecutionGraph executionGraphToRemove) {
 
 		boolean removedFromQueue = false;
-		
+
 		synchronized (this.jobQueue) {
 
 			final Iterator<ExecutionGraph> it = this.jobQueue.iterator();
@@ -83,8 +83,8 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 			LOG.error("Cannot find job " + executionGraphToRemove.getJobName() + " ("
 				+ executionGraphToRemove.getJobID() + ") to remove");
 		}
-		
-		//TODO: Remove vertices from restart map 
+
+		// TODO: Remove vertices from restart map
 	}
 
 	/**
@@ -218,7 +218,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		}
 
 		// Deploy the assigned vertices
-		deployAssignedVertices(executionStage.getExecutionGraph());
+		deployAssignedInputVertices(executionStage.getExecutionGraph());
 
 		// Initialize the replay of the previous stage's checkpoints
 		replayCheckpointsFromPreviousStage(executionStage.getExecutionGraph());
