@@ -14,46 +14,49 @@
  **********************************************************************************************************************/
 package eu.stratosphere.util;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedList;
 
 /**
- * Concatenates {@link Iterable}s on-the-fly.<br>
+ * An {@link Iterable} which takes the elements of another iterable and converts the elements on-the-fly.<br>
  * Changes to the parameters are directly reflected in the result.
  * 
  * @author Arvid Heise
+ * @param <From>
+ *        the type of the original iterator
+ * @param <To>
+ *        the return type after the conversion
  */
-public class ConcatenatingIterable<T> implements Iterable<T> {
+public abstract class ConversionIterable<From, To> extends WrappingIterable<From, To> {
 
-	private Iterable<Iterable<T>> inputs;
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public ConcatenatingIterable(final Iterable<?>... iterables) {
-		this.inputs = new LinkedList<Iterable<T>>((Collection) Arrays.asList(iterables));
+	/**
+	 * Initializes ConversionIterable.
+	 * 
+	 * @param originalIterable
+	 */
+	public ConversionIterable(Iterable<? extends From> originalIterable) {
+		super(originalIterable);
 	}
 
-	public ConcatenatingIterable(final Iterable<Iterable<T>> iterables) {
-		this.inputs = iterables;
-	}
+	/**
+	 * Convert the given object to the desired return type.
+	 * 
+	 * @param inputObject
+	 *        the object to convert
+	 * @return the result of the conversion of one object
+	 */
+	protected abstract To convert(From inputObject);
 
 	/*
 	 * (non-Javadoc)
-	 * @see java.lang.Iterable#iterator()
+	 * @see eu.stratosphere.util.WrappingIterable#wrap(java.util.Iterator)
 	 */
 	@Override
-	public Iterator<T> iterator() {
-		return new ConcatenatingIterator<T>(new ConversionIterator<Iterable<T>, Iterator<T>>(
-			this.inputs.iterator()) {
-			/*
-			 * (non-Javadoc)
-			 * @see eu.stratosphere.util.ConversionIterator#convert(java.lang.Object)
-			 */
+	protected Iterator<To> wrap(Iterator<? extends From> iterator) {
+		return new ConversionIterator<From, To>(iterator) {
 			@Override
-			protected Iterator<T> convert(Iterable<T> inputObject) {
-				return inputObject.iterator();
-			}
-		});
+			protected To convert(From inputObject) {
+				return ConversionIterable.this.convert(inputObject);
+			};
+		};
 	}
 }

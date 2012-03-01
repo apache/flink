@@ -29,15 +29,6 @@ public abstract class AbstractIterator<T> implements Iterator<T> {
 	}
 
 	/**
-	 * Return true if at least one element has been loaded.
-	 * 
-	 * @return true if at least one element has been loaded
-	 */
-	protected boolean isInitialized() {
-		return this.initialized;
-	}
-
-	/**
 	 * Returns the next element or the result of {@link #noMoreElements()}.
 	 * 
 	 * @return the next element

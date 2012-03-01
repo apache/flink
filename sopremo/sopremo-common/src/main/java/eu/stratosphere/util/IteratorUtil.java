@@ -16,7 +16,6 @@ package eu.stratosphere.util;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.testing.Equaler;
 
 /**

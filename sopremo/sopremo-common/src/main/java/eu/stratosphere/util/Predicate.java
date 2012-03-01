@@ -15,8 +15,15 @@
 package eu.stratosphere.util;
 
 /**
+ * A logical predicate that evaluates to <code>true</code> or <code>false</code>.
+ * 
  * @author Arvid Heise
  */
 public interface Predicate<Param> {
+	/**
+	 * @param param
+	 *        the parameter to evaluate the predicate with.
+	 * @return <code>true</code> or <code>false</code>
+	 */
 	public boolean isTrue(Param param);
 }

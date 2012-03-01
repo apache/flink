@@ -17,12 +17,20 @@ package eu.stratosphere.util;
 import java.util.Iterator;
 
 /**
+ * Base class to wrap an <code>Iterable</code> and manipulate its elements on-the-fly.
+ * 
  * @author Arvid Heise
  */
 public abstract class WrappingIterable<I, O> implements Iterable<O> {
-	private final Iterable<I> originalIterable;
+	private final Iterable<? extends I> originalIterable;
 
-	public WrappingIterable(final Iterable<I> originalIterable) {
+	/**
+	 * Initializes WrappingIterable with the given {@link Iterable}.
+	 * 
+	 * @param originalIterable
+	 *        the Iterable to wrap
+	 */
+	public WrappingIterable(final Iterable<? extends I> originalIterable) {
 		this.originalIterable = originalIterable;
 	}
 
@@ -36,9 +44,12 @@ public abstract class WrappingIterable<I, O> implements Iterable<O> {
 	}
 
 	/**
+	 * Returns an {@link Iterator} that wraps the iterator of the wrapped {@link Iterable}.
+	 * 
 	 * @param iterator
-	 * @return
+	 *        the iterator to wrap
+	 * @return the wrapped iterator
 	 */
-	protected abstract Iterator<O> wrap(Iterator<I> iterator);
+	protected abstract Iterator<O> wrap(Iterator<? extends I> iterator);
 
 }

@@ -17,15 +17,18 @@ package eu.stratosphere.util;
 import java.util.Iterator;
 
 /**
+ * Filters the elements of an {@link Iterator} with a given {@link Predicate}.<br>
+ * Changes to the parameters are directly reflected in the result.
+ * 
  * @author Arvid Heise
  */
 public class FilteringIterator<T> extends AbstractIterator<T> {
 
-	private final Iterator<T> iterator;
+	private final Iterator<? extends T> iterator;
 
 	private final Predicate<T> selector;
 
-	public FilteringIterator(final Iterator<T> iterator, final Predicate<T> selector) {
+	public FilteringIterator(final Iterator<? extends T> iterator, final Predicate<T> selector) {
 		this.iterator = iterator;
 		this.selector = selector;
 	}

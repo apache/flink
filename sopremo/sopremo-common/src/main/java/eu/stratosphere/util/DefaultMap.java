@@ -6,6 +6,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * A map implementation that returns a default value instead of <code>null</code>.
+ * 
+ * @author Arvid Heise
+ * @param <K>
+ *        the key
+ * @param <V>
+ *        the value
+ */
 public class DefaultMap<K, V> extends AbstractMap<K, V> {
 	private V defaultValue;
 
@@ -53,6 +62,13 @@ public class DefaultMap<K, V> extends AbstractMap<K, V> {
 		return this.defaultValue.equals(other.defaultValue) && this.backing.equals(other.backing);
 	}
 
+	/**
+	 * Returns the default value if the given key is not in the map.<br>
+	 * Otherwise the original semantics of {@link Map#get(Object)} is maintained.
+	 * 
+	 * @return the value to which the specified key is mapped, or
+	 *         the default value if this map contains no mapping for the key
+	 */
 	@Override
 	public V get(final Object key) {
 		final V value = this.backing.get(key);
@@ -113,5 +129,4 @@ public class DefaultMap<K, V> extends AbstractMap<K, V> {
 	public Collection<V> values() {
 		return this.backing.values();
 	}
-
 }

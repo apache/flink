@@ -1,17 +1,15 @@
 package eu.stratosphere.util;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
  * Concatenates several iterators to one large iterator.<br>
- * In the beginning, all elements of the first iterator are successively returned. If the first iterator is empty, the
- * elements of the second iterator are streamed and so on.
+ * In the beginning, all elements of the first iterator are successively returned. If the first iterator is depleted,
+ * the elements of the second iterator are streamed and so on.<br>
+ * Changes to the parameters are directly reflected in the result.
  * 
  * @author Arvid Heise
  * @param <T>
@@ -50,10 +48,10 @@ public final class ConcatenatingIterator<T> extends AbstractIterator<T> {
 	@Override
 	protected T loadNext() {
 		boolean curHasNext;
-		while ((curHasNext = currentIterator.hasNext()) || this.inputs.hasNext()) {
+		while ((curHasNext = this.currentIterator.hasNext()) || this.inputs.hasNext()) {
 			if (curHasNext)
-				return currentIterator.next();
-			currentIterator = this.inputs.next();
+				return this.currentIterator.next();
+			this.currentIterator = this.inputs.next();
 		}
 		return this.noMoreElements();
 	}
