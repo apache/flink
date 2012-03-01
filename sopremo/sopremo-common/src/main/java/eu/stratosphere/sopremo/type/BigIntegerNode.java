@@ -6,7 +6,11 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-public class BigIntegerNode extends NumericNode implements INumericNode{
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class BigIntegerNode extends NumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -15,10 +19,20 @@ public class BigIntegerNode extends NumericNode implements INumericNode{
 
 	private BigInteger value;
 
+	/**
+	 * Initializes a BigIntegerNode which represents the given {@link BigInteger}. To create new BigIntegerNodes please
+	 * use BigIntegerNode.valueOf(BigInteger) instead.
+	 * 
+	 * @param v
+	 *        the value which should be represented by this node
+	 */
 	public BigIntegerNode(final BigInteger v) {
 		this.value = v;
 	}
 
+	/**
+	 * Initializes a BigIntegerNode which represents 0.
+	 */
 	public BigIntegerNode() {
 		this.value = BigInteger.ZERO;
 	}
@@ -66,6 +80,13 @@ public class BigIntegerNode extends NumericNode implements INumericNode{
 		return true;
 	}
 
+	/**
+	 * Creates a new BigIntegerNode which represents the given {@link BigInteger}.
+	 * 
+	 * @param bigInteger
+	 * 	the value which should be represented by this node
+	 * @return the new BigIntegerNode
+	 */
 	public static BigIntegerNode valueOf(final BigInteger bigInteger) {
 		if (bigInteger != null)
 			return new BigIntegerNode(bigInteger);

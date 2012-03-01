@@ -6,6 +6,10 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
 public class DecimalNode extends NumericNode implements INumericNode{
 
 	/**
@@ -15,14 +19,31 @@ public class DecimalNode extends NumericNode implements INumericNode{
 
 	private BigDecimal value;
 
+	/**
+	 * Initializes a DecimalNode which represents 0.
+	 */
 	public DecimalNode() {
 		this.value = new BigDecimal(0);
 	}
 
+	/**
+	 * Initializes a DecimalNode which represents the given {@link BigDecimal}. To create new DecimalNodes please
+	 * use DecimalNode.valueOf(BigDecimal) instead.
+	 * 
+	 * @param v
+	 *        the value which should be represented by this node
+	 */
 	public DecimalNode(final BigDecimal v) {
 		this.value = v;
 	}
 
+	/**
+	 * Creates a new DecimalNode which represents the given {@link BigDecimal}.
+	 * 
+	 * @param v
+	 * 	the value which should be represented by this node
+	 * @return the new DecimalNode
+	 */
 	public static DecimalNode valueOf(final BigDecimal v) {
 		if (v == null)
 			throw new NullPointerException();

@@ -4,7 +4,11 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-public class BooleanNode extends JsonNode implements IPrimitiveNode{
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class BooleanNode extends JsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
@@ -17,6 +21,10 @@ public class BooleanNode extends JsonNode implements IPrimitiveNode{
 
 	private boolean value;
 
+	/**
+	 * Initializes a BooleanNode which represents <code>false</code>. This constructor is needed for serialization and
+	 * deserialization of BooleanNodes, please use BooleanNode.valueOf(boolean) to get an instance of BooleanNode.
+	 */
 	public BooleanNode() {
 		this(false);
 	}
@@ -30,10 +38,20 @@ public class BooleanNode extends JsonNode implements IPrimitiveNode{
 		return this.value;
 	}
 
+	/**
+	 * Returns the instance of BooleanNode which represents the given <code>boolean</code>.
+	 * 
+	 * @param b
+	 * 	the value for which the BooleanNode should be returned for
+	 * @return the BooleanNode which represents the given value
+	 */
 	public static BooleanNode valueOf(final boolean b) {
 		return b ? TRUE : FALSE;
 	}
 
+	/**
+	 * Returns either this BooleanNode represents the value <code>true</code> or not.
+	 */
 	public boolean getBooleanValue() {
 		return this == TRUE;
 	}

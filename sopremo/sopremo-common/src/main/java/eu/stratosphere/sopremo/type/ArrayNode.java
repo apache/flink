@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.type;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -12,6 +11,10 @@ import java.util.ListIterator;
 
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
 public class ArrayNode extends JsonNode implements IArrayNode {
 	/**
 	 * 
@@ -28,9 +31,9 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 
 	/**
 	 * Initializes an ArrayNode which contains the given {@link IJsonNode}s in proper sequence.
-	 *
+	 * 
 	 * @param nodes
-	 * 	the nodes which should be added to this ArrayNode
+	 *        the nodes which should be added to this ArrayNode
 	 */
 	public ArrayNode(final IJsonNode... nodes) {
 		for (final IJsonNode node : nodes)
@@ -39,9 +42,9 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 
 	/**
 	 * Initializes an ArrayNode which cointains all {@link IJsonNode}s from the given Collection in proper sequence.
-	 *
+	 * 
 	 * @param nodes
-	 *  a Collection of nodes which should be added to this ArrayNode
+	 *        a Collection of nodes which should be added to this ArrayNode
 	 */
 	public ArrayNode(final Collection<? extends IJsonNode> nodes) {
 		for (final IJsonNode node : nodes)
@@ -65,11 +68,11 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	public ArrayNode add(final IJsonNode node) {
 		if (node == null)
 			throw new NullPointerException();
-		
-		if(!node.isMissing()){
+
+		if (!node.isMissing()) {
 			this.children.add(node);
 		}
-		
+
 		return this;
 	}
 
@@ -81,13 +84,13 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	public IArrayNode add(final int index, final IJsonNode element) {
 		if (element == null)
 			throw new NullPointerException();
-		
-		if(element.isMissing()){
+
+		if (element.isMissing()) {
 			this.children.remove(index);
 		} else {
 			this.children.add(index, element);
 		}
-		
+
 		return this;
 	}
 
@@ -231,7 +234,13 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return this.children.isEmpty();
 	}
 
-	
+	/**
+	 * Initializes a new ArrayNode which contains all {@link IJsonNode}s from the provided Iterator.
+	 * 
+	 * @param iterator
+	 *        an Iterator over IJsonNodes which should be added to the new ArrayNode
+	 * @return the created ArrayNode
+	 */
 	public static ArrayNode valueOf(final Iterator<IJsonNode> iterator) {
 		final ArrayNode array = new ArrayNode();
 		while (iterator.hasNext())
@@ -239,6 +248,11 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return array;
 	}
 
+	/**
+	 * Creates a standard java array which contains all {@link IJsonNode}s saved in this ArrayNode.
+	 * 
+	 * @return the created IJsonNode[]
+	 */
 	public IJsonNode[] toArray() {
 		return this.children.toArray(new IJsonNode[this.children.size()]);
 	}
@@ -275,6 +289,16 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return 0;
 	}
 
+	/**
+	 * Returns a view of the portion of this ArrayNode between the specified fromIndex, inclusive, and toIndex, exclusive.
+	 * (If fromIndex and toIndex are equal, the returned ArrayNode is empty.)
+	 * 
+	 * @param fromIndex
+	 * 	the index where the new ArrayNode should start (inclusive)
+	 * @param toIndex
+	 * 	the index where the new ArrayNode should stop (exclusive)
+	 * @return the new ArrayNode (subarray)
+	 */
 	public IJsonNode subArray(final int fromIndex, final int toIndex) {
 		return new ArrayNode(this.children.subList(fromIndex, toIndex));
 	}

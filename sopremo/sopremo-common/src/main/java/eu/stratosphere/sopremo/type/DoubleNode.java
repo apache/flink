@@ -10,6 +10,10 @@ import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
 public class DoubleNode extends NumericNode implements INumericNode{
 
 	/**
@@ -19,14 +23,31 @@ public class DoubleNode extends NumericNode implements INumericNode{
 
 	private transient PactDouble value;
 
+	/**
+	 * Initializes a DoubleNode which represents 0.0
+	 */
 	public DoubleNode() {
 		this.value = new PactDouble();
 	}
 
+	/**
+	 * Initializes a DoubleNode which represents the given <code>double</code>. To create new DoubleNodes please
+	 * use DoubleNode.valueOf(<code>double</code>) instead.
+	 * 
+	 * @param v
+	 *        the value which should be represented by this node
+	 */
 	public DoubleNode(final double v) {
 		this.value = new PactDouble(v);
 	}
 
+	/**
+	 * Initializes a DoubleNode which represents the given <code>float</code>. To create new DoubleNodes please
+	 * use DoubleNode.valueOf(<code>double</code>) instead.
+	 * 
+	 * @param v
+	 *        the value which should be represented by this node
+	 */
 	public DoubleNode(final float v) {
 		this.value = new PactDouble(v);
 	}
