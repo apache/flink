@@ -98,9 +98,9 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		}
 	}
 
-	protected static Iterable<EvaluationExpression> NO_KEYS = Collections.emptyList();
+	protected static List<EvaluationExpression> NO_KEYS = Collections.emptyList();
 
-	public abstract Iterable<EvaluationExpression> getKeyExpression();
+	public abstract Iterable<? extends EvaluationExpression> getKeyExpressions();
 
 	@Override
 	public boolean equals(final Object obj) {

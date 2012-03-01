@@ -6,6 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -77,4 +78,11 @@ public class ObjectSchema implements Schema {
 		return target;
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.serialization.Schema#indexOf(eu.stratosphere.sopremo.expressions.EvaluationExpression)
+	 */
+	@Override
+	public int indexOf(EvaluationExpression expression) {
+		throw new UnsupportedOperationException();
+	}
 }

@@ -20,6 +20,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.SchemaUtils;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -76,14 +77,27 @@ public interface Schema extends Serializable {
 				target.setField(0, new JsonNodeWrapper());
 			}
 			target.getField(0, JsonNodeWrapper.class).setValue(value);
-//			if (value instanceof IArrayNode) {
-//				target.getField(0, JsonNodeWrapper.class).setValue(((IArrayNode) value).get(0));
-//				target.getField(1, JsonNodeWrapper.class).setValue(((IArrayNode) value).get(1));
-//			} else {
-//				target.getField(0, JsonNodeWrapper.class).setValue(NullNode.getInstance());
-//				target.getField(1, JsonNodeWrapper.class).setValue(value);
-//			}
+			// if (value instanceof IArrayNode) {
+			// target.getField(0, JsonNodeWrapper.class).setValue(((IArrayNode) value).get(0));
+			// target.getField(1, JsonNodeWrapper.class).setValue(((IArrayNode) value).get(1));
+			// } else {
+			// target.getField(0, JsonNodeWrapper.class).setValue(NullNode.getInstance());
+			// target.getField(1, JsonNodeWrapper.class).setValue(value);
+			// }
 			return target;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.sopremo.serialization.Schema#indexOf(eu.stratosphere.sopremo.expressions.EvaluationExpression
+		 * )
+		 */
+		@Override
+		public int indexOf(EvaluationExpression expression) {
+			if (expression == EvaluationExpression.KEY)
+				return 0;
+			return 1;
 		}
 
 		/*
@@ -94,9 +108,9 @@ public interface Schema extends Serializable {
 		@Override
 		public IJsonNode recordToJson(final PactRecord record, final IJsonNode target) {
 			return record.getField(0, JsonNodeWrapper.class).getValue();
-//			final JsonNodeWrapper key = record.getField(0, JsonNodeWrapper.class);
-//			final JsonNodeWrapper value = record.getField(1, JsonNodeWrapper.class);
-//			return JsonUtil.asArray(key.getValue(), value.getValue());
+			// final JsonNodeWrapper key = record.getField(0, JsonNodeWrapper.class);
+			// final JsonNodeWrapper value = record.getField(1, JsonNodeWrapper.class);
+			// return JsonUtil.asArray(key.getValue(), value.getValue());
 			// IJsonNode.Type type = IJsonNode.Type.values()[record.getField(0, JsonNodeWrapper.class).getValue()];
 			// if (target == null || target.getType() != type)
 			// target = InstantiationUtil.instantiate(type.getClazz(), IJsonNode.class);
@@ -104,4 +118,10 @@ public interface Schema extends Serializable {
 			// return target;
 		}
 	}
+
+	/**
+	 * @param expression
+	 * @return
+	 */
+	public int indexOf(EvaluationExpression expression);
 }

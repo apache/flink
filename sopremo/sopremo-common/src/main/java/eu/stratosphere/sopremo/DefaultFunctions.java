@@ -280,9 +280,9 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		}
 
 		if (hasStream) {
-			final Iterator<?>[] iterators = new Iterator[arrays.length];
-			for (int index = 0; index < iterators.length; index++)
-				iterators[index] = ((ArrayNode) arrays[index]).iterator();
+			final List<Iterator<IJsonNode>> iterators = new ArrayList<Iterator<IJsonNode>>(arrays.length);
+			for (int index = 0; index < arrays.length; index++)
+				iterators.add(((ArrayNode) arrays[index]).iterator());
 			return ArrayNode.valueOf(new ConcatenatingIterator<IJsonNode>(iterators)/* , resettable */);
 		}
 
