@@ -60,7 +60,9 @@ public class DirectSchema implements Schema {
 			target = new PactRecord(new JsonNodeWrapper());
 		} 
 
-		target.getField(0, JsonNodeWrapper.class).setValue(value);
+		JsonNodeWrapper wrapper = target.getField(0, JsonNodeWrapper.class);
+		wrapper.setValue(value);
+		target.setField(0, wrapper);
 		return target;
 	}
 

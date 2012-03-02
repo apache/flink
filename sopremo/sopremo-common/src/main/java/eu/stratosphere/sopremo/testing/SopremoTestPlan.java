@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.testing;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -250,7 +251,7 @@ public class SopremoTestPlan {
 			if (this.actualRecords == null)
 				throw new IllegalStateException("Can only access actual output after a complete test run");
 			final RecordToJsonIterator iterator = new RecordToJsonIterator(this.schema);
-			iterator.setIterator(this.actualRecords.iterator());
+			iterator.setIterator(this.actualRecords.iterator(null));
 			return iterator;
 		}
 	}
@@ -335,32 +336,37 @@ public class SopremoTestPlan {
 			if (this.isEmpty())
 				return Collections.EMPTY_LIST.iterator();
 			if (this.file != null)
-				try {
-					FSDataInputStream stream = FileSystem.get(new URI(this.file)).open(new Path(this.file));
-					final JsonParser parser = new JsonParser(stream);
-					return new AbstractIterator<IJsonNode>() {
-						/*
-						 * (non-Javadoc)
-						 * @see eu.stratosphere.util.AbstractIterator#loadNext()
-						 */
-						@Override
-						protected IJsonNode loadNext() {
-							if (parser.checkEnd())
-								return this.noMoreElements();
-							try {
-								return parser.readValueAsTree();
-							} catch (IOException e) {
-								throw new IllegalStateException(String.format("Cannot parse json file %s",
-									ModifiableChannel.this.file), e);
-							}
-						}
-					};
-				} catch (IOException e) {
-					throw new IllegalStateException(String.format("Cannot open json file %s", this.file), e);
-				} catch (URISyntaxException e) {
-					// should definitely not happen, checked in #load
-				}
+				return iteratorFromFile(this.file);
 			return this.values.iterator();
+		}
+
+		protected Iterator<IJsonNode> iteratorFromFile(final String file) {
+			try {
+				FSDataInputStream stream = FileSystem.get(new URI(file)).open(new Path(file));
+				final JsonParser parser = new JsonParser(stream);
+				return new AbstractIterator<IJsonNode>() {
+					/*
+					 * (non-Javadoc)
+					 * @see eu.stratosphere.util.AbstractIterator#loadNext()
+					 */
+					@Override
+					protected IJsonNode loadNext() {
+						if (parser.checkEnd())
+							return this.noMoreElements();
+						try {
+							return parser.readValueAsTree();
+						} catch (IOException e) {
+							throw new IllegalStateException(String.format("Cannot parse json file %s",
+								file), e);
+						}
+					}
+				};
+			} catch (IOException e) {
+				throw new IllegalStateException(String.format("Cannot open json file %s", this.file), e);
+			} catch (URISyntaxException e) {
+				// should definitely not happen, checked in #load
+				throw new IllegalStateException();
+			}
 		}
 	}
 
@@ -451,6 +457,20 @@ public class SopremoTestPlan {
 		@Override
 		TestRecords getTestRecords(TestPlan testPlan, Schema schema) {
 			return testPlan.getInput(this.getIndex());
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.testing.SopremoTestPlan.ModifiableChannel#iterator()
+		 */
+		@Override
+		public Iterator<IJsonNode> iterator() {
+			if (this.operator != null && !(this.operator instanceof MockupSource)) {
+				if (this.operator.isAdhoc())
+					return JsonUtil.asArray(this.operator.getAdhocValues()).iterator();
+				return iteratorFromFile(this.operator.getInputPath());
+			}
+			return super.iterator();
 		}
 
 		// void sync(final TestPlan testPlan, Schema schema) {

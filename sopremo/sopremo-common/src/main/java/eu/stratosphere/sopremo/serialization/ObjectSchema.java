@@ -25,6 +25,18 @@ public class ObjectSchema implements Schema {
 
 	private List<String> mappings = new ArrayList<String>();
 
+	/**
+	 * Initializes ObjectSchema.
+	 *
+	 */
+	public ObjectSchema() {
+	}
+	
+	public ObjectSchema(String... mappings) {
+		for (String mapping : mappings) 
+			this.mappings.add(mapping);
+	}
+	
 	@Override
 	public Class<? extends Value>[] getPactSchema() {
 		Class<? extends Value>[] schema = new Class[this.mappings.size() + 1];
@@ -147,14 +159,35 @@ public class ObjectSchema implements Schema {
 			throw new IllegalArgumentException("Field not found " + objectAccess.getField());
 		return new int[] { index };
 	}
-	
-	/* (non-Javadoc)
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + mappings.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ObjectSchema other = (ObjectSchema) obj;
+		return mappings.equals(other.mappings);
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder("ObjectSchema [");
-		for (int index = 0; index < mappings.size(); index++) 
+		for (int index = 0; index < mappings.size(); index++)
 			builder.append(mappings.get(index)).append(", ");
 		builder.append("<other>]");
 		return builder.toString();

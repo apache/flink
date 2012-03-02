@@ -16,10 +16,16 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.testing.TestPlan;
+import eu.stratosphere.sopremo.serialization.DirectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
 
 @Ignore
 public class CsvInputFormatTest {
+	/**
+	 * 
+	 */
+	private static final DirectSchema SCHEMA = new DirectSchema();
+
 	/**
 	 * Tests if a {@link TestPlan} can be executed.
 	 * 
@@ -36,7 +42,7 @@ public class CsvInputFormatTest {
 		final FileDataSink output = this.createOutput(map, SequentialOutputFormat.class);
 
 		final TestPlan testPlan = new TestPlan(output); // write
-		testPlan.getExpectedOutput(output, Schema.Default.getPactSchema()).fromFile(JsonInputFormat.class,// write
+		testPlan.getExpectedOutput(output, SCHEMA.getPactSchema()).fromFile(JsonInputFormat.class,// write
 			this.getResource("SopremoTestPlan/restaurant_short.json"));
 		testPlan.run();
 	}
