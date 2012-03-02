@@ -12,12 +12,19 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.type;
+package eu.stratosphere.sopremo.serialization;
+
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 /**
- * @author Michael Hopstock
- * @author Tommy Neubert
+ * @author Arvid Heise
  */
-public interface IPrimitiveNode extends IJsonNode{
+public interface SchemaFactory {
+
+	/**
+	 * @param keyExpressions
+	 * @return
+	 */
+	Schema create(Iterable<EvaluationExpression> keyExpressions);
 
 }

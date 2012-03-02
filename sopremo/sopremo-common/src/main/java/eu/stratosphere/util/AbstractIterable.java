@@ -12,12 +12,34 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.type;
+package eu.stratosphere.util;
+
+import java.util.Iterator;
 
 /**
- * @author Michael Hopstock
- * @author Tommy Neubert
+ * @author Arvid Heise
  */
-public interface IPrimitiveNode extends IJsonNode{
+public abstract class AbstractIterable<T> implements Iterable<T> {
 
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return toString(10);
+	}
+	
+	public String toString(int numberOfElements) {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName()).append(' ');
+		appendElements(builder, this, numberOfElements);
+		return builder.toString();
+	}
+
+	protected void appendElements(StringBuilder builder, Iterable<?> iterable, int numberOfElements) {
+		Iterator<?> inputIterator = iterable.iterator();
+		for (int input = 0; input < numberOfElements && inputIterator.hasNext(); input++)
+			builder.append(inputIterator.next()).append(' ');
+		if (inputIterator.hasNext())
+			builder.append("...");
+	}
 }

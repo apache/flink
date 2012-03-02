@@ -6,6 +6,9 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.sopremo.serialization.NaiveSchemaFactory;
+import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.sopremo.serialization.SchemaFactory;
 
 /**
  * Encapsulate a complete query in Sopremo and translates it to a Pact {@link Plan}.
@@ -16,6 +19,8 @@ public class SopremoPlan {
 	private final SopremoModule module;
 
 	private EvaluationContext context = new EvaluationContext();
+	
+	private SchemaFactory schemaFactory = new NaiveSchemaFactory();
 
 	public SopremoPlan() {
 		this.module = new SopremoModule("plan", 0, 0);
@@ -39,9 +44,13 @@ public class SopremoPlan {
 	public void setSinks(final List<Sink> sinks) {
 		for (final Sink sink : sinks)
 			this.module.addInternalOutput(sink);
-		this.context.setSchema(this.module.getSchema());
+		this.context.setSchema(this.module.getSchema(this.schemaFactory));
 	}
 
+	public Schema getSchema() {
+		return this.context.getOutputSchema(0);
+	}
+	
 	/**
 	 * Assembles the Pacts of the contained Sopremo operators and returns a list
 	 * of all Pact sinks. These sinks may either be directly a {@link FileDataSinkContract} or an unconnected

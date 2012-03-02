@@ -21,7 +21,12 @@ public abstract class SopremoMap extends MapStub {
 	public void open(final Configuration parameters) {
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
 		this.inputSchema = this.context.getInputSchema(0);
-		this.collector = new JsonCollector(this.context.getOutputSchema(0));
+		if(this.inputSchema == null)
+			throw new IllegalStateException("Could not deserialize input schema");
+		Schema outputSchema = this.context.getOutputSchema(0);
+		if(outputSchema == null)
+			throw new IllegalStateException("Could not deserialize output schema");
+		this.collector = new JsonCollector(outputSchema);
 		SopremoUtil.configureStub(this, parameters);
 	}
 

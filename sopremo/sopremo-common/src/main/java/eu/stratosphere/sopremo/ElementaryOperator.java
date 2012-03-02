@@ -209,7 +209,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 
 		try {
 			if (contractClass == ReduceContract.class) {
-				int[] keyIndices = getKeyIndices(globalSchema, this.keyExpressions);
+				int[] keyIndices = getKeyIndices(globalSchema, this.getKeyExpressions());
 				return new ReduceContract((Class<? extends ReduceStub>) stubClass,
 					getKeyClasses(globalSchema, keyIndices), keyIndices, this.toString());
 			}
@@ -238,13 +238,13 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		Class<? extends Key>[] keyClasses2 = getKeyClasses(globalSchema, keyIndices2);
 		if (!Arrays.equals(keyClasses1, keyClasses2))
 			throw new IllegalStateException(String.format(
-				"The key classes are not compatible (schema %s; indices %s %s; key classes: %s %s)", 
+				"The key classes are not compatible (schema %s; indices %s %s; key classes: %s %s)",
 				globalSchema, keyIndices1, keyIndices2, keyClasses1, keyClasses2));
 		return keyClasses1;
 	}
 
 	private Iterable<? extends EvaluationExpression> getKeyExpressionForInput(final int index) {
-		return new FilteringIterable<EvaluationExpression>(this.keyExpressions, new Predicate<EvaluationExpression>() {
+		return new FilteringIterable<EvaluationExpression>(this.getKeyExpressions(), new Predicate<EvaluationExpression>() {
 			public boolean isTrue(EvaluationExpression expression) {
 				return SopremoUtil.getInputIndex(expression) == index;
 			};
@@ -267,7 +267,10 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	protected int[] getKeyIndices(final Schema globalSchema, Iterable<? extends EvaluationExpression> keyExpressions) {
 		IntList keyIndices = new IntArrayList();
 		for (EvaluationExpression expression : keyExpressions)
-			keyIndices.add(globalSchema.indexOf(expression));
+			for (int index : globalSchema.indicesOf(expression))
+				keyIndices.add(index);
+		if (keyIndices.isEmpty())
+			throw new IllegalStateException("The given operator needs to specify key expressions");
 		return keyIndices.toIntArray();
 	}
 

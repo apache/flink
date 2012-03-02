@@ -94,25 +94,22 @@ public class ArrayAccess extends EvaluationExpression {
 		return value == null ? NullNode.getInstance() : value;
 	}
 
-	@Override
-	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
-		if (this.isSelectingAll())
-			return value;
-		final int size = ((IArrayNode) node).size();
-		if (this.isSelectingRange()) {
-			final IArrayNode arrayNode = (IArrayNode) node;
-			int index = this.resolveIndex(this.startIndex, size), replaceIndex = 0;
-			final int endIndex = this.resolveIndex(this.endIndex, size);
+	/**
+	 * Returns the endIndex.
+	 * 
+	 * @return the endIndex
+	 */
+	public int getEndIndex() {
+		return this.endIndex;
+	}
 
-			final int increment = index < endIndex ? 1 : -1;
-
-			for (boolean moreElements = true; moreElements; index += increment, replaceIndex++) {
-				arrayNode.set(index, ((IArrayNode) node).get(replaceIndex));
-				moreElements = index != endIndex;
-			}
-		} else
-			((IArrayNode) node).set(this.resolveIndex(this.startIndex, size), value);
-		return node;
+	/**
+	 * Returns the startIndex.
+	 * 
+	 * @return the startIndex
+	 */
+	public int getStartIndex() {
+		return this.startIndex;
 	}
 
 	@Override
@@ -138,10 +135,25 @@ public class ArrayAccess extends EvaluationExpression {
 		return this.startIndex != this.endIndex;
 	}
 
-	private int resolveIndex(final int index, final int size) {
-		if (index < 0)
-			return size + index;
-		return index;
+	@Override
+	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
+		if (this.isSelectingAll())
+			return value;
+		final int size = ((IArrayNode) node).size();
+		if (this.isSelectingRange()) {
+			final IArrayNode arrayNode = (IArrayNode) node;
+			int index = this.resolveIndex(this.startIndex, size), replaceIndex = 0;
+			final int endIndex = this.resolveIndex(this.endIndex, size);
+
+			final int increment = index < endIndex ? 1 : -1;
+
+			for (boolean moreElements = true; moreElements; index += increment, replaceIndex++) {
+				arrayNode.set(index, ((IArrayNode) node).get(replaceIndex));
+				moreElements = index != endIndex;
+			}
+		} else
+			((IArrayNode) node).set(this.resolveIndex(this.startIndex, size), value);
+		return node;
 	}
 
 	@Override
@@ -157,5 +169,11 @@ public class ArrayAccess extends EvaluationExpression {
 			}
 		}
 		builder.append(']');
+	}
+
+	private int resolveIndex(final int index, final int size) {
+		if (index < 0)
+			return size + index;
+		return index;
 	}
 }

@@ -29,8 +29,10 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
+import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactNull;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.testing.SchemaUtils;
 import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
@@ -138,8 +140,8 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		super.initVerifier(equalVerifier);
 		equalVerifier.
 			withPrefabValues(TestRecords.class,
-				new TestRecords().add(PactNull.getInstance(), new PactString("red")),
-				new TestRecords().add(PactNull.getInstance(), new PactString("black"))).
+				new TestRecords(SchemaUtils.combineSchema(PactString.class)).add(new PactString("red")),
+				new TestRecords(SchemaUtils.combineSchema(PactString.class)).add(new PactString("black"))).
 			// withPrefabValues(SopremoTestPlan.ActualOutput.class,
 			// new SopremoTestPlan.ActualOutput(0).addValue(0),
 			// new SopremoTestPlan.ActualOutput(1).addValue(1)).
@@ -197,7 +199,6 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		public static class Implementation extends SopremoMap {
 			@Override
 			protected void map(final IJsonNode value, final JsonCollector out) {
-				System.out.println(value);
 				out.collect(value);
 			}
 		}

@@ -3,10 +3,12 @@ package eu.stratosphere.sopremo.serialization;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -21,68 +23,140 @@ public class ObjectSchema implements Schema {
 	 */
 	private static final long serialVersionUID = 4037447354469753483L;
 
-	List<String> mapping = new ArrayList<String>();
-	
+	private List<String> mappings = new ArrayList<String>();
+
 	@Override
-	public Class<? extends Value>[] getPactSchema() {	
-		Class<? extends Value>[] schema = new Class[this.mapping.size()];
-		
-		for(int i=0; i<this.mapping.size(); i++){
+	public Class<? extends Value>[] getPactSchema() {
+		Class<? extends Value>[] schema = new Class[this.mappings.size() + 1];
+
+		for (int i = 0; i <= this.mappings.size(); i++) {
 			schema[i] = JsonNodeWrapper.class;
 		}
-		
+
 		return schema;
 	}
-	
+
+	public List<String> getMappings() {
+		return this.mappings;
+	}
+
+	/**
+	 * Sets the mapping to the specified value.
+	 * 
+	 * @param mapping
+	 *        the mapping to set
+	 */
+	public void setMappings(Iterable<String> mappings) {
+		if (mappings == null)
+			throw new NullPointerException("mapping must not be null");
+
+		this.mappings.clear();
+		for (String mapping : mappings)
+			this.mappings.add(mapping);
+	}
+
 	public void setMappings(String... schema) {
-		this.mapping = Arrays.asList(schema);
+		this.setMappings(Arrays.asList(schema));
+	}
+
+	public void setMappingsWithAccesses(Iterable<ObjectAccess> schema) {
+		List<String> mappings = new ArrayList<String>();
+		for (ObjectAccess objectAccess : schema)
+			mappings.add(objectAccess.getField());
+		this.setMappings(mappings);
+	}
+
+	public int hasMapping(String key) {
+		return this.mappings.indexOf(key);
+	}
+
+	public int getMappingSize() {
+		return this.mappings.size();
 	}
 
 	@Override
 	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
-		if(target == null){
-			
-			//the last element is the field "others"
-			target = new PactRecord(this.mapping.size() + 1);
+		IObjectNode others;
+		if (target == null) {
+
+			// the last element is the field "others"
+			target = new PactRecord(this.mappings.size() + 1);
+			others = new ObjectNode();
+			target.setField(this.mappings.size(), SopremoUtil.wrap(others));
+		} else {
+			others =
+				(IObjectNode) SopremoUtil.unwrap(target.getField(target.getNumFields() - 1, JsonNodeWrapper.class));
+			others.removeAll();
 		}
-		
-		for(int i=0; i<this.mapping.size(); i++){
-			target.setField(i, new JsonNodeWrapper(((IObjectNode)value).get(this.mapping.get(i))));
-			((IObjectNode)value).remove(this.mapping.get(i));
+
+		IObjectNode object = (IObjectNode) value;
+		for (int i = 0; i < this.mappings.size(); i++) {
+			IJsonNode node = object.get(this.mappings.get(i));
+			if (node.isMissing()) {
+				target.setNull(i);
+			} else {
+				target.setField(i, new JsonNodeWrapper(node));
+			}
+
 		}
-		
-		target.setField(this.mapping.size(), new JsonNodeWrapper(value));
-		
+
+		for (Entry<String, IJsonNode> entry : object.getEntries()) {
+			if (!this.mappings.contains(entry.getKey())) {
+				others.put(entry.getKey(), entry.getValue());
+			}
+		}
+
 		return target;
 	}
 
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		if(this.mapping.size()+1 != record.getNumFields()){
+		if (this.mappings.size() + 1 != record.getNumFields()) {
 			throw new IllegalStateException("Schema does not match to record!");
 		}
-		
-		if(target == null){
+
+		if (target == null) {
 			target = new ObjectNode();
 		} else {
-			((IObjectNode)target).removeAll();
+			((IObjectNode) target).removeAll();
 		}
-		
-		for(int i=0; i< this.mapping.size(); i++){
-			((IObjectNode)target).put(this.mapping.get(i), SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
-		}
-		
-		((IObjectNode)target).putAll((IObjectNode)SopremoUtil.unwrap(record.getField(this.mapping.size(), JsonNodeWrapper.class)));	
 
-		
+		for (int i = 0; i < this.mappings.size(); i++) {
+			if (record.getField(i, JsonNodeWrapper.class) != null) {
+				((IObjectNode) target).put(this.mappings.get(i), SopremoUtil.unwrap(record.getField(i,
+					JsonNodeWrapper.class)));
+			}
+		}
+
+		((IObjectNode) target).putAll((IObjectNode) SopremoUtil.unwrap(record.getField(this.mappings.size(),
+			JsonNodeWrapper.class)));
+
 		return target;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.serialization.Schema#indicesOf(eu.stratosphere.sopremo.expressions.EvaluationExpression)
+	 */
+	@Override
+	public int[] indicesOf(EvaluationExpression expression) {
+		ObjectAccess objectAccess = (ObjectAccess) expression;
+		int index = mappings.indexOf(objectAccess.getField());
+		if (index == -1)
+			throw new IllegalArgumentException("Field not found " + objectAccess.getField());
+		return new int[] { index };
 	}
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.serialization.Schema#indexOf(eu.stratosphere.sopremo.expressions.EvaluationExpression)
+	 * @see java.lang.Object#toString()
 	 */
 	@Override
-	public int indexOf(EvaluationExpression expression) {
-		throw new UnsupportedOperationException();
+	public String toString() {
+		StringBuilder builder = new StringBuilder("ObjectSchema [");
+		for (int index = 0; index < mappings.size(); index++) 
+			builder.append(mappings.get(index)).append(", ");
+		builder.append("<other>]");
+		return builder.toString();
 	}
 }

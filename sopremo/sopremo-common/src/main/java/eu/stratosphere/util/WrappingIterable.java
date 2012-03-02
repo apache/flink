@@ -21,7 +21,7 @@ import java.util.Iterator;
  * 
  * @author Arvid Heise
  */
-public abstract class WrappingIterable<I, O> implements Iterable<O> {
+public abstract class WrappingIterable<I, O> extends AbstractIterable<O> {
 	private final Iterable<? extends I> originalIterable;
 
 	/**
@@ -52,4 +52,24 @@ public abstract class WrappingIterable<I, O> implements Iterable<O> {
 	 */
 	protected abstract Iterator<O> wrap(Iterator<? extends I> iterator);
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return toString(10);
+	}
+
+	/**
+	 * @param i
+	 * @return
+	 */
+	public String toString(int numberOfElements) {
+		StringBuilder builder = new StringBuilder(getClass().getName()).append(' ');
+		appendElements(builder, originalIterable, numberOfElements);
+		builder.append(" -> ");
+		appendElements(builder, this, numberOfElements);
+		return builder.toString();
+	}
 }

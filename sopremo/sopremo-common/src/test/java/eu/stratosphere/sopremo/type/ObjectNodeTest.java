@@ -14,10 +14,24 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.type;
 
+import java.util.Map;
+
+import org.junit.Test;
+
 /**
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public interface IPrimitiveNode extends IJsonNode{
+public class ObjectNodeTest extends ObjectNodeBaseTest<ObjectNode> {
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.ObjectNodeBaseTest#initObjectNode()
+	 */
+	@Override
+	public void initObjectNode() {
+		this.node = new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
+			.put("gender", TextNode.valueOf("male"));
+
+	}
 }

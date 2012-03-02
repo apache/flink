@@ -3,11 +3,13 @@ package eu.stratosphere.sopremo.type;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.Serializable;
 
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.Value;
 
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
 public abstract class JsonNode implements IJsonNode {
 
 	/**
@@ -97,6 +99,14 @@ public abstract class JsonNode implements IJsonNode {
 		return false;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#isMissing()
+	 */
+	@Override
+	public boolean isMissing() {
+		return false;
+	}
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#isObject()
 	 */

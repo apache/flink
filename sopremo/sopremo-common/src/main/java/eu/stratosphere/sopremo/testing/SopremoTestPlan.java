@@ -202,7 +202,7 @@ public class SopremoTestPlan {
 		sopremoPlan.setSinks(this.getOutputOperators(0, this.expectedOutputs.length));
 		this.testPlan = new TestPlan(sopremoPlan.assemblePact());
 
-		Schema schema = this.getSchema();
+		Schema schema = sopremoPlan.getSchema();
 		for (final Input input : this.inputs)
 			input.prepare(this.testPlan, schema);
 		for (final ExpectedOutput output : this.expectedOutputs)
@@ -350,7 +350,8 @@ public class SopremoTestPlan {
 							try {
 								return parser.readValueAsTree();
 							} catch (IOException e) {
-								throw new IllegalStateException(String.format("Cannot parse json file %s", ModifiableChannel.this.file), e);
+								throw new IllegalStateException(String.format("Cannot parse json file %s",
+									ModifiableChannel.this.file), e);
 							}
 						}
 					};
@@ -383,7 +384,7 @@ public class SopremoTestPlan {
 				return true;
 			if (obj == null)
 				return false;
-			if (obj.getClass() != this.getClass())
+			if (!(obj instanceof InternalChannel))
 				return false;
 			final InternalChannel<?, ?> other = (InternalChannel<?, ?>) obj;
 			return IteratorUtil.equal(this.iterator(), other.iterator());
@@ -581,13 +582,6 @@ public class SopremoTestPlan {
 		public String toString() {
 			return String.format("MockupSource [%s]", this.index);
 		}
-	}
-
-	/**
-	 * @return
-	 */
-	public Schema getSchema() {
-		return Schema.Default;
 	}
 
 }

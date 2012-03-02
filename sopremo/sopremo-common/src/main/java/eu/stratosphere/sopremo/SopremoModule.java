@@ -13,7 +13,11 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.PactModule;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.sopremo.serialization.SchemaFactory;
+import eu.stratosphere.util.CollectionUtil;
+import eu.stratosphere.util.ConversionIterable;
 import eu.stratosphere.util.dag.DependencyAwareGraphTraverser;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
@@ -169,7 +173,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	private class PactAssembler {
 		private final Map<Operator<?>, PactModule> modules = new IdentityHashMap<Operator<?>, PactModule>();
 
-		private final Map<Operator<?>, List<List<Contract>>> operatorOutputs = new IdentityHashMap<Operator<?>, List<List<Contract>>>();
+		private final Map<Operator<?>, List<List<Contract>>> operatorOutputs =
+			new IdentityHashMap<Operator<?>, List<List<Contract>>>();
 
 		private final EvaluationContext context;
 
@@ -207,13 +212,13 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		}
 
 		private void convertDAGToModules() {
-			final Schema schema = getSchema();
+//			final Schema schema = getSchema();
 			OneTimeTraverser.INSTANCE.traverse(SopremoModule.this.getAllOutputs(),
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
 						// TODO: set schema
-						PactAssembler.this.context.setSchema(schema);
+//						PactAssembler.this.context.setSchema(schema);
 						final PactModule module = node.asPactModule(PactAssembler.this.context);
 						PactAssembler.this.modules.put(node, module);
 						final FileDataSink[] outputStubs = module.getOutputs();
@@ -301,7 +306,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				final Operator<?> operator = operatorModule.getKey();
 				final SopremoModule module = operatorModule.getValue();
 
-				final Map<JsonStream, JsonStream> operatorInputToModuleOutput = new IdentityHashMap<JsonStream, JsonStream>();
+				final Map<JsonStream, JsonStream> operatorInputToModuleOutput =
+					new IdentityHashMap<JsonStream, JsonStream>();
 
 				for (int index = 0; index < operator.getInputs().size(); index++) {
 					final Operator<?>.Output inputSource = operator.getInput(index).getSource();
@@ -331,8 +337,19 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	/**
 	 * @return
 	 */
-	public Schema getSchema() {
-		// TODO: infer global schema
-		return new Schema.Default();
+	public Schema getSchema(SchemaFactory schemaFactory) {
+		Iterable<EvaluationExpression> keyExpressions =
+			CollectionUtil.mergeUnique(new ConversionIterable<Operator<?>, Iterable<? extends EvaluationExpression>>(
+				getReachableNodes()) {
+				/*
+				 * (non-Javadoc)
+				 * @see eu.stratosphere.util.ConversionIterable#convert(java.lang.Object)
+				 */
+				@Override
+				protected Iterable<? extends EvaluationExpression> convert(Operator<?> inputObject) {
+					return inputObject.getKeyExpressions();
+				}
+			});
+		return schemaFactory.create(keyExpressions);
 	}
 }

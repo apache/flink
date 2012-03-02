@@ -15,7 +15,9 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 public class ObjectNode extends JsonNode implements IObjectNode {
 
 	/**
-	 * 
+	 * @author Michael Hopstock
+	 * @author Tommy Neubert
+	 *
 	 */
 	private static final long serialVersionUID = 222657144282059523L;
 
@@ -24,6 +26,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 	 */
 	protected Map<String, IJsonNode> children = new TreeMap<String, IJsonNode>();
 
+	@Override
 	public int size() {
 		return this.children.size();
 	}
@@ -41,7 +44,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		if (value == null)
 			throw new NullPointerException();
 
-		if (value.isNull())
+		if (value.isMissing())
 			this.children.remove(fieldName);
 		else
 			this.children.put(fieldName, value);
@@ -56,7 +59,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		final IJsonNode node = this.children.get(fieldName);
 		if (node != null)
 			return node;
-		return NullNode.getInstance();
+		return MissingNode.getInstance();
 	}
 
 	/* (non-Javadoc)
@@ -67,7 +70,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		final IJsonNode node = this.children.remove(fieldName);
 		if (node != null)
 			return node;
-		return NullNode.getInstance();
+		return MissingNode.getInstance();
 	}
 
 	/* (non-Javadoc)
@@ -176,10 +179,10 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.JsonObject#getFields()
+	 * @see eu.stratosphere.sopremo.type.JsonObject#iterator()
 	 */
 	@Override
-	public Iterator<Entry<String, IJsonNode>> getFields() {
+	public Iterator<Entry<String, IJsonNode>> iterator() {
 		return this.children.entrySet().iterator();
 	}
 

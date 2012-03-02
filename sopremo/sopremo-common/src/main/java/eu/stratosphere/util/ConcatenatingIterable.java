@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Concatenates {@link Iterable}s on-the-fly.<br>
@@ -25,16 +26,16 @@ import java.util.LinkedList;
  * 
  * @author Arvid Heise
  */
-public class ConcatenatingIterable<T> implements Iterable<T> {
+public class ConcatenatingIterable<T> extends AbstractIterable<T> {
 
-	private Iterable<Iterable<T>> inputs;
+	private Iterable<Iterable<? extends T>> inputs;
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public ConcatenatingIterable(final Iterable<?>... iterables) {
-		this.inputs = new LinkedList<Iterable<T>>((Collection) Arrays.asList(iterables));
+	public ConcatenatingIterable(final Iterable<T>... iterables) {
+		this.inputs = (List) Arrays.asList(iterables);
 	}
 
-	public ConcatenatingIterable(final Iterable<Iterable<T>> iterables) {
+	public ConcatenatingIterable(final Iterable<Iterable<? extends T>> iterables) {
 		this.inputs = iterables;
 	}
 
@@ -44,14 +45,14 @@ public class ConcatenatingIterable<T> implements Iterable<T> {
 	 */
 	@Override
 	public Iterator<T> iterator() {
-		return new ConcatenatingIterator<T>(new ConversionIterator<Iterable<T>, Iterator<T>>(
+		return new ConcatenatingIterator<T>(new ConversionIterator<Iterable<? extends T>, Iterator<? extends T>>(
 			this.inputs.iterator()) {
 			/*
 			 * (non-Javadoc)
 			 * @see eu.stratosphere.util.ConversionIterator#convert(java.lang.Object)
 			 */
 			@Override
-			protected Iterator<T> convert(Iterable<T> inputObject) {
+			protected Iterator<? extends T> convert(Iterable<? extends T> inputObject) {
 				return inputObject.iterator();
 			}
 		});

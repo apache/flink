@@ -48,6 +48,15 @@ public class ObjectAccess extends EvaluationExpression {
 	}
 
 	/**
+	 * Returns the field.
+	 * 
+	 * @return the field
+	 */
+	public String getField() {
+		return this.field;
+	}
+
+	/**
 	 * If the input node is an array, the evaluation of this array performs a spread operation. In that case, the
 	 * returned node is an array that contains the attribute value of each element node in the input array. In all other
 	 * cases, the return value is the node associated with the field name of this FieldAccess instance or null if no

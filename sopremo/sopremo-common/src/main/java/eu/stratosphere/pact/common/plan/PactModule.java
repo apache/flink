@@ -19,10 +19,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.io.SequentialInputFormat;
+import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.util.dag.GraphModule;
@@ -58,9 +59,9 @@ public class PactModule extends
 		super(name, new FileDataSource[numberOfInputs], new FileDataSink[numberOfOutputs],
 			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new FileDataSource(JsonInputFormat.class, String.format("%s %d", name, index));
+			this.inputNodes[index] = new FileDataSource(SequentialInputFormat.class, String.format("%s %d", name, index));
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new FileDataSink(JsonOutputFormat.class, String.format("%s %d", name, index));
+			this.outputNodes[index] = new FileDataSink(SequentialOutputFormat.class, String.format("%s %d", name, index));
 	}
 
 	/**
