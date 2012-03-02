@@ -676,7 +676,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 	protected InputFileIterator getInputFileIterator() {
 		final InputFileIterator inputFileIterator;
-		try {
+		try {			
 			inputFileIterator = new InputFileIterator(FormatUtil.openAllInputs(this.inputFormatClass, this.path,
 				this.configuration));
 		} catch (final IOException e) {

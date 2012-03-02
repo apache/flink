@@ -475,7 +475,7 @@ public class TestPlan implements Closeable {
 			});
 
 		for (FileDataSource source : this.sources)
-			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath());
+			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath(), source.getParameters());
 	}
 
 	/**
