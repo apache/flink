@@ -24,7 +24,6 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.omg.CORBA.UNKNOWN;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.BlockLocation;
@@ -32,6 +31,7 @@ import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -184,11 +184,11 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled())
 				LOG.warn(String.format("Could not determine complete statistics for file '%s' due to an I/O error: %s",
-					this.filePath, ioex.getMessage()));
+					this.filePath, StringUtils.stringifyException(ioex)));
 		} catch (Throwable t) {
 			if (LOG.isErrorEnabled())
 				LOG.error(String.format("Unexpected problem while getting the file statistics for file '%s' due to %s",
-					this.filePath, t));
+					this.filePath, StringUtils.stringifyException(t)));
 		}
 		// sanity check
 		if (stats.getTotalInputSize() <= 0)
