@@ -9,13 +9,12 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider {
+final class ReplayOutputBroker extends AbstractOutputChannelForwarder implements BufferProvider {
 
 	/**
 	 * The logger to report information and problems.
@@ -24,41 +23,18 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 
 	private final BufferProvider bufferProvider;
 
-	private final OutputChannelForwardingChain forwardingChain;
-
-	private final IncomingEventQueue incomingEventQueue;
+	private OutputChannelForwardingChain forwardingChain;
 
 	private int nextEnvelopeToSend = 0;
 
-	ReplayOutputBroker(final BufferProvider bufferProvider, final OutputChannelForwardingChain forwardingChain,
-			final IncomingEventQueue incomingEventQueue) {
+	ReplayOutputBroker(final BufferProvider bufferProvider, final AbstractOutputChannelForwarder next) {
+		super(next);
 
 		this.bufferProvider = bufferProvider;
+	}
+
+	public void setForwardingChain(final OutputChannelForwardingChain forwardingChain) {
 		this.forwardingChain = forwardingChain;
-		this.incomingEventQueue = incomingEventQueue;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean forward(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
-
-		// Nothing to do here
-
-		return true;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean hasDataLeft() {
-
-		// A replay task will not wait for a close acknowledgement as it may have been sent to the corresponding runtime
-		// task before.
-
-		return false;
 	}
 
 	/**
@@ -77,17 +53,19 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 		} else {
 			LOG.warn("Received unknown event: " + event);
 		}
+		
+		getNext().processEvent(event);
 	}
 
 	void outputEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
-		this.incomingEventQueue.processQueuedEvents();
+		this.forwardingChain.processQueuedEvents();
 
 		if (transferEnvelope.getSequenceNumber() == this.nextEnvelopeToSend) {
 			++this.nextEnvelopeToSend;
 		}
 
-		this.forwardingChain.forwardEnvelope(transferEnvelope);
+		this.forwardingChain.pushEnvelope(transferEnvelope);
 	}
 
 	int getNextEnvelopeToSend() {
@@ -98,7 +76,7 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 	boolean hasFinished() throws IOException, InterruptedException {
 
 		// Check for events
-		this.incomingEventQueue.processQueuedEvents();
+		this.forwardingChain.processQueuedEvents();
 
 		return (!this.forwardingChain.anyForwarderHasDataLeft());
 	}
@@ -146,14 +124,5 @@ final class ReplayOutputBroker implements OutputChannelForwarder, BufferProvider
 	public void reportAsynchronousEvent() {
 
 		this.bufferProvider.reportAsynchronousEvent();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void destroy() {
-
-		// Nothing to do here
 	}
 }

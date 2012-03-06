@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
+import eu.stratosphere.nephele.checkpointing.EphemeralCheckpointForwarder;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -26,8 +27,6 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
@@ -148,19 +147,27 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 		AbstractByteBufferedOutputChannel<? extends Record> outputChannel = (AbstractByteBufferedOutputChannel<? extends Record>) channel;
 
 		// Construct forwarding chain for this output channel
-		final OutputChannelForwardingChain forwardingChain = new OutputChannelForwardingChain();
-		final IncomingEventQueue incomingEventQueue = AbstractOutputChannelContext
-			.createIncomingEventQueue(forwardingChain);
-		forwardingChain.addForwarder(new RuntimeOutputChannelBroker(this, forwardingChain, incomingEventQueue,
-			outputChannel));
+		final RuntimeDispatcher runtimeDispatcher = new RuntimeDispatcher(
+			this.taskContext.getTransferEnvelopeDispatcher());
+		final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
+			runtimeDispatcher);
+		final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, spillingBarrier);
 		final EphemeralCheckpoint checkpoint = this.taskContext.getEphemeralCheckpoint();
+		RuntimeOutputChannelBroker outputChannelBroker;
 		if (checkpoint != null) {
-			forwardingChain.addForwarder(checkpoint);
+			final EphemeralCheckpointForwarder checkpointForwarder = new EphemeralCheckpointForwarder(checkpoint,
+				forwardingBarrier);
+			outputChannelBroker = new RuntimeOutputChannelBroker(this, outputChannel, checkpointForwarder);
+		} else {
+			outputChannelBroker = new RuntimeOutputChannelBroker(this, outputChannel, forwardingBarrier);
 		}
-		forwardingChain.addForwarder(new ForwardingBarrier(channelID));
-		forwardingChain.addForwarder(new SpillingBarrier(isReceiverRunning, mergeSpillBuffers));
-		forwardingChain.addForwarder(this.taskContext.getRuntimeDispatcher());
 
-		return new RuntimeOutputChannelContext(outputChannel, forwardingChain, incomingEventQueue);
+		final OutputChannelForwardingChain forwardingChain = new OutputChannelForwardingChain(outputChannelBroker,
+			runtimeDispatcher);
+
+		// Set forwarding chain for broker
+		outputChannelBroker.setForwardingChain(forwardingChain);
+
+		return new RuntimeOutputChannelContext(outputChannel, forwardingChain);
 	}
 }

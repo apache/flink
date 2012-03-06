@@ -13,35 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.runtime;
+package eu.stratosphere.nephele.checkpointing;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-public final class ForwardingBarrier extends AbstractOutputChannelForwarder {
+public final class EphemeralCheckpointForwarder extends AbstractOutputChannelForwarder {
 
-	private static final Log LOG = LogFactory.getLog(ForwardingBarrier.class);
+	private final EphemeralCheckpoint ephemeralCheckpoint;
 
-	private final ChannelID outputChannelID;
-
-	private int forwardingBarrier = -1;
-
-	public ForwardingBarrier(final ChannelID outputChannelID, final AbstractOutputChannelForwarder next) {
+	public EphemeralCheckpointForwarder(final EphemeralCheckpoint ephemeralCheckpoint,
+			final AbstractOutputChannelForwarder next) {
 		super(next);
 
 		if (next == null) {
 			throw new IllegalArgumentException("Argument next must not be null");
 		}
 
-		this.outputChannelID = outputChannelID;
+		this.ephemeralCheckpoint = ephemeralCheckpoint;
 	}
 
 	/**
@@ -50,10 +41,7 @@ public final class ForwardingBarrier extends AbstractOutputChannelForwarder {
 	@Override
 	public void push(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
-		if (transferEnvelope.getSequenceNumber() < this.forwardingBarrier) {
-			recycleTransferEnvelope(transferEnvelope);
-			return;
-		}
+		this.ephemeralCheckpoint.forward(transferEnvelope);
 
 		getNext().push(transferEnvelope);
 	}
@@ -62,18 +50,12 @@ public final class ForwardingBarrier extends AbstractOutputChannelForwarder {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processEvent(final AbstractEvent event) {
+	public boolean hasDataLeft() throws IOException, InterruptedException {
 
-		if (event instanceof UnexpectedEnvelopeEvent) {
-
-			final UnexpectedEnvelopeEvent uee = (UnexpectedEnvelopeEvent) event;
-			if (uee.getExpectedSequenceNumber() > this.forwardingBarrier) {
-				this.forwardingBarrier = uee.getExpectedSequenceNumber();
-				LOG.info("Setting forwarding barrier to sequence number " + this.forwardingBarrier
-					+ " for output channel " + this.outputChannelID);
-			}
+		if (this.ephemeralCheckpoint.hasDataLeft()) {
+			return true;
 		}
 
-		getNext().processEvent(event);
+		return getNext().hasDataLeft();
 	}
 }

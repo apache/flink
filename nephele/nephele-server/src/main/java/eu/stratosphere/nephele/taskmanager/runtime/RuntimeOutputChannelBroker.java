@@ -13,13 +13,13 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroker, OutputChannelForwarder {
+final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder implements
+		ByteBufferedOutputChannelBroker {
 
 	/**
 	 * The static object used for logging.
@@ -32,19 +32,14 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 	private final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel;
 
 	/**
-	 * Reference to the queue with the incoming events.
-	 */
-	private final IncomingEventQueue incomingEventQueue;
-
-	/**
 	 * The buffer provider this channel broker to obtain buffers from.
 	 */
 	private final BufferProvider bufferProvider;
 
 	/**
-	 * The output channel forwarder which will take care of the produced transfer envelopes.
+	 * The forwarding chain along which the created transfer envelopes will be pushed.
 	 */
-	private final OutputChannelForwardingChain forwarder;
+	private OutputChannelForwardingChain forwardingChain;
 
 	/**
 	 * Points to the {@link TransferEnvelope} object that will be passed to the framework upon
@@ -67,40 +62,37 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 	 */
 	private int sequenceNumber = 0;
 
-	RuntimeOutputChannelBroker(final BufferProvider bufferProvider, final OutputChannelForwardingChain forwarder,
-			final IncomingEventQueue incomingEventQueue,
-			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel) {
+	RuntimeOutputChannelBroker(final BufferProvider bufferProvider,
+			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
+			final AbstractOutputChannelForwarder next) {
+
+		super(next);
+
+		if (next == null) {
+			throw new IllegalArgumentException("Argument next must not be null");
+		}
 
 		this.bufferProvider = bufferProvider;
-		this.forwarder = forwarder;
-		this.incomingEventQueue = incomingEventQueue;
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean forward(final TransferEnvelope transferEnvelope) {
-
-		// Nothing to do here
-
-		return true;
+	public void setForwardingChain(final OutputChannelForwardingChain forwardingChain) {
+		this.forwardingChain = forwardingChain;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean hasDataLeft() {
+	public boolean hasDataLeft() throws IOException, InterruptedException {
 
 		if (this.closeAcknowledgementReceived) {
-			return false;
+			return getNext().hasDataLeft();
 		}
 
 		if ((this.lastSequenceNumberWithReceiverNotFound + 1) == this.sequenceNumber) {
-			return false;
+			return getNext().hasDataLeft();
 		}
 
 		return true;
@@ -119,6 +111,8 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 		} else if (event instanceof AbstractTaskEvent) {
 			this.byteBufferedOutputChannel.processEvent(event);
 		}
+
+		getNext().processEvent(event);
 	}
 
 	@Override
@@ -181,7 +175,7 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 	public void releaseWriteBuffers() throws IOException, InterruptedException {
 
 		// Check for events
-		this.incomingEventQueue.processQueuedEvents();
+		this.forwardingChain.processQueuedEvents();
 
 		if (this.outgoingTransferEnvelope == null) {
 			LOG.error("Cannot find transfer envelope for channel with ID " + this.byteBufferedOutputChannel.getID());
@@ -198,7 +192,7 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 		final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
 		buffer.finishWritePhase();
 
-		this.forwarder.forwardEnvelope(this.outgoingTransferEnvelope);
+		this.forwardingChain.pushEnvelope(this.outgoingTransferEnvelope);
 		this.outgoingTransferEnvelope = null;
 	}
 
@@ -209,9 +203,9 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 	public boolean hasDataLeftToTransmit() throws IOException, InterruptedException {
 
 		// Check for events
-		this.incomingEventQueue.processQueuedEvents();
+		this.forwardingChain.processQueuedEvents();
 
-		return this.forwarder.anyForwarderHasDataLeft();
+		return this.forwardingChain.anyForwarderHasDataLeft();
 	}
 
 	/**
@@ -227,16 +221,7 @@ final class RuntimeOutputChannelBroker implements ByteBufferedOutputChannelBroke
 			final TransferEnvelope ephemeralTransferEnvelope = createNewOutgoingTransferEnvelope();
 			ephemeralTransferEnvelope.addEvent(event);
 
-			this.forwarder.forwardEnvelope(ephemeralTransferEnvelope);
+			this.forwardingChain.pushEnvelope(ephemeralTransferEnvelope);
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void destroy() {
-
-		// Nothing to do here
 	}
 }

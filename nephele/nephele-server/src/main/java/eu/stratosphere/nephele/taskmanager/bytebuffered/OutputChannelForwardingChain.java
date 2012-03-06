@@ -16,70 +16,71 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 public final class OutputChannelForwardingChain {
 
-	private final CopyOnWriteArrayList<OutputChannelForwarder> forwardingChain = new CopyOnWriteArrayList<OutputChannelForwarder>();
+	private final Queue<AbstractEvent> incomingEventQueue = new LinkedBlockingDeque<AbstractEvent>();
 
-	public void addForwarder(final OutputChannelForwarder forwarder) {
+	private final AbstractOutputChannelForwarder first;
 
-		this.forwardingChain.add(forwarder);
+	private final AbstractOutputChannelForwarder last;
+
+	public OutputChannelForwardingChain(final AbstractOutputChannelForwarder first,
+			final AbstractOutputChannelForwarder last) {
+
+		if (first == null) {
+			throw new IllegalArgumentException("Argument first must not be null");
+		}
+
+		if (last == null) {
+			throw new IllegalArgumentException("Argument last must not be null");
+		}
+
+		this.first = first;
+		this.last = last;
 	}
 
-	public void forwardEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
+	public void pushEnvelope(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
-		final Iterator<OutputChannelForwarder> it = this.forwardingChain.iterator();
-		while (it.hasNext()) {
+		this.first.push(transferEnvelope);
+	}
 
-			if (!it.next().forward(transferEnvelope)) {
-				recycleEnvelope(transferEnvelope);
-				break;
-			}
+	public TransferEnvelope pullEnvelope() {
 
-		}
+		return this.last.pull();
 	}
 
 	public void processEvent(final AbstractEvent event) {
 
-		final Iterator<OutputChannelForwarder> it = this.forwardingChain.iterator();
-		while (it.hasNext()) {
-			it.next().processEvent(event);
-		}
+		this.first.processEvent(event);
 	}
 
 	public boolean anyForwarderHasDataLeft() throws IOException, InterruptedException {
 
-		final Iterator<OutputChannelForwarder> it = this.forwardingChain.iterator();
-		while (it.hasNext()) {
-
-			if (it.next().hasDataLeft()) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	private void recycleEnvelope(final TransferEnvelope transferEnvelope) {
-
-		final Buffer buffer = transferEnvelope.getBuffer();
-		if (buffer != null) {
-			buffer.recycleBuffer();
-		}
+		return this.first.hasDataLeft();
 	}
 
 	public void destroy() {
 
-		final Iterator<OutputChannelForwarder> it = this.forwardingChain.iterator();
-		while (it.hasNext()) {
-			it.next().destroy();
+		this.first.destroy();
+	}
+
+	public void processQueuedEvents() {
+
+		AbstractEvent event = this.incomingEventQueue.poll();
+		while (event != null) {
+
+			this.first.processEvent(event);
+			event = this.incomingEventQueue.poll();
 		}
 	}
 
+	void offerEvent(final AbstractEvent event) {
+		this.incomingEventQueue.offer(event);
+	}
 }

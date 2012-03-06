@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.fs;
 
 import java.io.IOException;
@@ -35,46 +50,49 @@ public final class FileChannelWrapper extends FileChannel {
 		this.replication = replication;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void force(boolean metaData) throws IOException {
-		// TODO Auto-generated method stub
-		System.out.println("force called");
+	public void force(final boolean metaData) throws IOException {
+
+		throw new UnsupportedOperationException("Method force is not implemented");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FileLock lock(long position, long size, boolean shared) throws IOException {
-		// TODO Auto-generated method stub
+	public FileLock lock(final long position, final long size, final boolean shared) throws IOException {
 
-		System.out.println("lock called");
-
-		return null;
+		throw new UnsupportedOperationException("Method lock is not implemented");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public MappedByteBuffer map(MapMode mode, long position, long size) throws IOException {
-		// TODO Auto-generated method stub
+	public MappedByteBuffer map(final MapMode mode, final long position, final long size) throws IOException {
 
-		System.out.println("map called");
-
-		return null;
+		throw new UnsupportedOperationException("Method map is not implemented");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public long position() throws IOException {
-		// TODO Auto-generated method stub
 
-		System.out.println("position called");
-
-		return 0;
+		throw new UnsupportedOperationException("Method position is not implemented");
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public FileChannel position(long newPosition) throws IOException {
-		// TODO Auto-generated method stub
+	public FileChannel position(final long newPosition) throws IOException {
 
-		System.out.println("position2 called");
-
-		return null;
+		throw new UnsupportedOperationException("Method position is not implemented");
 	}
 
 	/**
@@ -83,7 +101,7 @@ public final class FileChannelWrapper extends FileChannel {
 	@Override
 	public int read(final ByteBuffer dst) throws IOException {
 
-		return read(dst, this.nextExpectedReadPosition);
+		throw new UnsupportedOperationException("Method read is not implemented");
 	}
 
 	/**
@@ -114,65 +132,65 @@ public final class FileChannelWrapper extends FileChannel {
 		return bytesRead;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public long read(ByteBuffer[] dsts, int offset, int length) throws IOException {
-		// TODO Auto-generated method stub
+	public long read(final ByteBuffer[] dsts, final int offset, final int length) throws IOException {
 
-		System.out.println("read3 called");
-
-		return 0;
-	}
-
-	@Override
-	public long size() throws IOException {
-		// TODO Auto-generated method stub
-
-		System.out.println("size called");
-
-		return 0;
-	}
-
-	@Override
-	public long transferFrom(ReadableByteChannel src, long position, long count) throws IOException {
-
-		System.out.println("transferFrom called");
-
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public long transferTo(long position, long count, WritableByteChannel target) throws IOException {
-
-		System.out.println("transferTo called");
-
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public FileChannel truncate(long size) throws IOException {
-
-		System.out.println("truncate called");
-
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public FileLock tryLock(long position, long size, boolean shared) throws IOException {
-
-		System.out.println("tryLock called");
-
-		// TODO Auto-generated method stub
-		return null;
+		throw new UnsupportedOperationException("Method read is not implemented");
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int write(ByteBuffer src) throws IOException {
+	public long size() throws IOException {
+
+		throw new UnsupportedOperationException("Method size is not implemented");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public long transferFrom(final ReadableByteChannel src, final long position, final long count) throws IOException {
+
+		throw new UnsupportedOperationException("Method transferFrom is not implemented");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public long transferTo(final long position, final long count, final WritableByteChannel target) throws IOException {
+
+		throw new UnsupportedOperationException("Method transferTo is not implemented");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public FileChannel truncate(final long size) throws IOException {
+
+		throw new UnsupportedOperationException("Method truncate is not implemented");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public FileLock tryLock(final long position, final long size, final boolean shared) throws IOException {
+
+		throw new UnsupportedOperationException("Method tryLock is not implemented");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int write(final ByteBuffer src) throws IOException {
 
 		return write(src, this.nextExpectedWritePosition);
 	}
@@ -204,13 +222,13 @@ public final class FileChannelWrapper extends FileChannel {
 		return totalBytesWritten;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public long write(ByteBuffer[] srcs, int offset, int length) throws IOException {
+	public long write(final ByteBuffer[] srcs, final int offset, final int length) throws IOException {
 
-		System.out.println("write3 called");
-
-		// TODO Auto-generated method stub
-		return 0;
+		throw new UnsupportedOperationException("Method write is not implemented");
 	}
 
 	private FSDataOutputStream getOutputStream() throws IOException {
@@ -238,7 +256,7 @@ public final class FileChannelWrapper extends FileChannel {
 	@Override
 	protected void implCloseChannel() throws IOException {
 
-		if(this.outputStream != null) {
+		if (this.outputStream != null) {
 			this.outputStream.close();
 			this.outputStream = null;
 		}

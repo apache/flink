@@ -13,7 +13,6 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
-import eu.stratosphere.nephele.taskmanager.runtime.RuntimeDispatcher;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
@@ -21,7 +20,7 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 
 	private final ReplayTask task;
 
-	private final RuntimeDispatcher runtimeDispatcher;
+	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
 	private final int numberOfChannels;
 
@@ -30,7 +29,7 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 	ReplayTaskContext(final ReplayTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
 			final LocalBufferPoolOwner previousBufferPoolOwner, final int numberOfChannels) {
 		this.task = task;
-		this.runtimeDispatcher = new RuntimeDispatcher(transferEnvelopeDispatcher);
+		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		if (previousBufferPoolOwner == null) {
 			this.localBufferPool = new LocalBufferPool(1, false, this);
 		} else {
@@ -67,9 +66,9 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 		this.task.registerReplayOutputBroker(channelID, outputBroker);
 	}
 
-	RuntimeDispatcher getRuntimeDispatcher() {
+	TransferEnvelopeDispatcher getTransferEnvelopeDispatcher() {
 
-		return this.runtimeDispatcher;
+		return this.transferEnvelopeDispatcher;
 	}
 
 	/**

@@ -20,7 +20,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.IncomingEventQueue;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 
 public final class RuntimeOutputChannelContext extends AbstractOutputChannelContext {
@@ -28,8 +27,8 @@ public final class RuntimeOutputChannelContext extends AbstractOutputChannelCont
 	private final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel;
 
 	RuntimeOutputChannelContext(final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
-			final OutputChannelForwardingChain forwardingChain, final IncomingEventQueue incomingEventQueue) {
-		super(forwardingChain, incomingEventQueue);
+			final OutputChannelForwardingChain forwardingChain) {
+		super(forwardingChain);
 
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 	}

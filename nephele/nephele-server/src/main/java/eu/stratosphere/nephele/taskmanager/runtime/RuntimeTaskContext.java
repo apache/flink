@@ -66,8 +66,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
-	private final RuntimeDispatcher runtimeDispatcher;
-
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
 	private final EnvelopeConsumptionLog envelopeConsumptionLog;
@@ -95,18 +93,15 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		this.ephemeralCheckpoint = new EphemeralCheckpoint(task, ephemeral);
 		this.task.registerCheckpointDecisionRequester(this.ephemeralCheckpoint);
-
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
-		this.runtimeDispatcher = new RuntimeDispatcher(transferEnvelopeDispatcher);
-
 		this.envelopeConsumptionLog = new EnvelopeConsumptionLog(task.getVertexID(), environment);
 
 		this.startTime = System.currentTimeMillis();
 	}
 
-	RuntimeDispatcher getRuntimeDispatcher() {
+	TransferEnvelopeDispatcher getTransferEnvelopeDispatcher() {
 
-		return this.runtimeDispatcher;
+		return this.transferEnvelopeDispatcher;
 	}
 
 	EphemeralCheckpoint getEphemeralCheckpoint() {

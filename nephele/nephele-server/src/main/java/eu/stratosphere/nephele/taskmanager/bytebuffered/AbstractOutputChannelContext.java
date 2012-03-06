@@ -8,25 +8,13 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 public abstract class AbstractOutputChannelContext implements OutputChannelContext {
 
 	/**
-	 * Stores incoming events for this output channel.
-	 */
-	private final IncomingEventQueue incomingEventQueue;
-
-	/**
 	 * The forwarding chain used by this output channel context.
 	 */
 	private final OutputChannelForwardingChain forwardingChain;
 
-	public AbstractOutputChannelContext(final OutputChannelForwardingChain forwardingChain,
-			final IncomingEventQueue incomingEventQueue) {
+	public AbstractOutputChannelContext(final OutputChannelForwardingChain forwardingChain) {
 
 		this.forwardingChain = forwardingChain;
-		this.incomingEventQueue = incomingEventQueue;
-	}
-
-	public static IncomingEventQueue createIncomingEventQueue(final OutputChannelForwardingChain forwardingChain) {
-
-		return new IncomingEventQueue(forwardingChain);
 	}
 
 	/**
@@ -41,7 +29,7 @@ public abstract class AbstractOutputChannelContext implements OutputChannelConte
 
 		final Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
 		while (it.hasNext()) {
-			this.incomingEventQueue.offer(it.next());
+			this.forwardingChain.offerEvent(it.next());
 		}
 	}
 

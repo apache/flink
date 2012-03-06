@@ -22,10 +22,8 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
@@ -44,7 +42,7 @@ import eu.stratosphere.nephele.io.channels.FileBufferManager;
  * 
  * @author warneke
  */
-public class EphemeralCheckpoint implements OutputChannelForwarder, CheckpointDecisionRequester {
+public class EphemeralCheckpoint implements CheckpointDecisionRequester {
 
 	/**
 	 * The log object used to report problems.
@@ -132,10 +130,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder, CheckpointDe
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public void destroy() {
 
 		while (!this.queuedEnvelopes.isEmpty()) {
@@ -186,14 +180,10 @@ public class EphemeralCheckpoint implements OutputChannelForwarder, CheckpointDe
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean forward(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
+	public void forward(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
 		if (this.checkpointingDecision == CheckpointingDecisionState.NO_CHECKPOINTING) {
-			return true;
+			return;
 		}
 
 		final TransferEnvelope dup = transferEnvelope.duplicate();
@@ -209,8 +199,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder, CheckpointDe
 		} else {
 			this.writeThread.write(dup);
 		}
-
-		return true;
 	}
 
 	public boolean isUndecided() {
@@ -218,10 +206,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder, CheckpointDe
 		return (this.checkpointingDecision == CheckpointingDecisionState.UNDECIDED);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public boolean hasDataLeft() throws IOException, InterruptedException {
 
 		if (isUndecided()) {
@@ -243,15 +227,6 @@ public class EphemeralCheckpoint implements OutputChannelForwarder, CheckpointDe
 		}
 
 		return false;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void processEvent(final AbstractEvent event) {
-		// TODO Auto-generated method stub
-
 	}
 
 	/**
