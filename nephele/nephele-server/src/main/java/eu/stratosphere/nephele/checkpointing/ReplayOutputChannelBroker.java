@@ -14,12 +14,12 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingC
 import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-final class ReplayOutputBroker extends AbstractOutputChannelForwarder implements BufferProvider {
+final class ReplayOutputChannelBroker extends AbstractOutputChannelForwarder implements BufferProvider {
 
 	/**
 	 * The logger to report information and problems.
 	 */
-	private static final Log LOG = LogFactory.getLog(ReplayOutputBroker.class);
+	private static final Log LOG = LogFactory.getLog(ReplayOutputChannelBroker.class);
 
 	private final BufferProvider bufferProvider;
 
@@ -27,7 +27,7 @@ final class ReplayOutputBroker extends AbstractOutputChannelForwarder implements
 
 	private int nextEnvelopeToSend = 0;
 
-	ReplayOutputBroker(final BufferProvider bufferProvider, final AbstractOutputChannelForwarder next) {
+	ReplayOutputChannelBroker(final BufferProvider bufferProvider, final AbstractOutputChannelForwarder next) {
 		super(next);
 
 		this.bufferProvider = bufferProvider;

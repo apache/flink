@@ -38,7 +38,7 @@ final class ReplayOutputGateContext extends AbstractReplayGateContext implements
 		final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
 			runtimeDispatcher);
 		final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, spillingBarrier);
-		final ReplayOutputBroker outputChannelBroker = new ReplayOutputBroker(this.taskContext, forwardingBarrier);
+		final ReplayOutputChannelBroker outputChannelBroker = new ReplayOutputChannelBroker(this.taskContext, forwardingBarrier);
 
 		final OutputChannelForwardingChain forwardingChain = new OutputChannelForwardingChain(outputChannelBroker,
 			runtimeDispatcher);

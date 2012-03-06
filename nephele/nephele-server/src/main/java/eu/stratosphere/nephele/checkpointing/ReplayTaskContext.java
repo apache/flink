@@ -61,7 +61,7 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 		return new ReplayInputGateContext(gateID);
 	}
 
-	void registerReplayOutputBroker(final ChannelID channelID, final ReplayOutputBroker outputBroker) {
+	void registerReplayOutputBroker(final ChannelID channelID, final ReplayOutputChannelBroker outputBroker) {
 
 		this.task.registerReplayOutputBroker(channelID, outputBroker);
 	}

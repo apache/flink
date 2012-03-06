@@ -30,7 +30,7 @@ final class CheckpointEnvironment implements Environment {
 
 	private final boolean hasCompleteCheckpoint;
 
-	private final Map<ChannelID, ReplayOutputBroker> outputBrokerMap;
+	private final Map<ChannelID, ReplayOutputChannelBroker> outputBrokerMap;
 
 	/**
 	 * The observer object for the task's execution.
@@ -41,7 +41,7 @@ final class CheckpointEnvironment implements Environment {
 
 	CheckpointEnvironment(final ExecutionVertexID vertexID, final Environment environment,
 			final boolean hasLocalCheckpoint, final boolean hasCompleteCheckpoint,
-			final Map<ChannelID, ReplayOutputBroker> outputBrokerMap) {
+			final Map<ChannelID, ReplayOutputChannelBroker> outputBrokerMap) {
 
 		this.vertexID = vertexID;
 		this.environment = environment;

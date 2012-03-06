@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.checkpointing;
 
 import java.io.EOFException;
@@ -44,13 +59,13 @@ final class ReplayThread extends Thread {
 
 	private final boolean isCheckpointComplete;
 
-	private final Map<ChannelID, ReplayOutputBroker> outputBrokerMap;
+	private final Map<ChannelID, ReplayOutputChannelBroker> outputBrokerMap;
 
 	private final AtomicBoolean restartRequested = new AtomicBoolean(false);
 
 	ReplayThread(final ExecutionVertexID vertexID, final ExecutionObserver executionObserver, final String taskName,
 			final boolean isCheckpointLocal, final boolean isCheckpointComplete,
-			final Map<ChannelID, ReplayOutputBroker> outputBrokerMap) {
+			final Map<ChannelID, ReplayOutputChannelBroker> outputBrokerMap) {
 		super((taskName == null ? "Unkown" : taskName) + REPLAY_SUFFIX);
 
 		this.vertexID = vertexID;
@@ -122,7 +137,7 @@ final class ReplayThread extends Thread {
 
 		while (!this.executionObserver.isCanceled()) {
 			boolean finished = true;
-			final Iterator<ReplayOutputBroker> it = this.outputBrokerMap.values().iterator();
+			final Iterator<ReplayOutputChannelBroker> it = this.outputBrokerMap.values().iterator();
 			while (it.hasNext()) {
 
 				if (!it.next().hasFinished()) {
@@ -211,7 +226,7 @@ final class ReplayThread extends Thread {
 						final TransferEnvelope transferEnvelope = deserializer.getFullyDeserializedTransferEnvelope();
 						if (transferEnvelope != null) {
 
-							final ReplayOutputBroker broker = this.outputBrokerMap.get(transferEnvelope.getSource());
+							final ReplayOutputChannelBroker broker = this.outputBrokerMap.get(transferEnvelope.getSource());
 							if (broker == null) {
 								throw new IOException("Cannot find output broker for channel "
 										+ transferEnvelope.getSource());

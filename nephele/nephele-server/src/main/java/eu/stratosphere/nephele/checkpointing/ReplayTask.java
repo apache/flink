@@ -159,7 +159,7 @@ public final class ReplayTask implements Task {
 	 */
 	private volatile boolean isCanceled = false;
 
-	private final Map<ChannelID, ReplayOutputBroker> outputBrokerMap = new ConcurrentHashMap<ChannelID, ReplayOutputBroker>();
+	private final Map<ChannelID, ReplayOutputChannelBroker> outputBrokerMap = new ConcurrentHashMap<ChannelID, ReplayOutputChannelBroker>();
 
 	public ReplayTask(final ExecutionVertexID vertexID, final Environment environment,
 			final TaskManager taskManager) {
@@ -453,7 +453,7 @@ public final class ReplayTask implements Task {
 		}
 	}
 
-	void registerReplayOutputBroker(final ChannelID channelID, final ReplayOutputBroker outputBroker) {
+	void registerReplayOutputBroker(final ChannelID channelID, final ReplayOutputChannelBroker outputBroker) {
 
 		this.outputBrokerMap.put(channelID, outputBroker);
 	}
