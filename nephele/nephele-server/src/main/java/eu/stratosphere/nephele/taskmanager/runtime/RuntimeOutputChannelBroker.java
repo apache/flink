@@ -23,6 +23,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
@@ -65,7 +66,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	/**
 	 * Stores whether the receiver has acknowledged the close request from this channel.
 	 */
-	private boolean closeAcknowledgementReceived = false;
+	private boolean closeAcknowledgmentReceived = false;
 
 	/**
 	 * Stores the last sequence number of the transfer envelope for which the receiver could not be found.
@@ -102,7 +103,12 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	@Override
 	public boolean hasDataLeft() throws IOException, InterruptedException {
 
-		if (this.closeAcknowledgementReceived) {
+		// Don't wait for an acknowledgment in case of a file channel, receiver is not running anyway
+		if (this.byteBufferedOutputChannel.getType() == ChannelType.FILE) {
+			return getNext().hasDataLeft();
+		}
+
+		if (this.closeAcknowledgmentReceived) {
 			return getNext().hasDataLeft();
 		}
 
@@ -120,7 +126,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	public void processEvent(final AbstractEvent event) {
 
 		if (event instanceof ByteBufferedChannelCloseEvent) {
-			this.closeAcknowledgementReceived = true;
+			this.closeAcknowledgmentReceived = true;
 		} else if (event instanceof ReceiverNotFoundEvent) {
 			this.lastSequenceNumberWithReceiverNotFound = ((ReceiverNotFoundEvent) event).getSequenceNumber();
 		} else if (event instanceof AbstractTaskEvent) {

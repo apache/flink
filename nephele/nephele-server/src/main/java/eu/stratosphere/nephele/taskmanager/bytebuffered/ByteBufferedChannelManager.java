@@ -180,12 +180,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					addReceiverListHint(inputChannelContext);
 				}
 
-				final boolean isActive = activeOutputChannels.contains(inputChannelContext.getChannelID());
-
-				if (LOG.isDebugEnabled())
-					LOG.debug("Registering byte buffered input channel " + inputChannelContext.getChannelID() + " ("
-							+ (isActive ? "active" : "inactive") + ")");
-
 				this.registeredChannels.put(inputChannelContext.getChannelID(), inputChannelContext);
 			}
 

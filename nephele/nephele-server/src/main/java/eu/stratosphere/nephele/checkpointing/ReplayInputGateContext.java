@@ -37,9 +37,10 @@ final class ReplayInputGateContext extends AbstractReplayGateContext implements 
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputChannelContext createInputChannelContext(ChannelID channelID, InputChannelContext previousContext) {
+	public InputChannelContext createInputChannelContext(final ChannelID channelID,
+			final InputChannelContext previousContext) {
 
-		return new ReplayInputChannelContext(previousContext);
+		return new ReplayInputChannelContext(channelID, previousContext);
 	}
 
 	/**

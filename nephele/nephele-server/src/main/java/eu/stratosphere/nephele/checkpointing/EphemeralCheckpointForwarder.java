@@ -28,10 +28,6 @@ public final class EphemeralCheckpointForwarder extends AbstractOutputChannelFor
 			final AbstractOutputChannelForwarder next) {
 		super(next);
 
-		if (next == null) {
-			throw new IllegalArgumentException("Argument next must not be null");
-		}
-
 		this.ephemeralCheckpoint = ephemeralCheckpoint;
 	}
 
@@ -43,7 +39,12 @@ public final class EphemeralCheckpointForwarder extends AbstractOutputChannelFor
 
 		this.ephemeralCheckpoint.forward(transferEnvelope);
 
-		getNext().push(transferEnvelope);
+		final AbstractOutputChannelForwarder next = getNext();
+		if (next != null) {
+			next.push(transferEnvelope);
+		} else {
+			recycleTransferEnvelope(transferEnvelope);
+		}
 	}
 
 	/**
@@ -56,6 +57,11 @@ public final class EphemeralCheckpointForwarder extends AbstractOutputChannelFor
 			return true;
 		}
 
-		return getNext().hasDataLeft();
+		final AbstractOutputChannelForwarder next = getNext();
+		if (next != null) {
+			return getNext().hasDataLeft();
+		}
+
+		return false;
 	}
 }

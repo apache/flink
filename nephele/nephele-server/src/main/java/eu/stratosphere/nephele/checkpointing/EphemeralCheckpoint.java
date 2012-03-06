@@ -127,6 +127,7 @@ public class EphemeralCheckpoint implements CheckpointDecisionRequester {
 			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
 			this.writeThread = new WriteThread(FileBufferManager.getInstance(), this.task.getVertexID(),
 				this.numberOfConnectedChannels);
+			this.writeThread.start();
 		}
 	}
 

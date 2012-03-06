@@ -470,7 +470,7 @@ public final class ReplayTask implements Task {
 	private static ExecutionState determineOverallExecutionState(final ExecutionState unchangedExecutionState,
 			final ExecutionState changedExecutionState) {
 
-		if (changedExecutionState == null) {
+		if (unchangedExecutionState == null) {
 			return changedExecutionState;
 		}
 

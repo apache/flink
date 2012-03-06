@@ -132,8 +132,7 @@ public class JobManagerITCase {
 				Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
 					String.class });
 				c.setAccessible(true);
-				jobManager = c.newInstance(new Object[] { new String(System.getProperty("user.dir") + "/correct-conf"),
-					new String("local") });
+				jobManager = c.newInstance(new Object[] { ServerTestUtils.getConfigDir(), new String("local") });
 
 			} catch (SecurityException e) {
 				fail(e.getMessage());

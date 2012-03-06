@@ -32,12 +32,20 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	private final InputChannelContext encapsulatedContext;
 
 	/**
+	 * The ID of the input channel this context belongs to.
+	 */
+	private final ChannelID channelID;
+
+	/**
 	 * Constructs a new replay input channel context.
 	 * 
+	 * @param channelID
+	 *        the ID of the input channel this context belongs to
 	 * @param encapsulatedContext
 	 *        the encapsulated input channel context
 	 */
-	ReplayInputChannelContext(final InputChannelContext encapsulatedContext) {
+	ReplayInputChannelContext(final ChannelID channelID, final InputChannelContext encapsulatedContext) {
+		this.channelID = channelID;
 		this.encapsulatedContext = encapsulatedContext;
 	}
 
@@ -65,7 +73,7 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	@Override
 	public ChannelID getChannelID() {
 
-		return this.encapsulatedContext.getChannelID();
+		return this.channelID;
 	}
 
 	/**
@@ -146,7 +154,9 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	@Override
 	public void destroy() {
 
-		this.encapsulatedContext.destroy();
+		if (this.encapsulatedContext != null) {
+			this.encapsulatedContext.destroy();
+		}
 	}
 
 	/**
