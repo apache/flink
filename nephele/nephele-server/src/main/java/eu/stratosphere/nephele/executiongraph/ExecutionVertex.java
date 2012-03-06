@@ -313,11 +313,20 @@ public final class ExecutionVertex {
 			throw new IllegalArgumentException("Argument newExecutionState must not be null");
 		}
 
-		// Rewrite FINISHED to CANCELED if the task has been marked to be canceled
-		if (this.executionState.get() == ExecutionState.CANCELING && newExecutionState == ExecutionState.FINISHED) {
-			LOG.info("Received transition from CANCELING to FINISHED for vertex " + toString()
-				+ ", converting it to CANCELED");
-			newExecutionState = ExecutionState.CANCELED;
+		final ExecutionState currentExecutionState = this.executionState.get();
+		if (currentExecutionState == ExecutionState.CANCELING) {
+
+			// If we are in CANCELING, ignore state changes to FINISHING
+			if (newExecutionState == ExecutionState.FINISHING) {
+				return currentExecutionState;
+			}
+
+			// Rewrite FINISHED to CANCELED if the task has been marked to be canceled
+			if (newExecutionState == ExecutionState.FINISHED) {
+				LOG.info("Received transition from CANCELING to FINISHED for vertex " + toString()
+					+ ", converting it to CANCELED");
+				newExecutionState = ExecutionState.CANCELED;
+			}
 		}
 
 		// Check and save the new execution state
@@ -697,6 +706,14 @@ public final class ExecutionVertex {
 		final ExecutionState previousState = this.executionState.get();
 
 		if (previousState == ExecutionState.CANCELED) {
+			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+		}
+
+		if (previousState == ExecutionState.FAILED) {
+			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+		}
+
+		if (previousState == ExecutionState.FINISHED) {
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 		}
 

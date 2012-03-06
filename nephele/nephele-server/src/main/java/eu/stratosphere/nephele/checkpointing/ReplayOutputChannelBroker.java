@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelClose
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
@@ -65,6 +66,9 @@ final class ReplayOutputChannelBroker extends AbstractOutputChannelForwarder imp
 			if (uee.getExpectedSequenceNumber() > this.nextEnvelopeToSend) {
 				this.nextEnvelopeToSend = uee.getExpectedSequenceNumber();
 			}
+		} else if (event instanceof ReceiverNotFoundEvent) {
+			final ReceiverNotFoundEvent rnfe = (ReceiverNotFoundEvent) event;
+			LOG.warn("Cannot find receiver " + rnfe.getReceiverID() + " for envelope " + rnfe.getSequenceNumber());
 		} else {
 			LOG.warn("Received unknown event: " + event);
 		}

@@ -165,6 +165,8 @@ final class ReplayInputChannelContext implements InputChannelContext {
 	@Override
 	public void logQueuedEnvelopes() {
 
-		this.encapsulatedContext.logQueuedEnvelopes();
+		if (this.encapsulatedContext != null) {
+			this.encapsulatedContext.logQueuedEnvelopes();
+		}
 	}
 }

@@ -588,6 +588,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 					}
 				} else {
 					// There is already a replay task running, we will simply restart it
+					task = runningTask;
 					registerTask = false;
 				}
 
@@ -715,6 +716,11 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	public void executionStateChanged(final JobID jobID, final ExecutionVertexID id,
 			final ExecutionState newExecutionState, final String optionalDescription) {
+
+		// Don't propagate state CANCELING back to the job manager
+		if (newExecutionState == ExecutionState.CANCELING) {
+			return;
+		}
 
 		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
 				|| newExecutionState == ExecutionState.FAILED) {
