@@ -37,9 +37,28 @@ public class ArraySchema implements Schema {
 	 */
 	private static final long serialVersionUID = 4772055788210326536L;
 
-	private int headSize;
+	private int headSize = 0;
 
-	private int tailSize;
+	private int tailSize = 0;
+
+	/**
+	 * Returns the headSize.
+	 * 
+	 * @return the headSize
+	 */
+	public int getHeadSize() {
+		return headSize;
+	}
+
+	/**
+	 * Sets the headSize to the specified value.
+	 * 
+	 * @param headSize
+	 *        the headSize to set
+	 */
+	public void setHeadSize(int headSize) {
+		this.headSize = headSize;
+	}
 
 	/**
 	 * Returns the tailSize.
@@ -58,14 +77,6 @@ public class ArraySchema implements Schema {
 	 */
 	public void setTailSize(int tailSize) {
 		this.tailSize = tailSize;
-	}
-
-	public void setHeadSize(int headSize) {
-		this.headSize = headSize;
-	}
-
-	public int getHeadSize() {
-		return this.headSize;
 	}
 
 	/*
@@ -93,7 +104,7 @@ public class ArraySchema implements Schema {
 		ArrayAccess arrayExpression = (ArrayAccess) expression;
 
 		if (arrayExpression.isSelectingAll()) {
-			int[] indices = new int[headSize + 1];
+			int[] indices = new int[this.getHeadSize() + 1];
 			for (int index = 0; index < indices.length; index++)
 				indices[index] = index;
 			return indices;
@@ -102,7 +113,7 @@ public class ArraySchema implements Schema {
 			int endIndex = arrayExpression.getEndIndex();
 			if (startIndex < 0 || endIndex < 0)
 				throw new UnsupportedOperationException("Tail indices are not supported yet");
-			if (endIndex >= headSize)
+			if (endIndex >= this.getHeadSize())
 				throw new IllegalArgumentException("Target index is not in head");
 
 			int[] indices = new int[endIndex - startIndex];
@@ -111,7 +122,7 @@ public class ArraySchema implements Schema {
 			return indices;
 		}
 		int index = arrayExpression.getStartIndex();
-		if (index >= headSize)
+		if (index >= this.getHeadSize())
 			throw new IllegalArgumentException("Target index is not in head");
 		else if (index < 0)
 			throw new UnsupportedOperationException("Tail indices are not supported yet");
@@ -190,7 +201,7 @@ public class ArraySchema implements Schema {
 	 */
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		if (this.getHeadSize() + 1 != record.getNumFields()) {
+		if (this.getHeadSize() + this.getTailSize()+ 1 != record.getNumFields()) {
 			throw new IllegalStateException("Schema does not match to record!");
 		}
 		if (target == null) {
@@ -198,16 +209,25 @@ public class ArraySchema implements Schema {
 		} else { // array was used
 			((IArrayNode) target).clear();
 		}
+		JsonNodeWrapper recordElement;
 		// insert head of record
 		for (int i = 0; i < this.getHeadSize(); i++) {
-			if (record.getField(i, JsonNodeWrapper.class) != null) {
-				((IArrayNode) target).add(SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
+			recordElement = record.getField(i, JsonNodeWrapper.class);
+			if (recordElement != null) {
+				((IArrayNode) target).add(SopremoUtil.unwrap(recordElement));
 			}
 		}
 		// insert all elements from others
 		((IArrayNode) target).addAll((IArrayNode) SopremoUtil.unwrap(record.getField(this.getHeadSize(),
 			JsonNodeWrapper.class)));
 
+		// insert tail of record
+		for (int i = this.getHeadSize() + 1; i <= this.getHeadSize() + this.getTailSize(); i++) {
+			recordElement = record.getField(i, JsonNodeWrapper.class);
+			if (recordElement != null) {
+				((IArrayNode) target).add(SopremoUtil.unwrap(recordElement));
+			}
+		}
 		return target;
 
 	}

@@ -60,14 +60,14 @@ public class ArraySchemaTest {
 	public void shouldConvertFromJsonToRecordWithoutOthers() {
 		this.schema.setHeadSize(2);
 		this.schema.setTailSize(2);
-		IArrayNode array = new ArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3), IntNode.valueOf(4));
+		IArrayNode array = new ArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3)/*, IntNode.valueOf(4)*/);
 		PactRecord result = this.schema.jsonToRecord(array, null);
 
 		PactRecord expected = new PactRecord(5);
 		expected.setField(0, SopremoUtil.wrap(IntNode.valueOf(1)));
 		expected.setField(1, SopremoUtil.wrap(IntNode.valueOf(2)));
 		expected.setField(3, SopremoUtil.wrap(IntNode.valueOf(3)));
-		expected.setField(4, SopremoUtil.wrap(IntNode.valueOf(4)));
+		//expected.setField(4, SopremoUtil.wrap(IntNode.valueOf(4)));
 		// others field
 		expected.setField(2, SopremoUtil.wrap(new ArrayNode()));
 
@@ -92,27 +92,30 @@ public class ArraySchemaTest {
 		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
 	}
 
-	@Ignore
 	@Test
 	public void shouldConvertFromRecordToJson() {
 		PactRecord record = new PactRecord();
 		this.schema.setHeadSize(2);
+		this.schema.setTailSize(2);
 
 		record.setField(0, SopremoUtil.wrap(IntNode.valueOf(0)));
 		record.setField(1, SopremoUtil.wrap(IntNode.valueOf(1)));
 		record.setField(2, SopremoUtil.wrap(new ArrayNode(IntNode.valueOf(2))));
+		record.setField(3, SopremoUtil.wrap(IntNode.valueOf(3)));
+		record.setField(4, SopremoUtil.wrap(IntNode.valueOf(4)));
 
-		IArrayNode expected = new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2));
+		
+		IArrayNode expected = new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3), IntNode.valueOf(4));
 		IJsonNode result = this.schema.recordToJson(record, null);
 
 		Assert.assertEquals(expected, result);
 	}
 
-	@Ignore
 	@Test
 	public void shouldKeepIdentityOnConversion() {
-		PactRecord record = new PactRecord();
+		PactRecord record = new PactRecord(11);
 		this.schema.setHeadSize(5);
+		this.schema.setTailSize(5);
 
 		record.setField(0, SopremoUtil.wrap(IntNode.valueOf(0)));
 		record.setField(1, SopremoUtil.wrap(IntNode.valueOf(1)));
