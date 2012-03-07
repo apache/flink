@@ -81,35 +81,58 @@ final class ReplayThread extends Thread {
 	@Override
 	public void run() {
 
-		// Now the actual program starts to run
-		changeExecutionState(ExecutionState.REPLAYING, null);
+		while (true) {
 
-		// If the task has been canceled in the mean time, do not even start it
-		if (this.executionObserver.isCanceled()) {
-			changeExecutionState(ExecutionState.CANCELED, null);
-			return;
-		}
+			// Now the actual program starts to run
+			changeExecutionState(ExecutionState.REPLAYING, null);
 
-		try {
-
-			replayCheckpoint();
-
-			// Make sure, we enter the catch block when the task has been canceled
-			if (this.executionObserver.isCanceled()) {
-				throw new InterruptedException();
-			}
-
-		} catch (Exception e) {
-
-			e.printStackTrace();
-
+			// If the task has been canceled in the mean time, do not even start it
 			if (this.executionObserver.isCanceled()) {
 				changeExecutionState(ExecutionState.CANCELED, null);
-			} else {
-				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+				return;
 			}
 
-			return;
+			// Reset all the output broker in case we here restarted
+			resetAllOutputBroker();
+
+			try {
+
+				// Replay the actual checkpoint
+				replayCheckpoint();
+
+				// Make sure, we enter the catch block when the task has been canceled
+				if (this.executionObserver.isCanceled()) {
+					throw new InterruptedException();
+				}
+
+			} catch (Exception e) {
+
+				if (this.restartRequested.compareAndSet(true, false)) {
+					// Wait for the thread to be interrupted, then clear interrupted flag
+					while (!Thread.currentThread().isInterrupted()) {
+					}
+					Thread.interrupted();
+					continue;
+				}
+
+				if (this.executionObserver.isCanceled()) {
+					changeExecutionState(ExecutionState.CANCELED, null);
+				} else {
+					changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+				}
+
+				return;
+			}
+
+			if (this.restartRequested.compareAndSet(true, false)) {
+				// Wait for the thread to be interrupted, then clear interrupted flag
+				while (!Thread.currentThread().isInterrupted()) {
+				}
+				Thread.interrupted();
+				continue;
+			}
+
+			break;
 		}
 
 		// Task finished running, but there may be some unconsumed data in the brokers
@@ -131,6 +154,15 @@ final class ReplayThread extends Thread {
 
 		// Finally, switch execution state to FINISHED and report to job manager
 		changeExecutionState(ExecutionState.FINISHED, null);
+	}
+
+	private void resetAllOutputBroker() {
+
+		final Iterator<ReplayOutputChannelBroker> it = this.outputBrokerMap.values().iterator();
+		while (it.hasNext()) {
+			it.next().reset();
+		}
+
 	}
 
 	private void waitForAllOutputBrokerToFinish() throws IOException, InterruptedException {
@@ -162,7 +194,9 @@ final class ReplayThread extends Thread {
 
 	void restart() {
 
+		changeExecutionState(ExecutionState.STARTING, null);
 		this.restartRequested.set(true);
+		interrupt();
 	}
 
 	private void replayCheckpoint() throws Exception {
@@ -187,10 +221,6 @@ final class ReplayThread extends Thread {
 		try {
 
 			while (true) {
-
-				if (this.restartRequested.compareAndSet(true, false)) {
-					metaDataIndex = 0;
-				}
 
 				// Try to locate the meta data file
 				final Path metaDataFile = checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX
@@ -226,7 +256,8 @@ final class ReplayThread extends Thread {
 						final TransferEnvelope transferEnvelope = deserializer.getFullyDeserializedTransferEnvelope();
 						if (transferEnvelope != null) {
 
-							final ReplayOutputChannelBroker broker = this.outputBrokerMap.get(transferEnvelope.getSource());
+							final ReplayOutputChannelBroker broker = this.outputBrokerMap.get(transferEnvelope
+								.getSource());
 							if (broker == null) {
 								throw new IOException("Cannot find output broker for channel "
 										+ transferEnvelope.getSource());
@@ -252,6 +283,10 @@ final class ReplayThread extends Thread {
 							}
 
 							broker.outputEnvelope(transferEnvelope);
+
+							if (this.restartRequested.get()) {
+								return;
+							}
 						}
 					} catch (EOFException eof) {
 						// Close the file channel

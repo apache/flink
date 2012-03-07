@@ -87,6 +87,10 @@ final class ReplayOutputChannelBroker extends AbstractOutputChannelForwarder imp
 		this.forwardingChain.pushEnvelope(transferEnvelope);
 	}
 
+	void reset() {
+		this.nextEnvelopeToSend = 0;
+	}
+
 	int getNextEnvelopeToSend() {
 
 		return this.nextEnvelopeToSend;

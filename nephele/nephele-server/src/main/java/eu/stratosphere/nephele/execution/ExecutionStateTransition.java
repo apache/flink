@@ -153,6 +153,11 @@ public final class ExecutionStateTransition {
 			unexpectedStateChange = false;
 		}
 
+		// This is a regular transition in case a replay task is restarted
+		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.ASSIGNED) {
+			unexpectedStateChange = false;
+		}
+
 		// This is a regular transition in case a task replay is triggered.
 		if (oldState == ExecutionState.FINISHING && newState == ExecutionState.ASSIGNED) {
 			unexpectedStateChange = false;
