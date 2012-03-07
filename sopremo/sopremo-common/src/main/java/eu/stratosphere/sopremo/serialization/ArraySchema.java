@@ -30,7 +30,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  */
 public class ArraySchema implements Schema {
 
-	// [ head, ArrayNode(others) ]
+	// [ head, ArrayNode(others), tail ]
 
 	/**
 	 * 
@@ -38,6 +38,27 @@ public class ArraySchema implements Schema {
 	private static final long serialVersionUID = 4772055788210326536L;
 
 	private int headSize;
+
+	private int tailSize;
+
+	/**
+	 * Returns the tailSize.
+	 * 
+	 * @return the tailSize
+	 */
+	public int getTailSize() {
+		return tailSize;
+	}
+
+	/**
+	 * Sets the tailSize to the specified value.
+	 * 
+	 * @param tailSize
+	 *        the tailSize to set
+	 */
+	public void setTailSize(int tailSize) {
+		this.tailSize = tailSize;
+	}
 
 	public void setHeadSize(int headSize) {
 		this.headSize = headSize;
@@ -53,9 +74,9 @@ public class ArraySchema implements Schema {
 	 */
 	@Override
 	public Class<? extends Value>[] getPactSchema() {
-		Class<? extends Value>[] schema = new Class[getHeadSize() + 1];
+		Class<? extends Value>[] schema = new Class[getHeadSize() + getTailSize() + 1];
 
-		for (int i = 0; i <= getHeadSize(); i++) {
+		for (int i = 0; i <= getHeadSize() + getTailSize(); i++) {
 			schema[i] = JsonNodeWrapper.class;
 		}
 
@@ -105,21 +126,22 @@ public class ArraySchema implements Schema {
 	@Override
 	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
 		IArrayNode others;
-		if (target == null) {
+		if (target == null || target.getNumFields() != 1) {
 
 			// the last element is the field "others"
-			target = new PactRecord(this.headSize + 1);
+			target = new PactRecord(this.getHeadSize() + this.getTailSize() + 1);
 			others = new ArrayNode();
-			target.setField(headSize, SopremoUtil.wrap(others));
+			target.setField(this.getHeadSize(), SopremoUtil.wrap(others));
 		} else {
 			// clear the others field if target was already used
-			others = (IArrayNode) SopremoUtil.unwrap(target.getField(this.headSize, JsonNodeWrapper.class));
+			others = (IArrayNode) SopremoUtil.unwrap(target.getField(this.getHeadSize(), JsonNodeWrapper.class));
 			others.clear();
 		}
 
-		// fill the first headSize elements of the arraynode into the record
 		IJsonNode arrayElement;
-		for (int i = 0; i < this.headSize; i++) {
+
+		// fill the first headSize elements of the arraynode into the record
+		for (int i = 0; i < this.getHeadSize(); i++) {
 			arrayElement = ((IArrayNode) value).get(i);
 			if (!arrayElement.isMissing()) {
 				target.setField(i, SopremoUtil.wrap(arrayElement));
@@ -128,10 +150,33 @@ public class ArraySchema implements Schema {
 			}
 		}
 
-		// if there are still remaining elements in the array we insert them into the others field
-		if (this.getHeadSize() < ((IArrayNode) value).size()) {
-			for (int i = this.headSize; i < ((IArrayNode) value).size(); i++) {
+		if (this.getHeadSize() + this.getTailSize() < ((IArrayNode) value).size()) {
+			// there are still remaining elements in the array we insert them into the others field untill the tail
+			// begins
+			for (int i = this.getHeadSize(); i < ((IArrayNode) value).size() - this.getTailSize(); i++) {
 				others.add(((IArrayNode) value).get(i));
+			}
+			// fill the rest into tail
+			for (int i = ((IArrayNode) value).size() - this.getTailSize(); i < ((IArrayNode) value).size(); i++) {
+				arrayElement = ((IArrayNode) value).get(i);
+				if (!arrayElement.isMissing()) {
+					target.setField(i - others.size() - 1, SopremoUtil.wrap(arrayElement));
+				}
+				/*
+				 * should not happen
+				 * else { /
+				 * }
+				 */
+			}
+
+		} else { // tail would possibly not get filled entirely, so we don't need to fill the others field
+			for (int i = this.getHeadSize(); i < ((IArrayNode) value).size(); i++) {
+				arrayElement = ((IArrayNode) value).get(i);
+				if (!arrayElement.isMissing()) {
+					target.setField(i + 1, SopremoUtil.wrap(arrayElement));
+				} else { // headSize < size(incoming array) < headSize+ tailSize
+					target.setNull(i + 1);
+				}
 			}
 		}
 
