@@ -17,11 +17,6 @@
 
 	<dependencies>
 
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 
 		<dependency>
 			<groupId>junit</groupId>
@@ -54,6 +49,11 @@
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 			<version>3.0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-core</artifactId>
+			<version>0.20.203.0</version>
 		</dependency>
 	</dependencies>
 
@@ -91,5 +91,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
 </project>

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.testing.ioformats;
+package eu.stratosphere.pact.common.io;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -25,70 +25,20 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.fs.BlockLocation;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
- * Provides convencience methods to deal with I/O operations related to {@link IOReadableWritable}, {@link InputFormat},
- * and {@link OutputFormat}.
+ * Provides convenience methods to deal with I/O operations related to {@link InputFormat} and {@link OutputFormat}.
  * 
  * @author Arvid Heise
  */
 public class FormatUtil {
-	/**
-	 * Converts an {@link IOReadableWritable} to a string by writing the result of
-	 * {@link IOReadableWritable#write(java.io.DataOutput)} into a string. <br>
-	 * This method can be used to store smaller {@link IOReadableWritable} data into a {@link Configuration}.
-	 * 
-	 * @param writable
-	 *        the value to write
-	 * @return the string representing the given value.
-	 * @see FormatUtil#fromString(Class, String)
-	 */
-	public static String toString(IOReadableWritable writable) {
-		try {
-			ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
-			DataOutputStream outStream = new DataOutputStream(byteArray);
-			writable.write(outStream);
-			outStream.close();
-			return byteArray.toString("utf-8");
-		} catch (IOException e) {
-			throw new RuntimeException("should never happen since we write to an in-memory string", e);
-		}
-	}
-
-	/**
-	 * Converts a string to an {@link IOReadableWritable} by parsing the string with
-	 * {@link IOReadableWritable#read(java.io.DataInput)}. <br>
-	 * This method can be used to restore smaller {@link IOReadableWritable} data from a {@link Configuration}.
-	 * 
-	 * @param readableClass
-	 *        the class of the value to read
-	 * @param string
-	 *        the string representing the given value.
-	 * @param <T>
-	 *        the class of the value to read
-	 * @return an instance of T parsed from the string
-	 * @see FormatUtil#toString(IOReadableWritable)
-	 */
-	public static <T extends IOReadableWritable> T fromString(Class<T> readableClass, String string) {
-		try {
-			ByteArrayInputStream byteArray = new ByteArrayInputStream(Charset.forName("utf-8").encode(string).array());
-			DataInputStream inStream = new DataInputStream(byteArray);
-			T readableWritable = ReflectionUtil.newInstance(readableClass);
-			readableWritable.read(inStream);
-			inStream.close();
-			return readableWritable;
-		} catch (IOException e) {
-			throw new RuntimeException("should never happen since we read from an in-memory string", e);
-		}
-	}
 
 	/**
 	 * Creates an {@link InputFormat} from a given class for the specified file. The optional {@link Configuration}
@@ -106,21 +56,21 @@ public class FormatUtil {
 	 * @throws IOException
 	 *         if an I/O error occurred while accessing the file or initializing the InputFormat.
 	 */
-	public static <T extends FileInputFormat> T createInputFormat(
+	public static <T extends FileInputFormat> T openInput(
 			Class<T> inputFormatClass, String path, Configuration configuration) throws IOException {
 		configuration = configuration == null ? new Configuration() : configuration;
 
-		org.apache.hadoop.fs.Path hadoopPath = normalizePath(new org.apache.hadoop.fs.Path(path));
+		Path normalizedPath = normalizePath(new Path(path));
 		final T inputFormat = ReflectionUtil.newInstance(inputFormatClass);
 
 		configuration.setString(FileInputFormat.FILE_PARAMETER_KEY, path);
 		inputFormat.configure(configuration);
 
-		final org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.get(hadoopPath.toUri(),
-			new org.apache.hadoop.conf.Configuration());
+		final FileSystem fs = FileSystem.get(normalizedPath.toUri());
+		FileStatus fileStatus = fs.getFileStatus(normalizedPath);
 
-		inputFormat.open(new FileInputSplit(0, new Path(path), 0, fs.getFileStatus(hadoopPath).getLen(),
-			new String[] { "localhost" }));
+		BlockLocation[] blocks = fs.getFileBlockLocations(fileStatus, 0, fileStatus.getLen());
+		inputFormat.open(new FileInputSplit(0, new Path(path), 0, fileStatus.getLen(), blocks[0].getHosts()));
 		return inputFormat;
 	}
 
@@ -141,17 +91,17 @@ public class FormatUtil {
 	 *         if an I/O error occurred while accessing the files or initializing the InputFormat.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends FileInputFormat> T[] createInputFormats(
+	public static <T extends FileInputFormat> T[] openAllInputs(
 			Class<T> inputFormatClass, String path, Configuration configuration) throws IOException {
 		Path nephelePath = new Path(path);
 		FileSystem fs = nephelePath.getFileSystem();
 		FileStatus fileStatus = fs.getFileStatus(nephelePath);
 		if (!fileStatus.isDir())
-			return (T[]) new FileInputFormat[] { createInputFormat(inputFormatClass, path, configuration) };
+			return (T[]) new FileInputFormat[] { openInput(inputFormatClass, path, configuration) };
 		FileStatus[] list = fs.listStatus(nephelePath);
 		T[] formats = (T[]) new FileInputFormat[list.length];
 		for (int index = 0; index < formats.length; index++)
-			formats[index] = createInputFormat(inputFormatClass, list[index].getPath().toString(), configuration);
+			formats[index] = openInput(inputFormatClass, list[index].getPath().toString(), configuration);
 		return formats;
 	}
 
@@ -171,7 +121,7 @@ public class FormatUtil {
 	 * @throws IOException
 	 *         if an I/O error occurred while accessing the file or initializing the OutputFormat.
 	 */
-	public static <T extends FileOutputFormat> T createOutputFormat(
+	public static <T extends FileOutputFormat> T openOutput(
 			Class<T> outputFormatClass, String path, Configuration configuration) throws IOException {
 		final T outputFormat = ReflectionUtil.newInstance(outputFormatClass);
 
@@ -180,19 +130,18 @@ public class FormatUtil {
 		configuration.setString(FileOutputFormat.FILE_PARAMETER_KEY, path);
 		outputFormat.configure(configuration);
 		outputFormat.open(1);
-
 		return outputFormat;
 	}
 
 	/**
 	 * Fixes the path if it denotes a local (relative) file without the proper protocol prefix.
 	 */
-	private static org.apache.hadoop.fs.Path normalizePath(org.apache.hadoop.fs.Path path) {
+	private static Path normalizePath(Path path) {
 		URI uri = path.toUri();
 		if (uri.getScheme() == null) {
 			try {
 				uri = new URI("file", uri.getHost(), uri.getPath(), uri.getFragment());
-				path = new org.apache.hadoop.fs.Path(uri.toString());
+				path = new Path(uri.toString());
 			} catch (URISyntaxException e) {
 				throw new IllegalArgumentException("path is invalid", e);
 			}

@@ -11,7 +11,7 @@ public class JsonCollector {
 
 	private final Schema schema;
 
-	private final PactRecord record = new PactRecord();
+	private PactRecord record;
 
 	public JsonCollector(final Schema schema) {
 		this.schema = schema;
@@ -30,6 +30,6 @@ public class JsonCollector {
 	public void collect(final IJsonNode value) {
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format(" to %s", value));
-		this.collector.collect(this.schema.jsonToRecord(value, this.record));
+		this.collector.collect(this.record = this.schema.jsonToRecord(value, null));
 	}
 }

@@ -35,7 +35,8 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
  * @author Arvid Heise
  */
 public class ContractUtil {
-	private final static Map<Class<?>, Class<? extends Contract>> STUB_CONTRACTS = new LinkedHashMap<Class<?>, Class<? extends Contract>>();
+	private final static Map<Class<?>, Class<? extends Contract>> STUB_CONTRACTS =
+		new LinkedHashMap<Class<?>, Class<? extends Contract>>();
 
 	static {
 		STUB_CONTRACTS.put(MapStub.class, MapContract.class);
@@ -74,6 +75,26 @@ public class ContractUtil {
 	}
 
 	/**
+	 * Returns the number of inputs for the given {@link Contract} type.<br>
+	 * Currently, it can be 0, 1, or 2.
+	 * 
+	 * @param contractClass
+	 *        the type of the Contract
+	 * @return the number of input contracts
+	 */
+	public static int getNumInputs(final Class<? extends Contract> contractType) {
+
+		if (GenericDataSource.class.isAssignableFrom(contractType))
+			return 0;
+		if (GenericDataSink.class.isAssignableFrom(contractType)
+			|| SingleInputContract.class.isAssignableFrom(contractType))
+			return 1;
+		if (DualInputContract.class.isAssignableFrom(contractType))
+			return 2;
+		throw new IllegalArgumentException("not supported");
+	}
+
+	/**
 	 * Returns a list of all inputs for the given {@link Contract}.<br>
 	 * Currently, the list can have 0, 1, or 2 elements.
 	 * 
@@ -86,9 +107,9 @@ public class ContractUtil {
 
 		if (contract instanceof GenericDataSink)
 			inputs.add(new ArrayList<Contract>(((GenericDataSink) contract).getInputs()));
-		if (contract instanceof SingleInputContract)
+		else if (contract instanceof SingleInputContract)
 			inputs.add(new ArrayList<Contract>(((SingleInputContract<?>) contract).getInputs()));
-		if (contract instanceof DualInputContract) {
+		else if (contract instanceof DualInputContract) {
 			inputs.add(new ArrayList<Contract>(((DualInputContract<?>) contract).getFirstInputs()));
 			inputs.add(new ArrayList<Contract>(((DualInputContract<?>) contract).getSecondInputs()));
 		}

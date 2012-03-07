@@ -18,17 +18,15 @@ package eu.stratosphere.pact.testing;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
-import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -48,7 +46,6 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
-import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
@@ -99,7 +96,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		@Override
 		public boolean isCanceled() {
-			return isCanceled;
+			return this.isCanceled;
 		}
 
 		@Override
@@ -117,17 +114,10 @@ class MockTaskManager implements TaskOperationProtocol {
 
 			final ExecutionVertex vertex = eg.getVertexByID(this.id);
 			if (vertex == null) {
-				LOG.error("Cannot find vertex with ID " + this.id + " of job " + eg.getJobID()
-					+ " to change state to " + executionState);
+				LOG.error("Cannot find vertex with ID " + this.id + " of job " + eg.getJobID() + " to change state to "
+					+ executionState);
 				return;
 			}
-
-			if (executionState == ExecutionState.FINISHED || executionState == ExecutionState.CANCELED
-				|| executionState == ExecutionState.FAILED)
-				MockTaskManager.this.channelManager.unregisterChannels(this.environment);
-
-			if (executionState == ExecutionState.CANCELED)
-				isCanceled = true;
 
 			final Runnable taskStateChangeRunnable = new Runnable() {
 				@Override
@@ -139,12 +129,29 @@ class MockTaskManager implements TaskOperationProtocol {
 			ConcurrentUtil.invokeLater(taskStateChangeRunnable);
 
 			eg.checkAndUpdateJobStatus(executionState);
+
+			MockTaskManager.this.finishedTasks.add(this.environment);
+		}
+
+		/**
+		 * 
+		 */
+		public void cancel() {
+			this.isCanceled = true;
+			ConcurrentUtil.invokeLater(new Runnable() {
+				@Override
+				public void run() {
+					TaskObserver.this.executionStateChanged(ExecutionState.CANCELING, null);
+				}
+			});
 		}
 	}
 
 	private static final Log LOG = LogFactory.getLog(MockTaskManager.class);
 
 	private static final long MEMORY_SIZE = Math.max(192 << 20, Runtime.getRuntime().maxMemory() / 2);
+
+	private List<Environment> finishedTasks = new ArrayList<Environment>();
 
 	public static final MockTaskManager INSTANCE = new MockTaskManager();
 
@@ -157,6 +164,8 @@ class MockTaskManager implements TaskOperationProtocol {
 	private Map<JobID, ExecutionGraph> jobGraphs = new HashMap<JobID, ExecutionGraph>();
 
 	private final Map<ExecutionVertexID, Environment> runningTasks = new HashMap<ExecutionVertexID, Environment>();
+
+	private final Map<Environment, TaskObserver> observers = new IdentityHashMap<Environment, TaskObserver>();
 
 	private MockTaskManager() {
 		// 256 mb
@@ -174,13 +183,13 @@ class MockTaskManager implements TaskOperationProtocol {
 		Environment environment = this.runningTasks.get(id);
 		final Thread executingThread = environment.getExecutingThread();
 
-		this.channelManager.unregisterChannels(environment);
+		this.finishedTasks.add(environment);
+		this.observers.get(environment).cancel();
 		// Request user code to shut down
 		try {
 			final AbstractInvokable invokable = environment.getInvokable();
-			if (invokable != null) {
+			if (invokable != null)
 				invokable.cancel();
-			}
 			executingThread.interrupt();
 		} catch (Throwable e) {
 			LOG.error(StringUtils.stringifyException(e));
@@ -244,10 +253,12 @@ class MockTaskManager implements TaskOperationProtocol {
 			environment.setMemoryManager(this.memoryManager);
 			environment.setIOManager(this.ioManager);
 
-			environment.setExecutionObserver(new TaskObserver(id, environment));
+			TaskObserver observer = new TaskObserver(id, environment);
+			environment.setExecutionObserver(observer);
 
 			this.channelManager.registerChannels(environment);
 			this.runningTasks.put(id, environment);
+			this.observers.put(environment, observer);
 		}
 
 		for (final TaskSubmissionWrapper tsw : tasks) {
@@ -271,10 +282,12 @@ class MockTaskManager implements TaskOperationProtocol {
 		// Register task manager components in environment
 		environment.setMemoryManager(this.memoryManager);
 		environment.setIOManager(this.ioManager);
-		environment.setExecutionObserver(new TaskObserver(id, environment));
+		TaskObserver observer = new TaskObserver(id, environment);
+		environment.setExecutionObserver(observer);
 
 		this.channelManager.registerChannels(environment);
 		this.runningTasks.put(id, environment);
+		this.observers.put(environment, observer);
 
 		final Thread thread = environment.getExecutingThread();
 		thread.start();
@@ -309,5 +322,16 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	public void addJobGraph(ExecutionGraph eg) {
 		this.jobGraphs.put(eg.getJobID(), eg);
+	}
+
+	/**
+	 * @param executionGraph
+	 */
+	public void cleanupJob(ExecutionGraph executionGraph) {
+		for (Environment task : this.finishedTasks) {
+			this.channelManager.unregisterChannels(task);
+			this.observers.remove(task);
+		}
+		this.finishedTasks.clear();
 	}
 }

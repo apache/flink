@@ -23,12 +23,12 @@ import java.util.NoSuchElementException;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.pact.common.io.FormatUtil;
+import eu.stratosphere.pact.common.io.SequentialInputFormat;
+import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.testing.ioformats.FormatUtil;
-import eu.stratosphere.pact.testing.ioformats.SequentialInputFormat;
-import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Tests {@link InputFileIterator}.
@@ -96,7 +96,7 @@ public class InputFileIteratorTest {
 	@Test
 	public void emptyIteratorIfInputFileDoesNotExists() throws IOException {
 		String testPlanFile = TestPlan.getTestPlanFile("fileIteratorTest");
-		SequentialInputFormat inputFormat = FormatUtil.createInputFormat(SequentialInputFormat.class, testPlanFile,
+		SequentialInputFormat inputFormat = FormatUtil.openInput(SequentialInputFormat.class, testPlanFile,
 			null);
 		InputFileIterator inputFileIterator = new InputFileIterator(inputFormat);
 
@@ -131,12 +131,12 @@ public class InputFileIteratorTest {
 	private InputFileIterator createFileIterator(PactRecord... pairs)
 			throws IOException {
 		String testPlanFile = TestPlan.getTestPlanFile("fileIteratorTest");
-		SequentialOutputFormat output = FormatUtil.createOutputFormat(SequentialOutputFormat.class,
+		SequentialOutputFormat output = FormatUtil.openOutput(SequentialOutputFormat.class,
 			testPlanFile, null);
 		for (PactRecord keyValuePair : pairs)
 			output.writeRecord(keyValuePair);
 		output.close();
-		SequentialInputFormat inputFormat = FormatUtil.createInputFormat(SequentialInputFormat.class, testPlanFile,
+		SequentialInputFormat inputFormat = FormatUtil.openInput(SequentialInputFormat.class, testPlanFile,
 			null);
 		InputFileIterator inputFileIterator = new InputFileIterator(inputFormat);
 		return inputFileIterator;

@@ -92,7 +92,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 
 	private synchronized void processEnvelope(final TransferEnvelope transferEnvelope,
 			@SuppressWarnings("unused") final boolean freeSourceBuffer) {
-
+try {
 		AbstractChannel sourceChannel = this.registeredChannels.get(transferEnvelope.getSource()).getChannel();
 
 		final ChannelID localReceiver = sourceChannel.getConnectedChannelID();
@@ -104,6 +104,9 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 			System.err.println("Unknown channel " + localReceiver);
 		else
 			channel.queueTransferEnvelope(transferEnvelope);
+} catch(Exception e) {
+	e.printStackTrace();
+}
 	}
 
 	/**

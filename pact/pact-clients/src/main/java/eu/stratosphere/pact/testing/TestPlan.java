@@ -15,16 +15,25 @@
 
 package eu.stratosphere.pact.testing;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap.Entry;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 
 import junit.framework.Assert;
@@ -56,6 +65,8 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.pact.common.io.SequentialInputFormat;
+import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Value;
@@ -67,8 +78,6 @@ import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
-import eu.stratosphere.pact.testing.ioformats.SequentialInputFormat;
-import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * The primary resource to test one or more implemented PACT stubs. It is
@@ -121,8 +130,7 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 public class TestPlan implements Closeable {
 
-	private static final class CostEstimator extends
-			FixedSizeClusterCostEstimator {
+	private static final class CostEstimator extends FixedSizeClusterCostEstimator {
 		private CostEstimator() {
 			super();
 		}
@@ -153,7 +161,7 @@ public class TestPlan implements Closeable {
 		@Override
 		public void executionStateChanged(JobID jobID, ExecutionVertexID vertexID, ExecutionState newExecutionState,
 				String optionalMessage) {
-			if (newExecutionState == ExecutionState.FAILED)
+			if (newExecutionState == ExecutionState.FAILED && this.executionError == null)
 				this.executionError = optionalMessage == null ? "FAILED" : optionalMessage;
 		}
 
@@ -210,9 +218,9 @@ public class TestPlan implements Closeable {
 
 	private final List<FileDataSource> sources = new ArrayList<FileDataSource>();
 
-	private final Map<GenericDataSink, FuzzyTestValueSimilarity> fuzzySimilarity = new HashMap<GenericDataSink, FuzzyTestValueSimilarity>();
+	private final Map<GenericDataSink, Int2ObjectMap<List<ValueSimilarity<?>>>> fuzzySimilarity = new HashMap<GenericDataSink, Int2ObjectMap<List<ValueSimilarity<?>>>>();
 
-	private final Map<GenericDataSink, FuzzyTestValueMatcher> fuzzyMatchers = new HashMap<GenericDataSink, FuzzyTestValueMatcher>();
+	private final Map<GenericDataSink, FuzzyValueMatcher> fuzzyMatchers = new HashMap<GenericDataSink, FuzzyValueMatcher>();
 
 	/**
 	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
@@ -227,11 +235,10 @@ public class TestPlan implements Closeable {
 		if (contracts.length == 0)
 			throw new IllegalArgumentException();
 
-		this.fuzzyMatchers.put(ALL_SINKS, new EqualityValueMatcher());
+		this.fuzzyMatchers.put(ALL_SINKS, new NaiveFuzzyValueMatcher());
 
 		final Configuration config = new Configuration();
-		config.setString(PactConfigConstants.DEFAULT_INSTANCE_TYPE_KEY,
-			"standard,1,1,200,1,1");
+		config.setString(PactConfigConstants.DEFAULT_INSTANCE_TYPE_KEY, "standard,1,1,200,1,1");
 		GlobalConfiguration.includeConfiguration(config);
 
 		this.contracts = new InputOutputAdder().process(contracts);
@@ -268,9 +275,18 @@ public class TestPlan implements Closeable {
 	 * @param delta
 	 *        the delta that the actual value is allowed to differ from the expected value.
 	 */
-	public void setAllowedPactDoubleDelta(double delta, int valueIndex) {
-		this.setFuzzyValueMatcher(new NaiveFuzzyValueMatcher());
-		this.setFuzzyValueSimilarity(new DoubleValueSimilarity(delta, valueIndex));
+	public void setAllowedPactDoubleDelta(double delta) {
+		ListIterator<ValueSimilarity<?>> simIter = getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES).listIterator();
+		// replace existing
+		while (simIter.hasNext()) {
+			ValueSimilarity<?> sim = simIter.next();
+			if (sim instanceof DoubleValueSimilarity) {
+				simIter.set(new DoubleValueSimilarity(delta));
+				return;
+			}
+		}
+		// or add new
+		this.addFuzzyValueSimilarity(new DoubleValueSimilarity(delta));
 	}
 
 	/**
@@ -283,8 +299,8 @@ public class TestPlan implements Closeable {
 	 * @param similarity
 	 *        the similarity measure to use
 	 */
-	public void setFuzzyValueSimilarity(GenericDataSink sink, FuzzyTestValueSimilarity similarity) {
-		this.fuzzySimilarity.put(sink, similarity);
+	public void addFuzzyValueSimilarity(GenericDataSink sink, int valueIndex, ValueSimilarity<?> similarity) {
+		getFuzzySimilarities(sink, valueIndex).add(similarity);
 	}
 
 	/**
@@ -293,8 +309,22 @@ public class TestPlan implements Closeable {
 	 * @param similarity
 	 *        the similarity measure to use
 	 */
-	public void setFuzzyValueSimilarity(FuzzyTestValueSimilarity similarity) {
-		this.fuzzySimilarity.put(ALL_SINKS, similarity);
+	public void addFuzzyValueSimilarity(ValueSimilarity<?> similarity) {
+		addFuzzyValueSimilarity(ALL_SINKS, similarity);
+	}
+
+	/**
+	 * Sets a fuzzy similarity measure for the values of the given data sink.
+	 * 
+	 * @param <V>
+	 *        the value type
+	 * @param sink
+	 *        the data sink
+	 * @param similarity
+	 *        the similarity measure to use
+	 */
+	public void addFuzzyValueSimilarity(GenericDataSink sink, ValueSimilarity<?> similarity) {
+		addFuzzyValueSimilarity(sink, TestRecords.ALL_VALUES, similarity);
 	}
 
 	/**
@@ -317,11 +347,19 @@ public class TestPlan implements Closeable {
 	 *        the value type
 	 * @return the similarity measure
 	 */
-	public FuzzyTestValueSimilarity getFuzzySimilarity(GenericDataSink sink) {
-		FuzzyTestValueSimilarity matcher = this.fuzzySimilarity.get(sink);
-		if (matcher == null)
-			matcher = this.fuzzySimilarity.get(ALL_SINKS);
-		return matcher;
+	public List<ValueSimilarity<?>> getFuzzySimilarities(GenericDataSink sink, int valueIndex) {
+		Int2ObjectMap<List<ValueSimilarity<?>>> indexMap = getFuzzySimilarityIndexMap(sink);
+		List<ValueSimilarity<?>> list = indexMap.get(valueIndex);
+		if (list == null)
+			indexMap.put(valueIndex, list = new ArrayList<ValueSimilarity<?>>());
+		return list;
+	}
+
+	protected Int2ObjectMap<List<ValueSimilarity<?>>> getFuzzySimilarityIndexMap(GenericDataSink sink) {
+		Int2ObjectMap<List<ValueSimilarity<?>>> indexMap = this.fuzzySimilarity.get(sink);
+		if (indexMap == null)
+			this.fuzzySimilarity.put(sink, indexMap = new Int2ObjectArrayMap<List<ValueSimilarity<?>>>());
+		return indexMap;
 	}
 
 	/**
@@ -329,8 +367,8 @@ public class TestPlan implements Closeable {
 	 * 
 	 * @return the similarity measure
 	 */
-	public FuzzyTestValueSimilarity getFuzzySimilarity() {
-		return this.fuzzySimilarity.get(ALL_SINKS);
+	public List<ValueSimilarity<?>> getFuzzySimilarities() {
+		return getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES);
 	}
 
 	/**
@@ -343,7 +381,7 @@ public class TestPlan implements Closeable {
 	 * @param matcher
 	 *        the global matcher to use
 	 */
-	public void setFuzzyValueMatcher(GenericDataSink sink, FuzzyTestValueMatcher matcher) {
+	public void setFuzzyValueMatcher(GenericDataSink sink, FuzzyValueMatcher matcher) {
 		this.fuzzyMatchers.put(sink, matcher);
 	}
 
@@ -353,7 +391,7 @@ public class TestPlan implements Closeable {
 	 * @param matcher
 	 *        the global matcher to use
 	 */
-	public void setFuzzyValueMatcher(FuzzyTestValueMatcher matcher) {
+	public void setFuzzyValueMatcher(FuzzyValueMatcher matcher) {
 		this.fuzzyMatchers.put(ALL_SINKS, matcher);
 	}
 
@@ -377,8 +415,8 @@ public class TestPlan implements Closeable {
 	 *        the value type
 	 * @return the global matcher
 	 */
-	public FuzzyTestValueMatcher getFuzzyMatcher(GenericDataSink sink) {
-		FuzzyTestValueMatcher matcher = this.fuzzyMatchers.get(sink);
+	public FuzzyValueMatcher getFuzzyMatcher(GenericDataSink sink) {
+		FuzzyValueMatcher matcher = this.fuzzyMatchers.get(sink);
 		if (matcher == null)
 			matcher = this.fuzzyMatchers.get(ALL_SINKS);
 		return matcher;
@@ -389,7 +427,7 @@ public class TestPlan implements Closeable {
 	 * 
 	 * @return the global matcher
 	 */
-	public FuzzyTestValueMatcher getFuzzyMatcher() {
+	public FuzzyValueMatcher getFuzzyMatcher() {
 		return this.fuzzyMatchers.get(ALL_SINKS);
 	}
 
@@ -399,9 +437,9 @@ public class TestPlan implements Closeable {
 	 * @return the allowed delta
 	 */
 	public double getAllowedPactDoubleDelta() {
-		FuzzyTestValueSimilarity matcher = this.fuzzySimilarity.get(ALL_SINKS);
-		if (matcher instanceof DoubleValueSimilarity)
-			return ((DoubleValueSimilarity) matcher).getDelta();
+		for (ValueSimilarity<?> sim : getFuzzySimilarities())
+			if (sim instanceof DoubleValueSimilarity)
+				return ((DoubleValueSimilarity) sim).getDelta();
 		return 0;
 	}
 
@@ -409,8 +447,7 @@ public class TestPlan implements Closeable {
 	 * Locally executes the {@link ExecutionGraph}.
 	 */
 	private void execute(final ExecutionGraph eg) {
-		while (!eg.isExecutionFinished()
-			&& eg.getJobStatus() != InternalJobStatus.FAILED)
+		while (!eg.isExecutionFinished() && eg.getJobStatus() != InternalJobStatus.FAILED)
 			try {
 				Thread.sleep(10);
 			} catch (final InterruptedException e) {
@@ -429,18 +466,16 @@ public class TestPlan implements Closeable {
 
 				@Override
 				public boolean preVisit(final Contract visitable) {
-					if (visitable instanceof FileDataSink
-						&& !TestPlan.this.sinks.contains(visitable))
+					if (visitable instanceof FileDataSink && !TestPlan.this.sinks.contains(visitable))
 						TestPlan.this.sinks.add((FileDataSink) visitable);
-					if (visitable instanceof FileDataSource
-						&& !TestPlan.this.sources.contains(visitable))
+					if (visitable instanceof FileDataSource && !TestPlan.this.sources.contains(visitable))
 						TestPlan.this.sources.add((FileDataSource) visitable);
 					return true;
 				}
 			});
 
 		for (FileDataSource source : this.sources)
-			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath());
+			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath(), source.getParameters());
 	}
 
 	/**
@@ -476,9 +511,7 @@ public class TestPlan implements Closeable {
 
 			} else {
 				wrappedSinks.add(fileSink);
-				this.getActualOutput(fileSink).fromFile(
-					SequentialInputFormat.class,
-					fileSink.getFilePath());
+				this.getActualOutput(fileSink).fromFile(SequentialInputFormat.class, fileSink.getFilePath());
 			}
 
 		return new Plan(wrappedSinks);
@@ -588,23 +621,21 @@ public class TestPlan implements Closeable {
 		return this.degreeOfParallelism;
 	}
 
-	private ExecutionGraph getExecutionGraph() throws IOException,
-			GraphConversionException {
+	private ExecutionGraph getExecutionGraph() throws IOException, GraphConversionException {
 		final Plan plan = this.buildPlanWithReadableSinks();
 		this.syncDegreeOfParallelism(plan);
 		this.initAdhocInputs();
 
 		final OptimizedPlan optimizedPlan = this.compile(plan);
 		this.replaceShippingStrategy(optimizedPlan);
-		final JobGraph jobGraph = new JobGraphGenerator()
-			.compileJobGraph(optimizedPlan);
+		final JobGraph jobGraph = new JobGraphGenerator().compileJobGraph(optimizedPlan);
 		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
 		return new ExecutionGraph(jobGraph, MockInstanceManager.INSTANCE);
 	}
 
 	private OptimizedPlan compile(final Plan plan) {
-		final OptimizedPlan optimizedPlan = new PactCompiler(null, new CostEstimator(), new InetSocketAddress(0))
-			.compile(plan, MOCK_INSTANCE_DESCRIPTION);
+		final OptimizedPlan optimizedPlan = new PactCompiler(null, new CostEstimator(), new InetSocketAddress(0)).compile(
+			plan, MOCK_INSTANCE_DESCRIPTION);
 		return optimizedPlan;
 	}
 
@@ -882,29 +913,45 @@ public class TestPlan implements Closeable {
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
 
+	@SuppressWarnings("unchecked")
 	private void validateResults() {
 		for (final FileDataSink sinkContract : this.getDataSinks()) {
 			TestRecords expectedValues = this.expectedOutputs.get(sinkContract);
 			// need a format which is deserializable without configuration
-			if (sinkContract.getFormatClass() == SequentialOutputFormat.class
-				&& expectedValues != null
+			if (sinkContract.getFormatClass() == SequentialOutputFormat.class && expectedValues != null
 				&& expectedValues.isInitialized()) {
 				final TestRecords actualValues = new TestRecords();
-				actualValues.fromFile(SequentialInputFormat.class,
-					sinkContract.getFilePath());
+				actualValues.fromFile(SequentialInputFormat.class, sinkContract.getFilePath());
 
-				FuzzyTestValueMatcher fuzzyMatcher = this.getFuzzyMatcher(sinkContract);
-				FuzzyTestValueSimilarity fuzzySimilarity = this.getFuzzySimilarity(sinkContract);
+				FuzzyValueMatcher fuzzyMatcher = this.getFuzzyMatcher(sinkContract);
+				Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap = this.getFuzzySimilarityIndexMap(sinkContract);
+				if (similarityMap == null)
+					similarityMap = Int2ObjectMaps.EMPTY_MAP;
+				if (!this.getFuzzySimilarityIndexMap(ALL_SINKS).isEmpty())
+					similarityMap = mergeSimilarityIndices(similarityMap);
 				try {
-					actualValues.assertEquals(expectedValues, fuzzyMatcher, fuzzySimilarity);
+					actualValues.assertEquals(expectedValues, fuzzyMatcher, similarityMap);
 				} catch (AssertionError e) {
-					AssertionError assertionError = new AssertionError(sinkContract.getName() + ": "
-						+ e.getMessage());
+					AssertionError assertionError = new AssertionError(sinkContract.getName() + ": " + e.getMessage());
 					assertionError.initCause(e.getCause());
 					throw assertionError;
 				}
 			}
 		}
+	}
+
+	private Int2ObjectMap<List<ValueSimilarity<?>>> mergeSimilarityIndices(
+			Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap) {
+		similarityMap = new Int2ObjectOpenHashMap<List<ValueSimilarity<?>>>(similarityMap);
+		for (Entry<List<ValueSimilarity<?>>> entry : this.getFuzzySimilarityIndexMap(ALL_SINKS).int2ObjectEntrySet())
+			if (!entry.getValue().isEmpty()) {
+				List<ValueSimilarity<?>> existingList = similarityMap.get(entry.getKey());
+				if (existingList == null)
+					similarityMap.put(entry.getKey(), entry.getValue());
+				else
+					existingList.addAll(entry.getValue());
+			}
+		return similarityMap;
 	}
 
 	/**
@@ -941,8 +988,7 @@ public class TestPlan implements Closeable {
 			tempFile.deleteOnExit();
 			return tempFile.toURI().toString();
 		} catch (final IOException e) {
-			throw new IllegalStateException(
-				"Cannot create temporary file for prefix " + prefix, e);
+			throw new IllegalStateException("Cannot create temporary file for prefix " + prefix, e);
 		}
 	}
 

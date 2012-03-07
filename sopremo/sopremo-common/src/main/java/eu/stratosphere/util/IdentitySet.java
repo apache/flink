@@ -4,6 +4,15 @@ import java.util.AbstractSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 
+/**
+ * Provides a {@link Set} that uses reference-equality and thus intentionally violates the general Set contract.
+ * 
+ * @author Arvid Heise
+ * @param <E>
+ *        the type of the elements
+ * @see Set
+ * @see IdentityHashMap
+ */
 public class IdentitySet<E> extends AbstractSet<E> {
 	private final IdentityHashMap<E, Object> backing = new IdentityHashMap<E, Object>();
 

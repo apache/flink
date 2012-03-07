@@ -42,9 +42,8 @@ public class AssertUtil {
 		for (; actualIterator.hasNext() && expectedIterator.hasNext(); index++) {
 			final T expected = expectedIterator.next(), actual = actualIterator.next();
 			if (!equaler.equal(expected, actual))
-				throw new ArrayComparisonFailure(message,
-					new AssertionFailedError(Assert.format(message, expected, actual)),
-					index);
+				throw new ArrayComparisonFailure(message, new AssertionFailedError(Assert.format(message, expected,
+					actual)), index);
 		}
 
 		if (expectedIterator.hasNext())
@@ -62,6 +61,17 @@ public class AssertUtil {
 	public static <T> void assertIteratorEquals(Iterator<? extends T> expectedIterator,
 			Iterator<? extends T> actualIterator, Equaler<T> equaler) {
 		assertIteratorEquals(null, expectedIterator, actualIterator, equaler);
+	}
+
+	/**
+	 * Asserts that two iterators generate equal series of objects.
+	 * 
+	 * @param expectedIterator
+	 * @param actualIterator
+	 */
+	public static <T> void assertIteratorEquals(Iterator<? extends T> expectedIterator,
+			Iterator<? extends T> actualIterator) {
+		assertIteratorEquals(null, expectedIterator, actualIterator, Equaler.JavaEquals);
 	}
 
 }

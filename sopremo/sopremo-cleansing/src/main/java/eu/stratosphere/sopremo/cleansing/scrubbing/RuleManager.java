@@ -20,7 +20,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.Callable;
 
 import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.Operator;
@@ -28,15 +27,15 @@ import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.cleansing.scrubbing.RuleFactory.RuleContext;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.FieldAssignment;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping;
 import eu.stratosphere.sopremo.expressions.ObjectCreation.TagMapping;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.util.AbstractIterable;
 import eu.stratosphere.util.AbstractIterator;
+import eu.stratosphere.util.Equals.Equaler;
 
 /**
  * @author Arvid Heise
@@ -170,10 +169,6 @@ public class RuleManager extends AbstractSopremoType implements SerializableSopr
 			return false;
 		RuleManager other = (RuleManager) obj;
 		return this.rules.equals(other.rules);
-	}
-
-	public static interface Equaler<Type> {
-		boolean isEqual(Type value1, Type value2);
 	}
 	
 	@SuppressWarnings("unchecked")

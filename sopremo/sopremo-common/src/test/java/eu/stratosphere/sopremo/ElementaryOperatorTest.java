@@ -18,9 +18,12 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
+import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -32,6 +35,11 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  */
 @RunWith(PowerMockRunner.class)
 public class ElementaryOperatorTest {
+	/**
+	 * 
+	 */
+	private static final Schema SCHEMA = new ObjectSchema();
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test(expected = IllegalStateException.class)
 	@PrepareForTest(ContractUtil.class)
@@ -39,28 +47,30 @@ public class ElementaryOperatorTest {
 		PowerMockito.mockStatic(ContractUtil.class);
 		Mockito.when(ContractUtil.getContractClass(OperatorWithOneStub.Implementation.class)).thenReturn(
 			(Class) UninstanceableContract.class);
-		new OperatorWithOneStub().getContract(Schema.Default);
+		new OperatorWithOneStub().getContract(SCHEMA);
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void getContractShouldFailIfNoStub() {
-		new OperatorWithNoStubs().getContract(Schema.Default);
+		new OperatorWithNoStubs().getContract(SCHEMA);
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void getContractShouldFailIfOnlyInstanceStub() {
-		new OperatorWithInstanceStub().getContract(Schema.Default);
+		new OperatorWithInstanceStub().getContract(SCHEMA);
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void getContractShouldFailIfOnlyUnknownStub() {
-		new OperatorWithUnknownStub().getContract(Schema.Default);
+		new OperatorWithUnknownStub().getContract(SCHEMA);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test
 	public void getContractShouldReturnTheMatchingContractToTheFirstStub() {
-		final Contract contract = new OperatorWithTwoStubs().getContract(Schema.Default);
+		ObjectSchema schema = new ObjectSchema();
+		schema.setMappings("someField");
+		final Contract contract = new OperatorWithTwoStubs().getContract(schema);
 		assertEquals(ReduceContract.class, contract.getClass());
 		assertTrue(Arrays.asList(OperatorWithTwoStubs.Implementation1.class,
 			OperatorWithTwoStubs.Implementation2.class).contains(contract.getUserCodeClass()));
@@ -68,7 +78,7 @@ public class ElementaryOperatorTest {
 
 	@Test
 	public void getContractShouldReturnTheMatchingContractToTheOnlyStub() {
-		final Contract contract = new OperatorWithOneStub().getContract(Schema.Default);
+		final Contract contract = new OperatorWithOneStub().getContract(SCHEMA);
 		assertEquals(MapContract.class, contract.getClass());
 		assertEquals(OperatorWithOneStub.Implementation.class, contract.getUserCodeClass());
 	}
@@ -137,6 +147,14 @@ public class ElementaryOperatorTest {
 	static class OperatorWithTwoStubs extends ElementaryOperator<OperatorWithTwoStubs> {
 		private static final long serialVersionUID = 1L;
 
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
+		 */
+		@Override
+		public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+			return Arrays.asList(new ObjectAccess("someField"));
+		}
+		
 		static class Implementation1 extends SopremoReduce {
 			/*
 			 * (non-Javadoc)

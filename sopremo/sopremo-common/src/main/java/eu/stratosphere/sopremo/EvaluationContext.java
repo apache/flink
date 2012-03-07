@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
 
 /**
@@ -77,9 +78,9 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 
 	public void setInputsAndOutputs(final int numInputs, final int numOutputs) {
 		this.inputSchemas = new Schema[numInputs];
-		Arrays.fill(this.inputSchemas, new Schema.Default());
+		Arrays.fill(this.inputSchemas, new ObjectSchema());
 		this.outputSchemas = new Schema[numOutputs];
-		Arrays.fill(this.outputSchemas, new Schema.Default());
+		Arrays.fill(this.outputSchemas, new ObjectSchema());
 	}
 
 	public EvaluationContext(final EvaluationContext context) {
@@ -88,6 +89,7 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 		this.inputCounter = context.inputCounter;
 		this.inputSchemas = context.inputSchemas.clone();
 		this.outputSchemas = context.outputSchemas.clone();
+		this.schema = context.schema;
 	}
 
 	/**

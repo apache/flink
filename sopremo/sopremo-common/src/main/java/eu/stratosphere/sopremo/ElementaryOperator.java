@@ -1,8 +1,13 @@
 package eu.stratosphere.sopremo;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
@@ -20,10 +25,15 @@ import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.util.FilteringIterable;
 import eu.stratosphere.util.IdentityList;
+import eu.stratosphere.util.Predicate;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
@@ -67,6 +77,8 @@ import eu.stratosphere.util.reflect.ReflectUtil;
 public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> extends Operator<Self> {
 	private static final org.apache.commons.logging.Log LOG = LogFactory.getLog(ElementaryOperator.class);
 
+	private Iterable<? extends EvaluationExpression> keyExpressions = NO_KEYS;
+
 	/**
 	 * 
 	 */
@@ -87,6 +99,29 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 */
 	public ElementaryOperator() {
 		super();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.Operator#getKeyExpression()
+	 */
+	@Override
+	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+		return this.keyExpressions;
+	}
+
+	/**
+	 * Sets the keyExpressions to the specified value.
+	 * 
+	 * @param keyExpressions
+	 *        the keyExpressions to set
+	 */
+	@Property(hidden = true)
+	public void setKeyExpressions(Iterable<? extends EvaluationExpression> keyExpressions) {
+		if (keyExpressions == null)
+			throw new NullPointerException("keyExpressions must not be null");
+
+		this.keyExpressions = keyExpressions;
 	}
 
 	@Override
@@ -171,21 +206,72 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		final Class<? extends Contract> contractClass = ContractUtil.getContractClass(stubClass);
 		if (contractClass == null)
 			throw new IllegalStateException("no associated contract found");
-		try {
 
-			if (contractClass == ReduceContract.class)
-				return new ReduceContract((Class<? extends ReduceStub>) stubClass, JsonNodeWrapper.class, 0,
-					this.toString());
-			else if (contractClass == CoGroupContract.class)
-				return new CoGroupContract((Class<? extends CoGroupStub>) stubClass, JsonNodeWrapper.class, 0, 0,
-					this.toString());
-			else if (contractClass == MatchContract.class)
-				return new MatchContract((Class<? extends MatchStub>) stubClass, JsonNodeWrapper.class, 0, 0,
-					this.toString());
+		try {
+			if (contractClass == ReduceContract.class) {
+				int[] keyIndices = getKeyIndices(globalSchema, this.getKeyExpressions());
+				return new ReduceContract((Class<? extends ReduceStub>) stubClass,
+					getKeyClasses(globalSchema, keyIndices), keyIndices, this.toString());
+			}
+			else if (contractClass == CoGroupContract.class) {
+				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressionForInput(0));
+				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressionForInput(1));
+				return new CoGroupContract((Class<? extends CoGroupStub>) stubClass,
+					getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
+					keyIndices1, keyIndices2, this.toString());
+			}
+			else if (contractClass == MatchContract.class) {
+				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressionForInput(0));
+				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressionForInput(1));
+				return new MatchContract((Class<? extends MatchStub>) stubClass,
+					getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
+					keyIndices1, keyIndices2, this.toString());
+			}
 			return ReflectUtil.newInstance(contractClass, stubClass, this.toString());
 		} catch (final Exception e) {
 			throw new IllegalStateException("Cannot create contract from stub " + stubClass, e);
 		}
+	}
+
+	private Class<? extends Key>[] getCommonKeyClasses(Schema globalSchema, int[] keyIndices1, int[] keyIndices2) {
+		Class<? extends Key>[] keyClasses1 = getKeyClasses(globalSchema, keyIndices1);
+		Class<? extends Key>[] keyClasses2 = getKeyClasses(globalSchema, keyIndices2);
+		if (!Arrays.equals(keyClasses1, keyClasses2))
+			throw new IllegalStateException(String.format(
+				"The key classes are not compatible (schema %s; indices %s %s; key classes: %s %s)",
+				globalSchema, keyIndices1, keyIndices2, keyClasses1, keyClasses2));
+		return keyClasses1;
+	}
+
+	private Iterable<? extends EvaluationExpression> getKeyExpressionForInput(final int index) {
+		return new FilteringIterable<EvaluationExpression>(this.getKeyExpressions(), new Predicate<EvaluationExpression>() {
+			public boolean isTrue(EvaluationExpression expression) {
+				return SopremoUtil.getInputIndex(expression) == index;
+			};
+		});
+	}
+
+	@SuppressWarnings("unchecked")
+	protected Class<? extends Key>[] getKeyClasses(final Schema globalSchema, int[] keyIndices) {
+		Class<? extends Value>[] pactSchema = globalSchema.getPactSchema();
+		Class<? extends Key>[] keyClasses = new Class[keyIndices.length];
+		for (int index = 0; index < keyIndices.length; index++) {
+			Class<? extends Value> schemaClass = pactSchema[keyIndices[index]];
+			if (!(Key.class.isAssignableFrom(schemaClass)))
+				throw new IllegalStateException("Schema wrapped a key value with a class that does not implement Key");
+			keyClasses[index] = (Class<? extends Key>) schemaClass;
+		}
+		return keyClasses;
+	}
+
+	protected int[] getKeyIndices(final Schema globalSchema, Iterable<? extends EvaluationExpression> keyExpressions) {
+		IntList keyIndices = new IntArrayList();
+		for (EvaluationExpression expression : keyExpressions)
+			for (int index : globalSchema.indicesOf(expression))
+				keyIndices.add(index);
+		if (keyIndices.isEmpty())
+			throw new IllegalStateException("The given operator needs to specify key expressions");
+		return keyIndices.toIntArray();
 	}
 
 	// protected abstract Schema getKeyFields();

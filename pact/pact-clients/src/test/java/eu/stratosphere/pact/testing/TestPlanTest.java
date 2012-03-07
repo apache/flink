@@ -47,6 +47,7 @@ import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
+import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -59,7 +60,6 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactList;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Tests {@link TestPlan}.
@@ -256,6 +256,7 @@ public class TestPlanTest {
 		testPlan.run();
 
 		testPlan.getInput().setSchema(IntStringPair);
+		testPlan.getActualOutput().setSchema(IntStringPair);
 		assertEquals("input and output should be equal in identity map", testPlan.getInput(), testPlan
 			.getActualOutput());
 
@@ -288,9 +289,8 @@ public class TestPlanTest {
 		map.setInput(read);
 
 		FileDataSink output = createOutput(map, RecordOutputFormat.class);
-		output.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+		output.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 1);
 		output.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-		output.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.getExpectedOutput(output, IntStringPair).fromFile(IntegerInFormat.class,
@@ -580,11 +580,12 @@ public class TestPlanTest {
 		summing.setInput(tokenize);
 
 		TestPlan testPlan = new TestPlan(summing);
-		String[] lines = {
-			"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-			"Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-			"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-			"Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." };
+		String[] lines =
+			{
+				"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+				"Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+				"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+				"Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." };
 		for (String line : lines)
 			testPlan.getInput().add(new PactString(line));
 
@@ -763,7 +764,7 @@ public class TestPlanTest {
 
 		testPlan1.getActualOutput().setSchema(IntStringPair);
 		testPlan2.getActualOutput().setSchema(IntStringPair);
-		AssertUtil.assertIteratorEquals(testPlan1.getActualOutput().iterator(), 
+		AssertUtil.assertIteratorEquals(testPlan1.getActualOutput().iterator(),
 			testPlan2.getActualOutput().iterator(),
 			new PactRecordEqualer(IntStringPair));
 	}

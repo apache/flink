@@ -3,7 +3,8 @@ package eu.stratosphere.util;
 import java.util.Iterator;
 
 /**
- * An iterator which takes the elements of another iterator and converts the elements on-the-fly.
+ * An iterator which takes the elements of another iterator and converts the elements on-the-fly.<br>
+ * Changes to the parameters are directly reflected in the result.
  * 
  * @author Arvid Heise
  * @param <From>

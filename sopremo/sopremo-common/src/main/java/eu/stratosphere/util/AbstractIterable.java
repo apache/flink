@@ -19,26 +19,27 @@ import java.util.Iterator;
 /**
  * @author Arvid Heise
  */
-public abstract class AbstractIterable<I, O> implements Iterable<O> {
-	private final Iterable<I> originalIterable;
+public abstract class AbstractIterable<T> implements Iterable<T> {
 
-	public AbstractIterable(final Iterable<I> originalIterable) {
-		this.originalIterable = originalIterable;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Iterable#iterator()
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
 	 */
 	@Override
-	public Iterator<O> iterator() {
-		return this.wrap(this.originalIterable.iterator());
+	public String toString() {
+		return toString(10);
+	}
+	
+	public String toString(int numberOfElements) {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName()).append(' ');
+		appendElements(builder, this, numberOfElements);
+		return builder.toString();
 	}
 
-	/**
-	 * @param iterator
-	 * @return
-	 */
-	protected abstract Iterator<O> wrap(Iterator<I> iterator);
-
+	protected void appendElements(StringBuilder builder, Iterable<?> iterable, int numberOfElements) {
+		Iterator<?> inputIterator = iterable.iterator();
+		for (int input = 0; input < numberOfElements && inputIterator.hasNext(); input++)
+			builder.append(inputIterator.next()).append(' ');
+		if (inputIterator.hasNext())
+			builder.append("...");
+	}
 }

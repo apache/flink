@@ -104,7 +104,7 @@ public abstract class FileOutputFormat extends OutputFormat
 	 * Obtains a DataOutputStream in an thread that is not interrupted.
 	 * The HDFS client is very sensitive to InterruptedExceptions.
 	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
 	 */
 	private static class OutputPathOpenThread extends Thread {
 

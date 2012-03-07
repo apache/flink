@@ -15,11 +15,17 @@
 
 package eu.stratosphere.pact.testing;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap.Entry;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,6 +44,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.FormatUtil;
+import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
@@ -47,8 +55,6 @@ import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
-import eu.stratosphere.pact.testing.ioformats.FormatUtil;
-import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
 
 /**
  * Represents the input or output values of a {@link TestPlan}. The class is
@@ -77,17 +83,11 @@ import eu.stratosphere.pact.testing.ioformats.SequentialOutputFormat;
  *        the type of the values
  */
 public class TestRecords implements Closeable, Iterable<PactRecord> {
-	private static final class TestPairsReader
-			implements MutableObjectIterator<PactRecord> {
-		PactRecord currentPair;
-
+	private static final class TestPairsReader implements MutableObjectIterator<PactRecord> {
 		private final InputFileIterator inputFileIterator;
 
-		private TestPairsReader(
-				final InputFileIterator inputFileIterator,
-				final PactRecord actualPair) {
+		private TestPairsReader(final InputFileIterator inputFileIterator) {
 			this.inputFileIterator = inputFileIterator;
-			this.currentPair = actualPair;
 		}
 
 		/*
@@ -96,7 +96,6 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		 */
 		@Override
 		public boolean next(PactRecord target) throws IOException {
-			final PactRecord current = this.currentPair;
 			if (this.inputFileIterator.hasNext()) {
 				this.inputFileIterator.next().copyTo(target);
 				return true;
@@ -106,8 +105,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 	}
 
-	private static final Iterator<PactRecord> EMPTY_ITERATOR = new ArrayList<PactRecord>()
-		.iterator();
+	private static final Iterator<PactRecord> EMPTY_ITERATOR = new ArrayList<PactRecord>().iterator();
 
 	private static final Comparator<Key> KeyComparator = new KeyComparator();
 
@@ -123,25 +121,41 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 	private boolean empty;
 
-	private static class SortInfo {
-		private int[] sortKeys;
+	private static class SortInfo implements Cloneable {
+		private IntList sortKeys = new IntArrayList();
 
-		private Class<? extends Key>[] keyClasses;
+		private List<Class<? extends Key>> keyClasses = new ArrayList<Class<? extends Key>>();
 
-		private Comparator<Key>[] comparators;
+		private List<Comparator<Key>> comparators = new ArrayList<Comparator<Key>>();
 
-		public SortInfo(int[] sortKeys, Class<? extends Key>[] keyClasses, Comparator<Key>[] comparators) {
-			this.sortKeys = sortKeys;
-			this.keyClasses = keyClasses;
-			this.comparators = comparators;
+		public SortInfo(IntList sortKeys, List<Class<? extends Key>> keyClasses,
+				List<? extends Comparator<Key>> comparators) {
+			this.sortKeys.addAll(sortKeys);
+			this.keyClasses.addAll(keyClasses);
+			this.comparators.addAll(comparators);
+		}
+
+		public SortInfo copy() {
+			return new SortInfo(new IntArrayList(sortKeys), new ArrayList<Class<? extends Key>>(keyClasses),
+				new ArrayList<Comparator<Key>>(comparators));
+		}
+
+		public void remove(int removeIndex) {
+			for (int index = 0; index < sortKeys.size(); index++) {
+				if (sortKeys.get(index) == removeIndex) {
+					sortKeys.remove(index);
+					keyClasses.remove(index);
+					comparators.remove(index);
+				}
+			}
 		}
 
 		/**
 		 * Initializes TestPairs.SortInfo.
 		 */
-		public SortInfo(int[] sortKeys, Class<? extends Key>[] keyClasses) {
-			this(sortKeys, keyClasses, new KeyComparator[keyClasses.length]);
-			Arrays.fill(this.comparators, KeyComparator);
+		public SortInfo(IntList sortKeys, List<Class<? extends Key>> keyClasses) {
+			this(sortKeys, keyClasses, Arrays.asList(new KeyComparator[keyClasses.size()]));
+			Collections.fill(this.comparators, KeyComparator);
 		}
 	}
 
@@ -183,6 +197,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 */
 	public void setEmpty() {
 		this.setEmpty(true);
+		this.inputFormatClass = null;
+		this.records.clear();
 	}
 
 	/**
@@ -196,6 +212,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		for (final PactRecord record : records)
 			this.records.add(record);
 		this.setEmpty(false);
+		this.inputFormatClass = null;
 		return this;
 	}
 
@@ -244,6 +261,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		for (int index = 0; index < values.length; index++)
 			record.setField(index, values[index]);
 		this.records.add(record);
+		this.setEmpty(false);
 		return this;
 	}
 
@@ -257,8 +275,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 * Uses {@link UnilateralSortMerger} to sort the files of the {@link SplitInputIterator}.
 	 */
 	private Iterator<PactRecord> createSortedIterator(final InputFileIterator inputFileIterator, SortInfo info) {
-		final TaskConfig config = new TaskConfig(
-			GlobalConfiguration.getConfiguration());
+		final TaskConfig config = new TaskConfig(GlobalConfiguration.getConfiguration());
 		this.assignMemory(config, 10);
 
 		// set up memory and io parameters
@@ -281,16 +298,11 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 			if (info == null)
 				return inputFileIterator;
-			PactRecord actualRecord = new PactRecord();
-			actualRecord.makeSpace(this.emptyTuple.length);
-			for (int index = 0; index < this.emptyTuple.length; index++)
-				actualRecord.setField(index, this.emptyTuple[index]);
+			@SuppressWarnings("unchecked")
 			final UnilateralSortMerger sortMerger = new UnilateralSortMerger(
-				MockTaskManager.INSTANCE.getMemoryManager(),
-				MockTaskManager.INSTANCE.getIoManager(), totalMemory, numFileHandles,
-				info.comparators, info.sortKeys, info.keyClasses,
-				new TestPairsReader(inputFileIterator, actualRecord),
-				parentTask, 0.7f);
+				MockTaskManager.INSTANCE.getMemoryManager(), MockTaskManager.INSTANCE.getIoManager(), totalMemory,
+				numFileHandles, info.comparators.toArray(new Comparator[0]), info.sortKeys.toIntArray(),
+				info.keyClasses.toArray(new Class[0]), new TestPairsReader(inputFileIterator), parentTask, 0.7f);
 
 			this.closableManager.add(sortMerger);
 
@@ -298,16 +310,11 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 			return new ImmutableRecordIterator(sortMerger.getIterator());
 		} catch (final MemoryAllocationException mae) {
 			throw new RuntimeException(
-				"MemoryManager is not able to provide the required amount of memory for ReduceTask",
-				mae);
+				"MemoryManager is not able to provide the required amount of memory for ReduceTask", mae);
 		} catch (final IOException ioe) {
-			throw new RuntimeException(
-				"IOException caught when obtaining SortMerger for ReduceTask",
-				ioe);
+			throw new RuntimeException("IOException caught when obtaining SortMerger for ReduceTask", ioe);
 		} catch (final InterruptedException iex) {
-			throw new RuntimeException(
-				"InterruptedException caught when obtaining iterator over sorted data.",
-				iex);
+			throw new RuntimeException("InterruptedException caught when obtaining iterator over sorted data.", iex);
 		}
 	}
 
@@ -323,7 +330,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 				keyClasses.add((Class<? extends Key>) this.schema[fieldIndex]);
 				sortKeys.add(fieldIndex);
 			}
-		return new SortInfo(sortKeys.toIntArray(), keyClasses.toArray(new Class[0]));
+		return new SortInfo(sortKeys, keyClasses);
 	}
 
 	@Override
@@ -343,7 +350,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 *         if the sets differ
 	 */
 	public void assertEquals(final TestRecords expectedValues) throws ArrayComparisonFailure {
-		this.assertEquals(expectedValues, new EqualityValueMatcher(), null);
+		this.assertEquals(expectedValues, new EqualityValueMatcher(),
+			new Int2ObjectOpenHashMap<List<ValueSimilarity<?>>>());
 	}
 
 	private static <T> T firstNonNull(T... elements) {
@@ -367,19 +375,21 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 * @throws ArrayComparisonFailure
 	 *         if the sets differ
 	 */
-	public void assertEquals(final TestRecords expectedValues, FuzzyTestValueMatcher fuzzyMatcher,
-			FuzzyTestValueSimilarity fuzzySimilarity) throws ArrayComparisonFailure {
+	public void assertEquals(final TestRecords expectedValues, FuzzyValueMatcher fuzzyMatcher,
+			Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap) throws ArrayComparisonFailure {
 		try {
-			SortInfo sortInfo = firstNonNull(expectedValues.sortInfo, this.sortInfo);
 			@SuppressWarnings("unchecked")
 			Class<? extends Value>[] schema = firstNonNull(expectedValues.schema, this.schema);
+			similarityMap = canonalizeSimilarityMap(similarityMap, schema);
+			SortInfo sortInfo = getSortInfoForAssertion(similarityMap,
+				firstNonNull(expectedValues.sortInfo, this.sortInfo));
 			if (sortInfo == null)
 				throw new IllegalStateException("Expected value does not have schema specified");
 			final Iterator<PactRecord> actualIterator = this.iterator(sortInfo);
 			final Iterator<PactRecord> expectedIterator = expectedValues.iterator(sortInfo);
 
 			// initialize with null
-			List<Key> currentKeys = new ArrayList<Key>(Arrays.asList(new Key[sortInfo.sortKeys.length])), nextKeys = new ArrayList<Key>(
+			List<Key> currentKeys = new ArrayList<Key>(Arrays.asList(new Key[sortInfo.sortKeys.size()])), nextKeys = new ArrayList<Key>(
 				currentKeys);
 			int itemIndex = 0;
 			List<PactRecord> expectedValuesWithCurrentKey = new ArrayList<PactRecord>();
@@ -395,7 +405,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 					setKeys(nextKeys, expected, sortInfo);
 					if (!currentKeys.equals(nextKeys)) {
 						this.matchValues(actualIterator, currentKeys, sortInfo, schema, itemIndex,
-							expectedValuesWithCurrentKey, actualValuesWithCurrentKey, fuzzyMatcher, fuzzySimilarity);
+							expectedValuesWithCurrentKey, actualValuesWithCurrentKey, fuzzyMatcher, similarityMap);
 						setKeys(currentKeys, expected, sortInfo);
 					}
 					expectedValuesWithCurrentKey.add(expected);
@@ -406,7 +416,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 				// remaining values
 				if (!expectedValuesWithCurrentKey.isEmpty())
 					this.matchValues(actualIterator, currentKeys, sortInfo, schema, itemIndex,
-						expectedValuesWithCurrentKey, actualValuesWithCurrentKey, fuzzyMatcher, fuzzySimilarity);
+						expectedValuesWithCurrentKey, actualValuesWithCurrentKey, fuzzyMatcher, similarityMap);
 			}
 
 			if (!expectedValuesWithCurrentKey.isEmpty() || expectedIterator.hasNext())
@@ -420,16 +430,58 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		}
 	}
 
-	private static void setKeys(List<Key> keyList, PactRecord expected, SortInfo sortInfo) {
-		for (int index = 0; index < sortInfo.sortKeys.length; index++)
-			keyList.set(index, expected.getField(sortInfo.sortKeys[index], sortInfo.keyClasses[index]));
+	public final static int ALL_VALUES = -1;
+
+	/**
+	 * Removes all values column and adds similarities where applicable
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private Int2ObjectMap<List<ValueSimilarity<?>>> canonalizeSimilarityMap(
+			Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap, Class<? extends Value>[] schema) {
+		if (similarityMap.containsKey(ALL_VALUES) && !similarityMap.get(ALL_VALUES).isEmpty()) {
+			// add all similarities to individual lists instead
+			similarityMap = new Int2ObjectOpenHashMap<List<ValueSimilarity<?>>>(similarityMap);
+			List<ValueSimilarity<?>> allSimilarity = similarityMap.remove(ALL_VALUES);
+			for (int index = 0; index < schema.length; index++) {
+				List<ValueSimilarity<?>> similarities = similarityMap.get(index);
+				if (similarities == null)
+					similarityMap.put(index, similarities = new ArrayList<ValueSimilarity<?>>());
+				for (ValueSimilarity sim : allSimilarity)
+					if (sim.isApplicable(schema[index]))
+						similarities.add(sim);
+			}
+		}
+
+		// remove empty lists
+		ObjectIterator<Entry<List<ValueSimilarity<?>>>> iterator = similarityMap.int2ObjectEntrySet().iterator();
+		while (iterator.hasNext()) {
+			Int2ObjectMap.Entry<List<ValueSimilarity<?>>> entry = iterator.next();
+			if (entry.getValue().isEmpty())
+				iterator.remove();
+		}
+		return similarityMap;
 	}
 
-	private void matchValues(final Iterator<PactRecord> actualIterator,
-			List<Key> currentKeys, SortInfo sortInfo, Class<? extends Value>[] schema, int itemIndex,
-			List<PactRecord> expectedValuesWithCurrentKey, List<PactRecord> actualValuesWithCurrentKey,
-			FuzzyTestValueMatcher fuzzyMatcher, FuzzyTestValueSimilarity fuzzySimilarity)
-			throws ArrayComparisonFailure {
+	protected SortInfo getSortInfoForAssertion(Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap, SortInfo sortInfo) {
+		if (similarityMap.isEmpty())
+			return sortInfo;
+		sortInfo = sortInfo.copy();
+		// remove all keys that have a fuzzy similarity measure
+		for (Entry<List<ValueSimilarity<?>>> similarityEntry : similarityMap.int2ObjectEntrySet())
+			if (similarityEntry.getIntKey() != ALL_VALUES && !similarityEntry.getValue().isEmpty())
+				sortInfo.remove(similarityEntry.getIntKey());
+		return sortInfo;
+	}
+
+	private static void setKeys(List<Key> keyList, PactRecord expected, SortInfo sortInfo) {
+		for (int index = 0; index < sortInfo.sortKeys.size(); index++)
+			keyList.set(index, expected.getField(sortInfo.sortKeys.getInt(index), sortInfo.keyClasses.get(index)));
+	}
+
+	private void matchValues(final Iterator<PactRecord> actualIterator, List<Key> currentKeys, SortInfo sortInfo,
+			Class<? extends Value>[] schema, int itemIndex, List<PactRecord> expectedValuesWithCurrentKey,
+			List<PactRecord> actualValuesWithCurrentKey, FuzzyValueMatcher fuzzyMatcher,
+			Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap) throws ArrayComparisonFailure {
 
 		List<Key> actualKeys = new ArrayList<Key>(currentKeys);
 
@@ -445,17 +497,17 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		}
 
 		if (actualValuesWithCurrentKey.isEmpty())
-			throw new ArrayComparisonFailure("Unexpected value for key " + currentKeys,
-				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey, actualRecord)),
-				itemIndex + expectedValuesWithCurrentKey.size() - 1);
+			throw new ArrayComparisonFailure("Unexpected value for key " + currentKeys, new AssertionFailedError(
+				Assert.format(" ", expectedValuesWithCurrentKey, actualRecord)), itemIndex
+				+ expectedValuesWithCurrentKey.size() - 1);
 
-		fuzzyMatcher.removeMatchingValues(fuzzySimilarity, schema, expectedValuesWithCurrentKey,
+		fuzzyMatcher.removeMatchingValues(similarityMap, schema, expectedValuesWithCurrentKey,
 			actualValuesWithCurrentKey);
 
 		if (!expectedValuesWithCurrentKey.isEmpty() || !actualValuesWithCurrentKey.isEmpty())
 			throw new ArrayComparisonFailure("Unexpected values for key " + currentKeys + ": ",
-				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey,
-					actualValuesWithCurrentKey)), itemIndex - expectedValuesWithCurrentKey.size());
+				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey, actualValuesWithCurrentKey)),
+				itemIndex - expectedValuesWithCurrentKey.size());
 
 		if (actualRecord != null)
 			actualValuesWithCurrentKey.add(actualRecord);
@@ -504,9 +556,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 *        the path to the file, can be relative
 	 * @return this
 	 */
-	public TestRecords fromFile(
-			final Class<? extends FileInputFormat> inputFormatClass,
-			final String file) {
+	public TestRecords fromFile(final Class<? extends FileInputFormat> inputFormatClass, final String file) {
 		this.fromFile(inputFormatClass, file, new Configuration());
 		return this;
 	}
@@ -522,13 +572,13 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 *        the configuration for the {@link FileInputFormat}.
 	 * @return this
 	 */
-	public TestRecords fromFile(
-			final Class<? extends FileInputFormat> inputFormatClass,
-			final String file, final Configuration configuration) {
+	public TestRecords fromFile(final Class<? extends FileInputFormat> inputFormatClass, final String file,
+			final Configuration configuration) {
 		this.path = file;
 		this.inputFormatClass = inputFormatClass;
 		this.configuration = configuration;
 		this.setEmpty(false);
+		this.records.clear();
 		return this;
 	}
 
@@ -610,11 +660,10 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 			Collections.sort(this.records, new Comparator<PactRecord>() {
 				@Override
 				public int compare(PactRecord o1, PactRecord o2) {
-					for (int index = 0; index < info.keyClasses.length; index++) {
-						int comparison =
-							info.comparators[index].compare(
-								o1.getField(info.sortKeys[index], info.keyClasses[index]),
-								o2.getField(info.sortKeys[index], info.keyClasses[index]));
+					for (int index = 0; index < info.keyClasses.size(); index++) {
+						int comparison = info.comparators.get(index).compare(
+							o1.getField(info.sortKeys.get(index), info.keyClasses.get(index)),
+							o2.getField(info.sortKeys.get(index), info.keyClasses.get(index)));
 						if (comparison != 0)
 							return comparison;
 					}
@@ -627,8 +676,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 	protected InputFileIterator getInputFileIterator() {
 		final InputFileIterator inputFileIterator;
-		try {
-			inputFileIterator = new InputFileIterator(FormatUtil.createInputFormats(this.inputFormatClass, this.path,
+		try {			
+			inputFileIterator = new InputFileIterator(FormatUtil.openAllInputs(this.inputFormatClass, this.path,
 				this.configuration));
 		} catch (final IOException e) {
 			Assert.fail("reading values from " + this.path + ": " + StringUtils.stringifyException(e));
@@ -660,12 +709,13 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 */
 	@SuppressWarnings("unchecked")
 	public void saveToFile(final String path) throws IOException {
-		final SequentialOutputFormat outputFormat = FormatUtil.createOutputFormat(SequentialOutputFormat.class, path,
+		final SequentialOutputFormat outputFormat = FormatUtil.openOutput(SequentialOutputFormat.class, path,
 			null);
 
 		final Iterator<PactRecord> iterator = this.iterator();
 		while (iterator.hasNext())
 			outputFormat.writeRecord(iterator.next());
+		outputFormat.close();
 	}
 
 	@Override

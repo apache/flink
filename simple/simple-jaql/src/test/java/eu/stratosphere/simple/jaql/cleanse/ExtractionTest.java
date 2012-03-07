@@ -269,7 +269,8 @@ public class ExtractionTest extends SimpleTest {
 		Projection inlineProjection = new Projection().
 			withInputs(recepientExtraction).
 			withValueTransformation(new ObjectCreation(
-				new ObjectCreation.FieldAssignment("id", new StreamIndexExpression(fundExtraction, JsonUtil.createPath("0", "earmarkId"))),
+				new ObjectCreation.FieldAssignment("id",
+					new PathExpression(new StreamIndexExpression(extraction.getOutput(0), JsonUtil.createPath("0", "earmarkId")), new ObjectAccess("id"))),
 				new ObjectCreation.FieldAssignment("amount", JsonUtil.createPath("0", "amount"))
 				));
 		
