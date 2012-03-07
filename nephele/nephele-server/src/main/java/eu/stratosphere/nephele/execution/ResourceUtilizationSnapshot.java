@@ -41,21 +41,17 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 	 * Stores the utilization of task's output channels at the time when the snapshot was created.
 	 */
 	private final Map<ChannelID, Long> channelUtilization;
-	
+
 	/**
 	 * userCPu Time in percent
 	 */
 	private long userCPU;
-	
-	/**
-	 * The forced decision if annotated
-	 */
-	private Boolean forced;
-	
+
 	/**
 	 * amount of input bytes of all input-channels
 	 */
 	private long totalInputAmount;
+
 	/**
 	 * amount of transmitted bytes of all output-channels
 	 */
@@ -69,8 +65,9 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 
 	private boolean isDam;
 
-
-	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, Boolean force, long totalInputAmount2, long totalOutputAmount2, long averageOutputRecordSize2, long averageInputRecordSize2, double pactRatio, boolean isDam) {
+	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,
+			long userCPU, long totalInputAmount2, long totalOutputAmount2, long averageOutputRecordSize2,
+			long averageInputRecordSize2, double pactRatio, boolean isDam) {
 
 		if (timestamp <= 0L) {
 			throw new IllegalArgumentException("Argument timestamp must be larger than zero");
@@ -83,16 +80,17 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.timestamp = timestamp;
 		this.channelUtilization = channelUtilization;
 		this.userCPU = userCPU;
-		this.forced = force;
 		this.totalInputAmount = totalInputAmount2;
 		this.totalOutputAmount = totalOutputAmount2;
 		this.averageInputRecordSize = averageInputRecordSize2;
 		this.averageOutputRecordSize = averageOutputRecordSize2;
 		this.pactRatio = pactRatio;
 		this.isDam = isDam;
-		
+
 	}
-	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,long userCPU, final Boolean forced, final long totalInputAmount, final long totalOutputAmount) {
+
+	public ResourceUtilizationSnapshot(final long timestamp, final Map<ChannelID, Long> channelUtilization,
+			long userCPU, final Boolean forced, final long totalInputAmount, final long totalOutputAmount) {
 
 		if (timestamp <= 0L) {
 			throw new IllegalArgumentException("Argument timestamp must be larger than zero");
@@ -105,9 +103,8 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.timestamp = timestamp;
 		this.channelUtilization = channelUtilization;
 		this.userCPU = userCPU;
-		this.forced = forced;
 		this.totalInputAmount = totalInputAmount;
-		this.totalOutputAmount  = totalOutputAmount;
+		this.totalOutputAmount = totalOutputAmount;
 	}
 
 	public ResourceUtilizationSnapshot() {
@@ -128,13 +125,13 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		this.timestamp = timestamp;
 		this.channelUtilization = channelUtilization;
 		this.userCPU = userCPU;
-		this.forced = force;
 		this.totalInputAmount = totalInputAmount;
-		this.totalOutputAmount  = totalOutputAmount;
+		this.totalOutputAmount = totalOutputAmount;
 		this.averageOutputRecordSize = averageOutputRecordSize;
 		this.averageInputRecordSize = averageInputRecordSize;
-		
+
 	}
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -155,13 +152,7 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		}
 		// Write the userCPU
 		out.writeLong(this.userCPU);
-		// Write forced decision 
-		if(this.forced == null){
-			out.writeByte(0);
-		}else{
-			out.writeByte(1);
-			out.writeBoolean(this.forced);
-		}
+
 		out.writeLong(this.totalInputAmount);
 		out.writeLong(this.totalOutputAmount);
 		out.writeLong(this.averageInputRecordSize);
@@ -187,10 +178,7 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 			this.channelUtilization.put(channelID, l);
 		}
 		this.userCPU = in.readLong();
-		
-		if(in.readByte() == 1){
-			this.forced = in.readBoolean();
-		}
+
 		this.totalInputAmount = in.readLong();
 		this.totalOutputAmount = in.readLong();
 		this.averageInputRecordSize = in.readLong();
@@ -226,7 +214,6 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 		return l.longValue();
 	}
 
-
 	/**
 	 * Returns the userCPU.
 	 * 
@@ -235,33 +222,28 @@ public final class ResourceUtilizationSnapshot implements IOReadableWritable {
 	public long getUserCPU() {
 		return this.userCPU;
 	}
-	/**
-	 * Returns whether a decision was forced by the user
-	 * @return 
-	 */
-	public Boolean getForced() {
-		return forced;
-	}
-	
+
 	public long getTotalInputAmount() {
 		return this.totalInputAmount;
 	}
 
-
 	public long getTotalOutputAmount() {
 		return this.totalOutputAmount;
 	}
+
 	public long getAverageOutputRecordSize() {
 		return averageOutputRecordSize;
 	}
+
 	public long getAverageInputRecordSize() {
 		return averageInputRecordSize;
 	}
-	
-	public double getPactRatio(){
+
+	public double getPactRatio() {
 		return this.pactRatio;
 	}
-	public boolean isDam(){
+
+	public boolean isDam() {
 		return this.isDam;
 	}
 }

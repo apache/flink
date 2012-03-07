@@ -38,12 +38,6 @@ public final class CheckpointDecision {
 			return isNetworkTask(task);
 		}
 
-		if (rus.getForced() != null) {
-			LOG.info("Checkpoint decision was forced to " + rus.getForced());
-			// checkpoint decision was forced by the user
-			return rus.getForced();
-		}
-
 		final double CPlower = CheckpointUtils.getCPLower();
 
 		final double CPupper = CheckpointUtils.getCPUpper();

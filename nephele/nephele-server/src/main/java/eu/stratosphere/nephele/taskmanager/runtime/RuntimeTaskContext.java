@@ -24,9 +24,6 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.annotations.ForceCheckpoint;
-import eu.stratosphere.nephele.annotations.Stateful;
-import eu.stratosphere.nephele.annotations.Stateless;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
@@ -265,29 +262,9 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		if (numinrec != 0) {
 			averageInputRecordSize = totalInputAmount / numinrec;
 		}
-		Boolean force = null;
-		if (environment.getInvokable().getClass().isAnnotationPresent(Stateful.class)
-				&& !environment.getInvokable().getClass().isAnnotationPresent(Stateless.class)) {
-			// Don't checkpoint stateful tasks
-			force = false;
-		} else {
-			if (environment.getForced() != null) {
-				force = environment.getForced();
-			} else {
-				// look for a forced decision from the user
-				ForceCheckpoint forced = environment.getInvokable().getClass().getAnnotation(ForceCheckpoint.class);
-
-				// this.environment.getInvokable().getTaskConfiguration().getBoolean("forced_checkpoint", false)
-
-				if (forced != null) {
-					force = forced.checkpoint();
-				}
-			}
-		}
 
 		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization,
-				userCPU,
-				force, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize,
+				userCPU, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize,
 				this.task.getPACTInputOutputRatio(), allClosed);
 
 		System.out.println("Making checkpoint decision for " + environment.getTaskNameWithIndex());

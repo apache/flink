@@ -198,6 +198,8 @@ public final class ExecutionVertex {
 			if (forcedCheckpoint != null) {
 				ics = forcedCheckpoint.checkpoint() ? CheckpointState.PARTIAL : CheckpointState.NONE;
 			}
+
+			// TODO: Consider state annotation here
 		}
 
 		groupVertex.setInitialCheckpointState(ics);
