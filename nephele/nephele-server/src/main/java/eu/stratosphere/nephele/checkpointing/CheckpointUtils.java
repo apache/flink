@@ -242,7 +242,7 @@ public final class CheckpointUtils {
 
 	public static boolean createDistributedCheckpoint() {
 
-		return GlobalConfiguration.getBoolean("checkpoint.distributed", true);
+		return GlobalConfiguration.getBoolean("checkpoint.distributed", false);
 	}
 
 	public static String getSummary() {
