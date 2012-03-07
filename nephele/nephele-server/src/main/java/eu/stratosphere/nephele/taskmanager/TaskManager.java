@@ -512,10 +512,12 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			final RuntimeEnvironment re = tsw.getEnvironment();
 			final ExecutionVertexID id = tsw.getVertexID();
 			final Configuration jobConfiguration = tsw.getConfiguration();
+			final CheckpointState initialCheckpointState = tsw.getInitialCheckpointState();
 			final Set<ChannelID> activeOutputChannels = tsw.getActiveOutputChannels();
 
 			// Register the task
-			final Task task = createAndRegisterTask(id, jobConfiguration, re, activeOutputChannels);
+			final Task task = createAndRegisterTask(id, jobConfiguration, re, initialCheckpointState,
+				activeOutputChannels);
 			if (task == null) {
 				final TaskSubmissionResult result = new TaskSubmissionResult(id,
 					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
@@ -545,12 +547,15 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 *        the job configuration that has been attached to the original job graph
 	 * @param environment
 	 *        the environment of the task to be registered
+	 * @param initialCheckpointState
+	 *        the task's initial checkpoint state
 	 * @param activeOutputChannels
 	 *        the set of initially active output channels
 	 * @return the task to be started or <code>null</code> if a task with the same ID was already running
 	 */
 	private Task createAndRegisterTask(final ExecutionVertexID id, final Configuration jobConfiguration,
-			final RuntimeEnvironment environment, final Set<ChannelID> activeOutputChannels) throws IOException {
+			final RuntimeEnvironment environment, final CheckpointState initialCheckpointState,
+			final Set<ChannelID> activeOutputChannels) throws IOException {
 
 		if (id == null) {
 			throw new IllegalArgumentException("Argument id is null");
@@ -558,6 +563,10 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		if (environment == null) {
 			throw new IllegalArgumentException("Argument environment is null");
+		}
+
+		if (initialCheckpointState == null) {
+			throw new IllegalArgumentException("Argument initialCheckpointState is null");
 		}
 
 		// Task creation and registration must be atomic
@@ -573,7 +582,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 				if (CheckpointUtils.hasCompleteCheckpointAvailable(id)) {
 					task = new ReplayTask(id, environment, this);
 				} else {
-					task = new RuntimeTask(id, environment, this);
+					task = new RuntimeTask(id, environment, initialCheckpointState, this);
 				}
 			} else {
 

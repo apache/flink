@@ -49,8 +49,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	List<TaskSubmissionResult> submitTasks(List<TaskSubmissionWrapper> tasks)
-			throws IOException;
+	List<TaskSubmissionResult> submitTasks(List<TaskSubmissionWrapper> tasks) throws IOException;
 
 	/**
 	 * Advises the task manager to cancel the task with the given ID.
@@ -74,9 +73,8 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 */
 	TaskKillResult killTask(ExecutionVertexID id) throws IOException;
 
-	
 	TaskCheckpointResult requestCheckpointDecision(ExecutionVertexID id) throws IOException;
-	
+
 	/**
 	 * Queries the task manager about the cache status of the libraries stated in the {@link LibraryCacheProfileRequest}
 	 * object.
@@ -99,7 +97,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
-	
+
 	/**
 	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
 	 * 

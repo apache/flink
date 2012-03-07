@@ -1180,7 +1180,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {
 
 					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), vertex.getEnvironment(), vertex
-						.getExecutionGraph().getJobConfiguration(), vertex
+						.getExecutionGraph().getJobConfiguration(), vertex.getCheckpointState(), vertex
 						.constructInitialActiveOutputChannelsSet()));
 
 					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());

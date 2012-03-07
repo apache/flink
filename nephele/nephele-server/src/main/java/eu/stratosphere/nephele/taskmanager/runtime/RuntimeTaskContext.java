@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
@@ -39,7 +40,6 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
@@ -72,7 +72,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private long startTime;
 
-	RuntimeTaskContext(final RuntimeTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+	RuntimeTaskContext(final RuntimeTask task, final CheckpointState initialCheckpointState,
+			final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
 
 		this.localBufferPool = new LocalBufferPool(1, false, this);
 		this.task = task;
@@ -81,18 +82,20 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		// Compute number of output input channels
 		int nooc = 0;
-		boolean ephemeral = true;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
 			nooc += outputGate.getNumberOfOutputChannels();
-			if (outputGate.getChannelType() == ChannelType.FILE) {
-				ephemeral = false;
-			}
 		}
 		this.numberOfOutputChannels = nooc;
 
-		this.ephemeralCheckpoint = new EphemeralCheckpoint(task, ephemeral);
-		this.task.registerCheckpointDecisionRequester(this.ephemeralCheckpoint);
+		if (initialCheckpointState == CheckpointState.NONE) {
+			this.ephemeralCheckpoint = null;
+		} else {
+			this.ephemeralCheckpoint = new EphemeralCheckpoint(task, this.numberOfOutputChannels,
+				initialCheckpointState == CheckpointState.UNDECIDED);
+			this.task.registerCheckpointDecisionRequester(this.ephemeralCheckpoint);
+		}
+
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.envelopeConsumptionLog = new EnvelopeConsumptionLog(task.getVertexID(), environment);
 
@@ -183,6 +186,10 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	 * Called by an {@link OutputGateContext} to indicate that the task has temporarily run out of memory buffers.
 	 */
 	void reportExhaustionOfMemoryBuffers() throws IOException, InterruptedException {
+
+		if (this.ephemeralCheckpoint == null) {
+			return;
+		}
 
 		if (!this.ephemeralCheckpoint.isUndecided()) {
 			return;

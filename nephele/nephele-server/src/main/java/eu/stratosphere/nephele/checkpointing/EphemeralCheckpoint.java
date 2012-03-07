@@ -25,7 +25,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
@@ -60,9 +59,9 @@ public class EphemeralCheckpoint implements CheckpointDecisionRequester {
 	private final RuntimeTask task;
 
 	/**
-	 * The number of channels connected to this checkpoint.
+	 * The total number of output channels connected to this checkpoint.
 	 */
-	private final int numberOfConnectedChannels;
+	private final int totalNumberOfOutputChannels;
 
 	/**
 	 * Stores whether a completed checkpoint has already been announced to the task.
@@ -99,22 +98,16 @@ public class EphemeralCheckpoint implements CheckpointDecisionRequester {
 	 * 
 	 * @param task
 	 *        the task this checkpoint belongs to
+	 * @param totalNumberOfOutputChannels
+	 *        the total number of output channels connected to this checkpoint
 	 * @param ephemeral
 	 *        <code>true</code> if the checkpoint is initially ephemeral, <code>false</code> if the checkpoint shall be
 	 *        persistent from the beginning
 	 */
-	public EphemeralCheckpoint(final RuntimeTask task, final boolean ephemeral) {
+	public EphemeralCheckpoint(final RuntimeTask task, final int totalNumberOfOutputChannels, final boolean ephemeral) {
 
 		this.task = task;
-
-		// Determine number of output channel
-		int nooc = 0;
-		final RuntimeEnvironment environment = task.getRuntimeEnvironment();
-		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			nooc += environment.getOutputGate(i).getNumberOfOutputChannels();
-		}
-
-		this.numberOfConnectedChannels = nooc;
+		this.totalNumberOfOutputChannels = totalNumberOfOutputChannels;
 
 		this.checkpointingDecision = (ephemeral ? CheckpointingDecisionState.UNDECIDED
 			: CheckpointingDecisionState.CHECKPOINTING);
@@ -126,7 +119,7 @@ public class EphemeralCheckpoint implements CheckpointDecisionRequester {
 		if (this.checkpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
 			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
 			this.writeThread = new WriteThread(FileBufferManager.getInstance(), this.task.getVertexID(),
-				this.numberOfConnectedChannels);
+				this.totalNumberOfOutputChannels);
 			this.writeThread.start();
 		}
 	}
@@ -152,7 +145,7 @@ public class EphemeralCheckpoint implements CheckpointDecisionRequester {
 
 		if (this.writeThread == null) {
 			this.writeThread = new WriteThread(FileBufferManager.getInstance(), task.getVertexID(),
-				this.numberOfConnectedChannels);
+				this.totalNumberOfOutputChannels);
 			this.writeThread.start();
 		}
 

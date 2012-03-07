@@ -44,6 +44,17 @@ public final class AtomicEnum<T extends Enum<T>> {
 	}
 
 	/**
+	 * Sets to the given value.
+	 * 
+	 * @param newValue
+	 *        the new value
+	 */
+	public void set(final T newValue) {
+
+		this.ref.set(newValue);
+	}
+
+	/**
 	 * Gets the current value.
 	 * 
 	 * @return the current value.

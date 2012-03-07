@@ -56,6 +56,8 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 	private final RuntimeEnvironment environment;
 
+	private final CheckpointState initialCheckpointState;
+
 	private final TaskManager taskManager;
 
 	/**
@@ -84,10 +86,11 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	// DW: End of temporay code
 
 	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
-			final TaskManager taskManager) {
+			final CheckpointState initialCheckpointState, final TaskManager taskManager) {
 
 		this.vertexID = vertexID;
 		this.environment = environment;
+		this.initialCheckpointState = initialCheckpointState;
 		this.taskManager = taskManager;
 
 		this.environment.setExecutionObserver(this);
@@ -426,7 +429,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			throw new IllegalStateException("Vertex " + this.vertexID + " has a previous buffer pool owner");
 		}
 
-		return new RuntimeTaskContext(this, transferEnvelopeDispatcher);
+		return new RuntimeTaskContext(this, this.initialCheckpointState, transferEnvelopeDispatcher);
 	}
 
 	/**
