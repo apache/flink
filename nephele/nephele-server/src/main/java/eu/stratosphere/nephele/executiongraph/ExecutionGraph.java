@@ -556,7 +556,7 @@ public class ExecutionGraph implements ExecutionListener {
 		final ExecutionGroupVertex groupVertex = new ExecutionGroupVertex(jobVertex.getName(), jobVertex.getID(), this,
 			jobVertex.getNumberOfSubtasks(), instanceType, userDefinedInstanceType, jobVertex
 				.getNumberOfSubtasksPerInstance(), jobVertex.getVertexToShareInstancesWith() != null ? true : false,
-			jobVertex.getConfiguration(), signature);
+			jobVertex.getNumberOfExecutionRetries(), jobVertex.getConfiguration(), signature);
 		// Create an initial execution vertex for the job vertex
 		final Class<? extends AbstractInvokable> invokableClass = jobVertex.getInvokableClass();
 		if (invokableClass == null) {

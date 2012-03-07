@@ -201,7 +201,7 @@ public final class ExecutionVertex {
 		this.groupVertex = groupVertex;
 		this.environment = environment;
 
-		this.retriesLeft = new AtomicInteger(2); // TODO: Make this configurable
+		this.retriesLeft = new AtomicInteger(groupVertex.getNumberOfExecutionRetries());
 
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
