@@ -27,16 +27,15 @@ public class ObjectSchema implements Schema {
 
 	/**
 	 * Initializes ObjectSchema.
-	 *
 	 */
 	public ObjectSchema() {
 	}
-	
+
 	public ObjectSchema(String... mappings) {
-		for (String mapping : mappings) 
+		for (String mapping : mappings)
 			this.mappings.add(mapping);
 	}
-	
+
 	@Override
 	public Class<? extends Value>[] getPactSchema() {
 		Class<? extends Value>[] schema = new Class[this.mappings.size() + 1];
@@ -67,6 +66,11 @@ public class ObjectSchema implements Schema {
 			this.mappings.add(mapping);
 	}
 
+	/**
+	 * @param schema
+	 *        the keys, which should be extracted from the {@link ObjectNode} and saved into the first fields of
+	 *        {@link PactRecord}
+	 */
 	public void setMappings(String... schema) {
 		this.setMappings(Arrays.asList(schema));
 	}
@@ -101,6 +105,7 @@ public class ObjectSchema implements Schema {
 			others.removeAll();
 		}
 
+		// traverse the mapping and fill them into the record
 		IObjectNode object = (IObjectNode) value;
 		for (int i = 0; i < this.mappings.size(); i++) {
 			IJsonNode node = object.get(this.mappings.get(i));
@@ -112,6 +117,7 @@ public class ObjectSchema implements Schema {
 
 		}
 
+		// each other entry comes into the last record field
 		for (Entry<String, IJsonNode> entry : object.getEntries()) {
 			if (!this.mappings.contains(entry.getKey())) {
 				others.put(entry.getKey(), entry.getValue());

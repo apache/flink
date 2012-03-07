@@ -22,8 +22,12 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 public interface SchemaFactory {
 
 	/**
+	 * This method takes keyExpressions in form of EvaluationExpressions and tries to give back a matching
+	 * {@link Schema}
+	 * 
 	 * @param keyExpressions
-	 * @return
+	 *        the Expressions, from which a Schema shall be created
+	 * @return {@link Schema}, corresponding to the <code>keyExpressions</code>
 	 */
 	Schema create(Iterable<EvaluationExpression> keyExpressions);
 

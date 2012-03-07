@@ -79,11 +79,11 @@ public class ArraySchema implements Schema {
 		} else if (arrayExpression.isSelectingRange()) {
 			int startIndex = arrayExpression.getStartIndex();
 			int endIndex = arrayExpression.getEndIndex();
-			if(startIndex < 0 || endIndex < 0)
+			if (startIndex < 0 || endIndex < 0)
 				throw new UnsupportedOperationException("Tail indices are not supported yet");
 			if (endIndex >= headSize)
 				throw new IllegalArgumentException("Target index is not in head");
-			
+
 			int[] indices = new int[endIndex - startIndex];
 			for (int index = 0; index < indices.length; index++)
 				indices[index] = startIndex + index;
@@ -117,12 +117,13 @@ public class ArraySchema implements Schema {
 			others.clear();
 		}
 
+		// fill the first headSize elements of the arraynode into the record
 		IJsonNode arrayElement;
 		for (int i = 0; i < this.headSize; i++) {
 			arrayElement = ((IArrayNode) value).get(i);
 			if (!arrayElement.isMissing()) {
 				target.setField(i, SopremoUtil.wrap(arrayElement));
-			} else {
+			} else { // incoming array is smaller than headSize
 				target.setNull(i);
 			}
 		}
@@ -149,15 +150,16 @@ public class ArraySchema implements Schema {
 		}
 		if (target == null) {
 			target = new ArrayNode();
-		} else {
+		} else { // array was used
 			((IArrayNode) target).clear();
 		}
+		// insert head of record
 		for (int i = 0; i < this.getHeadSize(); i++) {
 			if (record.getField(i, JsonNodeWrapper.class) != null) {
 				((IArrayNode) target).add(SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
 			}
 		}
-
+		// insert all elements from others
 		((IArrayNode) target).addAll((IArrayNode) SopremoUtil.unwrap(record.getField(this.getHeadSize(),
 			JsonNodeWrapper.class)));
 
