@@ -6,7 +6,11 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-public class MissingNode extends JsonNode implements IPrimitiveNode{
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class MissingNode extends JsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
@@ -15,10 +19,18 @@ public class MissingNode extends JsonNode implements IPrimitiveNode{
 
 	private final static MissingNode Instance = new MissingNode();
 
+	/**
+	 * Initializes a MissingNode. This constructor is needed for serialization and
+	 * deserialization of MissingNodes, please use MissingNode.getInstance() to get the instance of MissingNode.
+	 */
 	public MissingNode() {
-
 	}
 
+	/**
+	 * Returns the instance of MissingNode.
+	 * 
+	 * @return the instance of MissingNode
+	 */
 	public static MissingNode getInstance() {
 		return Instance;
 	}
@@ -52,8 +64,9 @@ public class MissingNode extends JsonNode implements IPrimitiveNode{
 	public boolean isNull() {
 		return true;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonNode#isMissing()
 	 */
 	@Override

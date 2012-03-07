@@ -14,7 +14,7 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class DoubleNode extends NumericNode implements INumericNode{
+public class DoubleNode extends NumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -57,6 +57,13 @@ public class DoubleNode extends NumericNode implements INumericNode{
 		return this.value.getValue();
 	}
 
+	/**
+	 * Creates a new instance of DoubleNode. This new instance represents the given value.
+	 * 
+	 * @param v
+	 *        the value which should be represented by the new instance
+	 * @return the newly created instance of DoubleNode
+	 */
 	public static DoubleNode valueOf(final double v) {
 		return new DoubleNode(v);
 	}

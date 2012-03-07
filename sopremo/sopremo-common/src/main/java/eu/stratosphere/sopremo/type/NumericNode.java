@@ -5,6 +5,10 @@ import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.Key;
 
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
 public abstract class NumericNode extends JsonNode implements INumericNode {
 
 	/**

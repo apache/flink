@@ -91,7 +91,7 @@ public class ArraySchema implements Schema {
 	public Class<? extends Value>[] getPactSchema() {
 		Class<? extends Value>[] schema = new Class[getHeadSize() + getTailSize() + 1];
 
-		for (int i = 0; i <= getHeadSize() + getTailSize(); i++) {
+		for (int i = 0; i <= this.getHeadTailSize(); i++) {
 			schema[i] = JsonNodeWrapper.class;
 		}
 

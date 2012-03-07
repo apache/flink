@@ -8,21 +8,35 @@ import java.io.ObjectOutputStream;
 
 import eu.stratosphere.pact.common.type.base.PactString;
 
-public class TextNode extends JsonNode implements IPrimitiveNode{
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class TextNode extends JsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -4663376747000392562L;
 
-	final static TextNode EMPTY_STRING_NODE = new TextNode("");
+	public final static TextNode EMPTY_STRING_NODE = new TextNode("");
 
 	protected transient PactString value;
 
+	/**
+	 * Initializes a TextNode which represents an empty String.
+	 */
 	public TextNode() {
 		this.value = new PactString();
 	}
 
+	/**
+	 * Initializes a TextNode which represents the given <code>String</code>. To create new TextNodes please
+	 * use TextNode.valueOf(<code>String</code>) instead.
+	 * 
+	 * @param v
+	 *        the value which should be represented by this node
+	 */
 	public TextNode(final String v) {
 		this.value = new PactString(v);
 	}
@@ -32,6 +46,13 @@ public class TextNode extends JsonNode implements IPrimitiveNode{
 		return this.value.getValue();
 	}
 
+	/**
+	 * Creates a new instance of TextNode. This new instance represents the given value.
+	 * 
+	 * @param v
+	 *        the value which should be represented by the new instance
+	 * @return the newly created instance of TextNode
+	 */
 	public static TextNode valueOf(final String v) {
 		if (v == null)
 			throw new NullPointerException();
@@ -40,6 +61,11 @@ public class TextNode extends JsonNode implements IPrimitiveNode{
 		return new TextNode(v);
 	}
 
+	/**
+	 * Returns the String which is represented by this node.
+	 * 
+	 * @return the represented String
+	 */
 	public String getTextValue() {
 		return this.getJavaValue();
 	}
@@ -50,6 +76,14 @@ public class TextNode extends JsonNode implements IPrimitiveNode{
 		return sb;
 	}
 
+	/**
+	 * Appends the given String with a leading and ending " to the given StringBuilder.
+	 * 
+	 * @param sb
+	 *        the StringBuilder where the quoted String should be added to
+	 * @param content
+	 *        the String which should be appended
+	 */
 	public static void appendQuoted(final StringBuilder sb, final String content) {
 		sb.append('"');
 		sb.append(content);

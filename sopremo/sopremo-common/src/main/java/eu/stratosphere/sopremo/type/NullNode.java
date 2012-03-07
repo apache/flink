@@ -8,7 +8,11 @@ import java.io.ObjectOutputStream;
 
 import eu.stratosphere.pact.common.type.base.PactNull;
 
-public class NullNode extends JsonNode implements IPrimitiveNode{
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class NullNode extends JsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
@@ -17,10 +21,18 @@ public class NullNode extends JsonNode implements IPrimitiveNode{
 
 	private final static NullNode Instance = new NullNode();
 
+	/**
+	 * Initializes a NullNode. This constructor is needed for serialization and
+	 * deserialization of NullNodes, please use NullNode.getInstance() to get the instance of NullNode.
+	 */
 	public NullNode() {
-
 	}
 
+	/**
+	 * Returns the instance of NullNode.
+	 * 
+	 * @return the instance of NullNode
+	 */
 	public static NullNode getInstance() {
 		return Instance;
 	}

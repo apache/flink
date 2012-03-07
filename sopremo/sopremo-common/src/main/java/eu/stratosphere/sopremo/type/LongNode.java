@@ -10,7 +10,11 @@ import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactLong;
 
-public class LongNode extends NumericNode implements INumericNode{
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class LongNode extends NumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -19,6 +23,13 @@ public class LongNode extends NumericNode implements INumericNode{
 
 	protected transient PactLong value;
 
+	/**
+	 * Initializes a LongNode which represents the given <code>long</code>. To create new LongNodes please
+	 * use LongNode.valueOf(<code>long</code>) instead.
+	 * 
+	 * @param v
+	 *        the value which should be represented by this node
+	 */
 	public LongNode(final long value) {
 		this.value = new PactLong(value);
 	}
@@ -38,6 +49,13 @@ public class LongNode extends NumericNode implements INumericNode{
 		this.value.write(out);
 	}
 
+	/**
+	 * Creates a new instance of LongNode. This new instance represents the given value.
+	 * 
+	 * @param v
+	 *        the value which should be represented by the new instance
+	 * @return the newly created instance of LongNode
+	 */
 	public static LongNode valueOf(final long value) {
 		return new LongNode(value);
 	}
