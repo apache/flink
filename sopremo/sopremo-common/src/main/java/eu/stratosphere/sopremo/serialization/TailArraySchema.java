@@ -28,7 +28,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class ArraySchema implements Schema {
+public class TailArraySchema implements Schema {
 
 	// [ head, ArrayNode(others), tail ]
 

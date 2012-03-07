@@ -16,37 +16,7 @@ import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
-public class LazyArrayNode extends JsonNode implements IArrayNode {
-
-	/**
-	 * @author Michael Hopstock
-	 *
-	 */
-	private final class FixedIndexIterator extends AbstractIterator<IJsonNode> {
-		int lastIndex = 0;
-		int endIndex = 0;
-		
-		/**
-		 * Initializes LazyArrayNode.FixedIndexIterator.
-		 *
-		 */
-		public FixedIndexIterator(int startIndex, int endIndex) {
-			this.lastIndex = startIndex;
-			this.endIndex = endIndex;
-		}
-
-		@Override
-		protected IJsonNode loadNext() {
-			if (!LazyArrayNode.this.record.isNull(lastIndex) && lastIndex < this.endIndex) {
-				IJsonNode value = SopremoUtil.unwrap(LazyArrayNode.this.record.getField(this.lastIndex,
-					JsonNodeWrapper.class));
-				this.lastIndex++;
-				return value;
-			}
-			return noMoreElements();
-
-		}
-	}
+public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 
 	/**
 	 * 
@@ -55,20 +25,38 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	protected PactRecord record;
 
-	protected ArraySchema schema;
+	protected HeadArraySchema schema;
 
-	public LazyArrayNode(PactRecord record, ArraySchema schema) {
+	public LazyHeadArrayNode(PactRecord record, HeadArraySchema schema) {
 		this.record = record;
 		this.schema = schema;
 	}
 
 	@Override
 	public Iterator<IJsonNode> iterator() {
-		Iterator<IJsonNode> headIterator = new FixedIndexIterator(0, this.schema.getHeadSize());
-		Iterator<IJsonNode> othersIterator = this.getOtherField().iterator();
-		Iterator<IJsonNode> tailIterator = new FixedIndexIterator(this.schema.getHeadSize() + 1, this.schema.getHeadTailSize() + 1);
+		Iterator<IJsonNode> iterator2 = this.getOtherField().iterator();
+		Iterator<IJsonNode> iterator1 = new AbstractIterator<IJsonNode>() {
 
-		return new ConcatenatingIterator<IJsonNode>(headIterator, othersIterator, tailIterator);
+			int lastIndex = 0;
+
+			@Override
+			protected IJsonNode loadNext() {
+				while (this.lastIndex < LazyHeadArrayNode.this.schema.getHeadSize()) {
+					if (!LazyHeadArrayNode.this.record.isNull(lastIndex)) {
+						IJsonNode value = SopremoUtil.unwrap(LazyHeadArrayNode.this.record.getField(this.lastIndex,
+							JsonNodeWrapper.class));
+						this.lastIndex++;
+						return value;
+					}
+
+					return noMoreElements();
+				}
+				return noMoreElements();
+			}
+
+		};
+
+		return new ConcatenatingIterator<IJsonNode>(iterator1, iterator2);
 	}
 
 	@Override
@@ -93,7 +81,7 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public int compareToSameType(IJsonNode other) {
-		final LazyArrayNode node = (LazyArrayNode) other;
+		final LazyHeadArrayNode node = (LazyHeadArrayNode) other;
 		final Iterator<IJsonNode> entries1 = this.iterator(), entries2 = node.iterator();
 
 		while (entries1.hasNext() && entries2.hasNext()) {
@@ -127,11 +115,6 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 		return sb;
 	}
 
-	/**
-	 * Returns the arrayNode "others", which is in between the head and the tail.
-	 * 
-	 * @return the field "others" of the PactRecord
-	 */
 	public IArrayNode getOtherField() {
 		return (IArrayNode) SopremoUtil.unwrap(this.record.getField(this.schema.getHeadSize(),
 			JsonNodeWrapper.class));
@@ -154,7 +137,6 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IArrayNode add(IJsonNode node) {
-		// TODO implement new ArraySchema with tail
 		if (node == null) {
 			throw new NullPointerException();
 		}
@@ -172,7 +154,6 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IArrayNode add(int index, IJsonNode element) {
-		// TODO implement new ArraySchema with tail
 		if (element == null) {
 			throw new NullPointerException();
 		}
@@ -181,10 +162,10 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 			this.remove(index);
 		}
 
-		if (index < 0 || index > this.size()) {
+		if(index < 0 || index > this.size()){
 			throw new IndexOutOfBoundsException();
 		}
-
+		
 		if (index < this.schema.getHeadSize()) {
 			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
 				if (!this.record.isNull(i)) {
@@ -199,11 +180,22 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 		}
 
 		return this;
+
+		// // recursive insertion
+		// if (!this.record.isNull(index)) {
+		// IJsonNode oldNode = this.record.getField(index, JsonNodeWrapper.class);
+		// this.record.setField(index, element);
+		// this.add(index + 1, oldNode);
+		// }
+		// } else {
+		// this.getOtherField().add(index - this.schema.getHeadSize(), element);
+		// }
+		//
+		// return this;
 	}
 
 	@Override
 	public IJsonNode get(int index) {
-		// TODO implement new ArraySchema with tail
 		if (index < 0 || index >= this.size()) {
 			return MissingNode.getInstance();
 		}
@@ -217,7 +209,6 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IJsonNode set(int index, IJsonNode node) {
-		// TODO implement new ArraySchema with tail
 		if (node == null) {
 			throw new NullPointerException();
 		}
@@ -250,7 +241,6 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IJsonNode remove(int index) {
-		// TODO implement new ArraySchema with tail
 		if (index < 0 || index >= this.size()) {
 			return MissingNode.getInstance();
 		}
@@ -261,10 +251,10 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
 				buffer = this.record.getField(i, JsonNodeWrapper.class);
-				if (buffer == null) {
+				if(buffer == null){
 					buffer = MissingNode.getInstance();
 				}
-				if (oldNode.isMissing()) {
+				if(oldNode.isMissing()){
 					this.record.setNull(i);
 				} else {
 					this.record.setField(i, oldNode);
@@ -280,7 +270,6 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public void clear() {
-		// TODO implement new ArraySchema with tail
 		for (int i = 0; i < this.schema.getHeadSize(); i++) {
 			this.record.setNull(i);
 		}
