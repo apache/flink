@@ -78,6 +78,10 @@ public class ArraySchema implements Schema {
 	public void setTailSize(int tailSize) {
 		this.tailSize = tailSize;
 	}
+	
+	public int getHeadTailSize(){
+		return this.getHeadSize() + this.getTailSize();
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -161,7 +165,7 @@ public class ArraySchema implements Schema {
 			}
 		}
 
-		if (this.getHeadSize() + this.getTailSize() < ((IArrayNode) value).size()) {
+		if (this.getHeadTailSize() < ((IArrayNode) value).size()) {
 			// there are still remaining elements in the array we insert them into the others field untill the tail
 			// begins
 			for (int i = this.getHeadSize(); i < ((IArrayNode) value).size() - this.getTailSize(); i++) {
