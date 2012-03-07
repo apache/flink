@@ -63,6 +63,8 @@ final class ReplayThread extends Thread {
 
 	private final AtomicBoolean restartRequested = new AtomicBoolean(false);
 
+	private final AtomicBoolean interruptCalled = new AtomicBoolean(false);
+
 	ReplayThread(final ExecutionVertexID vertexID, final ExecutionObserver executionObserver, final String taskName,
 			final boolean isCheckpointLocal, final boolean isCheckpointComplete,
 			final Map<ChannelID, ReplayOutputChannelBroker> outputBrokerMap) {
@@ -107,11 +109,7 @@ final class ReplayThread extends Thread {
 
 			} catch (Exception e) {
 
-				if (this.restartRequested.compareAndSet(true, false)) {
-					// Wait for the thread to be interrupted, then clear interrupted flag
-					while (!Thread.currentThread().isInterrupted()) {
-					}
-					Thread.interrupted();
+				if (isRestartRequested()) {
 					continue;
 				}
 
@@ -124,11 +122,7 @@ final class ReplayThread extends Thread {
 				return;
 			}
 
-			if (this.restartRequested.compareAndSet(true, false)) {
-				// Wait for the thread to be interrupted, then clear interrupted flag
-				while (!Thread.currentThread().isInterrupted()) {
-				}
-				Thread.interrupted();
+			if (isRestartRequested()) {
 				continue;
 			}
 
@@ -154,6 +148,24 @@ final class ReplayThread extends Thread {
 
 		// Finally, switch execution state to FINISHED and report to job manager
 		changeExecutionState(ExecutionState.FINISHED, null);
+	}
+
+	private boolean isRestartRequested() {
+
+		if (this.restartRequested.compareAndSet(true, false)) {
+			// Check if the interrupt call has already been made
+			if (!this.interruptCalled.compareAndSet(true, false)) {
+				// Wait for the thread to be interrupted
+				while (!Thread.currentThread().isInterrupted()) {
+				}
+				this.interruptCalled.set(false);
+			}
+			// Clear interrupted flag
+			Thread.interrupted();
+			return true;
+		}
+
+		return false;
 	}
 
 	private void resetAllOutputBroker() {
@@ -197,6 +209,7 @@ final class ReplayThread extends Thread {
 		changeExecutionState(ExecutionState.STARTING, null);
 		this.restartRequested.set(true);
 		interrupt();
+		this.interruptCalled.set(true);
 	}
 
 	private void replayCheckpoint() throws Exception {
