@@ -26,12 +26,4 @@ public class DiscardingOutputCollector implements Collector
 
 	@Override
 	public void close() {}
-
-	// DW: Start of temporary code
-	@Override
-	public long getCollectedPactRecordsInBytes() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-	// DW: End of temporary code
 }

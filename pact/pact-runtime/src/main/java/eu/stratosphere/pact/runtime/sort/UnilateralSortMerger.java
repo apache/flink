@@ -1706,10 +1706,6 @@ public class UnilateralSortMerger implements SortMerger
 		@Override
 		public void collect(PactRecord record)
 		{
-			// DW: Start of temporary code
-			this.collectedPactRecordsInBytes += record.getBinaryLength();
-			// DW: End of temporary code
-			
 			try {
 				if (this.spillingInThisBuffer) {
 					if (this.currentBuffer.write(record)) {
@@ -1807,18 +1803,5 @@ public class UnilateralSortMerger implements SortMerger
 				this.queues.sort.add(SENTINEL);
 			}
 		}
-		
-		// DW: Start of temporary code
-		private long collectedPactRecordsInBytes = 0L;
-		
-		@Override
-		public long getCollectedPactRecordsInBytes() {
-			
-			final long retVal = this.collectedPactRecordsInBytes;
-			this.collectedPactRecordsInBytes = 0L;
-			
-			return retVal;
-		}
-		// DW: End of temporary code
 	}
 }

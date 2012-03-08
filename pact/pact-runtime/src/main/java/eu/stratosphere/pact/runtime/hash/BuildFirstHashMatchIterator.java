@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.hash;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -49,10 +48,6 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	
 	private final MemoryManager memManager;
 	
-	// DW: Start of temporary code
-	private final Environment environment;
-	// DW: End of temporary code
-	
 	private final HashJoin hashJoin;
 	
 	private PactRecord nextBuildSideObject; 
@@ -73,10 +68,6 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 		
 		this.hashJoin = getHashJoin(firstInput, secondInput, buildSideKeyFields, probeSideKeyFields, keyClasses, memManager, ioManager,
 			ownerTask, totalMemory);
-		
-		// DW: Start of temporary code
-		this.environment = ownerTask.getEnvironment();
-		// DW: End of temporary code
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -107,7 +98,6 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	public boolean callWithNextKey(MatchStub matchFunction, Collector collector)
 	throws Exception
 	{
-		
 		if (this.hashJoin.nextRecord())
 		{
 			// we have a next record, get the iterators to the probe and build side values
@@ -124,49 +114,20 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 					// more than one build-side value --> copy the probe side
 					probeRecord.copyTo(this.probeCopy);
 					
-					// DW : Start of temporary code
-					long r1 = nextBuildSidePair.getBinaryLength();
-					long r2 = probeRecord.getBinaryLength();
-					// DW: End of temporary code
-					
 					// call match on the first pair
 					matchFunction.match(nextBuildSidePair, probeRecord, collector);
-					// DW: Start of temporary code
-					this.environment.reportPACTDataStatistics(r1 + r2,  
-						collector.getCollectedPactRecordsInBytes());
-					// DW: End of temporary code
 					
 					// call match on the second pair
 					probeRecord = new PactRecord();
 					this.probeCopy.copyTo(probeRecord);
-					
-					// DW : Start of temporary code
-					r1 = tmpPair.getBinaryLength();
-					r2 = probeRecord.getBinaryLength();
-					// DW: End of temporary code
-					
 					matchFunction.match(tmpPair, probeRecord, collector);
-					// DW: Start of temporary code
-					this.environment.reportPACTDataStatistics(r1 + r2,  
-						collector.getCollectedPactRecordsInBytes());
-					// DW: End of temporary code
 					
 					tmpPair = new PactRecord();
 					while (this.running && buildSideIterator.next(tmpPair)) {
 						// call match on the next pair
 						probeRecord = new PactRecord();
 						this.probeCopy.copyTo(probeRecord);
-						
-						// DW : Start of temporary code
-						r1 = tmpPair.getBinaryLength();
-						r2 = probeRecord.getBinaryLength();
-						// DW: End of temporary code
-						
 						matchFunction.match(tmpPair, probeRecord, collector);
-						// DW: Start of temporary code
-						this.environment.reportPACTDataStatistics(r1 + r2,  
-							collector.getCollectedPactRecordsInBytes());
-						// DW: End of temporary code
 						tmpPair = new PactRecord();
 					}
 					this.nextBuildSideObject = tmpPair;
@@ -174,17 +135,7 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 				else {
 					// only single pair matches
 					this.nextBuildSideObject = tmpPair;
-					
-					// DW : Start of temporary code
-					final long r1 = nextBuildSidePair.getBinaryLength();
-					final long r2 = probeRecord.getBinaryLength();
-					// DW: End of temporary code
-					
 					matchFunction.match(nextBuildSidePair, probeRecord, collector);
-					// DW: Start of temporary code
-					this.environment.reportPACTDataStatistics(r1 + r2,  
-						collector.getCollectedPactRecordsInBytes());
-					// DW: End of temporary code
 				}
 			}
 			return true;

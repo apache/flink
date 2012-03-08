@@ -15,13 +15,10 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.nephele.annotations.ForceCheckpoint;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 
 /**
  * Map task which is executed by a Nephele task manager. The task has a single
@@ -75,29 +72,8 @@ public class MapTask extends AbstractPactTask<MapStub>
 		
 		final PactRecord record = new PactRecord();
 		
-		// DW: Start to temporary code
-		int count = 0;
-		long consumedPactRecordsInBytes = 0L;
-		final Environment env = getEnvironment();
-		final OutputCollector oc = (OutputCollector) output;
-		// DW: End of temporary code
-		if(this.stub.getClass().isAnnotationPresent(ForceCheckpoint.class)){
-			env.isForced(this.stub.getClass().getAnnotation(ForceCheckpoint.class).checkpoint());
-		}
 		while (this.running && input.next(record)) {
-			// DW: Start to temporary code
-			consumedPactRecordsInBytes += record.getBinaryLength();
-			// DW: End of temporary code
 			stub.map(record, output);
-			
-			// DW: Start to temporary code
-			if(++count == 10) {
-				env.reportPACTDataStatistics(consumedPactRecordsInBytes, 
-					oc.getCollectedPactRecordsInBytes());
-				consumedPactRecordsInBytes = 0L;
-				count = 0;
-			}
-			// DW: End of temporary code
 		}
 	}
 

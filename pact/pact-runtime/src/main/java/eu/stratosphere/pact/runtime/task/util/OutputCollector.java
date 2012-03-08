@@ -74,18 +74,6 @@ public class OutputCollector implements Collector
 		}
 	}
 
-	// DW: Start of temporary code
-	private long collectedPactRecordsInBytes = 0L;
-	
-	public long getCollectedPactRecordsInBytes() {
-		
-		final long retVal = this.collectedPactRecordsInBytes;
-		this.collectedPactRecordsInBytes = 0L;
-		
-		return retVal;
-	}
-	// DW: End of temporary code
-	
 	/**
 	 * Collects a {@link PactRecord}, and emits it to all writers.
 	 * Writers which require a deep-copy are fed with a copy.
@@ -93,10 +81,6 @@ public class OutputCollector implements Collector
 	@Override
 	public void collect(PactRecord record)
 	{
-		// DW: Start of temporary code
-		this.collectedPactRecordsInBytes += record.getBinaryLength();
-		// DW: End of temporary code
-		
 		try {
 			for (int i = 0; i < writers.length; i++) {
 				this.writers[i].emit(record);	
