@@ -145,6 +145,7 @@ public class JobManagerITCase {
 			} catch (IllegalAccessException e) {
 				fail(e.getMessage());
 			} catch (InvocationTargetException e) {
+				e.printStackTrace();
 				fail(e.getMessage());
 			}
 
@@ -403,6 +404,8 @@ public class JobManagerITCase {
 		}
 	}
 
+	
+	
 	/**
 	 * Tests the Nephele execution when a runtime exception during the registration of the input/output gates occurs.
 	 */
@@ -489,6 +492,84 @@ public class JobManagerITCase {
 		}
 	}
 
+	
+	@Test
+	public void testBroadcastChannels(){
+		testBroadcast(100000, 2);
+	}
+	
+	private void testBroadcast(final int limit, final int receivers){
+		try {
+
+			// Get name of the forward class
+			final String forwardClassName = ForwardTask.class.getSimpleName();
+
+			// Create input and jar files
+			final File inputFile = ServerTestUtils.createInputFile(limit);
+			final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+				+ ServerTestUtils.getRandomFilename());
+			final File jarFile = ServerTestUtils.createJarFile(forwardClassName);
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph 1");
+
+			// input vertex			
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input with broadcast writer", jg);
+			i1.setFileInputClass(BroadcastSourceTask.class);
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+			
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+			o1.setNumberOfSubtasks(receivers);
+			o1.setNumberOfSubtasksPerInstance(receivers);
+			o1.setVertexToShareInstancesWith(i1);
+			o1.setFileOutputClass(FileLineWriter.class);
+			System.out.println(outputFile.getAbsolutePath().toString());
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			// connect vertices
+			try {
+				i1.connectTo(o1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			} catch (JobGraphDefinitionException e) {
+				e.printStackTrace();
+			}
+
+			// add jar
+			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
+
+			// Create job client and launch job
+			JobClient jobClient = new JobClient(jg, configuration);
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+				fail(e.getMessage());
+			}
+
+			// Finally, compare output file to initial number sequence
+			final BufferedReader bufferedReader = new BufferedReader(new FileReader(outputFile));
+			for (int i = 0; i < limit; i++) {
+				final String number = bufferedReader.readLine();
+				try {
+					assertEquals(i, Integer.parseInt(number));
+				} catch (NumberFormatException e) {
+					fail(e.getMessage());
+				}
+			}
+
+			bufferedReader.close();
+
+			// Remove temporary files
+			inputFile.delete();
+			outputFile.delete();
+			jarFile.delete();
+
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+			fail(ioe.getMessage());
+		}
+		
+	}
 	/**
 	 * Creates a file with a sequence of 0 to <code>limit</code> integer numbers
 	 * and triggers a sample job. The sample reads all the numbers from the input file and pushes them through a

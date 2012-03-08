@@ -19,18 +19,13 @@ import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
-import javax.swing.plaf.basic.BasicTreeUI.TreeToggleAction;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -60,7 +55,7 @@ import eu.stratosphere.nephele.types.Record;
 public class MulticastManager implements ChannelLookupProtocol {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
-	
+
 	// Indicates whether topology information is available and will be used in order to construct
 	// the multicast overlay-tree.
 	private final boolean topologyaware;
@@ -92,7 +87,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 	private final Map<ChannelID, MulticastForwardingTable> cachedTrees = new HashMap<ChannelID, MulticastForwardingTable>();
 
-
 	public MulticastManager(final AbstractScheduler scheduler) {
 		this.scheduler = scheduler;
 
@@ -119,9 +113,9 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 */
 	public synchronized ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
 			ChannelID sourceChannelID) {
-		
-		LOG.info("Receiving multicast receiver request from " + caller +  " channel ID: " + sourceChannelID);
-		
+
+		LOG.info("Receiving multicast receiver request from " + caller + " channel ID: " + sourceChannelID);
+
 		// check, if the tree is already created and cached
 		if (this.cachedTrees.containsKey(sourceChannelID)) {
 			LOG.info("Replying with cached entry...");
@@ -146,11 +140,11 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			// Do we want to use a hard-coded tree topology?
 			if (this.usehardcodedtree) {
-				LOG.info("Creating a hard-coded tree topology from file: " + hardcodedtreefilepath); 		
+				LOG.info("Creating a hard-coded tree topology from file: " + hardcodedtreefilepath);
 				cachedTrees.put(sourceChannelID, createHardCodedTree(treenodes));
 				return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 			}
-			
+
 			// Do we want to use penalties from a penalty file?
 			if (this.usepenalties && this.penaltyfilepath != null) {
 				LOG.info("reading penalty file from: " + this.penaltyfilepath);
@@ -166,7 +160,8 @@ public class MulticastManager implements ChannelLookupProtocol {
 	}
 
 	/**
-	 * Returns and removes the TreeNode which is closest to the given indicator. 
+	 * Returns and removes the TreeNode which is closest to the given indicator.
+	 * 
 	 * @param indicator
 	 * @param nodes
 	 * @return
@@ -185,6 +180,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 * Returns the TreeNode which is closest to the given indicator Node. Proximity is determined
 	 * either using topology-information (if given), penalty information (if given) or it returns
 	 * the first node in the list.
+	 * 
 	 * @param indicator
 	 * @param nodes
 	 * @return
@@ -265,6 +261,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 	/**
 	 * Reads a hard-coded tree topology from file and creates a tree according to the hard-coded
 	 * topology from the file.
+	 * 
 	 * @param nodes
 	 * @return
 	 */
@@ -346,8 +343,12 @@ public class MulticastManager implements ChannelLookupProtocol {
 		for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
 			if (c.isBroadcastChannel()) {
 				ExecutionVertex targetVertex = eg.getVertexByChannelID(c.getConnectedChannelID());
+
 				if (targetVertex.getExecutionState() != ExecutionState.RUNNING
-					&& targetVertex.getExecutionState() != ExecutionState.FINISHING) {
+					&& targetVertex.getExecutionState() != ExecutionState.FINISHING
+					&& targetVertex.getExecutionState() != ExecutionState.ASSIGNED
+					&& targetVertex.getExecutionState() != ExecutionState.READY
+					&& targetVertex.getExecutionState() != ExecutionState.STARTING) {
 					return false;
 				}
 			}
@@ -382,17 +383,17 @@ public class MulticastManager implements ChannelLookupProtocol {
 			}
 		}
 
-
-		for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
-			System.out.println("Out channel ID: "
-				+ c.getID()
-				+ " connected channel: "
-				+ c.getConnectedChannelID()
-				+ " target instance: "
-				+ eg.getVertexByChannelID(c.getConnectedChannelID()).getAllocatedResource().getInstance()
-					.getInstanceConnectionInfo());
-
-		}
+		/*
+		 * for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
+		 * System.out.println("Out channel ID: "
+		 * + c.getID()
+		 * + " connected channel: "
+		 * + c.getConnectedChannelID()
+		 * + " target instance: "
+		 * + eg.getVertexByChannelID(c.getConnectedChannelID()).getAllocatedResource().getInstance()
+		 * .getInstanceConnectionInfo());
+		 * }
+		 */
 
 		final LinkedList<TreeNode> treenodes = new LinkedList<TreeNode>();
 
