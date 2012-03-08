@@ -240,8 +240,6 @@ final class EnvelopeConsumptionLog {
 
 	void showOustandingEnvelopeLog() {
 
-		int dataAvailableCounter = 0;
-
 		final int pos = this.outstandingEnvelopesAsIntBuffer.position();
 		final int limit = this.outstandingEnvelopesAsIntBuffer.limit();
 
@@ -263,9 +261,6 @@ final class EnvelopeConsumptionLog {
 
 			final int channelIndex = getInputChannel(entry);
 			final boolean dataAvailable = getDataAvailability(entry);
-			if (dataAvailable) {
-				++dataAvailableCounter;
-			}
 
 			char ch = (char) (((int) 'A') + channelIndex + (dataAvailable ? 0 : 32));
 
