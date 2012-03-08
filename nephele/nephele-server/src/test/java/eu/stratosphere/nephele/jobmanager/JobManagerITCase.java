@@ -506,8 +506,7 @@ public class JobManagerITCase {
 
 			// Create input and jar files
 			final File inputFile = ServerTestUtils.createInputFile(limit);
-			final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-				+ ServerTestUtils.getRandomFilename());
+			final File outputFile = new File(ServerTestUtils.getTempDir());
 			final File jarFile = ServerTestUtils.createJarFile(forwardClassName);
 
 			// Create job graph

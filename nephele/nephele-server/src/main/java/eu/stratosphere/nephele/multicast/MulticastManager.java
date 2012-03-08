@@ -325,7 +325,8 @@ public class MulticastManager implements ChannelLookupProtocol {
 	}
 
 	/**
-	 * Checks, if all target vertices for multicast transmisison are ready.
+	 * Checks, if all target vertices for multicast transmisison are ready. If vertices are in state ASSIGNED, it will
+	 * deploy those vertices.
 	 * 
 	 * @param caller
 	 * @param jobID
@@ -344,9 +345,12 @@ public class MulticastManager implements ChannelLookupProtocol {
 			if (c.isBroadcastChannel()) {
 				ExecutionVertex targetVertex = eg.getVertexByChannelID(c.getConnectedChannelID());
 
+				if (targetVertex.getExecutionState() == ExecutionState.ASSIGNED) {
+					this.scheduler.deployAssignedVertices(targetVertex);
+				}
+
 				if (targetVertex.getExecutionState() != ExecutionState.RUNNING
 					&& targetVertex.getExecutionState() != ExecutionState.FINISHING
-					&& targetVertex.getExecutionState() != ExecutionState.ASSIGNED
 					&& targetVertex.getExecutionState() != ExecutionState.READY
 					&& targetVertex.getExecutionState() != ExecutionState.STARTING) {
 					return false;
