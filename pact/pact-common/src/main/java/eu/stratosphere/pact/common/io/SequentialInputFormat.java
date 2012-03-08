@@ -18,7 +18,6 @@ import java.io.DataInput;
 import java.io.IOException;
 
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 
 /**
  * Reads the {@link PactRecord}s from the native format which is deserializable without configuration.
