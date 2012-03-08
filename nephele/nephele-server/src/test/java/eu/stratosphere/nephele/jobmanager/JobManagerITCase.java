@@ -50,6 +50,7 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
@@ -160,10 +161,9 @@ public class JobManagerITCase {
 
 			// Wait for the local task manager to arrive
 			try {
-				Thread.sleep(10000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				ServerTestUtils.waitForJobManagerToBecomeReady(jobManager);
+			} catch (Exception e) {
+				fail(StringUtils.stringifyException(e));
 			}
 		}
 	}
