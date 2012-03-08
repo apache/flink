@@ -231,8 +231,7 @@ public class JobManagerITCase {
 			// Create input and jar files
 			inputFile1 = ServerTestUtils.createInputFile(INPUT_DIRECTORY, 0);
 			inputFile2 = ServerTestUtils.createInputFile(INPUT_DIRECTORY, sizeOfInput);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-				+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 			jarFile = ServerTestUtils.createJarFile(forwardClassName);
 
 			// Create job graph
@@ -335,8 +334,7 @@ public class JobManagerITCase {
 		try {
 
 			inputFile = ServerTestUtils.createInputFile(0);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-				+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 			jarFile = ServerTestUtils.createJarFile(exceptionClassName);
 
 			// Create job graph
@@ -404,8 +402,6 @@ public class JobManagerITCase {
 		}
 	}
 
-	
-	
 	/**
 	 * Tests the Nephele execution when a runtime exception during the registration of the input/output gates occurs.
 	 */
@@ -420,8 +416,7 @@ public class JobManagerITCase {
 		try {
 
 			inputFile = ServerTestUtils.createInputFile(0);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-				+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 			jarFile = ServerTestUtils.createJarFile(runtimeExceptionClassName);
 
 			// Create job graph
@@ -492,13 +487,12 @@ public class JobManagerITCase {
 		}
 	}
 
-	
 	@Test
-	public void testBroadcastChannels(){
+	public void testBroadcastChannels() {
 		testBroadcast(100000, 2);
 	}
-	
-	private void testBroadcast(final int limit, final int receivers){
+
+	private void testBroadcast(final int limit, final int receivers) {
 		try {
 
 			// Get name of the forward class
@@ -512,11 +506,10 @@ public class JobManagerITCase {
 			// Create job graph
 			final JobGraph jg = new JobGraph("Job Graph 1");
 
-			// input vertex			
+			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input with broadcast writer", jg);
 			i1.setFileInputClass(BroadcastSourceTask.class);
 			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
-			
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
@@ -524,7 +517,6 @@ public class JobManagerITCase {
 			o1.setNumberOfSubtasksPerInstance(receivers);
 			o1.setVertexToShareInstancesWith(i1);
 			o1.setFileOutputClass(FileLineWriter.class);
-			System.out.println(outputFile.getAbsolutePath().toString());
 			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
 
 			// connect vertices
@@ -545,30 +537,38 @@ public class JobManagerITCase {
 				fail(e.getMessage());
 			}
 
-			// Finally, compare output file to initial number sequence
-			final BufferedReader bufferedReader = new BufferedReader(new FileReader(outputFile));
-			for (int i = 0; i < limit; i++) {
-				final String number = bufferedReader.readLine();
-				try {
-					assertEquals(i, Integer.parseInt(number));
-				} catch (NumberFormatException e) {
-					fail(e.getMessage());
+			for (int z = 0; z < receivers; z++) {
+				// Finally, compare output file to initial number sequence
+				File f = new File(outputFile + File.separator + "file_" + z + ".txt");
+				
+				final BufferedReader bufferedReader = new BufferedReader(new FileReader(f));
+				for (int i = 0; i < limit; i++) {
+					final String number = bufferedReader.readLine();
+					try {
+						assertEquals(i, Integer.parseInt(number));
+					} catch (NumberFormatException e) {
+						fail(e.getMessage());
+					}
 				}
-			}
+				bufferedReader.close();
+				f.delete();
 
-			bufferedReader.close();
+			}
 
 			// Remove temporary files
 			inputFile.delete();
-			outputFile.delete();
+
+			//outputFile.delete();
+
 			jarFile.delete();
 
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			fail(ioe.getMessage());
 		}
-		
+
 	}
+
 	/**
 	 * Creates a file with a sequence of 0 to <code>limit</code> integer numbers
 	 * and triggers a sample job. The sample reads all the numbers from the input file and pushes them through a
@@ -674,8 +674,7 @@ public class JobManagerITCase {
 		try {
 
 			inputFile = ServerTestUtils.createInputFile(0);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-							+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 
 			// Create required jar file
 			JarFileCreator jfc = new JarFileCreator(jarFile);
@@ -750,8 +749,7 @@ public class JobManagerITCase {
 		try {
 
 			inputFile = ServerTestUtils.createInputFile(0);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-								+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 
 			// Create required jar file
 			JarFileCreator jfc = new JarFileCreator(jarFile);
@@ -839,8 +837,7 @@ public class JobManagerITCase {
 
 			inputFile1 = ServerTestUtils.createInputFile(limit);
 			inputFile2 = ServerTestUtils.createInputFile(limit);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-								+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 
 			// Create required jar file
 			JarFileCreator jfc = new JarFileCreator(jarFile);
