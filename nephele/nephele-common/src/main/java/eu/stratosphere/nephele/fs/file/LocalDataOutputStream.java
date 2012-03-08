@@ -35,11 +35,6 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	private FileOutputStream fos = null;
 
 	/**
-	 * The current position in the output stream.
-	 */
-	private long position;
-
-	/**
 	 * Constructs a new <code>LocalDataOutputStream</code> object from a given {@link File} object.
 	 * 
 	 * @param file
@@ -50,7 +45,6 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	public LocalDataOutputStream(final File file) throws IOException {
 
 		this.fos = new FileOutputStream(file);
-		this.position = 0;
 	}
 
 	/**
@@ -59,7 +53,6 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	@Override
 	public void write(final int b) throws IOException {
 		fos.write(b);
-		position++;
 	}
 
 	/**
@@ -68,7 +61,6 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	@Override
 	public void write(final byte[] b, final int off, final int len) throws IOException {
 		fos.write(b, off, len);
-		position += len; // update position
 	}
 
 	/**

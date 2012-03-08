@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
@@ -148,7 +149,9 @@ public class CoGroupTask extends AbstractPactTask<CoGroupStub>
 		final CoGroupStub coGroupStub = this.stub;
 		final Collector collector = this.output;
 		final CoGroupTaskIterator coGroupIterator = this.coGroupIterator;
-		
+		if(this.stub.getClass().isAnnotationPresent(ForceCheckpoint.class)){
+			getEnvironment().isForced(this.stub.getClass().getAnnotation(ForceCheckpoint.class).checkpoint());
+		}
 		while (this.running && coGroupIterator.next()) {
 			coGroupStub.coGroup(coGroupIterator.getValues1(), coGroupIterator.getValues2(), 
 					collector);

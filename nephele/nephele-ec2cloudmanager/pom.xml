@@ -10,13 +10,10 @@
         <version>0.2</version>
     </parent>
 
-    <groupId>eu.stratosphere</groupId>
     <artifactId>nephele-ec2cloudmanager</artifactId>
     <name>nephele-ec2cloudmanager</name>
     <packaging>jar</packaging>
 
-    <version>0.2</version>
-    
     <dependencies>
       <dependency>
         <artifactId>nephele-server</artifactId>

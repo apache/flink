@@ -24,4 +24,10 @@ import eu.stratosphere.nephele.io.AbstractID;
  */
 public class ChannelID extends AbstractID {
 
+	/**
+	 * Constructs a new, random channel ID.
+	 */
+	public ChannelID() {
+		super();
+	}
 }

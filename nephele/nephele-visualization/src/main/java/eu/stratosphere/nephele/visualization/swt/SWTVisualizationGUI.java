@@ -98,6 +98,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 	private final boolean detectBottlenecks;
 
+	private volatile boolean applyFailurePatterns = true;
+
 	private final ExtendedManagementProtocol jobManager;
 
 	private final CTabFolder jobTabFolder;
@@ -105,6 +107,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	private long lastClickTime = 0;
 
 	private Map<JobID, GraphVisualizationData> recentJobs = new HashMap<JobID, GraphVisualizationData>();
+
+	private final SWTFailurePatternsManager failurePatternsManager;
 
 	/**
 	 * Set to filter duplicate events received from the job manager.
@@ -189,19 +193,43 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			}
 		});
 
-		final MenuItem diagnosisMenuItem = new MenuItem(this.menuBar, SWT.CASCADE);
-		diagnosisMenuItem.setText("&Diagnosis");
+		final MenuItem debuggingMenuItem = new MenuItem(this.menuBar, SWT.CASCADE);
+		debuggingMenuItem.setText("&Debugging");
 
-		final Menu diagnosisMenu = new Menu(this.shell, SWT.DROP_DOWN);
-		diagnosisMenuItem.setMenu(diagnosisMenu);
+		final Menu debuggingMenu = new Menu(this.shell, SWT.DROP_DOWN);
+		debuggingMenuItem.setMenu(debuggingMenu);
 
-		final MenuItem diagnosisLBUItem = new MenuItem(diagnosisMenu, SWT.PUSH);
-		diagnosisLBUItem.setText("&Log buffer utilization");
-		diagnosisLBUItem.addSelectionListener(new SelectionAdapter() {
+		final MenuItem debuggingLBUItem = new MenuItem(debuggingMenu, SWT.PUSH);
+		debuggingLBUItem.setText("&Log buffer utilization");
+		debuggingLBUItem.addSelectionListener(new SelectionAdapter() {
 
 			@Override
-			public void widgetSelected(SelectionEvent arg0) {
+			public void widgetSelected(final SelectionEvent arg0) {
 				logBufferUtilization();
+				shell.setMenuBar(null);
+			}
+		});
+
+		// Insert a separator before the last item in the help menu
+		new MenuItem(debuggingMenu, SWT.SEPARATOR);
+
+		final MenuItem debuggingAFPItem = new MenuItem(debuggingMenu, SWT.CHECK);
+		debuggingAFPItem.setText("&Apply failure patterns");
+		debuggingAFPItem.setSelection(this.applyFailurePatterns);
+		debuggingAFPItem.addSelectionListener(new SelectionAdapter() {
+
+			public void widgetSelected(final SelectionEvent arg0) {
+				applyFailurePatterns = debuggingAFPItem.getSelection();
+				shell.setMenuBar(null);
+			}
+		});
+
+		final MenuItem debuggingMFPItem = new MenuItem(debuggingMenu, SWT.PUSH);
+		debuggingMFPItem.setText("&Manage failure patterns...");
+		debuggingMFPItem.addSelectionListener(new SelectionAdapter() {
+
+			public void widgetSelected(final SelectionEvent arg0) {
+				manageFailurePatterns();
 				shell.setMenuBar(null);
 			}
 		});
@@ -217,7 +245,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		helpJavaDocItem.addSelectionListener(new SelectionAdapter() {
 
 			@Override
-			public void widgetSelected(SelectionEvent arg0) {
+			public void widgetSelected(final SelectionEvent arg0) {
 				viewJavaDoc();
 				shell.setMenuBar(null);
 			}
@@ -272,6 +300,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				}
 			}
 		});
+
+		// Create failure patterns manager
+		this.failurePatternsManager = new SWTFailurePatternsManager(this.shell.getDisplay(), jobManager);
 
 		// Launch the timer that will query for events
 		this.display.timerExec(QUERYINTERVAL * 1000, this);
@@ -365,7 +396,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		return -1;
 	}
 
-	public void cancelTask(JobID jobId, ManagementVertexID id, String vertexName) {
+	public void killTask(JobID jobId, ManagementVertexID id, String vertexName) {
 
 		final MessageBox messageBox = new MessageBox(getShell(), SWT.YES | SWT.NO | SWT.ICON_QUESTION);
 		messageBox.setText("Confirmation");
@@ -375,7 +406,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		}
 
 		try {
-			this.jobManager.cancelTask(jobId, id);
+			this.jobManager.killTask(jobId, id);
 		} catch (IOException ioe) {
 			final MessageBox errorBox = new MessageBox(getShell(), SWT.ICON_ERROR);
 			errorBox.setText("Error");
@@ -420,7 +451,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				final Iterator<RecentJobEvent> it = newJobs.iterator();
 				while (it.hasNext()) {
 					final RecentJobEvent newJobEvent = it.next();
-					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable());
+					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable(),
+						newJobEvent.getTimestamp());
 				}
 			}
 
@@ -493,7 +525,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		((SWTJobTabItem) control).updateView();
 	}
 
-	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable) throws IOException {
+	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable, final long referenceTime)
+			throws IOException {
 
 		synchronized (this.recentJobs) {
 
@@ -545,6 +578,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			final TreeItem jobItem = new TreeItem(jobTree, SWT.NONE);
 			jobItem.setText(jobName + " (" + jobID.toString() + ")");
 			jobItem.setData(graphVisualizationData);
+
+			// Find a matching failure pattern and start it
+			this.failurePatternsManager.startFailurePattern(jobName, managementGraph, referenceTime);
 
 			this.recentJobs.put(jobID, graphVisualizationData);
 		}
@@ -667,6 +703,33 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				it.remove();
 			}
 		}
+	}
+
+	private void manageFailurePatterns() {
+
+		final Set<String> jobSuggestions = new HashSet<String>();
+		final Set<String> nameSuggestions = new HashSet<String>();
+
+		final Iterator<GraphVisualizationData> it = this.recentJobs.values().iterator();
+		while (it.hasNext()) {
+
+			final GraphVisualizationData gvd = it.next();
+
+			jobSuggestions.add(gvd.getJobName());
+
+			final ManagementGraphIterator mgi = new ManagementGraphIterator(gvd.getManagementGraph(), true);
+			while (mgi.hasNext()) {
+
+				final ManagementVertex vertex = mgi.next();
+				final String vertexName = SWTFailurePatternsManager.getSuggestedName(vertex);
+				nameSuggestions.add(vertexName);
+				if (vertex.getInstanceName() != null) {
+					nameSuggestions.add(vertex.getInstanceName());
+				}
+			}
+		}
+
+		this.failurePatternsManager.openEditor(this.shell, jobSuggestions, nameSuggestions);
 	}
 
 	private void logBufferUtilization() {

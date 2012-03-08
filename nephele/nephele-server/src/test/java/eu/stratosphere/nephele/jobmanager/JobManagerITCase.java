@@ -132,8 +132,7 @@ public class JobManagerITCase {
 				Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
 					String.class });
 				c.setAccessible(true);
-				jobManager = c.newInstance(new Object[] { new String(System.getProperty("user.dir") + "/correct-conf"),
-					new String("local") });
+				jobManager = c.newInstance(new Object[] { ServerTestUtils.getConfigDir(), new String("local") });
 
 			} catch (SecurityException e) {
 				fail(e.getMessage());
@@ -320,89 +319,89 @@ public class JobManagerITCase {
 		}
 	}
 
-//	/**
-//	 * Tests the Nephele execution when an exception occurs. In particular, it is tested if the information that is
-//	 * wrapped by the exception is correctly passed on to the client.
-//	 */
-//	@Test
-//	public void testExecutionWithException() {
-//
-//		final String exceptionClassName = ExceptionTask.class.getSimpleName();
-//		File inputFile = null;
-//		File outputFile = null;
-//		File jarFile = null;
-//
-//		try {
-//
-//			inputFile = ServerTestUtils.createInputFile(0);
-//			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-//				+ ServerTestUtils.getRandomFilename());
-//			jarFile = ServerTestUtils.createJarFile(exceptionClassName);
-//
-//			// Create job graph
-//			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
-//
-//			// input vertex
-//			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-//			i1.setFileInputClass(FileLineReader.class);
-//			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
-//
-//			// task vertex 1
-//			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
-//			t1.setTaskClass(ExceptionTask.class);
-//
-//			// output vertex
-//			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-//			o1.setFileOutputClass(FileLineWriter.class);
-//			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
-//
-//			t1.setVertexToShareInstancesWith(i1);
-//			o1.setVertexToShareInstancesWith(i1);
-//
-//			// connect vertices
-//			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-//			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-//
-//			// add jar
-//			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
-//
-//			// Create job client and launch job
-//			final JobClient jobClient = new JobClient(jg, configuration);
-//
-//			try {
-//				jobClient.submitJobAndWait();
-//			} catch (JobExecutionException e) {
-//				// Check if the correct error message is encapsulated in the exception
-//				if (e.getMessage() == null) {
-//					fail("JobExecutionException does not contain an error message");
-//				}
-//				if (!e.getMessage().contains(ExceptionTask.ERROR_MESSAGE)) {
-//					fail("JobExecutionException does not contain the expected error message");
-//				}
-//
-//				return;
-//			}
-//
-//			fail("Expected exception but did not receive it");
-//
-//		} catch (JobGraphDefinitionException jgde) {
-//			fail(jgde.getMessage());
-//		} catch (IOException ioe) {
-//			fail(ioe.getMessage());
-//		} finally {
-//
-//			// Remove temporary files
-//			if (inputFile != null) {
-//				inputFile.delete();
-//			}
-//			if (outputFile != null) {
-//				outputFile.delete();
-//			}
-//			if (jarFile != null) {
-//				jarFile.delete();
-//			}
-//		}
-//	}
+	/**
+	 * Tests the Nephele execution when an exception occurs. In particular, it is tested if the information that is
+	 * wrapped by the exception is correctly passed on to the client.
+	 */
+	@Test
+	public void testExecutionWithException() {
+
+		final String exceptionClassName = ExceptionTask.class.getSimpleName();
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = null;
+
+		try {
+
+			inputFile = ServerTestUtils.createInputFile(0);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+				+ ServerTestUtils.getRandomFilename());
+			jarFile = ServerTestUtils.createJarFile(exceptionClassName);
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
+
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+			i1.setFileInputClass(FileLineReader.class);
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+
+			// task vertex 1
+			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
+			t1.setTaskClass(ExceptionTask.class);
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			t1.setVertexToShareInstancesWith(i1);
+			o1.setVertexToShareInstancesWith(i1);
+
+			// connect vertices
+			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+			// add jar
+			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
+
+			// Create job client and launch job
+			final JobClient jobClient = new JobClient(jg, configuration);
+
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+				// Check if the correct error message is encapsulated in the exception
+				if (e.getMessage() == null) {
+					fail("JobExecutionException does not contain an error message");
+				}
+				if (!e.getMessage().contains(ExceptionTask.ERROR_MESSAGE)) {
+					fail("JobExecutionException does not contain the expected error message");
+				}
+
+				return;
+			}
+
+			fail("Expected exception but did not receive it");
+
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+		}
+	}
 
 	/**
 	 * Tests the Nephele execution when a runtime exception during the registration of the input/output gates occurs.

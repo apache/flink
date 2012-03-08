@@ -54,6 +54,11 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	private String hostname = null;
 
 	/**
+	 * The domain name of the instance.
+	 */
+	private String domainname = null;
+
+	/**
 	 * Constructs a new instance connection info object.
 	 * 
 	 * @param inetAddress
@@ -66,27 +71,26 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	public InstanceConnectionInfo(InetAddress inetAddress, int ipcPort, int dataPort) {
 
 		this.inetAddress = inetAddress;
-		this.hostname = inetAddress.getHostName();
-		this.ipcPort = ipcPort;
-		this.dataPort = dataPort;
-	}
 
-	/**
-	 * Constructs a new instance connection info object.
-	 * 
-	 * @param inetAddress
-	 *        the network address the instance's task manager binds its sockets to.
-	 * @param ipcPort
-	 *        the port instance's task manager runs its IPC service on
-	 * @param dataPort
-	 *        the port instance's task manager expects to receive transfer envelopes on.
-	 * @param hostname
-	 *        the host name of the instance
-	 */
-	public InstanceConnectionInfo(InetAddress inetAddress, int ipcPort, int dataPort, String hostname) {
+		final String hostAddStr = inetAddress.getHostAddress();
+		final String fqdn = inetAddress.getCanonicalHostName();
 
-		this.inetAddress = inetAddress;
-		this.hostname = inetAddress.getHostName();
+		if (hostAddStr.equals(fqdn)) {
+			this.hostname = fqdn;
+			this.domainname = null;
+		} else {
+
+			// Look for the first dot in the FQDN
+			final int firstDot = fqdn.indexOf('.');
+			if (firstDot == -1) {
+				this.hostname = fqdn;
+				this.domainname = null;
+			} else {
+				this.hostname = fqdn.substring(0, firstDot);
+				this.domainname = fqdn.substring(firstDot + 1);
+			}
+		}
+
 		this.ipcPort = ipcPort;
 		this.dataPort = dataPort;
 	}
@@ -126,13 +130,24 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	}
 
 	/**
-	 * Returns the host name of the instance.
+	 * Returns the host name of the instance. If the host name could not be determined, the return value will be a
+	 * textual representation of the instance's IP address.
 	 * 
 	 * @return the host name of the instance
 	 */
 	public String getHostName() {
 
 		return this.hostname;
+	}
+
+	/**
+	 * Returns the domain name of the instance.
+	 * 
+	 * @return the domain name of the instance or <code>null</code> if the domain name could not be determined
+	 */
+	public String getDomainName() {
+
+		return this.domainname;
 	}
 
 	/**
@@ -145,6 +160,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		byte[] address = new byte[addr_length];
 		in.readFully(address);
 		this.hostname = StringRecord.readString(in);
+		this.domainname = StringRecord.readString(in);
 
 		try {
 			this.inetAddress = InetAddress.getByAddress(address);
@@ -165,6 +181,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		out.writeInt(this.inetAddress.getAddress().length);
 		out.write(this.inetAddress.getAddress());
 		StringRecord.writeString(out, this.hostname);
+		StringRecord.writeString(out, this.domainname);
 		out.writeInt(this.ipcPort);
 		out.writeInt(this.dataPort);
 	}

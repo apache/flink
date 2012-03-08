@@ -17,6 +17,8 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.Comparator;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -26,6 +28,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
@@ -74,10 +77,21 @@ public class ReduceTask extends AbstractPactTask<ReduceStub>
 		final ReduceStub stub = this.stub;
 		final Collector output = this.output;
 		
+		// DW: Start of temporary code
+		final OutputCollector oc = (OutputCollector) output;
+		final Environment env = getEnvironment();
+		// DW: End of temporary code
+		if(this.stub.getClass().isAnnotationPresent(ForceCheckpoint.class)){
+			env.isForced(this.stub.getClass().getAnnotation(ForceCheckpoint.class).checkpoint());
+		}
 		// run stub implementation
 		while (this.running && iter.nextKey())
 		{
 			stub.reduce(iter.getValues(), output);
+			// DW: Start of temporary code
+			env.reportPACTDataStatistics(iter.getConsumedPactRecordsInBytes(), 
+				oc.getCollectedPactRecordsInBytes());
+			// DW: End of temporary code
 		}
 	}
 

@@ -80,7 +80,7 @@ public class IncomingConnection {
 			LOG.error("Connection from " + socketChannel.socket().getRemoteSocketAddress()
 				+ " encountered an IOException");
 		}
-		LOG.error(ioe);
+		LOG.error(StringUtils.stringifyException(ioe));
 
 		try {
 			this.readableByteChannel.close();

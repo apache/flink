@@ -27,7 +27,20 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 public interface ExecutionListener {
 
 	/**
-	 * Called when the execution state of the associated task has changed.
+	 * Returns the priority of the execution listener object. If multiple execution listener objects are registered for
+	 * a given vertex, the priority determines in which order they will be called. Priorities are expressed as
+	 * non-negative integer values. The lower the integer value, the higher the call priority.
+	 * 
+	 * @return the priority of this execution listener
+	 */
+	int getPriority();
+
+	/**
+	 * Called when the execution state of the associated task has changed. It is important to point out that multiple
+	 * execution listeners can be invoked as a reaction to a state change, according to their priority. As a result, the
+	 * value of <code>newExecutionState</code> may be out-dated by the time a particular execution listener is called.
+	 * To determine the most recent state of the respective task, it is recommended to store a reference on the
+	 * execution that represents it and then call <code>getExecutionState()</code> on the vertex within this method.
 	 * 
 	 * @param jobID
 	 *        the ID of the job the task belongs to
@@ -64,18 +77,4 @@ public interface ExecutionListener {
 	 *        the user thread which has finished
 	 */
 	void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread);
-
-	/**
-	 * Called when the task has exhausted its initial execution resources (for example its initial memory buffers to
-	 * transmit output records) and requires a decision how to proceed.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the task belongs to
-	 * @param vertexID
-	 *        the ID of the task that ran out of its initial execution resources
-	 * @param resourceUtilizationSnapshot
-	 *        a snapshot of the task's current resource utilization
-	 */
-	void initialExecutionResourcesExhausted(JobID jobID, ExecutionVertexID vertexID,
-			ResourceUtilizationSnapshot resourceUtilizationSnapshot);
 }

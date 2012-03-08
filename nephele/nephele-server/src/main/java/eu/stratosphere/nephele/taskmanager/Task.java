@@ -15,260 +15,46 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionListener;
-import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ExecutionStateTransition;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
-import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.template.InputSplitProvider;
 
-public class Task implements ExecutionObserver {
-
-	/**
-	 * The log object used for debugging.
-	 */
-	private static final Log LOG = LogFactory.getLog(Task.class);
-
-	private final ExecutionVertexID vertexID;
-
-	private final Environment environment;
-
-	private final TaskManager taskManager;
+public interface Task {
 
 	/**
-	 * Stores whether the task has been canceled.
-	 */
-	private volatile boolean isCanceled = false;
-
-	/**
-	 * The current execution state of the task
-	 */
-	private volatile ExecutionState executionState = ExecutionState.STARTING;
-
-	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
-
-	Task(final ExecutionVertexID vertexID, final Environment environment, final TaskManager taskManager) {
-
-		this.vertexID = vertexID;
-		this.environment = environment;
-		this.taskManager = taskManager;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void executionStateChanged(final ExecutionState newExecutionState, final String optionalMessage) {
-
-		// Check the state transition
-		ExecutionStateTransition.checkTransition(getTaskName(), this.executionState, newExecutionState);
-
-		// Notify all listener objects
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
-		while (it.hasNext()) {
-			it.next().executionStateChanged(this.environment.getJobID(), this.vertexID, newExecutionState,
-				optionalMessage);
-		}
-
-		// Store the new execution state
-		this.executionState = newExecutionState;
-
-		// Finally propagate the state change to the job manager
-		this.taskManager.executionStateChanged(this.environment.getJobID(), this.vertexID, this,
-			newExecutionState, optionalMessage);
-	}
-
-	/**
-	 * Returns the name of the task associated with this observer object.
+	 * Returns the ID of the job this task belongs to.
 	 * 
-	 * @return the name of the task associated with this observer object
+	 * @return the ID of the job this task belongs to
 	 */
-	private String getTaskName() {
-
-		return this.environment.getTaskName() + " (" + (environment.getIndexInSubtaskGroup() + 1) + "/"
-			+ environment.getCurrentNumberOfSubtasks() + ")";
-	}
+	JobID getJobID();
 
 	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadStarted(final Thread userThread) {
-
-		// Notify the listeners
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
-		while (it.hasNext()) {
-			it.next().userThreadStarted(this.environment.getJobID(), this.vertexID, userThread);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadFinished(final Thread userThread) {
-
-		// Notify the listeners
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
-		while (it.hasNext()) {
-			it.next().userThreadFinished(this.environment.getJobID(), this.vertexID, userThread);
-		}
-	}
-
-	/**
-	 * Registers the {@link ExecutionListener} object for this task. This object
-	 * will be notified about important events during the task execution.
+	 * Returns the ID of this task.
 	 * 
-	 * @param executionListener
-	 *        the object to be notified for important events during the task execution
+	 * @return the ID of this task
 	 */
-
-	public void registerExecutionListener(final ExecutionListener executionListener) {
-
-		this.registeredListeners.add(executionListener);
-	}
+	ExecutionVertexID getVertexID();
 
 	/**
-	 * Unregisters the {@link ExecutionListener} object for this environment. This object
-	 * will no longer be notified about important events during the task execution.
+	 * Returns the environment associated with this task.
 	 * 
-	 * @param executionListener
-	 *        the lister object to be unregistered
+	 * @return the environment associated with this task
 	 */
-
-	public void unregisterExecutionListener(final ExecutionListener executionListener) {
-
-		this.registeredListeners.remove(executionListener);
-	}
+	Environment getEnvironment();
 
 	/**
 	 * Marks the task as failed and triggers the appropriate state changes.
 	 */
-	public void markAsFailed() {
-
-		executionStateChanged(ExecutionState.FAILED, "Execution thread died unexpectedly");
-	}
-
-	/**
-	 * Cancels the execution of the task (i.e. interrupts the execution thread).
-	 */
-	public void cancelExecution() {
-
-		final Thread executingThread = this.environment.getExecutingThread();
-
-		if (executingThread == null) {
-			return;
-		}
-
-		this.isCanceled = true;
-
-		// Change state
-		executionStateChanged(ExecutionState.CANCELING, null);
-
-		// Request user code to shut down
-		try {
-			final AbstractInvokable invokable = this.environment.getInvokable();
-			if (invokable != null) {
-				invokable.cancel();
-			}
-		} catch (Throwable e) {
-			LOG.error(StringUtils.stringifyException(e));
-		}
-
-		// Continuously interrupt the user thread until it changed to state CANCELED
-		while (true) {
-
-			executingThread.interrupt();
-
-			if (this.executionState == ExecutionState.CANCELED) {
-				break;
-			}
-
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				break;
-			}
-		}
-	}
-
-	/**
-	 * Starts the execution of this Nephele task.
-	 */
-	public void startExecution() {
-
-		final Thread thread = this.environment.getExecutingThread();
-		thread.start();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean isCanceled() {
-
-		return this.isCanceled;
-	}
-
-	/**
-	 * Triggers the notification that the task has run out of its initial execution resources.
-	 */
-	public void initialExecutionResourcesExhausted() {
-
-//		if (this.environment.getExecutingThread() != Thread.currentThread()) {
-//			throw new ConcurrentModificationException(
-//				"initialExecutionResourcesExhausted must be called from the task that executes the user code");
-//		}
-
-		// Construct a resource utilization snapshot
-		final long timestamp = System.currentTimeMillis();
-		final Map<ChannelID, Long> outputChannelUtilization = new HashMap<ChannelID, Long>();
-
-		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-				outputChannelUtilization.put(outputChannel.getID(),
-					Long.valueOf(outputChannel.getAmountOfDataTransmitted()));
-			}
-		}
-
-		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, outputChannelUtilization);
-
-		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
-		while (it.hasNext()) {
-			it.next().initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID, rus);
-		}
-
-		// Finally, propagate event to the job manager
-		this.taskManager.initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID, rus);
-	}
-
-	public void checkpointStateChanged(final CheckpointState newCheckpointState) {
-
-		// Propagate event to the job manager
-		this.taskManager.checkpointStateChanged(this.environment.getJobID(), this.vertexID, newCheckpointState);
-	}
+	void markAsFailed();
 
 	/**
 	 * Checks if the state of the thread which is associated with this task is <code>TERMINATED</code>.
@@ -276,43 +62,79 @@ public class Task implements ExecutionObserver {
 	 * @return <code>true</code> if the state of this thread which is associated with this task is
 	 *         <code>TERMINATED</code>, <code>false</code> otherwise
 	 */
-	public boolean isTerminated() {
-
-		final Thread executingThread = this.environment.getExecutingThread();
-		if (executingThread.getState() == Thread.State.TERMINATED) {
-			return true;
-		}
-
-		return false;
-	}
+	boolean isTerminated();
 
 	/**
-	 * Returns the environment associated with this task.
-	 * 
-	 * @return the environment associated with this task
+	 * Starts the execution of this task.
 	 */
-	public Environment getEnvironment() {
-
-		return this.environment;
-	}
+	void startExecution();
 
 	/**
-	 * Returns the ID of the job this task belongs to.
-	 * 
-	 * @return the ID of the job this task belongs to
+	 * Cancels the execution of the task (i.e. interrupts the execution thread).
 	 */
-	public JobID getJobID() {
-
-		return this.environment.getJobID();
-	}
+	void cancelExecution();
 
 	/**
-	 * Returns the ID of this task.
-	 * 
-	 * @return the ID of this task
+	 * Kills the task (i.e. interrupts the execution thread).
 	 */
-	public ExecutionVertexID getVertexID() {
+	void killExecution();
 
-		return this.vertexID;
-	}
+	/**
+	 * Registers the central memory manager with the task.
+	 * 
+	 * @param memoryManager
+	 *        the central memory manager
+	 */
+	void registerMemoryManager(MemoryManager memoryManager);
+
+	/**
+	 * Registers the central IO manager with the task.
+	 * 
+	 * @param ioManager
+	 *        the central IO manager
+	 */
+	void registerIOManager(IOManager ioManager);
+
+	/**
+	 * Registers the input splits provider with the task.
+	 * 
+	 * @param inputSplitProvider
+	 *        the input split provider
+	 */
+	void registerInputSplitProvider(InputSplitProvider inputSplitProvider);
+
+	/**
+	 * Registers the task manager profiler with the task.
+	 * 
+	 * @param taskManagerProfiler
+	 *        the task manager profiler
+	 * @param jobConfiguration
+	 *        the configuration attached to the job
+	 */
+	void registerProfiler(TaskManagerProfiler taskManagerProfiler, Configuration jobConfiguration);
+
+	/**
+	 * Unregisters the task from the central memory manager.
+	 * 
+	 * @param memoryManager
+	 *        the central memory manager
+	 */
+	void unregisterMemoryManager(MemoryManager memoryManager);
+
+	/**
+	 * Unregisters the task from the task manager profiler.
+	 * 
+	 * @param taskManagerProfiler
+	 *        the task manager profiler
+	 */
+	void unregisterProfiler(TaskManagerProfiler taskManagerProfiler);
+
+	/**
+	 * Returns the current execution state of the task.
+	 * 
+	 * @return the current execution state of the task
+	 */
+	ExecutionState getExecutionState();
+
+	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher, LocalBufferPoolOwner previousBufferPoolOwner);
 }

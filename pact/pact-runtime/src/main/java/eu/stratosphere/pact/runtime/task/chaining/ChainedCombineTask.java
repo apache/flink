@@ -223,6 +223,10 @@ public class ChainedCombineTask implements ChainedTask
 	@Override
 	public void collect(PactRecord record)
 	{
+		// DW: Start of temporary code
+		this.collectedPactRecordsInBytes += record.getBinaryLength();
+		// DW: End of temporary code
+		
 		if (this.exception != null)
 			throw new RuntimeException("The combiner failed due to an exception.", 
 				this.exception.getCause() == null ? this.exception : this.exception.getCause());
@@ -305,4 +309,17 @@ public class ChainedCombineTask implements ChainedTask
 			this.running = false;
 		}
 	}
+
+	// DW: Start of temporary code
+	private long collectedPactRecordsInBytes = 0L;
+	
+	@Override
+	public long getCollectedPactRecordsInBytes() {
+		
+		final long retVal = this.collectedPactRecordsInBytes;
+		this.collectedPactRecordsInBytes = 0L;
+		
+		return retVal;
+	}
+	// DW: End of temporary code
 }

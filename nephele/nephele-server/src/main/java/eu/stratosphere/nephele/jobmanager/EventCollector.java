@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.CheckpointStateListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -165,9 +164,9 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
-				final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-			// Nothing to do here
+		public int getPriority() {
+
+			return 20;
 		}
 
 	}
@@ -287,7 +286,15 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			if (instance == null) {
 				event = new VertexAssignmentEvent(timestamp, managementVertexID, "null", "null");
 			} else {
-				event = new VertexAssignmentEvent(timestamp, managementVertexID, instance.getName(), instance.getType()
+
+				String instanceName = null;
+				if (instance.getInstanceConnectionInfo() != null) {
+					instanceName = instance.getInstanceConnectionInfo().toString();
+				} else {
+					instanceName = instance.toString();
+				}
+
+				event = new VertexAssignmentEvent(timestamp, managementVertexID, instanceName, instance.getType()
 					.getIdentifier());
 			}
 

@@ -22,6 +22,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.AbstractPactTask;
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 
@@ -109,14 +110,38 @@ public class ChainedMapTask implements ChainedTask
 	
 	// --------------------------------------------------------------------------------------------
 	
+	// DW: Start of temporary code
+	private int count = 0;
+	
+	private long consumedPactRecordsInBytes = 0L;
+	// DW: End of temporary code
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
 	public void collect(PactRecord record)
 	{
+		// DW: Start of temporary code
+		final int recordLength = record.getBinaryLength();
+		this.collectedPactRecordsInBytes += recordLength;
+		// DW: End of temporary code
+		
 		try {
+			// DW: Start of temporary code
+			this.consumedPactRecordsInBytes += recordLength;
+			// DW: End of temporary code
 			this.mapper.map(record, this.collector);
+			// DW: Start of temporary code
+			if(++this.count == 10) {
+				parent.getEnvironment().reportPACTDataStatistics(
+					this.consumedPactRecordsInBytes,
+					((OutputCollector) this.collector).getCollectedPactRecordsInBytes());
+				this.consumedPactRecordsInBytes = 0L;
+				this.count = 0;
+			}
+			// DW: End of temporary code
+			
 		}
 		catch (Exception ex) {
 			throw new ExceptionInChainedStubException(this.taskName, ex);
@@ -131,4 +156,17 @@ public class ChainedMapTask implements ChainedTask
 	{
 		this.collector.close();
 	}
+
+	// DW: Start of temporary code
+	private long collectedPactRecordsInBytes = 0L;
+	
+	@Override
+	public long getCollectedPactRecordsInBytes() {
+		
+		final long retVal = this.collectedPactRecordsInBytes;
+		this.collectedPactRecordsInBytes = 0L;
+		
+		return retVal;
+	}
+	// DW: End of temporary code
 }

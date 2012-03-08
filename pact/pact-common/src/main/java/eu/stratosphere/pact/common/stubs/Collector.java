@@ -37,4 +37,8 @@ public interface Collector
 	 * Closes the collector.
 	 */
 	void close();
+	
+	// DW: Start of temporary code
+	long getCollectedPactRecordsInBytes();
+	// DW: End of temporary code
 }

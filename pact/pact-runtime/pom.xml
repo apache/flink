@@ -10,9 +10,7 @@
 		<version>0.2</version>
 	</parent>
 
-	<groupId>eu.stratosphere</groupId>
 	<artifactId>pact-runtime</artifactId>
-	<version>0.2</version>
 	<name>pact-runtime</name>
 
 	<packaging>jar</packaging>

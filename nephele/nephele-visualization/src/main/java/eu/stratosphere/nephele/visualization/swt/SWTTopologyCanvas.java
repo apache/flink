@@ -163,7 +163,7 @@ public class SWTTopologyCanvas extends Canvas implements PaintListener, Listener
 	}
 
 	@Override
-	public void cancelTask(final ManagementVertexID id, final String taskName) {
+	public void killTask(final ManagementVertexID id, final String taskName) {
 		// Nothing to do here
 	}
 

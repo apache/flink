@@ -18,10 +18,9 @@ package eu.stratosphere.nephele.profiling.impl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -31,9 +30,10 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 
 	private final TaskManagerProfilerImpl taskManagerProfiler;
 
-	private final Environment environment;
+	private final RuntimeEnvironment environment;
 
-	public EnvironmentListenerImpl(final TaskManagerProfilerImpl taskManagerProfiler, final Environment environment) {
+	public EnvironmentListenerImpl(final TaskManagerProfilerImpl taskManagerProfiler,
+			final RuntimeEnvironment environment) {
 
 		this.taskManagerProfiler = taskManagerProfiler;
 		this.environment = environment;
@@ -97,8 +97,8 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
-		// Nothing to do here
+	public int getPriority() {
+
+		return 1;
 	}
 }

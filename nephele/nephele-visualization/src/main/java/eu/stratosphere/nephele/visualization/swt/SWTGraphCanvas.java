@@ -330,10 +330,10 @@ public class SWTGraphCanvas extends Canvas implements PaintListener, Listener, M
 	}
 
 	@Override
-	public void cancelTask(final ManagementVertexID id, final String taskName) {
+	public void killTask(final ManagementVertexID id, final String taskName) {
 
 		// Delegate call to the job tab item
-		this.jobTabItem.cancelTask(id, taskName);
+		this.jobTabItem.killTask(id, taskName);
 	}
 
 	/**

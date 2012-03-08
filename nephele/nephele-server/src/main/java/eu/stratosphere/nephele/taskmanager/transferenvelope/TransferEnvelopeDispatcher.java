@@ -33,16 +33,12 @@ public interface TransferEnvelopeDispatcher {
 	 * 
 	 * @param transferEnvelope
 	 *        the transfer envelope to be processed
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while allocating the resources to further process the envelope
-	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the processing to complete
 	 */
-	void processEnvelopeFromOutputChannel(TransferEnvelope transferEnvelope) throws IOException, InterruptedException;
+	void processEnvelopeFromOutputChannel(TransferEnvelope transferEnvelope);
 
-	void processEnvelopeFromInputChannel(TransferEnvelope transferEnvelope) throws IOException, InterruptedException;
+	void processEnvelopeFromInputChannel(TransferEnvelope transferEnvelope);
 
-	void processEnvelopeFromNetwork(TransferEnvelope transferEnvelope, boolean freeSourceBuffer) throws IOException;
+	void processEnvelopeFromNetwork(TransferEnvelope transferEnvelope, boolean freeSourceBuffer);
 
 	/**
 	 * Registers the given spilling queue with a network connection. The network connection is in charge of polling the

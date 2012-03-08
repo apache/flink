@@ -46,7 +46,7 @@ import eu.stratosphere.nephele.profiling.impl.types.InternalInputGateProfilingDa
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalOutputGateProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
-import eu.stratosphere.nephele.taskmanager.Task;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -73,7 +73,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	private final Map<OutputGate<? extends Record>, OutputGateListenerImpl> monitoredOutputGates = new HashMap<OutputGate<? extends Record>, OutputGateListenerImpl>();
 
 	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, InstanceConnectionInfo instanceConnectionInfo)
-																												throws ProfilingException {
+			throws ProfilingException {
 
 		// Create RPC stub for communication with job manager's profiling component.
 		final InetSocketAddress profilingAddress = new InetSocketAddress(jobManagerAddress, GlobalConfiguration
@@ -112,14 +112,17 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerExecutionListener(final Task task, final Configuration jobConfiguration) {
+	public void registerExecutionListener(final RuntimeTask task, final Configuration jobConfiguration) {
 
 		// Register profiling hook for the environment
-		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getEnvironment()));
+		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getRuntimeEnvironment()));
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void registerInputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
+	public void registerInputGateListener(final ExecutionVertexID id, final Configuration jobConfiguration,
 			InputGate<? extends Record> inputGate) {
 
 		synchronized (this.monitoredInputGates) {
@@ -131,9 +134,12 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void registerOutputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			OutputGate<? extends Record> outputGate) {
+	public void registerOutputGateListener(final ExecutionVertexID id, final Configuration jobConfiguration,
+			final OutputGate<? extends Record> outputGate) {
 
 		synchronized (this.monitoredOutputGates) {
 

@@ -60,22 +60,31 @@ public final class ManagementGate extends ManagementAttachment {
 	private final List<ManagementEdge> backwardEdges = new ArrayList<ManagementEdge>();
 
 	/**
+	 * The id of the management gate.
+	 */
+	private ManagementGateID gateID;
+
+	/**
 	 * Constructs a new management gate.
 	 * 
 	 * @param managementVertex
 	 *        the management vertex this gate belongs to
 	 * @param index
 	 *        the index of this gate
+	 * @param gateID
+	 *        The id of the new management gate
 	 * @param isInputGate
 	 *        <code>true</code> if this gate represents an input gate in the actual execution graph, <code>false</code>
 	 *        otherwise
 	 * @param recordType
 	 *        the name of the record type transported through this gate
 	 */
-	public ManagementGate(final ManagementVertex managementVertex, final int index, final boolean isInputGate,
+	public ManagementGate(final ManagementVertex managementVertex, final ManagementGateID gateID,
+			final int index, final boolean isInputGate,
 			final String recordType) {
 		this.isInputGate = isInputGate;
 		this.managementVertex = managementVertex;
+		this.gateID = gateID;
 		this.recordType = recordType;
 		this.index = index;
 
@@ -212,5 +221,14 @@ public final class ManagementGate extends ManagementAttachment {
 	 */
 	public ManagementVertex getVertex() {
 		return this.managementVertex;
+	}
+
+	/**
+	 * Returns the id of the management gate.
+	 * 
+	 * @return the id of the management gate
+	 */
+	public ManagementGateID getManagementGateID() {
+		return gateID;
 	}
 }

@@ -25,16 +25,13 @@ import junit.framework.TestCase;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
@@ -47,7 +44,7 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0}, new Class[] {PactInteger.class});
 
 		int numChans = 100;
 		int numRecs = 50000;
@@ -72,7 +69,7 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0}, new Class[] {PactString.class});
+		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0}, new Class[] {PactString.class});
 
 		numChans = 100;
 		numRecs = 10000;
@@ -103,7 +100,7 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.FORWARD, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.FORWARD, new int[] {0}, new Class[] {PactInteger.class});
 
 		int numChannels = 100;
 		int numRecords = 50000;
@@ -129,7 +126,7 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.FORWARD, new JobID(), new int[] {0}, new Class[] {PactString.class});
+		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.FORWARD, new int[] {0}, new Class[] {PactString.class});
 
 		numChannels = 100;
 		numRecords = 10000;
@@ -160,7 +157,7 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.BROADCAST, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.BROADCAST, new int[] {0}, new Class[] {PactInteger.class});
 
 		int numChannels = 100;
 		int numRecords = 50000;
@@ -183,7 +180,7 @@ public class OutputEmitterTest extends TestCase {
 		
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.BROADCAST, new JobID(), new int[] {0}, new Class[] {PactString.class});
+		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.BROADCAST, new int[] {0}, new Class[] {PactString.class});
 
 		numChannels = 100;
 		numRecords = 5000;
@@ -209,7 +206,7 @@ public class OutputEmitterTest extends TestCase {
 	public static void testPartitionRange() {
 
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_RANGE, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_RANGE, new int[] {0}, new Class[] {PactInteger.class});
 
 		boolean correctException = false;
 		try {
@@ -227,7 +224,7 @@ public class OutputEmitterTest extends TestCase {
 	public static void testMultiKeys() {
 		
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class});
 
 		int numChannels = 100;
 		int numRecords = 5000;
@@ -259,7 +256,7 @@ public class OutputEmitterTest extends TestCase {
 	public static void testMissingKey() {
 		
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {1}, new Class[] {PactInteger.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {1}, new Class[] {PactInteger.class});
 
 		PactRecord rec = new PactRecord(0);
 		rec.setField(0, new PactInteger(1));
@@ -279,7 +276,7 @@ public class OutputEmitterTest extends TestCase {
 	public static void testNullKey() {
 	
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0}, new Class[] {PactInteger.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0}, new Class[] {PactInteger.class});
 
 		PactRecord rec = new PactRecord(2);
 		rec.setField(1, new PactInteger(1));
@@ -299,7 +296,7 @@ public class OutputEmitterTest extends TestCase {
 	public static void testWrongKeyClass() {
 		
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new JobID(), new int[] {0}, new Class[] {PactDouble.class});
+		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0}, new Class[] {PactDouble.class});
 
 		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
 		DataInputStream in = new DataInputStream(pipedInput);
@@ -328,66 +325,5 @@ public class OutputEmitterTest extends TestCase {
 				correctException = true;
 		}
 		assertTrue(correctException);
-	}
-	
-	@Test
-	public static void testSerialization() throws IOException {
-		
-		final JobID jobId = new JobID();
-		
-		PowerMockito.mockStatic( LibraryCacheManager.class );
-		PowerMockito.when( LibraryCacheManager.getClassLoader(jobId) ).thenReturn(PactInteger.class.getClassLoader());
-		
-		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
-		DataInputStream in = new DataInputStream(pipedInput);
-		DataOutputStream out = null;
-		try {
-			out = new DataOutputStream(new PipedOutputStream(pipedInput));
-		} catch (IOException e1) {
-			fail("Test erroneous");
-		}
-		
-		OutputEmitter oe;
-		
-		oe = new OutputEmitter();
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-		oe = new OutputEmitter(ShipStrategy.PARTITION_HASH);
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-		oe = new OutputEmitter(ShipStrategy.PARTITION_HASH, jobId, new int[] {0}, new Class[] {PactInteger.class});
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-		oe = new OutputEmitter(ShipStrategy.PARTITION_HASH, jobId, new int[] {0,3,5,7}, new Class[] {PactInteger.class, PactString.class, PactDouble.class, PactLong.class});
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-		oe = new OutputEmitter(ShipStrategy.BROADCAST, jobId, new byte[] {1,2,3,4,5,6,7,8}, new int[] {0}, new Class[] {PactInteger.class});
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
 	}
 }

@@ -29,6 +29,8 @@ public class ColorScheme {
 
 	private final Color VERTEXRUNNINGBACKGROUNDCOLOR;
 
+	private final Color VERTEXREPLAYINGBACKGROUNDCOLOR;
+
 	private final Color VERTEXFINISHINGBACKGROUNDCOLOR;
 
 	private final Color VERTEXFINISHEDBACKGROUNDCOLOR;
@@ -45,6 +47,10 @@ public class ColorScheme {
 	private final Color GATERUNNINGBORDERCOLOR;
 
 	private final Color GATERUNNINGBACKGROUNDCOLOR;
+
+	private final Color GATEREPLAYINGBORDERCOLOR;
+
+	private final Color GATEREPLAYINGBACKGROUNDCOLOR;
 
 	private final Color GATEFINISHINGBORDERCOLOR;
 
@@ -85,6 +91,7 @@ public class ColorScheme {
 
 		this.VERTEXDEFAULTBACKGROUNDCOLOR = new Color(device, 162, 162, 162);
 		this.VERTEXRUNNINGBACKGROUNDCOLOR = new Color(device, 155, 187, 89);
+		this.VERTEXREPLAYINGBACKGROUNDCOLOR = new Color(device, 155, 187, 89);
 		this.VERTEXFINISHINGBACKGROUNDCOLOR = new Color(device, 130, 190, 255);
 		this.VERTEXFINISHEDBACKGROUNDCOLOR = new Color(device, 93, 121, 246);
 		this.VERTEXCANCELBACKGROUNDCOLOR = new Color(device, 247, 150, 70);
@@ -94,6 +101,8 @@ public class ColorScheme {
 		this.GATEDEFAULTBACKGROUNDCOLOR = new Color(device, 104, 104, 104);
 		this.GATERUNNINGBORDERCOLOR = new Color(device, 155, 187, 89);
 		this.GATERUNNINGBACKGROUNDCOLOR = new Color(device, 95, 114, 54);
+		this.GATEREPLAYINGBORDERCOLOR = new Color(device, 155, 187, 89);
+		this.GATEREPLAYINGBACKGROUNDCOLOR = new Color(device, 95, 114, 54);
 		this.GATEFINISHINGBORDERCOLOR = new Color(device, 130, 190, 255);
 		this.GATEFINISHINGBACKGROUNDCOLOR = new Color(device, 95, 135, 250);
 		this.GATEFINISHEDBORDERCOLOR = new Color(device, 93, 121, 246);
@@ -150,6 +159,10 @@ public class ColorScheme {
 		return getInstance(device).VERTEXRUNNINGBACKGROUNDCOLOR;
 	}
 
+	public static Color getVertexReplayingBackgroundColor(Device device) {
+		return getInstance(device).VERTEXREPLAYINGBACKGROUNDCOLOR;
+	}
+
 	public static Color getGraphBackgroundColor(Device device) {
 		return getInstance(device).GRAPHBACKGROUNDCOLOR;
 	}
@@ -168,6 +181,14 @@ public class ColorScheme {
 
 	public static Color getGateRunningBackgroundColor(Device device) {
 		return getInstance(device).GATERUNNINGBACKGROUNDCOLOR;
+	}
+
+	public static Color getGateReplayingBorderColor(Device device) {
+		return getInstance(device).GATEREPLAYINGBORDERCOLOR;
+	}
+
+	public static Color getGateReplayingBackgroundColor(Device device) {
+		return getInstance(device).GATEREPLAYINGBACKGROUNDCOLOR;
 	}
 
 	public static Color getGateFinishingBorderColor(Device device) {

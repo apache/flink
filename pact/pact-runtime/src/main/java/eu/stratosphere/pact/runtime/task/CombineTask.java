@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.Comparator;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -149,7 +150,9 @@ public class CombineTask extends AbstractPactTask<ReduceStub> {
 		// cache references on the stack
 		final ReduceStub stub = this.stub;
 		final Collector output = this.output;
-		
+		if(this.stub.getClass().isAnnotationPresent(ForceCheckpoint.class)){
+			getEnvironment().isForced(this.stub.getClass().getAnnotation(ForceCheckpoint.class).checkpoint());
+		}
 		// run stub implementation
 		while (this.running && iter.nextKey())
 		{

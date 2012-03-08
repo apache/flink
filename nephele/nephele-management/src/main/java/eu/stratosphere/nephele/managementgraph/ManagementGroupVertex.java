@@ -415,4 +415,9 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 
 		return predecessors;
 	}
+	
+	@Override
+	public String toString() {
+		return String.format("ManagementGroupVertex(%s)", getName());
+	}
 }

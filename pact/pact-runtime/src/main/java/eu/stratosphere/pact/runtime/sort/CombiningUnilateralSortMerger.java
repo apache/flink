@@ -612,6 +612,11 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 */
 		@Override
 		public void collect(PactRecord record) {
+			
+			// DW: Start of temporary code
+			this.collectedPactRecordsInBytes += record.getBinaryLength();
+			// DW: End of temporary code
+			
 			try {
 				record.write(this.output);
 			}
@@ -627,6 +632,18 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		@Override
 		public void close() {}
 
+		// DW: Start of temporary code
+		private long collectedPactRecordsInBytes = 0L;
+		
+		@Override
+		public long getCollectedPactRecordsInBytes() {
+			
+			final long retVal = this.collectedPactRecordsInBytes;
+			this.collectedPactRecordsInBytes = 0L;
+			
+			return retVal;
+		}
+		// DW: End of temporary code
 	}
 
 	// ------------------------------------------------------------------------
@@ -653,6 +670,11 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 */
 		@Override
 		public void collect(PactRecord record) {
+			
+			// DW: Start of temporary code
+			this.collectedPactRecordsInBytes += record.getBinaryLength();
+			// DW: End of temporary code
+			
 			this.list.add(record.createCopy());
 
 		}
@@ -665,6 +687,19 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		public void close() {
 			// does nothing
 		}
+		
+		// DW: Start of temporary code
+		private long collectedPactRecordsInBytes = 0L;
+		
+		@Override
+		public long getCollectedPactRecordsInBytes() {
+			
+			final long retVal = this.collectedPactRecordsInBytes;
+			this.collectedPactRecordsInBytes = 0L;
+			
+			return retVal;
+		}
+		// DW: End of temporary code
 	}
 
 	// ------------------------------------------------------------------------
