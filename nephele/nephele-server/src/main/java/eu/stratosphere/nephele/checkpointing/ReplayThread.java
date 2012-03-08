@@ -259,6 +259,9 @@ final class ReplayThread extends Thread {
 					// Wait for the file to be created
 					Thread.sleep(1000);
 
+					if (this.executionObserver.isCanceled()) {
+						return;
+					}
 				}
 
 				fileChannel = getFileChannel(fileSystem, metaDataFile);
