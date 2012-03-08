@@ -30,6 +30,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.plaf.basic.BasicTreeUI.TreeToggleAction;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -39,6 +44,7 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
@@ -53,6 +59,8 @@ import eu.stratosphere.nephele.types.Record;
 
 public class MulticastManager implements ChannelLookupProtocol {
 
+	private static final Log LOG = LogFactory.getLog(JobManager.class);
+	
 	// Indicates whether topology information is available and will be used in order to construct
 	// the multicast overlay-tree.
 	private final boolean topologyaware;
@@ -111,60 +119,58 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 */
 	public synchronized ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
 			ChannelID sourceChannelID) {
-		System.out.println("==RECEIVING REQUEST FROM " + caller + " == SOURCE CHANNEL:  " + sourceChannelID);
+		
+		LOG.info("Receiving multicast receiver request from " + caller +  " channel ID: " + sourceChannelID);
+		
 		// check, if the tree is already created and cached
 		if (this.cachedTrees.containsKey(sourceChannelID)) {
-			System.out.println("==RETURNING CACHED ENTRY TO " + caller + " ==");
-			System.out.println(cachedTrees.get(sourceChannelID).getConnectionInfo(caller));
-
+			LOG.info("Replying with cached entry...");
 			return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 		} else {
 
 			// no tree exists - we assume that this is the sending node initiating a multicast
 
-			// first check, if all receivers are up and ready
 			if (!checkIfAllTargetVerticesExist(caller, jobID, sourceChannelID)) {
-				// not all target vertices exist..
-				System.out.println("== NOT ALL RECEIVERS FOUND==");
+				LOG.info("Received multicast request but not all receivers found.");
 				return ConnectionInfoLookupResponse.createReceiverNotFound();
 			}
 
 			if (!checkIfAllTargetVerticesReady(caller, jobID, sourceChannelID)) {
-				// not all target vertices are ready..
-				System.out.println("== NOT ALL RECEIVERS READY==");
+				LOG.info("Received multicast request but not all receivers ready.");
+
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 
-			// receivers up and running.. create tree
+			// receivers up and running.. extract tree nodes...
 			LinkedList<TreeNode> treenodes = extractTreeNodes(caller, jobID, sourceChannelID, this.randomized);
 
-			// first check, if we want to use a hard-coded tree topology...
+			// Do we want to use a hard-coded tree topology?
 			if (this.usehardcodedtree) {
+				LOG.info("Creating a hard-coded tree topology from file: " + hardcodedtreefilepath); 		
 				cachedTrees.put(sourceChannelID, createHardCodedTree(treenodes));
-				System.out.println("==RETURNING ENTRY TO " + caller + " ==");
-				System.out.println(cachedTrees.get(sourceChannelID).getConnectionInfo(caller));
-				System.out.println("==END ENTRY==");
 				return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 			}
 			
-			// if we want to use penalties, we now load the penalties from the harddisk
+			// Do we want to use penalties from a penalty file?
 			if (this.usepenalties && this.penaltyfilepath != null) {
-				System.out.println("reading penalty file from: " + this.penaltyfilepath);
+				LOG.info("reading penalty file from: " + this.penaltyfilepath);
 				File f = new File(this.penaltyfilepath);
 				readPenalitesFromFile(f, treenodes);
 			}
 
 			cachedTrees.put(sourceChannelID, createDefaultTree(treenodes, this.treebranching));
-
-			System.out.println("==RETURNING ENTRY TO " + caller + " ==");
-			System.out.println(cachedTrees.get(sourceChannelID).getConnectionInfo(caller));
-			System.out.println("==END ENTRY==");
 			return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 
 		}
 
 	}
 
+	/**
+	 * Returns and removes the TreeNode which is closest to the given indicator. 
+	 * @param indicator
+	 * @param nodes
+	 * @return
+	 */
 	private TreeNode pollClosestNode(TreeNode indicator, LinkedList<TreeNode> nodes) {
 
 		TreeNode closestnode = getClosestNode(indicator, nodes);
@@ -175,6 +181,14 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 	}
 
+	/**
+	 * Returns the TreeNode which is closest to the given indicator Node. Proximity is determined
+	 * either using topology-information (if given), penalty information (if given) or it returns
+	 * the first node in the list.
+	 * @param indicator
+	 * @param nodes
+	 * @return
+	 */
 	private TreeNode getClosestNode(TreeNode indicator, LinkedList<TreeNode> nodes) {
 
 		if (indicator == null || !this.topologyaware && !this.usepenalties) {
@@ -248,6 +262,12 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 	}
 
+	/**
+	 * Reads a hard-coded tree topology from file and creates a tree according to the hard-coded
+	 * topology from the file.
+	 * @param nodes
+	 * @return
+	 */
 	private MulticastForwardingTable createHardCodedTree(LinkedList<TreeNode> nodes) {
 		try {
 			FileInputStream fstream = new FileInputStream(this.hardcodedtreefilepath);
@@ -346,14 +366,12 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 */
 	private LinkedList<TreeNode> extractTreeNodes(InstanceConnectionInfo source, JobID jobID,
 			ChannelID sourceChannelID, boolean randomize) {
-		System.out.println("==NO CACHE ENTRY FOUND. CREATING TREE==");
+
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 
 		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
 
 		final OutputGate<? extends Record> broadcastgate = outputChannel.getOutputGate();
-
-		System.out.println("Output gate is: " + broadcastgate.toString());
 
 		final LinkedList<AbstractOutputChannel<? extends Record>> outputChannels = new LinkedList<AbstractOutputChannel<? extends Record>>();
 
@@ -364,7 +382,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 			}
 		}
 
-		System.out.println("Number of output channels attached: " + outputChannels.size());
 
 		for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
 			System.out.println("Out channel ID: "
