@@ -356,20 +356,18 @@ public class MulticastManager implements ChannelLookupProtocol {
 				} else {
 
 					if (targetVertex.getExecutionState() != ExecutionState.RUNNING
-						&& targetVertex.getExecutionState() != ExecutionState.FINISHING
-						&& targetVertex.getExecutionState() != ExecutionState.READY
-						&& targetVertex.getExecutionState() != ExecutionState.STARTING) {
+						&& targetVertex.getExecutionState() != ExecutionState.FINISHING) {
 						return false;
 					}
 				}
 			}
 		}
 
-		if(verticesToDeploy != null) {
+		if (verticesToDeploy != null) {
 			this.scheduler.deployAssignedVertices(verticesToDeploy);
 			return false;
 		}
-		
+
 		return true;
 	}
 
