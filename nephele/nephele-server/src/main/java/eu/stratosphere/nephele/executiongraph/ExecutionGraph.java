@@ -473,8 +473,10 @@ public class ExecutionGraph implements ExecutionListener {
 
 			// Update channel type of output gate
 			outputGate.setChannelType(channelType);
-		}
 
+			// Update the initial checkpoint state
+			sourceVertex.checkInitialCheckpointState();
+		}
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })

@@ -139,7 +139,8 @@ public final class ExecutionVertex {
 	/**
 	 * The current checkpoint state of this vertex.
 	 */
-	private final AtomicEnum<CheckpointState> checkpointState;
+	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(
+		CheckpointState.UNDECIDED);
 
 	/**
 	 * The execution pipeline this vertex is part of.
@@ -177,33 +178,7 @@ public final class ExecutionVertex {
 
 		this.environment.instantiateInvokable();
 
-		// Determine the vertex' initial checkpoint state
-		CheckpointState ics = CheckpointState.UNDECIDED;
-		boolean hasFileChannels = false;
-		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
-			if (this.environment.getOutputGate(i).getChannelType() == ChannelType.FILE) {
-				hasFileChannels = true;
-				break;
-			}
-		}
-
-		// The vertex has at least one file channel, so we must write a checkpoint anyways
-		if (hasFileChannels) {
-			ics = CheckpointState.PARTIAL;
-		} else {
-			// Look for a user annotation
-			ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
-				.getAnnotation(ForceCheckpoint.class);
-
-			if (forcedCheckpoint != null) {
-				ics = forcedCheckpoint.checkpoint() ? CheckpointState.PARTIAL : CheckpointState.NONE;
-			}
-
-			// TODO: Consider state annotation here
-		}
-
-		groupVertex.setInitialCheckpointState(ics);
-		this.checkpointState.set(ics);
+		checkInitialCheckpointState();
 	}
 
 	/**
@@ -228,8 +203,6 @@ public final class ExecutionVertex {
 		this.executionGraph = executionGraph;
 		this.groupVertex = groupVertex;
 		this.environment = environment;
-
-		this.checkpointState = new AtomicEnum<CheckpointState>(groupVertex.getInitialCheckpointState());
 
 		this.retriesLeft = new AtomicInteger(groupVertex.getNumberOfExecutionRetries());
 
@@ -289,6 +262,9 @@ public final class ExecutionVertex {
 
 		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.invokableClass,
 			this.executionGraph, this.groupVertex, duplicatedEnvironment);
+
+		// Copy checkpoint state from original vertex
+		duplicatedVertex.checkpointState.set(this.checkpointState.get());
 
 		// TODO set new profiling record with new vertex id
 		duplicatedVertex.setAllocatedResource(this.allocatedResource);
@@ -949,5 +925,38 @@ public final class ExecutionVertex {
 	public ExecutionPipeline getExecutionPipeline() {
 
 		return this.executionPipeline.get();
+	}
+
+	/**
+	 * Checks and if necessary silently updates the initial checkpoint state of the vertex.
+	 */
+	void checkInitialCheckpointState() {
+
+		// Determine the vertex' initial checkpoint state
+		CheckpointState ics = CheckpointState.UNDECIDED;
+		boolean hasFileChannels = false;
+		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
+			if (this.environment.getOutputGate(i).getChannelType() == ChannelType.FILE) {
+				hasFileChannels = true;
+				break;
+			}
+		}
+
+		// The vertex has at least one file channel, so we must write a checkpoint anyways
+		if (hasFileChannels) {
+			ics = CheckpointState.PARTIAL;
+		} else {
+			// Look for a user annotation
+			ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
+				.getAnnotation(ForceCheckpoint.class);
+
+			if (forcedCheckpoint != null) {
+				ics = forcedCheckpoint.checkpoint() ? CheckpointState.PARTIAL : CheckpointState.NONE;
+			}
+
+			// TODO: Consider state annotation here
+		}
+
+		this.checkpointState.set(ics);
 	}
 }

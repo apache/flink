@@ -159,11 +159,6 @@ public class ExecutionGroupVertex {
 	private volatile ExecutionStage executionStage = null;
 
 	/**
-	 * The initial checkpoint state for vertices assigned to this group vertex.
-	 */
-	private volatile CheckpointState initialCheckpointState = null;
-
-	/**
 	 * The configuration object of the original job vertex.
 	 */
 	private final Configuration configuration;
@@ -750,37 +745,6 @@ public class ExecutionGroupVertex {
 	boolean isVertexToShareInstanceWithUserDefined() {
 
 		return this.userDefinedVertexToShareInstancesWith;
-	}
-
-	/**
-	 * Sets the initial checkpoint state for vertices assigned to this group vertex.
-	 * 
-	 * @param initialCheckpointState
-	 *        the initial checkpoint state for vertices assigned to this group vertex
-	 */
-	void setInitialCheckpointState(final CheckpointState initialCheckpointState) {
-
-		if (initialCheckpointState == null) {
-			throw new IllegalArgumentException("Argument initialCheckpointState must not be null");
-		}
-
-		if (this.initialCheckpointState != null) {
-			throw new IllegalStateException("Initial checkpoint state for group vertex " + getName()
-				+ " is already set");
-		}
-
-		this.initialCheckpointState = initialCheckpointState;
-	}
-
-	/**
-	 * Returns the initial checkpoint state for vertices assigned to this group vertex.
-	 * 
-	 * @return the initial checkpoint state for vertices assigned to this group vertex or <code>null</code> if the state
-	 *         is not yet set
-	 */
-	CheckpointState getInitialCheckpointState() {
-
-		return this.initialCheckpointState;
 	}
 
 	/**
