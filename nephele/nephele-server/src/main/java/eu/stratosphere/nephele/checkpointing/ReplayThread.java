@@ -155,8 +155,9 @@ final class ReplayThread extends Thread {
 		if (this.restartRequested.compareAndSet(true, false)) {
 			// Check if the interrupt call has already been made
 			if (!this.interruptCalled.compareAndSet(true, false)) {
-				// Wait for the thread to be interrupted
-				while (!Thread.currentThread().isInterrupted()) {
+				try {
+					Thread.sleep(10L);
+				} catch (InterruptedException e) {
 				}
 				this.interruptCalled.set(false);
 			}
