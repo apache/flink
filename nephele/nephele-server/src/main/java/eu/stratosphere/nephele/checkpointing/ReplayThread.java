@@ -298,6 +298,10 @@ final class ReplayThread extends Thread {
 
 							broker.outputEnvelope(transferEnvelope);
 
+							if (this.executionObserver.isCanceled()) {
+								return;
+							}
+
 							if (this.restartRequested.get()) {
 								return;
 							}

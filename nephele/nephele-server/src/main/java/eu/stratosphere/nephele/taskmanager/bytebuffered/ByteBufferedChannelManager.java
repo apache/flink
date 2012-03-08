@@ -448,6 +448,16 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 	}
 
+	/**
+	 * Returns the list of receivers for transfer envelopes produced by the channel with the given source channel ID.
+	 * 
+	 * @param jobID
+	 *        the ID of the job the given channel ID belongs to
+	 * @param sourceChannelID
+	 *        the source channel ID for which the receiver list shall be retrieved
+	 * @return the list of receivers or <code>null</code> if the list of receivers could not be retrieved or the
+	 *         requesting thread has been interrupted
+	 */
 	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID) {
 
 		TransferEnvelopeReceiverList receiverList = this.receiverCache.get(sourceChannelID);
@@ -457,6 +467,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			try {
 				while (true) {
 
+					if (Thread.currentThread().isInterrupted()) {
+						break;
+					}
+
 					ConnectionInfoLookupResponse lookupResponse;
 					synchronized (this.channelLookupService) {
 						lookupResponse = this.channelLookupService.lookupConnectionInfo(
@@ -464,8 +478,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 					}
 
 					if (lookupResponse.receiverNotFound()) {
-						throw new IOException("Cannot find task(s) waiting for data from source channel with ID "
-							+ sourceChannelID);
+						LOG.error("Cannot find task(s) waiting for data from source channel with ID " + sourceChannelID);
+						break;
 					}
 
 					if (lookupResponse.receiverNotReady()) {
@@ -478,40 +492,37 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						break;
 					}
 				}
+			} catch (Exception e) {
+			}
+		}
 
-				if (receiverList != null) {
+		if (receiverList != null) {
 
-					this.receiverCache.put(sourceChannelID, receiverList);
+			this.receiverCache.put(sourceChannelID, receiverList);
 
-					if (LOG.isDebugEnabled()) {
+			if (LOG.isDebugEnabled()) {
 
-						final StringBuilder sb = new StringBuilder();
-						sb.append("Receiver list for source channel ID " + sourceChannelID + " at task manager "
-							+ this.localConnectionInfo + "\n");
+				final StringBuilder sb = new StringBuilder();
+				sb.append("Receiver list for source channel ID " + sourceChannelID + " at task manager "
+					+ this.localConnectionInfo + "\n");
 
-						if (receiverList.hasLocalReceivers()) {
-							sb.append("\tLocal receivers:\n");
-							final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
-							while (it.hasNext()) {
-								sb.append("\t\t" + it.next() + "\n");
-							}
-						}
-
-						if (receiverList.hasRemoteReceivers()) {
-							sb.append("Remote receivers:\n");
-							final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
-							while (it.hasNext()) {
-								sb.append("\t\t" + it.next() + "\n");
-							}
-						}
-
-						LOG.debug(sb.toString());
+				if (receiverList.hasLocalReceivers()) {
+					sb.append("\tLocal receivers:\n");
+					final Iterator<ChannelID> it = receiverList.getLocalReceivers().iterator();
+					while (it.hasNext()) {
+						sb.append("\t\t" + it.next() + "\n");
 					}
 				}
-			} catch (InterruptedException ie) {
-				// TODO: Send appropriate notifications here
-			} catch (IOException ioe) {
-				// TODO: Send appropriate notifications here
+
+				if (receiverList.hasRemoteReceivers()) {
+					sb.append("Remote receivers:\n");
+					final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
+					while (it.hasNext()) {
+						sb.append("\t\t" + it.next() + "\n");
+					}
+				}
+
+				LOG.debug(sb.toString());
 			}
 		}
 
