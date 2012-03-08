@@ -233,6 +233,10 @@ public class PactProgram {
 	public File[] extractContainedLibaries()
 	throws IOException
 	{
+		if (this.extractedTempLibraries != null) {
+			return this.extractedTempLibraries;
+			
+		}
 		Random rnd = new Random();
 		
 		try {
@@ -252,7 +256,8 @@ public class PactProgram {
 			}
 			
 			if (containedJarFileEntries.isEmpty()) {
-				return null;
+				this.extractedTempLibraries = new File[0];
+				return this.extractedTempLibraries;
 			}
 			
 			// go over all contained jar files
@@ -353,7 +358,8 @@ public class PactProgram {
 	 *         is thrown if class can't be found or instantiated
 	 */
 	protected PlanAssembler createAssemblerFromJar(Class<? extends PlanAssembler> clazz)
-			throws ProgramInvocationException {
+			throws ProgramInvocationException
+	{
 		// we have the class. now create a classloader that can load the
 		// contents of the jar
 		PlanAssembler assembler = null;
@@ -419,25 +425,43 @@ public class PactProgram {
 	}
 
 	private Class<? extends PlanAssembler> getPactAssemblerFromJar(File jarFile, String className)
-			throws ProgramInvocationException {
+			throws ProgramInvocationException
+	{
 		Class<? extends PlanAssembler> clazz = null;
 
 		checkJarFile(jarFile);
 
 		try {
-			URL url = jarFile.getAbsoluteFile().toURI().toURL();
-			ClassLoader loader = new URLClassLoader(new URL[] { url }, this.getClass().getClassLoader());
+			File[] nestedJars = extractContainedLibaries();
+			
+			URL[] urls = new URL[1 + nestedJars.length];
+			urls[0] = jarFile.getAbsoluteFile().toURI().toURL();
+			
+			// add the nested jars
+			for (int i = 0; i < nestedJars.length; i++) {
+				urls[i+1] = nestedJars[i].getAbsoluteFile().toURI().toURL();
+			}
+			
+			ClassLoader loader = new URLClassLoader(urls, this.getClass().getClassLoader());
 			clazz = Class.forName(className, true, loader).asSubclass(PlanAssembler.class);
-		} catch (MalformedURLException e) {
+		}
+		catch (MalformedURLException e) {
 			throw new ProgramInvocationException(
 				"The given JAR file could not be translated to a valid URL for class access.", e);
-		} catch (ClassNotFoundException e) {
+		}
+		catch (ClassNotFoundException e) {
 			throw new ProgramInvocationException("The pact plan assembler class '" + className
 				+ "' was not found in the jar file '" + jarFile.getPath() + "'.", e);
-		} catch (ClassCastException e) {
+		}
+		catch (ClassCastException e) {
 			throw new ProgramInvocationException("The pact plan assembler class '" + className
 				+ "' cannot be cast to PlanAssembler.", e);
-		} catch (Throwable t) {
+		}
+		catch (IOException ioex) {
+			throw new ProgramInvocationException("The jar file could not be checked for nested jar files: " +
+				ioex.getMessage(), ioex);
+		}
+		catch (Throwable t) {
 			throw new ProgramInvocationException("An unknown problem ocurred during the instantiation of the "
 				+ "program assembler: " + t, t);
 		}

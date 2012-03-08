@@ -125,9 +125,9 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	protected long length;
 	
 	
-	private long minSplitSize;				// the minimal split size
+	protected long minSplitSize;				// the minimal split size
 	
-	private int numSplits;					// the desired number of splits
+	protected int numSplits;					// the desired number of splits
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -395,7 +395,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	 *
 	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
 	 */
-	public static final class FileBaseStatistics implements BaseStatistics
+	public static class FileBaseStatistics implements BaseStatistics
 	{
 		protected long fileModTime; // timestamp of the last modification
 
@@ -427,6 +427,16 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 		public long getLastModificationTime() {
 			return fileModTime;
 		}
+		
+		/**
+		 * Sets the timestamp of the last modification.
+		 *
+		 * @param modificationTime The timestamp of the last modification
+		 */
+		public void setLastModificationTime(long modificationTime) 
+		{
+			this.fileModTime = modificationTime;
+		}
 
 		/**
 		 * Gets the file size.
@@ -438,6 +448,16 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 		public long getTotalInputSize()
 		{
 			return this.fileSize;
+		}
+		
+		/**
+		 * Sets the file size to the specified value.
+		 *
+		 * @param fileSize the fileSize to set
+		 */
+		public void setTotalInputSize(long fileSize) 
+		{
+			this.fileSize = fileSize;
 		}
 
 		/**
@@ -451,6 +471,16 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 		public long getNumberOfRecords()
 		{
 			return (long) Math.ceil(this.fileSize / this.avgBytesPerRecord);
+		}
+		
+		/**
+		 * Sets the estimated average number of bytes per record.
+		 *
+		 * @param avgBytesPerRecord the average number of bytes per record
+		 */
+		public void setAverageRecordWidth(float avgBytesPerRecord) 
+		{
+			this.avgBytesPerRecord = avgBytesPerRecord;
 		}
 
 		/**

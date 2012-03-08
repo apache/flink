@@ -1,16 +1,11 @@
 /***********************************************************************************************************************
- *
  * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
- *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
- *
  **********************************************************************************************************************/
 
 package eu.stratosphere.pact.compiler;
@@ -28,10 +23,9 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class GlobalProperties implements Cloneable
-{
+public final class GlobalProperties implements Cloneable {
 	private int[] partitionedFields;
-	
+
 	private PartitionProperty partitioning; // the partitioning
 
 	private Ordering ordering; // order across all partitions
@@ -62,10 +56,10 @@ public final class GlobalProperties implements Cloneable
 		this.partitionedFields = partitionedFields;
 	}
 
-	
 	public int[] getPartitionedFields() {
 		return partitionedFields;
 	}
+
 	/**
 	 * Gets the partitioning property.
 	 * 
@@ -105,7 +99,6 @@ public final class GlobalProperties implements Cloneable
 		this.ordering = ordering;
 	}
 
-
 	/**
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
@@ -130,8 +123,8 @@ public final class GlobalProperties implements Cloneable
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
 	public boolean filterByNodesConstantSet(OptimizerNode node, int input) {
-		
-		//check if partitioning survives
+
+		// check if partitioning survives
 		if (partitionedFields != null) {
 			for (Integer index : partitionedFields) {
 				if (node.isFieldKept(input, index) == false) {
@@ -140,7 +133,7 @@ public final class GlobalProperties implements Cloneable
 				}
 			}
 		}
-		
+
 		// check, whether the global order is preserved
 		if (ordering != null) {
 			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
@@ -151,12 +144,12 @@ public final class GlobalProperties implements Cloneable
 				}
 			}
 		}
-		
+
 		return !isTrivial();
 	}
-	
+
 	public GlobalProperties createInterestingGlobalProperties(OptimizerNode node, int input) {
-		//check if partitioning survives
+		// check if partitioning survives
 		ArrayList<Integer> newPartitionedFields = null;
 		PartitionProperty newPartitioning = PartitionProperty.NONE;
 		Ordering newOrdering = null;
@@ -171,7 +164,7 @@ public final class GlobalProperties implements Cloneable
 				}
 			}
 		}
-		
+
 		// check, whether the global order is preserved
 		if (ordering != null) {
 			boolean orderingPreserved = true;
@@ -182,23 +175,22 @@ public final class GlobalProperties implements Cloneable
 					break;
 				}
 			}
-			
+
 			if (orderingPreserved) {
 				newOrdering = ordering.clone();
 			}
 		}
-		
+
 		if (newPartitioning == PartitionProperty.NONE && newOrdering == null) {
-			return null;	
-		}
-		else {
+			return null;
+		} else {
 			int[] newPartitionedFieldsArray = new int[newPartitionedFields.size()];
 			for (int i = 0; i < newPartitionedFields.size(); i++) {
 				newPartitionedFieldsArray[i] = newPartitionedFields.get(i);
 			}
 			return new GlobalProperties(newPartitioning, newOrdering, newPartitionedFieldsArray);
 		}
-		
+
 	}
 
 	/**
@@ -219,7 +211,7 @@ public final class GlobalProperties implements Cloneable
 				return false;
 			}
 		}
-		
+
 		int[] otherPartitionedFields = other.getPartitionedFields();
 		if (this.partitionedFields != null) {
 			if (other.partitionedFields == null) {
@@ -230,7 +222,7 @@ public final class GlobalProperties implements Cloneable
 			}
 			for (int otherField : otherPartitionedFields) {
 				boolean foundField = false;
-				for (int thisField : partitionedFields){
+				for (int thisField : partitionedFields) {
 					if (thisField == otherField) {
 						foundField = true;
 						break;
@@ -241,11 +233,11 @@ public final class GlobalProperties implements Cloneable
 				}
 			}
 		}
-		
+
 		if (this.ordering != null && this.ordering.isMetBy(other.getOrdering()) == false) {
 			return false;
 		}
-		
+
 		return true;
 	}
 
@@ -281,7 +273,8 @@ public final class GlobalProperties implements Cloneable
 
 		GlobalProperties other = (GlobalProperties) obj;
 		if ((ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
-				&& partitioning == other.getPartitioning() && partitionedFields.equals(other.getPartitionedFields())) {
+			&& partitioning == other.getPartitioning() && partitionedFields != null
+			&& partitionedFields.equals(other.getPartitionedFields())) {
 			return true;
 		} else {
 			return false;
@@ -294,7 +287,8 @@ public final class GlobalProperties implements Cloneable
 	 */
 	@Override
 	public String toString() {
-		return "GlobalProperties [partitioning=" + partitioning + " on fields=" + partitionedFields + ", ordering=" + ordering //+ ", keyUnique=" + keyUnique
+		return "GlobalProperties [partitioning=" + partitioning + " on fields=" + partitionedFields + ", ordering="
+			+ ordering // + ", keyUnique=" + keyUnique
 			+ "]";
 	}
 
@@ -305,9 +299,9 @@ public final class GlobalProperties implements Cloneable
 	public GlobalProperties clone() throws CloneNotSupportedException {
 		GlobalProperties newProps = (GlobalProperties) super.clone();
 		if (this.ordering != null) {
-			newProps.ordering = this.ordering.clone();	
+			newProps.ordering = this.ordering.clone();
 		}
-		
+
 		return newProps;
 	}
 
