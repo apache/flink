@@ -20,6 +20,7 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -340,24 +341,35 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		final OutputGate<? extends Record> broadcastgate = outputChannel.getOutputGate();
 
+		List<ExecutionVertex> verticesToDeploy = null;
+
 		// get all broadcast output channels
 		for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
 			if (c.isBroadcastChannel()) {
 				ExecutionVertex targetVertex = eg.getVertexByChannelID(c.getConnectedChannelID());
 
 				if (targetVertex.getExecutionState() == ExecutionState.ASSIGNED) {
-					this.scheduler.deployAssignedVertices(targetVertex);
-				}
+					if (verticesToDeploy == null) {
+						verticesToDeploy = new ArrayList<ExecutionVertex>();
+					}
+					verticesToDeploy.add(targetVertex);
+				} else {
 
-				if (targetVertex.getExecutionState() != ExecutionState.RUNNING
-					&& targetVertex.getExecutionState() != ExecutionState.FINISHING
-					&& targetVertex.getExecutionState() != ExecutionState.READY
-					&& targetVertex.getExecutionState() != ExecutionState.STARTING) {
-					return false;
+					if (targetVertex.getExecutionState() != ExecutionState.RUNNING
+						&& targetVertex.getExecutionState() != ExecutionState.FINISHING
+						&& targetVertex.getExecutionState() != ExecutionState.READY
+						&& targetVertex.getExecutionState() != ExecutionState.STARTING) {
+						return false;
+					}
 				}
 			}
 		}
 
+		if(verticesToDeploy != null) {
+			this.scheduler.deployAssignedVertices(verticesToDeploy);
+			return false;
+		}
+		
 		return true;
 	}
 

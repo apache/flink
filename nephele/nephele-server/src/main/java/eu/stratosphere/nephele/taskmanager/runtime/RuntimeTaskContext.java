@@ -81,7 +81,11 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		int nooc = 0;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
-			nooc += outputGate.getNumberOfOutputChannels();
+			if(outputGate.isBroadcast()) {
+				++nooc;
+			} else {
+				nooc += outputGate.getNumberOfOutputChannels();
+			}
 		}
 		this.numberOfOutputChannels = nooc;
 
