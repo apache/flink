@@ -159,7 +159,7 @@ public class JobManagerITCase {
 
 			// Wait for the local task manager to arrive
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(10000);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
