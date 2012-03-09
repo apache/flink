@@ -32,17 +32,24 @@ public class NaiveSchemaFactory implements SchemaFactory {
 	public Schema create(Iterable<EvaluationExpression> keyExpressions) {
 
 		List<ObjectAccess> accesses = new ArrayList<ObjectAccess>();
+		List<EvaluationExpression> mappings = new ArrayList<EvaluationExpression>();
+
 		for (EvaluationExpression evaluationExpression : keyExpressions) {
-			if (!(evaluationExpression instanceof ObjectAccess))
-				throw new IllegalArgumentException();
-			accesses.add((ObjectAccess) evaluationExpression);
+			mappings.add(evaluationExpression);
+			if (evaluationExpression instanceof ObjectAccess) {
+				accesses.add((ObjectAccess) evaluationExpression);
+			}
 		}
 
-		if (accesses.isEmpty()) // = no elements at all
+		if (mappings.isEmpty())
 			return new DirectSchema();
 
-		ObjectSchema schema = new ObjectSchema();
-		schema.setMappingsWithAccesses(accesses);
-		return schema;
+		if (accesses.size() == mappings.size()) { // all keyExpressions are ObjectAccesses
+			ObjectSchema schema = new ObjectSchema();
+			schema.setMappingsWithAccesses(accesses);
+			return schema;
+		} else {
+			return new GeneralSchema(mappings);
+		}
 	}
 }

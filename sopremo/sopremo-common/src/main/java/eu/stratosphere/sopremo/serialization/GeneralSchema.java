@@ -23,6 +23,12 @@ public class GeneralSchema implements Schema {
 		this.mappings = Arrays.asList(mappings);
 	}
 
+	public GeneralSchema(Iterable<EvaluationExpression> mappings) {
+		for (EvaluationExpression exp : mappings) {
+			this.mappings.add(exp);
+		}
+	}
+
 	public void setMappings(Iterable<EvaluationExpression> mappings) {
 		if (mappings == null) {
 			throw new NullPointerException("mapping must not be null");
