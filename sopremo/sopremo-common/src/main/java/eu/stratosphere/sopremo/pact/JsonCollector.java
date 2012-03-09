@@ -30,6 +30,6 @@ public class JsonCollector {
 	public void collect(final IJsonNode value) {
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format(" to %s", value));
-		this.collector.collect(this.record = this.schema.jsonToRecord(value, null));
+		this.collector.collect(this.record = this.schema.jsonToRecord(value, null, null));
 	}
 }

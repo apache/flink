@@ -160,9 +160,9 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			withPrefabValues(
 				TestRecords.class,
 				new TestRecords(redSchema.getPactSchema()).add(
-					redSchema.jsonToRecord(JsonUtil.createObjectNode("color", "red"), null)),
+					redSchema.jsonToRecord(JsonUtil.createObjectNode("color", "red"), null, null)),
 				new TestRecords(redSchema.getPactSchema()).add(
-					redSchema.jsonToRecord(JsonUtil.createObjectNode("color", "black"), null))).
+					redSchema.jsonToRecord(JsonUtil.createObjectNode("color", "black"), null, null))).
 			withPrefabValues(Schema.class,
 				redSchema,
 				new ObjectSchema("blackField")).

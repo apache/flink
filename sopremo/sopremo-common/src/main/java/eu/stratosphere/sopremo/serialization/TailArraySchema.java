@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.serialization;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
@@ -139,7 +140,7 @@ public class TailArraySchema implements Schema {
 	 * eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
+	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
 		IArrayNode others;
 		if (target == null || target.getNumFields() != 1) {
 

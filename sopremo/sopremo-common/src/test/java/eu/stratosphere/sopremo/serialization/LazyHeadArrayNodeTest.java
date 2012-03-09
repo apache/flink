@@ -19,7 +19,7 @@ public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> 
 		TailArraySchema schema = new TailArraySchema();
 		schema.setHeadSize(5);
 		PactRecord record = schema.jsonToRecord(
-			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null);
+			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
 		this.node = new LazyTailArrayNode(record, schema);
 	}

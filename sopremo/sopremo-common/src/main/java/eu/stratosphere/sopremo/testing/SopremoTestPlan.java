@@ -309,7 +309,7 @@ public class SopremoTestPlan {
 				testRecords.fromFile(JsonInputFormat.class, this.file);
 			else
 				for (IJsonNode node : this.values)
-					testRecords.add(schema.jsonToRecord(node, null));
+					testRecords.add(schema.jsonToRecord(node, null, null));
 		}
 
 		abstract TestRecords getTestRecords(TestPlan testPlan, Schema schema);

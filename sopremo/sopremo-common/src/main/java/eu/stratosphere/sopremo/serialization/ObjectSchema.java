@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
@@ -91,7 +92,7 @@ public class ObjectSchema implements Schema {
 	}
 
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
+	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
 		IObjectNode others;
 		if (target == null) {
 
