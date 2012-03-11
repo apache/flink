@@ -12,23 +12,53 @@ import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * @author Tommy Neubert
+ */
 public class GeneralSchema implements Schema {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4363364708964922955L;
 
 	List<EvaluationExpression> mappings = new ArrayList<EvaluationExpression>();
 
+	/**
+	 * Initializes a new GeneralSchema with empty mappings.
+	 */
 	public GeneralSchema() {
 	}
 
+	/**
+	 * Initializes a new GeneralSchema with the provided {@link EvaluationExpression}s in proper sequence.
+	 * 
+	 * @param mappings
+	 *        {@link EvaluationExpression}s which should be set as mappings
+	 */
 	public GeneralSchema(EvaluationExpression... mappings) {
 		this.mappings = Arrays.asList(mappings);
 	}
 
+	/**
+	 * Initializes a new GeneralSchema with the provided {@link EvaluationExpression}s. The mappings will be set in the
+	 * same sequence as the Iterable provides them.
+	 * 
+	 * @param mappings
+	 *        an Iterable over all {@link EvaluationExpression}s which should be set as mappings.
+	 */
 	public GeneralSchema(Iterable<EvaluationExpression> mappings) {
 		for (EvaluationExpression exp : mappings) {
 			this.mappings.add(exp);
 		}
 	}
 
+	/**
+	 * Sets this schemas mappings to the provided {@link EvaluationExpression}s.
+	 * 
+	 * @param mappings
+	 *        an Iterable over all {@link EvaluationExpression}s which should be set as mappings.
+	 */
 	public void setMappings(Iterable<EvaluationExpression> mappings) {
 		if (mappings == null) {
 			throw new NullPointerException("mapping must not be null");
@@ -40,6 +70,11 @@ public class GeneralSchema implements Schema {
 		}
 	}
 
+	/**
+	 * Returns a {@link List} of all mappings in this schema
+	 * 
+	 * @return a List of all mappings
+	 */
 	public List<EvaluationExpression> getMappings() {
 		return this.mappings;
 	}
