@@ -102,6 +102,15 @@ public class GeneralSchemaTest {
 	}
 
 	@Test
+	public void shouldProvidePactSchemaWhenMappingsIsEmpty() {
+		this.schema = new GeneralSchema();
+
+		Assert.assertTrue(this.schema.getMappings().size() == 0);
+		Class<? extends Value>[] pactSchema = this.schema.getPactSchema();
+		Assert.assertTrue(pactSchema.length == 1);
+	}
+
+	@Test
 	public void shouldProvideTheCorrectIndex() {
 		int[] expected = { 1 };
 		EvaluationExpression exp = new ArithmeticExpression(new ArrayAccess(0),
