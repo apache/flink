@@ -17,6 +17,7 @@ package eu.stratosphere.sopremo.serialization;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 
@@ -31,24 +32,49 @@ public class NaiveSchemaFactory implements SchemaFactory {
 	@Override
 	public Schema create(Iterable<EvaluationExpression> keyExpressions) {
 
-		List<ObjectAccess> accesses = new ArrayList<ObjectAccess>();
+		List<ObjectAccess> objectAccesses = new ArrayList<ObjectAccess>();
+		List<ArrayAccess> arrayAccesses = new ArrayList<ArrayAccess>();
 		List<EvaluationExpression> mappings = new ArrayList<EvaluationExpression>();
 
 		for (EvaluationExpression evaluationExpression : keyExpressions) {
 			mappings.add(evaluationExpression);
 			if (evaluationExpression instanceof ObjectAccess) {
-				accesses.add((ObjectAccess) evaluationExpression);
+				objectAccesses.add((ObjectAccess) evaluationExpression);
+			}
+			if (evaluationExpression instanceof ArrayAccess) {
+				arrayAccesses.add((ArrayAccess) evaluationExpression);
 			}
 		}
 
 		if (mappings.isEmpty())
 			return new DirectSchema();
 
-		if (accesses.size() == mappings.size()) { // all keyExpressions are ObjectAccesses
+		if (objectAccesses.size() == mappings.size()) {
+			// all keyExpressions are ObjectAccesses
+
 			ObjectSchema schema = new ObjectSchema();
-			schema.setMappingsWithAccesses(accesses);
+			schema.setMappingsWithAccesses(objectAccesses);
 			return schema;
+		} else if (arrayAccesses.size() == mappings.size()) {
+			// all keyExpressions are ArrayAccesses
+
+			int startIndex = arrayAccesses.get(0).getStartIndex();
+			int endIndex = arrayAccesses.get(arrayAccesses.size()).getEndIndex();
+
+			if (startIndex == 0) {
+				// want to reduce on first elements of the array -> HeadArraySchema should be used
+				
+				HeadArraySchema schema = new HeadArraySchema();
+				schema.setHeadSize(endIndex + 1);
+				return schema;
+			} else {	
+				TailArraySchema schema = new TailArraySchema();
+				schema.setTailSize(endIndex - startIndex + 1);
+				return schema;
+			}
 		} else {
+			// all other schemas doesn't match -> have to use GeneralSchema
+
 			return new GeneralSchema(mappings);
 		}
 	}
