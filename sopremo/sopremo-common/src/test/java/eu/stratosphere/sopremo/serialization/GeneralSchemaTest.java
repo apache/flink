@@ -16,6 +16,7 @@ import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 
 public class GeneralSchemaTest {
@@ -65,6 +66,18 @@ public class GeneralSchemaTest {
 		PactRecord record = this.schema.jsonToRecord(this.array, target, this.context);
 
 		Assert.assertSame(target, record);
+	}
+
+	@Test
+	public void shouldUseTargetNodeIfProvided() {
+		PactRecord record = new PactRecord(3);
+		record.setField(2, this.array);
+		ArrayNode target = new ArrayNode();
+
+		IJsonNode result = this.schema.recordToJson(record, target);
+
+		Assert.assertSame(target, result);
+		Assert.assertEquals(this.array, result);
 	}
 
 	@Test

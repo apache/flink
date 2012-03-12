@@ -10,7 +10,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.IPrimitiveNode;
 
 /**
  * @author Tommy Neubert
@@ -108,7 +111,29 @@ public class GeneralSchema implements Schema {
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
 		// TODO [BUG] target node is not used correctly
-		target = (IJsonNode) SopremoUtil.unwrap(record.getField(record.getNumFields() - 1, JsonNodeWrapper.class));
+		IJsonNode source = (IJsonNode) SopremoUtil.unwrap(record.getField(record.getNumFields() - 1,
+			JsonNodeWrapper.class));
+
+		if (target == null) {
+			return source;
+		}
+		return this.recycleTargetNode(target, source);
+	}
+
+	private IJsonNode recycleTargetNode(IJsonNode target, IJsonNode source) {
+		if (target.isObject()) {
+			((IObjectNode) target).removeAll();
+			((IObjectNode) target).putAll((IObjectNode) source);
+		} else if (target.isArray()) {
+			((IArrayNode) target).clear();
+			((IArrayNode) target).addAll((IArrayNode) source);
+		} else {
+			// target must be a PrimitiveNode
+
+			// TODO find a way to reuse Primitives
+			target = source;
+		}
+
 		return target;
 	}
 
