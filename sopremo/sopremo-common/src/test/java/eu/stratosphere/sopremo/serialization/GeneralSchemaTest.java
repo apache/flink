@@ -13,6 +13,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -25,20 +26,23 @@ public class GeneralSchemaTest {
 
 	private GeneralSchema schema;
 
+	private List<EvaluationExpression> mappings;
+
 	private EvaluationContext context;
 
 	@Before
 	public void setUp() {
-		List<EvaluationExpression> mappings = new LinkedList<EvaluationExpression>();
+		this.mappings = new LinkedList<EvaluationExpression>();
 
-		mappings.add(new ArithmeticExpression(new ArrayAccess(0), ArithmeticExpression.ArithmeticOperator.ADDITION,
+		this.mappings.add(new ArithmeticExpression(new ArrayAccess(0),
+			ArithmeticExpression.ArithmeticOperator.ADDITION,
 			new ArrayAccess(1)));
-		mappings.add(new ArithmeticExpression(new ArrayAccess(0),
+		this.mappings.add(new ArithmeticExpression(new ArrayAccess(0),
 			ArithmeticExpression.ArithmeticOperator.MULTIPLICATION, new ArrayAccess(1)));
 
 		this.array = new ArrayNode(IntNode.valueOf(3), IntNode.valueOf(4));
 		this.schema = new GeneralSchema();
-		this.schema.setMappings(mappings);
+		this.schema.setMappings(this.mappings);
 		this.context = new EvaluationContext();
 	}
 
@@ -115,5 +119,22 @@ public class GeneralSchemaTest {
 	@Test(expected = NullPointerException.class)
 	public void shouldNotAllowNullAsMapping() {
 		this.schema.setMappings(null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void shouldFailIfExpressionIsNotFound() {
+		this.schema.indicesOf(new ConstantExpression(IntNode.valueOf(42)));
+	}
+
+	@Test
+	public void shouldOverwriteOldMappings() {
+		Assert.assertEquals(this.mappings, this.schema.getMappings());
+
+		EvaluationExpression exp = new ConstantExpression(IntNode.valueOf(42));
+		this.schema.setMappings(exp);
+
+		List<EvaluationExpression> result = this.schema.getMappings();
+
+		Assert.assertTrue(result.size() == 1 && result.contains(exp));
 	}
 }
