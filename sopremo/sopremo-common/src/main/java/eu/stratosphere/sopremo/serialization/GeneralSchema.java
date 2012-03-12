@@ -110,7 +110,6 @@ public class GeneralSchema implements Schema {
 
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		// TODO [BUG] target node is not used correctly
 		IJsonNode source = (IJsonNode) SopremoUtil.unwrap(record.getField(record.getNumFields() - 1,
 			JsonNodeWrapper.class));
 

@@ -59,15 +59,15 @@ public class NaiveSchemaFactory implements SchemaFactory {
 			// all keyExpressions are ArrayAccesses
 
 			int startIndex = arrayAccesses.get(0).getStartIndex();
-			int endIndex = arrayAccesses.get(arrayAccesses.size()).getEndIndex();
+			int endIndex = arrayAccesses.get(arrayAccesses.size() - 1).getEndIndex();
 
 			if (startIndex == 0) {
 				// want to reduce on first elements of the array -> HeadArraySchema should be used
-				
+
 				HeadArraySchema schema = new HeadArraySchema();
 				schema.setHeadSize(endIndex + 1);
 				return schema;
-			} else {	
+			} else {
 				TailArraySchema schema = new TailArraySchema();
 				schema.setTailSize(endIndex - startIndex + 1);
 				return schema;
