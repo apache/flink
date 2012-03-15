@@ -409,8 +409,8 @@ public class MemorySegment
 	 */
 	public final char getChar(int index) {
 		if (index >= 0 && index < this.size - 1) {
-			return (char) (((this.memory[this.offset + index + 0] & 0xff) << 8) | ((this.memory[this.offset
-				+ index + 1] & 0xff) << 0));
+			return (char) ( ((this.memory[this.offset + index + 0] & 0xff) << 8) | 
+					         (this.memory[this.offset + index + 1] & 0xff) );
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -429,8 +429,8 @@ public class MemorySegment
 	 */
 	public final MemorySegment putChar(int index, char value) {
 		if (index >= 0 && index < this.size - 1) {
-			this.memory[this.offset + index + 0] = (byte) ((value >> 8) & 0xff);
-			this.memory[this.offset + index + 1] = (byte) ((value >> 0) & 0xff);
+			this.memory[this.offset + index + 0] = (byte) (value >> 8);
+			this.memory[this.offset + index + 1] = (byte) value;
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -451,7 +451,7 @@ public class MemorySegment
 		if (index >= 0 && index < this.size - 1) {
 			return (short) (
 					((this.memory[this.offset + index + 0] & 0xff) << 8) |
-					((this.memory[this.offset + index + 1] & 0xff) << 0) );
+					((this.memory[this.offset + index + 1] & 0xff)) );
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -470,8 +470,8 @@ public class MemorySegment
 	 */
 	public final MemorySegment putShort(int index, short value) {
 		if (index >= 0 && index < this.size - 1) {
-			this.memory[this.offset + index + 0] = (byte) ((value >> 8) & 0xff);
-			this.memory[this.offset + index + 1] = (byte) ((value >> 0) & 0xff);
+			this.memory[this.offset + index + 0] = (byte) (value >> 8);
+			this.memory[this.offset + index + 1] = (byte) value;
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -490,10 +490,10 @@ public class MemorySegment
 	 */
 	public final int getInt(int index) {
 		if (index >= 0 && index < this.size - 3) {
-			return (((int) this.memory[this.offset + index + 0] & 0xff) << 24)
-				| (((int) this.memory[this.offset + index + 1] & 0xff) << 16)
-				| (((int) this.memory[this.offset + index + 2] & 0xff) << 8)
-				| (((int) this.memory[this.offset + index + 3] & 0xff) << 0);
+			return ((this.memory[this.offset + index + 0] & 0xff) << 24)
+				| ((this.memory[this.offset + index + 1] & 0xff) << 16)
+				| ((this.memory[this.offset + index + 2] & 0xff) << 8)
+				| ((this.memory[this.offset + index + 3] & 0xff) << 0);
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -512,10 +512,10 @@ public class MemorySegment
 	 */
 	public final MemorySegment putInt(int index, int value) {
 		if (index >= 0 && index < this.size - 3) {
-			this.memory[this.offset + index + 0] = (byte) ((value >> 24) & 0xff);
-			this.memory[this.offset + index + 1] = (byte) ((value >> 16) & 0xff);
-			this.memory[this.offset + index + 2] = (byte) ((value >> 8) & 0xff);
-			this.memory[this.offset + index + 3] = (byte) ((value >> 0) & 0xff);
+			this.memory[this.offset + index + 0] = (byte) (value >> 24);
+			this.memory[this.offset + index + 1] = (byte) (value >> 16);
+			this.memory[this.offset + index + 2] = (byte) (value >> 8);
+			this.memory[this.offset + index + 3] = (byte) value;
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
@@ -560,14 +560,14 @@ public class MemorySegment
 	 */
 	public final MemorySegment putLong(int index, long value) {
 		if (index >= 0 && index < this.size - 7) {
-			this.memory[this.offset + index + 0] = (byte) ((value >> 56) & 0xff);
-			this.memory[this.offset + index + 1] = (byte) ((value >> 48) & 0xff);
-			this.memory[this.offset + index + 2] = (byte) ((value >> 40) & 0xff);
-			this.memory[this.offset + index + 3] = (byte) ((value >> 32) & 0xff);
-			this.memory[this.offset + index + 4] = (byte) ((value >> 24) & 0xff);
-			this.memory[this.offset + index + 5] = (byte) ((value >> 16) & 0xff);
-			this.memory[this.offset + index + 6] = (byte) ((value >> 8) & 0xff);
-			this.memory[this.offset + index + 7] = (byte) (value & 0xff);
+			this.memory[this.offset + index + 0] = (byte) (value >> 56);
+			this.memory[this.offset + index + 1] = (byte) (value >> 48);
+			this.memory[this.offset + index + 2] = (byte) (value >> 40);
+			this.memory[this.offset + index + 3] = (byte) (value >> 32);
+			this.memory[this.offset + index + 4] = (byte) (value >> 24);
+			this.memory[this.offset + index + 5] = (byte) (value >> 16);
+			this.memory[this.offset + index + 6] = (byte) (value >> 8);
+			this.memory[this.offset + index + 7] = (byte) value;
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();

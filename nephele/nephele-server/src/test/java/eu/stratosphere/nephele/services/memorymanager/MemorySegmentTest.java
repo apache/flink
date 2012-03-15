@@ -29,7 +29,7 @@ import org.junit.Test;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 
-public class DefaultRandomAccessSegmentTest {
+public class MemorySegmentTest {
 	
 	public static final long RANDOM_SEED = 643196033469871L;
 
