@@ -23,7 +23,9 @@ import java.io.UTFDataFormatException;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 
@@ -1174,6 +1176,60 @@ public final class PactRecord implements Value
 	{
 		deserialize(memory, firstSegment, offset);
 		return getFieldsInto(fields, holders);
+	}
+	
+	/**
+	 * Writes this record to the given output view. This method is similar to {@link #write(DataOutput)}, but
+	 * it returns the number of bytes written.
+	 * 
+	 * @param target The view to write the record to.
+	 * @return The number of bytes written.
+	 * 
+	 * @throws IOException Thrown, if an error occurred in the view during writing.
+	 */
+	public long serialize(DataOutputViewV2 target)
+	throws IOException
+	{
+		updateBinaryRepresenation();
+		
+		long bytesForLen = 1;
+		int len = this.binaryLen;
+		while (len >= MAX_BIT) {
+			target.write(len | MAX_BIT);
+			len >>= 7;
+			bytesForLen++;
+		}
+		target.write(len);
+		target.write(this.binaryData, 0, this.binaryLen);
+
+		return bytesForLen + this.binaryLen;
+	}
+	
+	/**
+	 * @param source
+	 * @throws IOException
+	 */
+	public void deserialize(DataInputViewV2 source) throws IOException
+	{
+		int val = source.readUnsignedByte();
+		if (val >= MAX_BIT) {
+			int shift = 7;
+			int curr;
+			val = val & 0x7f;
+			while ((curr = source.readUnsignedByte()) >= MAX_BIT) {
+				val |= (curr & 0x7f) << shift;
+				shift += 7;
+			}
+			val |= curr << shift;
+		}
+		this.binaryLen = val;
+
+		// read the binary representation
+		if (this.binaryData == null || this.binaryData.length < this.binaryLen) {
+			this.binaryData = new byte[this.binaryLen];
+		}
+		source.readFully(this.binaryData, 0, this.binaryLen);
+		initFields(this.binaryData, 0, this.binaryLen);
 	}
 	
 	/**

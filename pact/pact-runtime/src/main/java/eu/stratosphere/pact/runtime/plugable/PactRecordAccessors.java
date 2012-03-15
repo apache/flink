@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.plugable;
 
 import java.io.IOException;
-import java.util.Comparator;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
