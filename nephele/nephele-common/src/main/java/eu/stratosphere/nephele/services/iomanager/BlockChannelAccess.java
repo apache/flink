@@ -109,28 +109,6 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	{
 		return this.closed;
 	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#returnBuffer(eu.stratosphere.nephele.services.iomanager.Buffer)
-	 */
-	@Override
-	protected void returnBuffer(MemorySegment buffer)
-	{
-		this.returnBuffers.add(buffer);
-		
-		// decrement the number of missing buffers. If we are currently closing, notify the 
-		if (this.closed) {
-			synchronized (this.closeLock) {
-				int num = this.requestsNotReturned.decrementAndGet();
-				if (num == 0) {
-					this.closeLock.notifyAll();
-				}
-			}
-		}
-		else {
-			this.requestsNotReturned.decrementAndGet();
-		}
-	}
 	
 	/**
 	 * Closes the reader and waits until all pending asynchronous requests are
@@ -194,6 +172,27 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 		}
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#returnBuffer(eu.stratosphere.nephele.services.iomanager.Buffer)
+	 */
+	@Override
+	protected void returnBuffer(MemorySegment buffer)
+	{
+		this.returnBuffers.add(buffer);
+		
+		// decrement the number of missing buffers. If we are currently closing, notify the 
+		if (this.closed) {
+			synchronized (this.closeLock) {
+				int num = this.requestsNotReturned.decrementAndGet();
+				if (num == 0) {
+					this.closeLock.notifyAll();
+				}
+			}
+		}
+		else {
+			this.requestsNotReturned.decrementAndGet();
+		}
+	}
 }
 
 //--------------------------------------------------------------------------------------------
