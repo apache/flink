@@ -52,6 +52,7 @@ import eu.stratosphere.nephele.template.AbstractGenericInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -206,10 +207,9 @@ public class FailingJobITCase {
 
 			// Wait for the local task manager to arrive
 			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				ServerTestUtils.waitForJobManagerToBecomeReady(jobManager);
+			} catch (Exception e) {
+				fail(StringUtils.stringifyException(e));
 			}
 		}
 	}
