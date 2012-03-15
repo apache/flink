@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,61 +16,70 @@
 package eu.stratosphere.pact.runtime.plugable;
 
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
 
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
 
 
 /**
- *
+ * This interface describes the methods that are required for a data type to be handled by the pact
+ * runtime. For every data type, a utility class implementing this interface is required.
  *
  * @author Stephan Ewen
  */
 public interface TypeAccessors<T>
 {
+	/**
+	 * Creates a new instance of the data type.
+	 * 
+	 * @return A new instance of the data type.
+	 */
 	public T createInstance();
 	
+	/**
+	 * Creates a copy from the given element.
+	 * 
+	 * @param from The element to copy.
+	 * @return A copy of the given element.
+	 */
 	public T createCopy(T from);
 	
+	/**
+	 * Creates a copy from the given element, storing the copied result in the given target element.
+	 * 
+	 * @param from The element to be copied.
+	 * @param to The target element.
+	 */
 	public void copyTo(T from, T to);
 	
 	// --------------------------------------------------------------------------------------------
-
-	/* ----------------------------------------------------------------
-	 * Ideally, the signatures would look the following way:
-	 *
+	
+	/**
+	 * Gets the length of the data type, if it is a fix length data type.
 	 * 
-	 * public long serialize(T record, DataOutputView target) throws IOException;
-	 * 
-	 * public void deserialize(T target, DataInputView source) throws IOException;
-	 * 
-	 * public void copy(DataInputView source, DataOutputView target) throws IOException;
+	 * @return The length of the data type, or <code>-1</code> for variable length data types.
 	 */
+	public int getLength();
+	
+	// --------------------------------------------------------------------------------------------
 
-	public long serialize(T record, DataOutputView target, Iterator<MemorySegment> furtherBuffers, List<MemorySegment> targetForUsedFurther) throws IOException;
+	public long serialize(T record, DataOutputViewV2 target) throws IOException;
 	
-	public void deserialize(T target, List<MemorySegment> sources, int firstSegment, int segmentOffset) throws IOException;
+	public void deserialize(T target, DataInputViewV2 source) throws IOException;
 	
-	public void copy(List<MemorySegment> sources, int firstSegment, int segmentOffset, DataOutputView target) throws IOException;
+	public void copy(DataInputViewV2 source, DataOutputViewV2 target) throws IOException;
 	
 	// --------------------------------------------------------------------------------------------
 	
 	public int hash(T object);
 	
-	public int compare(T first, T second, Comparator<Key> comparator);
+	public void setReferenceForEquality(T toCompare);
 	
-	/* ----------------------------------------------------------------
-	 * Ideally, the signature would look the following way:
-	 *
-	 * 
-	 * public int compare(DataInputView source1, DataInputView source2);
-	 */
+	public boolean equalToReference(T candidate);
 	
-	public int compare(List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1, int firstSegment2, int offset1, int offset2);
+//	public int compare(T first, T second);
+	
+	public int compare(DataInputViewV2 firstSource, DataInputViewV2 secondSource) throws IOException;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -81,4 +90,8 @@ public interface TypeAccessors<T>
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes);
 	
 	public void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public TypeAccessors<T> duplicate();
 }

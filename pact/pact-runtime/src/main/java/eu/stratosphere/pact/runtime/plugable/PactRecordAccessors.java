@@ -17,11 +17,9 @@ package eu.stratosphere.pact.runtime.plugable;
 
 import java.io.IOException;
 import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
 
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
@@ -38,11 +36,9 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 {
 	private final int[] keyFields;
 	
-	private final Class<? extends Key>[] keyTypes;
+	private final Key[] keyHolders, transientKeyHolders;
 	
-	private final Key[] keyHolders1, keyHolders2;
-	
-	private final PactRecord holder1, holder2;
+	private final PactRecord temp1, temp2;
 	
 	private final int[] normalizedKeyLengths;
 	
@@ -56,28 +52,24 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	public PactRecordAccessors(int[] keyFields, Class<? extends Key>[] keyTypes)
 	{
 		this.keyFields = keyFields;
-		this.keyTypes = keyTypes;
-		
-		this.holder1 = new PactRecord();
-		this.holder2 = new PactRecord();
 		
 		// instantiate fields to extract keys into
-		this.keyHolders1 = new Key[keyTypes.length];
-		this.keyHolders2 = new Key[keyTypes.length];
+		this.keyHolders = new Key[keyTypes.length];
+		this.transientKeyHolders = new Key[keyTypes.length];
 		for (int i = 0; i < keyTypes.length; i++) {
 			if (keyTypes[i] == null) {
 				throw new NullPointerException("Key type " + i + " is null.");
 			}
-			this.keyHolders1[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
-			this.keyHolders2[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
+			this.keyHolders[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
+			this.transientKeyHolders[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
 		}
 		
 		// set up auxiliary fields for normalized key support
 		this.normalizedKeyLengths = new int[keyFields.length];
 		int nKeys = 0;
 		int nKeyLen = 0;
-		for (int i = 0; i < this.keyHolders1.length; i++) {
-			Key k = this.keyHolders1[i];
+		for (int i = 0; i < this.keyHolders.length; i++) {
+			Key k = this.keyHolders[i];
 			if (k instanceof NormalizableKey) {
 				nKeys++;
 				final int len = ((NormalizableKey) k).getMaxNormalizedKeyLen();
@@ -95,6 +87,38 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 		}
 		this.numLeadingNormalizableKeys = nKeys;
 		this.normalizableKeyPrefixLen = nKeyLen;
+		
+		temp1 = new PactRecord();
+		temp2 = new PactRecord();
+	}
+	
+	/**
+	 * Copy constructor.
+	 * 
+	 * @param keyFields
+	 * @param keys
+	 * @param normalKeyLengths
+	 * @param leadingNormalKeys
+	 * @param normalKeyPrefixLen
+	 */
+	private PactRecordAccessors(int[] keyFields, Key[] keys, int[] normalKeyLengths,
+							int leadingNormalKeys, int normalKeyPrefixLen)
+	{
+		this.keyFields = keyFields;
+		
+		this.keyHolders = new Key[keys.length];
+		this.transientKeyHolders = new Key[keys.length];
+		for (int i = 0; i < keys.length; i++) {
+			this.keyHolders[i] = InstantiationUtil.instantiate(keys[i].getClass(), Key.class);
+			this.transientKeyHolders[i] = InstantiationUtil.instantiate(keys[i].getClass(), Key.class);
+		}
+		
+		this.normalizedKeyLengths = normalKeyLengths;
+		this.numLeadingNormalizableKeys = leadingNormalKeys;
+		this.normalizableKeyPrefixLen = normalKeyPrefixLen;
+		
+		this.temp1 = new PactRecord();
+		this.temp2 = new PactRecord();
 	}
 
 	/* (non-Javadoc)
@@ -120,57 +144,60 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	public void copyTo(PactRecord from, PactRecord to) {
 		from.copyTo(to);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#getLength()
+	 */
+	@Override
+	public int getLength() {
+		return -1;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputView, java.util.List, java.util.List)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
 	 */
 	@Override
-	public long serialize(PactRecord record, DataOutputView target, Iterator<MemorySegment> furtherBuffers,
-			List<MemorySegment> targetForUsedFurther)
-	throws IOException
+	public long serialize(PactRecord record, DataOutputViewV2 target) throws IOException
 	{
-		return record.serialize(record, target, furtherBuffers, targetForUsedFurther);
+		return record.serialize(target);
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#deserialize(java.lang.Object, java.util.List, int, int)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#deserialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
 	 */
 	@Override
-	public void deserialize(PactRecord target, List<MemorySegment> sources, int firstSegment, int segmentOffset)
+	public void deserialize(PactRecord target, DataInputViewV2 source) throws IOException
 	{
-		target.deserialize(sources, firstSegment, segmentOffset);
+		target.deserialize(source);
 	}
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copy(java.util.List, int, int, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#copy(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
 	 */
 	@Override
-	public void copy(List<MemorySegment> sources, int firstSegment, int segmentOffset, DataOutputView target)
-	throws IOException
+	public void copy(DataInputViewV2 source, DataOutputViewV2 target) throws IOException
 	{
-		MemorySegment seg = sources.get(firstSegment);
-		int len = readLengthIncludingLengthBytes(seg, sources, firstSegment, segmentOffset);
+		final int MAX_BIT = 0x80;
 		
-		int remaining = seg.size() - segmentOffset;
-		if (remaining >= len) {
-			target.write(seg.getBackingArray(), seg.translateOffset(segmentOffset), len);
-		}
-		else while (true) {
-			int toPut = Math.min(remaining, len);
-			target.write(seg.getBackingArray(), seg.translateOffset(segmentOffset), toPut);
-			len -= toPut;
-			
-			if (len > 0) {
-				segmentOffset = 0;
-				seg = sources.get(++firstSegment);
-				remaining = seg.size();	
+		int val = source.readUnsignedByte();
+		target.writeByte(val);
+		
+		if (val >= MAX_BIT) {
+			int shift = 7;
+			int curr;
+			val = val & 0x7f;
+			while ((curr = source.readUnsignedByte()) >= MAX_BIT) {
+				target.writeByte(curr);
+				val |= (curr & 0x7f) << shift;
+				shift += 7;
 			}
-			else {
-				break;
-			}
+			target.writeByte(curr);
+			val |= curr << shift;
 		}
+		
+		target.write(source, val);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -181,57 +208,86 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	@Override
 	public int hash(PactRecord object)
 	{
+		int i = 0;
 		try {
 			int code = 0;
-			for (int i = 0; i < this.keyFields.length; i++) {
-				code ^= object.getField(this.keyFields[i], this.keyTypes[i]).hashCode();
+			for (; i < this.keyFields.length; i++) {
+				code ^= object.getField(this.keyFields[i], this.transientKeyHolders[i]).hashCode();
 			}
 			return code;
 		}
 		catch (NullPointerException npex) {
+			throw new NullKeyFieldException(this.keyFields[i]);
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#setReferenceForEquality(java.lang.Object)
+	 */
+	@Override
+	public void setReferenceForEquality(PactRecord toCompare)
+	{
+		if (!toCompare.getFieldsInto(this.keyFields, this.keyHolders))
 			throw new NullKeyFieldException();
-		}
-	}
-
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(java.lang.Object, java.lang.Object, java.util.Comparator)
-	 */
-	@Override
-	public int compare(PactRecord first, PactRecord second, Comparator<Key> comparator)
-	{
-		if (first.getFieldsInto(this.keyFields, this.keyHolders1) &
-		    second.getFieldsInto(this.keyFields, this.keyHolders2))
-		{
-			for (int i = 0; i < this.keyHolders1.length; i++) {
-				int c = comparator.compare(this.keyHolders1[i], this.keyHolders2[i]);
-				if (c != 0)
-					return c;
-			}
-			return 0;
-		}
-		else throw new NullKeyFieldException();
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(java.util.List, java.util.List, int, int, int, int)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#equalToReference(java.lang.Object)
 	 */
 	@Override
-	public int compare(List<MemorySegment> sources1, List<MemorySegment> sources2, int firstSegment1,
-			int firstSegment2, int offset1, int offset2)
+	public boolean equalToReference(PactRecord candidate)
 	{
-		if (holder1.readBinary(this.keyFields, this.keyHolders1, sources1, firstSegment1, offset1) &
-		    holder2.readBinary(this.keyFields, this.keyHolders2, sources2, firstSegment2, offset2))
-		{
-			for (int i = 0; i < this.keyHolders1.length; i++) {
-				final int val = this.keyHolders1[i].compareTo(this.keyHolders2[i]);
-				if (val != 0)
-					return val;
-			}
-			return 0;
+		for (int i = 0; i < this.keyFields.length; i++) {
+			Key k = candidate.getField(this.keyFields[i], this.transientKeyHolders[i]);
+			if (k == null)
+				throw new NullKeyFieldException(this.keyFields[i]);
+			else if (!k.equals(this.keyHolders[i]))
+				return false;
 		}
-		else throw new NullKeyFieldException();
+		return true;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#compare(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
+	 */
+	@Override
+	public int compare(DataInputViewV2 source1, DataInputViewV2 source2) throws IOException
+	{
+		this.temp1.read(source1);
+		this.temp2.read(source2);
+		
+		for (int i = 0; i < this.keyFields.length; i++) {
+			final Key k1 = this.temp1.getField(this.keyFields[i], this.keyHolders[i]);
+			final Key k2 = this.temp2.getField(this.keyFields[i], this.transientKeyHolders[i]);
+			
+			if (k1 == null || k2 == null)
+				throw new NullKeyFieldException(this.keyFields[i]);
+			
+			final int comp = k1.compareTo(k2);
+			if (comp != 0)
+				return comp;
+		}
+		return 0;
+	}
+
+//	/* (non-Javadoc)
+//	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(java.lang.Object, java.lang.Object, java.util.Comparator)
+//	 */
+//	@Override
+//	public int compare(PactRecord first, PactRecord second, Comparator<Key> comparator)
+//	{
+//		if (first.getFieldsInto(this.keyFields, this.keyHolders) &
+//		    second.getFieldsInto(this.keyFields, this.transientKeyHolders))
+//		{
+//			for (int i = 0; i < this.keyHolders.length; i++) {
+//				int c = comparator.compare(this.keyHolders[i], this.transientKeyHolders[i]);
+//				if (c != 0)
+//					return c;
+//			}
+//			return 0;
+//		}
+//		else throw new NullKeyFieldException();
+//	}
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -276,65 +332,24 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 			{
 				int len = this.normalizedKeyLengths[i]; 
 				len = numBytes >= len ? len : numBytes;
-				((NormalizableKey) record.getField(this.keyFields[i], this.keyTypes[i])).copyNormalizedKey(target, offset, len);
+				((NormalizableKey) record.getField(this.keyFields[i], this.transientKeyHolders[i])).copyNormalizedKey(target, offset, len);
 				numBytes -= len;
 				offset += len;
 			}
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(i);
+			throw new NullKeyFieldException(this.keyFields[i]);
 		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	private static final int readLengthIncludingLengthBytes(MemorySegment seg, List<MemorySegment> sources, int segmentNum, int segmentOffset)
-	{
-		int lenBytes = 1;
-		
-		if (seg.size() - segmentOffset > 5) {
-			int val = seg.get(segmentOffset++) & 0xff;
-			if (val >= MAX_BIT) {
-				int shift = 7;
-				int curr;
-				val = val & 0x7f;
-				while ((curr = seg.get(segmentOffset++) & 0xff) >= MAX_BIT) {
-					val |= (curr & 0x7f) << shift;
-					shift += 7;
-					lenBytes++;
-				}
-				val |= curr << shift;
-				lenBytes++;
-			}
-			return val + lenBytes;
-		}
-		else {
-			int end = seg.size();
-			int val = seg.get(segmentOffset++) & 0xff;
-			if (segmentOffset == end) {
-				segmentOffset = 0;
-				seg = sources.get(++segmentNum);
-			}
-			
-			if (val >= MAX_BIT) {
-				int shift = 7;
-				int curr;
-				val = val & 0x7f;
-				while ((curr = seg.get(segmentOffset++) & 0xff) >= MAX_BIT) {
-					val |= (curr & 0x7f) << shift;
-					shift += 7;
-					lenBytes++;
-					if (segmentOffset == end) {
-						segmentOffset = 0;
-						seg = sources.get(++segmentNum);
-					}
-				}
-				val |= curr << shift;
-				lenBytes++;
-			}
-			return val + lenBytes;
-		}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#duplicate()
+	 */
+	@Override
+	public PactRecordAccessors duplicate() {
+		return new PactRecordAccessors(this.keyFields, this.keyHolders, this.normalizedKeyLengths,
+											this.numLeadingNormalizableKeys, this.normalizableKeyPrefixLen);
 	}
-		
-	private static final int MAX_BIT = 0x1 << 7;
 }
