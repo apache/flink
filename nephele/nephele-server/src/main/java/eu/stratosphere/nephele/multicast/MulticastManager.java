@@ -288,6 +288,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 					}
 				}
 			}
+			br.close();
 			// First node is root.. create tree. easy
 			return nodes.getFirst().createForwardingTable();
 
@@ -525,7 +526,9 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			}
 
+			br.close();
 			in.close();
+			fstream.close();
 		} catch (Exception e) {
 			System.err.println("Error reading penalty file: " + e.getMessage());
 		}

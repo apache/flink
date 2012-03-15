@@ -17,9 +17,7 @@ package eu.stratosphere.nephele.client;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
