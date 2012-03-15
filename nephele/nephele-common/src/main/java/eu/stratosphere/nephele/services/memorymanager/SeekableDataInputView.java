@@ -15,23 +15,24 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
-import java.util.ServiceLoader;
+import java.io.IOException;
 
-public abstract class MemoryManagementProvider {
-	private static MemoryManagementProvider defaultProvider = null;
 
-	public static MemoryManagementProvider getDefault() {
-		if (defaultProvider != null) {
-			return defaultProvider;
-		}
-
-		ServiceLoader<MemoryManagementProvider> ldr = ServiceLoader.load(MemoryManagementProvider.class);
-
-		for (MemoryManagementProvider provider : ldr) {
-			defaultProvider = provider;
-			return provider;
-		}
-
-		throw new Error("No HelloProvider registered");
-	}
+/**
+ * Interface marking a {@link DataInputViewV2} as seekable. Seekable views can set the position where they
+ * read from.
+ * 
+ * @author Stephan Ewen
+ */
+public interface SeekableDataInputView extends DataInputViewV2
+{
+	/**
+	 * Sets the read pointer to the given position.
+	 * 
+	 * @param position The new read position.
+	 * 
+	 * @throws IOException Thrown, if any I/O related problem occurred such that the input could not
+	 *                     be sought to the desired position.
+	 */
+	public void setReadPosition(long position) throws IOException;
 }
