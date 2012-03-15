@@ -111,10 +111,10 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	private final SWTFailurePatternsManager failurePatternsManager;
 
 	/**
-	 * Set to filter duplicate events received from the job manager.
+	 * The sequence number of the last processed event received from the job manager.
 	 */
-	private Set<AbstractEvent> processedEvents = new HashSet<AbstractEvent>();
-
+	private long lastProcessedEventSequenceNumber = -1;
+	
 	public SWTVisualizationGUI(ExtendedManagementProtocol jobManager, int queryInterval) {
 
 		this.jobManager = jobManager;
@@ -481,15 +481,17 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 						while (eventIt.hasNext()) {
 
 							final AbstractEvent event = eventIt.next();
-							if (this.processedEvents.contains(event)) {
+							
+							// Did we already process this event?
+							if(this.lastProcessedEventSequenceNumber >= event.getSequenceNumber()){
 								continue;
 							}
 
 							dispatchEvent(event, graphVisualizationData);
+							
+							this.lastProcessedEventSequenceNumber = event.getSequenceNumber();
 						}
 
-						// Clean up
-						cleanUpOldEvents(QUERYINTERVAL * 1000);
 					}
 				}
 
@@ -663,45 +665,6 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			// Ignore this type of event
 		} else {
 			System.out.println("Unknown event: " + event);
-		}
-	}
-
-	/**
-	 * Removes entries from the set of already processed events for which
-	 * it is guaranteed that no duplicates will be received anymore.
-	 */
-	private void cleanUpOldEvents(long sleepTime) {
-
-		long mostRecentTimestamp = 0;
-
-		// Find most recent time stamp
-		Iterator<AbstractEvent> it = this.processedEvents.iterator();
-		while (it.hasNext()) {
-			final AbstractEvent event = it.next();
-			if (event.getTimestamp() > mostRecentTimestamp) {
-				mostRecentTimestamp = event.getTimestamp();
-			}
-		}
-
-		if (mostRecentTimestamp == 0) {
-			return;
-		}
-
-		/**
-		 * Remove all events which older than three times
-		 * the sleep time. The job manager removes events in
-		 * intervals which are twice the interval of the sleep time,
-		 * so there is no risk that these events will appear as duplicates
-		 * again.
-		 */
-		it = this.processedEvents.iterator();
-		while (it.hasNext()) {
-
-			final AbstractEvent event = it.next();
-
-			if ((event.getTimestamp() + (3 * sleepTime)) < mostRecentTimestamp) {
-				it.remove();
-			}
 		}
 	}
 

@@ -70,11 +70,13 @@ public class JobClient {
 	 */
 	private final JobCleanUp jobCleanUp;
 
-	/**
-	 * Set to filter duplicate events received from the job manager.
-	 */
-	private Set<AbstractEvent> processedEvents = new HashSet<AbstractEvent>();
 
+	/**
+	 * The sequence number of the last processed event received from the job manager.
+	 */
+	private long lastProcessedEventSequenceNumber = -1;
+	
+	
 	/**
 	 * Inner class used to perform clean up tasks when the
 	 * job client is terminated.
@@ -326,12 +328,15 @@ public class JobClient {
 			while (it.hasNext()) {
 
 				final AbstractEvent event = it.next();
-				if (this.processedEvents.contains(event)) {
+				
+				// Did we already process that event?
+				if(this.lastProcessedEventSequenceNumber >= event.getSequenceNumber()){
 					continue;
 				}
 
 				System.out.println(event.toString());
-				this.processedEvents.add(event);
+
+				this.lastProcessedEventSequenceNumber = event.getSequenceNumber();
 
 				// Check if we can exit the loop
 				if (event instanceof JobEvent) {
@@ -357,9 +362,6 @@ public class JobClient {
 				}
 			}
 
-			// Clean up old events
-			cleanUpOldEvents(sleep);
-
 			try {
 				Thread.sleep(sleep);
 			} catch (InterruptedException e) {
@@ -382,45 +384,5 @@ public class JobClient {
 		throw new IOException(errorMessage);
 	}
 
-	/**
-	 * Removes entries from the set of already processed events for which
-	 * it is guaranteed that no duplicates will be received anymore.
-	 * 
-	 * @param sleepTime
-	 *        the sleep time in milliseconds after which old events shall be removed from the processed event queue
-	 */
-	private void cleanUpOldEvents(final long sleepTime) {
 
-		long mostRecentTimestamp = 0;
-
-		// Find most recent time stamp
-		Iterator<AbstractEvent> it = this.processedEvents.iterator();
-		while (it.hasNext()) {
-			final AbstractEvent event = it.next();
-			if (event.getTimestamp() > mostRecentTimestamp) {
-				mostRecentTimestamp = event.getTimestamp();
-			}
-		}
-
-		if (mostRecentTimestamp == 0) {
-			return;
-		}
-
-		/**
-		 * Remove all events which older than three times
-		 * the sleep time. The job manager removes events in
-		 * intervals which are twice the interval of the sleep time,
-		 * so there is no risk that these events will appear as duplicates
-		 * again.
-		 */
-		it = this.processedEvents.iterator();
-		while (it.hasNext()) {
-
-			final AbstractEvent event = it.next();
-
-			if ((event.getTimestamp() + (3 * sleepTime)) < mostRecentTimestamp) {
-				it.remove();
-			}
-		}
-	}
 }
