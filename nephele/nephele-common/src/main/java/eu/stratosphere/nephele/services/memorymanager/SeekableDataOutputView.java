@@ -33,5 +33,5 @@ public interface SeekableDataOutputView extends DataOutputViewV2
 	 * @throws IOException Thrown, if any I/O related problem occurred such that the output could not
 	 *                     be sought to the desired position.
 	 */
-	public void setWritePosition(long position) throws IOException;
+	public void setWritePosition(long position);
 }

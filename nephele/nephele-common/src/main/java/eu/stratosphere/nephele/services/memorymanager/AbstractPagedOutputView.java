@@ -61,6 +61,9 @@ public abstract class AbstractPagedOutputView implements DataOutputViewV2
 	 */
 	protected AbstractPagedOutputView(MemorySegment initialSegment, int segmentSize, int headerLength)
 	{
+		if (initialSegment == null) {
+			throw new NullPointerException("Initial Segment may not be null");
+		}
 		this.segmentSize = segmentSize;
 		this.headerLength = headerLength;
 		this.currentSegment = initialSegment;

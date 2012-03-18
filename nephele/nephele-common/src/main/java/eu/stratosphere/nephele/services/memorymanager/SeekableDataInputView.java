@@ -34,5 +34,5 @@ public interface SeekableDataInputView extends DataInputViewV2
 	 * @throws IOException Thrown, if any I/O related problem occurred such that the input could not
 	 *                     be sought to the desired position.
 	 */
-	public void setReadPosition(long position) throws IOException;
+	public void setReadPosition(long position);
 }
