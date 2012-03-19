@@ -33,6 +33,10 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
  */
 public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 {
+	private static final int MAX_BIT = 0x80;					// byte where only the most significant bit is set
+	
+	// --------------------------------------------------------------------------------------------
+	
 	private final int[] keyFields;
 	
 	private final Key[] keyHolders, transientKeyHolders;
@@ -45,9 +49,7 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	
 	private final int normalizableKeyPrefixLen;
 	
-	/**
-	 * @param keyFields
-	 */
+
 	public PactRecordAccessors(int[] keyFields, Class<? extends Key>[] keyTypes)
 	{
 		this.keyFields = keyFields;
@@ -178,8 +180,6 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	@Override
 	public void copy(DataInputViewV2 source, DataOutputViewV2 target) throws IOException
 	{
-		final int MAX_BIT = 0x80;
-		
 		int val = source.readUnsignedByte();
 		target.writeByte(val);
 		
@@ -226,8 +226,11 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	@Override
 	public void setReferenceForEquality(PactRecord toCompare)
 	{
-		if (!toCompare.getFieldsInto(this.keyFields, this.keyHolders))
-			throw new NullKeyFieldException();
+		for (int i = 0; i < this.keyFields.length; i++) {
+			if (!toCompare.getFieldInto(this.keyFields[i], this.keyHolders[i])) {
+				throw new NullKeyFieldException(this.keyFields[i]);
+			}
+		}
 	}
 
 	/* (non-Javadoc)
@@ -237,7 +240,7 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	public boolean equalToReference(PactRecord candidate)
 	{
 		for (int i = 0; i < this.keyFields.length; i++) {
-			Key k = candidate.getField(this.keyFields[i], this.transientKeyHolders[i]);
+			final Key k = candidate.getField(this.keyFields[i], this.transientKeyHolders[i]);
 			if (k == null)
 				throw new NullKeyFieldException(this.keyFields[i]);
 			else if (!k.equals(this.keyHolders[i]))
