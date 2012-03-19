@@ -21,7 +21,7 @@ import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 /**
@@ -29,7 +29,6 @@ import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
  * @author enijkamp
  *
  */
-@SuppressWarnings("javadoc")
 public class ChainTaskTest extends TaskTestBase {
 
 	private static final Log LOG = LogFactory.getLog(ChainTaskTest.class);
@@ -46,7 +45,7 @@ public class ChainTaskTest extends TaskTestBase {
 		// environment
 		{
 			super.initEnvironment(3*1024*1024);
-			super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+			super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 			super.addOutput(this.outList);
 		}
 		
@@ -102,7 +101,7 @@ public class ChainTaskTest extends TaskTestBase {
 		// environment
 		{
 			super.initEnvironment(3*1024*1024);
-			super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+			super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 			super.addOutput(this.outList);
 		}
 

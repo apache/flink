@@ -330,6 +330,7 @@ public class OutputEmitterTest extends TestCase {
 		assertTrue(correctException);
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Test
 	public static void testSerialization() throws IOException {
 		
