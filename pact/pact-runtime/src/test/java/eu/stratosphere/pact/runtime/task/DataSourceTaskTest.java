@@ -34,7 +34,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
@@ -63,7 +63,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		this.outList = new ArrayList<PactRecord>();
 		
 		try {
-			InputFilePreparator.prepareInputFile(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 
+			InputFilePreparator.prepareInputFile(new UniformPactRecordGenerator(keyCnt, valCnt, false), 
 				this.tempTestPath, true);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
@@ -119,7 +119,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		this.outList = new NirvanaOutputList();
 		
 		try {
-			InputFilePreparator.prepareInputFile(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 
+			InputFilePreparator.prepareInputFile(new UniformPactRecordGenerator(keyCnt, valCnt, false), 
 				this.tempTestPath, false);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
@@ -159,7 +159,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		super.addOutput(new NirvanaOutputList());
 		
 		try {
-			InputFilePreparator.prepareInputFile(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 
+			InputFilePreparator.prepareInputFile(new UniformPactRecordGenerator(keyCnt, valCnt, false), 
 				this.tempTestPath, false);
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");

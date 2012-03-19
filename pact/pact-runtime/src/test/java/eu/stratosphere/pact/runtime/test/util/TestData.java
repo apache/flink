@@ -110,53 +110,6 @@ public final class TestData {
 			return false;
 		}
 	}
-	
-//	/**
-//	 * Value implementation.
-//	 */
-//	public static class Value implements eu.stratosphere.pact.common.type.Value {
-//		private String value;
-//
-//		public Value() {
-//		}
-//
-//		public Value(String v) {
-//			value = v;
-//		}
-//
-//		public String getValue() {
-//			return value;
-//		}
-//		
-//		public void setValue(String value) {
-//			this.value = value;
-//		}
-//
-//		@Override
-//		public void read(DataInput in) throws IOException {
-//			value = in.readUTF();
-//		}
-//
-//		@Override
-//		public void write(DataOutput out) throws IOException {
-//			out.writeUTF(value);
-//		}
-//
-//		@Override
-//		public boolean equals(Object obj) {
-//			return this.value.equals(((Value) obj).value);
-//		}
-//		
-//		@Override
-//		public int hashCode() {
-//			return this.value.hashCode();
-//		}
-//
-//		@Override
-//		public String toString() {
-//			return value;
-//		}
-//	}
 
 	/**
 	 * Pair generator.
@@ -269,34 +222,6 @@ public final class TestData {
 		}
 
 	}
-//
-//	/**
-//	 * Record reader mock.
-//	 */
-//	public static class RecordReaderMock implements eu.stratosphere.nephele.io.Reader<PactRecord>
-//	{
-//		private final Generator generator;
-//
-//		private final int numberOfRecords;
-//
-//		private int counter;
-//
-//		public RecordReaderMock(Generator generator, int numberOfRecords) {
-//			this.generator = generator;
-//			this.generator.reset();
-//			this.numberOfRecords = numberOfRecords;
-//			this.counter = 0;
-//		}
-//
-//		public boolean hasNext() {
-//			return counter < numberOfRecords;
-//		}
-//
-//		public PactRecord next() {
-//			counter++;
-//			return generator.next();
-//		}
-//	}
 
 	/**
 	 * Record reader mock.

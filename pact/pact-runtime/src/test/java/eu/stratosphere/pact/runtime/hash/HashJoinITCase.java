@@ -35,7 +35,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.HashJoin.HashBucketIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -82,10 +82,10 @@ public class HashJoinITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -145,10 +145,10 @@ public class HashJoinITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -207,10 +207,10 @@ public class HashJoinITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key
-		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probeInput = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
@@ -313,7 +313,7 @@ public class HashJoinITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> build1 = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
 		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
 		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
@@ -323,7 +323,7 @@ public class HashJoinITCase
 		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probe1 = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
 		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
 		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
@@ -438,7 +438,7 @@ public class HashJoinITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> build1 = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
 		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
 		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
@@ -448,7 +448,7 @@ public class HashJoinITCase
 		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probe1 = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, 5);
 		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, 5);
 		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
@@ -562,7 +562,7 @@ public class HashJoinITCase
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<PactRecord> build1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<PactRecord> build1 = new UniformPactRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 		MutableObjectIterator<PactRecord> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
 		MutableObjectIterator<PactRecord> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
 		List<MutableObjectIterator<PactRecord>> builds = new ArrayList<MutableObjectIterator<PactRecord>>();
@@ -572,7 +572,7 @@ public class HashJoinITCase
 		MutableObjectIterator<PactRecord> buildInput = new UnionIterator<PactRecord>(builds);
 	
 		// create a probe input that gives 10 million pairs with 10 values sharing a key
-		MutableObjectIterator<PactRecord> probe1 = new RegularlyGeneratedInputGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		MutableObjectIterator<PactRecord> probe1 = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 		MutableObjectIterator<PactRecord> probe2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT);
 		MutableObjectIterator<PactRecord> probe3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT);
 		List<MutableObjectIterator<PactRecord>> probes = new ArrayList<MutableObjectIterator<PactRecord>>();
@@ -652,7 +652,7 @@ public class HashJoinITCase
 		final int NUM_PROBE_KEYS = 20;
 		final int NUM_PROBE_VALS = 1;
 
-		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(
+		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(
 				NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
 
 		// allocate the memory for the HashTable
@@ -671,7 +671,7 @@ public class HashJoinITCase
 
 		@SuppressWarnings("unchecked")
 		HashJoin join = new HashJoin(buildInput,
-				new RegularlyGeneratedInputGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true),
+				new UniformPactRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true),
 				new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, 
 				memSegments, ioManager);
 		join.open();
@@ -706,7 +706,7 @@ public class HashJoinITCase
 		final int NUM_PROBE_KEYS = 10;
 		final int NUM_PROBE_VALS = 1;
 		
-		MutableObjectIterator<PactRecord> buildInput = new RegularlyGeneratedInputGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
+		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
 		// allocate the memory for the HashTable
 		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
@@ -725,7 +725,7 @@ public class HashJoinITCase
 		IOManager ioManager = new IOManager();
 				
 		@SuppressWarnings("unchecked")
-		HashJoin join = new HashJoin(buildInput, new RegularlyGeneratedInputGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true), 
+		HashJoin join = new HashJoin(buildInput, new UniformPactRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true), 
 				new int[] {0}, new int[] {0}, new Class[] {PactInteger.class}, memSegments, ioManager);
 		join.open();
 		

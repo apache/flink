@@ -19,7 +19,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
-public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<PactRecord> {
+public class UniformPactRecordGenerator implements MutableObjectIterator<PactRecord> {
 
 	private final PactInteger key = new PactInteger();
 	private final PactInteger value = new PactInteger();
@@ -31,7 +31,7 @@ public class RegularlyGeneratedInputGenerator implements MutableObjectIterator<P
 	int valCnt = 0;
 	boolean repeatKey;
 	
-	public RegularlyGeneratedInputGenerator(int numKeys, int numVals, boolean repeatKey) {
+	public UniformPactRecordGenerator(int numKeys, int numVals, boolean repeatKey) {
 		this.numKeys = numKeys;
 		this.numVals = numVals;
 		this.repeatKey = repeatKey;

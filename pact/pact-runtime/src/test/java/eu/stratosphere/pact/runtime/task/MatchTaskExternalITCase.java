@@ -30,7 +30,7 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 @SuppressWarnings( {"javadoc", "unchecked"} )
@@ -50,8 +50,8 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 4*2;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -90,8 +90,8 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 1*16;
 		
 		super.initEnvironment(4*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -130,8 +130,8 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		int valCnt2 = 1*16;
 		
 		super.initEnvironment(4*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(outList);
 		
 		MatchTask testTask = new MatchTask();

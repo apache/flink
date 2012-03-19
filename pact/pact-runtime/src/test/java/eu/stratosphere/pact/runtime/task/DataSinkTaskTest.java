@@ -37,7 +37,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
@@ -63,7 +63,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		
 		DataSinkTask testTask = new DataSinkTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
@@ -232,7 +232,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 
 		DataSinkTask testTask = new DataSinkTask();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);

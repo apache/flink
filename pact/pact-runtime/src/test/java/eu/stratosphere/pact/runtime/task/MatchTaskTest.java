@@ -31,7 +31,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
@@ -52,8 +52,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 2;
 				
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -92,8 +92,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -132,8 +132,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -172,8 +172,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -212,8 +212,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -252,8 +252,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -293,8 +293,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -334,8 +334,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(3 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -374,8 +374,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -411,7 +411,7 @@ public class MatchTaskTest extends TaskTestBase {
 		
 		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
@@ -456,7 +456,7 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(new NirvanaOutputList());
 		
@@ -502,8 +502,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
@@ -553,8 +553,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 2;
 				
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -594,8 +594,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -634,8 +634,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -674,8 +674,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -714,8 +714,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -754,8 +754,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -792,8 +792,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		MatchTask testTask = new MatchTask();
@@ -828,7 +828,7 @@ public class MatchTaskTest extends TaskTestBase {
 		
 		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
@@ -873,7 +873,7 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(new NirvanaOutputList());
 		
@@ -919,8 +919,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();
@@ -966,8 +966,8 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
 		final MatchTask testTask = new MatchTask();

@@ -29,7 +29,7 @@ import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
@@ -50,8 +50,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -85,8 +85,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -120,8 +120,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -154,8 +154,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -189,8 +189,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -224,8 +224,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 0;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -259,8 +259,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 0;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 0);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 0);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 1);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -294,8 +294,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 0;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 0);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 0);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 1);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -329,8 +329,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 0;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 0);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 0);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 1);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -366,8 +366,8 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
 		CrossTask testTask = new CrossTask();
@@ -397,7 +397,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(this.outList);
 		
@@ -439,7 +439,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(this.outList);
 		
@@ -481,7 +481,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(this.outList);
 		
@@ -523,7 +523,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int valCnt = 1;
 		
 		super.initEnvironment(1*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(this.outList);
 		
