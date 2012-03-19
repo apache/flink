@@ -55,10 +55,10 @@ public class ArrayCreation extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		final ArrayNode arrayNode = new ArrayNode();
 		for (final EvaluationExpression expression : this.elements)
-			arrayNode.add(expression.evaluate(node, context));
+			arrayNode.add(expression.evaluate(node, null, context));
 		return arrayNode;
 	}
 

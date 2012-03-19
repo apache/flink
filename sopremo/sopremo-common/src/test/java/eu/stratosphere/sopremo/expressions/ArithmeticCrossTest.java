@@ -42,7 +42,7 @@ public class ArithmeticCrossTest {
 		final IJsonNode result = arithmetic.evaluate(
 			JsonUtil.asArray(JsonUtil.OBJECT_MAPPER.valueToTree(this.left),
 				JsonUtil.OBJECT_MAPPER.valueToTree(this.right)),
-			new EvaluationContext());
+			null, new EvaluationContext());
 
 		final IJsonNode expectedNode = JsonUtil.OBJECT_MAPPER.valueToTree(this.expected);
 		Assert.assertEquals(

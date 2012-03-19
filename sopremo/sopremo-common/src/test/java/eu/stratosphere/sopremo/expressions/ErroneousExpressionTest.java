@@ -14,7 +14,7 @@ public class ErroneousExpressionTest extends EvaluableExpressionTest<Unevaluable
 
 	@Test(expected = EvaluationException.class)
 	public void shouldThrowException() {
-		new UnevaluableExpression("TestExceptionMessage").evaluate(NullNode.getInstance(), this.context);
+		new UnevaluableExpression("TestExceptionMessage").evaluate(NullNode.getInstance(), null, this.context);
 
 	}
 }

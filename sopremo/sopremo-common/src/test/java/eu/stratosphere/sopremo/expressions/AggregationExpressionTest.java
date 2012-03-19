@@ -28,7 +28,7 @@ public class AggregationExpressionTest extends EvaluableExpressionTest<Aggregati
 	@Test
 	public void shouldAggregate() {
 		final IJsonNode result = new AggregationExpression(DefaultFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
-			this.context);
+			null, this.context);
 		Assert.assertEquals(new DoubleNode(3.0), result);
 	}
 }

@@ -33,7 +33,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		private static final long serialVersionUID = 9192628786637605317L;
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 			throw new EvaluationException();
 		}
 
@@ -49,7 +49,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		private static final long serialVersionUID = 9192628786637605317L;
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 			throw new EvaluationException();
 		}
 
@@ -71,7 +71,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		private static final long serialVersionUID = -6430819532311429108L;
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 			return node;
 		}
 
@@ -155,11 +155,12 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * 
 	 * @param node
 	 *        the node that should be evaluated or a special node representing containing several nodes
+	 * @param target TODO
 	 * @param context
 	 *        the context in which the node should be evaluated
 	 * @return the node resulting from the evaluation or several nodes wrapped in a special node type
 	 */
-	public abstract IJsonNode evaluate(IJsonNode node, EvaluationContext context);
+	public abstract IJsonNode evaluate(IJsonNode node, IJsonNode target, EvaluationContext context);
 
 	@Override
 	public int hashCode() {

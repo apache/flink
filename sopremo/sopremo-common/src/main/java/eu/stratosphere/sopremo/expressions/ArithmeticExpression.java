@@ -102,9 +102,9 @@ public class ArithmeticExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, context),
-			(NumericNode) this.secondOperand.evaluate(node, context));
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, null, context),
+			(NumericNode) this.secondOperand.evaluate(node, null, context));
 	}
 
 	@Override

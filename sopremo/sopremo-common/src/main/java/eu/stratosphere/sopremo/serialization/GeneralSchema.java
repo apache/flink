@@ -102,7 +102,7 @@ public class GeneralSchema implements Schema {
 		target.setField(this.mappings.size(), value.clone());
 
 		for (int i = 0; i < this.mappings.size(); i++) {
-			target.setField(i, this.mappings.get(i).evaluate(value, context));
+			target.setField(i, this.mappings.get(i).evaluate(value, null, context));
 		}
 
 		return target;

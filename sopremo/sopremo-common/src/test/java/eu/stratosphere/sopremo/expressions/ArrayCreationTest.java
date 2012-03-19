@@ -26,7 +26,7 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 		list.add(new ConstantExpression(IntNode.valueOf(0)));
 		list.add(new ConstantExpression(IntNode.valueOf(1)));
 
-		final IJsonNode result = new ArrayCreation(list).evaluate(IntNode.valueOf(42), this.context);
+		final IJsonNode result = new ArrayCreation(list).evaluate(IntNode.valueOf(42), null, this.context);
 
 		Assert.assertEquals(createArrayNode(IntNode.valueOf(0), IntNode.valueOf(1)), result);
 	}

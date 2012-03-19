@@ -39,9 +39,9 @@ public class ComparativeExpression extends BooleanExpression {
 	// return binaryOperator.evaluate(expr1.evaluate(input), expr2.evaluate(input));
 	// }
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, context),
-			this.expr2.evaluate(node, context)));
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, null, context),
+			this.expr2.evaluate(node, null, context)));
 	}
 
 	public BinaryOperator getBinaryOperator() {

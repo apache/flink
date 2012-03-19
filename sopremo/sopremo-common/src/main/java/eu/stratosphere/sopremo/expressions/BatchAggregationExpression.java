@@ -49,7 +49,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (this.lastInputCounter == context.getInputCounter())
 			return this.lastResult;
 
@@ -59,7 +59,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 			partial.getFunction().initialize();
 		for (final IJsonNode input : (ArrayNode) node)
 			for (final Partial partial : this.partials)
-				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, context), context);
+				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, null, context), context);
 
 		final IJsonNode[] results = new IJsonNode[this.partials.size()];
 		for (int index = 0; index < results.length; index++)
@@ -82,8 +82,8 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		}
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-			return ((IArrayNode) BatchAggregationExpression.this.evaluate(node, context)).get(this.index);
+		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+			return ((IArrayNode) BatchAggregationExpression.this.evaluate(node, null, context)).get(this.index);
 		}
 	}
 

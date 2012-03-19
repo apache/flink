@@ -59,10 +59,10 @@ public class TernaryExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, context), BooleanNode.class) == BooleanNode.TRUE)
-			return this.ifExpression.evaluate(node, context);
-		return this.thenExpression.evaluate(node, context);
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, null, context), BooleanNode.class) == BooleanNode.TRUE)
+			return this.ifExpression.evaluate(node, null, context);
+		return this.thenExpression.evaluate(node, null, context);
 	}
 
 	@Override

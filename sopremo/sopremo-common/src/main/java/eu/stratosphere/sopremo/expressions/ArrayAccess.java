@@ -74,7 +74,7 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (this.isSelectingAll())
 			return node;
 		final int size = ((IArrayNode) node).size();

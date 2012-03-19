@@ -27,7 +27,7 @@ public class ArrayProjection extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		// lazy spread
 		// TODO
 		// if (node instanceof StreamArrayNode)
@@ -41,7 +41,7 @@ public class ArrayProjection extends EvaluationExpression {
 		final IArrayNode array = (IArrayNode) node;
 		final ArrayNode arrayNode = new ArrayNode();
 		for (int index = 0, size = array.size(); index < size; index++)
-			arrayNode.add(this.expression.evaluate(array.get(index), context));
+			arrayNode.add(this.expression.evaluate(array.get(index), null, context));
 		return arrayNode;
 	}
 

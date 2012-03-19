@@ -36,7 +36,7 @@ public class ConstantExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		return this.constant;
 	}
 

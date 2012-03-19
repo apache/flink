@@ -43,7 +43,7 @@ public class ComparativeExpressionParameterizedTest {
 	@Ignore
 	public IJsonNode evaluate(final IJsonNode expr1, final BinaryOperator op, final IJsonNode expr2) {
 		return new ComparativeExpression(new InputSelection(0), op, new InputSelection(1)).evaluate(
-			createArrayNode(expr1, expr2), this.context);
+			createArrayNode(expr1, expr2), null, this.context);
 
 	}
 

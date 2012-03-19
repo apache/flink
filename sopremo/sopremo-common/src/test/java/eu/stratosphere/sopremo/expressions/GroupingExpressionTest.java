@@ -30,7 +30,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 		final GroupingExpression aggExpression = new GroupingExpression(new ObjectAccess("key"), new MethodCall("sum",
 			new ArrayProjection(new ObjectAccess("value"))));
 
-		final IJsonNode result = aggExpression.evaluate(input, this.context);
+		final IJsonNode result = aggExpression.evaluate(input, null, this.context);
 
 		final ArrayNode expected = new ArrayNode();
 		expected.add(createValueNode(23));

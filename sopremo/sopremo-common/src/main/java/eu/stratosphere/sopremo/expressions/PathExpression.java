@@ -50,10 +50,10 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		IJsonNode fragmentNode = node;
 		for (final EvaluationExpression fragment : this.fragments)
-			fragmentNode = fragment.evaluate(fragmentNode, context);
+			fragmentNode = fragment.evaluate(fragmentNode, null, context);
 		return fragmentNode;
 	}
 
@@ -175,7 +175,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		IJsonNode fragmentNode = node;
 		final List<EvaluationExpression> fragments = this.getFragments();
 		for (int index = 0; index < fragments.size() - 1; index++)
-			fragmentNode = fragments.get(index).evaluate(fragmentNode, context);
+			fragmentNode = fragments.get(index).evaluate(fragmentNode, null, context);
 		fragments.get(fragments.size() - 1).set(node, value, context);
 		return node;
 	}

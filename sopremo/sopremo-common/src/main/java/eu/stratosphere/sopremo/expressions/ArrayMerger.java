@@ -22,7 +22,7 @@ public class ArrayMerger extends EvaluationExpression {
 	private static final long serialVersionUID = -6884623565349727369L;
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		final Iterator<IJsonNode> arrays = ((ArrayNode) node).iterator();
 		final IArrayNode mergedArray = new ArrayNode();
 		IJsonNode nextNode;

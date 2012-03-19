@@ -42,7 +42,7 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 		batch.add(DefaultFunctions.AVERAGE);
 		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
-		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), this.context);
+		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), null, this.context);
 		final IJsonNode[] expected = { new IntNode(1 + 2 + 3 + 4 + 5),
 			new DoubleNode((double) (1 + 2 + 3 + 4 + 5) / 5),
 			new DoubleNode((double) (1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5) };

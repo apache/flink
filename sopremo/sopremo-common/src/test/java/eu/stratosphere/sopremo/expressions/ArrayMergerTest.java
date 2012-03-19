@@ -22,7 +22,7 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 			createArrayNode(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5))),
-			this.context);
+			null, this.context);
 		Assert.assertEquals(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 			createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 			createObjectNode("fieldName", 5)), result);
@@ -34,7 +34,7 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 			createArrayNode(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)), createArrayNode()),
-			this.context);
+			null, this.context);
 		Assert.assertEquals(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 			createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 			createObjectNode("fieldName", 5)), result);
@@ -46,7 +46,7 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 			createArrayNode(createArrayNode(null, createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 				createObjectNode("fieldName", 5)), createArrayNode(createObjectNode("fieldName", 1))),
-			this.context);
+			null, this.context);
 		Assert.assertEquals(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 			createObjectNode("fieldName", 3), createObjectNode("fieldName", 4),
 			createObjectNode("fieldName", 5)), result);
@@ -58,7 +58,7 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 			createArrayNode(
 				createArrayNode(NullNode.getInstance(), createObjectNode("fieldName", 2),
 					NullNode.getInstance()), createArrayNode(createObjectNode("fieldName", 1)),
-				createArrayNode(null, null, createObjectNode("fieldName", 3))), this.context);
+				createArrayNode(null, null, createObjectNode("fieldName", 3))), null, this.context);
 		Assert.assertEquals(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 			createObjectNode("fieldName", 3)), result);
 	}

@@ -44,10 +44,10 @@ public class MethodCall extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		final IJsonNode[] params = new IJsonNode[this.paramExprs.length];
 		for (int index = 0; index < params.length; index++)
-			params[index] = this.paramExprs[index].evaluate(node, context);
+			params[index] = this.paramExprs[index].evaluate(node, null, context);
 
 		return context.getFunctionRegistry().evaluate(this.function, JsonUtil.asArray(params), context);
 	}

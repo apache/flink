@@ -21,8 +21,8 @@ public class TraceExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		SopremoUtil.LOG.info(this.expression.evaluate(node, context));
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		SopremoUtil.LOG.info(this.expression.evaluate(node, null, context));
 		return node;
 	}
 

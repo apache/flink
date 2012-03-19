@@ -63,7 +63,7 @@ public class ObjectAccess extends EvaluationExpression {
 	 * such value exists.
 	 */
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (!node.isObject()) {
 			if (node.isNull() && this.safeDereference)
 				return node;

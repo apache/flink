@@ -24,7 +24,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(2),
-				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), this.context);
+				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), null, this.context);
 
 		Assert.assertEquals(BooleanNode.TRUE, result);
 	}
@@ -34,7 +34,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(0),
-				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), this.context);
+				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), null, this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}
@@ -44,7 +44,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_NOT_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(2),
-				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), this.context);
+				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), null, this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}
@@ -54,7 +54,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_NOT_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(0),
-				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), this.context);
+				createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))), null, this.context);
 
 		Assert.assertEquals(BooleanNode.TRUE, result);
 	}
@@ -64,7 +64,7 @@ public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementI
 		final IJsonNode result = new ElementInSetExpression(new InputSelection(0), Quantor.EXISTS_IN,
 			new InputSelection(1)).evaluate(
 			createArrayNode(IntNode.valueOf(2),
-				createArrayNode()), this.context);
+				createArrayNode()), null, this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}

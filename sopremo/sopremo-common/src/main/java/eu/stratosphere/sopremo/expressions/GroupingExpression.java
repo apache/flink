@@ -26,7 +26,7 @@ public class GroupingExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (((IArrayNode) node).size() == 0)
 			return new ArrayNode();
 
@@ -51,7 +51,7 @@ public class GroupingExpression extends EvaluationExpression {
 	protected List<ArrayNode> sortNodesWithKey(final IJsonNode node, final EvaluationContext context) {
 		final List<ArrayNode> nodes = new ArrayList<ArrayNode>();
 		for (final IJsonNode jsonNode : (IArrayNode) node)
-			nodes.add(JsonUtil.asArray(this.groupingExpression.evaluate(jsonNode, context), jsonNode));
+			nodes.add(JsonUtil.asArray(this.groupingExpression.evaluate(jsonNode, null, context), jsonNode));
 		Collections.sort(nodes, new Comparator<ArrayNode>() {
 			@Override
 			public int compare(final ArrayNode o1, final ArrayNode o2) {
@@ -65,7 +65,7 @@ public class GroupingExpression extends EvaluationExpression {
 		final ArrayNode values = new ArrayNode();
 		for (final IArrayNode compactArrayNode : group)
 			values.add(compactArrayNode.get(1));
-		return this.resultExpression.evaluate(values, context);
+		return this.resultExpression.evaluate(values, null, context);
 	}
 
 	@Override

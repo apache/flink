@@ -29,7 +29,7 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 	public void shouldCreateObjectAsIntended() {
 		final IJsonNode result = new ObjectCreation(new ObjectCreation.FieldAssignment("name", new ConstantExpression(
 			TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
-			IntNode.valueOf(30)))).evaluate(IntNode.valueOf(0), this.context);
+			IntNode.valueOf(30)))).evaluate(IntNode.valueOf(0), null, this.context);
 
 		Assert.assertEquals(createObjectNode("name", "testperson", "age", 30), result);
 	}
@@ -55,7 +55,7 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 
 		object.addMapping("birthday", new ConstantExpression(TextNode.valueOf("01.01.2000")));
 
-		final IJsonNode result = object.evaluate(IntNode.valueOf(0), this.context);
+		final IJsonNode result = object.evaluate(IntNode.valueOf(0), null, this.context);
 
 		Assert.assertEquals(createObjectNode("name", "testperson", "age", 30, "birthday", "01.01.2000"), result);
 	}

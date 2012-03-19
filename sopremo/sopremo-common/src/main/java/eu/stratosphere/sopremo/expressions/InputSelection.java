@@ -27,7 +27,7 @@ public class InputSelection extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (!node.isArray())
 			throw new EvaluationException("Cannot access index of non-array " + node.getClass().getSimpleName());
 		return ((IArrayNode) node).get(this.index);

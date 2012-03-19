@@ -33,9 +33,9 @@ public class OrExpression extends BooleanExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		for (final EvaluationExpression booleanExpression : this.expressions)
-			if (booleanExpression.evaluate(node, context) == BooleanNode.TRUE)
+			if (booleanExpression.evaluate(node, null, context) == BooleanNode.TRUE)
 				return BooleanNode.TRUE;
 		return BooleanNode.FALSE;
 	}

@@ -26,10 +26,10 @@ public class AggregationExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode nodes, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode nodes, IJsonNode target, final EvaluationContext context) {
 		this.function.initialize();
 		for (final IJsonNode node : (IArrayNode) nodes)
-			this.function.aggregate(this.preprocessing.evaluate(node, context), context);
+			this.function.aggregate(this.preprocessing.evaluate(node, null, context), context);
 		return this.function.getFinalAggregate();
 	}
 

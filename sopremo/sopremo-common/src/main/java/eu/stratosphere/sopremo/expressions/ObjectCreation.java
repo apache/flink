@@ -30,7 +30,7 @@ public class ObjectCreation extends ContainerExpression {
 		private static final long serialVersionUID = 5274811723343043990L;
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 			final ObjectNode objectNode = new ObjectNode();
 			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
 			while (elements.hasNext()) {
@@ -73,7 +73,7 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		final ObjectNode transformedNode = new ObjectNode();
 		for (final Mapping<?> mapping : this.mappings)
 			mapping.evaluate(transformedNode, node, context);
@@ -167,7 +167,7 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
-			final IJsonNode exprNode = this.getExpression().evaluate(node, context);
+			final IJsonNode exprNode = this.getExpression().evaluate(node, null, context);
 			transformedNode.putAll((IObjectNode) exprNode);
 		}
 
@@ -196,7 +196,7 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
-			final IJsonNode value = this.expression.evaluate(node, context);
+			final IJsonNode value = this.expression.evaluate(node, null, context);
 			// if (!value.isNull())
 			transformedNode.put(this.target, value);
 		}
