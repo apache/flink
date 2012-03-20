@@ -63,8 +63,6 @@ final class ReplayThread extends Thread {
 
 	private final AtomicBoolean restartRequested = new AtomicBoolean(false);
 
-	private final AtomicBoolean interruptCalled = new AtomicBoolean(false);
-
 	ReplayThread(final ExecutionVertexID vertexID, final ExecutionObserver executionObserver, final String taskName,
 			final boolean isCheckpointLocal, final boolean isCheckpointComplete,
 			final Map<ChannelID, ReplayOutputChannelBroker> outputBrokerMap) {
@@ -83,50 +81,37 @@ final class ReplayThread extends Thread {
 	@Override
 	public void run() {
 
-		while (true) {
+		// Now the actual program starts to run
+		changeExecutionState(ExecutionState.REPLAYING, null);
 
-			// Now the actual program starts to run
-			changeExecutionState(ExecutionState.REPLAYING, null);
+		// If the task has been canceled in the mean time, do not even start it
+		if (this.executionObserver.isCanceled()) {
+			changeExecutionState(ExecutionState.CANCELED, null);
+			return;
+		}
 
-			// If the task has been canceled in the mean time, do not even start it
+		// Reset all the output broker in case we here restarted
+		resetAllOutputBroker();
+
+		try {
+
+			// Replay the actual checkpoint
+			replayCheckpoint();
+
+			// Make sure, we enter the catch block when the task has been canceled
+			if (this.executionObserver.isCanceled()) {
+				throw new InterruptedException();
+			}
+
+		} catch (Exception e) {
+
 			if (this.executionObserver.isCanceled()) {
 				changeExecutionState(ExecutionState.CANCELED, null);
-				return;
+			} else {
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
 			}
 
-			// Reset all the output broker in case we here restarted
-			resetAllOutputBroker();
-
-			try {
-
-				// Replay the actual checkpoint
-				replayCheckpoint();
-
-				// Make sure, we enter the catch block when the task has been canceled
-				if (this.executionObserver.isCanceled()) {
-					throw new InterruptedException();
-				}
-
-			} catch (Exception e) {
-
-				if (isRestartRequested()) {
-					continue;
-				}
-
-				if (this.executionObserver.isCanceled()) {
-					changeExecutionState(ExecutionState.CANCELED, null);
-				} else {
-					changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
-				}
-
-				return;
-			}
-
-			if (isRestartRequested()) {
-				continue;
-			}
-
-			break;
+			return;
 		}
 
 		// Task finished running, but there may be some unconsumed data in the brokers
@@ -148,25 +133,6 @@ final class ReplayThread extends Thread {
 
 		// Finally, switch execution state to FINISHED and report to job manager
 		changeExecutionState(ExecutionState.FINISHED, null);
-	}
-
-	private boolean isRestartRequested() {
-
-		if (this.restartRequested.compareAndSet(true, false)) {
-			// Check if the interrupt call has already been made
-			if (!this.interruptCalled.compareAndSet(true, false)) {
-				try {
-					Thread.sleep(10L);
-				} catch (InterruptedException e) {
-				}
-				this.interruptCalled.set(false);
-			}
-			// Clear interrupted flag
-			Thread.interrupted();
-			return true;
-		}
-
-		return false;
 	}
 
 	private void resetAllOutputBroker() {
@@ -209,8 +175,8 @@ final class ReplayThread extends Thread {
 
 		changeExecutionState(ExecutionState.STARTING, null);
 		this.restartRequested.set(true);
-		interrupt();
-		this.interruptCalled.set(true);
+		// Fake transition to replaying here to prevent deadlocks
+		changeExecutionState(ExecutionState.REPLAYING, null);
 	}
 
 	private void replayCheckpoint() throws Exception {
@@ -235,6 +201,10 @@ final class ReplayThread extends Thread {
 		try {
 
 			while (true) {
+
+				if (this.restartRequested.compareAndSet(true, false)) {
+					metaDataIndex = 0;
+				}
 
 				// Try to locate the meta data file
 				final Path metaDataFile = checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX
@@ -302,10 +272,6 @@ final class ReplayThread extends Thread {
 							broker.outputEnvelope(transferEnvelope);
 
 							if (this.executionObserver.isCanceled()) {
-								return;
-							}
-
-							if (this.restartRequested.get()) {
 								return;
 							}
 						}
