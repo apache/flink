@@ -164,7 +164,7 @@ final class EnvelopeConsumptionLog {
 		}
 
 		synchronized (this) {
-			return this.announcedEnvelopesAsIntBuffer.hasRemaining();
+			return this.outstandingEnvelopesAsIntBuffer.hasRemaining();
 		}
 	}
 
