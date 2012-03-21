@@ -118,6 +118,8 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView
 	/**
 	 * Creates an new ChannelWriterOutputView that writes to the given channel. It uses only a single
 	 * memory segment for the buffering, which it takes from the writers return queue.
+	 * Note that this variant locks if no buffers are contained
+	 * in the return queue.
 	 * 
 	 * @param writer The writer to write to.
 	 * @param segmentSize The size of the memory segments.
@@ -151,7 +153,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView
 			final MemorySegment m = queue.poll();
 			if (m == null) {
 				// we get null if the queue is empty. that should not be the case if the reader was properly closed.
-				throw new RuntimeException("Bug in ChannelWriterOutputView: MemorySegments lost.");
+				throw new RuntimeException("ChannelWriterOutputView: MemorySegments have been taken from return queue by different actor.");
 			}
 			list.add(m);
 		}

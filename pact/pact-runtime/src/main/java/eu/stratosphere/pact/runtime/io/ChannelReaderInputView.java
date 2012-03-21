@@ -42,13 +42,15 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 	
 	private int numRequestsRemaining;				// the number of block requests remaining
 	
+	private final ArrayList<MemorySegment> freeMem;	// memory gathered once the work is done
+	
 	private boolean inLastBlock;					// flag indicating whether the view is already in the last block
 	
 	private boolean closed;							// flag indicating whether the reader is closed
 	
 	// --------------------------------------------------------------------------------------------
 	
-	
+
 	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, boolean waitForFirstBlock)
 	throws IOException
 	{
@@ -72,6 +74,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 		this.reader = reader;
 		this.numRequestsRemaining = numBlocks;
 		this.numSegments = memory.size();
+		this.freeMem = new ArrayList<MemorySegment>(this.numSegments);
 		
 		for (int i = 0; i < memory.size(); i++) {
 			sendReadRequest(memory.get(i));
@@ -90,7 +93,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 	}
 	
 	/**
-	 * Closes this InoutView, closing the underlying reader and returning all memory segments.
+	 * Closes this InputView, closing the underlying reader and returning all memory segments.
 	 * 
 	 * @return A list containing all memory segments originally supplied to this view.
 	 * @throws IOException Thrown, if the underlying reader could not be properly closed.
@@ -103,7 +106,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 		this.closed = true;
 		
 		// re-collect all memory segments
-		ArrayList<MemorySegment> list = new ArrayList<MemorySegment>(this.numSegments);
+		ArrayList<MemorySegment> list = this.freeMem;
 		final MemorySegment current = getCurrentSegment();
 		if (current != null) {
 			list.add(current);
@@ -199,7 +202,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 			}
 		} else {
 			// directly add it to the end of the return queue
-			this.reader.getReturnQueue().add(seg);
+			this.freeMem.add(seg);
 		}
 	}
 }
