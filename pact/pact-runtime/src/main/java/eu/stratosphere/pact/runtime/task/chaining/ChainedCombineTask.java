@@ -237,6 +237,10 @@ public class ChainedCombineTask implements ChainedTask
 	public void close()
 	{
 		this.inputCollector.close();
+		
+		if (this.exception != null)
+			throw new RuntimeException("The combiner failed due to an exception.", 
+				this.exception.getCause() == null ? this.exception : this.exception.getCause());
 	}
 	
 	// --------------------------------------------------------------------------------------------
