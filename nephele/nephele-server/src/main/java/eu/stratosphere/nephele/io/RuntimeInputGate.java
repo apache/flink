@@ -17,10 +17,12 @@ package eu.stratosphere.nephele.io;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -39,11 +41,9 @@ import eu.stratosphere.nephele.types.Record;
 
 /**
  * In Nephele input gates are a specialization of general gates and connect input channels and record readers. As
- * channels, input
- * gates are always parameterized to a specific type of record which they can transport. In contrast to output gates
- * input gates
- * can be associated with a {@link DistributionPattern} object which dictates the concrete wiring between two groups of
- * vertices.
+ * channels, input gates are always parameterized to a specific type of record which they can transport. In contrast to
+ * output gates input gates can be associated with a {@link DistributionPattern} object which dictates the concrete
+ * wiring between two groups of vertices.
  * <p>
  * This class is in general not thread-safe.
  * 
@@ -76,17 +76,13 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	/**
 	 * Queue with indices of channels that store at least one available record.
 	 */
-	private final ArrayDeque<Integer> availableChannels = new ArrayDeque<Integer>();
-
-	/**
-	 * The listener objects registered for this input gate.
-	 */
-	private InputGateListener[] inputGateListeners = null;
+	private final BlockingQueue<Integer> availableChannels = new LinkedBlockingQueue<Integer>();
 
 	/**
 	 * The listener object to be notified when a channel has at least one record available.
 	 */
-	private RecordAvailabilityListener<T> recordAvailabilityListener = null;
+	private final AtomicReference<RecordAvailabilityListener<T>> recordAvailabilityListener = new AtomicReference<RecordAvailabilityListener<T>>(
+		null);
 
 	/**
 	 * If the value of this variable is set to <code>true</code>, the input gate is closed.
@@ -103,12 +99,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	private Thread executingThread = null;
 
-	/**
-	 * The Systemtime at the first arrival of a record
-	 */
-	private long executionstart = -1;
-
-	private int numrecords = 0;
 	/**
 	 * Constructs a new runtime input gate.
 	 * 
@@ -197,15 +187,15 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		switch (newChannelType) {
 		case FILE:
 			newInputChannel = new FileInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-					oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
+				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
 			break;
 		case INMEMORY:
 			newInputChannel = new InMemoryInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-					oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
+				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
 			break;
 		case NETWORK:
 			newInputChannel = new NetworkInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-					oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
+				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
 			break;
 		default:
 			LOG.error("Unknown input channel type");
@@ -263,10 +253,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-		final CompressionLevel compressionLevel) {
+			final CompressionLevel compressionLevel) {
 
 		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),
-				this.deserializer, channelID, compressionLevel);
+			this.deserializer, channelID, compressionLevel);
 		addInputChannel(enic);
 
 		return enic;
@@ -277,10 +267,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-		final CompressionLevel compressionLevel) {
+			final CompressionLevel compressionLevel) {
 
 		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(),
-				this.deserializer, channelID, compressionLevel);
+			this.deserializer, channelID, compressionLevel);
 		addInputChannel(efic);
 
 		return efic;
@@ -291,10 +281,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-		final CompressionLevel compressionLevel) {
+			final CompressionLevel compressionLevel) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
-				this.deserializer, channelID, compressionLevel);
+			this.deserializer, channelID, compressionLevel);
 		addInputChannel(eimic);
 
 		return eimic;
@@ -327,10 +317,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
 			try {
-				if(this.executionstart == -1){
-					//save time for arrival of first record
-					this.executionstart = System.currentTimeMillis();
-				}
 				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
 			} catch (EOFException e) {
 				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
@@ -347,7 +333,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				this.channelToReadFrom = -1;
 			}
 		}
-		this.numrecords++;
 		return record;
 	}
 
@@ -356,14 +341,12 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public void notifyRecordIsAvailable(int channelIndex) {
-		synchronized (this.availableChannels) {
 
-			this.availableChannels.add(Integer.valueOf(channelIndex));
-			this.availableChannels.notify();
+		this.availableChannels.add(Integer.valueOf(channelIndex));
 
-			if (this.recordAvailabilityListener != null) {
-				this.recordAvailabilityListener.reportRecordAvailability(this);
-			}
+		final RecordAvailabilityListener<T> listener = this.recordAvailabilityListener.get();
+		if (listener != null) {
+			listener.reportRecordAvailability(this);
 		}
 	}
 
@@ -376,21 +359,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	public int waitForAnyChannelToBecomeAvailable() throws InterruptedException {
 
-		synchronized (this.availableChannels) {
-
-			while (this.availableChannels.isEmpty()) {
-
-				// notify the listener objects
-				if (this.inputGateListeners != null) {
-					for (int i = 0; i < this.inputGateListeners.length; ++i) {
-						this.inputGateListeners[i].waitingForAnyChannel();
-					}
-				}
-				this.availableChannels.wait();
-			}
-
-			return this.availableChannels.removeFirst().intValue();
-		}
+		return this.availableChannels.take().intValue();
 	}
 
 	/**
@@ -436,25 +405,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	@Deprecated
 	public List<AbstractInputChannel<T>> getInputChannels() {
 		return inputChannels;
-	}
-
-	/**
-	 * Registers a new listener object for this input gate.
-	 * 
-	 * @param inputGateListener
-	 *        the listener object to register
-	 */
-	public void registerInputGateListener(InputGateListener inputGateListener) {
-
-		if (this.inputGateListeners == null) {
-			this.inputGateListeners = new InputGateListener[1];
-			this.inputGateListeners[0] = inputGateListener;
-		} else {
-			InputGateListener[] tmp = this.inputGateListeners;
-			this.inputGateListeners = new InputGateListener[tmp.length + 1];
-			System.arraycopy(tmp, 0, this.inputGateListeners, 0, tmp.length);
-			this.inputGateListeners[tmp.length] = inputGateListener;
-		}
 	}
 
 	/**
@@ -512,14 +462,9 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	@Override
 	public void registerRecordAvailabilityListener(final RecordAvailabilityListener<T> listener) {
 
-		synchronized (this.availableChannels) {
-
-			if (this.recordAvailabilityListener != null) {
-				throw new IllegalStateException(this.recordAvailabilityListener
-					+ " is already registered as a record availability listener");
-			}
-
-			this.recordAvailabilityListener = listener;
+		if (!this.recordAvailabilityListener.compareAndSet(null, listener)) {
+			throw new IllegalStateException(this.recordAvailabilityListener
+				+ " is already registered as a record availability listener");
 		}
 	}
 
@@ -535,30 +480,14 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				return true;
 			}
 
-			synchronized (this.availableChannels) {
-
-				return !(this.availableChannels.isEmpty());
-			}
+			return !(this.availableChannels.isEmpty());
 		}
 
 		return true;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public long getExecutionStart(){
-		return this.executionstart;
-	}
 	public void notifyDataUnitConsumed(final int channelIndex) {
 
 		this.channelToReadFrom = -1;
-
-	}
-
-	@Override
-	public int getNumRecords() {
-		return this.numrecords;
 	}
 }

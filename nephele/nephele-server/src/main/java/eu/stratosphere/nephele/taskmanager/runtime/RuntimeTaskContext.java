@@ -16,17 +16,10 @@
 package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.AbstractID;
@@ -48,13 +41,6 @@ import eu.stratosphere.nephele.types.Record;
 
 public final class RuntimeTaskContext implements BufferProvider, AsynchronousEventListener, TaskContext {
 
-	/**
-	 * The log object used for debugging.
-	 */
-	private static final Log LOG = LogFactory.getLog(RuntimeTaskContext.class);
-
-	private static final long NANO_TO_MILLISECONDS = 1000 * 1000;
-
 	private final LocalBufferPool localBufferPool;
 
 	private final RuntimeTask task;
@@ -66,8 +52,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
 	private final EnvelopeConsumptionLog envelopeConsumptionLog;
-
-	private long startTime;
 
 	RuntimeTaskContext(final RuntimeTask task, final CheckpointState initialCheckpointState,
 			final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
@@ -99,8 +83,6 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 		this.envelopeConsumptionLog = new EnvelopeConsumptionLog(task.getVertexID(), environment);
-
-		this.startTime = System.currentTimeMillis();
 	}
 
 	TransferEnvelopeDispatcher getTransferEnvelopeDispatcher() {
@@ -198,34 +180,17 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 		final RuntimeEnvironment environment = this.task.getRuntimeEnvironment();
 
-		System.out.println("PACT input/output for task " + environment.getTaskNameWithIndex() + ": "
-				+ this.task.getPACTInputOutputRatio());
-
 		// if (this.environment.getExecutingThread() != Thread.currentThread()) {
 		// throw new ConcurrentModificationException(
 		// "initialExecutionResourcesExhausted must be called from the task that executes the user code");
 		// }
-
-		// Construct a resource utilization snapshot
-		final long timestamp = System.currentTimeMillis();
-		if (environment.getInputGate(0) != null
-				&& environment.getInputGate(0).getExecutionStart() < timestamp) {
-			this.startTime = environment.getInputGate(0).getExecutionStart();
-		}
-		LOG.info("Task " + environment.getTaskNameWithIndex() + " started " + this.startTime);
-		// Get CPU-Usertime in percent
-		ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-		long userCPU = (threadBean.getCurrentThreadUserTime() / NANO_TO_MILLISECONDS) * 100
-				/ (timestamp - this.startTime);
-		LOG.info("USER CPU for " + environment.getTaskNameWithIndex() + " : " + userCPU);
+		
 		// collect outputChannelUtilization
 		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
 		long totalOutputAmount = 0;
-		int numrec = 0;
 		long averageOutputRecordSize = 0;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
-			numrec += outputGate.getNumRecords();
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
 				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 				channelUtilization.put(outputChannel.getID(),
@@ -234,18 +199,12 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			}
 		}
 
-		if (numrec != 0) {
-			averageOutputRecordSize = totalOutputAmount / numrec;
-		}
 		// FIXME (marrus) it is not about what we received but what we processed yet
 		boolean allClosed = true;
-		int numinrec = 0;
 
 		long totalInputAmount = 0;
-		long averageInputRecordSize = 0;
 		for (int i = 0; i < environment.getNumberOfInputGates(); ++i) {
 			final InputGate<? extends Record> inputGate = environment.getInputGate(i);
-			numinrec += inputGate.getNumRecords();
 			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
 				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
 				channelUtilization.put(inputChannel.getID(),
@@ -260,19 +219,11 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-
 			}
 		}
-		if (numinrec != 0) {
-			averageInputRecordSize = totalInputAmount / numinrec;
-		}
-
-		final ResourceUtilizationSnapshot rus = new ResourceUtilizationSnapshot(timestamp, channelUtilization,
-				userCPU, totalInputAmount, totalOutputAmount, averageOutputRecordSize, averageInputRecordSize,
-				this.task.getPACTInputOutputRatio(), allClosed);
 
 		System.out.println("Making checkpoint decision for " + environment.getTaskNameWithIndex());
-		final boolean checkpointDecision = CheckpointDecision.getDecision(this.task, rus);
+		final boolean checkpointDecision = false; /*CheckpointDecision.getDecision(this.task, rus);*/
 		System.out.println("Checkpoint decision for " + environment.getTaskNameWithIndex() + " is "
 			+ checkpointDecision);
 		this.ephemeralCheckpoint.setCheckpointDecisionSynchronously(checkpointDecision);

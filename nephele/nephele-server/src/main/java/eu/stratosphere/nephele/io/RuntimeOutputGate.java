@@ -69,11 +69,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	private final Class<T> type;
 
 	/**
-	 * The listener objects registered for this output gate.
-	 */
-	private OutputGateListener[] outputGateListeners = null;
-
-	/**
 	 * The thread which executes the task connected to the output gate.
 	 */
 	private Thread executingThread = null;
@@ -82,11 +77,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * Stores whether all records passed to this output gate shall be transmitted through all connected output channels.
 	 */
 	private final boolean isBroadcast;
-	
-	/**
-	 * Stores the number of emitted records
-	 */
-	private int numrecords = 0;
 
 	/**
 	 * Constructs a new runtime output gate.
@@ -372,7 +362,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 				}
 			}
 		}
-		this.numrecords++;
 	}
 
 	/**
@@ -381,23 +370,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	@Override
 	public List<AbstractOutputChannel<T>> getOutputChannels() {
 		return this.outputChannels;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerOutputGateListener(final OutputGateListener outputGateListener) {
-
-		if (this.outputGateListeners == null) {
-			this.outputGateListeners = new OutputGateListener[1];
-			this.outputGateListeners[0] = outputGateListener;
-		} else {
-			OutputGateListener[] tmp = this.outputGateListeners;
-			this.outputGateListeners = new OutputGateListener[tmp.length + 1];
-			System.arraycopy(tmp, 0, this.outputGateListeners, 0, tmp.length);
-			this.outputGateListeners[tmp.length] = outputGateListener;
-		}
 	}
 
 	/**
@@ -437,20 +409,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void channelCapacityExhausted(final int channelIndex) {
-
-		// notify the listener objects
-		if (this.outputGateListeners != null) {
-			for (int i = 0; i < this.outputGateListeners.length; ++i) {
-				this.outputGateListeners[i].channelCapacityExhausted(channelIndex);
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public boolean isBroadcast() {
 
 		return this.isBroadcast;
@@ -476,17 +434,5 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 		while (it.hasNext()) {
 			it.next().releaseAllResources();
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void outputBufferSent(final ChannelID channelID) {
-
-		// Nothing to do here
-	}
-	public int getNumRecords(){
-		return this.numrecords;
 	}
 }

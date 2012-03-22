@@ -21,6 +21,7 @@ package eu.stratosphere.nephele.io;
  * 
  * @author stanik
  */
+@Deprecated
 public interface InputGateListener {
 
 	/**
