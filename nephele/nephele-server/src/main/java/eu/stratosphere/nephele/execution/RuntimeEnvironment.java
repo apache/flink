@@ -164,8 +164,6 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 */
 	private volatile String taskName;
 
-	private Boolean force = null;
-
 	/**
 	 * Creates a new runtime environment object which contains the runtime information for the encapsulated Nephele
 	 * task.
@@ -1159,34 +1157,5 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		}
 
 		return Collections.unmodifiableSet(inputChannelIDs);
-	}
-
-	// DW: Start of temporary code
-	@Override
-	public void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes) {
-
-		if (numberOfConsumedBytes < 0L) {
-			return;
-		}
-
-		if (numberOfProducedBytes < 0L) {
-			return;
-		}
-
-		if (this.executionObserver != null) {
-			this.executionObserver.reportPACTDataStatistics(numberOfConsumedBytes, numberOfProducedBytes);
-		}
-	}
-
-	// DW: End of temporary code
-
-	@Override
-	public void isForced(boolean force) {
-		this.force = force;
-	}
-
-	@Override
-	public Boolean getForced() {
-		return this.force;
 	}
 }

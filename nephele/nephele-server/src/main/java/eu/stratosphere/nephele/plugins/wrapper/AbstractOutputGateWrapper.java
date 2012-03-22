@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.OutputGateListener;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -226,15 +225,6 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void channelCapacityExhausted(final int channelIndex) {
-
-		this.wrappedOutputGate.channelCapacityExhausted(channelIndex);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public boolean isBroadcast() {
 
 		return this.wrappedOutputGate.isBroadcast();
@@ -314,23 +304,5 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 			final ChannelID channelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedOutputGate.createInMemoryOutputChannel(outputGate, channelID, compressionLevel);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerOutputGateListener(final OutputGateListener outputGateListener) {
-
-		this.wrappedOutputGate.registerOutputGateListener(outputGateListener);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void outputBufferSent(final ChannelID channelID) {
-
-		this.wrappedOutputGate.outputBufferSent(channelID);
 	}
 }

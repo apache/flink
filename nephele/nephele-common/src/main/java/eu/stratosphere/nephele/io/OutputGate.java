@@ -74,15 +74,6 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	void flush() throws IOException, InterruptedException;
 
 	/**
-	 * This method is called by one of the attached output channel when its
-	 * capacity is currently exhausted and no more data can be written to the channel.
-	 * 
-	 * @param channelIndex
-	 *        the index of the exhausted output channel.
-	 */
-	void channelCapacityExhausted(int channelIndex);
-
-	/**
 	 * Checks if this output gate operates in broadcast mode, i.e. all records passed to it are transferred through all
 	 * connected output channels.
 	 * 
@@ -170,26 +161,4 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 */
 	InMemoryOutputChannel<T> createInMemoryOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
 			CompressionLevel compressionLevel);
-
-	/**
-	 * Registers a new listener object for this output gate.
-	 * 
-	 * @param outputGateListener
-	 *        the listener object to register
-	 */
-	void registerOutputGateListener(OutputGateListener outputGateListener);
-
-	/**
-	 * This method is called by one of the attached output channels to indicate that the buffer which is internally used
-	 * to store written records has been forwarded to the next step in the processing pipeline.
-	 * 
-	 * @param channelID
-	 *        the ID of the output channel which has forwarded its buffer
-	 */
-	void outputBufferSent(ChannelID channelID);
-	/**
-	 * Returns the number of emitted records for this gate.
-	 * 
-	 */
-	int getNumRecords();
 }

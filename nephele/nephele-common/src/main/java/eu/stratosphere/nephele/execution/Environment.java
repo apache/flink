@@ -92,10 +92,6 @@ public interface Environment {
 	 *        the user thread which has finished
 	 */
 	void userThreadFinished(Thread userThread);
-	
-	// DW: Start of temporary code
-	void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes);
-	// DW: End of temporary code
 
 	/**
 	 * Returns the input split provider assigned to this environment.
@@ -237,8 +233,4 @@ public interface Environment {
 	 * @return the IDs of all the input channels connected to the gate with the given ID
 	 */
 	Set<ChannelID> getInputChannelIDsOfGate(GateID gateID);
-	
-	void isForced(boolean force);
-	
-	Boolean getForced();
 }

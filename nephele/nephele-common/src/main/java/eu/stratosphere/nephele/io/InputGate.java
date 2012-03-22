@@ -109,14 +109,6 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	void close() throws IOException, InterruptedException;
 
 	/**
-	 * Registers a new listener object for this input gate.
-	 * 
-	 * @param inputGateListener
-	 *        the listener object to register
-	 */
-	void registerInputGateListener(InputGateListener inputGateListener);
-
-	/**
 	 * Returns the {@link DistributionPattern} associated with this input gate.
 	 * 
 	 * @return the {@link DistributionPattern} associated with this input gate
@@ -186,13 +178,4 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 * @throws InterruptedException
 	 */
 	boolean hasRecordAvailable() throws IOException, InterruptedException;
-	
-	/**
-	 * returns the time of the first reading of a record.
-	 * @return time of execution start
-	 */
-	public long getExecutionStart();
-
-	int getNumRecords();
-
 }

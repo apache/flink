@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.io;
 
+@Deprecated
 public interface OutputGateListener {
 
 	void channelCapacityExhausted(int channelIndex);

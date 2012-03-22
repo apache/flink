@@ -78,13 +78,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
 
-	// DW: Start of temporary code
-	private double pactInputOutputRatioSum = 0.0;
-
-	private int numberOfPactInputOutputRatioEntries = 0;
-
-	// DW: End of temporay code
-
 	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
 			final CheckpointState initialCheckpointState, final TaskManager taskManager) {
 
@@ -382,16 +375,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public void registerProfiler(final TaskManagerProfiler taskManagerProfiler, final Configuration jobConfiguration) {
 
 		taskManagerProfiler.registerExecutionListener(this, jobConfiguration);
-
-		for (int i = 0; i < this.environment.getNumberOfInputGates(); i++) {
-			taskManagerProfiler.registerInputGateListener(this.vertexID, jobConfiguration,
-				this.environment.getInputGate(i));
-		}
-
-		for (int i = 0; i < this.environment.getNumberOfOutputGates(); i++) {
-			taskManagerProfiler.registerOutputGateListener(this.vertexID, jobConfiguration,
-				this.environment.getOutputGate(i));
-		}
 	}
 
 	/**
@@ -412,8 +395,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public void unregisterProfiler(final TaskManagerProfiler taskManagerProfiler) {
 
 		if (taskManagerProfiler != null) {
-			taskManagerProfiler.unregisterOutputGateListeners(this.vertexID);
-			taskManagerProfiler.unregisterInputGateListeners(this.vertexID);
 			taskManagerProfiler.unregisterExecutionListener(this.vertexID);
 		}
 	}
@@ -440,25 +421,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 		return this.executionState;
 	}
-
-	// DW: Start of temporary code
-	@Override
-	public void reportPACTDataStatistics(final long numberOfConsumedBytes, final long numberOfProducedBytes) {
-
-		this.pactInputOutputRatioSum += ((double) numberOfProducedBytes / (double) numberOfConsumedBytes);
-		++this.numberOfPactInputOutputRatioEntries;
-	}
-
-	double getPACTInputOutputRatio() {
-
-		if (this.numberOfPactInputOutputRatioEntries == 0) {
-			return -1.0;
-		}
-
-		return (this.pactInputOutputRatioSum / (double) this.numberOfPactInputOutputRatioEntries);
-	}
-
-	// DW: End of temporary code
 
 	/**
 	 * Registers a checkpoint decision requester object with this task.

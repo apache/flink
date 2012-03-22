@@ -178,16 +178,6 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	}
 
 	/**
-	 * This method is called by the processing framework to
-	 * indicate the corresponding {@link OutputChannel} is currently
-	 * exhausted and no more data can be written into the channel.
-	 */
-	public void channelCapacityExhausted() {
-		// Forward call to output gate
-		this.outputGate.channelCapacityExhausted(this.getChannelIndex());
-	}
-
-	/**
 	 * Returns <code>true</code> if this channel is connected to an output gate which operates in broadcast mode,
 	 * <code>false</code> otherwise.
 	 * 
