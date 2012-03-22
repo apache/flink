@@ -322,6 +322,8 @@ public class FailingJobITCase {
 
 		private RecordWriter<FailingJobRecord> recordWriter;
 
+		private volatile boolean isCanceled = false;
+
 		/**
 		 * {@inheritDoc}
 		 */
@@ -358,7 +360,19 @@ public class FailingJobITCase {
 					throw new RuntimeException("Runtime exception in " + getEnvironment().getTaskName() + " "
 						+ getIndexInSubtaskGroup());
 				}
+
+				if (this.isCanceled) {
+					break;
+				}
 			}
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void cancel() {
+			this.isCanceled = true;
 		}
 	}
 
