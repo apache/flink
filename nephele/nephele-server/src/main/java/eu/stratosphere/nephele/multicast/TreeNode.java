@@ -108,6 +108,15 @@ public class TreeNode implements Comparable<TreeNode> {
 		return this.nodeConnectionInfo.compareTo(o.nodeConnectionInfo);
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (o instanceof TreeNode) {
+			return this.nodeConnectionInfo.equals(((TreeNode) o).nodeConnectionInfo);
+		} else {
+			return false;
+		}
+	}
+
 	public int getDistance(TreeNode o) {
 		return this.instance.getDistance(o.instance);
 	}
@@ -177,7 +186,7 @@ public class TreeNode implements Comparable<TreeNode> {
 	private void printRecursiveTree(StringBuilder sb) {
 		if (this.children.size() > 0) {
 			sb.append("STRUCT ");
-			
+
 			sb.append(this.nodeConnectionInfo);
 
 			for (TreeNode n : this.children) {

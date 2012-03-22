@@ -254,7 +254,8 @@ public class MulticastManager implements ChannelLookupProtocol {
 			actualnode = connectedNodes.pollFirst();
 
 		}
-		System.out.println(rootnode.printTree());
+		LOG.info("created multicast tree with following topology:\n" + rootnode.printTree());
+
 		return rootnode.createForwardingTable();
 
 	}
@@ -277,7 +278,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 				String actualhostname = values[0];
 				for (TreeNode n : nodes) {
 					if (n.toString().equals(actualhostname)) {
-						// we found the node.. connect children
+						// we found the node.. connect the children
 						for (int i = 1; i < values.length; i++) {
 							for (TreeNode childnode : nodes) {
 								if (childnode.toString().equals(values[i])) {
@@ -288,6 +289,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 					}
 				}
 			}
+			br.close();
 			// First node is root.. create tree. easy
 			return nodes.getFirst().createForwardingTable();
 
@@ -396,18 +398,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 				outputChannels.add(c);
 			}
 		}
-
-		/*
-		 * for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
-		 * System.out.println("Out channel ID: "
-		 * + c.getID()
-		 * + " connected channel: "
-		 * + c.getConnectedChannelID()
-		 * + " target instance: "
-		 * + eg.getVertexByChannelID(c.getConnectedChannelID()).getAllocatedResource().getInstance()
-		 * .getInstanceConnectionInfo());
-		 * }
-		 */
 
 		final LinkedList<TreeNode> treenodes = new LinkedList<TreeNode>();
 
@@ -525,7 +515,9 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			}
 
+			br.close();
 			in.close();
+			fstream.close();
 		} catch (Exception e) {
 			System.err.println("Error reading penalty file: " + e.getMessage());
 		}

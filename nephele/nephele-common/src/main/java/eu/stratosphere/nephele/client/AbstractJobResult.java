@@ -151,10 +151,8 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 
 		if (this.description == null) {
 
-			if (this.description != null) {
-				return false;
-			}
-
+			// Do nothing.
+			
 		} else {
 
 			if (!this.description.equals(ajr.getDescription())) {
