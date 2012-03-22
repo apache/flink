@@ -163,17 +163,17 @@ public final class CheckpointUtils {
 		final Path localChPath = getLocalCheckpointPath();
 
 		try {
-			removeCheckpoint(new Path(localChPath + Path.SEPARATOR + METADATA_PREFIX));
+			removeCheckpointMetaData(new Path(localChPath + Path.SEPARATOR + METADATA_PREFIX));
 
 			final Path distributedChPath = getDistributedCheckpointPath();
 			if (distributedChPath != null) {
-				removeCheckpoint(new Path(distributedChPath + Path.SEPARATOR + METADATA_PREFIX));
+				removeCheckpointMetaData(new Path(distributedChPath + Path.SEPARATOR + METADATA_PREFIX));
 			}
 		} catch (IOException e) {
 		}
 	}
 
-	private static void removeCheckpoint(final Path pathPrefix) throws IOException {
+	private static void removeCheckpointMetaData(final Path pathPrefix) throws IOException {
 
 		Path p = pathPrefix.suffix(COMPLETED_CHECKPOINT_SUFFIX);
 		FileSystem fs = p.getFileSystem();

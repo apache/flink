@@ -589,6 +589,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		if (this.inputSplitManager != null) {
 			this.inputSplitManager.unregisterJob(executionGraph);
 		}
+
+		// Remove all the checkpoints of the job
+		removeAllCheckpoints(executionGraph);
 	}
 
 	/**
@@ -980,15 +983,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	private void removeAllCheckpoints(final ExecutionGraph executionGraph) {
 
-		final InternalJobStatus jobStatus = executionGraph.getJobStatus();
-		if (jobStatus != InternalJobStatus.FINISHED) {
-			LOG.error("removeAllCheckpoints called for an unsuccesfull job, ignoring request");
-		}
-
-		final List<ExecutionVertex> verticesWithCheckpoints = executionGraph.getVerticesWithCheckpoints();
 		// Group vertex IDs by assigned instance
 		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap = new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
-		final Iterator<ExecutionVertex> it = verticesWithCheckpoints.iterator();
+		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
 		while (it.hasNext()) {
 
 			final ExecutionVertex vertex = it.next();
@@ -1022,11 +1019,21 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				continue;
 			}
 
-			try {
-				abstractInstance.removeCheckpoints(entry.getValue());
-			} catch (IOException ioe) {
-				LOG.error(StringUtils.stringifyException(ioe));
-			}
+			final Runnable runnable = new Runnable() {
+
+				@Override
+				public void run() {
+
+					try {
+						abstractInstance.removeCheckpoints(entry.getValue());
+					} catch (IOException ioe) {
+						LOG.error(StringUtils.stringifyException(ioe));
+					}
+				}
+			};
+
+			// Hand it over to the executor service
+			this.executorService.execute(runnable);
 		}
 	}
 
@@ -1067,11 +1074,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 			// Cancel all remaining tasks
 			cancelJob(executionGraph);
-		}
-
-		// Remove all checkpoints for a successfully finished job
-		if (newJobStatus == InternalJobStatus.FINISHED) {
-			removeAllCheckpoints(executionGraph);
 		}
 
 		if (newJobStatus == InternalJobStatus.CANCELED || newJobStatus == InternalJobStatus.FAILED

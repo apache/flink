@@ -35,7 +35,9 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInpu
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
-final class EnvelopeConsumptionLog {
+public final class EnvelopeConsumptionLog {
+
+	private static final String ENVELOPE_CONSUMPTION_LOG_PREFIX = "cl_";
 
 	private static final Log LOG = LogFactory.getLog(EnvelopeConsumptionLog.class);
 
@@ -69,8 +71,7 @@ final class EnvelopeConsumptionLog {
 		this.environment = environment;
 
 		// Check if there is a log file from a previous execution
-		final String fileName = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH) + File.separator + "cl_" + this.vertexID;
+		final String fileName = constructFileName(vertexID);
 
 		this.logFile = new File(fileName);
 
@@ -103,6 +104,13 @@ final class EnvelopeConsumptionLog {
 		if (this.numberOfInitialLogEntries > 0) {
 			loadNextOutstandingEnvelopes();
 		}
+	}
+
+	private static String constructFileName(final ExecutionVertexID vertexID) {
+
+		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH) + File.separator + ENVELOPE_CONSUMPTION_LOG_PREFIX
+			+ vertexID;
 	}
 
 	void reportEnvelopeAvailability(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
@@ -448,5 +456,14 @@ final class EnvelopeConsumptionLog {
 	private static boolean getDataAvailability(final int entry) {
 
 		return ((entry & 0x01) > 0);
+	}
+
+	public static void removeLog(final ExecutionVertexID vertexID) {
+
+		if (vertexID == null) {
+			throw new IllegalArgumentException("Argument vertexID must not be null");
+		}
+
+		new File(constructFileName(vertexID)).delete();
 	}
 }
