@@ -1434,36 +1434,6 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	/**
-	 * Returns a list of vertices which are contained in this execution graph and have a finished checkpoint.
-	 * 
-	 * @return list of vertices which are contained in this execution graph and have a finished checkpoint
-	 */
-	public List<ExecutionVertex> getVerticesWithCheckpoints() {
-
-		final List<ExecutionVertex> list = new ArrayList<ExecutionVertex>();
-		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
-
-		// In the current implementation we just look for vertices which have outgoing file channels
-		while (it.hasNext()) {
-
-			final ExecutionGroupVertex groupVertex = it.next();
-			for (int i = 0; i < groupVertex.getNumberOfForwardLinks(); i++) {
-
-				if (groupVertex.getForwardEdge(i).getChannelType() == ChannelType.FILE) {
-
-					for (int j = 0; j < groupVertex.getCurrentNumberOfGroupMembers(); j++) {
-						list.add(groupVertex.getGroupMember(j));
-					}
-
-					break;
-				}
-			}
-		}
-
-		return list;
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override

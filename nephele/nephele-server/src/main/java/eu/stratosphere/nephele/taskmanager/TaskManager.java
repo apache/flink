@@ -77,6 +77,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.runtime.EnvelopeConsumptionLog;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -835,12 +836,27 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+	public void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
 
-		final Iterator<ExecutionVertexID> it = listOfVertexIDs.iterator();
-		while (it.hasNext()) {
-			CheckpointUtils.removeCheckpoint(it.next());
-		}
+		final Thread checkpointRemovalThread = new Thread("Checkpoint removal thread") {
+
+			@Override
+			public void run() {
+
+				final Iterator<ExecutionVertexID> it = listOfVertexIDs.iterator();
+				while (it.hasNext()) {
+
+					final ExecutionVertexID vertexID = it.next();
+
+					// Try to remove the envelope consumption log first
+					EnvelopeConsumptionLog.removeLog(vertexID);
+
+					CheckpointUtils.removeCheckpoint(vertexID);
+				}
+			}
+		};
+
+		checkpointRemovalThread.start();
 	}
 
 	/**
