@@ -137,7 +137,6 @@ public final class RecoveryLogic {
 			}
 		}
 
-		LOG.info("Recovery FINISHED at " + System.currentTimeMillis());
 		return true;
 	}
 

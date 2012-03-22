@@ -85,8 +85,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	private final Map<ChannelID, TransferEnvelopeReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, TransferEnvelopeReceiverList>();
 
 	public ByteBufferedChannelManager(final ChannelLookupProtocol channelLookupService,
-			final InstanceConnectionInfo localInstanceConnectionInfo)
-												throws IOException {
+			final InstanceConnectionInfo localInstanceConnectionInfo) throws IOException {
 
 		this.channelLookupService = channelLookupService;
 
@@ -562,7 +561,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	public void logBufferUtilization() {
 
-		System.out.println("Buffer utilization for at " + System.currentTimeMillis());
+		System.out.println("Buffer utilization at " + System.currentTimeMillis());
 
 		System.out.println("\tUnused global buffers: " + GlobalBufferPool.getInstance().getCurrentNumberOfBuffers());
 

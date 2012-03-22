@@ -55,7 +55,7 @@ public final class ExecutionStateTransition {
 			final ExecutionState newState) {
 
 		LOG.info((jobManager ? "JM: " : "TM: ") + "ExecutionState set from " + oldState + " to " + newState
-			+ " for task " + taskName + " at " + System.currentTimeMillis());
+			+ " for task " + taskName);
 
 		boolean unexpectedStateChange = true;
 
