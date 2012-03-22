@@ -68,7 +68,8 @@ final class ReplayOutputChannelBroker extends AbstractOutputChannelForwarder imp
 			}
 		} else if (event instanceof ReceiverNotFoundEvent) {
 			final ReceiverNotFoundEvent rnfe = (ReceiverNotFoundEvent) event;
-			LOG.warn("Cannot find receiver " + rnfe.getReceiverID() + " for envelope " + rnfe.getSequenceNumber());
+			LOG.warn("Cannot find receiver " + rnfe.getReceiverID() + " for envelope " + rnfe.getSequenceNumber()
+				+ ", next envelope to send is " + this.nextEnvelopeToSend);
 		} else {
 			LOG.warn("Received unknown event: " + event);
 		}
