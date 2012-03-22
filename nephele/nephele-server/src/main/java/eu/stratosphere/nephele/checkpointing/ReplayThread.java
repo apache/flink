@@ -90,9 +90,6 @@ final class ReplayThread extends Thread {
 			return;
 		}
 
-		// Reset all the output broker in case we here restarted
-		resetAllOutputBroker();
-
 		try {
 
 			// Replay the actual checkpoint
@@ -204,6 +201,8 @@ final class ReplayThread extends Thread {
 
 				if (this.restartRequested.compareAndSet(true, false)) {
 					metaDataIndex = 0;
+					// Reset all the output broker in case we here restarted
+					resetAllOutputBroker();
 				}
 
 				// Try to locate the meta data file
