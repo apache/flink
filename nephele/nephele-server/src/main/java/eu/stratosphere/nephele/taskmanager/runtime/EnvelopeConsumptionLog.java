@@ -282,6 +282,11 @@ public final class EnvelopeConsumptionLog {
 		System.out.println("Outstanding buffer: " + this.outstandingEnvelopesAsIntBuffer.remaining());
 	}
 
+	long getNumberOfInitialLogEntries() {
+
+		return this.numberOfInitialLogEntries;
+	}
+
 	private void loadNextOutstandingEnvelopes() {
 
 		final int pos = this.outstandingEnvelopesAsIntBuffer.position();
