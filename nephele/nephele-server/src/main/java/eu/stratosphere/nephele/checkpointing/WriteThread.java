@@ -113,6 +113,8 @@ final class WriteThread extends Thread {
 
 	private volatile boolean isCanceled = false;
 
+	private volatile IOException ioException = null;
+
 	WriteThread(final FileBufferManager fileBufferManager, final ExecutionVertexID vertexID,
 			final int numberOfConnectedChannels) {
 
@@ -154,13 +156,8 @@ final class WriteThread extends Thread {
 			try {
 				te = this.queuedEnvelopes.take();
 
-				try {
-
-					if (writeTransferEnvelope(te)) {
-						break;
-					}
-				} catch (IOException ioe) {
-					ioe.printStackTrace();
+				if (!writeToCheckpointAndRecycle(te)) {
+					break;
 				}
 
 			} catch (InterruptedException e) {
@@ -168,6 +165,11 @@ final class WriteThread extends Thread {
 					break;
 				}
 			}
+		}
+
+		if (this.firstSerializedFileBuffer != null) {
+			this.firstSerializedFileBuffer.recycleBuffer();
+			this.firstSerializedFileBuffer = null;
 		}
 
 		// Clean up in case we were canceled
@@ -183,9 +185,13 @@ final class WriteThread extends Thread {
 		this.hasDataLeft = false;
 	}
 
-	void write(final TransferEnvelope transferEnvelope) throws InterruptedException {
+	void write(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
 		this.hasDataLeft = true;
+
+		if (this.ioException != null) {
+			throw this.ioException;
+		}
 
 		this.queuedEnvelopes.put(transferEnvelope);
 	}
@@ -200,24 +206,56 @@ final class WriteThread extends Thread {
 		}
 	}
 
-	private boolean writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException,
-			InterruptedException {
+	private static void recycleTransferEnvelope(final TransferEnvelope transferEnvelope) {
+
+		final Buffer buffer = transferEnvelope.getBuffer();
+		if (buffer != null) {
+			buffer.recycleBuffer();
+		}
+	}
+
+	/**
+	 * Writes the given transfer envelope to the disk and afterwards recycles its resources. In case of an I/O error,
+	 * the method will save the IOException to ioException, recycle all resources all return <code>false</code>.
+	 * 
+	 * @param transferEnvelope
+	 *        the envelope to be written to disk
+	 * @return <code>true</code> if more transfer envelopes are expected to follow, <code>false</code> otherwise
+	 */
+	private boolean writeToCheckpointAndRecycle(final TransferEnvelope transferEnvelope) {
 
 		Buffer buffer = transferEnvelope.getBuffer();
 		if (buffer != null) {
 			if (buffer.isBackedByMemory()) {
 
 				// Make sure we transfer the encapsulated buffer to a file and release the memory buffer again
-				final Buffer fileBuffer = BufferFactory.createFromFile(buffer.size(), this.vertexID,
-					this.fileBufferManager, this.distributed, false);
-				buffer.copyToBuffer(fileBuffer);
+				Buffer fileBuffer = null;
+				try {
+					fileBuffer = BufferFactory.createFromFile(buffer.size(), this.vertexID,
+						this.fileBufferManager, this.distributed, false);
+					buffer.copyToBuffer(fileBuffer);
+				} catch (IOException ioe) {
+					this.ioException = ioe;
+					if (fileBuffer != null) {
+						fileBuffer.recycleBuffer();
+					}
+					recycleTransferEnvelope(transferEnvelope);
+					return false;
+				}
+
 				transferEnvelope.setBuffer(fileBuffer);
 				buffer.recycleBuffer();
 			}
 		}
 
 		if (this.fileSystem == null) {
-			this.fileSystem = this.checkpointPath.getFileSystem();
+			try {
+				this.fileSystem = this.checkpointPath.getFileSystem();
+			} catch (IOException ioe) {
+				this.ioException = ioe;
+				recycleTransferEnvelope(transferEnvelope);
+				return false;
+			}
 		}
 
 		if (this.defaultBlockSize < 0L) {
@@ -228,11 +266,18 @@ final class WriteThread extends Thread {
 		if (this.numberOfBytesPerMetaDataFile > 10L * this.defaultBlockSize && !this.distributed) {
 
 			if (this.metaDataFileChannel != null) {
-				this.metaDataFileChannel.close();
-				this.metaDataFileChannel = null;
 
-				// Rename file
-				renameCheckpointPart();
+				try {
+					this.metaDataFileChannel.close();
+					this.metaDataFileChannel = null;
+
+					// Rename file
+					renameCheckpointPart();
+				} catch (IOException ioe) {
+					this.ioException = ioe;
+					recycleTransferEnvelope(transferEnvelope);
+					return false;
+				}
 
 				// Increase the meta data suffix
 				++this.metaDataSuffix;
@@ -243,11 +288,23 @@ final class WriteThread extends Thread {
 		}
 
 		if (this.metaDataFileChannel == null) {
-			this.metaDataFileChannel = getMetaDataFileChannel("_part");
+			try {
+				this.metaDataFileChannel = getMetaDataFileChannel("_part");
+			} catch (IOException ioe) {
+				this.ioException = ioe;
+				recycleTransferEnvelope(transferEnvelope);
+				return false;
+			}
 		}
 
 		this.transferEnvelopeSerializer.setTransferEnvelope(transferEnvelope);
-		while (this.transferEnvelopeSerializer.write(this.metaDataFileChannel)) {
+		try {
+			while (this.transferEnvelopeSerializer.write(this.metaDataFileChannel)) {
+			}
+		} catch (IOException ioe) {
+			this.ioException = ioe;
+			recycleTransferEnvelope(transferEnvelope);
+			return false;
 		}
 
 		// The following code will prevent the underlying file from being closed
@@ -262,6 +319,8 @@ final class WriteThread extends Thread {
 			// Increase the number of serialized transfer envelopes
 			this.numberOfBytesPerMetaDataFile += buffer.size();
 		}
+
+		// At this point, all resources are either recycled or saved to firstSerializedFileBuffer
 
 		// Look for close event
 		final EventList eventList = transferEnvelope.getEventList();
@@ -282,24 +341,29 @@ final class WriteThread extends Thread {
 			}
 
 			// Finish meta data file
-			if (this.metaDataFileChannel != null) {
+			try {
+				if (this.metaDataFileChannel != null) {
+					this.metaDataFileChannel.close();
+
+					// Rename file
+					renameCheckpointPart();
+				}
+
+				// Write the meta data file to indicate the checkpoint is complete
+				this.metaDataFileChannel = getMetaDataFileChannel(CheckpointUtils.COMPLETED_CHECKPOINT_SUFFIX);
+				this.metaDataFileChannel.write(ByteBuffer.allocate(0));
 				this.metaDataFileChannel.close();
-
-				// Rename file
-				renameCheckpointPart();
+			} catch (IOException ioe) {
+				this.ioException = ioe;
+				return false;
 			}
-
-			// Write the meta data file to indicate the checkpoint is complete
-			this.metaDataFileChannel = getMetaDataFileChannel(CheckpointUtils.COMPLETED_CHECKPOINT_SUFFIX);
-			this.metaDataFileChannel.write(ByteBuffer.allocate(0));
-			this.metaDataFileChannel.close();
 
 			LOG.info("Finished persistent checkpoint for vertex " + this.vertexID);
 
-			return true;
+			return false;
 		}
 
-		return false;
+		return true;
 	}
 
 	private boolean renameCheckpointPart() throws IOException {
