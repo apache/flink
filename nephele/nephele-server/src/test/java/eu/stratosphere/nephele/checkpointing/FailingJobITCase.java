@@ -567,13 +567,18 @@ public class FailingJobITCase {
 		}
 
 		// Create job client and launch job
+		JobClient jobClient = null;
 		try {
-			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
 			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -621,13 +626,18 @@ public class FailingJobITCase {
 		}
 
 		// Create job client and launch job
+		JobClient jobClient = null;
 		try {
-			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
 			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -682,13 +692,18 @@ public class FailingJobITCase {
 		}
 
 		// Create job client and launch job
+		JobClient jobClient = null;
 		try {
-			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
 			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -750,13 +765,18 @@ public class FailingJobITCase {
 		}
 
 		// Create job client and launch job
+		JobClient jobClient = null;
 		try {
-			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
 			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -822,13 +842,18 @@ public class FailingJobITCase {
 		}
 
 		// Create job client and launch job
+		JobClient jobClient = null;
 		try {
-			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
 			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 
 	}
@@ -892,8 +917,9 @@ public class FailingJobITCase {
 		}
 
 		// Create job client and launch job
+		JobClient jobClient = null;
 		try {
-			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
@@ -901,6 +927,10 @@ public class FailingJobITCase {
 			// This is expected here
 			assert (e.isJobCanceledByUser() == false);
 			return;
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 		fail("Job expected to be cancled");
 	}
@@ -967,13 +997,18 @@ public class FailingJobITCase {
 		}
 
 		// Create job client and launch job
+		JobClient jobClient = null;
 		try {
-			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
 			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 
 	}
@@ -1053,14 +1088,18 @@ public class FailingJobITCase {
 		}
 
 		// Create job client and launch job
+		JobClient jobClient = null;
 		try {
-			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		} catch (JobExecutionException e) {
 			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
-
 }

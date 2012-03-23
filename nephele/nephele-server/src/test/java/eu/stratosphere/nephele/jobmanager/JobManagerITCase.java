@@ -223,6 +223,7 @@ public class JobManagerITCase {
 		File inputFile2 = null;
 		File outputFile = null;
 		File jarFile = null;
+		JobClient jobClient = null;
 
 		try {
 			// Get name of the forward class
@@ -272,7 +273,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
 			// Create job client and launch job
-			JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 			jobClient.submitJobAndWait();
 
 			// Finally, compare output file to initial number sequence
@@ -316,6 +317,10 @@ public class JobManagerITCase {
 			if (td != null) {
 				td.delete();
 			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -330,6 +335,7 @@ public class JobManagerITCase {
 		File inputFile = null;
 		File outputFile = null;
 		File jarFile = null;
+		JobClient jobClient = null;
 
 		try {
 
@@ -365,7 +371,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -399,6 +405,10 @@ public class JobManagerITCase {
 			if (jarFile != null) {
 				jarFile.delete();
 			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -412,6 +422,7 @@ public class JobManagerITCase {
 		File inputFile = null;
 		File outputFile = null;
 		File jarFile = null;
+		JobClient jobClient = null;
 
 		try {
 
@@ -448,7 +459,7 @@ public class JobManagerITCase {
 				+ ".jar"));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -484,6 +495,10 @@ public class JobManagerITCase {
 			if (jarFile != null) {
 				jarFile.delete();
 			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -493,6 +508,9 @@ public class JobManagerITCase {
 	}
 
 	private void testBroadcast(final int limit, final int receivers) {
+
+		JobClient jobClient = null;
+
 		try {
 
 			// Get name of the forward class
@@ -530,7 +548,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
 			// Create job client and launch job
-			JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -540,7 +558,7 @@ public class JobManagerITCase {
 			for (int z = 0; z < receivers; z++) {
 				// Finally, compare output file to initial number sequence
 				File f = new File(outputFile + File.separator + "file_" + z + ".txt");
-				
+
 				final BufferedReader bufferedReader = new BufferedReader(new FileReader(f));
 				for (int i = 0; i < limit; i++) {
 					final String number = bufferedReader.readLine();
@@ -558,13 +576,17 @@ public class JobManagerITCase {
 			// Remove temporary files
 			inputFile.delete();
 
-			//outputFile.delete();
+			// outputFile.delete();
 
 			jarFile.delete();
 
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			fail(ioe.getMessage());
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 
 	}
@@ -579,6 +601,8 @@ public class JobManagerITCase {
 	 *        the upper bound for the sequence of numbers to be generated
 	 */
 	private void test(final int limit) {
+
+		JobClient jobClient = null;
 
 		try {
 
@@ -629,7 +653,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
 			// Create job client and launch job
-			JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -657,6 +681,10 @@ public class JobManagerITCase {
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			fail(ioe.getMessage());
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -670,6 +698,7 @@ public class JobManagerITCase {
 		File inputFile = null;
 		File outputFile = null;
 		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "doubleConnection.jar");
+		JobClient jobClient = null;
 
 		try {
 
@@ -711,7 +740,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 
 			jobClient.submitJobAndWait();
 
@@ -733,6 +762,10 @@ public class JobManagerITCase {
 			if (jarFile != null) {
 				jarFile.delete();
 			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -745,6 +778,7 @@ public class JobManagerITCase {
 		File inputFile = null;
 		File outputFile = null;
 		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "emptyNames.jar");
+		JobClient jobClient = null;
 
 		try {
 
@@ -779,8 +813,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
-
+			jobClient = new JobClient(jg, configuration);
 			jobClient.submitJobAndWait();
 
 		} catch (JobExecutionException e) {
@@ -800,6 +833,10 @@ public class JobManagerITCase {
 			}
 			if (jarFile != null) {
 				jarFile.delete();
+			}
+
+			if (jobClient != null) {
+				jobClient.close();
 			}
 		}
 	}
@@ -832,6 +869,7 @@ public class JobManagerITCase {
 		File inputFile2 = null;
 		File outputFile = null;
 		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "unionWithEmptyInput.jar");
+		JobClient jobClient = null;
 
 		try {
 
@@ -879,7 +917,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -952,6 +990,10 @@ public class JobManagerITCase {
 			}
 			if (jarFile != null) {
 				jarFile.delete();
+			}
+
+			if (jobClient != null) {
+				jobClient.close();
 			}
 		}
 	}
