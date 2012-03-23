@@ -24,13 +24,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**
@@ -43,19 +38,9 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 public final class NetworkConnectionManager {
 
 	/**
-	 * The logging object used to report problems and errors.
-	 */
-	private static final Log LOG = LogFactory.getLog(NetworkConnectionManager.class);
-
-	/**
 	 * The default number of threads dealing with outgoing connections.
 	 */
 	private static final int DEFAULT_NUMBER_OF_OUTGOING_CONNECTION_THREADS = 1;
-
-	/**
-	 * The default number of threads dealing with incoming connections.
-	 */
-	private static final int DEFAULT_NUMBER_OF_INCOMING_CONNECTION_THREADS = 1;
 
 	/**
 	 * The default number of connection retries before giving up.
@@ -68,9 +53,9 @@ public final class NetworkConnectionManager {
 	private final List<OutgoingConnectionThread> outgoingConnectionThreads = new ArrayList<OutgoingConnectionThread>();
 
 	/**
-	 * List of active threads dealing with incoming connections.
+	 * Thread dealing with incoming connections.
 	 */
-	private final List<IncomingConnectionThread> incomingConnectionThreads = new ArrayList<IncomingConnectionThread>();
+	private final IncomingConnectionThread incomingConnectionThread;
 
 	/**
 	 * Map containing currently active outgoing connections.
@@ -105,18 +90,9 @@ public final class NetworkConnectionManager {
 			}
 		}
 
-		final int numberOfIncomingConnectionThreads = configuration.getInteger(
-			"channel.network.numgerOfIncomingConnectionThreads", DEFAULT_NUMBER_OF_INCOMING_CONNECTION_THREADS);
-		synchronized (this.incomingConnectionThreads) {
-			for (int i = 0; i < numberOfIncomingConnectionThreads; i++) {
-				final IncomingConnectionThread incomingConnectionThread = new IncomingConnectionThread(
-					this.byteBufferedChannelManager, (i == 0),
-					new InetSocketAddress(bindAddress, dataPort));
-
-				incomingConnectionThread.start();
-				this.incomingConnectionThreads.add(incomingConnectionThread);
-			}
-		}
+		this.incomingConnectionThread = new IncomingConnectionThread(
+			this.byteBufferedChannelManager, true, new InetSocketAddress(bindAddress, dataPort));
+		this.incomingConnectionThread.start();
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
@@ -131,18 +107,6 @@ public final class NetworkConnectionManager {
 
 		synchronized (this.outgoingConnectionThreads) {
 			return this.outgoingConnectionThreads.get((int) (this.outgoingConnectionThreads.size() * Math.random()));
-		}
-	}
-
-	/**
-	 * Randomly selects one of the active threads dealing with incoming connections.
-	 * 
-	 * @return one of the active threads dealing with incoming connections
-	 */
-	private IncomingConnectionThread getIncomingConnectionThread() {
-
-		synchronized (this.incomingConnectionThreads) {
-			return this.incomingConnectionThreads.get((int) (this.incomingConnectionThreads.size() * Math.random()));
 		}
 	}
 
@@ -172,9 +136,8 @@ public final class NetworkConnectionManager {
 
 			OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
 			if (outgoingConnection == null) {
-				outgoingConnection = new OutgoingConnection(this, connectionAddress, getOutgoingConnectionThread(),
+				outgoingConnection = new OutgoingConnection(connectionAddress, getOutgoingConnectionThread(),
 					this.numberOfConnectionRetries);
-				System.out.println("Creating outgoing connection for" + connectionAddress);
 				this.outgoingConnections.put(connectionAddress, outgoingConnection);
 			}
 
@@ -182,20 +145,10 @@ public final class NetworkConnectionManager {
 		}
 	}
 
-	public void reportIOExceptionForOutputChannel(ChannelID sourceChannelID, IOException ioe) {
-
-		// TODO: Implement me
-	}
-
 	public void shutDown() {
 
 		// Interrupt the threads we started
-		synchronized (this.incomingConnectionThreads) {
-			final Iterator<IncomingConnectionThread> it = this.incomingConnectionThreads.iterator();
-			while (it.hasNext()) {
-				it.next().interrupt();
-			}
-		}
+		this.incomingConnectionThread.interrupt();
 
 		synchronized (this.outgoingConnectionThreads) {
 			final Iterator<OutgoingConnectionThread> it = this.outgoingConnectionThreads.iterator();
@@ -220,20 +173,5 @@ public final class NetworkConnectionManager {
 					.println("\t\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
 			}
 		}
-	}
-
-	/**
-	 * Registers the given spilling queue with the network connection identified by the target address. The network
-	 * connection is in charge of polling the remaining elements from the queue.
-	 * 
-	 * @param targetAddress
-	 *        the address of the target host
-	 * @param spillingQueue
-	 *        the spilling queue to register
-	 */
-	void registerSpillingQueueWithNetworkConnection(final InetSocketAddress targetAddress,
-			final SpillingQueue spillingQueue) {
-
-		getOutgoingConnection(targetAddress).registerSpillingQueue(spillingQueue);
 	}
 }

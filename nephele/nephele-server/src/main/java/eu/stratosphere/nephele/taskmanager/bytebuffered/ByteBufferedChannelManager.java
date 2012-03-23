@@ -44,7 +44,6 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
@@ -661,30 +660,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			this.transitBufferPool.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel
 				* numberOfChannelsForMulticast));
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean registerSpillingQueueWithNetworkConnection(final JobID jobID, final ChannelID sourceChannelID,
-			final SpillingQueue spillingQueue) throws IOException, InterruptedException {
-
-		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
-
-		if (!receiverList.hasRemoteReceivers()) {
-			return false;
-		}
-
-		final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
-		if (remoteReceivers.size() > 1) {
-			LOG.error("Cannot register spilling queue for more than one remote receiver");
-			return false;
-		}
-
-		this.networkConnectionManager.registerSpillingQueueWithNetworkConnection(remoteReceivers.get(0), spillingQueue);
-
-		return true;
 	}
 
 	/**
