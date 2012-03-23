@@ -68,13 +68,11 @@ public class JobClient {
 	 */
 	private final JobCleanUp jobCleanUp;
 
-
 	/**
 	 * The sequence number of the last processed event received from the job manager.
 	 */
 	private long lastProcessedEventSequenceNumber = -1;
-	
-	
+
 	/**
 	 * Inner class used to perform clean up tasks when the
 	 * job client is terminated.
@@ -191,15 +189,12 @@ public class JobClient {
 	}
 
 	/**
-	 * Close the <code>JobClient</code>.
-	 * 
-	 * @throws IOException
-	 *         thrown on error while closing the RPC connection to the job manager
+	 * Closes the <code>JobClient</code> by destroying the RPC stub object.
 	 */
-	public void close() throws IOException {
+	public void close() {
 
 		synchronized (this.jobSubmitClient) {
-			RPC.stopProxy(jobSubmitClient);
+			RPC.stopProxy(this.jobSubmitClient);
 		}
 	}
 
@@ -326,9 +321,9 @@ public class JobClient {
 			while (it.hasNext()) {
 
 				final AbstractEvent event = it.next();
-				
+
 				// Did we already process that event?
-				if(this.lastProcessedEventSequenceNumber >= event.getSequenceNumber()){
+				if (this.lastProcessedEventSequenceNumber >= event.getSequenceNumber()) {
 					continue;
 				}
 
@@ -381,6 +376,5 @@ public class JobClient {
 		LOG.error(errorMessage);
 		throw new IOException(errorMessage);
 	}
-
 
 }

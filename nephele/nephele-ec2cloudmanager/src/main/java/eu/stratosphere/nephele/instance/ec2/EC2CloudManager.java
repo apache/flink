@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.instance.ec2;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -318,13 +317,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		}
 
 		// Destroy proxies of that instance
-		try {
-			instance.destroyProxies();
-		} catch (IOException ioe) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(StringUtils.stringifyException(ioe));
-			}
-		}
+		instance.destroyProxies();
 
 		if (jobToInstanceMapping.unassignInstanceFromJob(instance)) {
 
@@ -984,13 +977,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 				final List<EC2CloudInstance> unassignedInstances = entry.getValue().unassignAllInstancesFromJob();
 				final Iterator<EC2CloudInstance> it2 = unassignedInstances.iterator();
 				while (it2.hasNext()) {
-					try {
-						it2.next().destroyProxies();
-					} catch (IOException ioe) {
-						if (LOG.isDebugEnabled()) {
-							LOG.debug(StringUtils.stringifyException(ioe));
-						}
-					}
+					it2.next().destroyProxies();
 				}
 			}
 		}

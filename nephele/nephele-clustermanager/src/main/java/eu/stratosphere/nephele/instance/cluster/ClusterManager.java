@@ -445,13 +445,7 @@ public class ClusterManager implements InstanceManager {
 
 		final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
 		while (it.hasNext()) {
-			try {
-				it.next().destroyProxies();
-			} catch (IOException ioe) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug(StringUtils.stringifyException(ioe));
-				}
-			}
+			it.next().destroyProxies();
 		}
 		this.registeredHosts.clear();
 

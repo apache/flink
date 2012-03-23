@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -45,7 +44,6 @@ import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableHashMap;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * The local instance manager is designed to manage instance allocation/deallocation for a single-node setup. It spans a
@@ -267,13 +265,7 @@ public class LocalInstanceManager implements InstanceManager {
 		// Destroy local instance
 		synchronized (this.synchronizationObject) {
 			if (this.localInstance != null) {
-				try {
-					this.localInstance.destroyProxies();
-				} catch (IOException ioe) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug(StringUtils.stringifyException(ioe));
-					}
-				}
+				this.localInstance.destroyProxies();
 				this.localInstance = null;
 			}
 		}

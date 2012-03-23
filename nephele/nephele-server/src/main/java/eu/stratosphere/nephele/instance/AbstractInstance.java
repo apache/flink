@@ -117,11 +117,8 @@ public abstract class AbstractInstance extends NetworkNode {
 
 	/**
 	 * Destroys and removes the RPC stub object for this instance's task manager.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurs while destroying the RPC stub object
 	 */
-	private void destroyTaskManagerProxy() throws IOException {
+	private void destroyTaskManagerProxy() {
 
 		if (this.taskManager != null) {
 			RPC.stopProxy(this.taskManager);
@@ -151,11 +148,8 @@ public abstract class AbstractInstance extends NetworkNode {
 
 	/**
 	 * Destroys and removes the RPC stub object for this instance's task manager plugin component.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurs while destroying the RPC stub object
 	 */
-	private void destroyTaskManagerPluginProxy() throws IOException {
+	private void destroyTaskManagerPluginProxy() {
 
 		if (this.taskManagerPluginComponent != null) {
 			RPC.stopProxy(this.taskManagerPluginComponent);
@@ -392,11 +386,8 @@ public abstract class AbstractInstance extends NetworkNode {
 
 	/**
 	 * Destroys all RPC stub objects attached to this instance.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurs while destroying the RPC stub objects
 	 */
-	public synchronized void destroyProxies() throws IOException {
+	public synchronized void destroyProxies() {
 
 		destroyTaskManagerProxy();
 		destroyTaskManagerPluginProxy();
