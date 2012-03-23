@@ -775,6 +775,15 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Stop RPC proxy for the task manager
 		RPC.stopProxy(this.jobManager);
 
+		// Stop RPC proxy for the global input split assigner
+		RPC.stopProxy(this.globalInputSplitProvider);
+
+		// Stop RPC proxy for the lookup service
+		RPC.stopProxy(this.lookupService);
+
+		// Stop RPC proxy for the plugin communication service
+		RPC.stopProxy(this.pluginCommunicationService);
+
 		// Shut down the own RPC server
 		this.taskManagerServer.stop();
 

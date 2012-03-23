@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 
 /**
@@ -70,11 +71,28 @@ final class JobToInstancesMapping {
 	 *        the cloud instance which will be unassigned
 	 * @return the unassigned cloud instance
 	 */
-	public boolean unassignInstanceFromJob(EC2CloudInstance instance) {
+	public boolean unassignInstanceFromJob(final AbstractInstance instance) {
 
 		synchronized (this.assignedInstances) {
 			return this.assignedInstances.remove(instance);
 		}
+	}
+
+	/**
+	 * Unassigns all currently assigned instances from that job and returns them.
+	 * 
+	 * @return the list of instances previously assigned to this job. The list is possibly empty.
+	 */
+	public List<EC2CloudInstance> unassignAllInstancesFromJob() {
+
+		final List<EC2CloudInstance> unassignedInstances;
+
+		synchronized (this.assignedInstances) {
+			unassignedInstances = new ArrayList<EC2CloudInstance>(this.assignedInstances);
+			this.assignedInstances.clear();
+		}
+
+		return unassignedInstances;
 	}
 
 	/**
@@ -83,16 +101,10 @@ final class JobToInstancesMapping {
 	 * @return the number of assigned cloud instances for the job
 	 */
 	public int getNumberOfAssignedInstances() {
-		return this.assignedInstances.size();
-	}
 
-	/**
-	 * Returns the list of assigned cloud instances for the job.
-	 * 
-	 * @return the list of assigned cloud instances for the job
-	 */
-	public List<EC2CloudInstance> getAssignedInstances() {
-		return this.assignedInstances;
+		synchronized (this.assignedInstances) {
+			return this.assignedInstances.size();
+		}
 	}
 
 	/**

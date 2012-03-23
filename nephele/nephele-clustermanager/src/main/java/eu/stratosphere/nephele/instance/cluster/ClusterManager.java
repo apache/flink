@@ -255,7 +255,7 @@ public class ClusterManager implements InstanceManager {
 				registeredHosts.entrySet().removeAll(hostsToRemove);
 
 				updateInstaceTypeDescriptionMap();
-				
+
 				final Iterator<Map.Entry<JobID, List<AllocatedResource>>> it = staleResources.entrySet().iterator();
 				while (it.hasNext()) {
 					final Map.Entry<JobID, List<AllocatedResource>> entry = it.next();
@@ -441,7 +441,20 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
+	public synchronized void shutdown() {
+
+		final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
+		while (it.hasNext()) {
+			try {
+				it.next().destroyProxies();
+			} catch (IOException ioe) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(StringUtils.stringifyException(ioe));
+				}
+			}
+		}
+		this.registeredHosts.clear();
+
 		this.cleanupStaleMachines.cancel();
 	}
 

@@ -103,7 +103,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if the RPC stub object for the task manager cannot be created
 	 */
-	protected TaskOperationProtocol getTaskManager() throws IOException {
+	private TaskOperationProtocol getTaskManagerProxy() throws IOException {
 
 		if (this.taskManager == null) {
 
@@ -116,13 +116,27 @@ public abstract class AbstractInstance extends NetworkNode {
 	}
 
 	/**
+	 * Destroys and removes the RPC stub object for this instance's task manager.
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while destroying the RPC stub object
+	 */
+	private void destroyTaskManagerProxy() throws IOException {
+
+		if (this.taskManager != null) {
+			RPC.stopProxy(this.taskManager);
+			this.taskManager = null;
+		}
+	}
+
+	/**
 	 * Creates or returns the RPC stub object for the instance's task manager plugin component.
 	 * 
 	 * @return the RPC stub object for the instance's task manager plugin component
 	 * @throws IOException
 	 *         thrown if the RPC stub object for the task manager plugin component cannot be created
 	 */
-	protected PluginCommunicationProtocol getTaskManagerPluginComponent() throws IOException {
+	private PluginCommunicationProtocol getTaskManagerPluginProxy() throws IOException {
 
 		if (this.taskManagerPluginComponent == null) {
 
@@ -133,6 +147,20 @@ public abstract class AbstractInstance extends NetworkNode {
 		}
 
 		return this.taskManagerPluginComponent;
+	}
+
+	/**
+	 * Destroys and removes the RPC stub object for this instance's task manager plugin component.
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while destroying the RPC stub object
+	 */
+	private void destroyTaskManagerPluginProxy() throws IOException {
+
+		if (this.taskManagerPluginComponent != null) {
+			RPC.stopProxy(this.taskManagerPluginComponent);
+			this.taskManagerPluginComponent = null;
+		}
 	}
 
 	/**
@@ -185,13 +213,13 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		// Send the request
 		LibraryCacheProfileResponse response = null;
-		response = getTaskManager().getLibraryCacheProfile(request);
+		response = getTaskManagerProxy().getLibraryCacheProfile(request);
 
 		// Check response and transfer libraries if necessary
 		for (int k = 0; k < requiredLibraries.length; k++) {
 			if (!response.isCached(k)) {
 				LibraryCacheUpdate update = new LibraryCacheUpdate(requiredLibraries[k]);
-				getTaskManager().updateLibraryCache(update);
+				getTaskManagerProxy().updateLibraryCache(update);
 			}
 		}
 	}
@@ -208,7 +236,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks)
 			throws IOException {
 
-		return getTaskManager().submitTasks(tasks);
+		return getTaskManagerProxy().submitTasks(tasks);
 	}
 
 	/**
@@ -223,12 +251,12 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public synchronized TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
-		return getTaskManager().cancelTask(id);
+		return getTaskManagerProxy().cancelTask(id);
 	}
 
 	public synchronized TaskCheckpointResult requestCheckpointDecision(final ExecutionVertexID id) throws IOException {
 
-		return getTaskManager().requestCheckpointDecision(id);
+		return getTaskManagerProxy().requestCheckpointDecision(id);
 	}
 
 	/**
@@ -243,7 +271,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public synchronized TaskKillResult killTask(final ExecutionVertexID id) throws IOException {
 
-		return getTaskManager().killTask(id);
+		return getTaskManagerProxy().killTask(id);
 	}
 
 	/**
@@ -257,7 +285,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
 
-		getTaskManager().removeCheckpoints(listOfVertexIDs);
+		getTaskManagerProxy().removeCheckpoints(listOfVertexIDs);
 	}
 
 	/**
@@ -302,7 +330,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public synchronized void logBufferUtilization() throws IOException {
 
-		getTaskManager().logBufferUtilization();
+		getTaskManagerProxy().logBufferUtilization();
 	}
 
 	/**
@@ -314,7 +342,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public synchronized void killTaskManager() throws IOException {
 
-		getTaskManager().killTaskManager();
+		getTaskManagerProxy().killTaskManager();
 	}
 
 	/**
@@ -329,7 +357,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public synchronized void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
 
-		getTaskManagerPluginComponent().sendData(pluginID, data);
+		getTaskManagerPluginProxy().sendData(pluginID, data);
 	}
 
 	/**
@@ -346,7 +374,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public synchronized IOReadableWritable requestData(PluginID pluginID, IOReadableWritable data) throws IOException {
 
-		return getTaskManagerPluginComponent().requestData(pluginID, data);
+		return getTaskManagerPluginProxy().requestData(pluginID, data);
 	}
 
 	/**
@@ -359,6 +387,19 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
 
-		getTaskManager().invalidateLookupCacheEntries(channelIDs);
+		getTaskManagerProxy().invalidateLookupCacheEntries(channelIDs);
+	}
+
+	/**
+	 * Destroys all RPC stub objects attached to this instance.
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while destroying the RPC stub objects
+	 */
+	public synchronized void destroyProxies() throws IOException {
+
+		destroyTaskManagerProxy();
+		destroyTaskManagerPluginProxy();
+
 	}
 }
