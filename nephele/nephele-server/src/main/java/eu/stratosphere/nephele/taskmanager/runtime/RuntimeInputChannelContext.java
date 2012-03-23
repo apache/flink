@@ -54,6 +54,8 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private final EnvelopeConsumptionLog envelopeConsumptionLog;
 
+	private final boolean isReexecuted;
+
 	private int lastReceivedEnvelope = -1;
 
 	private boolean destroyCalled = false;
@@ -68,6 +70,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		this.byteBufferedInputChannel = byteBufferedInputChannel;
 		this.byteBufferedInputChannel.setInputChannelBroker(this);
 		this.envelopeConsumptionLog = envelopeConsumptionLog;
+		this.isReexecuted = (envelopeConsumptionLog.getNumberOfInitialLogEntries() > 0L);
 	}
 
 	@Override
@@ -199,14 +202,22 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 			final int expectedSequenceNumber = this.lastReceivedEnvelope + 1;
 			if (sequenceNumber != expectedSequenceNumber) {
 
+				// We received an envelope with higher sequence number than expected
 				if (sequenceNumber > expectedSequenceNumber) {
 
-					if (expectedSequenceNumber > 2000) {
+					/**
+					 * In case the task is reexecuted, we might receive envelopes from the original run that have been
+					 * stuck in some network queues. As a result, we will simply ignore those envelopes. If the task is
+					 * not restarted, we are actually missing data.
+					 */
+					if (!this.isReexecuted) {
+
 						// This is a problem, now we are actually missing some data
 						this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
 							+ expectedSequenceNumber + " but received " + sequenceNumber));
 						this.byteBufferedInputChannel.checkForNetworkEvents();
 					}
+
 				} else {
 
 					eventToSend = lookForCloseEvent(transferEnvelope);
