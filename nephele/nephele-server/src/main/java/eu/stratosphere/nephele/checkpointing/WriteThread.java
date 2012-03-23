@@ -116,6 +116,8 @@ final class WriteThread extends Thread {
 	WriteThread(final FileBufferManager fileBufferManager, final ExecutionVertexID vertexID,
 			final int numberOfConnectedChannels) {
 
+		super("Write thread for vertex " + vertexID);
+
 		this.fileBufferManager = fileBufferManager;
 		this.vertexID = vertexID;
 		this.numberOfConnectedChannels = numberOfConnectedChannels;
@@ -192,6 +194,10 @@ final class WriteThread extends Thread {
 
 		this.isCanceled = true;
 		interrupt();
+		try {
+			join();
+		} catch (InterruptedException e) {
+		}
 	}
 
 	private boolean writeTransferEnvelope(final TransferEnvelope transferEnvelope) throws IOException,

@@ -64,4 +64,12 @@ public final class EphemeralCheckpointForwarder extends AbstractOutputChannelFor
 
 		return false;
 	}
+	
+	@Override
+	public void destroy() {
+		
+		this.ephemeralCheckpoint.destroy();
+		
+		super.destroy();
+	}
 }
