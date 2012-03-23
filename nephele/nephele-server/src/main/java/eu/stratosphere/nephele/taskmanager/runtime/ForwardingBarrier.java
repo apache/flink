@@ -69,8 +69,10 @@ public final class ForwardingBarrier extends AbstractOutputChannelForwarder {
 			final UnexpectedEnvelopeEvent uee = (UnexpectedEnvelopeEvent) event;
 			if (uee.getExpectedSequenceNumber() > this.forwardingBarrier) {
 				this.forwardingBarrier = uee.getExpectedSequenceNumber();
-				LOG.info("Setting forwarding barrier to sequence number " + this.forwardingBarrier
-					+ " for output channel " + this.outputChannelID);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Setting forwarding barrier to sequence number " + this.forwardingBarrier
+						+ " for output channel " + this.outputChannelID);
+				}
 			}
 		}
 
