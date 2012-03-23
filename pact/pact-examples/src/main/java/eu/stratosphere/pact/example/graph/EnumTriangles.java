@@ -15,8 +15,6 @@
 
 package eu.stratosphere.pact.example.graph;
 
-import java.io.IOException;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -24,17 +22,14 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.example.graph.PairwiseSP.Edge;
 
 /**
  * Implementation of the triangle enumeration example Pact program.
@@ -212,6 +207,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		buildTriads.getParameters().setString("selfMatch.crossMode", "TRIANGLE_CROSS_EXCL_DIAG");
 		buildTriads.setDegreeOfParallelism(noSubTasks * waves);
 
+		@SuppressWarnings("unchecked")
 		MatchContract closeTriads = new MatchContract(CloseTriads.class, new Class[] {PactString.class, PactString.class}, new int[] {1, 2}, new int[] {0, 1}, "Close Triads");
 		closeTriads.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_REPARTITION");
 		closeTriads.setParameter("INPUT_RIGHT_SHIP_STRATEGY", "SHIP_REPARTITION");
