@@ -16,19 +16,25 @@
 package eu.stratosphere.pact.runtime.test.util;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
+import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
@@ -48,8 +54,8 @@ public class MockEnvironment extends RuntimeEnvironment
 
 	public MockEnvironment(long memorySize) {
 		this.config = new Configuration();
-		this.inputs = new ArrayList<RuntimeInputGate<PactRecord>>();
-		this.outputs = new ArrayList<RuntimeOutputGate<PactRecord>>();
+		this.inputs = new LinkedList<RuntimeInputGate<PactRecord>>();
+		this.outputs = new LinkedList<RuntimeOutputGate<PactRecord>>();
 
 		this.memManager = new DefaultMemoryManager(memorySize);
 		this.ioManager = new IOManager(System.getProperty("java.io.tmpdir"));
@@ -82,6 +88,21 @@ public class MockEnvironment extends RuntimeEnvironment
 
 	public JobID getJobID() {
 		return this.jobId;
+	}
+
+	@Override
+	public InputGate<? extends Record> createInputGate(final GateID gateID,
+			final RecordDeserializer<? extends Record> deserializer,
+			final DistributionPattern distributionPattern) {
+
+		return this.inputs.remove(0);
+	}
+
+	@Override
+	public OutputGate<? extends Record> createOutputGate(GateID gateID, Class<? extends Record> outputClass,
+			ChannelSelector<? extends Record> selector, boolean isBroadcast) {
+
+		return this.outputs.remove(0);
 	}
 
 	private static class MockInputGate extends RuntimeInputGate<PactRecord> {
