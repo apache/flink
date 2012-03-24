@@ -229,8 +229,12 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 					}
 				}
 
-				LOG.warn("Input channel " + getChannelName() + " expected envelope " + expectedSequenceNumber
+				if (!this.isReexecuted || sequenceNumber > expectedSequenceNumber) {
+					if (LOG.isWarnEnabled()) {
+						LOG.warn("Input channel " + getChannelName() + " expected envelope " + expectedSequenceNumber
 							+ " but received " + sequenceNumber);
+					}
+				}
 
 				final Buffer buffer = transferEnvelope.getBuffer();
 				if (buffer != null) {
@@ -363,7 +367,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		}
 
 		System.out.println("\t\t" + getChannelName() + ": " + numberOfQueuedEnvelopes + " ("
-				+ numberOfQueuedEnvelopesWithMemoryBuffers + ", " + numberOfQueuedEnvelopesWithFileBuffers + ")");
+			+ numberOfQueuedEnvelopesWithMemoryBuffers + ", " + numberOfQueuedEnvelopesWithFileBuffers + ")");
 
 	}
 

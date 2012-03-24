@@ -1068,7 +1068,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			final String optionalMessage) {
 
 		LOG.info("Status of job " + executionGraph.getJobName() + "(" + executionGraph.getJobID() + ")"
-			+ " changed to " + newJobStatus + " at " + System.currentTimeMillis());
+			+ " changed to " + newJobStatus);
 
 		if (newJobStatus == InternalJobStatus.FAILING) {
 
