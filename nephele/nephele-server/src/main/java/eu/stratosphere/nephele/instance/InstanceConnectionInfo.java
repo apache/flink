@@ -26,8 +26,7 @@ import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * This class encapsulates all connection information necessary to
- * connect to the instance's task manager.
+ * This class encapsulates all connection information necessary to connect to the instance's task manager.
  * 
  * @author warneke
  */
@@ -51,24 +50,37 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	/**
 	 * The host name of the instance.
 	 */
-	private String hostname = null;
+	private String hostName = null;
 
 	/**
 	 * The domain name of the instance.
 	 */
-	private String domainname = null;
+	private String domainName = null;
 
 	/**
-	 * Constructs a new instance connection info object.
+	 * Constructs a new instance connection info object. The constructor will attempt to retrieve the instance's
+	 * hostname and domain name through the operating system's lookup mechanisms.
 	 * 
 	 * @param inetAddress
-	 *        the network address the instance's task manager binds its sockets to.
+	 *        the network address the instance's task manager binds its sockets to
 	 * @param ipcPort
 	 *        the port instance's task manager runs its IPC service on
 	 * @param dataPort
-	 *        the port instance's task manager expects to receive transfer envelopes on.
+	 *        the port instance's task manager expects to receive transfer envelopes on
 	 */
-	public InstanceConnectionInfo(InetAddress inetAddress, int ipcPort, int dataPort) {
+	public InstanceConnectionInfo(final InetAddress inetAddress, final int ipcPort, final int dataPort) {
+
+		if (inetAddress == null) {
+			throw new IllegalArgumentException("Argument inetAddress must not be null");
+		}
+
+		if (ipcPort <= 0) {
+			throw new IllegalArgumentException("Argument ipcPort must be greater than zero");
+		}
+
+		if (dataPort <= 0) {
+			throw new IllegalArgumentException("Argument dataPort must be greater than zero");
+		}
 
 		this.inetAddress = inetAddress;
 
@@ -76,21 +88,61 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		final String fqdn = inetAddress.getCanonicalHostName();
 
 		if (hostAddStr.equals(fqdn)) {
-			this.hostname = fqdn;
-			this.domainname = null;
+			this.hostName = fqdn;
+			this.domainName = null;
 		} else {
 
 			// Look for the first dot in the FQDN
 			final int firstDot = fqdn.indexOf('.');
 			if (firstDot == -1) {
-				this.hostname = fqdn;
-				this.domainname = null;
+				this.hostName = fqdn;
+				this.domainName = null;
 			} else {
-				this.hostname = fqdn.substring(0, firstDot);
-				this.domainname = fqdn.substring(firstDot + 1);
+				this.hostName = fqdn.substring(0, firstDot);
+				this.domainName = fqdn.substring(firstDot + 1);
 			}
 		}
 
+		this.ipcPort = ipcPort;
+		this.dataPort = dataPort;
+	}
+
+	/**
+	 * Constructs a new instance connection info object.
+	 * 
+	 * @param inetAddress
+	 *        the network address the instance's task manager binds its sockets to
+	 * @param hostName
+	 *        the host name of the instance
+	 * @param domainName
+	 *        the domain name of the instance
+	 * @param ipcPort
+	 *        the port instance's task manager runs its IPC service on
+	 * @param dataPort
+	 *        the port instance's task manager expects to receive transfer envelopes on.
+	 */
+	public InstanceConnectionInfo(final InetAddress inetAddress, final String hostName, final String domainName,
+			final int ipcPort, final int dataPort) {
+
+		if (inetAddress == null) {
+			throw new IllegalArgumentException("Argument inetAddress must not be null");
+		}
+
+		if (hostName == null) {
+			throw new IllegalArgumentException("Argument hostName must not be null");
+		}
+
+		if (ipcPort <= 0) {
+			throw new IllegalArgumentException("Argument ipcPort must be greater than zero");
+		}
+
+		if (dataPort <= 0) {
+			throw new IllegalArgumentException("Argument dataPort must be greater than zero");
+		}
+
+		this.inetAddress = inetAddress;
+		this.hostName = hostName;
+		this.domainName = domainName;
 		this.ipcPort = ipcPort;
 		this.dataPort = dataPort;
 	}
@@ -107,6 +159,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the port instance's task manager runs its IPC service on
 	 */
 	public int getIPCPort() {
+
 		return this.ipcPort;
 	}
 
@@ -116,6 +169,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the port instance's task manager expects to receive transfer envelopes on
 	 */
 	public int getDataPort() {
+
 		return this.dataPort;
 	}
 
@@ -137,7 +191,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 */
 	public String getHostName() {
 
-		return this.hostname;
+		return this.hostName;
 	}
 
 	/**
@@ -147,20 +201,20 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 */
 	public String getDomainName() {
 
-		return this.domainname;
+		return this.domainName;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(final DataInput in) throws IOException {
 
 		final int addr_length = in.readInt();
 		byte[] address = new byte[addr_length];
 		in.readFully(address);
-		this.hostname = StringRecord.readString(in);
-		this.domainname = StringRecord.readString(in);
+		this.hostName = StringRecord.readString(in);
+		this.domainName = StringRecord.readString(in);
 
 		try {
 			this.inetAddress = InetAddress.getByAddress(address);
@@ -176,12 +230,12 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(final DataOutput out) throws IOException {
 
 		out.writeInt(this.inetAddress.getAddress().length);
 		out.write(this.inetAddress.getAddress());
-		StringRecord.writeString(out, this.hostname);
-		StringRecord.writeString(out, this.domainname);
+		StringRecord.writeString(out, this.hostName);
+		StringRecord.writeString(out, this.domainName);
 		out.writeInt(this.ipcPort);
 		out.writeInt(this.dataPort);
 	}
@@ -193,8 +247,8 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	public String toString() {
 
 		String iaString;
-		if (this.hostname != null) {
-			iaString = this.hostname;
+		if (this.hostName != null) {
+			iaString = this.hostName;
 		} else {
 			iaString = inetAddress.toString();
 			iaString = iaString.replace("/", "");
@@ -207,7 +261,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 
 		if (obj instanceof InstanceConnectionInfo) {
 
@@ -239,8 +293,12 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		return this.inetAddress.hashCode();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int compareTo(InstanceConnectionInfo o) {
+	public int compareTo(final InstanceConnectionInfo o) {
+
 		return this.getAddress().getHostName()
 			.compareTo(((InstanceConnectionInfo) o).getAddress().getHostName());
 	}
