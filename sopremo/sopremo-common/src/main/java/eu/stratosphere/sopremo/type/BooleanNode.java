@@ -42,7 +42,7 @@ public class BooleanNode extends JsonNode implements IPrimitiveNode {
 	 * Returns the instance of BooleanNode which represents the given <code>boolean</code>.
 	 * 
 	 * @param b
-	 * 	the value for which the BooleanNode should be returned for
+	 *        the value for which the BooleanNode should be returned for
 	 * @return the BooleanNode which represents the given value
 	 */
 	public static BooleanNode valueOf(final boolean b) {

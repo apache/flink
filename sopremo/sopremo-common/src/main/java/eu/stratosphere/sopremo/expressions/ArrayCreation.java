@@ -6,6 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
@@ -56,10 +57,17 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		final ArrayNode arrayNode = new ArrayNode();
-		for (final EvaluationExpression expression : this.elements)
-			arrayNode.add(expression.evaluate(node, null, context));
-		return arrayNode;
+		if (target == null || !(target instanceof IArrayNode)) {
+			final ArrayNode arrayNode = new ArrayNode();
+			for (final EvaluationExpression expression : this.elements)
+				arrayNode.add(expression.evaluate(node, null, context));
+			return arrayNode;
+		} else {
+			((IArrayNode) target).clear();
+			for (final EvaluationExpression expression : this.elements)
+				((IArrayNode) target).add(expression.evaluate(node, null, context));
+			return target;
+		}
 	}
 
 	@Override

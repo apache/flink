@@ -4,11 +4,12 @@ import java.util.Arrays;
 
 import junit.framework.Assert;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.BooleanNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 
 public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
@@ -41,5 +42,29 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 	@Test(expected = IllegalArgumentException.class)
 	public void shouldThrowExceptionIfExpressionsAreEmpty() {
 		new AndExpression();
+	}
+
+	@Ignore
+	@Test
+	public void shouldReuseTargetIfTrue() {
+		IJsonNode target = BooleanNode.FALSE;
+		final IJsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.TRUE).evaluate(
+			IntNode.valueOf(42),
+			target, this.context);
+
+		Assert.assertEquals(BooleanNode.TRUE, result);
+		Assert.assertSame(target, result);
+	}
+
+	@Ignore
+	@Test
+	public void shouldReuseTargetIfFalse() {
+		IJsonNode target = BooleanNode.TRUE;
+		final IJsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.FALSE).evaluate(
+			IntNode.valueOf(42),
+			target, this.context);
+
+		Assert.assertEquals(BooleanNode.FALSE, result);
+		Assert.assertSame(target, result);
 	}
 }

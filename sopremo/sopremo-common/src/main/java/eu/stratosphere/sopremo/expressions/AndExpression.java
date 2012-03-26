@@ -35,8 +35,10 @@ public class AndExpression extends BooleanExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		for (final EvaluationExpression booleanExpression : this.expressions)
-			if (booleanExpression.evaluate(node, null, context) == BooleanNode.FALSE)
+			if (booleanExpression.evaluate(node, target, context) == BooleanNode.FALSE) {
 				return BooleanNode.FALSE;
+			}
+
 		return BooleanNode.TRUE;
 	}
 

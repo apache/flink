@@ -10,8 +10,10 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 
@@ -49,5 +51,25 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 			IntNode.valueOf(1))).equals(null);
 
 		Assert.assertFalse(result);
+	}
+
+	@Test
+	public void shouldReuseTarget() {
+		IJsonNode target = new ArrayNode();
+		IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(IntNode.valueOf(42),
+			target, this.context);
+
+		Assert.assertEquals(new ArrayNode(IntNode.valueOf(42)), result);
+		Assert.assertSame(target, result);
+	}
+	
+	@Test
+	public void shouldNotReuseTargetIfWrongType() {
+		IJsonNode target = new ObjectNode();
+		IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(IntNode.valueOf(42),
+			target, this.context);
+
+		Assert.assertEquals(new ArrayNode(IntNode.valueOf(42)), result);
+		Assert.assertNotSame(target, result);
 	}
 }
