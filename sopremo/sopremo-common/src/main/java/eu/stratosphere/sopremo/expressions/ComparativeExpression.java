@@ -40,6 +40,7 @@ public class ComparativeExpression extends BooleanExpression {
 	// }
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// // we can ignore 'target' because no new Object is created
 		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, null, context),
 			this.expr2.evaluate(node, null, context)));
 	}

@@ -41,6 +41,7 @@ public class UnaryExpression extends BooleanExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// we can ignore 'target' because no new Object is created
 		final BooleanNode result = TypeCoercer.INSTANCE.coerce(this.expr.evaluate(node, target, context), BooleanNode.class);
 		if (this.negate)
 			return result == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;

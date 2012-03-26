@@ -27,25 +27,31 @@ public class GroupingExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		if (target == null || !(target instanceof IArrayNode)) {
+			target = new ArrayNode();
+		} else {
+			((IArrayNode) target).clear();
+		}
+
 		if (((IArrayNode) node).size() == 0)
-			return new ArrayNode();
+			return target;
 
 		final List<ArrayNode> nodes = this.sortNodesWithKey(node, context);
 
-		final ArrayNode resultNode = new ArrayNode();
+		// final ArrayNode resultNode = new ArrayNode();
 
 		int groupStart = 0;
 		IJsonNode groupKey = nodes.get(0).get(0);
 		for (int index = 1; index < nodes.size(); index++)
 			if (!nodes.get(index).get(0).equals(groupKey)) {
-				resultNode.add(this.evaluateGroup(nodes.subList(groupStart, index), context));
+				((IArrayNode) target).add(this.evaluateGroup(nodes.subList(groupStart, index), context));
 				groupKey = nodes.get(index).get(0);
 				groupStart = index;
 			}
 
-		resultNode.add(this.evaluateGroup(nodes.subList(groupStart, nodes.size()), context));
+		((IArrayNode) target).add(this.evaluateGroup(nodes.subList(groupStart, nodes.size()), context));
 
-		return resultNode;
+		return target;
 	}
 
 	protected List<ArrayNode> sortNodesWithKey(final IJsonNode node, final EvaluationContext context) {

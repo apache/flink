@@ -38,7 +38,7 @@ public class CoerceExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, null, context), this.targetType);
+		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, target, context), this.targetType);
 	}
 
 	@Override

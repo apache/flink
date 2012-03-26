@@ -34,6 +34,7 @@ public class AndExpression extends BooleanExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// we can ignore 'target' because no new Object is created
 		for (final EvaluationExpression booleanExpression : this.expressions)
 			if (booleanExpression.evaluate(node, target, context) == BooleanNode.FALSE) {
 				return BooleanNode.FALSE;

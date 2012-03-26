@@ -29,6 +29,7 @@ public class ElementInSetExpression extends BooleanExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// we can ignore 'target' because no new Object is created
 		return this.quantor.evaluate(this.elementExpr.evaluate(node, null, context),
 			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, null, context)));
 	}
