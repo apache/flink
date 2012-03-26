@@ -76,20 +76,42 @@ public class ArrayAccess extends EvaluationExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (this.isSelectingAll())
-			return node;
+			if (target == null || !(target instanceof IArrayNode)) {
+				return node;
+			} else {
+				((IArrayNode) target).clear();
+				((IArrayNode) target).addAll((IArrayNode) node);
+				return target;
+			}
 		final int size = ((IArrayNode) node).size();
 		if (this.isSelectingRange()) {
-			final ArrayNode arrayNode = new ArrayNode();
-			int index = this.resolveIndex(this.startIndex, size);
-			final int endIndex = this.resolveIndex(this.endIndex, size);
-			final int increment = index < endIndex ? 1 : -1;
+			if (target == null || !(target instanceof IArrayNode)) {
+				final ArrayNode arrayNode = new ArrayNode();
+				int index = this.resolveIndex(this.startIndex, size);
+				final int endIndex = this.resolveIndex(this.endIndex, size);
+				final int increment = index < endIndex ? 1 : -1;
 
-			for (boolean moreElements = true; moreElements; index += increment) {
-				arrayNode.add(((IArrayNode) node).get(index));
-				moreElements = index != endIndex;
+				for (boolean moreElements = true; moreElements; index += increment) {
+					arrayNode.add(((IArrayNode) node).get(index));
+					moreElements = index != endIndex;
+				}
+				return arrayNode;
+			} else {
+				((IArrayNode) target).clear();
+				int index = this.resolveIndex(this.startIndex, size);
+				final int endIndex = this.resolveIndex(this.endIndex, size);
+				final int increment = index < endIndex ? 1 : -1;
+
+				for (boolean moreElements = true; moreElements; index += increment) {
+					((IArrayNode) target).add(((IArrayNode) node).get(index));
+					moreElements = index != endIndex;
+				}
+				return target;
 			}
-			return arrayNode;
+
 		}
+
+		// TODO find a way to reuse PrimitiveNode's
 		final IJsonNode value = ((IArrayNode) node).get(this.resolveIndex(this.startIndex, size));
 		return value == null ? NullNode.getInstance() : value;
 	}
