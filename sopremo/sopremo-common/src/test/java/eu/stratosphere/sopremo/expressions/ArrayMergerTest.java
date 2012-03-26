@@ -6,8 +6,12 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
@@ -61,5 +65,31 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 				createArrayNode(null, null, createObjectNode("fieldName", 3))), null, this.context);
 		Assert.assertEquals(createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 			createObjectNode("fieldName", 3)), result);
+	}
+
+	@Test
+	public void shouldReuseTarget() {
+		IJsonNode target = new ArrayNode();
+
+		IArrayNode firstArray = createArrayNode(null, IntNode.valueOf(2), IntNode.valueOf(3));
+		IArrayNode secondArray = createArrayNode(IntNode.valueOf(1));
+
+		IJsonNode result = new ArrayMerger().evaluate(createArrayNode(firstArray, secondArray), target, this.context);
+
+		Assert.assertEquals(createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3)), result);
+		Assert.assertSame(target, result);
+	}
+
+	@Test
+	public void shouldNotReuseTargetIfWrongType() {
+		IJsonNode target = new ObjectNode();
+
+		IArrayNode firstArray = createArrayNode(null, IntNode.valueOf(2), IntNode.valueOf(3));
+		IArrayNode secondArray = createArrayNode(IntNode.valueOf(1));
+
+		IJsonNode result = new ArrayMerger().evaluate(createArrayNode(firstArray, secondArray), target, this.context);
+
+		Assert.assertEquals(createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3)), result);
+		Assert.assertNotSame(target, result);
 	}
 }

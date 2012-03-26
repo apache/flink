@@ -24,19 +24,24 @@ public class ArrayMerger extends EvaluationExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		final Iterator<IJsonNode> arrays = ((ArrayNode) node).iterator();
-		final IArrayNode mergedArray = new ArrayNode();
+
+		if (target == null || !(target instanceof IArrayNode)) {
+			target = new ArrayNode();
+		} else {
+			((IArrayNode) target).clear();
+		}
 		IJsonNode nextNode;
 		while (arrays.hasNext())
 			if ((nextNode = arrays.next()) != NullNode.getInstance()) {
 
 				final IArrayNode array = (IArrayNode) nextNode;
 				for (int index = 0; index < array.size(); index++)
-					if (mergedArray.size() <= index)
-						mergedArray.add(array.get(index));
-					else if (this.isNull(mergedArray.get(index)) && !this.isNull(array.get(index)))
-						mergedArray.set(index, array.get(index));
+					if (((IArrayNode) target).size() <= index)
+						((IArrayNode) target).add(array.get(index));
+					else if (this.isNull(((IArrayNode) target).get(index)) && !this.isNull(array.get(index)))
+						((IArrayNode) target).set(index, array.get(index));
 			}
-		return mergedArray;
+		return target;
 	}
 
 	private boolean isNull(final IJsonNode value) {

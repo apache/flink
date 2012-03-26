@@ -58,16 +58,14 @@ public class ArrayCreation extends ContainerExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (target == null || !(target instanceof IArrayNode)) {
-			final ArrayNode arrayNode = new ArrayNode();
-			for (final EvaluationExpression expression : this.elements)
-				arrayNode.add(expression.evaluate(node, null, context));
-			return arrayNode;
+			target = new ArrayNode();
 		} else {
 			((IArrayNode) target).clear();
-			for (final EvaluationExpression expression : this.elements)
-				((IArrayNode) target).add(expression.evaluate(node, null, context));
-			return target;
 		}
+		for (final EvaluationExpression expression : this.elements)
+			((IArrayNode) target).add(expression.evaluate(node, null, context));
+		return target;
+
 	}
 
 	@Override
