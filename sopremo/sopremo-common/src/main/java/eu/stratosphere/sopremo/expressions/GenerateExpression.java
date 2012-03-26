@@ -25,6 +25,10 @@ public class GenerateExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		return TextNode.valueOf(String.format(this.pattern, context.getTaskId(), this.id++));
+		if (target == null || !(target instanceof TextNode)) {
+			target = new TextNode();
+		}
+		((TextNode) target).setValue(String.format(this.pattern, context.getTaskId(), this.id++));
+		return target;
 	}
 }

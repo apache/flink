@@ -21,7 +21,7 @@ public class TextNode extends JsonNode implements IPrimitiveNode {
 
 	public final static TextNode EMPTY_STRING_NODE = new TextNode("");
 
-	protected transient PactString value;
+	private transient PactString value;
 
 	/**
 	 * Initializes a TextNode which represents an empty String.
@@ -68,6 +68,10 @@ public class TextNode extends JsonNode implements IPrimitiveNode {
 	 */
 	public String getTextValue() {
 		return this.getJavaValue();
+	}
+
+	public void setValue(String value) {
+		this.value.setValue(value);
 	}
 
 	@Override

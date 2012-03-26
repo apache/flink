@@ -10,7 +10,7 @@ import java.math.BigInteger;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class DecimalNode extends NumericNode implements INumericNode{
+public class DecimalNode extends NumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -41,13 +41,17 @@ public class DecimalNode extends NumericNode implements INumericNode{
 	 * Creates a new DecimalNode which represents the given {@link BigDecimal}.
 	 * 
 	 * @param v
-	 * 	the value which should be represented by this node
+	 *        the value which should be represented by this node
 	 * @return the new DecimalNode
 	 */
 	public static DecimalNode valueOf(final BigDecimal v) {
 		if (v == null)
 			throw new NullPointerException();
 		return new DecimalNode(v);
+	}
+
+	public void setValue(BigDecimal value) {
+		this.value = value;
 	}
 
 	@Override

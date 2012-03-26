@@ -21,7 +21,7 @@ public class LongNode extends NumericNode implements INumericNode {
 	 */
 	private static final long serialVersionUID = 8594695207002513755L;
 
-	protected transient PactLong value;
+	private transient PactLong value;
 
 	/**
 	 * Initializes a LongNode which represents the given <code>long</code>. To create new LongNodes please
@@ -37,6 +37,10 @@ public class LongNode extends NumericNode implements INumericNode {
 	@Override
 	public Long getJavaValue() {
 		return this.value.getValue();
+	}
+
+	public void setValue(long value) {
+		this.value.setValue(value);
 	}
 
 	@Override

@@ -42,6 +42,10 @@ public class BigIntegerNode extends NumericNode implements INumericNode {
 		return this.value;
 	}
 
+	public void setValue(BigInteger value) {
+		this.value = value;
+	}
+
 	@Override
 	public void read(final DataInput in) throws IOException {
 		final byte[] inValue = new byte[in.readInt()];
@@ -84,7 +88,7 @@ public class BigIntegerNode extends NumericNode implements INumericNode {
 	 * Creates a new BigIntegerNode which represents the given {@link BigInteger}.
 	 * 
 	 * @param bigInteger
-	 * 	the value which should be represented by this node
+	 *        the value which should be represented by this node
 	 * @return the new BigIntegerNode
 	 */
 	public static BigIntegerNode valueOf(final BigInteger bigInteger) {

@@ -68,6 +68,10 @@ public class DoubleNode extends NumericNode implements INumericNode {
 		return new DoubleNode(v);
 	}
 
+	public void setValue(double value) {
+		this.value.setValue(value);
+	}
+
 	@Override
 	public StringBuilder toString(final StringBuilder sb) {
 		return sb.append(this.value);
