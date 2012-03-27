@@ -66,8 +66,10 @@ public class ArrayCreation extends ContainerExpression {
 			target = new ArrayNode();
 		}
 
+		int index = 0;
+
 		for (final EvaluationExpression expression : this.elements)
-			((IArrayNode) target).add(expression.evaluate(node, null, context));
+			((IArrayNode) target).add(expression.evaluate(node, ((IArrayNode) target).get(index++), context));
 		return target;
 
 	}

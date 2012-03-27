@@ -48,7 +48,7 @@ public class ArrayProjection extends EvaluationExpression {
 			target = new ArrayNode();
 		}
 		for (int index = 0, size = array.size(); index < size; index++)
-			((IArrayNode) target).add(this.expression.evaluate(array.get(index), null, context));
+			((IArrayNode) target).add(this.expression.evaluate(array.get(index), ((IArrayNode) target).get(index), context));
 		return target;
 	}
 

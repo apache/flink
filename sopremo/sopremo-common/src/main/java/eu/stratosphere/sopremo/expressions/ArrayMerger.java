@@ -24,7 +24,7 @@ public class ArrayMerger extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		final Iterator<IJsonNode> arrays = ((ArrayNode) node).iterator();
+		final Iterator<IJsonNode> arrays = ((IArrayNode) node).iterator();
 
 		try {
 			target = SopremoUtil.reuseTarget(target, ArrayNode.class);

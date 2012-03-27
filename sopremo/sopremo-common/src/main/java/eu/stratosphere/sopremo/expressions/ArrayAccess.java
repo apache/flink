@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -75,40 +76,37 @@ public class ArrayAccess extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		if (this.isSelectingAll())
-			if (target == null || !(target instanceof IArrayNode)) {
-				return node;
-			} else {
-				((IArrayNode) target).clear();
-				((IArrayNode) target).addAll((IArrayNode) node);
-				return target;
+		if (this.isSelectingAll()) {
+			try {
+				target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+			} catch (InstantiationException e) {
+				target = new ArrayNode();
+			} catch (IllegalAccessException e) {
+				target = new ArrayNode();
 			}
+			((IArrayNode) target).clear();
+			((IArrayNode) target).addAll((IArrayNode) node);
+			return target;
+		}
 		final int size = ((IArrayNode) node).size();
 		if (this.isSelectingRange()) {
-			if (target == null || !(target instanceof IArrayNode)) {
-				final ArrayNode arrayNode = new ArrayNode();
-				int index = this.resolveIndex(this.startIndex, size);
-				final int endIndex = this.resolveIndex(this.endIndex, size);
-				final int increment = index < endIndex ? 1 : -1;
-
-				for (boolean moreElements = true; moreElements; index += increment) {
-					arrayNode.add(((IArrayNode) node).get(index));
-					moreElements = index != endIndex;
-				}
-				return arrayNode;
-			} else {
-				((IArrayNode) target).clear();
-				int index = this.resolveIndex(this.startIndex, size);
-				final int endIndex = this.resolveIndex(this.endIndex, size);
-				final int increment = index < endIndex ? 1 : -1;
-
-				for (boolean moreElements = true; moreElements; index += increment) {
-					((IArrayNode) target).add(((IArrayNode) node).get(index));
-					moreElements = index != endIndex;
-				}
-				return target;
+			try {
+				target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+			} catch (InstantiationException e) {
+				target = new ArrayNode();
+			} catch (IllegalAccessException e) {
+				target = new ArrayNode();
 			}
+			((IArrayNode) target).clear();
+			int index = this.resolveIndex(this.startIndex, size);
+			final int endIndex = this.resolveIndex(this.endIndex, size);
+			final int increment = index < endIndex ? 1 : -1;
 
+			for (boolean moreElements = true; moreElements; index += increment) {
+				((IArrayNode) target).add(((IArrayNode) node).get(index));
+				moreElements = index != endIndex;
+			}
+			return target;
 		}
 
 		// TODO find a way to reuse PrimitiveNode's
