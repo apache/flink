@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -39,10 +40,16 @@ public class ArrayProjection extends EvaluationExpression {
 		// }, ((StreamArrayNode) node).isResettable());
 		// spread
 		final IArrayNode array = (IArrayNode) node;
-		final ArrayNode arrayNode = new ArrayNode();
+		try {
+			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+		} catch (InstantiationException e) {
+			target = new ArrayNode();
+		} catch (IllegalAccessException e) {
+			target = new ArrayNode();
+		}
 		for (int index = 0, size = array.size(); index < size; index++)
-			arrayNode.add(this.expression.evaluate(array.get(index), null, context));
-		return arrayNode;
+			((IArrayNode) target).add(this.expression.evaluate(array.get(index), null, context));
+		return target;
 	}
 
 	@Override

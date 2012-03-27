@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -25,7 +26,11 @@ public class GenerateExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		if (target == null || !(target instanceof TextNode)) {
+		try {
+			target = SopremoUtil.reuseTarget(target, TextNode.class);
+		} catch (InstantiationException e) {
+			target = new TextNode();
+		} catch (IllegalAccessException e) {
 			target = new TextNode();
 		}
 		((TextNode) target).setValue(String.format(this.pattern, context.getTaskId(), this.id++));

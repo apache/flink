@@ -7,6 +7,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -27,10 +28,12 @@ public class GroupingExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		if (target == null || !(target instanceof IArrayNode)) {
+		try {
+			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+		} catch (InstantiationException e) {
 			target = new ArrayNode();
-		} else {
-			((IArrayNode) target).clear();
+		} catch (IllegalAccessException e) {
+			target = new ArrayNode();
 		}
 
 		if (((IArrayNode) node).size() == 0)

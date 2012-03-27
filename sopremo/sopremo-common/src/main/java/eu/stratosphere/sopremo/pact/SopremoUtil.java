@@ -30,7 +30,10 @@ import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 public class SopremoUtil {
@@ -170,7 +173,7 @@ public class SopremoUtil {
 		try {
 			out.writeInt(iJsonNode.getType().ordinal());
 
-			if (iJsonNode.getType()== Type.CustomNode)
+			if (iJsonNode.getType() == Type.CustomNode)
 				out.writeUTF(iJsonNode.getClass().getName());
 			iJsonNode.write(out);
 		} catch (final IOException e) {
@@ -244,6 +247,21 @@ public class SopremoUtil {
 		if (node instanceof JsonNodeWrapper)
 			return node;
 		return new JsonNodeWrapper(node);
+	}
+
+	public static IJsonNode reuseTarget(IJsonNode target, Class<? extends IJsonNode> clazz)
+			throws InstantiationException,
+			IllegalAccessException {
+		if (target == null || !clazz.isInstance(target)) {
+			target = clazz.newInstance();
+		} else {
+			if (clazz == IArrayNode.class) {
+				((IArrayNode) target).clear();
+			} else if (clazz == IObjectNode.class) {
+				((IObjectNode) target).removeAll();
+			}
+		}
+		return target;
 	}
 
 }

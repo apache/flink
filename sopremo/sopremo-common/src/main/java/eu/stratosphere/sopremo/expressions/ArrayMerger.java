@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -25,11 +26,14 @@ public class ArrayMerger extends EvaluationExpression {
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		final Iterator<IJsonNode> arrays = ((ArrayNode) node).iterator();
 
-		if (target == null || !(target instanceof IArrayNode)) {
+		try {
+			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+		} catch (InstantiationException e) {
 			target = new ArrayNode();
-		} else {
-			((IArrayNode) target).clear();
+		} catch (IllegalAccessException e) {
+			target = new ArrayNode();
 		}
+
 		IJsonNode nextNode;
 		while (arrays.hasNext())
 			if ((nextNode = arrays.next()) != NullNode.getInstance()) {
