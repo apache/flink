@@ -41,7 +41,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 public abstract class AbstractOutputChannel<T extends Record> extends AbstractChannel {
 
 	private OutputGate<T> outputGate = null;
-	
+
 	/**
 	 * Creates a new output channel object.
 	 * 
@@ -175,16 +175,6 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	@Override
 	public JobID getJobID() {
 		return this.outputGate.getJobID();
-	}
-
-	/**
-	 * This method is called by the processing framework to
-	 * indicate the corresponding {@link OutputChannel} is currently
-	 * exhausted and no more data can be written into the channel.
-	 */
-	public void channelCapacityExhausted() {
-		// Forward call to output gate
-		this.outputGate.channelCapacityExhausted(this.getChannelIndex());
 	}
 
 	/**

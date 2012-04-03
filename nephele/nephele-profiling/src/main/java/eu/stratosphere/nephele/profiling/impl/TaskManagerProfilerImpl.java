@@ -34,20 +34,15 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
-import eu.stratosphere.nephele.profiling.impl.types.InternalInputGateProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
-import eu.stratosphere.nephele.profiling.impl.types.InternalOutputGateProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
-import eu.stratosphere.nephele.taskmanager.Task;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerProfiler {
@@ -68,12 +63,8 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	private final Map<Environment, EnvironmentThreadSet> monitoredThreads = new HashMap<Environment, EnvironmentThreadSet>();
 
-	private final Map<InputGate<? extends Record>, InputGateListenerImpl> monitoredInputGates = new HashMap<InputGate<? extends Record>, InputGateListenerImpl>();
-
-	private final Map<OutputGate<? extends Record>, OutputGateListenerImpl> monitoredOutputGates = new HashMap<OutputGate<? extends Record>, OutputGateListenerImpl>();
-
 	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, InstanceConnectionInfo instanceConnectionInfo)
-																												throws ProfilingException {
+			throws ProfilingException {
 
 		// Create RPC stub for communication with job manager's profiling component.
 		final InetSocketAddress profilingAddress = new InetSocketAddress(jobManagerAddress, GlobalConfiguration
@@ -112,36 +103,10 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void registerExecutionListener(final Task task, final Configuration jobConfiguration) {
+	public void registerExecutionListener(final RuntimeTask task, final Configuration jobConfiguration) {
 
 		// Register profiling hook for the environment
-		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getEnvironment()));
-	}
-
-	@Override
-	public void registerInputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			InputGate<? extends Record> inputGate) {
-
-		synchronized (this.monitoredInputGates) {
-
-			final InputGateListenerImpl inputGateListener = new InputGateListenerImpl(inputGate.getJobID(), id,
-				inputGate.getIndex());
-			inputGate.registerInputGateListener(inputGateListener);
-			this.monitoredInputGates.put(inputGate, inputGateListener);
-		}
-	}
-
-	@Override
-	public void registerOutputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			OutputGate<? extends Record> outputGate) {
-
-		synchronized (this.monitoredOutputGates) {
-
-			final OutputGateListenerImpl outputGateListener = new OutputGateListenerImpl(outputGate.getJobID(), id,
-				outputGate.getIndex());
-			outputGate.registerOutputGateListener(outputGateListener);
-			this.monitoredOutputGates.put(outputGate, outputGateListener);
-		}
+		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getRuntimeEnvironment()));
 	}
 
 	@Override
@@ -151,38 +116,6 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		 * execution state has either switched to FINISHED, CANCELLED,
 		 * or FAILED.
 		 */
-	}
-
-	@Override
-	public void unregisterInputGateListeners(ExecutionVertexID id) {
-
-		synchronized (this.monitoredInputGates) {
-
-			final Iterator<InputGate<? extends Record>> it = this.monitoredInputGates.keySet().iterator();
-			while (it.hasNext()) {
-
-				final InputGate<? extends Record> inputGate = it.next();
-				if (this.monitoredInputGates.get(inputGate).getExecutionVertexID().equals(id)) {
-					it.remove();
-				}
-			}
-		}
-	}
-
-	@Override
-	public void unregisterOutputGateListeners(ExecutionVertexID id) {
-
-		synchronized (this.monitoredOutputGates) {
-
-			final Iterator<OutputGate<? extends Record>> it = this.monitoredOutputGates.keySet().iterator();
-			while (it.hasNext()) {
-
-				final OutputGate<? extends Record> outputGate = it.next();
-				if (this.monitoredOutputGates.get(outputGate).getExecutionVertexID().equals(id)) {
-					it.remove();
-				}
-			}
-		}
 	}
 
 	@Override
@@ -220,34 +153,6 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 					LOG.error("Error while retrieving instance profiling data: ", e);
 				}
 			}
-		}
-
-		// Collect profiling information of the input gates
-		synchronized (this.monitoredInputGates) {
-
-			final Iterator<InputGate<? extends Record>> iterator = this.monitoredInputGates.keySet().iterator();
-			while (iterator.hasNext()) {
-
-				final InputGate<? extends Record> inputGate = iterator.next();
-				final InputGateListenerImpl listener = this.monitoredInputGates.get(inputGate);
-				this.profilingDataContainer.addProfilingData(new InternalInputGateProfilingData(listener.getJobID(),
-					listener.getExecutionVertexID(), listener.getGateIndex(), (int) timerInterval, listener
-						.getAndResetCounter()));
-			}
-		}
-
-		synchronized (this.monitoredOutputGates) {
-
-			final Iterator<OutputGate<? extends Record>> iterator = this.monitoredOutputGates.keySet().iterator();
-			while (iterator.hasNext()) {
-
-				final OutputGate<? extends Record> outputGate = iterator.next();
-				final OutputGateListenerImpl listener = this.monitoredOutputGates.get(outputGate);
-				this.profilingDataContainer.addProfilingData(new InternalOutputGateProfilingData(listener.getJobID(),
-					listener.getExecutionVertexID(), listener.getGateIndex(), (int) timerInterval, listener
-						.getAndResetCounter()));
-			}
-
 		}
 
 		// Send all queued profiling records to the job manager and clear container

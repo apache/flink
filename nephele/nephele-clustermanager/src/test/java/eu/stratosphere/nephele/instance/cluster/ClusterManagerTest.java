@@ -159,8 +159,9 @@ public class ClusterManagerTest {
 				2L * 1024L * 1024L * 1024L,
 				2L * 1024L * 1024L * 1024L);
 
-			InstanceConnectionInfo ici = new InstanceConnectionInfo(InetAddress.getByName("192.168.198.1"), ipcPort,
-				dataPort);
+			String ipAddress = "192.168.198.1";
+			InstanceConnectionInfo ici = new InstanceConnectionInfo(InetAddress.getByName(ipAddress), ipAddress, null,
+				ipcPort, dataPort);
 
 			// Although the hardware description indicates an instance of type "small", the cluster manager is supposed
 			// to take the user-defined instance type "high"
@@ -191,7 +192,9 @@ public class ClusterManagerTest {
 			// its hardware description
 			hardwareDescription = HardwareDescriptionFactory.construct(3, 2L * 1024L * 1024L * 1024L,
 				1024L * 1024L * 1024L);
-			ici = new InstanceConnectionInfo(InetAddress.getByName("192.168.198.3"), ipcPort, dataPort);
+
+			ipAddress = "192.168.198.3";
+			ici = new InstanceConnectionInfo(InetAddress.getByName(ipAddress), ipAddress, null, ipcPort, dataPort);
 			cm.reportHeartBeat(ici, hardwareDescription);
 
 			instanceTypeDescriptions = cm.getMapOfAvailableInstanceTypes();
@@ -244,8 +247,9 @@ public class ClusterManagerTest {
 
 		try {
 
+			final String ipAddress = "192.168.198.1";
 			final InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(
-				InetAddress.getByName("192.168.198.1"), 1234, 1235);
+				InetAddress.getByName(ipAddress), ipAddress, null, 1234, 1235);
 			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
 				8L * 1024L * 1024L * 1024L, 8L * 1024L * 1024L * 1024L);
 			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
@@ -340,8 +344,9 @@ public class ClusterManagerTest {
 
 		try {
 
+			final String ipAddress = "192.168.198.3";
 			final InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(
-				InetAddress.getByName("192.168.198.3"), 1234, 1235);
+				InetAddress.getByName(ipAddress), ipAddress, null, 1234, 1235);
 			final HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(8,
 				8L * 1024L * 1024L * 1024L, 8L * 1024L * 1024L * 1024L);
 			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);

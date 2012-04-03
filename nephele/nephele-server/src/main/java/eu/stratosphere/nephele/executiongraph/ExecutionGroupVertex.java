@@ -47,6 +47,12 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class ExecutionGroupVertex {
 
 	/**
+	 * The default number of retries in case of an error before the task represented by this vertex is considered as
+	 * failed.
+	 */
+	private final int DEFAULT_NUMBER_OF_EXECUTION_RETRIES = 2;
+
+	/**
 	 * The name of the vertex.
 	 */
 	private final String name;
@@ -100,6 +106,11 @@ public class ExecutionGroupVertex {
 	 * Stores whether the number of subtasks per instance is user defined.
 	 */
 	private final boolean userDefinedNumberOfSubtasksPerInstance;
+
+	/**
+	 * Number of retries in case of an error before the task represented by this vertex is considered as failed.
+	 */
+	private final int numberOfExecutionRetries;
 
 	/**
 	 * The execution group vertex to share instances with.
@@ -172,6 +183,9 @@ public class ExecutionGroupVertex {
 	 * @param userDefinedVertexToShareInstanceWith
 	 *        <code>true</code> if the user specified another vertex to share instances with, <code>false</code>
 	 *        otherwise
+	 * @param numberOfExecutionRetries
+	 *        the number of retries in case of an error before the task represented by this vertex is considered as
+	 *        failed, -1 if the user did not specify the number
 	 * @param configuration
 	 *        the vertex's configuration object
 	 * @param signature
@@ -180,8 +194,8 @@ public class ExecutionGroupVertex {
 	public ExecutionGroupVertex(final String name, final JobVertexID jobVertexID, final ExecutionGraph executionGraph,
 			final int userDefinedNumberOfMembers, final InstanceType instanceType,
 			final boolean userDefinedInstanceType, final int numberOfSubtasksPerInstance,
-			final boolean userDefinedVertexToShareInstanceWith, final Configuration configuration,
-			final ExecutionSignature signature) {
+			final boolean userDefinedVertexToShareInstanceWith, final int numberOfExecutionRetries,
+			final Configuration configuration, final ExecutionSignature signature) {
 
 		this.name = name;
 		this.jobVertexID = jobVertexID;
@@ -195,6 +209,11 @@ public class ExecutionGroupVertex {
 		} else {
 			this.numberOfSubtasksPerInstance = 1;
 			this.userDefinedNumberOfSubtasksPerInstance = false;
+		}
+		if (numberOfExecutionRetries >= 0) {
+			this.numberOfExecutionRetries = numberOfExecutionRetries;
+		} else {
+			this.numberOfExecutionRetries = DEFAULT_NUMBER_OF_EXECUTION_RETRIES;
 		}
 		this.userDefinedVertexToShareInstancesWith = userDefinedVertexToShareInstanceWith;
 		this.configuration = configuration;
@@ -692,6 +711,17 @@ public class ExecutionGroupVertex {
 
 	int getNumberOfSubtasksPerInstance() {
 		return this.numberOfSubtasksPerInstance;
+	}
+
+	/**
+	 * Returns the number of retries in case of an error before the task represented by this vertex is considered as
+	 * failed.
+	 * 
+	 * @return the number of retries in case of an error before the task represented by this vertex is considered as
+	 *         failed
+	 */
+	int getNumberOfExecutionRetries() {
+		return this.numberOfExecutionRetries;
 	}
 
 	void shareInstancesWith(final ExecutionGroupVertex groupVertex) throws GraphConversionException {

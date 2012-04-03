@@ -92,6 +92,8 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			LOG.error("Cannot find job " + executionGraphToRemove.getJobName() + " ("
 				+ executionGraphToRemove.getJobID() + ") to remove");
 		}
+
+		// TODO: Remove vertices from restart map
 	}
 
 	/**
@@ -225,6 +227,6 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		}
 
 		// Deploy the assigned vertices
-		deployAssignedVertices(executionStage.getExecutionGraph());
+		deployAssignedInputVertices(executionStage.getExecutionGraph());
 	}
 }

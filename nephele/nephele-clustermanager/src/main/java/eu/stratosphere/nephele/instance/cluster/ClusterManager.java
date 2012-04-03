@@ -252,6 +252,10 @@ public class ClusterManager implements InstanceManager {
 					}
 				}
 
+				registeredHosts.entrySet().removeAll(hostsToRemove);
+
+				updateInstaceTypeDescriptionMap();
+
 				final Iterator<Map.Entry<JobID, List<AllocatedResource>>> it = staleResources.entrySet().iterator();
 				while (it.hasNext()) {
 					final Map.Entry<JobID, List<AllocatedResource>> entry = it.next();
@@ -259,10 +263,6 @@ public class ClusterManager implements InstanceManager {
 						instanceListener.allocatedResourcesDied(entry.getKey(), entry.getValue());
 					}
 				}
-
-				registeredHosts.entrySet().removeAll(hostsToRemove);
-
-				updateInstaceTypeDescriptionMap();
 			}
 		}
 	};
@@ -441,7 +441,14 @@ public class ClusterManager implements InstanceManager {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
+	public synchronized void shutdown() {
+
+		final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
+		while (it.hasNext()) {
+			it.next().destroyProxies();
+		}
+		this.registeredHosts.clear();
+
 		this.cleanupStaleMachines.cancel();
 	}
 
@@ -836,11 +843,12 @@ public class ClusterManager implements InstanceManager {
 			final InstanceRequestMap instanceRequestMap,
 			final List<String> splitAffinityList) throws InstanceException {
 
-		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
+		final List<AllocatedSlice> newlyAllocatedSlicesOfJob = new ArrayList<AllocatedSlice>();
+		final Map<InstanceType, Integer> pendingRequests = new HashMap<InstanceType, Integer>();
 
 		// Iterate over all instance types
-		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
-		while (it.hasNext()) {
+		for (final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator(); it
+			.hasNext();) {
 
 			// Iterate over all requested instances of a specific type
 			final Map.Entry<InstanceType, Integer> entry = it.next();
@@ -856,7 +864,12 @@ public class ClusterManager implements InstanceManager {
 
 				if (slice == null) {
 					if (i < instanceRequestMap.getMinimumNumberOfInstances(entry.getKey())) {
-						removeAllSlicesOfJob(jobID);
+						// The request cannot be fulfilled, release the slices again and throw an exception
+						for (final AllocatedSlice sliceToRelease : newlyAllocatedSlicesOfJob) {
+							sliceToRelease.getHostingInstance().removeAllocatedSlice(sliceToRelease.getAllocationID());
+						}
+
+						// TODO: Remove previously allocated slices again
 						throw new InstanceException("Could not find a suitable instance");
 					} else {
 
@@ -864,31 +877,47 @@ public class ClusterManager implements InstanceManager {
 						final int numberOfRemainingInstances = maximumNumberOfInstances - i;
 						if (numberOfRemainingInstances > 0) {
 
-							// Get pending requests map for this job
-							PendingRequestsMap pendingRequests = this.pendingRequestsOfJob.get(jobID);
-							if (pendingRequests == null) {
-								pendingRequests = new PendingRequestsMap();
-								this.pendingRequestsOfJob.put(jobID, pendingRequests);
-							}
-
 							// Store the request for the missing instances
-							pendingRequests.addRequest(entry.getKey(), numberOfRemainingInstances);
+							Integer val = pendingRequests.get(entry.getKey());
+							if (val == null) {
+								val = Integer.valueOf(0);
+							}
+							val = Integer.valueOf(val.intValue() + numberOfRemainingInstances);
+							pendingRequests.put(entry.getKey(), val);
 						}
 
 						break;
 					}
 				}
 
-				List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.get(jobID);
-				if (allocatedSlices == null) {
-					allocatedSlices = new ArrayList<AllocatedSlice>();
-					this.slicesOfJobs.put(jobID, allocatedSlices);
-				}
-				allocatedSlices.add(slice);
-
-				allocatedResources.add(new AllocatedResource(slice.getHostingInstance(), slice.getType(), slice
-					.getAllocationID()));
+				newlyAllocatedSlicesOfJob.add(slice);
 			}
+		}
+
+		// The request could be processed successfully, so update internal bookkeeping.
+		List<AllocatedSlice> allAllocatedSlicesOfJob = this.slicesOfJobs.get(jobID);
+		if (allAllocatedSlicesOfJob == null) {
+			allAllocatedSlicesOfJob = new ArrayList<AllocatedSlice>();
+			this.slicesOfJobs.put(jobID, allAllocatedSlicesOfJob);
+		}
+		allAllocatedSlicesOfJob.addAll(newlyAllocatedSlicesOfJob);
+
+		PendingRequestsMap allPendingRequestsOfJob = this.pendingRequestsOfJob.get(jobID);
+		if (allPendingRequestsOfJob == null) {
+			allPendingRequestsOfJob = new PendingRequestsMap();
+			this.pendingRequestsOfJob.put(jobID, allPendingRequestsOfJob);
+		}
+		for (final Iterator<Map.Entry<InstanceType, Integer>> it = pendingRequests.entrySet().iterator(); it.hasNext();) {
+			final Map.Entry<InstanceType, Integer> entry = it.next();
+
+			allPendingRequestsOfJob.addRequest(entry.getKey(), entry.getValue().intValue());
+		}
+
+		// Finally, create the list of allocated resources for the scheduler
+		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
+		for (final AllocatedSlice slice : newlyAllocatedSlicesOfJob) {
+			allocatedResources.add(new AllocatedResource(slice.getHostingInstance(), slice.getType(), slice
+				.getAllocationID()));
 		}
 
 		if (this.instanceListener != null) {
@@ -896,23 +925,6 @@ public class ClusterManager implements InstanceManager {
 				this.instanceListener, jobID, allocatedResources);
 			clusterInstanceNotifier.start();
 		}
-	}
-
-	/**
-	 * Removes all slices allocated to the job with the given ID and releases the corresponding resources.
-	 * 
-	 * @param jobID
-	 *        the ID of the job to remove all allocated slices for
-	 */
-	private void removeAllSlicesOfJob(final JobID jobID) {
-
-		final List<AllocatedSlice> allocatedSlices = this.slicesOfJobs.remove(jobID);
-		for (final AllocatedSlice slice : allocatedSlices) {
-			slice.getHostingInstance().removeAllocatedSlice(slice.getAllocationID());
-		}
-
-		// Remove all pending requests of the job
-		this.pendingRequestsOfJob.remove(jobID);
 	}
 
 	/**

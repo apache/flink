@@ -34,14 +34,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 
  * @author warneke
  */
-public class Buffer implements ReadableByteChannel, WritableByteChannel {
-
-	/**
-	 * The concrete buffer implementation to which all method calls on
-	 * this object are delegated.
-	 */
-	private final InternalBuffer internalBuffer;
-
+public abstract class Buffer implements ReadableByteChannel, WritableByteChannel
+{
 	/**
 	 * Stores whether this buffer has already been recycled.
 	 */
@@ -53,77 +47,56 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * @param internalBuffer
 	 *        the concrete implementation which backs the buffer
 	 */
-	Buffer(InternalBuffer internalBuffer) {
-
-		this.internalBuffer = internalBuffer;
-	}
+	protected Buffer()
+	{}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int read(ByteBuffer arg0) throws IOException {
-
-		return this.internalBuffer.read(arg0);
-	}
+	public abstract int read(ByteBuffer destination) throws IOException;
 
 	/**
 	 * Reads data from the buffer and writes it to the
 	 * given {@link WritableByteChannel} object.
 	 * 
-	 * @param writeByteChannel
-	 *        the {@link WritableByteChannel} object to write the data to
-	 * @return the number of bytes read from the buffer, potentially <code>0</code> or <code>-1</code to indicate the
-	 *         end of the stream
-	 * @throws IOException
-	 *         thrown if an error occurs while writing to the {@link WritableByteChannel} object
+	 * @param destination The {@link WritableByteChannel} object to write the data to
+	 * @return The number of bytes read from the buffer, potentially <code>0</code> or <code>-1</code to indicate the
+	 *         end of the stream.
+	 * @throws IOException Thrown if an error occurs while writing to the {@link WritableByteChannel} object.
 	 */
-	public int read(WritableByteChannel writableByteChannel) throws IOException {
-
-		return this.internalBuffer.read(writableByteChannel);
-	}
+	public abstract int read(WritableByteChannel destination) throws IOException;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void close() throws IOException {
-
-		this.internalBuffer.close();
-	}
+	public abstract boolean isOpen();
+	
+	
+	public abstract boolean isInWriteMode();
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public abstract void close() throws IOException;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean isOpen() {
-
-		return this.internalBuffer.isOpen();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int write(ByteBuffer arg0) throws IOException {
-
-		return this.internalBuffer.write(arg0);
-	}
+	public abstract int write(ByteBuffer data) throws IOException;
 
 	/**
 	 * Reads data from the given {@link ReadableByteChannel} object and
 	 * writes it to the buffer.
 	 * 
-	 * @param readableByteChannel
-	 *        the {@link ReadableByteChannel} object to read data from
-	 * @return the number of bytes written to the buffer, possibly <code>0</code>
-	 * @throws IOException
-	 *         thrown if an error occurs while writing data to the buffer
+	 * @param source The {@link ReadableByteChannel} object to read data from.
+	 * @return The number of bytes written to the buffer, possibly <code>0</code>.
+	 * @throws IOException Thrown if an error occurs while writing data to the buffer.
 	 */
-	public int write(ReadableByteChannel readableByteChannel) throws IOException {
-
-		return this.internalBuffer.write(readableByteChannel);
-	}
+	public abstract int write(ReadableByteChannel source) throws IOException;
 
 	/**
 	 * Returns the number of bytes which can be either still written to or read from
@@ -135,10 +108,7 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * 
 	 * @return the number of bytes which can be either written to or read from the buffer
 	 */
-	public int remaining() {
-
-		return this.internalBuffer.remaining();
-	}
+	public abstract int remaining();
 
 	/**
 	 * Checks whether data can still be written to or read from the buffer.
@@ -147,8 +117,7 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 *         the buffer, <code>false</code> otherwise
 	 */
 	public boolean hasRemaining() {
-
-		return (this.internalBuffer.remaining() > 0);
+		return remaining() > 0;
 	}
 
 	/**
@@ -158,20 +127,7 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * 
 	 * @return the size of the buffer in bytes
 	 */
-	public int size() {
-
-		return this.internalBuffer.size();
-	}
-
-	/**
-	 * Returns the {@link InternalBuffer} object which contains
-	 * the actual implementation of this buffer.
-	 * 
-	 * @return the {@link InternalBuffer} object which contains the actual implementation of this buffer
-	 */
-	public InternalBuffer getInternalBuffer() {
-		return this.internalBuffer;
-	}
+	public abstract int size();
 
 	/**
 	 * Recycles the buffer. In case of a memory backed buffer, the internal memory buffer
@@ -179,12 +135,14 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * file created for this buffer is deleted. A buffer can only be recycled once. Calling this method more than once
 	 * will therefore have no effect.
 	 */
-	public void recycleBuffer() {
-
+	public final void recycleBuffer()
+	{
 		if (this.isRecycled.compareAndSet(false, true)) {
-			this.internalBuffer.recycleBuffer();
+			recycle();
 		}
 	}
+	
+	protected abstract void recycle();
 
 	/**
 	 * Switches the buffer from write mode into read mode. After being switched to read
@@ -193,10 +151,7 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * @throws IOException
 	 *         throws if an error occurs while finishing writing mode
 	 */
-	public void finishWritePhase() throws IOException {
-
-		this.internalBuffer.finishWritePhase();
-	}
+	public abstract void finishWritePhase() throws IOException;
 
 	/**
 	 * Returns whether the buffer is backed by main memory or a file.
@@ -204,10 +159,7 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * @return <code>true</code> if the buffer is backed by main memory
 	 *         or <code>false</code> if it is backed by a file
 	 */
-	public boolean isBackedByMemory() {
-
-		return this.internalBuffer.isBackedByMemory();
-	}
+	public abstract boolean isBackedByMemory();
 
 	/**
 	 * Copies the content of the buffer to the given destination buffer. The state of the source buffer is not modified
@@ -218,19 +170,7 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * @throws IOException
 	 *         thrown if an error occurs while copying the data
 	 */
-	public void copyToBuffer(Buffer destinationBuffer) throws IOException {
-
-		if (size() > destinationBuffer.size()) {
-			throw new IllegalArgumentException("Destination buffer is too small to store content of source buffer: "
-				+ size() + " vs. " + destinationBuffer.size());
-		}
-
-		if (this.internalBuffer.isInWriteMode()) {
-			throw new IllegalStateException("Cannot copy buffer that is still in write mode");
-		}
-
-		this.internalBuffer.copyToBuffer(destinationBuffer);
-	}
+	public abstract void copyToBuffer(Buffer destinationBuffer) throws IOException;
 
 	/**
 	 * Duplicates the buffer. This operation does not duplicate the actual
@@ -239,12 +179,5 @@ public class Buffer implements ReadableByteChannel, WritableByteChannel {
 	 * 
 	 * @return the duplicated buffer
 	 */
-	public Buffer duplicate() throws IOException, InterruptedException {
-
-		if (this.internalBuffer.isInWriteMode()) {
-			throw new IllegalStateException("Cannot duplicate buffer that is still in write mode");
-		}
-
-		return new Buffer(this.internalBuffer.duplicate());
-	}
+	public abstract Buffer duplicate() throws IOException, InterruptedException;
 }

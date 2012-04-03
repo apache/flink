@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.instance.ec2;
 import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 
 import org.junit.Test;
 
@@ -47,12 +46,10 @@ public class JobToInstancesMappingTest {
 			null, null);
 
 		assertEquals(0, map.getNumberOfAssignedInstances());
-		assertEquals(new ArrayList<EC2CloudInstance>(), map.getAssignedInstances());
 
 		map.assignInstanceToJob(ci);
 
 		assertEquals(1, map.getNumberOfAssignedInstances());
-		assertEquals(ci, map.getAssignedInstances().get(0));
 
 		assertEquals(ci, map.getInstanceByConnectionInfo(new InstanceConnectionInfo(new InetSocketAddress("localhost",
 			6122).getAddress(), 6122, 6121)));
@@ -60,6 +57,5 @@ public class JobToInstancesMappingTest {
 		map.unassignInstanceFromJob(ci);
 
 		assertEquals(0, map.getNumberOfAssignedInstances());
-		assertEquals(new ArrayList<EC2CloudInstance>(), map.getAssignedInstances());
 	}
 }

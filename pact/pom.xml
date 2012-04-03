@@ -9,12 +9,10 @@
         <version>0.2</version>
     </parent>
 
-    <groupId>eu.stratosphere</groupId>
     <artifactId>pact</artifactId>
 
     <packaging>pom</packaging>
 
-    <version>0.2</version>
     <name>pact</name>
 
     <inceptionYear>2009</inceptionYear>

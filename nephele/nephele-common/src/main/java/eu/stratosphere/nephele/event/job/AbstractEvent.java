@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicLong;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 
@@ -32,6 +33,11 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
 public abstract class AbstractEvent implements IOReadableWritable {
 
 	/**
+	 * Static variable that points to the current global sequence number
+	 */
+	private static final AtomicLong globalSequenceNumber = new AtomicLong(0);
+	
+	/**
 	 * Auxiliary object which helps to convert a {@link Date} object to the given string representation.
 	 */
 	private static final SimpleDateFormat DATA_FORMATTER = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
@@ -42,6 +48,11 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	private long timestamp = -1;
 
 	/**
+	 * The sequence number of the event.
+	 */
+	private long sequenceNumber = -1;
+	
+	/**
 	 * Constructs a new abstract event object.
 	 * 
 	 * @param timestamp
@@ -49,6 +60,11 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 */
 	public AbstractEvent(final long timestamp) {
 		this.timestamp = timestamp;
+		this.sequenceNumber = globalSequenceNumber.incrementAndGet();
+	}
+	
+	public long getSequenceNumber(){
+		return this.sequenceNumber;
 	}
 
 	/**
@@ -67,6 +83,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 
 		// Read the timestamp
 		this.timestamp = in.readLong();
+		this.sequenceNumber = in.readLong();
 	}
 
 	/**
@@ -77,6 +94,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 
 		// Write the timestamp
 		out.writeLong(this.timestamp);
+		out.writeLong(this.sequenceNumber);
 	}
 
 	/**

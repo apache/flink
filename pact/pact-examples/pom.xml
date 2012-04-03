@@ -10,9 +10,7 @@
     <version>0.2</version>
   </parent>
 
-  <groupId>eu.stratosphere</groupId>
   <artifactId>pact-examples</artifactId>
-  <version>0.2</version>
   <name>pact-examples</name>
   
   <packaging>jar</packaging>
@@ -25,12 +23,12 @@
     	<version>${version}</version>
     </dependency>
     
-    <dependency>
+    <!--<dependency>
     	<groupId>eu.stratosphere</groupId>
     	<artifactId>pact-runtime</artifactId>
     	<version>${version}</version>
     	<scope>test</scope>
-    </dependency>
+    </dependency>-->
   </dependencies>
 
   <reporting>

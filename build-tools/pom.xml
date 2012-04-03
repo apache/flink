@@ -10,9 +10,7 @@
         <version>0.2</version>
     </parent>
 
-    <groupId>eu.stratosphere</groupId>
     <artifactId>build-tools</artifactId>
-    <version>0.2</version>
     <name>build-tools</name>
     <packaging>jar</packaging>
 </project>

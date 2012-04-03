@@ -16,10 +16,8 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -59,28 +57,16 @@ public class IncomingConnection {
 	 */
 	private final ByteBufferedChannelManager byteBufferedChannelManager;
 
-	/**
-	 * Indicates if this incoming connection object reads from a checkpoint or a TCP connection.
-	 */
-	private final boolean readsFromCheckpoint;
-
 	public IncomingConnection(ByteBufferedChannelManager byteBufferedChannelManager,
 			ReadableByteChannel readableByteChannel) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.readsFromCheckpoint = (this.readableByteChannel instanceof FileChannel);
 		this.deserializer = new DefaultDeserializer(byteBufferedChannelManager);
 		this.readableByteChannel = readableByteChannel;
 	}
 
 	public void reportTransmissionProblem(SelectionKey key, IOException ioe) {
 
-		// First, write IOException to log
-		if (!this.readsFromCheckpoint) {
-			final SocketChannel socketChannel = (SocketChannel) this.readableByteChannel;
-			LOG.error("Connection from " + socketChannel.socket().getRemoteSocketAddress()
-				+ " encountered an IOException");
-		}
-		LOG.error(ioe);
+		LOG.error(StringUtils.stringifyException(ioe));
 
 		try {
 			this.readableByteChannel.close();

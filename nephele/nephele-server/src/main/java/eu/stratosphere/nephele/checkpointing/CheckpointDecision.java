@@ -15,82 +15,43 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 
-public final class CheckpointDecision implements IOReadableWritable {
+public final class CheckpointDecision {
 
-	/**
-	 * The ID of the vertex the checkpoint decision applies to.
-	 */
-	private final ExecutionVertexID vertexID;
+	private static final Log LOG = LogFactory.getLog(CheckpointDecision.class);
 
-	/**
-	 * The checkpoint decision itself.
-	 */
-	private boolean checkpointRequired = false;
+	public static boolean getDecision(final RuntimeTask task) {
 
-	/**
-	 * Constructs a new checkpoint decision object.
-	 * 
-	 * @param vertexID
-	 *        the ID of the vertex the checkpoint decision applies to
-	 * @param checkpointRequired
-	 *        <code>true</code> to indicate the checkpoint shall be materialized, <code>false</code> to discard it
-	 */
-	CheckpointDecision(final ExecutionVertexID vertexID, final boolean checkpointRequired) {
-		this.vertexID = vertexID;
-		this.checkpointRequired = checkpointRequired;
+		switch (CheckpointUtils.getCheckpointMode()) {
+		case NEVER:
+			return false;
+		case ALWAYS:
+			return true;
+		case NETWORK:
+			return isNetworkTask(task);
+		}
+
+		return false;
 	}
 
-	/**
-	 * Default constructor required for serialized/deserialization.
-	 */
-	public CheckpointDecision() {
-		this.vertexID = new ExecutionVertexID();
-	}
+	private static boolean isNetworkTask(final RuntimeTask task) {
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
+		final RuntimeEnvironment environment = task.getRuntimeEnvironment();
 
-		this.vertexID.write(out);
-		out.writeBoolean(this.checkpointRequired);
-	}
+		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
+			if (environment.getOutputGate(i).getChannelType() == ChannelType.NETWORK) {
+				LOG.info(environment.getTaskNameWithIndex() + " is a network task");
+				return true;
+			}
+		}
 
-		this.vertexID.read(in);
-		this.checkpointRequired = in.readBoolean();
-	}
-
-	/**
-	 * Returns the ID of the vertex the checkpoint decision applies to.
-	 * 
-	 * @return the ID of the vertex the checkpoint decision applies to
-	 */
-	public ExecutionVertexID getVertexID() {
-
-		return this.vertexID;
-	}
-
-	/**
-	 * Returns the checkpoint decision itself.
-	 * 
-	 * @return <code>true</code> to indicate that the checkpoint shall be materialized, <code>false</code> to discard it
-	 */
-	public boolean getCheckpointDecision() {
-
-		return this.checkpointRequired;
+		return false;
 	}
 }

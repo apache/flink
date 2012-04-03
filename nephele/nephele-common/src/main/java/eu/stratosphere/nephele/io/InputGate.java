@@ -15,34 +15,15 @@
 
 package eu.stratosphere.nephele.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.EOFException;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.ClassUtils;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * In Nephele input gates are a specialization of general gates and connect input channels and record readers. As
@@ -51,271 +32,12 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * input gates
  * can be associated with a {@link DistributionPattern} object which dictates the concrete wiring between two groups of
  * vertices.
- * <p>
- * This class is in general not thread-safe.
  * 
  * @author warneke
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class InputGate<T extends Record> extends AbstractGate<T> implements IOReadableWritable {
-
-	/**
-	 * The log object used for debugging.
-	 */
-	private static final Log LOG = LogFactory.getLog(InputGate.class);
-
-	/**
-	 * The deserializer used to construct records from byte streams.
-	 */
-	private final RecordDeserializer<T> deserializer;
-
-	/**
-	 * The list of input channels attached to this input gate.
-	 */
-	private final ArrayList<AbstractInputChannel<T>> inputChannels = new ArrayList<AbstractInputChannel<T>>();
-
-	/**
-	 * The distribution pattern to determine how to wire the channels.
-	 */
-	private final DistributionPattern distributionPattern;
-
-	/**
-	 * Queue with indices of channels that store at least one available record.
-	 */
-	private final ArrayDeque<Integer> availableChannels = new ArrayDeque<Integer>();
-
-	/**
-	 * The listener objects registered for this input gate.
-	 */
-	private InputGateListener[] inputGateListeners = null;
-
-	/**
-	 * The listener object to be notified when a channel has at least one record available.
-	 */
-	private RecordAvailabilityListener<T> recordAvailabilityListener = null;
-
-	/**
-	 * If the value of this variable is set to <code>true</code>, the input gate is closed.
-	 */
-	private boolean isClosed = false;
-
-	/**
-	 * The channel to read from next.
-	 */
-	private int channelToReadFrom = -1;
-
-	/**
-	 * The thread which executes the task connected to the input gate.
-	 */
-	private Thread executingThread = null;
-
-	/**
-	 * Constructs a new input gate.
-	 * 
-	 * @param jobID
-	 *        the ID of the job this input gate belongs to
-	 * @param gateID
-	 *        the ID of the gate
-	 * @param inputClass
-	 *        the class of the record that can be transported through this gate
-	 * @param index
-	 *        the index assigned to this input gate at the {@link Environment} object
-	 * @param distributionPattern
-	 *        the distribution pattern to determine the concrete wiring between to groups of vertices
-	 */
-	public InputGate(final JobID jobID, final GateID gateID, final RecordDeserializer<T> deserializer, final int index,
-			final DistributionPattern distributionPattern) {
-
-		super(jobID, gateID, index);
-
-		this.deserializer = deserializer;
-
-		this.distributionPattern = (distributionPattern != null) ? distributionPattern
-			: new BipartiteDistributionPattern();
-	}
-
-	/**
-	 * Adds a new input channel to the input gate.
-	 * 
-	 * @param inputChannel
-	 *        the input channel to be added.
-	 */
-	private void addInputChannel(AbstractInputChannel<T> inputChannel) {
-
-		if (!this.inputChannels.contains(inputChannel)) {
-			this.inputChannels.add(inputChannel);
-		}
-	}
-
-	/**
-	 * Removes the input channel with the given ID from the input gate if it exists.
-	 * 
-	 * @param inputChannelID
-	 *        the ID of the channel to be removed
-	 */
-	public void removeInputChannel(ChannelID inputChannelID) {
-
-		for (int i = 0; i < this.inputChannels.size(); i++) {
-
-			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
-			if (inputChannel.getID().equals(inputChannelID)) {
-				this.inputChannels.remove(i);
-				return;
-			}
-		}
-
-		LOG.debug("Cannot find output channel with ID " + inputChannelID + " to remove");
-	}
-
-	/**
-	 * Removes all input channels from the input gate.
-	 */
-	public void removeAllInputChannels() {
-
-		this.inputChannels.clear();
-	}
-
-	public AbstractInputChannel<T> replaceChannel(ChannelID oldChannelID, ChannelType newChannelType) {
-
-		AbstractInputChannel<T> oldInputChannel = null;
-
-		for (int i = 0; i < this.inputChannels.size(); i++) {
-			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
-			if (inputChannel.getID().equals(oldChannelID)) {
-				oldInputChannel = inputChannel;
-				break;
-			}
-		}
-
-		if (oldInputChannel == null) {
-			return null;
-		}
-
-		AbstractInputChannel<T> newInputChannel = null;
-
-		switch (newChannelType) {
-		case FILE:
-			newInputChannel = new FileInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
-			break;
-		case INMEMORY:
-			newInputChannel = new InMemoryInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
-			break;
-		case NETWORK:
-			newInputChannel = new NetworkInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
-			break;
-		default:
-			LOG.error("Unknown input channel type");
-			return null;
-		}
-
-		newInputChannel.setConnectedChannelID(oldInputChannel.getConnectedChannelID());
-
-		this.inputChannels.set(newInputChannel.getChannelIndex(), newInputChannel);
-
-		return newInputChannel;
-	}
-
-	/**
-	 * Returns the {@link DistributionPattern} associated with this input gate.
-	 * 
-	 * @return the {@link DistributionPattern} associated with this input gate
-	 */
-	public DistributionPattern getDistributionPattern() {
-		return this.distributionPattern;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean isInputGate() {
-
-		return true;
-	}
-
-	/**
-	 * Returns the number of input channels associated with this input gate.
-	 * 
-	 * @return the number of input channels associated with this input gate
-	 */
-	public int getNumberOfInputChannels() {
-
-		return this.inputChannels.size();
-	}
-
-	/**
-	 * Returns the input channel from position <code>pos</code> of the gate's internal channel list.
-	 * 
-	 * @param pos
-	 *        the position to retrieve the channel from
-	 * @return the channel from the given position or <code>null</code> if such position does not exist.
-	 */
-	public AbstractInputChannel<T> getInputChannel(int pos) {
-
-		if (pos < this.inputChannels.size()) {
-			return this.inputChannels.get(pos);
-		}
-
-		return null;
-	}
-
-	/**
-	 * Creates a new network input channel and assigns it to the input gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new network input channel
-	 */
-	public NetworkInputChannel<T> createNetworkInputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
-
-		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(this, this.inputChannels.size(), deserializer,
-			channelID, compressionLevel);
-		addInputChannel(enic);
-
-		return enic;
-	}
-
-	/**
-	 * Creates a new file input channel and assigns it to the input gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new file input channel
-	 */
-	public FileInputChannel<T> createFileInputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
-
-		final FileInputChannel<T> efic = new FileInputChannel<T>(this, this.inputChannels.size(), deserializer,
-			channelID, compressionLevel);
-		addInputChannel(efic);
-
-		return efic;
-	}
-
-	/**
-	 * Creates a new in-memory input channel and assigns it to the input gate.
-	 * 
-	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
-	 * @param compressionLevel
-	 *        the level of compression to be used for this channel
-	 * @return the new in-memory input channel
-	 */
-	public InMemoryInputChannel<T> createInMemoryInputChannel(ChannelID channelID, CompressionLevel compressionLevel) {
-
-		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(this, this.inputChannels.size(),
-			deserializer, channelID, compressionLevel);
-		addInputChannel(eimic);
-
-		return eimic;
-	}
+public interface InputGate<T extends Record> extends Gate<T> {
 
 	/**
 	 * Reads a record from one of the associated input channels. The channels are
@@ -328,193 +50,51 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 *         thrown if an error occurred while reading the channels
 	 */
 
-	public T readRecord(final T target) throws IOException, InterruptedException {
+	T readRecord(T target) throws IOException, InterruptedException;
 
-		T record = null;
+	/**
+	 * Returns the number of input channels associated with this input gate.
+	 * 
+	 * @return the number of input channels associated with this input gate
+	 */
+	int getNumberOfInputChannels();
 
-		if (this.executingThread == null) {
-			this.executingThread = Thread.currentThread();
-		}
-
-		if (this.executingThread.isInterrupted()) {
-			throw new InterruptedException();
-		}
-
-		while (true) {
-
-			if (this.channelToReadFrom == -1) {
-
-				if (this.isClosed()) {
-					return null;
-				}
-
-				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
-			}
-			try {
-				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
-			} catch (EOFException e) {
-				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
-				// this.getInputChannel(channelToReadFrom).getType().toString() + ")");
-				if (this.isClosed()) {
-					this.channelToReadFrom = -1;
-					return null;
-				}
-			}
-
-			if (record != null) {
-				break;
-			} else {
-				this.channelToReadFrom = -1;
-			}
-		}
-
-		return record;
-	}
+	/**
+	 * Returns the input channel from position <code>pos</code> of the gate's internal channel list.
+	 * 
+	 * @param pos
+	 *        the position to retrieve the channel from
+	 * @return the channel from the given position or <code>null</code> if such position does not exist.
+	 */
+	AbstractInputChannel<T> getInputChannel(int pos);
 
 	/**
 	 * Notify the gate that the channel with the given index has
 	 * at least one record available.
-	 */
-	public void notifyRecordIsAvailable(int channelIndex) {
-		synchronized (this.availableChannels) {
-
-			this.availableChannels.add(Integer.valueOf(channelIndex));
-			this.availableChannels.notify();
-
-			if (this.recordAvailabilityListener != null) {
-				this.recordAvailabilityListener.reportRecordAvailability(this);
-			}
-		}
-	}
-
-	/**
-	 * This method returns the index of a channel which has at least
-	 * one record available. The method may block until at least one
-	 * channel has become ready.
 	 * 
-	 * @return the index of the channel which has at least one record available
+	 * @param channelIndex
+	 *        the index of the channel which has at least one record available
 	 */
-	public int waitForAnyChannelToBecomeAvailable() throws InterruptedException {
-
-		synchronized (this.availableChannels) {
-
-			while (this.availableChannels.isEmpty()) {
-
-				// notify the listener objects
-				if (this.inputGateListeners != null) {
-					for (int i = 0; i < this.inputGateListeners.length; ++i) {
-						this.inputGateListeners[i].waitingForAnyChannel();
-					}
-				}
-				this.availableChannels.wait();
-			}
-
-			return this.availableChannels.removeFirst().intValue();
-		}
-	}
-
-	// TODO: See if type safety can be improved here
-	/**
-	 * {@inheritDoc}
-	 */
-	@SuppressWarnings("unchecked")
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		super.read(in);
-
-		final int numInputChannels = in.readInt();
-
-		for (int i = 0; i < numInputChannels; i++) {
-
-			final ChannelID channelID = new ChannelID();
-			channelID.read(in);
-			final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-
-			final String className = StringRecord.readString(in);
-			Class<? extends IOReadableWritable> c = null;
-			try {
-				c = ClassUtils.getRecordByName(className);
-			} catch (ClassNotFoundException e) {
-				LOG.error(e);
-			}
-
-			if (c == null) {
-				throw new IOException("Class is null!");
-			}
-
-			AbstractInputChannel<T> eic = null;
-			try {
-				final Constructor<AbstractInputChannel<T>> constructor = (Constructor<AbstractInputChannel<T>>) c
-						.getDeclaredConstructor(this.getClass(), int.class, RecordDeserializer.class, ChannelID.class,
-							CompressionLevel.class);
-				if (constructor == null) {
-					throw new IOException("Constructor is null!");
-				}
-				constructor.setAccessible(true);
-				eic = constructor.newInstance(this, i, deserializer, channelID, compressionLevel);
-			} catch (SecurityException e) {
-				LOG.error(e);
-			} catch (NoSuchMethodException e) {
-				LOG.error(e);
-			} catch (IllegalArgumentException e) {
-				LOG.error(e);
-			} catch (InstantiationException e) {
-				LOG.error(e);
-			} catch (IllegalAccessException e) {
-				LOG.error(e);
-			} catch (InvocationTargetException e) {
-				LOG.error(e);
-			}
-			if (eic == null) {
-				throw new IOException("Created input channel is null!");
-			}
-
-			eic.read(in);
-			addInputChannel(eic);
-		}
-	}
+	void notifyRecordIsAvailable(int channelIndex);
 
 	/**
-	 * {@inheritDoc}
+	 * Notify the gate that is has consumed a data unit from the channel with the given index
+	 * 
+	 * @param channelIndex
+	 *        the index of the channel from which a data unit has been consumed
 	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		super.write(out);
-
-		// Connected input channels
-		out.writeInt(this.getNumberOfInputChannels());
-		for (int i = 0; i < getNumberOfInputChannels(); i++) {
-			getInputChannel(i).getID().write(out);
-			EnumUtils.writeEnum(out, getInputChannel(i).getCompressionLevel());
-			StringRecord.writeString(out, getInputChannel(i).getClass().getName());
-			getInputChannel(i).write(out);
-		}
-
-	}
+	void notifyDataUnitConsumed(int channelIndex);
 
 	/**
-	 * {@inheritDoc}
+	 * Activates all of the task's input channels.
+	 * 
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transmitting one of the activation requests to the corresponding
+	 *         output channels
+	 * @throws InterruptedException
+	 *         throws if the task is interrupted while waiting for the activation process to complete
 	 */
-	@Override
-	public boolean isClosed() throws IOException, InterruptedException {
-
-		if (this.isClosed) {
-			return true;
-		}
-
-		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
-			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
-			if (!inputChannel.isClosed()) {
-				return false;
-			}
-		}
-
-		this.isClosed = true;
-
-		return true;
-	}
+	void activateInputChannels() throws IOException, InterruptedException;
 
 	/**
 	 * Immediately closes the input gate and all its input channels. The corresponding
@@ -526,113 +106,76 @@ public class InputGate<T extends Record> extends AbstractGate<T> implements IORe
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the gate to be closed
 	 */
-	public void close() throws IOException, InterruptedException {
-
-		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
-			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
-			inputChannel.close();
-		}
-
-	}
+	void close() throws IOException, InterruptedException;
 
 	/**
-	 * Returns the list of InputChannels that feed this RecordReader
+	 * Returns the {@link DistributionPattern} associated with this input gate.
 	 * 
-	 * @return the list of InputChannels that feed this RecordReader
+	 * @return the {@link DistributionPattern} associated with this input gate
 	 */
-	public List<AbstractInputChannel<T>> getInputChannels() {
-		return inputChannels;
-	}
+	DistributionPattern getDistributionPattern();
 
 	/**
-	 * Registers a new listener object for this input gate.
+	 * Creates a new network input channel and assigns it to the given input gate.
 	 * 
-	 * @param inputGateListener
-	 *        the listener object to register
+	 * @param inputGate
+	 *        the input gate the channel shall be assigned to
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new network input channel
 	 */
-	public void registerInputGateListener(InputGateListener inputGateListener) {
-
-		if (this.inputGateListeners == null) {
-			this.inputGateListeners = new InputGateListener[1];
-			this.inputGateListeners[0] = inputGateListener;
-		} else {
-			InputGateListener[] tmp = this.inputGateListeners;
-			this.inputGateListeners = new InputGateListener[tmp.length + 1];
-			System.arraycopy(tmp, 0, this.inputGateListeners, 0, tmp.length);
-			this.inputGateListeners[tmp.length] = inputGateListener;
-		}
-	}
+	NetworkInputChannel<T> createNetworkInputChannel(InputGate<T> inputGate, ChannelID channelID,
+			CompressionLevel compressionLevel);
 
 	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String toString() {
-		return "Input " + super.toString();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-
-		// Copy event to all connected channels
-		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
-		while (it.hasNext()) {
-			it.next().transferEvent(event);
-		}
-	}
-
-	/**
-	 * Returns the {@link RecordDeserializer} used by this input gate.
+	 * Creates a new file input channel and assigns it to the given input gate.
 	 * 
-	 * @return the {@link RecordDeserializer} used by this input gate
+	 * @param inputGate
+	 *        the input gate the channel shall be assigned to
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new file input channel
 	 */
-	public RecordDeserializer<T> getRecordDeserializer() {
-
-		return this.deserializer;
-	}
+	FileInputChannel<T> createFileInputChannel(InputGate<T> inputGate, ChannelID channelID,
+			CompressionLevel compressionLevel);
 
 	/**
-	 * {@inheritDoc}
+	 * Creates a new in-memory input channel and assigns it to the given input gate.
+	 * 
+	 * @param inputGate
+	 *        the input gate the channel shall be assigned to
+	 * @param channelID
+	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 * @param compressionLevel
+	 *        the level of compression to be used for this channel
+	 * @return the new in-memory input channel
 	 */
-	@Override
-	public void releaseAllChannelResources() {
+	InMemoryInputChannel<T> createInMemoryInputChannel(InputGate<T> inputGate, ChannelID channelID,
+			CompressionLevel compressionLevel);
 
-		final Iterator<AbstractInputChannel<T>> it = this.inputChannels.iterator();
-		while (it.hasNext()) {
-			it.next().releaseResources();
-		}
-	}
+	/**
+	 * Removes all input channels from the input gate.
+	 */
+	void removeAllInputChannels();
 
-	boolean hasRecordAvailable() throws IOException, InterruptedException {
+	/**
+	 * Registers a {@link RecordAvailabilityListener} with this input gate.
+	 * 
+	 * @param listener
+	 *        the listener object to be registered
+	 */
+	void registerRecordAvailabilityListener(RecordAvailabilityListener<T> listener);
 
-		if (this.channelToReadFrom == -1) {
-
-			if (this.isClosed()) {
-				return true;
-			}
-
-			synchronized (this.availableChannels) {
-
-				return !(this.availableChannels.isEmpty());
-			}
-		}
-
-		return true;
-	}
-
-	void registerRecordAvailabilityListener(final RecordAvailabilityListener<T> listener) {
-
-		synchronized (this.availableChannels) {
-
-			if (this.recordAvailabilityListener != null) {
-				throw new IllegalStateException(this.recordAvailabilityListener
-					+ " is already registered as a record availability listener");
-			}
-
-			this.recordAvailabilityListener = listener;
-		}
-	}
+	/**
+	 * Checks if the input gate has records available.
+	 * 
+	 * @return <code>true</code> if the gate has records available, <code>false</code> otherwise
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	boolean hasRecordAvailable() throws IOException, InterruptedException;
 }

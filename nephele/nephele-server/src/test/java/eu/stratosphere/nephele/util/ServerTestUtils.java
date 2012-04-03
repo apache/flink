@@ -20,13 +20,17 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
+import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 
 /**
  * This class contains a selection of utility functions which are used for testing the nephele-server module.
@@ -34,7 +38,7 @@ import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
  * @author warneke
  */
 public final class ServerTestUtils {
-	
+
 	/**
 	 * The system property key to retrieve the user directory.
 	 */
@@ -198,5 +202,27 @@ public final class ServerTestUtils {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Waits until the job manager for the tests has become ready to accept jobs.
+	 * 
+	 * @param jobManager
+	 *        the instance of the job manager to wait for
+	 * @throws IOException
+	 *         thrown if a connection to the job manager could not be established
+	 * @throws InterruptedException
+	 *         thrown if the thread was interrupted while waiting for the job manager to become ready
+	 */
+	public static void waitForJobManagerToBecomeReady(final ExtendedManagementProtocol jobManager) throws IOException,
+			InterruptedException {
+
+		Map<InstanceType, InstanceTypeDescription> instanceMap = jobManager.getMapOfAvailableInstanceTypes();
+
+		while (instanceMap.isEmpty()) {
+
+			Thread.sleep(100);
+			instanceMap = jobManager.getMapOfAvailableInstanceTypes();
+		}
 	}
 }

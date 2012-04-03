@@ -261,6 +261,14 @@ public class LocalInstanceManager implements InstanceManager {
 			// Clear the instance type description list
 			this.instanceTypeDescriptionMap.clear();
 		}
+
+		// Destroy local instance
+		synchronized (this.synchronizationObject) {
+			if (this.localInstance != null) {
+				this.localInstance.destroyProxies();
+				this.localInstance = null;
+			}
+		}
 	}
 
 	/**

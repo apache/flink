@@ -19,7 +19,7 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
 public interface SWTToolTipCommandReceiver {
 
-	void cancelTask(ManagementVertexID id, String taskName);
+	void killTask(ManagementVertexID id, String taskName);
 
 	void killInstance(String instanceName);
 

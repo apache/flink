@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.taskmanager;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -23,6 +24,7 @@ import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.template.InputSplitProvider;
+import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -42,6 +44,8 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 
 	private final InputSplitProviderProtocol globalInputSplitProvider;
 
+	private final AtomicInteger sequenceNumber = new AtomicInteger(0);
+
 	TaskInputSplitProvider(final JobID jobID, final ExecutionVertexID executionVertexID,
 			final InputSplitProviderProtocol globalInputSplitProvider) {
 
@@ -60,7 +64,7 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 
 			synchronized (this.globalInputSplitProvider) {
 				final InputSplitWrapper wrapper = this.globalInputSplitProvider.requestNextInputSplit(this.jobID,
-					this.executionVertexID);
+					this.executionVertexID, new IntegerRecord(this.sequenceNumber.getAndIncrement()));
 				return wrapper.getInputSplit();
 			}
 
@@ -69,6 +73,5 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 			// rest
 			throw new RuntimeException(StringUtils.stringifyException(ioe));
 		}
-
 	}
 }
