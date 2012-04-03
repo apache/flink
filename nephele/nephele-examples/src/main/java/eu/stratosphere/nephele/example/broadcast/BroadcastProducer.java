@@ -71,7 +71,7 @@ public class BroadcastProducer extends AbstractGenericInputTask {
 	public void invoke() throws Exception {
 
 		// Determine number of records to emit
-		final int numberOfRecordsToEmit = getRuntimeConfiguration().getInteger(NUMBER_OF_RECORDS_KEY,
+		final int numberOfRecordsToEmit = getTaskConfiguration().getInteger(NUMBER_OF_RECORDS_KEY,
 			DEFAULT_NUMBER_OF_RECORDS);
 
 		// Create and prepare record

@@ -24,8 +24,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
@@ -390,8 +390,8 @@ public final class ExecutionStage {
 		}
 
 		alreadyVisited.add(vertex);
-		
-		final Environment env = vertex.getEnvironment();
+
+		final RuntimeEnvironment env = vertex.getEnvironment();
 
 		if (forward) {
 
@@ -408,15 +408,14 @@ public final class ExecutionStage {
 						.getConnectedChannelID());
 
 					boolean recurse = false;
-					
-					if(!alreadyVisited.contains(connectedVertex)) {
+
+					if (!alreadyVisited.contains(connectedVertex)) {
 						recurse = true;
-					} else if(channelType == ChannelType.INMEMORY && !pipeline.equals(connectedVertex.getExecutionPipeline())) {
-						recurse = true;
-					}
-					
-					if (channelType == ChannelType.INMEMORY) {
+					} else if (channelType == ChannelType.INMEMORY
+						&& !pipeline.equals(connectedVertex.getExecutionPipeline())) {
+
 						connectedVertex.setExecutionPipeline(pipeline);
+						recurse = true;
 					}
 
 					if (recurse) {
@@ -439,15 +438,14 @@ public final class ExecutionStage {
 						.getConnectedChannelID());
 
 					boolean recurse = false;
-					
-					if(!alreadyVisited.contains(connectedVertex)) {
+
+					if (!alreadyVisited.contains(connectedVertex)) {
 						recurse = true;
-					} else if(channelType == ChannelType.INMEMORY && !pipeline.equals(connectedVertex.getExecutionPipeline())) {
-						recurse = true;
-					}
-					
-					if (channelType == ChannelType.INMEMORY) {
+					} else if (channelType == ChannelType.INMEMORY
+						&& !pipeline.equals(connectedVertex.getExecutionPipeline())) {
+
 						connectedVertex.setExecutionPipeline(pipeline);
+						recurse = true;
 					}
 
 					if (recurse) {

@@ -79,6 +79,11 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	private int numberOfSubtasksPerInstance = -1;
 
 	/**
+	 * Number of retries in case of an error before the task represented by this vertex is considered as failed.
+	 */
+	private int numberOfExecutionRetries = -1;
+
+	/**
 	 * Other task to share a (set of) of instances with at runtime.
 	 */
 	private AbstractJobVertex vertexToShareInstancesWith = null;
@@ -385,6 +390,9 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		// Read number of subtasks per instance
 		this.numberOfSubtasksPerInstance = in.readInt();
 
+		// Number of execution retries
+		this.numberOfExecutionRetries = in.readInt();
+
 		// Read vertex to share instances with
 		if (in.readBoolean()) {
 			final JobVertexID id = new JobVertexID();
@@ -466,6 +474,9 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		// Number of subtasks per instance
 		out.writeInt(this.numberOfSubtasksPerInstance);
 
+		// Number of execution retries
+		out.writeInt(this.numberOfExecutionRetries);
+
 		// Vertex to share instance with
 		if (this.vertexToShareInstancesWith != null) {
 			out.writeBoolean(true);
@@ -534,6 +545,29 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	public int getNumberOfSubtasks() {
 		return this.numberOfSubtasks;
+	}
+
+	/**
+	 * Sets the number of retries in case of an error before the task represented by this vertex is considered as
+	 * failed.
+	 * 
+	 * @param numberOfExecutionRetries
+	 *        the number of retries in case of an error before the task represented by this vertex is considered as
+	 *        failed
+	 */
+	public void setNumberOfExecutionRetries(final int numberOfExecutionRetries) {
+		this.numberOfExecutionRetries = numberOfExecutionRetries;
+	}
+
+	/**
+	 * Returns the number of retries in case of an error before the task represented by this vertex is considered as
+	 * failed.
+	 * 
+	 * @return the number of retries in case of an error before the task represented by this vertex is considered as
+	 *         failed or <code>-1</code> if unspecified
+	 */
+	public int getNumberOfExecutionRetries() {
+		return this.numberOfExecutionRetries;
 	}
 
 	/**

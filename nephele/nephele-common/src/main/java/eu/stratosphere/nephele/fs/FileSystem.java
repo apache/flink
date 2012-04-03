@@ -292,6 +292,11 @@ public abstract class FileSystem {
 	 */
 	public abstract FSDataInputStream open(Path f) throws IOException;
 
+	/**
+	 * Return the number of bytes that large input files should be optimally be split into to minimize I/O time.
+	 * 
+	 * @return the number of bytes that large input files should be optimally be split into to minimize I/O time
+	 */
 	public long getDefaultBlockSize() {
 		return 32 * 1024 * 1024; // 32 MB;
 	}
@@ -376,6 +381,18 @@ public abstract class FileSystem {
 	 * @throws IOException
 	 */
 	public abstract FSDataOutputStream create(Path f, boolean overwrite) throws IOException;
+
+	/**
+	 * Renames the file/directory src to dst.
+	 * 
+	 * @param src
+	 *        the file/directory to rename
+	 * @param dst
+	 *        the new name of the file/directory
+	 * @return <code>true</code> if the renaming was successful, <code>false</code> otherwise
+	 * @throws IOException
+	 */
+	public abstract boolean rename(Path src, Path dst) throws IOException;
 
 	/**
 	 * Returns the number of blocks this file/directory consists of

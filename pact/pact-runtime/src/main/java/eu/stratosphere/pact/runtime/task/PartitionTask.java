@@ -18,8 +18,8 @@ package eu.stratosphere.pact.runtime.task;
 import java.util.ArrayList;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.stubs.Stub;
@@ -85,7 +85,7 @@ public class PartitionTask extends AbstractPactTask {
 	@Override
 	public void prepare() throws Exception {
 		// obtain task configuration (including stub parameters)
-		config = new TaskConfig(getRuntimeConfiguration());
+		config = new TaskConfig(getTaskConfiguration());
 	
 		order = Order.valueOf(config.getStubParameters().getString(GLOBAL_PARTITIONING_ORDER, ""));
 		usesSample = config.getStubParameters().getBoolean(PARTITION_BY_SAMPLING, true);
@@ -146,7 +146,7 @@ public class PartitionTask extends AbstractPactTask {
 		func = new HistogramPartitionFunction(splitBorders, order);
 
 		// Assign partition function to output emitter
-		for (RecordWriter<PactRecord> recWriter : output.getWriters()) {
+		for (AbstractRecordWriter<PactRecord> recWriter : output.getWriters()) {
 			ChannelSelector<PactRecord> selector =
 				recWriter.getOutputGate().getChannelSelector();
 			if (selector instanceof OutputEmitter) {

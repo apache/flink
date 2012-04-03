@@ -49,6 +49,8 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'nephele-profiling' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'nephele-streaming' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'pact-common' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then

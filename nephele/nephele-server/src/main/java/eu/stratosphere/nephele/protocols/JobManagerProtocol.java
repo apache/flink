@@ -17,11 +17,8 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
@@ -67,19 +64,4 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 *         thrown if an error occurs during this remote procedure call
 	 */
 	void updateCheckpointState(TaskCheckpointState taskCheckpointState) throws IOException;
-
-	/**
-	 * Reports that a task has exhausted its initial execution resources.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the task belongs to
-	 * @param vertexID
-	 *        the ID of the vertex representing the task
-	 * @param resourceUtilizationSnapshot
-	 *        snapshot of the task's resource utilization taken at the point in time when the exhaustion occurred
-	 * @throws IOException
-	 *         thrown if an error occurs during this remote procedure call
-	 */
-	void initialExecutionResourcesExhausted(JobID jobID, ExecutionVertexID vertexID,
-			ResourceUtilizationSnapshot resourceUtilizationSnapshot) throws IOException;
 }

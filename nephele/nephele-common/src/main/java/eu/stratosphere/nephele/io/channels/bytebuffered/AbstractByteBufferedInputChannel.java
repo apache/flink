@@ -55,9 +55,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 	private ByteBufferedInputChannelBroker inputChannelBroker = null;
 
-	private final Object synchronisationObject = new Object();
-
-	private boolean brokerAggreedToCloseChannel = false;
+	private volatile boolean brokerAggreedToCloseChannel = false;
 
 	/**
 	 * The Decompressor-Object to decompress incoming data
@@ -69,7 +67,12 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 */
 	private Buffer uncompressedDataBuffer = null;
 
-	private IOException ioException = null;
+	private volatile IOException ioException = null;
+
+	/**
+	 * Stores the number of bytes read through this input channel since its instantiation.
+	 */
+	private long amountOfDataTransmitted = 0L;
 
 	/**
 	 * Creates a new network input channel.
@@ -104,14 +107,11 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 		if (this.uncompressedDataBuffer == null) {
 
-			synchronized (this.synchronisationObject) {
-
-				if (this.ioException != null) {
-					throw this.ioException;
-				}
-
-				requestReadBuffersFromBroker();
+			if (this.ioException != null) {
+				throw this.ioException;
 			}
+
+			requestReadBuffersFromBroker();
 
 			if (this.uncompressedDataBuffer == null) {
 				return null;
@@ -174,15 +174,12 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			return false;
 		}
 
-		synchronized (this.synchronisationObject) {
+		if (this.ioException != null) {
+			throw this.ioException;
+		}
 
-			if (this.ioException != null) {
-				throw this.ioException;
-			}
-
-			if (!this.brokerAggreedToCloseChannel) {
-				return false;
-			}
+		if (!this.brokerAggreedToCloseChannel) {
+			return false;
 		}
 
 		return true;
@@ -201,16 +198,14 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 		// This code fragment makes sure the isClosed method works in case the channel input has not been fully consumed
 		if (this.getType() == ChannelType.NETWORK) {
-			synchronized (this.synchronisationObject) {
-				if (!this.brokerAggreedToCloseChannel) {
-					while (!this.brokerAggreedToCloseChannel) {
+			if (!this.brokerAggreedToCloseChannel) {
+				while (!this.brokerAggreedToCloseChannel) {
 
-						requestReadBuffersFromBroker();
-						if (this.uncompressedDataBuffer != null || this.compressedDataBuffer != null) {
-							releasedConsumedReadBuffer();
-						}
-						this.synchronisationObject.wait(500);
+					requestReadBuffersFromBroker();
+					if (this.uncompressedDataBuffer != null || this.compressedDataBuffer != null) {
+						releasedConsumedReadBuffer();
 					}
+					Thread.sleep(500);
 				}
 			}
 		}
@@ -228,6 +223,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	private void releasedConsumedReadBuffer() {
 
 		this.inputChannelBroker.releaseConsumedReadBuffer();
+		// Keep track of number of bytes transmitted through this channel
+		this.amountOfDataTransmitted += this.uncompressedDataBuffer.size();
 		this.uncompressedDataBuffer = null;
 		this.compressedDataBuffer = null;
 	}
@@ -246,10 +243,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	public void processEvent(AbstractEvent event) {
 
 		if (ByteBufferedChannelCloseEvent.class.isInstance(event)) {
-			synchronized (this.synchronisationObject) {
-				// System.out.println("Received close event");
-				this.brokerAggreedToCloseChannel = true;
-			}
+			// System.out.println("Received close event");
+			this.brokerAggreedToCloseChannel = true;
 			// Make sure the application wake's up to check this
 			checkForNetworkEvents();
 		} else if (AbstractTaskEvent.class.isInstance(event)) {
@@ -276,20 +271,16 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 	public void reportIOException(IOException ioe) {
 
-		synchronized (this.synchronisationObject) {
-			this.ioException = ioe;
-		}
+		this.ioException = ioe;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseResources() {
+	public void releaseAllResources() {
 
-		synchronized (this.synchronisationObject) {
-			this.brokerAggreedToCloseChannel = true;
-		}
+		this.brokerAggreedToCloseChannel = true;
 
 		this.deserializationBuffer.clear();
 
@@ -315,7 +306,14 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	@Override
 	public long getAmountOfDataTransmitted() {
 
-		// TODO: Implement me
-		return 0L;
+		return this.amountOfDataTransmitted;
+	}
+
+	/**
+	 * Notify the channel that a data unit has been consumed.
+	 */
+	public void notifyDataUnitConsumed() {
+
+		this.getInputGate().notifyDataUnitConsumed(getChannelIndex());
 	}
 }

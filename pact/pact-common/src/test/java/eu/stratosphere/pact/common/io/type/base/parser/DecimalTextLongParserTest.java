@@ -1,6 +1,5 @@
 package eu.stratosphere.pact.common.io.type.base.parser;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -22,7 +21,7 @@ public class DecimalTextLongParserTest {
 	@Test
 	public void testParseField() {
 		
-byte[] recBytes = "1234567890123456789|-1234567890123456789|123abc4|".getBytes();
+		byte[] recBytes = "1234567890123456789|-1234567890123456789|123abc4|".getBytes();
 		
 		// check valid int
 		PactLong l = new PactLong();

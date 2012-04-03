@@ -24,6 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
+import eu.stratosphere.nephele.io.BroadcastRecordWriter;
 import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
@@ -245,7 +246,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	protected void initConfigAndStub(Class<? super T> stubSuperClass)
 	{
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getTaskConfiguration());
 
 		// obtain stub implementation class
 		try {
@@ -443,12 +444,20 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			
 			final OutputEmitter oe =  (keyPositions == null || keyClasses == null) ?
 					new OutputEmitter(strategy) :
-					new OutputEmitter(strategy, task.getEnvironment().getJobID(), keyPositions, keyClasses);
+					new OutputEmitter(strategy, keyPositions, keyClasses);
 			
-			if (task instanceof AbstractTask) {
-				output.addWriter(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
-			} else if (task instanceof AbstractInputTask<?>) {
-				output.addWriter(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
+			if (strategy == ShipStrategy.BROADCAST) {
+				if (task instanceof AbstractTask) {
+					output.addWriter(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
+				} else if (task instanceof AbstractInputTask<?>) {
+					output.addWriter(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
+				}
+			} else {
+				if (task instanceof AbstractTask) {
+					output.addWriter(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
+				} else if (task instanceof AbstractInputTask<?>) {
+					output.addWriter(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
+				}
 			}
 		}
 		return output;

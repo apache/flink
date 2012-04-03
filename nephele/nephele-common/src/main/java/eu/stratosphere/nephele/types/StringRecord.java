@@ -588,6 +588,8 @@ public class StringRecord implements Record {
 					state = TRAIL_BYTE;
 				}
 				break;
+			default:
+				break;
 			} // switch (state)
 			count++;
 		}
@@ -646,6 +648,9 @@ public class StringRecord implements Record {
 			ch <<= 6;
 		case 0:
 			ch += (bytes.get() & 0xFF);
+		default:
+			break;
+
 		}
 		ch -= offsetsFromUTF8[extraBytesToRead];
 

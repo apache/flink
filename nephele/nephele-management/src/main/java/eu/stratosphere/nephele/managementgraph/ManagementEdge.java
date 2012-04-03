@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
  * 
  * @author warneke
  */
-public final class ManagementEdge {
+public final class ManagementEdge extends ManagementAttachment {
 
 	/**
 	 * The source of the edge referring to the output gate of an execution vertex.
@@ -59,8 +59,22 @@ public final class ManagementEdge {
 	private final CompressionLevel compressionLevel;
 
 	/**
+	 * The source ID of the management edge.
+	 */
+	private final ManagementEdgeID sourceEdgeID;
+
+	/**
+	 * The target ID of the management edge.
+	 */
+	private final ManagementEdgeID targetEdgeID;
+
+	/**
 	 * Constructs a new edge object.
 	 * 
+	 * @param sourceEdgeID
+	 *        source ID of the management edge
+	 * @param targetEdgeID
+	 *        target ID of the management edge
 	 * @param source
 	 *        the source of the edge referring to the output gate of an execution vertex
 	 * @param sourceIndex
@@ -74,9 +88,12 @@ public final class ManagementEdge {
 	 * @param compressionLevel
 	 *        the compression level of the channel this edge refers to
 	 */
-	public ManagementEdge(final ManagementGate source, final int sourceIndex, final ManagementGate target,
-			final int targetIndex,
+	public ManagementEdge(final ManagementEdgeID sourceEdgeID, final ManagementEdgeID targetEdgeID,
+			final ManagementGate source, final int sourceIndex, final ManagementGate target, final int targetIndex,
 			final ChannelType channelType, final CompressionLevel compressionLevel) {
+
+		this.sourceEdgeID = sourceEdgeID;
+		this.targetEdgeID = targetEdgeID;
 		this.source = source;
 		this.target = target;
 		this.sourceIndex = sourceIndex;
@@ -140,5 +157,23 @@ public final class ManagementEdge {
 	 */
 	public int getTargetIndex() {
 		return this.targetIndex;
+	}
+
+	/**
+	 * Returns the source ID of the edge.
+	 * 
+	 * @return The source ID of the edge
+	 */
+	public ManagementEdgeID getSourceEdgeID() {
+		return sourceEdgeID;
+	}
+
+	/**
+	 * Returns the target ID of the edge.
+	 * 
+	 * @return The target ID of the edge
+	 */
+	public ManagementEdgeID getTargetEdgeID() {
+		return targetEdgeID;
 	}
 }

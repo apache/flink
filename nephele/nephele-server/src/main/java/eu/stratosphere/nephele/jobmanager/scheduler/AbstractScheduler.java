@@ -16,20 +16,22 @@
 package eu.stratosphere.nephele.jobmanager.scheduler;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
@@ -37,8 +39,10 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceListener;
@@ -50,7 +54,6 @@ import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * This abstract scheduler must be extended by a scheduler implementations for Nephele. The abstract class defines the
@@ -69,16 +72,6 @@ public abstract class AbstractScheduler implements InstanceListener {
 	protected static final Log LOG = LogFactory.getLog(AbstractScheduler.class);
 
 	/**
-	 * The configuration key to check whether task merging is allowed.
-	 */
-	private static final String ALLOW_TASK_MERGING_KEY = "scheduler.queue.allowTaskMerging";
-
-	/**
-	 * The default setting for task merging.
-	 */
-	private static final boolean DEFAULT_ALLOW_TASK_MERGING = false;
-
-	/**
 	 * The instance manager assigned to this scheduler.
 	 */
 	private final InstanceManager instanceManager;
@@ -89,9 +82,9 @@ public abstract class AbstractScheduler implements InstanceListener {
 	private final DeploymentManager deploymentManager;
 
 	/**
-	 * Stores whether task merging is allowed.
+	 * Stores the vertices to be restarted once they have switched to the <code>CANCELED</code> state.
 	 */
-	private final boolean allowTaskMerging;
+	private final Map<ExecutionVertexID, ExecutionVertex> verticesToBeRestarted = new ConcurrentHashMap<ExecutionVertexID, ExecutionVertex>();
 
 	/**
 	 * Constructs a new abstract scheduler.
@@ -105,12 +98,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 		this.deploymentManager = deploymentManager;
 		this.instanceManager = instanceManager;
-		this.allowTaskMerging = GlobalConfiguration.getBoolean(ALLOW_TASK_MERGING_KEY,
-			DEFAULT_ALLOW_TASK_MERGING);
-
 		this.instanceManager.setInstanceListener(this);
-
-		LOG.info("initialized scheduler with task merging " + (this.allowTaskMerging ? "enabled" : "disabled"));
 	}
 
 	/**
@@ -197,10 +185,10 @@ public abstract class AbstractScheduler implements InstanceListener {
 			final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed,
 			final Set<ExecutionVertex> alreadyVisited) {
 
-		if(!alreadyVisited.add(vertex)) {
+		if (!alreadyVisited.add(vertex)) {
 			return;
 		}
-		
+
 		if (vertex.compareAndUpdateExecutionState(ExecutionState.ASSIGNED, ExecutionState.READY)) {
 			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
@@ -220,7 +208,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			verticesForInstance.add(vertex);
 		}
 
-		final Environment env = vertex.getEnvironment();
+		final RuntimeEnvironment env = vertex.getEnvironment();
 		final int numberOfOutputGates = env.getNumberOfOutputGates();
 		for (int i = 0; i < numberOfOutputGates; ++i) {
 
@@ -232,7 +220,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 				deployTarget = false;
 				break;
 			case NETWORK:
-				deployTarget = !this.allowTaskMerging;
+				deployTarget = false;
 				break;
 			case INMEMORY:
 				deployTarget = true;
@@ -255,13 +243,80 @@ public abstract class AbstractScheduler implements InstanceListener {
 	}
 
 	/**
-	 * Collects all execution vertices with the state ASSIGNED from the current execution stage and deploys them on the
-	 * assigned {@link AllocatedResource} objects.
+	 * Collects all execution vertices with the state ASSIGNED starting from the given start vertex and
+	 * deploys them on the assigned {@link AllocatedResource} objects.
+	 * 
+	 * @param startVertex
+	 *        the execution vertex to start the deployment from
+	 */
+	public void deployAssignedVertices(final ExecutionVertex startVertex) {
+
+		final JobID jobID = startVertex.getExecutionGraph().getJobID();
+
+		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
+		final Set<ExecutionVertex> alreadyVisited = new HashSet<ExecutionVertex>();
+
+		findVerticesToBeDeployed(startVertex, verticesToBeDeployed, alreadyVisited);
+
+		if (!verticesToBeDeployed.isEmpty()) {
+
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
+				.entrySet()
+				.iterator();
+
+			while (it2.hasNext()) {
+
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+				this.deploymentManager.deploy(jobID, entry.getKey(), entry.getValue());
+			}
+		}
+	}
+
+	/**
+	 * Collects all execution vertices with the state ASSIGNED starting from the given collection of start vertices and
+	 * deploys them on the assigned {@link AllocatedResource} objects.
+	 * 
+	 * @param startVertices
+	 *        the collection of execution vertices to start the deployment from
+	 */
+	public void deployAssignedVertices(final Collection<ExecutionVertex> startVertices) {
+
+		JobID jobID = null;
+
+		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
+		final Set<ExecutionVertex> alreadyVisited = new HashSet<ExecutionVertex>();
+
+		for (final ExecutionVertex startVertex : startVertices) {
+
+			if (jobID == null) {
+				jobID = startVertex.getExecutionGraph().getJobID();
+			}
+
+			findVerticesToBeDeployed(startVertex, verticesToBeDeployed, alreadyVisited);
+		}
+
+		if (!verticesToBeDeployed.isEmpty()) {
+
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
+					.entrySet()
+					.iterator();
+
+			while (it2.hasNext()) {
+
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+				this.deploymentManager.deploy(jobID, entry.getKey(), entry.getValue());
+			}
+		}
+	}
+
+	/**
+	 * Collects all execution vertices with the state ASSIGNED starting from the input vertices of the current execution
+	 * stage and deploys them on the assigned {@link AllocatedResource} objects.
 	 * 
 	 * @param executionGraph
 	 *        the execution graph to collect the vertices from
 	 */
-	public void deployAssignedVertices(final ExecutionGraph executionGraph) {
+	public void deployAssignedInputVertices(final ExecutionGraph executionGraph) {
 
 		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
 		final ExecutionStage executionStage = executionGraph.getCurrentExecutionStage();
@@ -389,8 +444,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 		}
 
 		// Deploy the assigned vertices
-		deployAssignedVertices(eg);
-
+		deployAssignedInputVertices(eg);
 	}
 
 	/**
@@ -404,7 +458,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 	 * @param allocatedResource
 	 *        the allocated resource to check the assignment for
 	 */
-	public void checkAndReleaseAllocatedResource(ExecutionGraph executionGraph, AllocatedResource allocatedResource) {
+	public void checkAndReleaseAllocatedResource(final ExecutionGraph executionGraph,
+			final AllocatedResource allocatedResource) {
 
 		if (allocatedResource == null) {
 			LOG.error("Resource to lock is null!");
@@ -422,8 +477,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 			return;
 		}
 
-		boolean instanceCanBeReleased = true;
-		final Iterator<ExecutionVertex> it = assignedVertices.iterator();
+		boolean resourceCanBeReleased = true;
+		Iterator<ExecutionVertex> it = assignedVertices.iterator();
 		while (it.hasNext()) {
 			final ExecutionVertex vertex = it.next();
 			final ExecutionState state = vertex.getExecutionState();
@@ -431,12 +486,13 @@ public abstract class AbstractScheduler implements InstanceListener {
 			if (state != ExecutionState.CREATED && state != ExecutionState.FINISHED
 					&& state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
 
-				instanceCanBeReleased = false;
+				resourceCanBeReleased = false;
 				break;
 			}
 		}
 
-		if (instanceCanBeReleased) {
+		if (resourceCanBeReleased) {
+
 			LOG.info("Releasing instance " + allocatedResource.getInstance());
 			try {
 				getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
@@ -456,36 +512,120 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final int currentStageIndex = executionGraph.getIndexOfCurrentExecutionStage();
 		final ExecutionStage previousStage = executionGraph.getStage(currentStageIndex - 1);
 
-		final Map<AbstractInstance, List<ExecutionVertexID>> checkpointsToReplay = new HashMap<AbstractInstance, List<ExecutionVertexID>>();
+		final List<ExecutionVertex> verticesToBeReplayed = new ArrayList<ExecutionVertex>();
 
 		for (int i = 0; i < previousStage.getNumberOfOutputExecutionVertices(); ++i) {
 
 			final ExecutionVertex vertex = previousStage.getOutputExecutionVertex(i);
-			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-
-			List<ExecutionVertexID> vertexIDs = checkpointsToReplay.get(instance);
-			if (vertexIDs == null) {
-				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
-				checkpointsToReplay.put(instance, vertexIDs);
-			}
-
-			vertexIDs.add(vertex.getID());
+			vertex.updateExecutionState(ExecutionState.ASSIGNED);
+			verticesToBeReplayed.add(vertex);
 		}
 
-		final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertexID>>> it = checkpointsToReplay.entrySet()
-				.iterator();
-		while (it.hasNext()) {
-			final Map.Entry<AbstractInstance, List<ExecutionVertexID>> entry = it.next();
-			this.deploymentManager.replayCheckpoints(executionGraph.getJobID(), entry.getKey(), entry.getValue());
-		}
+		deployAssignedVertices(verticesToBeReplayed);
+	}
+
+	/**
+	 * Returns a map of vertices to be restarted once they have switched to their <code>CANCELED</code> state.
+	 * 
+	 * @return the map of vertices to be restarted
+	 */
+	Map<ExecutionVertexID, ExecutionVertex> getVerticesToBeRestarted() {
+
+		return this.verticesToBeRestarted;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResource) {
+	public void allocatedResourcesDied(final JobID jobID, final List<AllocatedResource> allocatedResources) {
 
-		// TODO: Don't forget to synchronize on stage here
+		final ExecutionGraph eg = getExecutionGraphByID(jobID);
+
+		if (eg == null) {
+			LOG.error("Cannot find execution graph for job with ID " + jobID);
+			return;
+		}
+
+		synchronized (eg) {
+
+			for (final AllocatedResource allocatedResource : allocatedResources) {
+
+				LOG.info("Resource " + allocatedResource.getInstance().getName() + " for Job " + jobID + " died.");
+
+				final ExecutionGraph executionGraph = getExecutionGraphByID(jobID);
+
+				if (executionGraph == null) {
+					LOG.error("Cannot find execution graph for job " + jobID);
+					return;
+				}
+
+				final List<ExecutionVertex> vertices = executionGraph.getVerticesAssignedToResource(allocatedResource);
+				Iterator<ExecutionVertex> vertexIter = vertices.iterator();
+
+				// Assign vertices back to a dummy resource.
+				final DummyInstance dummyInstance = DummyInstance.createDummyInstance(allocatedResource.getInstance()
+					.getType());
+				final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
+					allocatedResource.getInstanceType(), new AllocationID());
+
+				while (vertexIter.hasNext()) {
+					final ExecutionVertex vertex = vertexIter.next();
+					vertex.setAllocatedResource(dummyResource);
+				}
+
+				final String failureMessage = allocatedResource.getInstance().getName() + " died";
+
+				vertexIter = vertices.iterator();
+
+				while (vertexIter.hasNext()) {
+					final ExecutionVertex vertex = vertexIter.next();
+
+					// Even if the vertex had a checkpoint before, it is now gone
+					vertex.updateCheckpointState(CheckpointState.NONE);
+
+					final ExecutionState state = vertex.getExecutionState();
+
+					switch (state) {
+					case ASSIGNED:
+					case READY:
+					case STARTING:
+					case RUNNING:
+					case FINISHING:
+
+						vertex.updateExecutionState(ExecutionState.FAILED, failureMessage);
+
+						break;
+					default:
+					}
+				}
+
+				// TODO: Fix this
+				/*
+				 * try {
+				 * requestInstances(this.executionVertex.getGroupVertex().getExecutionStage());
+				 * } catch (InstanceException e) {
+				 * e.printStackTrace();
+				 * // TODO: Cancel the entire job in this case
+				 * }
+				 */
+			}
+		}
+
+		final InternalJobStatus js = eg.getJobStatus();
+		if (js != InternalJobStatus.FAILING && js != InternalJobStatus.FAILED) {
+
+			// TODO: Fix this
+			// deployAssignedVertices(eg);
+
+			final ExecutionStage stage = eg.getCurrentExecutionStage();
+
+			try {
+				requestInstances(stage);
+			} catch (InstanceException e) {
+				e.printStackTrace();
+				// TODO: Cancel the entire job in this case
+			}
+		}
 	}
 }
