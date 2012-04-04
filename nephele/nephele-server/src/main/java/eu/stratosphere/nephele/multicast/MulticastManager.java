@@ -93,7 +93,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		this.randomized = GlobalConfiguration.getBoolean("multicast.randomize", false);
 		this.treebranching = GlobalConfiguration.getInteger("multicast.branching", 1);
-		this.topologyaware = GlobalConfiguration.getBoolean("multicast.topologyaware", false);
+		this.topologyaware = GlobalConfiguration.getBoolean("multicast.topologyaware", true);
 		this.usepenalties = GlobalConfiguration.getBoolean("multicast.usepenalties", false);
 		this.penaltyfilepath = GlobalConfiguration.getString("multicast.penaltyfile", null);
 		this.usehardcodedtree = GlobalConfiguration.getBoolean("multicast.usehardcodedtree", false);
