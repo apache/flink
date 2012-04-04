@@ -307,9 +307,6 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 			return false;
 		this.deserialize(record, this.dataInputStream);
 		this.readRecords++;
-		if(this.readRecords >= this.blockInfo.getRecordCount())
-			if(this.dataInputStream.available() != 24)
-				System.out.println(this.dataInputStream.available());
 		return true;
 	}
 
