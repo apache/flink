@@ -20,15 +20,14 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 
 	/**
 	 * @author Michael Hopstock
-	 *
 	 */
 	private final class FixedIndexIterator extends AbstractIterator<IJsonNode> {
 		int lastIndex = 0;
+
 		int endIndex = 0;
-		
+
 		/**
 		 * Initializes LazyArrayNode.FixedIndexIterator.
-		 *
 		 */
 		public FixedIndexIterator(int startIndex, int endIndex) {
 			this.lastIndex = startIndex;
@@ -66,7 +65,8 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 	public Iterator<IJsonNode> iterator() {
 		Iterator<IJsonNode> headIterator = new FixedIndexIterator(0, this.schema.getHeadSize());
 		Iterator<IJsonNode> othersIterator = this.getOtherField().iterator();
-		Iterator<IJsonNode> tailIterator = new FixedIndexIterator(this.schema.getHeadSize() + 1, this.schema.getHeadTailSize() + 1);
+		Iterator<IJsonNode> tailIterator = new FixedIndexIterator(this.schema.getHeadSize() + 1,
+			this.schema.getHeadTailSize() + 1);
 
 		return new ConcatenatingIterator<IJsonNode>(headIterator, othersIterator, tailIterator);
 	}
@@ -315,6 +315,14 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 		}
 
 		return result;
+	}
+
+	@Override
+	public IArrayNode addAll(IJsonNode[] nodes) {
+		for (IJsonNode node : nodes) {
+			this.add(node);
+		}
+		return this;
 	}
 
 }

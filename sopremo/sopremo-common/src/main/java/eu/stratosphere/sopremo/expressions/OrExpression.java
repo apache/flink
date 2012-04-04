@@ -22,6 +22,7 @@ public class OrExpression extends BooleanExpression {
 		this.expressions = new EvaluationExpression[expressions.length];
 		for (int index = 0; index < expressions.length; index++)
 			this.expressions[index] = UnaryExpression.wrap(expressions[index]);
+		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override

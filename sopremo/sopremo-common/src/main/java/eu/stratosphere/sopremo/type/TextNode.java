@@ -157,4 +157,9 @@ public class TextNode extends JsonNode implements IPrimitiveNode {
 		return clone;
 	}
 
+	@Override
+	public void clear() {
+		this.value.setValue("");
+	}
+
 }

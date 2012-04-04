@@ -150,4 +150,9 @@ public class LongNode extends NumericNode implements INumericNode {
 	public int compareToSameType(final IJsonNode other) {
 		return Long.signum(this.value.getValue() - ((LongNode) other).value.getValue());
 	}
+
+	@Override
+	public void clear() {
+		this.value.setValue(0);
+	}
 }

@@ -117,4 +117,8 @@ public class BooleanNode extends JsonNode implements IPrimitiveNode {
 	public int compareToSameType(final IJsonNode other) {
 		return (this.value ? 1 : 0) - (((BooleanNode) other).value ? 1 : 0);
 	}
+
+	@Override
+	public void clear() {
+	}
 }

@@ -151,4 +151,9 @@ public class BigIntegerNode extends NumericNode implements INumericNode {
 	public int compareToSameType(final IJsonNode other) {
 		return this.value.compareTo(((BigIntegerNode) other).value);
 	}
+
+	@Override
+	public void clear() {
+		this.value = BigInteger.ZERO;
+	}
 }

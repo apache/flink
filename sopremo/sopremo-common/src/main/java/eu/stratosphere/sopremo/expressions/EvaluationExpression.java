@@ -21,6 +21,8 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 */
 	private static final long serialVersionUID = 1226647739750484403L;
 
+	protected Class<? extends JsonNode> expectedTarget;
+
 	/**
 	 * Used for secondary information during plan creation only.
 	 */
@@ -155,7 +157,8 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * 
 	 * @param node
 	 *        the node that should be evaluated or a special node representing containing several nodes
-	 * @param target TODO
+	 * @param target
+	 *        TODO
 	 * @param context
 	 *        the context in which the node should be evaluated
 	 * @return the node resulting from the evaluation or several nodes wrapped in a special node type

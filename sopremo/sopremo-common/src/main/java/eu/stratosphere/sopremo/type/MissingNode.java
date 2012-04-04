@@ -110,4 +110,9 @@ public class MissingNode extends JsonNode implements IPrimitiveNode {
 	public int hashCode() {
 		return 42;
 	}
+
+	@Override
+	public void clear() {
+		throw new UnsupportedOperationException("MissingNode");
+	}
 }

@@ -100,4 +100,6 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 */
 	public abstract IJsonNode[] toArray();
 
+	IArrayNode addAll(IJsonNode[] nodes);
+
 }

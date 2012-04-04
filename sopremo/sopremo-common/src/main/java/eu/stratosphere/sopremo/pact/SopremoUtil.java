@@ -249,17 +249,13 @@ public class SopremoUtil {
 		return new JsonNodeWrapper(node);
 	}
 
-	public static IJsonNode reuseTarget(IJsonNode target, Class<? extends IJsonNode> clazz)
+	public static IJsonNode reuseTarget(IJsonNode target, Class<? extends JsonNode> clazz)
 			throws InstantiationException,
 			IllegalAccessException {
 		if (target == null || !clazz.isInstance(target)) {
 			target = clazz.newInstance();
 		} else {
-			if (clazz == IArrayNode.class) {
-				((IArrayNode) target).clear();
-			} else if (clazz == IObjectNode.class) {
-				((IObjectNode) target).removeAll();
-			}
+			target.clear();
 		}
 		return target;
 	}

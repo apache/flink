@@ -171,4 +171,9 @@ public class DoubleNode extends NumericNode implements INumericNode {
 	public int compareToSameType(final IJsonNode other) {
 		return Double.compare(this.value.getValue(), ((DoubleNode) other).value.getValue());
 	}
+
+	@Override
+	public void clear() {
+		this.value.setValue(0);
+	}
 }

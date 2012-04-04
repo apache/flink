@@ -5,6 +5,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 /**
@@ -64,6 +65,12 @@ public class ArrayAccess extends EvaluationExpression {
 		// throw new IllegalArgumentException("negative endIndex < negative startIndex");
 		this.startIndex = startIndex;
 		this.endIndex = endIndex;
+
+		if (startIndex != endIndex) {
+			this.expectedTarget = ArrayNode.class;
+		} else {
+			this.expectedTarget = JsonNode.class;
+		}
 	}
 
 	@Override
@@ -78,7 +85,7 @@ public class ArrayAccess extends EvaluationExpression {
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (this.isSelectingAll()) {
 			try {
-				target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+				target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 			} catch (InstantiationException e) {
 				target = new ArrayNode();
 			} catch (IllegalAccessException e) {

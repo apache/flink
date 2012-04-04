@@ -32,6 +32,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	public ArrayCreation(final EvaluationExpression... elements) {
 		this.elements = elements;
+		this.expectedTarget = ArrayNode.class;
 	}
 
 	/**
@@ -42,6 +43,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	public ArrayCreation(final List<EvaluationExpression> elements) {
 		this.elements = elements.toArray(new EvaluationExpression[elements.size()]);
+		this.expectedTarget = ArrayNode.class;
 	}
 
 	public int size() {
@@ -59,7 +61,7 @@ public class ArrayCreation extends ContainerExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		try {
-			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 		} catch (InstantiationException e) {
 			target = new ArrayNode();
 		} catch (IllegalAccessException e) {
@@ -70,6 +72,7 @@ public class ArrayCreation extends ContainerExpression {
 
 		for (final EvaluationExpression expression : this.elements)
 			((IArrayNode) target).add(expression.evaluate(node, ((IArrayNode) target).get(index++), context));
+		
 		return target;
 
 	}

@@ -17,6 +17,7 @@ public class ConstantExpression extends EvaluationExpression {
 
 	public ConstantExpression(final JsonNode constant) {
 		this.constant = constant;
+		this.expectedTarget = constant.getClass();
 	}
 
 	public ConstantExpression(final Object constant) {

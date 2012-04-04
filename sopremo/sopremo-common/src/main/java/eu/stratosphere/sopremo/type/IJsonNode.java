@@ -30,6 +30,8 @@ import eu.stratosphere.pact.common.type.Value;
  */
 public interface IJsonNode extends Serializable, Value, Key, Cloneable {
 
+	public abstract void clear();
+	
 	/**
 	 * Returns the {@link eu.stratosphere.sopremo.type.JsonNode.Type} of this node.
 	 * 

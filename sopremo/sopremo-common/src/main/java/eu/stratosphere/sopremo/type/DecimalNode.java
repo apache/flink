@@ -153,4 +153,9 @@ public class DecimalNode extends NumericNode implements INumericNode {
 	public int compareToSameType(final IJsonNode other) {
 		return this.value.compareTo(((DecimalNode) other).value);
 	}
+
+	@Override
+	public void clear() {
+		this.value = BigDecimal.ZERO;
+	}
 }

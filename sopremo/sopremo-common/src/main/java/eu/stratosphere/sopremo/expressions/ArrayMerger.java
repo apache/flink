@@ -22,12 +22,16 @@ public class ArrayMerger extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -6884623565349727369L;
 
+	public ArrayMerger() {
+		this.expectedTarget = ArrayNode.class;
+	}
+
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		final Iterator<IJsonNode> arrays = ((IArrayNode) node).iterator();
 
 		try {
-			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 		} catch (InstantiationException e) {
 			target = new ArrayNode();
 		} catch (IllegalAccessException e) {

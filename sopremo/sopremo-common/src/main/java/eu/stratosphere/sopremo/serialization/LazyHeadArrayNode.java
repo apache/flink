@@ -162,10 +162,10 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 			this.remove(index);
 		}
 
-		if(index < 0 || index > this.size()){
+		if (index < 0 || index > this.size()) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		if (index < this.schema.getHeadSize()) {
 			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
 				if (!this.record.isNull(i)) {
@@ -251,10 +251,10 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 
 			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
 				buffer = this.record.getField(i, JsonNodeWrapper.class);
-				if(buffer == null){
+				if (buffer == null) {
 					buffer = MissingNode.getInstance();
 				}
-				if(oldNode.isMissing()){
+				if (oldNode.isMissing()) {
 					this.record.setNull(i);
 				} else {
 					this.record.setField(i, oldNode);
@@ -304,6 +304,14 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 		}
 
 		return result;
+	}
+
+	@Override
+	public IArrayNode addAll(IJsonNode[] nodes) {
+		for (IJsonNode node : nodes) {
+			this.add(node);
+		}
+		return this;
 	}
 
 }

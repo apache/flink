@@ -103,4 +103,8 @@ public class NullNode extends JsonNode implements IPrimitiveNode {
 	public int hashCode() {
 		return 37;
 	}
+
+	@Override
+	public void clear() {
+	}
 }

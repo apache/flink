@@ -334,4 +334,9 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 		}
 		return count + others.size();
 	}
+
+	@Override
+	public void clear() {
+		this.removeAll();
+	}
 }

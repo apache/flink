@@ -25,6 +25,7 @@ public class ElementInSetExpression extends BooleanExpression {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
+		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override

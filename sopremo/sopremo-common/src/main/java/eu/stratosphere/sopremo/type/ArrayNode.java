@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -290,13 +291,14 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	/**
-	 * Returns a view of the portion of this ArrayNode between the specified fromIndex, inclusive, and toIndex, exclusive.
+	 * Returns a view of the portion of this ArrayNode between the specified fromIndex, inclusive, and toIndex,
+	 * exclusive.
 	 * (If fromIndex and toIndex are equal, the returned ArrayNode is empty.)
 	 * 
 	 * @param fromIndex
-	 * 	the index where the new ArrayNode should start (inclusive)
+	 *        the index where the new ArrayNode should start (inclusive)
 	 * @param toIndex
-	 * 	the index where the new ArrayNode should stop (exclusive)
+	 *        the index where the new ArrayNode should stop (exclusive)
 	 * @return the new ArrayNode (subarray)
 	 */
 	public IJsonNode subArray(final int fromIndex, final int toIndex) {
@@ -311,4 +313,9 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return this;
 	}
 
+	@Override
+	public IArrayNode addAll(IJsonNode[] nodes) {
+		this.addAll(Arrays.asList(nodes));
+		return this;
+	}
 }

@@ -353,5 +353,9 @@ public class JsonParser {
 		public int compareToSameType(final IJsonNode other) {
 			return 0;
 		}
+
+		@Override
+		public void clear() {
+		}
 	}
 }

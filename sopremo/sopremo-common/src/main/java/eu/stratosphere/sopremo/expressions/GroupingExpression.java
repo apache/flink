@@ -23,12 +23,13 @@ public class GroupingExpression extends EvaluationExpression {
 	public GroupingExpression(final EvaluationExpression groupingExpression, final EvaluationExpression resultExpression) {
 		this.groupingExpression = groupingExpression;
 		this.resultExpression = resultExpression;
+		this.expectedTarget = ArrayNode.class;
 	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		try {
-			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 		} catch (InstantiationException e) {
 			target = new ArrayNode();
 		} catch (IllegalAccessException e) {

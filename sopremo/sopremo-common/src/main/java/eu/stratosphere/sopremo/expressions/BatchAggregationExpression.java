@@ -6,6 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -36,6 +37,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		this.partials = new ArrayList<Partial>(functions.size());
 		for (final AggregationFunction function : functions)
 			this.partials.add(new Partial(function, EvaluationExpression.VALUE, this.partials.size()));
+		this.expectedTarget = ArrayNode.class;
 	}
 
 	public EvaluationExpression add(final AggregationFunction function) {
@@ -65,7 +67,15 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		for (int index = 0; index < results.length; index++)
 			results[index] = this.partials.get(index).getFunction().getFinalAggregate();
 
-		return this.lastResult = new ArrayNode(results);
+		try {
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		} catch (InstantiationException e) {
+			return this.lastResult = new ArrayNode(results);
+		} catch (IllegalAccessException e) {
+			return this.lastResult = new ArrayNode(results);
+		}
+
+		return this.lastResult = ((IArrayNode) target).addAll(results);
 	}
 
 	private class Partial extends AggregationExpression {

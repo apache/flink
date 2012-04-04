@@ -9,6 +9,7 @@ import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -31,14 +32,21 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-			final ObjectNode objectNode = new ObjectNode();
+			try {
+				target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+			} catch (InstantiationException e) {
+				target = new ObjectNode();
+			} catch (IllegalAccessException e) {
+				target = new ObjectNode();
+			}
+			
 			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
 			while (elements.hasNext()) {
 				final IJsonNode jsonNode = elements.next();
 				if (!jsonNode.isNull())
-					objectNode.putAll((IObjectNode) jsonNode);
+					((IObjectNode)target).putAll((IObjectNode) jsonNode);
 			}
-			return objectNode;
+			return target;
 		}
 	};
 
@@ -50,10 +58,12 @@ public class ObjectCreation extends ContainerExpression {
 
 	public ObjectCreation(final List<Mapping<?>> mappings) {
 		this.mappings = mappings;
+		this.expectedTarget = ObjectNode.class;
 	}
 
 	public ObjectCreation(final FieldAssignment... mappings) {
 		this.mappings = new ArrayList<Mapping<?>>(Arrays.asList(mappings));
+		this.expectedTarget = ObjectNode.class;
 	}
 
 	public void addMapping(final Mapping<?> mapping) {
@@ -74,10 +84,17 @@ public class ObjectCreation extends ContainerExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		final ObjectNode transformedNode = new ObjectNode();
+		try {
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		} catch (InstantiationException e) {
+			target = new ObjectNode();
+		} catch (IllegalAccessException e) {
+			target = new ObjectNode();
+		}
+
 		for (final Mapping<?> mapping : this.mappings)
-			mapping.evaluate(transformedNode, node, context);
-		return transformedNode;
+			mapping.evaluate((IObjectNode) target, node, context);
+		return target;
 	}
 
 	public Mapping<?> getMapping(final int index) {
