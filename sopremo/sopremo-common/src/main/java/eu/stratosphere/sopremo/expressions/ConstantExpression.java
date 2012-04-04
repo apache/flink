@@ -5,6 +5,9 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
+/**
+ * Represents all constants.
+ */
 @OptimizerHints(scope = Scope.ANY)
 public class ConstantExpression extends EvaluationExpression {
 	/**

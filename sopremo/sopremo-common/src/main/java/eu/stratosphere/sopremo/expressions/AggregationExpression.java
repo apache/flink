@@ -6,6 +6,10 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
+/**
+ * Returns an aggregate of the elements of the given {@link IArrayNode}.
+ * The result is calculated with help of the specified {@link AggregationExpression}.
+ */
 public class AggregationExpression extends EvaluationExpression {
 	/**
 	 * 

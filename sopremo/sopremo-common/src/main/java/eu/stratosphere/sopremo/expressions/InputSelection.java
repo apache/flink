@@ -5,11 +5,11 @@ import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Returns the element of an array which is saved at the specified index.
+ */
 @OptimizerHints(scope = Scope.ANY, minNodes = 1, maxNodes = OptimizerHints.UNBOUND)
 public class InputSelection extends EvaluationExpression {
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = -3767687525625180324L;
 
 	private final int index;

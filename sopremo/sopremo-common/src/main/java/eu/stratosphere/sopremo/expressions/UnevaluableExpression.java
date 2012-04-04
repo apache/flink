@@ -4,6 +4,9 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Represents all expressions which are not evaluable.
+ */
 @OptimizerHints(scope = Scope.ANY)
 public class UnevaluableExpression extends EvaluationExpression {
 	/**

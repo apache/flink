@@ -12,6 +12,9 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Returns a grouped representation of the elements of the given {@link IArrayNode}.
+ */
 public class GroupingExpression extends EvaluationExpression {
 	/**
 	 * 

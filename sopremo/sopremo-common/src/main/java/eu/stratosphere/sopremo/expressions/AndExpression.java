@@ -7,6 +7,9 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Represents a logical AND.
+ */
 @OptimizerHints(scope = Scope.ANY)
 public class AndExpression extends BooleanExpression {
 	/**

@@ -4,9 +4,11 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NumericNode;
 
+/**
+ * Represents basic binary comparative expressions covering all operators specified in {@link BinaryOperator}.
+ */
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
 public class ComparativeExpression extends BooleanExpression {
 	/**

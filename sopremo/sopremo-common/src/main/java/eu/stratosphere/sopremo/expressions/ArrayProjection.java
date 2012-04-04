@@ -6,6 +6,10 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Evaluates each element of the given {@link IArrayNode} with the specified {@link EvaluationExpression}.
+ * The results of each evaluation are returned as an ArrayNode.
+ */
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
 public class ArrayProjection extends EvaluationExpression {
 	/**

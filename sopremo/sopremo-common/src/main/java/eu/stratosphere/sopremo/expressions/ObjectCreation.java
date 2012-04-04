@@ -17,6 +17,9 @@ import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.util.ConversionIterator;
 
+/**
+ * Creates an object with the given {@link Mapping}s.
+ */
 @OptimizerHints(scope = Scope.ANY)
 public class ObjectCreation extends ContainerExpression {
 	/**
