@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
  * @author Michael Hopstock
@@ -174,6 +175,7 @@ public class DoubleNode extends NumericNode implements INumericNode {
 
 	@Override
 	public void clear() {
-		this.value.setValue(0);
+		if (SopremoUtil.DEBUG)
+			this.value.setValue(0);
 	}
 }

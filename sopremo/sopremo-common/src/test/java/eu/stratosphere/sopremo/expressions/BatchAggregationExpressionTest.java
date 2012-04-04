@@ -9,9 +9,11 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 public class BatchAggregationExpressionTest extends EvaluableExpressionTest<BatchAggregationExpression> {
 	@Override
@@ -47,5 +49,29 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 			new DoubleNode((double) (1 + 2 + 3 + 4 + 5) / 5),
 			new DoubleNode((double) (1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5) };
 		Assert.assertEquals(JsonUtil.asArray(expected), result);
+	}
+
+	@Test
+	public void shouldReuseTarget() {
+		ArrayNode target = new ArrayNode();
+		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
+		batch.add(DefaultFunctions.AVERAGE);
+		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
+		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), target, this.context);
+
+		Assert.assertSame(target, result);
+	}
+	
+	@Test
+	public void shouldNotReuseTargetWithWrongType() {
+		ObjectNode target = new ObjectNode();
+		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
+		batch.add(DefaultFunctions.AVERAGE);
+		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
+		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), target, this.context);
+
+		Assert.assertNotSame(target, result);
 	}
 }

@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import eu.stratosphere.sopremo.pact.SopremoUtil;
+
 /**
  * @author Michael Hopstock
  * @author Tommy Neubert
@@ -156,6 +158,7 @@ public class DecimalNode extends NumericNode implements INumericNode {
 
 	@Override
 	public void clear() {
-		this.value = BigDecimal.ZERO;
+		if (SopremoUtil.DEBUG)
+			this.value = BigDecimal.ZERO;
 	}
 }

@@ -32,19 +32,14 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-			try {
-				target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-			} catch (InstantiationException e) {
-				target = new ObjectNode();
-			} catch (IllegalAccessException e) {
-				target = new ObjectNode();
-			}
-			
+
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
 			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
 			while (elements.hasNext()) {
 				final IJsonNode jsonNode = elements.next();
 				if (!jsonNode.isNull())
-					((IObjectNode)target).putAll((IObjectNode) jsonNode);
+					((IObjectNode) target).putAll((IObjectNode) jsonNode);
 			}
 			return target;
 		}
@@ -84,13 +79,8 @@ public class ObjectCreation extends ContainerExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		try {
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-		} catch (InstantiationException e) {
-			target = new ObjectNode();
-		} catch (IllegalAccessException e) {
-			target = new ObjectNode();
-		}
+
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 
 		for (final Mapping<?> mapping : this.mappings)
 			mapping.evaluate((IObjectNode) target, node, context);

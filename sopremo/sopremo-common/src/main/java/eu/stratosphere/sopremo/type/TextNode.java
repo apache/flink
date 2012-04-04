@@ -7,6 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
  * @author Michael Hopstock
@@ -159,7 +160,8 @@ public class TextNode extends JsonNode implements IPrimitiveNode {
 
 	@Override
 	public void clear() {
-		this.value.setValue("");
+		if (SopremoUtil.DEBUG)
+			this.value.setValue("");
 	}
 
 }

@@ -12,8 +12,9 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -70,6 +71,34 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 		mapping.evaluate(result, createArrayNode("3", "4"), this.context);
 
 		Assert.assertEquals(createObjectNode("fieldname", "test", "testname", "3"), result);
+	}
+
+	@Test
+	public void shouldReuseTargetIfCorrectType() {
+		ObjectNode target = new ObjectNode();
+
+		final ObjectCreation object = new ObjectCreation(new ObjectCreation.FieldAssignment("name",
+			new ConstantExpression(
+				TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
+			IntNode.valueOf(30))));
+
+		IJsonNode result = object.evaluate(IntNode.valueOf(0), target, this.context);
+
+		Assert.assertSame(target, result);
+	}
+	
+	@Test
+	public void shouldNotReuseTargetWithWrongType() {
+		ArrayNode target = new ArrayNode();
+
+		final ObjectCreation object = new ObjectCreation(new ObjectCreation.FieldAssignment("name",
+			new ConstantExpression(
+				TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
+			IntNode.valueOf(30))));
+
+		IJsonNode result = object.evaluate(IntNode.valueOf(0), target, this.context);
+
+		Assert.assertNotSame(target, result);
 	}
 
 	@Override

@@ -67,13 +67,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		for (int index = 0; index < results.length; index++)
 			results[index] = this.partials.get(index).getFunction().getFinalAggregate();
 
-		try {
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-		} catch (InstantiationException e) {
-			return this.lastResult = new ArrayNode(results);
-		} catch (IllegalAccessException e) {
-			return this.lastResult = new ArrayNode(results);
-		}
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 
 		return this.lastResult = ((IArrayNode) target).addAll(results);
 	}

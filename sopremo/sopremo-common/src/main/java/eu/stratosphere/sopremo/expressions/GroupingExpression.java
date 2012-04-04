@@ -28,13 +28,8 @@ public class GroupingExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		try {
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-		} catch (InstantiationException e) {
-			target = new ArrayNode();
-		} catch (IllegalAccessException e) {
-			target = new ArrayNode();
-		}
+
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 
 		if (((IArrayNode) node).size() == 0)
 			return target;

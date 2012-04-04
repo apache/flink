@@ -30,13 +30,7 @@ public class ArrayMerger extends EvaluationExpression {
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		final Iterator<IJsonNode> arrays = ((IArrayNode) node).iterator();
 
-		try {
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-		} catch (InstantiationException e) {
-			target = new ArrayNode();
-		} catch (IllegalAccessException e) {
-			target = new ArrayNode();
-		}
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 
 		IJsonNode nextNode;
 		while (arrays.hasNext())

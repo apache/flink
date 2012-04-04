@@ -37,6 +37,9 @@ import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 public class SopremoUtil {
+
+	public static final boolean DEBUG = true;
+
 	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
 
 	public static final String CONTEXT = "context";
@@ -249,11 +252,17 @@ public class SopremoUtil {
 		return new JsonNodeWrapper(node);
 	}
 
-	public static IJsonNode reuseTarget(IJsonNode target, Class<? extends JsonNode> clazz)
-			throws InstantiationException,
-			IllegalAccessException {
+	public static IJsonNode reuseTarget(IJsonNode target, Class<? extends JsonNode> clazz) {
 		if (target == null || !clazz.isInstance(target)) {
-			target = clazz.newInstance();
+			try {
+				target = clazz.newInstance();
+			} catch (InstantiationException e) {
+				throw new IllegalStateException("Expected type " + clazz.toString()
+					+ " has no public parameterless constructor.");
+			} catch (IllegalAccessException e) {
+				throw new IllegalStateException("Expected type " + clazz.toString()
+					+ " has no public parameterless constructor.");
+			}
 		} else {
 			target.clear();
 		}

@@ -84,26 +84,17 @@ public class ArrayAccess extends EvaluationExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (this.isSelectingAll()) {
-			try {
-				target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-			} catch (InstantiationException e) {
-				target = new ArrayNode();
-			} catch (IllegalAccessException e) {
-				target = new ArrayNode();
-			}
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
 			((IArrayNode) target).clear();
 			((IArrayNode) target).addAll((IArrayNode) node);
 			return target;
 		}
 		final int size = ((IArrayNode) node).size();
 		if (this.isSelectingRange()) {
-			try {
-				target = SopremoUtil.reuseTarget(target, ArrayNode.class);
-			} catch (InstantiationException e) {
-				target = new ArrayNode();
-			} catch (IllegalAccessException e) {
-				target = new ArrayNode();
-			}
+
+			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+
 			((IArrayNode) target).clear();
 			int index = this.resolveIndex(this.startIndex, size);
 			final int endIndex = this.resolveIndex(this.endIndex, size);

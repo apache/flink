@@ -60,19 +60,13 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		try {
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-		} catch (InstantiationException e) {
-			target = new ArrayNode();
-		} catch (IllegalAccessException e) {
-			target = new ArrayNode();
-		}
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 
 		int index = 0;
 
 		for (final EvaluationExpression expression : this.elements)
 			((IArrayNode) target).add(expression.evaluate(node, ((IArrayNode) target).get(index++), context));
-		
+
 		return target;
 
 	}

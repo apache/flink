@@ -41,15 +41,12 @@ public class ArrayProjection extends EvaluationExpression {
 		// }, ((StreamArrayNode) node).isResettable());
 		// spread
 		final IArrayNode array = (IArrayNode) node;
-		try {
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-		} catch (InstantiationException e) {
-			target = new ArrayNode();
-		} catch (IllegalAccessException e) {
-			target = new ArrayNode();
-		}
+
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
 		for (int index = 0, size = array.size(); index < size; index++)
-			((IArrayNode) target).add(this.expression.evaluate(array.get(index), ((IArrayNode) target).get(index), context));
+			((IArrayNode) target).add(this.expression.evaluate(array.get(index), ((IArrayNode) target).get(index),
+				context));
 		return target;
 	}
 
