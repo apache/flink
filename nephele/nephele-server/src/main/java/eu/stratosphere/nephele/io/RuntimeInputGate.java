@@ -69,11 +69,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	private final ArrayList<AbstractInputChannel<T>> inputChannels = new ArrayList<AbstractInputChannel<T>>();
 
 	/**
-	 * The distribution pattern to determine how to wire the channels.
-	 */
-	private final DistributionPattern distributionPattern;
-
-	/**
 	 * Queue with indices of channels that store at least one available record.
 	 */
 	private final BlockingQueue<Integer> availableChannels = new LinkedBlockingQueue<Integer>();
@@ -114,14 +109,12 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the distribution pattern to determine the concrete wiring between to groups of vertices
 	 */
 	public RuntimeInputGate(final JobID jobID, final GateID gateID, final RecordDeserializer<T> deserializer,
-			final int index, final DistributionPattern distributionPattern) {
+			final int index) {
 
 		super(jobID, gateID, index);
 
 		this.deserializer = deserializer;
 
-		this.distributionPattern = (distributionPattern != null) ? distributionPattern
-			: new BipartiteDistributionPattern();
 	}
 
 	/**
@@ -209,13 +202,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		return newInputChannel;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public DistributionPattern getDistributionPattern() {
-		return this.distributionPattern;
-	}
 
 	/**
 	 * {@inheritDoc}

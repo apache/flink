@@ -15,8 +15,7 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
+
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
@@ -35,8 +34,8 @@ public class SelfCrossForwardTask extends AbstractTask {
 	@Override
 	public void registerInputOutput() {
 		
-		new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
-		new RecordReader<StringRecord>(this, StringRecord.class, new BipartiteDistributionPattern());
+		new RecordReader<StringRecord>(this, StringRecord.class);
+		new RecordReader<StringRecord>(this, StringRecord.class);
 		new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 

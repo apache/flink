@@ -59,9 +59,9 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * @param distributionPattern
 	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
-	public RecordReader(AbstractTask taskBase, Class<T> inputClass, DistributionPattern distributionPattern) {
+	public RecordReader(AbstractTask taskBase, Class<T> inputClass) {
 
-		super(taskBase, new DefaultRecordDeserializer<T>(inputClass), 0, distributionPattern);
+		super(taskBase, new DefaultRecordDeserializer<T>(inputClass), 0);
 	}
 
 	/**
@@ -74,9 +74,9 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * @param distributionPattern
 	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
-	public RecordReader(AbstractOutputTask outputBase, Class<T> inputClass, DistributionPattern distributionPattern) {
+	public RecordReader(AbstractOutputTask outputBase, Class<T> inputClass) {
 
-		super(outputBase, new DefaultRecordDeserializer<T>(inputClass), 0, distributionPattern);
+		super(outputBase, new DefaultRecordDeserializer<T>(inputClass), 0);
 	}
 
 	/**
@@ -91,7 +91,7 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 */
 	public RecordReader(AbstractTask taskBase, RecordDeserializer<T> deserializer) {
 
-		super(taskBase, deserializer, 0, null);
+		super(taskBase, deserializer, 0);
 	}
 
 	/**
@@ -106,23 +106,7 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 */
 	public RecordReader(AbstractTask taskBase, RecordDeserializer<T> deserializer, int inputGateID) {
 
-		super(taskBase, deserializer, inputGateID, null);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        the application that instantiated the record reader
-	 * @param inputClass
-	 *        the class of records that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
-	 */
-	public RecordReader(AbstractTask taskBase, RecordDeserializer<T> deserializer,
-			DistributionPattern distributionPattern) {
-
-		super(taskBase, deserializer, 0, distributionPattern);
+		super(taskBase, deserializer, inputGateID);
 	}
 
 	/**
@@ -135,10 +119,9 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * @param distributionPattern
 	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
-	public RecordReader(AbstractTask outputBase, RecordDeserializer<T> deserializer, int inputGateID,
-			DistributionPattern distributionPattern) {
+	public RecordReader(AbstractOutputTask outputBase, RecordDeserializer<T> deserializer) {
 
-		super(outputBase, deserializer, inputGateID, distributionPattern);
+		super(outputBase, deserializer, 0);
 	}
 
 	/**
@@ -151,26 +134,9 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * @param distributionPattern
 	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
-	public RecordReader(AbstractOutputTask outputBase, RecordDeserializer<T> deserializer,
-			DistributionPattern distributionPattern) {
+	public RecordReader(AbstractOutputTask outputBase, RecordDeserializer<T> deserializer, int inputGateID) {
 
-		super(outputBase, deserializer, 0, distributionPattern);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        the application that instantiated the record reader
-	 * @param inputClass
-	 *        the class of records that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
-	 */
-	public RecordReader(AbstractOutputTask outputBase, RecordDeserializer<T> deserializer, int inputGateID,
-			DistributionPattern distributionPattern) {
-
-		super(outputBase, deserializer, inputGateID, distributionPattern);
+		super(outputBase, deserializer, inputGateID);
 	}
 
 	/**
@@ -232,4 +198,3 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 		return retVal;
 	}
 }
-
