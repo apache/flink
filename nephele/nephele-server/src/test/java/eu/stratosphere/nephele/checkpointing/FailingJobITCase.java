@@ -37,7 +37,6 @@ import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -331,8 +330,7 @@ public class FailingJobITCase {
 		public void registerInputOutput() {
 
 			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
-			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
-				new BipartiteDistributionPattern());
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
 		/**
@@ -390,8 +388,7 @@ public class FailingJobITCase {
 		public void registerInputOutput() {
 
 			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
-			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
-				new BipartiteDistributionPattern());
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
 		/**
@@ -436,8 +433,7 @@ public class FailingJobITCase {
 		public void registerInputOutput() {
 
 			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
-			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
-				new BipartiteDistributionPattern());
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
 		/**
@@ -476,8 +472,7 @@ public class FailingJobITCase {
 		@Override
 		public void registerInputOutput() {
 
-			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
-				new BipartiteDistributionPattern());
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
 		/**

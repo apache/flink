@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.UnionRecordReader;
@@ -44,8 +43,8 @@ public class UnionTask extends AbstractTask {
 
 		@SuppressWarnings("unchecked")
 		final RecordReader<StringRecord>[] recordReaders = (RecordReader<StringRecord>[]) new RecordReader<?>[2];
-		recordReaders[0] = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
-		recordReaders[1] = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
+		recordReaders[0] = new RecordReader<StringRecord>(this, StringRecord.class);
+		recordReaders[1] = new RecordReader<StringRecord>(this, StringRecord.class);
 		this.unionReader = new UnionRecordReader<StringRecord>(recordReaders);
 		
 		this.writer = new RecordWriter<StringRecord>(this, StringRecord.class);

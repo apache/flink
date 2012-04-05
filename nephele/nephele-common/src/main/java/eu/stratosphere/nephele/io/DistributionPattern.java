@@ -22,21 +22,7 @@ package eu.stratosphere.nephele.io;
  * 
  * @author warneke
  */
-public interface DistributionPattern {
 
-	/**
-	 * Checks if two subtasks of different tasks should be wired.
-	 * 
-	 * @param nodeLowerStage
-	 *        the index of the producing task's subtask
-	 * @param nodeUpperStage
-	 *        the index of the consuming task's subtask
-	 * @param sizeSetLowerStage
-	 *        the number of subtasks of the producing task
-	 * @param sizeSetUpperStage
-	 *        the number of subtasks of the consuming task
-	 * @return <code>true</code> if a wire between the two considered subtasks should be created, <code>false</code>
-	 *         otherwise
-	 */
-	boolean createWire(int nodeLowerStage, int nodeUpperStage, int sizeSetLowerStage, int sizeSetUpperStage);
+public enum DistributionPattern {	
+	BIPARTITE, POINTWISE, STAR
 }

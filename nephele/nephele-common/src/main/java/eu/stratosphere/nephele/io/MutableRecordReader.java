@@ -31,9 +31,9 @@ public class MutableRecordReader<T extends Record> extends AbstractRecordReader<
 	 * @param distributionPattern
 	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
-	public MutableRecordReader(final AbstractTask taskBase, final DistributionPattern distributionPattern) {
+	public MutableRecordReader(final AbstractTask taskBase) {
 
-		super(taskBase, new MutableRecordDeserializer<T>(), 0, distributionPattern);
+		super(taskBase, new MutableRecordDeserializer<T>(), 0);
 	}
 
 	/**
@@ -41,23 +41,10 @@ public class MutableRecordReader<T extends Record> extends AbstractRecordReader<
 	 * 
 	 * @param outputBase
 	 *        the application that instantiated the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
-	public MutableRecordReader(final AbstractOutputTask outputBase, final DistributionPattern distributionPattern) {
+	public MutableRecordReader(final AbstractOutputTask outputBase) {
 
-		super(outputBase, new MutableRecordDeserializer<T>(), 0, distributionPattern);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        the application that instantiated the record reader
-	 */
-	public MutableRecordReader(final AbstractTask taskBase) {
-
-		super(taskBase, new MutableRecordDeserializer<T>(), 0, null);
+		super(outputBase, new MutableRecordDeserializer<T>(), 0);
 	}
 
 	/**
@@ -69,7 +56,7 @@ public class MutableRecordReader<T extends Record> extends AbstractRecordReader<
 	 */
 	public MutableRecordReader(final AbstractTask taskBase, final int inputGateID) {
 
-		super(taskBase, new MutableRecordDeserializer<T>(), inputGateID, null);
+		super(taskBase, new MutableRecordDeserializer<T>(), inputGateID);
 	}
 
 	/**
@@ -81,25 +68,9 @@ public class MutableRecordReader<T extends Record> extends AbstractRecordReader<
 	 * @param distributionPattern
 	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
-	public MutableRecordReader(final AbstractTask outputBase, final int inputGateID,
-			final DistributionPattern distributionPattern) {
+	public MutableRecordReader(final AbstractOutputTask outputBase, int inputGateID) {
 
-		super(outputBase, new MutableRecordDeserializer<T>(), inputGateID, distributionPattern);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        the application that instantiated the record reader
-	 * @param inputGateID
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
-	 */
-	public MutableRecordReader(final AbstractOutputTask outputBase, int inputGateID,
-			DistributionPattern distributionPattern) {
-
-		super(outputBase, new MutableRecordDeserializer<T>(), inputGateID, distributionPattern);
+		super(outputBase, new MutableRecordDeserializer<T>(), inputGateID);
 	}
 
 	@Override

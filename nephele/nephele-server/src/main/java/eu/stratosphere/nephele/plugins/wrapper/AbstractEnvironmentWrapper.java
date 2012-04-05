@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.plugins.wrapper;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -217,9 +216,9 @@ public abstract class AbstractEnvironmentWrapper implements Environment {
 	 */
 	@Override
 	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer, final DistributionPattern distributionPattern) {
+			final RecordDeserializer<? extends Record> deserializer) {
 
-		return this.wrappedEnvironment.createInputGate(gateID, deserializer, distributionPattern);
+		return this.wrappedEnvironment.createInputGate(gateID, deserializer);
 	}
 
 	/**
