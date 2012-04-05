@@ -316,12 +316,12 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			}
 		}
 
-		if (jobToInstanceMapping.getAssignedInstances().contains(instance)) {
+		// Destroy proxies of that instance
+		instance.destroyProxies();
 
-			// Unassigned Instance
-			jobToInstanceMapping.unassignInstanceFromJob((EC2CloudInstance) instance);
+		if (jobToInstanceMapping.unassignInstanceFromJob(instance)) {
 
-			// Make it a floating Instance
+			// Make it a floating instance
 			this.floatingInstances.put(instance.getInstanceConnectionInfo(),
 				((EC2CloudInstance) instance).asFloatingInstance());
 
@@ -966,8 +966,26 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	@Override
 	public void shutdown() {
 
+		synchronized (this.jobToInstancesAssignmentMap) {
+
+			final Iterator<Map.Entry<JobID, JobToInstancesMapping>> it = this.jobToInstancesAssignmentMap.entrySet()
+				.iterator();
+
+			while (it.hasNext()) {
+
+				final Map.Entry<JobID, JobToInstancesMapping> entry = it.next();
+				final List<EC2CloudInstance> unassignedInstances = entry.getValue().unassignAllInstancesFromJob();
+				final Iterator<EC2CloudInstance> it2 = unassignedInstances.iterator();
+				while (it2.hasNext()) {
+					it2.next().destroyProxies();
+				}
+			}
+		}
+
 		// Stop the timer task
-		LOG.debug("Stopping timer task");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Stopping timer task");
+		}
 		this.cancel();
 	}
 

@@ -18,12 +18,7 @@ package eu.stratosphere.nephele.profiling;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.InputGateListener;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.OutputGateListener;
-import eu.stratosphere.nephele.taskmanager.Task;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 
 /**
  * This interface must be implemented by profiling components
@@ -41,33 +36,8 @@ public interface TaskManagerProfiler {
 	 * @param jobConfiguration
 	 *        the job configuration sent with the task
 	 */
-	void registerExecutionListener(Task task, Configuration jobConfiguration);
+	void registerExecutionListener(RuntimeTask task, Configuration jobConfiguration);
 
-	/**
-	 * Registers a {@link InputGateListener} object for the given input gate.
-	 * 
-	 * @param id
-	 *        the ID of the vertex the given input gate belongs to
-	 * @param jobConfiguration
-	 *        the configuration of the job the vertex belongs to
-	 * @param inputGate
-	 *        the input gate to register a {@link InputGateListener} object for
-	 */
-	void registerInputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			InputGate<? extends Record> inputGate);
-
-	/**
-	 * Registers a {@link OutputGateListener} object for the given output gate.
-	 * 
-	 * @param id
-	 *        the ID of the vertex the given output gate belongs to
-	 * @param jobConfiguration
-	 *        the configuration of the job the vertex belongs to
-	 * @param outputGate
-	 *        the output gate to register a {@link InputGateListener} object for
-	 */
-	void registerOutputGateListener(ExecutionVertexID id, Configuration jobConfiguration,
-			OutputGate<? extends Record> outputGate);
 
 	/**
 	 * Unregisters all previously register {@link ExecutionListener} objects for
@@ -77,24 +47,6 @@ public interface TaskManagerProfiler {
 	 *        the ID of the vertex to unregister the {@link ExecutionListener} objects for
 	 */
 	void unregisterExecutionListener(ExecutionVertexID id);
-
-	/**
-	 * Unregisters all previously register {@link InputGateListener} objects for
-	 * the vertex identified by the given ID.
-	 * 
-	 * @param id
-	 *        the ID of the vertex to unregister the {@link InputGateListener} objects for
-	 */
-	void unregisterInputGateListeners(ExecutionVertexID id);
-
-	/**
-	 * Unregisters all previously register {@link OutputGateListener} objects for
-	 * the vertex identified by the given ID.
-	 * 
-	 * @param id
-	 *        the ID of the vertex to unregister the {@link OutputGateListener} objects for
-	 */
-	void unregisterOutputGateListeners(ExecutionVertexID id);
 
 	/**
 	 * Shuts done the task manager's profiling component

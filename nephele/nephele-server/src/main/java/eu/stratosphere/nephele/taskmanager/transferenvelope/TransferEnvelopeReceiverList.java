@@ -23,9 +23,9 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.ChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 
 /**
@@ -58,15 +58,15 @@ public class TransferEnvelopeReceiverList {
 		this.remoteReceivers = Collections.unmodifiableList(tmpList);
 	}
 
-	public TransferEnvelopeReceiverList(final AbstractChannel inMemoryChannel) {
+	public TransferEnvelopeReceiverList(final ChannelContext channelContext) {
 
-		if (inMemoryChannel.getType() != ChannelType.INMEMORY) {
+		if (channelContext.getType() != ChannelType.INMEMORY) {
 			throw new IllegalArgumentException(
 				"Transfer envelope receiver lists can only be constructed from in-memory channels.");
 		}
 
 		final List<ChannelID> lr = new ArrayList<ChannelID>(1);
-		lr.add(inMemoryChannel.getConnectedChannelID());
+		lr.add(channelContext.getConnectedChannelID());
 
 		this.localReceivers = Collections.unmodifiableList(lr);
 		this.remoteReceivers = Collections.emptyList();

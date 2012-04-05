@@ -15,9 +15,11 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionPipeline;
@@ -79,7 +81,21 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 					pipelineToBeDeployed.setAllocatedResource(this.executionVertex.getAllocatedResource());
 					pipelineToBeDeployed.updateExecutionState(ExecutionState.ASSIGNED);
 
-					this.scheduler.deployAssignedVertices(eg);
+					this.scheduler.deployAssignedVertices(groupMember);
+					return;
+				}
+			}
+		}
+
+		if (newExecutionState == ExecutionState.CANCELED || newExecutionState == ExecutionState.FINISHED) {
+
+			synchronized (this.executionVertex.getExecutionGraph()) {
+
+				if (this.scheduler.getVerticesToBeRestarted().remove(this.executionVertex.getID()) != null) {
+					this.executionVertex.updateExecutionState(ExecutionState.ASSIGNED, "Restart as part of recovery");
+
+					// Run through the deployment procedure
+					this.scheduler.deployAssignedVertices(this.executionVertex);
 					return;
 				}
 			}
@@ -91,11 +107,23 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 			this.scheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
 		}
 
-		// In case of an error, check if vertex can be rescheduled
+		// In case of an error, check if the vertex shall be recovered
 		if (newExecutionState == ExecutionState.FAILED) {
-			if (this.executionVertex.hasRetriesLeft()) {
-				// Reschedule vertex
-				this.executionVertex.updateExecutionState(ExecutionState.SCHEDULED);
+			if (this.executionVertex.decrementRetriesLeftAndCheck()) {
+
+				final Set<ExecutionVertex> assignedVertices = new HashSet<ExecutionVertex>();
+
+				if (RecoveryLogic.recover(this.executionVertex, this.scheduler.getVerticesToBeRestarted(),
+					assignedVertices)) {
+
+					if (RecoveryLogic.hasInstanceAssigned(this.executionVertex)) {
+						// Run through the deployment procedure
+						this.scheduler.deployAssignedVertices(assignedVertices);
+					}
+
+				} else {
+					// TODO: Cancel the entire job in this case
+				}
 			}
 		}
 
@@ -121,98 +149,8 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void initialExecutionResourcesExhausted(final JobID jobID, final ExecutionVertexID vertexID,
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+	public int getPriority() {
 
-		/*
-		 * final ExecutionGraph executionGraph = this.executionVertex.getExecutionGraph();
-		 * System.out.println(this.executionVertex + " has run out of execution resources");
-		 * final Map<ExecutionVertex, Long> targetVertices = new HashMap<ExecutionVertex, Long>();
-		 * final Map<AllocatedResource, Long> availableResources = new HashMap<AllocatedResource, Long>();
-		 * final Environment ee = this.executionVertex.getEnvironment();
-		 * for (int i = 0; i < ee.getNumberOfOutputGates(); ++i) {
-		 * final OutputGate<? extends Record> outputGate = ee.getOutputGate(i);
-		 * for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-		 * final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-		 * final long transmittedData = resourceUtilizationSnapshot.getAmountOfDataTransmitted(outputChannel
-		 * .getID());
-		 * final ExecutionVertex connectedVertex = executionGraph.getVertexByChannelID(outputChannel
-		 * .getConnectedChannelID());
-		 * final ExecutionState state = connectedVertex.getExecutionState();
-		 * if (state == ExecutionState.SCHEDULED || state == ExecutionState.ASSIGNED) {
-		 * targetVertices.put(connectedVertex, Long.valueOf(transmittedData));
-		 * final AllocatedResource allocatedResource = connectedVertex.getAllocatedResource();
-		 * if (!(allocatedResource.getInstance() instanceof DummyInstance)) {
-		 * availableResources.put(allocatedResource, Long.valueOf(0L));
-		 * }
-		 * }
-		 * }
-		 * if (targetVertices.isEmpty()) {
-		 * return;
-		 * }
-		 * final Queue<ExecutionVertex> vertexQueue = new PriorityQueue<ExecutionVertex>(targetVertices.size(),
-		 * new Comparator<ExecutionVertex>() {
-		 * @Override
-		 * public int compare(final ExecutionVertex arg0, final ExecutionVertex arg1) {
-		 * final Long l0 = targetVertices.get(arg0);
-		 * final Long l1 = targetVertices.get(arg1);
-		 * if (l0.longValue() == l1.longValue()) {
-		 * return 0;
-		 * }
-		 * if (l0.longValue() < l1.longValue()) {
-		 * return 1;
-		 * }
-		 * return -1;
-		 * }
-		 * });
-		 * final Queue<AllocatedResource> resourceQueue = new PriorityQueue<AllocatedResource>(
-		 * availableResources.size(), new Comparator<AllocatedResource>() {
-		 * @Override
-		 * public int compare(final AllocatedResource arg0, final AllocatedResource arg1) {
-		 * final Long l0 = availableResources.get(arg0);
-		 * final Long l1 = availableResources.get(arg1);
-		 * if (l0.longValue() == l1.longValue()) {
-		 * return 0;
-		 * }
-		 * if (l0.longValue() < l1.longValue()) {
-		 * return -1;
-		 * }
-		 * return 1;
-		 * }
-		 * });
-		 * Iterator<ExecutionVertex> vertexIt = targetVertices.keySet().iterator();
-		 * while (vertexIt.hasNext()) {
-		 * vertexQueue.add(vertexIt.next());
-		 * }
-		 * final Iterator<AllocatedResource> resourceIt = availableResources.keySet().iterator();
-		 * while (resourceIt.hasNext()) {
-		 * resourceQueue.add(resourceIt.next());
-		 * }
-		 * while (!vertexQueue.isEmpty()) {
-		 * final ExecutionVertex v = vertexQueue.poll();
-		 * final long vertexLoad = targetVertices.get(v);
-		 * System.out.println(v + ": " + vertexLoad);
-		 * final AllocatedResource ar = resourceQueue.poll();
-		 * final long resourceLoad = availableResources.get(ar).longValue();
-		 * System.out.println(ar + ": " + resourceLoad);
-		 * availableResources.put(ar, Long.valueOf(vertexLoad + resourceLoad));
-		 * resourceQueue.add(ar);
-		 * reassignGraphFragment(v, v.getAllocatedResource(), ar);
-		 * }
-		 * final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance,
-		 * List<ExecutionVertex>>();
-		 * vertexIt = targetVertices.keySet().iterator();
-		 * while (vertexIt.hasNext()) {
-		 * this.scheduler.findVerticesToBeDeployed(vertexIt.next(), verticesToBeDeployed);
-		 * }
-		 * final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> deploymentIt = verticesToBeDeployed
-		 * .entrySet().iterator();
-		 * while (deploymentIt.hasNext()) {
-		 * final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = deploymentIt.next();
-		 * this.scheduler.getDeploymentManager().deploy(executionGraph.getJobID(), entry.getKey(),
-		 * entry.getValue());
-		 * }
-		 * }
-		 */
+		return 0;
 	}
 }

@@ -9,9 +9,7 @@
     <version>0.2</version>
   </parent>
 
-  <groupId>eu.stratosphere</groupId>
   <artifactId>pact-common</artifactId>
-  <version>0.2</version>
   <name>pact-common</name>
 
   <packaging>jar</packaging>

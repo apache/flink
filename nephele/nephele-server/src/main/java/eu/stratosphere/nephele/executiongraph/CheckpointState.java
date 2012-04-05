@@ -23,6 +23,11 @@ package eu.stratosphere.nephele.executiongraph;
 public enum CheckpointState {
 
 	/**
+	 * The vertex has not yet decided to create a checkpoint or not.
+	 */
+	UNDECIDED,
+
+	/**
 	 * The vertex has no checkpoint and cannot be recovered.
 	 */
 	NONE,

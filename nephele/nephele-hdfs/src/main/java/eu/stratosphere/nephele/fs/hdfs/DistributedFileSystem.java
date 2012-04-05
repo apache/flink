@@ -239,4 +239,22 @@ public final class DistributedFileSystem extends FileSystem {
 		return this.fs.mkdirs(new org.apache.hadoop.fs.Path(f.toString()));
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean rename(final Path src, final Path dst) throws IOException {
+
+		return this.fs.rename(new org.apache.hadoop.fs.Path(src.toString()),
+			new org.apache.hadoop.fs.Path(dst.toString()));
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public long getDefaultBlockSize() {
+
+		return this.fs.getDefaultBlockSize();
+	}
 }

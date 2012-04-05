@@ -20,13 +20,14 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 
@@ -46,11 +47,6 @@ public class OutgoingConnection {
 	private static final Log LOG = LogFactory.getLog(OutgoingConnection.class);
 
 	/**
-	 * The network connection manager managing this outgoing connection.
-	 */
-	private final NetworkConnectionManager networkConnectionManager;
-
-	/**
 	 * The address this outgoing connection is connected to.
 	 */
 	private final InetSocketAddress connectionAddress;
@@ -63,7 +59,7 @@ public class OutgoingConnection {
 	/**
 	 * The queue of transfer envelopes to be transmitted.
 	 */
-	private final TransferEnvelopeQueue queuedEnvelopes = new TransferEnvelopeQueue();
+	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
 	/**
 	 * The {@link DefaultSerializer} object used to transform the envelopes into a byte stream.
@@ -116,8 +112,6 @@ public class OutgoingConnection {
 	/**
 	 * Constructs a new outgoing connection object.
 	 * 
-	 * @param networkConnectionManager
-	 *        the network connection manager which manages this connection
 	 * @param connectionAddress
 	 *        the address of the destination host this outgoing connection object is supposed to connect to
 	 * @param connectionThread
@@ -125,11 +119,9 @@ public class OutgoingConnection {
 	 * @param numberOfConnectionRetries
 	 *        the number of connection retries allowed before an I/O error is reported
 	 */
-	public OutgoingConnection(NetworkConnectionManager networkConnectionManager,
-			InetSocketAddress connectionAddress, OutgoingConnectionThread connectionThread,
+	public OutgoingConnection(InetSocketAddress connectionAddress, OutgoingConnectionThread connectionThread,
 			int numberOfConnectionRetries) {
 
-		this.networkConnectionManager = networkConnectionManager;
 		this.connectionAddress = connectionAddress;
 		this.connectionThread = connectionThread;
 		this.numberOfConnectionRetries = numberOfConnectionRetries;
@@ -161,7 +153,6 @@ public class OutgoingConnection {
 
 				this.retriesLeft = this.numberOfConnectionRetries;
 				this.timstampOfLastRetry = System.currentTimeMillis();
-				System.out.println("Triggering connection to " + this.connectionAddress);
 				this.connectionThread.triggerConnect(this);
 				this.isConnected = true;
 				this.isSubscribedToWriteEvent = true;
@@ -239,7 +230,6 @@ public class OutgoingConnection {
 
 			// Notify source of current envelope and release buffer
 			if (this.currentEnvelope != null) {
-				this.networkConnectionManager.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
 				if (this.currentEnvelope.getBuffer() != null) {
 					this.currentEnvelope.getBuffer().recycleBuffer();
 					this.currentEnvelope = null;
@@ -251,7 +241,6 @@ public class OutgoingConnection {
 			while (iter.hasNext()) {
 				final TransferEnvelope envelope = iter.next();
 				iter.remove();
-				this.networkConnectionManager.reportIOExceptionForOutputChannel(envelope.getSource(), ioe);
 				// Recycle the buffer inside the envelope
 				if (envelope.getBuffer() != null) {
 					envelope.getBuffer().recycleBuffer();
@@ -314,7 +303,6 @@ public class OutgoingConnection {
 
 			// We must assume the current envelope is corrupted so we notify the task which created it.
 			if (this.currentEnvelope != null) {
-				this.networkConnectionManager.reportIOExceptionForOutputChannel(this.currentEnvelope.getSource(), ioe);
 				if (this.currentEnvelope.getBuffer() != null) {
 					this.currentEnvelope.getBuffer().recycleBuffer();
 					this.currentEnvelope = null;
@@ -421,8 +409,6 @@ public class OutgoingConnection {
 			if (!this.queuedEnvelopes.isEmpty()) {
 				return;
 			}
-
-			System.out.println("Closing connection to " + this.connectionAddress);
 
 			if (this.selectionKey != null) {
 
@@ -543,20 +529,5 @@ public class OutgoingConnection {
 		}
 
 		return retVal;
-	}
-
-	/**
-	 * Registers the spilling queue with this network connection. The network connection is then in charge of polling
-	 * the elements from the queue.
-	 * 
-	 * @param spillingQueue
-	 *        the queue to register
-	 */
-	void registerSpillingQueue(final SpillingQueue spillingQueue) {
-
-		synchronized (this.queuedEnvelopes) {
-			checkConnection();
-			this.queuedEnvelopes.registerSpillingQueue(spillingQueue);
-		}
 	}
 }

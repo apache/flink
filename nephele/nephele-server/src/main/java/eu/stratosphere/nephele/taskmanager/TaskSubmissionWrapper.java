@@ -21,10 +21,12 @@ import java.io.IOException;
 import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
@@ -43,12 +45,17 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	/**
 	 * The task's execution environment.
 	 */
-	Environment environment = null;
+	RuntimeEnvironment environment = null;
 
 	/**
 	 * The task's configuration object.
 	 */
 	Configuration configuration = null;
+
+	/**
+	 * The task's initial checkpoint state.
+	 */
+	CheckpointState initialCheckpointState = null;
 
 	/**
 	 * The set of initially active output channels.
@@ -64,9 +71,14 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	 *        the task's execution environment
 	 * @param configuration
 	 *        the task's configuration
+	 * @param initialCheckpointState
+	 *        the initial state the task's checkpoint is in
+	 * @param activeOutputChannels
+	 *        the set of initially active output channels
 	 */
-	public TaskSubmissionWrapper(final ExecutionVertexID vertexID, final Environment environment,
-			final Configuration configuration, final SerializableHashSet<ChannelID> activeOutputChannels) {
+	public TaskSubmissionWrapper(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
+			final Configuration configuration, final CheckpointState initialCheckpointState,
+			final SerializableHashSet<ChannelID> activeOutputChannels) {
 
 		if (vertexID == null) {
 			throw new IllegalArgumentException("Argument vertexID is null");
@@ -80,6 +92,10 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 			throw new IllegalArgumentException("Argument configuration is null");
 		}
 
+		if (initialCheckpointState == null) {
+			throw new IllegalArgumentException("Argument initialCheckpointState in null");
+		}
+
 		if (activeOutputChannels == null) {
 			throw new IllegalArgumentException("Argument activeOutputChannels is null");
 		}
@@ -87,6 +103,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 		this.vertexID = vertexID;
 		this.environment = environment;
 		this.configuration = configuration;
+		this.initialCheckpointState = initialCheckpointState;
 		this.activeOutputChannels = activeOutputChannels;
 	}
 
@@ -105,6 +122,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 		this.vertexID.write(out);
 		this.environment.write(out);
 		this.configuration.write(out);
+		EnumUtils.writeEnum(out, this.initialCheckpointState);
 		this.activeOutputChannels.write(out);
 	}
 
@@ -116,10 +134,11 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 
 		this.vertexID = new ExecutionVertexID();
 		this.vertexID.read(in);
-		this.environment = new Environment();
+		this.environment = new RuntimeEnvironment();
 		this.environment.read(in);
 		this.configuration = new Configuration();
 		this.configuration.read(in);
+		this.initialCheckpointState = EnumUtils.readEnum(in, CheckpointState.class);
 		this.activeOutputChannels = new SerializableHashSet<ChannelID>();
 		this.activeOutputChannels.read(in);
 	}
@@ -130,7 +149,6 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	 * @return the task's execution vertex ID
 	 */
 	public ExecutionVertexID getVertexID() {
-
 		return this.vertexID;
 	}
 
@@ -139,8 +157,7 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	 * 
 	 * @return the task's execution environment
 	 */
-	public Environment getEnvironment() {
-
+	public RuntimeEnvironment getEnvironment() {
 		return this.environment;
 	}
 
@@ -150,8 +167,16 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	 * @return the task's configuration object
 	 */
 	public Configuration getConfiguration() {
-
 		return this.configuration;
+	}
+
+	/**
+	 * Returns the task's initial checkpoint state.
+	 * 
+	 * @return the task's initial checkpoint state
+	 */
+	public CheckpointState getInitialCheckpointState() {
+		return this.initialCheckpointState;
 	}
 
 	/**
@@ -160,7 +185,6 @@ public final class TaskSubmissionWrapper implements IOReadableWritable {
 	 * @return the set of initially active output channels
 	 */
 	public Set<ChannelID> getActiveOutputChannels() {
-
 		return this.activeOutputChannels;
 	}
 }

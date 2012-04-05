@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -33,7 +34,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 public class OutputCollector implements Collector
 {	
 	// list of writers
-	protected RecordWriter<PactRecord>[] writers; 
+	protected AbstractRecordWriter<PactRecord>[] writers; 
 
 	/**
 	 * Initializes the output collector with no writers.
@@ -59,15 +60,16 @@ public class OutputCollector implements Collector
 	 * 
 	 * @param writer The writer to add.
 	 */
+
 	@SuppressWarnings("unchecked")
-	public void addWriter(RecordWriter<PactRecord> writer)
+	public void addWriter(AbstractRecordWriter<PactRecord> writer)
 	{
 		// avoid using the array-list here to reduce one level of object indirection
 		if (this.writers == null) {
-			this.writers = new RecordWriter[] {writer};
+			this.writers = new AbstractRecordWriter[] {writer};
 		}
 		else {
-			RecordWriter<PactRecord>[] ws = new RecordWriter[this.writers.length + 1];
+			AbstractRecordWriter<PactRecord>[] ws = new AbstractRecordWriter[this.writers.length + 1];
 			System.arraycopy(this.writers, 0, ws, 0, this.writers.length);
 			ws[this.writers.length] = writer;
 			this.writers = ws;
@@ -106,7 +108,7 @@ public class OutputCollector implements Collector
 	 * List of writers that are associated with this output collector
 	 * @return list of writers
 	 */
-	public List<RecordWriter<PactRecord>> getWriters() {
+	public List<AbstractRecordWriter<PactRecord>> getWriters() {
 		return Collections.unmodifiableList(Arrays.asList(writers));
 	}
 }

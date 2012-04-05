@@ -36,9 +36,26 @@ public class ExecutionVertexID extends AbstractID {
 	 */
 	public ManagementVertexID toManagementVertexID() {
 
-		final ManagementVertexID newId = new ManagementVertexID();
-		newId.setID(this);
+		final ManagementVertexID newID = new ManagementVertexID();
+		newID.setID(this);
 
-		return newId;
+		return newID;
+	}
+
+	/**
+	 * Converts the given management vertex ID into the corresponding execution vertex ID. The new execution vertex ID
+	 * will be equals to the management vertex ID in the sense that the <code>equals</code> method will return
+	 * <code>true</code> when both IDs are compared.
+	 * 
+	 * @param vertexID
+	 *        the management vertex ID to be converted
+	 * @return the resulting execution vertex ID
+	 */
+	public static ExecutionVertexID fromManagementVertexID(final ManagementVertexID vertexID) {
+
+		final ExecutionVertexID newID = new ExecutionVertexID();
+		newID.setID(vertexID);
+
+		return newID;
 	}
 }

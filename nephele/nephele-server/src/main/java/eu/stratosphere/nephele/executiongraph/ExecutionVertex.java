@@ -17,18 +17,23 @@ package eu.stratosphere.nephele.executiongraph;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.io.InputGate;
@@ -39,11 +44,16 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
+import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
+import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
+import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.AtomicEnum;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
@@ -76,7 +86,7 @@ public final class ExecutionVertex {
 	/**
 	 * The environment created to execute the vertex's task.
 	 */
-	private final Environment environment;
+	private final RuntimeEnvironment environment;
 
 	/**
 	 * The group vertex this vertex belongs to.
@@ -111,10 +121,9 @@ public final class ExecutionVertex {
 	private final CopyOnWriteArrayList<CheckpointStateListener> checkpointStateListeners = new CopyOnWriteArrayList<CheckpointStateListener>();
 
 	/**
-	 * A list of {@link ExecutionListener} objects to be notified about state changes of the vertex's
-	 * checkpoint.
+	 * A map of {@link ExecutionListener} objects to be notified about the state changes of a vertex.
 	 */
-	private final CopyOnWriteArrayList<ExecutionListener> executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
+	private final ConcurrentMap<Integer, ExecutionListener> executionListeners = new ConcurrentSkipListMap<Integer, ExecutionListener>();
 
 	/**
 	 * The current execution state of the task represented by this vertex
@@ -122,9 +131,16 @@ public final class ExecutionVertex {
 	private final AtomicEnum<ExecutionState> executionState = new AtomicEnum<ExecutionState>(ExecutionState.CREATED);
 
 	/**
+	 * Stores the number of times the vertex may be still be started before the corresponding task is considered to be
+	 * failed.
+	 */
+	private final AtomicInteger retriesLeft;
+
+	/**
 	 * The current checkpoint state of this vertex.
 	 */
-	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(CheckpointState.NONE);
+	private final AtomicEnum<CheckpointState> checkpointState = new AtomicEnum<CheckpointState>(
+		CheckpointState.UNDECIDED);
 
 	/**
 	 * The execution pipeline this vertex is part of.
@@ -142,14 +158,17 @@ public final class ExecutionVertex {
 	 *        the execution graph the new vertex belongs to
 	 * @param groupVertex
 	 *        the group vertex the new vertex belongs to
+	 * @param jobConfiguration
+	 *        the configuration object attached to the original {@link JobGraph}
 	 * @throws Exception
 	 *         any exception that might be thrown by the user code during instantiation and registration of input and
 	 *         output channels
 	 */
 	public ExecutionVertex(final JobID jobID, final Class<? extends AbstractInvokable> invokableClass,
-			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex) throws Exception {
-		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex, new Environment(jobID,
-			groupVertex.getName(), invokableClass, groupVertex.getConfiguration()));
+			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
+			final Configuration jobConfiguration) throws Exception {
+		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex, new RuntimeEnvironment(jobID,
+			groupVertex.getName(), invokableClass, groupVertex.getConfiguration(), jobConfiguration));
 
 		this.groupVertex.addInitialSubtask(this);
 
@@ -157,9 +176,9 @@ public final class ExecutionVertex {
 			LOG.error("Vertex " + groupVertex.getName() + " does not specify a task");
 		}
 
-		// Register the vertex itself as a listener for state changes
-		registerExecutionListener(this.executionGraph);
 		this.environment.instantiateInvokable();
+
+		checkInitialCheckpointState();
 	}
 
 	/**
@@ -177,12 +196,15 @@ public final class ExecutionVertex {
 	 *        the environment for the newly created vertex
 	 */
 	private ExecutionVertex(final ExecutionVertexID vertexID, final Class<? extends AbstractInvokable> invokableClass,
-			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex, final Environment environment) {
+			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
+			final RuntimeEnvironment environment) {
 		this.vertexID = vertexID;
 		this.invokableClass = invokableClass;
 		this.executionGraph = executionGraph;
 		this.groupVertex = groupVertex;
 		this.environment = environment;
+
+		this.retriesLeft = new AtomicInteger(groupVertex.getNumberOfExecutionRetries());
 
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
@@ -195,7 +217,7 @@ public final class ExecutionVertex {
 	 * 
 	 * @return the environment of this execution vertex
 	 */
-	public Environment getEnvironment() {
+	public RuntimeEnvironment getEnvironment() {
 		return this.environment;
 	}
 
@@ -236,10 +258,13 @@ public final class ExecutionVertex {
 			newVertexID = new ExecutionVertexID();
 		}
 
-		final Environment duplicatedEnvironment = this.environment.duplicateEnvironment();
+		final RuntimeEnvironment duplicatedEnvironment = this.environment.duplicateEnvironment();
 
 		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.invokableClass,
 			this.executionGraph, this.groupVertex, duplicatedEnvironment);
+
+		// Copy checkpoint state from original vertex
+		duplicatedVertex.checkpointState.set(this.checkpointState.get());
 
 		// TODO set new profiling record with new vertex id
 		duplicatedVertex.setAllocatedResource(this.allocatedResource);
@@ -276,8 +301,8 @@ public final class ExecutionVertex {
 	 * @param newExecutionState
 	 *        the new execution state
 	 */
-	public void updateExecutionState(final ExecutionState newExecutionState) {
-		updateExecutionState(newExecutionState, null);
+	public ExecutionState updateExecutionState(final ExecutionState newExecutionState) {
+		return updateExecutionState(newExecutionState, null);
 	}
 
 	/**
@@ -288,26 +313,45 @@ public final class ExecutionVertex {
 	 * @param optionalMessage
 	 *        an optional message related to the state change
 	 */
-	public void updateExecutionState(final ExecutionState newExecutionState, final String optionalMessage) {
+	public ExecutionState updateExecutionState(ExecutionState newExecutionState, final String optionalMessage) {
 
 		if (newExecutionState == null) {
 			throw new IllegalArgumentException("Argument newExecutionState must not be null");
 		}
 
-		// Check the transition
-		ExecutionStateTransition.checkTransition(getName(), this.executionState.get(), newExecutionState);
+		final ExecutionState currentExecutionState = this.executionState.get();
+		if (currentExecutionState == ExecutionState.CANCELING) {
 
-		// Check and save the new execution state
-		if (this.executionState.getAndSet(newExecutionState) == newExecutionState) {
-			return;
+			// If we are in CANCELING, ignore state changes to FINISHING
+			if (newExecutionState == ExecutionState.FINISHING) {
+				return currentExecutionState;
+			}
+
+			// Rewrite FINISHED to CANCELED if the task has been marked to be canceled
+			if (newExecutionState == ExecutionState.FINISHED) {
+				LOG.info("Received transition from CANCELING to FINISHED for vertex " + toString()
+					+ ", converting it to CANCELED");
+				newExecutionState = ExecutionState.CANCELED;
+			}
 		}
 
+		// Check and save the new execution state
+		final ExecutionState previousState = this.executionState.getAndSet(newExecutionState);
+		if (previousState == newExecutionState) {
+			return previousState;
+		}
+
+		// Check the transition
+		ExecutionStateTransition.checkTransition(true, toString(), previousState, newExecutionState);
+
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
 				optionalMessage);
 		}
+
+		return previousState;
 	}
 
 	public boolean compareAndUpdateExecutionState(final ExecutionState expected, final ExecutionState update) {
@@ -316,15 +360,15 @@ public final class ExecutionVertex {
 			throw new IllegalArgumentException("Argument update must not be null");
 		}
 
-		// Check the transition
-		ExecutionStateTransition.checkTransition(getName(), this.executionState.get(), update);
-
 		if (!this.executionState.compareAndSet(expected, update)) {
 			return false;
 		}
 
+		// Check the transition
+		ExecutionStateTransition.checkTransition(true, toString(), expected, update);
+
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, update,
 				null);
@@ -351,14 +395,30 @@ public final class ExecutionVertex {
 		}
 	}
 
-	public void initialExecutionResourcesExhausted(
-			final ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+	public void waitForCheckpointStateChange(final CheckpointState initialValue, final long timeout)
+			throws InterruptedException {
 
-		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.iterator();
-		while (it.hasNext()) {
-			it.next().initialExecutionResourcesExhausted(this.environment.getJobID(), this.vertexID,
-				resourceUtilizationSnapshot);
+		if (timeout <= 0L) {
+			throw new IllegalArgumentException("Argument timeout must be greather than zero");
+		}
+
+		final long startTime = System.currentTimeMillis();
+
+		while (this.checkpointState.get() == initialValue) {
+
+			Thread.sleep(1);
+
+			if (startTime + timeout < System.currentTimeMillis()) {
+				break;
+			}
+		}
+	}
+
+	public void waitForCheckpointStateChange(final CheckpointState initialValue) throws InterruptedException {
+
+		while (this.checkpointState.get() == initialValue) {
+
+			Thread.sleep(1);
 		}
 	}
 
@@ -561,19 +621,79 @@ public final class ExecutionVertex {
 
 		if (this.allocatedResource == null) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
-				AbstractTaskResult.ReturnCode.ERROR);
+				AbstractTaskResult.ReturnCode.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
 
 		final SerializableHashSet<ChannelID> activeOutputChannels = constructInitialActiveOutputChannelsSet();
 
+		final List<TaskSubmissionWrapper> tasks = new SerializableArrayList<TaskSubmissionWrapper>();
+		final TaskSubmissionWrapper tsw = new TaskSubmissionWrapper(this.vertexID, this.environment,
+			this.executionGraph.getJobConfiguration(), this.checkpointState.get(), activeOutputChannels);
+		tasks.add(tsw);
+
 		try {
-			return this.allocatedResource.getInstance().submitTask(this.vertexID,
-				this.executionGraph.getJobConfiguration(), this.environment,
-				activeOutputChannels);
+			final List<TaskSubmissionResult> results = this.allocatedResource.getInstance().submitTasks(tasks);
+
+			return results.get(0);
+
 		} catch (IOException e) {
-			final TaskSubmissionResult result = new TaskSubmissionResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
+			final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
+				AbstractTaskResult.ReturnCode.IPC_ERROR);
+			result.setDescription(StringUtils.stringifyException(e));
+			return result;
+		}
+	}
+
+	/**
+	 * Kills and removes the task represented by this vertex from the instance it is currently running on. If the
+	 * corresponding task is not in the state <code>RUNNING</code>, this call will be ignored. If the call has been
+	 * executed
+	 * successfully, the task will change the state <code>FAILED</code>.
+	 * 
+	 * @return the result of the task kill attempt
+	 */
+	public TaskKillResult killTask() {
+
+		final ExecutionState state = this.executionState.get();
+
+		if (state != ExecutionState.RUNNING) {
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ILLEGAL_STATE);
+			result.setDescription("Vertex " + this.toString() + " is in state " + state);
+			return result;
+		}
+
+		if (this.allocatedResource == null) {
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.NO_INSTANCE);
+			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
+			return result;
+		}
+
+		try {
+			return this.allocatedResource.getInstance().killTask(this.vertexID);
+		} catch (IOException e) {
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.IPC_ERROR);
+			result.setDescription(StringUtils.stringifyException(e));
+			return result;
+		}
+	}
+
+	public TaskCheckpointResult requestCheckpointDecision() {
+
+		if (this.allocatedResource == null) {
+			final TaskCheckpointResult result = new TaskCheckpointResult(getID(),
+				AbstractTaskResult.ReturnCode.NO_INSTANCE);
+			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
+			return result;
+		}
+
+		try {
+			return this.allocatedResource.getInstance().requestCheckpointDecision(this.vertexID);
+
+		} catch (IOException e) {
+			final TaskCheckpointResult result = new TaskCheckpointResult(getID(),
+				AbstractTaskResult.ReturnCode.IPC_ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
 			return result;
 		}
@@ -589,39 +709,57 @@ public final class ExecutionVertex {
 	 */
 	public TaskCancelResult cancelTask() {
 
-		final ExecutionState state = this.executionState.get();
+		final ExecutionState previousState = this.executionState.get();
 
-		if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
-			// Set to canceled directly
-			updateExecutionState(ExecutionState.CANCELED, null);
+		if (previousState == ExecutionState.CANCELED) {
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 		}
 
-		if (state == ExecutionState.FINISHED || state == ExecutionState.FAILED) {
-			// Ignore this call
+		if (previousState == ExecutionState.FAILED) {
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 		}
 
-		if (state != ExecutionState.RUNNING && state != ExecutionState.STARTING
-			&& state != ExecutionState.FINISHING) {
-			// Set to canceled directly
-			updateExecutionState(ExecutionState.CANCELED, null);
+		if (previousState == ExecutionState.FINISHED) {
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 		}
 
-		if (this.allocatedResource == null) {
-			final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
-			return result;
+		if (updateExecutionState(ExecutionState.CANCELING) != ExecutionState.CANCELING) {
+
+			if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
+				// Set to canceled directly
+				updateExecutionState(ExecutionState.CANCELED, null);
+				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+			}
+
+			if (previousState == ExecutionState.FINISHED || previousState == ExecutionState.FAILED) {
+				// Ignore this call
+				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+			}
+
+			if (previousState != ExecutionState.RUNNING && previousState != ExecutionState.STARTING
+				&& previousState != ExecutionState.FINISHING && previousState != ExecutionState.REPLAYING) {
+				// Set to canceled directly
+				updateExecutionState(ExecutionState.CANCELED, null);
+				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+			}
+
+			if (this.allocatedResource == null) {
+				final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.NO_INSTANCE);
+				result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
+				return result;
+			}
+
+			try {
+				return this.allocatedResource.getInstance().cancelTask(this.vertexID);
+
+			} catch (IOException e) {
+				final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.IPC_ERROR);
+				result.setDescription(StringUtils.stringifyException(e));
+				return result;
+			}
 		}
 
-		try {
-			return this.allocatedResource.getInstance().cancelTask(this.vertexID);
-		} catch (IOException e) {
-			final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.ERROR);
-			result.setDescription(StringUtils.stringifyException(e));
-			return result;
-		}
+		return new TaskCancelResult(getID(), ReturnCode.SUCCESS);
 	}
 
 	/**
@@ -640,8 +778,7 @@ public final class ExecutionVertex {
 	@Override
 	public String toString() {
 
-		return getName() + " (" + (this.environment.getIndexInSubtaskGroup() + 1) + "/"
-			+ (this.environment.getCurrentNumberOfSubtasks()) + ")";
+		return this.environment.getTaskNameWithIndex();
 	}
 
 	/**
@@ -651,9 +788,23 @@ public final class ExecutionVertex {
 	 * 
 	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
 	 */
+	@Deprecated
 	public boolean hasRetriesLeft() {
-		// TODO: Implement me
-		return false;
+		if (this.retriesLeft.get() <= 0) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Decrements the number of retries left and checks whether another attempt to run the task is possible.
+	 * 
+	 * @return <code>true</code>if the task represented by this vertex can be started at least once more,
+	 *         <code>false/<code> otherwise
+	 */
+	public boolean decrementRetriesLeftAndCheck() {
+
+		return (this.retriesLeft.decrementAndGet() > 0);
 	}
 
 	/**
@@ -713,7 +864,19 @@ public final class ExecutionVertex {
 	 */
 	public void registerExecutionListener(final ExecutionListener executionListener) {
 
-		this.executionListeners.addIfAbsent(executionListener);
+		final Integer priority = Integer.valueOf(executionListener.getPriority());
+
+		if (priority.intValue() < 0) {
+			LOG.error("Priority for execution listener " + executionListener.getClass() + " must be non-negative.");
+			return;
+		}
+
+		final ExecutionListener previousValue = this.executionListeners.putIfAbsent(priority, executionListener);
+
+		if (previousValue != null) {
+			LOG.error("Cannot register " + executionListener.getClass() + " as an execution listener. Priority "
+				+ priority.intValue() + " is already taken.");
+		}
 	}
 
 	/**
@@ -762,5 +925,38 @@ public final class ExecutionVertex {
 	public ExecutionPipeline getExecutionPipeline() {
 
 		return this.executionPipeline.get();
+	}
+
+	/**
+	 * Checks and if necessary silently updates the initial checkpoint state of the vertex.
+	 */
+	void checkInitialCheckpointState() {
+
+		// Determine the vertex' initial checkpoint state
+		CheckpointState ics = CheckpointState.UNDECIDED;
+		boolean hasFileChannels = false;
+		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
+			if (this.environment.getOutputGate(i).getChannelType() == ChannelType.FILE) {
+				hasFileChannels = true;
+				break;
+			}
+		}
+
+		// The vertex has at least one file channel, so we must write a checkpoint anyways
+		if (hasFileChannels) {
+			ics = CheckpointState.PARTIAL;
+		} else {
+			// Look for a user annotation
+			ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
+				.getAnnotation(ForceCheckpoint.class);
+
+			if (forcedCheckpoint != null) {
+				ics = forcedCheckpoint.checkpoint() ? CheckpointState.PARTIAL : CheckpointState.NONE;
+			}
+
+			// TODO: Consider state annotation here
+		}
+
+		this.checkpointState.set(ics);
 	}
 }

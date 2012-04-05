@@ -85,16 +85,16 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	List<AbstractEvent> getEvents(JobID jobID) throws IOException;
 
 	/**
-	 * Cancels the task with the given vertex ID.
+	 * Kills the task with the given vertex ID.
 	 * 
 	 * @param jobID
-	 *        the ID of the job the vertex to be canceled belongs to
+	 *        the ID of the job the vertex to be killed belongs to
 	 * @param id
-	 *        the vertex ID which identified the task be canceled.
+	 *        the vertex ID which identified the task be killed
 	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the cancel request
+	 *         thrown if an error occurs while transmitting the kill request
 	 */
-	void cancelTask(JobID jobID, ManagementVertexID id) throws IOException;
+	void killTask(JobID jobID, ManagementVertexID id) throws IOException;
 
 	/**
 	 * Kills the instance with the given name (i.e. shuts down its task manager).

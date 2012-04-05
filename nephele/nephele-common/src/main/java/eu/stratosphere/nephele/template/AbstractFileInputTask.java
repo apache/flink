@@ -62,7 +62,7 @@ public abstract class AbstractFileInputTask extends AbstractInputTask<FileInputS
 	@Override
 	public FileInputSplit[] computeInputSplits(final int minNumSplits) throws IOException {
 
-		final String pathURI = getRuntimeConfiguration().getString(INPUT_PATH_CONFIG_KEY, null);
+		final String pathURI = getTaskConfiguration().getString(INPUT_PATH_CONFIG_KEY, null);
 		if (pathURI == null) {
 			throw new IOException("The path to the file was not found in the runtime configuration.");
 		}

@@ -222,7 +222,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	private void initInputFormat(ClassLoader cl)
 	{
 		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getRuntimeConfiguration());
+		this.config = new TaskConfig(getTaskConfiguration());
 
 		@SuppressWarnings("unchecked")
 		Class<InputFormat<InputSplit>> superClass = (Class<InputFormat<InputSplit>>) (Class<?>) InputFormat.class;

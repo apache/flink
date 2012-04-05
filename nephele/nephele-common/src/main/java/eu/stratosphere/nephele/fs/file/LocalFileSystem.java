@@ -281,4 +281,16 @@ public class LocalFileSystem extends FileSystem {
 
 		return create(f, overwrite, 0, (short) 0, 0);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean rename(final Path src, final Path dst) throws IOException {
+
+		final File srcFile = pathToFile(src);
+		final File dstFile = pathToFile(dst);
+
+		return srcFile.renameTo(dstFile);
+	}
 }

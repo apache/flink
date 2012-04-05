@@ -777,4 +777,13 @@ public final class S3FileSystem extends FileSystem {
 			throw new IOException(StringUtils.stringifyException(e));
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean rename(final Path src, final Path dst) throws IOException {
+
+		throw new UnsupportedOperationException("This method is not yet implemented");
+	}
 }

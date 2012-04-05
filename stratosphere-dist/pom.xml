@@ -10,9 +10,7 @@
         <version>0.2</version>
     </parent>
 
-    <groupId>eu.stratosphere</groupId>
     <artifactId>stratosphere-dist</artifactId>
-    <version>0.2</version>
     <name>stratosphere-dist</name>
     <packaging>pom</packaging>
     

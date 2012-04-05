@@ -50,6 +50,7 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
@@ -132,8 +133,7 @@ public class JobManagerITCase {
 				Constructor<JobManager> c = JobManager.class.getDeclaredConstructor(new Class[] { String.class,
 					String.class });
 				c.setAccessible(true);
-				jobManager = c.newInstance(new Object[] { new String(System.getProperty("user.dir") + "/correct-conf"),
-					new String("local") });
+				jobManager = c.newInstance(new Object[] { ServerTestUtils.getConfigDir(), new String("local") });
 
 			} catch (SecurityException e) {
 				fail(e.getMessage());
@@ -146,6 +146,7 @@ public class JobManagerITCase {
 			} catch (IllegalAccessException e) {
 				fail(e.getMessage());
 			} catch (InvocationTargetException e) {
+				e.printStackTrace();
 				fail(e.getMessage());
 			}
 
@@ -160,10 +161,9 @@ public class JobManagerITCase {
 
 			// Wait for the local task manager to arrive
 			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				ServerTestUtils.waitForJobManagerToBecomeReady(jobManager);
+			} catch (Exception e) {
+				fail(StringUtils.stringifyException(e));
 			}
 		}
 	}
@@ -223,6 +223,7 @@ public class JobManagerITCase {
 		File inputFile2 = null;
 		File outputFile = null;
 		File jarFile = null;
+		JobClient jobClient = null;
 
 		try {
 			// Get name of the forward class
@@ -231,8 +232,7 @@ public class JobManagerITCase {
 			// Create input and jar files
 			inputFile1 = ServerTestUtils.createInputFile(INPUT_DIRECTORY, 0);
 			inputFile2 = ServerTestUtils.createInputFile(INPUT_DIRECTORY, sizeOfInput);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-				+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 			jarFile = ServerTestUtils.createJarFile(forwardClassName);
 
 			// Create job graph
@@ -273,7 +273,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
 			// Create job client and launch job
-			JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 			jobClient.submitJobAndWait();
 
 			// Finally, compare output file to initial number sequence
@@ -317,92 +317,100 @@ public class JobManagerITCase {
 			if (td != null) {
 				td.delete();
 			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
-//	/**
-//	 * Tests the Nephele execution when an exception occurs. In particular, it is tested if the information that is
-//	 * wrapped by the exception is correctly passed on to the client.
-//	 */
-//	@Test
-//	public void testExecutionWithException() {
-//
-//		final String exceptionClassName = ExceptionTask.class.getSimpleName();
-//		File inputFile = null;
-//		File outputFile = null;
-//		File jarFile = null;
-//
-//		try {
-//
-//			inputFile = ServerTestUtils.createInputFile(0);
-//			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-//				+ ServerTestUtils.getRandomFilename());
-//			jarFile = ServerTestUtils.createJarFile(exceptionClassName);
-//
-//			// Create job graph
-//			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
-//
-//			// input vertex
-//			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-//			i1.setFileInputClass(FileLineReader.class);
-//			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
-//
-//			// task vertex 1
-//			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
-//			t1.setTaskClass(ExceptionTask.class);
-//
-//			// output vertex
-//			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-//			o1.setFileOutputClass(FileLineWriter.class);
-//			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
-//
-//			t1.setVertexToShareInstancesWith(i1);
-//			o1.setVertexToShareInstancesWith(i1);
-//
-//			// connect vertices
-//			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-//			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-//
-//			// add jar
-//			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
-//
-//			// Create job client and launch job
-//			final JobClient jobClient = new JobClient(jg, configuration);
-//
-//			try {
-//				jobClient.submitJobAndWait();
-//			} catch (JobExecutionException e) {
-//				// Check if the correct error message is encapsulated in the exception
-//				if (e.getMessage() == null) {
-//					fail("JobExecutionException does not contain an error message");
-//				}
-//				if (!e.getMessage().contains(ExceptionTask.ERROR_MESSAGE)) {
-//					fail("JobExecutionException does not contain the expected error message");
-//				}
-//
-//				return;
-//			}
-//
-//			fail("Expected exception but did not receive it");
-//
-//		} catch (JobGraphDefinitionException jgde) {
-//			fail(jgde.getMessage());
-//		} catch (IOException ioe) {
-//			fail(ioe.getMessage());
-//		} finally {
-//
-//			// Remove temporary files
-//			if (inputFile != null) {
-//				inputFile.delete();
-//			}
-//			if (outputFile != null) {
-//				outputFile.delete();
-//			}
-//			if (jarFile != null) {
-//				jarFile.delete();
-//			}
-//		}
-//	}
+	/**
+	 * Tests the Nephele execution when an exception occurs. In particular, it is tested if the information that is
+	 * wrapped by the exception is correctly passed on to the client.
+	 */
+	@Test
+	public void testExecutionWithException() {
+
+		final String exceptionClassName = ExceptionTask.class.getSimpleName();
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = null;
+		JobClient jobClient = null;
+
+		try {
+
+			inputFile = ServerTestUtils.createInputFile(0);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
+			jarFile = ServerTestUtils.createJarFile(exceptionClassName);
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
+
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+			i1.setFileInputClass(FileLineReader.class);
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+
+			// task vertex 1
+			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
+			t1.setTaskClass(ExceptionTask.class);
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			t1.setVertexToShareInstancesWith(i1);
+			o1.setVertexToShareInstancesWith(i1);
+
+			// connect vertices
+			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+			// add jar
+			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
+
+			// Create job client and launch job
+			jobClient = new JobClient(jg, configuration);
+
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+				// Check if the correct error message is encapsulated in the exception
+				if (e.getMessage() == null) {
+					fail("JobExecutionException does not contain an error message");
+				}
+				if (!e.getMessage().contains(ExceptionTask.ERROR_MESSAGE)) {
+					fail("JobExecutionException does not contain the expected error message");
+				}
+
+				return;
+			}
+
+			fail("Expected exception but did not receive it");
+
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
+		}
+	}
 
 	/**
 	 * Tests the Nephele execution when a runtime exception during the registration of the input/output gates occurs.
@@ -414,12 +422,12 @@ public class JobManagerITCase {
 		File inputFile = null;
 		File outputFile = null;
 		File jarFile = null;
+		JobClient jobClient = null;
 
 		try {
 
 			inputFile = ServerTestUtils.createInputFile(0);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-				+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 			jarFile = ServerTestUtils.createJarFile(runtimeExceptionClassName);
 
 			// Create job graph
@@ -451,7 +459,7 @@ public class JobManagerITCase {
 				+ ".jar"));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -487,7 +495,100 @@ public class JobManagerITCase {
 			if (jarFile != null) {
 				jarFile.delete();
 			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
+	}
+
+	@Test
+	public void testBroadcastChannels() {
+		testBroadcast(100000, 2);
+	}
+
+	private void testBroadcast(final int limit, final int receivers) {
+
+		JobClient jobClient = null;
+
+		try {
+
+			// Get name of the forward class
+			final String forwardClassName = ForwardTask.class.getSimpleName();
+
+			// Create input and jar files
+			final File inputFile = ServerTestUtils.createInputFile(limit);
+			final File outputFile = new File(ServerTestUtils.getTempDir());
+			final File jarFile = ServerTestUtils.createJarFile(forwardClassName);
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph 1");
+
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input with broadcast writer", jg);
+			i1.setFileInputClass(BroadcastSourceTask.class);
+			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
+			o1.setNumberOfSubtasks(receivers);
+			o1.setNumberOfSubtasksPerInstance(receivers);
+			o1.setVertexToShareInstancesWith(i1);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+
+			// connect vertices
+			try {
+				i1.connectTo(o1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			} catch (JobGraphDefinitionException e) {
+				e.printStackTrace();
+			}
+
+			// add jar
+			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
+
+			// Create job client and launch job
+			jobClient = new JobClient(jg, configuration);
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+				fail(e.getMessage());
+			}
+
+			for (int z = 0; z < receivers; z++) {
+				// Finally, compare output file to initial number sequence
+				File f = new File(outputFile + File.separator + "file_" + z + ".txt");
+
+				final BufferedReader bufferedReader = new BufferedReader(new FileReader(f));
+				for (int i = 0; i < limit; i++) {
+					final String number = bufferedReader.readLine();
+					try {
+						assertEquals(i, Integer.parseInt(number));
+					} catch (NumberFormatException e) {
+						fail(e.getMessage());
+					}
+				}
+				bufferedReader.close();
+				f.delete();
+
+			}
+
+			// Remove temporary files
+			inputFile.delete();
+
+			// outputFile.delete();
+
+			jarFile.delete();
+
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+			fail(ioe.getMessage());
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
+		}
+
 	}
 
 	/**
@@ -500,6 +601,8 @@ public class JobManagerITCase {
 	 *        the upper bound for the sequence of numbers to be generated
 	 */
 	private void test(final int limit) {
+
+		JobClient jobClient = null;
 
 		try {
 
@@ -550,7 +653,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
 
 			// Create job client and launch job
-			JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -578,6 +681,10 @@ public class JobManagerITCase {
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			fail(ioe.getMessage());
+		} finally {
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -591,12 +698,12 @@ public class JobManagerITCase {
 		File inputFile = null;
 		File outputFile = null;
 		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "doubleConnection.jar");
+		JobClient jobClient = null;
 
 		try {
 
 			inputFile = ServerTestUtils.createInputFile(0);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-							+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 
 			// Create required jar file
 			JarFileCreator jfc = new JarFileCreator(jarFile);
@@ -633,7 +740,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 
 			jobClient.submitJobAndWait();
 
@@ -655,6 +762,10 @@ public class JobManagerITCase {
 			if (jarFile != null) {
 				jarFile.delete();
 			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
 		}
 	}
 
@@ -667,12 +778,12 @@ public class JobManagerITCase {
 		File inputFile = null;
 		File outputFile = null;
 		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "emptyNames.jar");
+		JobClient jobClient = null;
 
 		try {
 
 			inputFile = ServerTestUtils.createInputFile(0);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-								+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 
 			// Create required jar file
 			JarFileCreator jfc = new JarFileCreator(jarFile);
@@ -702,8 +813,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
-
+			jobClient = new JobClient(jg, configuration);
 			jobClient.submitJobAndWait();
 
 		} catch (JobExecutionException e) {
@@ -723,6 +833,10 @@ public class JobManagerITCase {
 			}
 			if (jarFile != null) {
 				jarFile.delete();
+			}
+
+			if (jobClient != null) {
+				jobClient.close();
 			}
 		}
 	}
@@ -755,13 +869,13 @@ public class JobManagerITCase {
 		File inputFile2 = null;
 		File outputFile = null;
 		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "unionWithEmptyInput.jar");
+		JobClient jobClient = null;
 
 		try {
 
 			inputFile1 = ServerTestUtils.createInputFile(limit);
 			inputFile2 = ServerTestUtils.createInputFile(limit);
-			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
-								+ ServerTestUtils.getRandomFilename());
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 
 			// Create required jar file
 			JarFileCreator jfc = new JarFileCreator(jarFile);
@@ -803,7 +917,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
 
 			// Create job client and launch job
-			final JobClient jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -876,6 +990,10 @@ public class JobManagerITCase {
 			}
 			if (jarFile != null) {
 				jarFile.delete();
+			}
+
+			if (jobClient != null) {
+				jobClient.close();
 			}
 		}
 	}

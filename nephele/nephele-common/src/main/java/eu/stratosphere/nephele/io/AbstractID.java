@@ -32,7 +32,7 @@ public abstract class AbstractID implements IOReadableWritable {
 	/**
 	 * The size of the ID in byte.
 	 */
-	private static final int SIZE = 16;
+	protected static final int SIZE = 16;
 
 	/**
 	 * The buffer storing the actual ID.
@@ -44,9 +44,11 @@ public abstract class AbstractID implements IOReadableWritable {
 	 */
 	public AbstractID(final byte[] bytes) {
 
-		if (bytes.length == SIZE) {
-			System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
+		if (bytes.length != SIZE) {
+			throw new IllegalArgumentException("Argument bytes must by an array of " + SIZE + " bytes");
 		}
+
+		System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
 	}
 
 	/**

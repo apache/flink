@@ -242,10 +242,10 @@ public class SWTJobTabItem extends Composite implements Listener {
 		// TODO: Implement me
 	}
 
-	public void cancelTask(ManagementVertexID id, String taskName) {
+	public void killTask(ManagementVertexID id, String taskName) {
 
 		// Delegate call to the main GUI
-		this.visualizationGUI.cancelTask(this.visualizationData.getJobID(), id, taskName);
+		this.visualizationGUI.killTask(this.visualizationData.getJobID(), id, taskName);
 	}
 
 	public void killInstance(String instanceName) {

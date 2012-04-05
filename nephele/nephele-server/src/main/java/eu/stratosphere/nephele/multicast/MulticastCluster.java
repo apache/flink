@@ -20,10 +20,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
-
 /**
  * This class represents a cluster of hosts within a multicast-tree.
  * 
@@ -114,6 +110,8 @@ public class MulticastCluster {
 
 	public static MulticastForwardingTable createClusteredTree(LinkedList<TreeNode> nodes, int maxclustersize) {
 
+		return null;
+		/*
 		// List to store all levels of the clustered multicast tree
 		LinkedList<HashSet<MulticastCluster>> clusterlist = new LinkedList<HashSet<MulticastCluster>>();
 
@@ -209,6 +207,7 @@ public class MulticastCluster {
 		}
 
 		return table;
+		*/
 	}
 
 }

@@ -109,7 +109,10 @@ public class FileOutputChannelTest {
 		final ByteBufferedOutputChannelBroker outputBroker = mock(ByteBufferedOutputChannelBroker.class);
 		when(outputBroker.requestEmptyWriteBuffers()).thenReturn(bufferPair);
 
-		when(this.serializationBuffer.dataLeftFromPreviousSerialization()).thenReturn(true, false, false, true, false);
+		when(outputBroker.hasDataLeftToTransmit()).thenReturn(true);
+
+		when(this.serializationBuffer.dataLeftFromPreviousSerialization()).thenReturn(false, false, true, true, false,
+			false);
 		// try {
 		// when(this.serializationBuffer.readData(Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
 		// } catch (IOException e) {
@@ -136,7 +139,7 @@ public class FileOutputChannelTest {
 		fileOutputChannel.requestClose();
 		// No acknowledgment from consumer yet so the channel should still be open
 		assertEquals(false, fileOutputChannel.isClosed());
-		fileOutputChannel.processEvent(new ByteBufferedChannelCloseEvent());
+		when(outputBroker.hasDataLeftToTransmit()).thenReturn(false);
 		// Received acknowledgment the channel should be closed now
 		assertEquals(true, fileOutputChannel.isClosed());
 		try {
