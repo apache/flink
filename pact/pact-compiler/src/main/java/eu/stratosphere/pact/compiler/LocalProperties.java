@@ -123,10 +123,10 @@ public final class LocalProperties implements Cloneable {
 		
 		// check, whether the local order is preserved
 		if (ordering != null) {
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedFields();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
 				if (node.isFieldKept(input, involvedIndexes.get(i)) == false) {
-					ordering = ordering.createNewOrderingUpToIndex(i);
+					ordering = ordering.createNewOrderingUpToPos(i);
 					break;
 				}
 			}
@@ -176,7 +176,7 @@ public final class LocalProperties implements Cloneable {
 		// check, whether the global order is preserved
 		if (ordering != null) {
 			boolean orderingPreserved = true;
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedFields();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
 				if (node.isFieldKept(input, i) == false) {
 					orderingPreserved = false;
@@ -216,7 +216,7 @@ public final class LocalProperties implements Cloneable {
 				groupingFulfilled = this.groupedFields.equals(other.groupedFields);
 			}
 			if (!groupingFulfilled && other.getOrdering() != null) {
-				ArrayList<Integer> otherIndexes = other.getOrdering().getInvolvedIndexes();
+				ArrayList<Integer> otherIndexes = other.getOrdering().getInvolvedFields();
 				if (groupedFields.size() > otherIndexes.size()) {
 					return false;
 				}

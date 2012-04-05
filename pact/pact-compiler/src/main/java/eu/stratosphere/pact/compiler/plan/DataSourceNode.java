@@ -104,8 +104,8 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
 	 */
 	@Override
-	public List<List<PactConnection>> getIncomingConnections() {
-		return Collections.<List<PactConnection>>emptyList();
+	public List<PactConnection> getIncomingConnections() {
+		return Collections.<PactConnection>emptyList();
 	}
 
 	/*
@@ -126,12 +126,6 @@ public class DataSourceNode extends OptimizerNode
 	public void computeOutputEstimates(DataStatistics statistics)
 	{
 		CompilerHints hints = getPactContract().getCompilerHints();
-		
-		// for unique keys, we can have only one value per key
-//		OutputContract oc = getOutputContract();
-//		if (oc == OutputContract.UniqueKey) {
-//			hints.setAvgNumValuesPerKey(1.0f);
-//		}
 		
 		// initialize basic estimates to unknown
 		this.estimatedOutputSize = -1;
