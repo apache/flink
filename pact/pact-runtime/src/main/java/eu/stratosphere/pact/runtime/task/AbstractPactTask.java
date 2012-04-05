@@ -23,12 +23,9 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
-import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -278,36 +275,15 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 		final MutableObjectIterator<PactRecord>[] inputs = new MutableObjectIterator[numInputs];
 		
 		for (int i = 0; i < numInputs; i++)
-		{
-			final ShipStrategy shipStrategy = this.config.getInputShipStrategy(i);
-			DistributionPattern dp = null;
-			
-			switch (shipStrategy)
-			{
-			case FORWARD:
-			case PARTITION_LOCAL_HASH:
-			case PARTITION_LOCAL_RANGE:
-				dp = new PointwiseDistributionPattern();
-				break;
-			case PARTITION_HASH:
-			case PARTITION_RANGE:
-			case BROADCAST:
-			case SFR:
-				dp = new BipartiteDistributionPattern();
-				break;
-			default:
-				throw new RuntimeException("Invalid input ship strategy provided for input " + 
-					i + ": " + shipStrategy.name());
-			}
-			
+		{	
 			final int groupSize = this.config.getGroupSize(i+1);
 			if(groupSize < 2) {
-				inputs[i] = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, dp));
+				inputs[i] = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
 			} else {
 				@SuppressWarnings("unchecked")
 				MutableRecordReader<PactRecord>[] readers = new MutableRecordReader[groupSize];
 				for(int j = 0; j < groupSize; ++j) {
-					readers[j] = new MutableRecordReader<PactRecord>(this, dp);
+					readers[j] = new MutableRecordReader<PactRecord>(this);
 				}
 				inputs[i] = new NepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers));
 			}
