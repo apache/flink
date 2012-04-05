@@ -48,12 +48,13 @@ class MockInstanceManager implements InstanceManager {
 	public static InstanceType DEFAULT_INSTANCE_TYPE = LocalInstanceManager.createDefaultInstanceType();
 
 	@SuppressWarnings("serial")
-	private static final HashMap<InstanceType, InstanceTypeDescription> TYPE_DESCRIPTIONS = new HashMap<InstanceType, InstanceTypeDescription>() {
-		{
-			this.put(DEFAULT_INSTANCE_TYPE,
-				InstanceTypeDescriptionFactory.construct(DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1));
-		}
-	};
+	private static final HashMap<InstanceType, InstanceTypeDescription> TYPE_DESCRIPTIONS =
+		new HashMap<InstanceType, InstanceTypeDescription>() {
+			{
+				this.put(DEFAULT_INSTANCE_TYPE,
+					InstanceTypeDescriptionFactory.construct(DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1));
+			}
+		};
 
 	private static final NetworkTopology NETWORK_TOPOLOGY = NetworkTopology
 		.createEmptyTopology();

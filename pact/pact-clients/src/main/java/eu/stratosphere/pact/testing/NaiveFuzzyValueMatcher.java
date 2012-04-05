@@ -27,7 +27,7 @@ public class NaiveFuzzyValueMatcher extends AbstractValueMatcher {
 			PactRecord expected = expectedIterator.next();
 			boolean matched = false;
 			for (PactRecord actual : actualValues)
-				if (getDistance(schema, similarities, expected, actual) >= 0) {
+				if (this.getDistance(schema, similarities, expected, actual) >= 0) {
 					matched = true;
 					matchedActualValues.add(actual);
 				}

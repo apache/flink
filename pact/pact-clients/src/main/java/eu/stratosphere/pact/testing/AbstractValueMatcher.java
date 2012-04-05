@@ -20,7 +20,6 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
  * Simple matching algorithm that returns unmatched values but allows a value from one bag to be matched several times

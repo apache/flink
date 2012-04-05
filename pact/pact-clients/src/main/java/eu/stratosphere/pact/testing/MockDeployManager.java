@@ -16,13 +16,14 @@ package eu.stratosphere.pact.testing;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Assert;
 
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
+import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
@@ -86,10 +87,10 @@ public class MockDeployManager implements DeploymentManager {
 
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {
-					Environment environment = vertex.getEnvironment();
+					RuntimeEnvironment environment = vertex.getEnvironment();
 					environment.setInputSplitProvider(new MockInputSplitProvider(vertex));
 					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), environment, vertex
-						.getExecutionGraph().getJobConfiguration(), vertex
+						.getExecutionGraph().getJobConfiguration(), CheckpointState.NONE, vertex
 						.constructInitialActiveOutputChannelsSet()));
 				}
 
@@ -108,7 +109,7 @@ public class MockDeployManager implements DeploymentManager {
 
 					ExecutionVertex vertex = verticesToBeDeployed.get(count++);
 
-					if (tsr.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR)
+					if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS)
 						// Change the execution state to failed and let the scheduler deal with the rest
 						vertex.updateExecutionState(ExecutionState.FAILED, tsr.getDescription());
 				}
@@ -118,18 +119,10 @@ public class MockDeployManager implements DeploymentManager {
 		ConcurrentUtil.invokeLater(deploymentRunnable);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.nephele.jobmanager.DeploymentManager#replayCheckpoints(eu.stratosphere.nephele.jobgraph.JobID,
-	 * eu.stratosphere.nephele.instance.AbstractInstance, java.util.List)
-	 */
-	@Override
-	public void replayCheckpoints(JobID jobID, AbstractInstance instance, List<ExecutionVertexID> vertexIDs) {
-	}
-
 	private final class MockInputSplitProvider implements InputSplitProvider {
 		private ExecutionVertex vertex;
+
+		final AtomicInteger sequenceNumber = new AtomicInteger(0);
 
 		public MockInputSplitProvider(ExecutionVertex vertex) {
 			this.vertex = vertex;
@@ -137,7 +130,8 @@ public class MockDeployManager implements DeploymentManager {
 
 		@Override
 		public InputSplit getNextInputSplit() {
-			return MockDeployManager.this.inputSplitManager.getNextInputSplit(this.vertex);
+			return MockDeployManager.this.inputSplitManager.getNextInputSplit(this.vertex,
+				this.sequenceNumber.getAndIncrement());
 		}
 	}
 

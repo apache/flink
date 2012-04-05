@@ -27,6 +27,6 @@ public abstract class AbstractValueSimilarity<V extends Value> implements ValueS
 	 */
 	@Override
 	public boolean isApplicable(Class<? extends V> valueType) {
-		return ReflectionUtil.getTemplateType1(getClass()).isAssignableFrom(valueType);
+		return ReflectionUtil.getTemplateType1(this.getClass()).isAssignableFrom(valueType);
 	}
 }

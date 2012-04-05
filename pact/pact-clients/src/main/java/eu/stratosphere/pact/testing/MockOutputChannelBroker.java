@@ -20,10 +20,10 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelActivateEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -35,11 +35,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDisp
 public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker, MockChannelBroker {
 
 	private int sequenceNumber;
-
-	/**
-	 * Indicates whether the receiver of an envelope is currently running.
-	 */
-	private volatile boolean isReceiverRunning = false;
 
 	/**
 	 * The byte buffered output channel this context belongs to.
@@ -94,11 +89,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 		final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
 		buffer.finishWritePhase();
 
-		// TODO: Add to checkpoint
-
-		if (!this.isReceiverRunning)
-			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
-		else if (this.queuedOutgoingEnvelopes.isEmpty())
+		if (this.queuedOutgoingEnvelopes.isEmpty())
 			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(this.outgoingTransferEnvelope);
 		else {
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
@@ -114,15 +105,12 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 	 */
 	@Override
 	public boolean hasDataLeftToTransmit() throws IOException, InterruptedException {
-		if (!this.isReceiverRunning)
-			return true;
-
 		this.flushQueuedOutgoingEnvelopes();
 
 		return !this.queuedOutgoingEnvelopes.isEmpty();
 	}
 
-	protected void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
+	protected void flushQueuedOutgoingEnvelopes() {
 		while (!this.queuedOutgoingEnvelopes.isEmpty())
 			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(this.queuedOutgoingEnvelopes.poll());
 	}
@@ -139,11 +127,9 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 
 			final AbstractEvent event = it.next();
 
-			if (event instanceof ByteBufferedChannelActivateEvent) {
-				this.isReceiverRunning = true;
-				this.transitBufferPool.reportAsynchronousEvent();
-			} else
+			if (event instanceof AbstractTaskEvent) {
 				this.byteBufferedOutputChannel.processEvent(event);
+			}
 		}
 	}
 
@@ -163,9 +149,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 			final TransferEnvelope ephemeralTransferEnvelope = this.newEnvelope();
 			ephemeralTransferEnvelope.addEvent(event);
 
-			if (!this.isReceiverRunning)
-				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
-			else if (this.queuedOutgoingEnvelopes.isEmpty())
+			if (this.queuedOutgoingEnvelopes.isEmpty())
 				this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(ephemeralTransferEnvelope);
 			else {
 				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);

@@ -16,15 +16,9 @@ package eu.stratosphere.pact.testing;
 
 import java.util.Iterator;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.execution.ExecutionObserver;
-import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
@@ -40,17 +34,13 @@ public class MockJobManager implements JobStatusListener {
 	public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
 			String optionalMessage) {
 
-		if (newJobStatus == InternalJobStatus.CANCELING || newJobStatus == InternalJobStatus.FAILING) {
-
+		if (newJobStatus == InternalJobStatus.CANCELING || newJobStatus == InternalJobStatus.FAILING)
 			// Cancel all remaining tasks
-			cancelJob(executionGraph);
-		}
-		
+			this.cancelJob(executionGraph);
 
-		
 		if (newJobStatus == InternalJobStatus.FINISHED || newJobStatus == InternalJobStatus.CANCELED
-				|| newJobStatus == InternalJobStatus.FAILED)
-				MockTaskManager.INSTANCE.cleanupJob(executionGraph);
+			|| newJobStatus == InternalJobStatus.FAILED)
+			MockTaskManager.INSTANCE.cleanupJob(executionGraph);
 	};
 
 	/**
@@ -75,9 +65,8 @@ public class MockJobManager implements JobStatusListener {
 
 			final ExecutionVertex vertex = it.next();
 			final TaskCancelResult result = vertex.cancelTask();
-			if (result.getReturnCode() == AbstractTaskResult.ReturnCode.ERROR) {
+			if (result.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS)
 				errorResult = result;
-			}
 		}
 
 		return errorResult;

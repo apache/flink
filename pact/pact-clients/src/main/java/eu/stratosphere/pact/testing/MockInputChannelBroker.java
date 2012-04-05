@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
@@ -34,8 +33,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDisp
  */
 public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, MockChannelBroker {
 	private final AbstractByteBufferedInputChannel<?> bbic;
-
-	private final LocalBufferPool transitBufferPool;
 
 	private TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
@@ -47,10 +44,9 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	 * @param bbic
 	 * @param transitBufferPool
 	 */
-	public MockInputChannelBroker(AbstractByteBufferedInputChannel<?> bbic, LocalBufferPool transitBufferPool,
+	public MockInputChannelBroker(AbstractByteBufferedInputChannel<?> bbic,
 			TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
 		this.bbic = bbic;
-		this.transitBufferPool = transitBufferPool;
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 	}
 

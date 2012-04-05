@@ -21,11 +21,9 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -136,18 +134,17 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		}
 
 		public SortInfo copy() {
-			return new SortInfo(new IntArrayList(sortKeys), new ArrayList<Class<? extends Key>>(keyClasses),
-				new ArrayList<Comparator<Key>>(comparators));
+			return new SortInfo(new IntArrayList(this.sortKeys), new ArrayList<Class<? extends Key>>(this.keyClasses),
+				new ArrayList<Comparator<Key>>(this.comparators));
 		}
 
 		public void remove(int removeIndex) {
-			for (int index = 0; index < sortKeys.size(); index++) {
-				if (sortKeys.get(index) == removeIndex) {
-					sortKeys.remove(index);
-					keyClasses.remove(index);
-					comparators.remove(index);
+			for (int index = 0; index < this.sortKeys.size(); index++)
+				if (this.sortKeys.get(index) == removeIndex) {
+					this.sortKeys.remove(index);
+					this.keyClasses.remove(index);
+					this.comparators.remove(index);
 				}
-			}
 		}
 
 		/**
@@ -176,6 +173,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	/**
 	 * Initializes TestPairs.
 	 */
+	@SuppressWarnings("unchecked")
 	public TestRecords() {
 		this.schema = new Class[0];
 		this.emptyTuple = new Value[0];
@@ -380,8 +378,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		try {
 			@SuppressWarnings("unchecked")
 			Class<? extends Value>[] schema = firstNonNull(expectedValues.schema, this.schema);
-			similarityMap = canonalizeSimilarityMap(similarityMap, schema);
-			SortInfo sortInfo = getSortInfoForAssertion(similarityMap,
+			similarityMap = this.canonalizeSimilarityMap(similarityMap, schema);
+			SortInfo sortInfo = this.getSortInfoForAssertion(similarityMap,
 				firstNonNull(expectedValues.sortInfo, this.sortInfo));
 			if (sortInfo == null)
 				throw new IllegalStateException("Expected value does not have schema specified");
@@ -389,8 +387,9 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 			final Iterator<PactRecord> expectedIterator = expectedValues.iterator(sortInfo);
 
 			// initialize with null
-			List<Key> currentKeys = new ArrayList<Key>(Arrays.asList(new Key[sortInfo.sortKeys.size()])), nextKeys = new ArrayList<Key>(
-				currentKeys);
+			List<Key> currentKeys = new ArrayList<Key>(Arrays.asList(new Key[sortInfo.sortKeys.size()])), nextKeys =
+				new ArrayList<Key>(
+					currentKeys);
 			int itemIndex = 0;
 			List<PactRecord> expectedValuesWithCurrentKey = new ArrayList<PactRecord>();
 			List<PactRecord> actualValuesWithCurrentKey = new ArrayList<PactRecord>();
@@ -676,7 +675,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 	protected InputFileIterator getInputFileIterator() {
 		final InputFileIterator inputFileIterator;
-		try {			
+		try {
 			inputFileIterator = new InputFileIterator(FormatUtil.openAllInputs(this.inputFormatClass, this.path,
 				this.configuration));
 		} catch (final IOException e) {
@@ -707,7 +706,6 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 * @throws IOException
 	 *         if an I/O error occurred
 	 */
-	@SuppressWarnings("unchecked")
 	public void saveToFile(final String path) throws IOException {
 		final SequentialOutputFormat outputFormat = FormatUtil.openOutput(SequentialOutputFormat.class, path,
 			null);

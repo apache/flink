@@ -17,32 +17,32 @@ package eu.stratosphere.pact.testing;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap.Entry;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
 import junit.framework.Assert;
+import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.client.JobExecutionException;
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
-import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
@@ -50,14 +50,16 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
-import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
+import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
+import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -71,6 +73,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
@@ -187,20 +190,18 @@ public class TestPlan implements Closeable {
 
 		/*
 		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.nephele.execution.ExecutionListener#initialExecutionResourcesExhausted(eu.stratosphere.nephele
-		 * .jobgraph.JobID, eu.stratosphere.nephele.executiongraph.ExecutionVertexID,
-		 * eu.stratosphere.nephele.execution.ResourceUtilizationSnapshot)
+		 * @see eu.stratosphere.nephele.execution.ExecutionListener#getPriority()
 		 */
 		@Override
-		public void initialExecutionResourcesExhausted(JobID jobID, ExecutionVertexID vertexID,
-				ResourceUtilizationSnapshot resourceUtilizationSnapshot) {
+		public int getPriority() {
+			return 13;
 		}
 
 	}
 
-	private static final InstanceTypeDescription MOCK_INSTANCE_DESCRIPTION = InstanceTypeDescriptionFactory.construct(
-		MockInstanceManager.DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1);
+	private static final InstanceTypeDescription MOCK_INSTANCE_DESCRIPTION =
+		InstanceTypeDescriptionFactory.construct(
+			MockInstanceManager.DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1);
 
 	private static GenericDataSink ALL_SINKS = null;
 
@@ -210,17 +211,21 @@ public class TestPlan implements Closeable {
 
 	private int degreeOfParallelism = 1;
 
-	private final Map<GenericDataSink, TestRecords> expectedOutputs = new IdentityHashMap<GenericDataSink, TestRecords>();
+	private final Map<GenericDataSink, TestRecords> expectedOutputs =
+		new IdentityHashMap<GenericDataSink, TestRecords>();
 
-	private final Map<GenericDataSource<?>, TestRecords> inputs = new IdentityHashMap<GenericDataSource<?>, TestRecords>();
+	private final Map<GenericDataSource<?>, TestRecords> inputs =
+		new IdentityHashMap<GenericDataSource<?>, TestRecords>();
 
 	private final List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 
 	private final List<FileDataSource> sources = new ArrayList<FileDataSource>();
 
-	private final Map<GenericDataSink, Int2ObjectMap<List<ValueSimilarity<?>>>> fuzzySimilarity = new HashMap<GenericDataSink, Int2ObjectMap<List<ValueSimilarity<?>>>>();
+	private final Map<GenericDataSink, Int2ObjectMap<List<ValueSimilarity<?>>>> fuzzySimilarity =
+		new HashMap<GenericDataSink, Int2ObjectMap<List<ValueSimilarity<?>>>>();
 
-	private final Map<GenericDataSink, FuzzyValueMatcher> fuzzyMatchers = new HashMap<GenericDataSink, FuzzyValueMatcher>();
+	private final Map<GenericDataSink, FuzzyValueMatcher> fuzzyMatchers =
+		new HashMap<GenericDataSink, FuzzyValueMatcher>();
 
 	/**
 	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
@@ -276,7 +281,8 @@ public class TestPlan implements Closeable {
 	 *        the delta that the actual value is allowed to differ from the expected value.
 	 */
 	public void setAllowedPactDoubleDelta(double delta) {
-		ListIterator<ValueSimilarity<?>> simIter = getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES).listIterator();
+		ListIterator<ValueSimilarity<?>> simIter =
+			this.getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES).listIterator();
 		// replace existing
 		while (simIter.hasNext()) {
 			ValueSimilarity<?> sim = simIter.next();
@@ -300,7 +306,7 @@ public class TestPlan implements Closeable {
 	 *        the similarity measure to use
 	 */
 	public void addFuzzyValueSimilarity(GenericDataSink sink, int valueIndex, ValueSimilarity<?> similarity) {
-		getFuzzySimilarities(sink, valueIndex).add(similarity);
+		this.getFuzzySimilarities(sink, valueIndex).add(similarity);
 	}
 
 	/**
@@ -310,7 +316,7 @@ public class TestPlan implements Closeable {
 	 *        the similarity measure to use
 	 */
 	public void addFuzzyValueSimilarity(ValueSimilarity<?> similarity) {
-		addFuzzyValueSimilarity(ALL_SINKS, similarity);
+		this.addFuzzyValueSimilarity(ALL_SINKS, similarity);
 	}
 
 	/**
@@ -324,7 +330,7 @@ public class TestPlan implements Closeable {
 	 *        the similarity measure to use
 	 */
 	public void addFuzzyValueSimilarity(GenericDataSink sink, ValueSimilarity<?> similarity) {
-		addFuzzyValueSimilarity(sink, TestRecords.ALL_VALUES, similarity);
+		this.addFuzzyValueSimilarity(sink, TestRecords.ALL_VALUES, similarity);
 	}
 
 	/**
@@ -348,7 +354,7 @@ public class TestPlan implements Closeable {
 	 * @return the similarity measure
 	 */
 	public List<ValueSimilarity<?>> getFuzzySimilarities(GenericDataSink sink, int valueIndex) {
-		Int2ObjectMap<List<ValueSimilarity<?>>> indexMap = getFuzzySimilarityIndexMap(sink);
+		Int2ObjectMap<List<ValueSimilarity<?>>> indexMap = this.getFuzzySimilarityIndexMap(sink);
 		List<ValueSimilarity<?>> list = indexMap.get(valueIndex);
 		if (list == null)
 			indexMap.put(valueIndex, list = new ArrayList<ValueSimilarity<?>>());
@@ -368,7 +374,7 @@ public class TestPlan implements Closeable {
 	 * @return the similarity measure
 	 */
 	public List<ValueSimilarity<?>> getFuzzySimilarities() {
-		return getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES);
+		return this.getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES);
 	}
 
 	/**
@@ -437,7 +443,7 @@ public class TestPlan implements Closeable {
 	 * @return the allowed delta
 	 */
 	public double getAllowedPactDoubleDelta() {
-		for (ValueSimilarity<?> sim : getFuzzySimilarities())
+		for (ValueSimilarity<?> sim : this.getFuzzySimilarities())
 			if (sim instanceof DoubleValueSimilarity)
 				return ((DoubleValueSimilarity) sim).getDelta();
 		return 0;
@@ -629,13 +635,16 @@ public class TestPlan implements Closeable {
 		final OptimizedPlan optimizedPlan = this.compile(plan);
 		this.replaceShippingStrategy(optimizedPlan);
 		final JobGraph jobGraph = new JobGraphGenerator().compileJobGraph(optimizedPlan);
+		for(AbstractJobVertex vertex : jobGraph.getAllJobVertices())
+			vertex.setNumberOfExecutionRetries(0);
 		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
 		return new ExecutionGraph(jobGraph, MockInstanceManager.INSTANCE);
 	}
 
 	private OptimizedPlan compile(final Plan plan) {
-		final OptimizedPlan optimizedPlan = new PactCompiler(null, new CostEstimator(), new InetSocketAddress(0)).compile(
-			plan, MOCK_INSTANCE_DESCRIPTION);
+		final OptimizedPlan optimizedPlan =
+			new PactCompiler(null, new CostEstimator(), new InetSocketAddress(0)).compile(
+				plan, MOCK_INSTANCE_DESCRIPTION);
 		return optimizedPlan;
 	}
 
@@ -866,13 +875,12 @@ public class TestPlan implements Closeable {
 		this.errorHandlers.clear();
 		try {
 			ExecutionGraph eg = this.getExecutionGraph();
-			addErrorHandler(eg);
+			this.addErrorHandler(eg);
 			this.localScheduler = new LocalScheduler(MockDeployManager.INSTANCE, MockInstanceManager.INSTANCE);
 			MockTaskManager.INSTANCE.addJobGraph(eg);
 			eg.registerJobStatusListener(MockJobManager.INSTANCE);
 			this.localScheduler.schedulJob(eg);
 			this.execute(eg);
-
 		} catch (final Exception e) {
 			Assert.fail("plan scheduling: " + StringUtils.stringifyException(e));
 		}
@@ -891,6 +899,110 @@ public class TestPlan implements Closeable {
 			} catch (IOException e) {
 			}
 		}
+	}
+
+	/**
+	 * Compiles the plan to an {@link ExecutionGraph} and executes it. If
+	 * expected values have been specified, the actual outputs values are
+	 * compared to the expected values.
+	 */
+	public void runWithMiniCluster() {
+		try {
+			Configuration config = new Configuration();
+
+			// local ip as job manager (localhost or 127.0.0.1 does not work)
+			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+			JobManager jobManager = new JobManager(this.getNepheleConf(), "local");
+
+			PactCompiler pc = new PactCompiler();
+			Plan plan = this.buildPlanWithReadableSinks();
+			OptimizedPlan op = pc.compile(plan);
+
+			JobGraphGenerator jgg = new JobGraphGenerator();
+			JobGraph jobGraph = jgg.compileJobGraph(op);
+
+			jobManager.submitJob(jobGraph);
+
+			Configuration configuration = jobGraph.getJobConfiguration();
+			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+
+			// submit
+			JobClient jobClient = new JobClient(jobGraph, configuration);
+			jobClient.submitJobAndWait();
+		} catch (CompilerException e1) {
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		} catch (JobExecutionException e1) {
+			e1.printStackTrace();
+		}
+
+		try {
+			this.validateResults();
+		} finally {
+			try {
+				this.close();
+			} catch (IOException e) {
+			}
+		}
+	}
+
+	/**
+	 * @return
+	 */
+	private String getNepheleConf() throws IOException {
+		File nepheleConfigDir = File.createTempFile("nephele", null);
+		nepheleConfigDir.delete();
+		nepheleConfigDir.mkdir();
+
+		// config
+		final String nepheleConfigDirJob = nepheleConfigDir.getAbsolutePath();
+		final int jobManagerRpcPort = ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT;
+		final int rpcPort = 6501, dataPort = 7501;
+
+		FileWriter writer = new FileWriter(new File(nepheleConfigDir, "nephele-user.xml"));
+		String lines[] = {
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+			"<configuration>",
+			"    <property>",
+			"        <key>jobmanager.instancemanager.local.classname</key>",
+			"        <value>" + LocalInstanceManager.class.getName() + "</value>",
+			"    </property>",
+			"    <property>",
+			"        <key>jobmanager.scheduler.local.classname</key>",
+			"        <value>" + LocalScheduler.class.getName() + "</value>",
+			"    </property>",
+			"    <property>",
+			"        <key>" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY + "</key>",
+			"        <value>localhost</value>",
+			// "        <value>" + getLocalIpAddress() + "</value>",
+			"    </property>",
+			"    <property>",
+			"        <key>" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + "</key>",
+			"        <value>" + jobManagerRpcPort + "</value>",
+			"    </property>",
+			"    <property>",
+			"        <key>" + ConfigConstants.TASK_MANAGER_IPC_PORT_KEY + "</key>",
+			"        <value>" + rpcPort + "</value>",
+			"    </property>",
+			"    <property>",
+			"        <key>" + ConfigConstants.TASK_MANAGER_DATA_PORT_KEY + "</key>",
+			"        <value>" + dataPort + "</value>",
+			"    </property>",
+			"    <property>",
+			"        <key>taskmanager.setup.usediscovery</key>",
+			"        <value>false</value>",
+			"    </property>",
+			"    <property>",
+			"        <key>jobmanager.visualization.enable</key>",
+			"        <value>false</value>",
+			"    </property>",
+			"</configuration>" };
+		for (String line : lines)
+			writer.write(line);
+		writer.close();
+
+		return nepheleConfigDirJob;
 	}
 
 	protected void addErrorHandler(ExecutionGraph eg) {
@@ -928,7 +1040,7 @@ public class TestPlan implements Closeable {
 				if (similarityMap == null)
 					similarityMap = Int2ObjectMaps.EMPTY_MAP;
 				if (!this.getFuzzySimilarityIndexMap(ALL_SINKS).isEmpty())
-					similarityMap = mergeSimilarityIndices(similarityMap);
+					similarityMap = this.mergeSimilarityIndices(similarityMap);
 				try {
 					actualValues.assertEquals(expectedValues, fuzzyMatcher, similarityMap);
 				} catch (AssertionError e) {

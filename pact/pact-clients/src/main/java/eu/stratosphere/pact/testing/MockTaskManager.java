@@ -22,17 +22,16 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.checkpointing.CheckpointDecision;
-import eu.stratosphere.nephele.checkpointing.CheckpointReplayResult;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
@@ -47,6 +46,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
+import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
+import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -71,7 +72,7 @@ class MockTaskManager implements TaskOperationProtocol {
 		/**
 		 * 
 		 */
-		private final Environment environment;
+		private final RuntimeEnvironment environment;
 
 		private volatile boolean isCanceled = false;
 
@@ -81,7 +82,7 @@ class MockTaskManager implements TaskOperationProtocol {
 		 * @param id
 		 * @param environment
 		 */
-		private TaskObserver(ExecutionVertexID id, Environment environment) {
+		private TaskObserver(ExecutionVertexID id, RuntimeEnvironment environment) {
 			this.id = id;
 			this.environment = environment;
 		}
@@ -128,9 +129,11 @@ class MockTaskManager implements TaskOperationProtocol {
 			};
 			ConcurrentUtil.invokeLater(taskStateChangeRunnable);
 
-			eg.checkAndUpdateJobStatus(executionState);
+			eg.executionStateChanged(this.environment.getJobID(), this.id, executionState, optionalMessage);
 
-			MockTaskManager.this.finishedTasks.add(this.environment);
+			if (executionState == ExecutionState.CANCELED || executionState == ExecutionState.FINISHED
+				|| executionState == ExecutionState.FAILED)
+				MockTaskManager.this.finishedTasks.add(this.environment);
 		}
 
 		/**
@@ -151,7 +154,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	private static final long MEMORY_SIZE = Math.max(192 << 20, Runtime.getRuntime().maxMemory() / 2);
 
-	private List<Environment> finishedTasks = new ArrayList<Environment>();
+	private List<RuntimeEnvironment> finishedTasks = new ArrayList<RuntimeEnvironment>();
 
 	public static final MockTaskManager INSTANCE = new MockTaskManager();
 
@@ -163,7 +166,8 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	private Map<JobID, ExecutionGraph> jobGraphs = new HashMap<JobID, ExecutionGraph>();
 
-	private final Map<ExecutionVertexID, Environment> runningTasks = new HashMap<ExecutionVertexID, Environment>();
+	private final Map<ExecutionVertexID, RuntimeEnvironment> runningTasks =
+		new HashMap<ExecutionVertexID, RuntimeEnvironment>();
 
 	private final Map<Environment, TaskObserver> observers = new IdentityHashMap<Environment, TaskObserver>();
 
@@ -180,7 +184,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	@Override
 	public TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
-		Environment environment = this.runningTasks.get(id);
+		RuntimeEnvironment environment = this.runningTasks.get(id);
 		final Thread executingThread = environment.getExecutingThread();
 
 		this.finishedTasks.add(environment);
@@ -247,7 +251,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		for (final TaskSubmissionWrapper tsw : tasks) {
 			ExecutionVertexID id = tsw.getVertexID();
-			Environment environment = tsw.getEnvironment();
+			RuntimeEnvironment environment = tsw.getEnvironment();
 
 			// Register task manager components in environment
 			environment.setMemoryManager(this.memoryManager);
@@ -270,47 +274,31 @@ class MockTaskManager implements TaskOperationProtocol {
 		return resultList;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#submitTask(eu.stratosphere.nephele.executiongraph.
-	 * ExecutionVertexID, eu.stratosphere.nephele.configuration.Configuration,
-	 * eu.stratosphere.nephele.execution.Environment, java.util.Set)
-	 */
-	@Override
-	public TaskSubmissionResult submitTask(final ExecutionVertexID id, Configuration jobConfiguration,
-			final Environment environment, Set<ChannelID> activeOutputChannels) throws IOException {
-		// Register task manager components in environment
-		environment.setMemoryManager(this.memoryManager);
-		environment.setIOManager(this.ioManager);
-		TaskObserver observer = new TaskObserver(id, environment);
-		environment.setExecutionObserver(observer);
-
-		this.channelManager.registerChannels(environment);
-		this.runningTasks.put(id, environment);
-		this.observers.put(environment, observer);
-
-		final Thread thread = environment.getExecutingThread();
-		thread.start();
-
-		return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#replayCheckpoints(java.util.List)
-	 */
-	@Override
-	public List<CheckpointReplayResult> replayCheckpoints(List<ExecutionVertexID> vertexIDs) throws IOException {
-		return null;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#propagateCheckpointDecisions(java.util.List)
-	 */
-	@Override
-	public void propagateCheckpointDecisions(List<CheckpointDecision> checkpointDecisions) throws IOException {
-	}
+	//
+	// /*
+	// * (non-Javadoc)
+	// * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#submitTask(eu.stratosphere.nephele.executiongraph.
+	// * ExecutionVertexID, eu.stratosphere.nephele.configuration.Configuration,
+	// * eu.stratosphere.nephele.execution.Environment, java.util.Set)
+	// */
+	// @Override
+	// public TaskSubmissionResult submitTask(final ExecutionVertexID id, Configuration jobConfiguration,
+	// final RuntimeEnvironment environment, Set<ChannelID> activeOutputChannels) throws IOException {
+	// // Register task manager components in environment
+	// environment.setMemoryManager(this.memoryManager);
+	// environment.setIOManager(this.ioManager);
+	// TaskObserver observer = new TaskObserver(id, environment);
+	// environment.setExecutionObserver(observer);
+	//
+	// this.channelManager.registerChannels(environment);
+	// this.runningTasks.put(id, environment);
+	// this.observers.put(environment, observer);
+	//
+	// final Thread thread = environment.getExecutingThread();
+	// thread.start();
+	//
+	// return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
+	// }
 
 	/*
 	 * (non-Javadoc)
@@ -327,11 +315,39 @@ class MockTaskManager implements TaskOperationProtocol {
 	/**
 	 * @param executionGraph
 	 */
-	public void cleanupJob(ExecutionGraph executionGraph) {
-		for (Environment task : this.finishedTasks) {
+	public void cleanupJob(@SuppressWarnings("unused") ExecutionGraph executionGraph) {
+		for (RuntimeEnvironment task : this.finishedTasks) {
 			this.channelManager.unregisterChannels(task);
 			this.observers.remove(task);
 		}
 		this.finishedTasks.clear();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#killTask(eu.stratosphere.nephele.executiongraph.
+	 * ExecutionVertexID)
+	 */
+	@Override
+	public TaskKillResult killTask(ExecutionVertexID id) throws IOException {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#requestCheckpointDecision(eu.stratosphere.nephele.
+	 * executiongraph.ExecutionVertexID)
+	 */
+	@Override
+	public TaskCheckpointResult requestCheckpointDecision(ExecutionVertexID id) throws IOException {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#invalidateLookupCacheEntries(java.util.Set)
+	 */
+	@Override
+	public void invalidateLookupCacheEntries(Set<ChannelID> channelIDs) throws IOException {
 	}
 }

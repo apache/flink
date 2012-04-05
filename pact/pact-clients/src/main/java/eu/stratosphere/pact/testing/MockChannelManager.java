@@ -14,14 +14,13 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.testing;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
@@ -30,9 +29,7 @@ import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.types.Record;
@@ -45,7 +42,8 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 
 	private LocalBufferPool transitBufferPool;
 
-	private Map<ChannelID, MockChannelBroker> registeredChannels = new ConcurrentHashMap<ChannelID, MockChannelBroker>();
+	private Map<ChannelID, MockChannelBroker> registeredChannels =
+		new ConcurrentHashMap<ChannelID, MockChannelBroker>();
 
 	/**
 	 * Initializes MockChannelManager.
@@ -54,7 +52,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 		this.transitBufferPool = new LocalBufferPool(128, true);
 	}
 
-	protected synchronized void registerChannels(Environment environment) {
+	protected synchronized void registerChannels(RuntimeEnvironment environment) {
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
@@ -83,7 +81,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 				}
 
 				final AbstractByteBufferedInputChannel<?> bbic = (AbstractByteBufferedInputChannel<?>) inputChannel;
-				MockInputChannelBroker channelBroker = new MockInputChannelBroker(bbic, this.transitBufferPool, this);
+				MockInputChannelBroker channelBroker = new MockInputChannelBroker(bbic, this);
 				bbic.setInputChannelBroker(channelBroker);
 				this.registeredChannels.put(bbic.getID(), channelBroker);
 			}
@@ -92,21 +90,21 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 
 	private synchronized void processEnvelope(final TransferEnvelope transferEnvelope,
 			@SuppressWarnings("unused") final boolean freeSourceBuffer) {
-try {
-		AbstractChannel sourceChannel = this.registeredChannels.get(transferEnvelope.getSource()).getChannel();
+		try {
+			AbstractChannel sourceChannel = this.registeredChannels.get(transferEnvelope.getSource()).getChannel();
 
-		final ChannelID localReceiver = sourceChannel.getConnectedChannelID();
+			final ChannelID localReceiver = sourceChannel.getConnectedChannelID();
 
-		final MockChannelBroker channel = this.registeredChannels.get(localReceiver);
+			final MockChannelBroker channel = this.registeredChannels.get(localReceiver);
 
-		// if(transferEnvelope.getBuffer() == null)
-		if (channel == null)
-			System.err.println("Unknown channel " + localReceiver);
-		else
-			channel.queueTransferEnvelope(transferEnvelope);
-} catch(Exception e) {
-	e.printStackTrace();
-}
+			// if(transferEnvelope.getBuffer() == null)
+			if (channel == null)
+				System.err.println("Unknown channel " + localReceiver);
+			else
+				channel.queueTransferEnvelope(transferEnvelope);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -133,23 +131,10 @@ try {
 		this.processEnvelope(transferEnvelope, freeSourceBuffer);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher#
-	 * registerSpillingQueueWithNetworkConnection(eu.stratosphere.nephele.jobgraph.JobID,
-	 * eu.stratosphere.nephele.io.channels.ChannelID,
-	 * eu.stratosphere.nephele.taskmanager.transferenvelope.SpillingQueue)
-	 */
-	@Override
-	public boolean registerSpillingQueueWithNetworkConnection(JobID jobID, ChannelID sourceChannelID,
-			SpillingQueue spillingQueue) throws IOException, InterruptedException {
-		return false;
-	}
-
 	/**
 	 * @param environment
 	 */
-	public void unregisterChannels(Environment environment) {
+	public void unregisterChannels(RuntimeEnvironment environment) {
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
 			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
@@ -176,7 +161,7 @@ try {
 				}
 
 				final AbstractByteBufferedInputChannel<?> bbic = (AbstractByteBufferedInputChannel<?>) inputChannel;
-				MockInputChannelBroker channelBroker = new MockInputChannelBroker(bbic, this.transitBufferPool, this);
+				MockInputChannelBroker channelBroker = new MockInputChannelBroker(bbic, this);
 				bbic.setInputChannelBroker(channelBroker);
 				this.registeredChannels.remove(bbic.getID());
 			}

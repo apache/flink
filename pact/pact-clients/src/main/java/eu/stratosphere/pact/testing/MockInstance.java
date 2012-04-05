@@ -18,15 +18,19 @@ package eu.stratosphere.pact.testing;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 
 import junit.framework.Assert;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
+import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
+import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -53,9 +57,21 @@ class MockInstance extends AbstractInstance {
 
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.instance.AbstractInstance#submitTasks(java.util.List)
+	 */
 	@Override
-	protected TaskOperationProtocol getTaskManager() throws IOException {
-		return this.mockTaskManager;
+	public synchronized List<TaskSubmissionResult> submitTasks(List<TaskSubmissionWrapper> tasks) throws IOException {
+		return this.mockTaskManager.submitTasks(tasks);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.instance.AbstractInstance#cancelTask(eu.stratosphere.nephele.executiongraph.ExecutionVertexID)
+	 */
+	@Override
+	public synchronized TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException {
+		return this.mockTaskManager.cancelTask(id);
 	}
 
 	//
@@ -76,7 +92,7 @@ class MockInstance extends AbstractInstance {
 
 	private static InstanceConnectionInfo createConnectionInfo() {
 		try {
-			return new InstanceConnectionInfo(InetAddress.getLocalHost(), 0, 0);
+			return new InstanceConnectionInfo(InetAddress.getLocalHost(), 1234, 2345);
 		} catch (final UnknownHostException e) {
 			Assert.fail(String.format("create connection info: %s", StringUtils.stringifyException(e)));
 			return null;
