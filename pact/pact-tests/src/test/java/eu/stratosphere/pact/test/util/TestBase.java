@@ -106,6 +106,7 @@ public abstract class TestBase extends TestCase {
 			jobGraph = getJobGraph();
 		} catch(Exception e) {
 			LOG.error(e);
+			e.printStackTrace();
 			Assert.fail("Failed to obtain JobGraph!");
 		}
 		
