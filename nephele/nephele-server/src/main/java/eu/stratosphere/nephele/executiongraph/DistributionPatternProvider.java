@@ -8,7 +8,7 @@ public class DistributionPatternProvider {
 	 * Checks if two subtasks of different tasks should be wired.
 	 * 
 	 * @param pattern
-	 *        the distribution pattern that sould be used.
+	 *        the distribution pattern that should be used
 	 * @param nodeLowerStage
 	 *        the index of the producing task's subtask
 	 * @param nodeUpperStage
@@ -20,8 +20,8 @@ public class DistributionPatternProvider {
 	 * @return <code>true</code> if a wire between the two considered subtasks should be created, <code>false</code>
 	 *         otherwise
 	 */
-	public static synchronized boolean createWire(DistributionPattern pattern, int nodeLowerStage, int nodeUpperStage,
-			int sizeSetLowerStage, int sizeSetUpperStage) {
+	public static boolean createWire(final DistributionPattern pattern, final int nodeLowerStage,
+			final int nodeUpperStage, final int sizeSetLowerStage, final int sizeSetUpperStage) {
 
 		switch (pattern) {
 		case BIPARTITE:
@@ -40,25 +40,21 @@ public class DistributionPatternProvider {
 
 			return false;
 
-		case STAR:
-			if (sizeSetLowerStage > sizeSetUpperStage) {
-
-				int groupNumber = nodeLowerStage / Math.max(sizeSetLowerStage / sizeSetUpperStage, 1);
-
-				if (nodeUpperStage == groupNumber) {
-					return true;
-				}
-			} else {
-
-				int groupNumber = nodeUpperStage / Math.max(sizeSetUpperStage / sizeSetLowerStage, 1);
-
-				if (nodeLowerStage == groupNumber) {
-					return true;
-				}
-
-			}
-
-			return false;
+			/*
+			 * case STAR:
+			 * if (sizeSetLowerStage > sizeSetUpperStage) {
+			 * int groupNumber = nodeLowerStage / Math.max(sizeSetLowerStage / sizeSetUpperStage, 1);
+			 * if (nodeUpperStage == groupNumber) {
+			 * return true;
+			 * }
+			 * } else {
+			 * int groupNumber = nodeUpperStage / Math.max(sizeSetUpperStage / sizeSetLowerStage, 1);
+			 * if (nodeLowerStage == groupNumber) {
+			 * return true;
+			 * }
+			 * }
+			 * return false;
+			 */
 
 		default:
 			// this will never happen.

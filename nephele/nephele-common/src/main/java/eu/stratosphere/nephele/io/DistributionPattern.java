@@ -17,12 +17,20 @@ package eu.stratosphere.nephele.io;
 
 /**
  * A distribution pattern determines which subtasks of a producing Nephele task a wired to which
- * subtasks of a consuming subtask. Custom distribution pattern can be provided by implementing
- * this interface.
+ * subtasks of a consuming subtask.
  * 
  * @author warneke
  */
 
-public enum DistributionPattern {	
-	BIPARTITE, POINTWISE, STAR
+public enum DistributionPattern {
+
+	/**
+	 * Each subtask of the producing Nepheke task is wired to each subtask of the consuming Nephele task.
+	 */
+	BIPARTITE,
+
+	/**
+	 * The i-th subtask of the producing Nephele task is wired to the i-th subtask of the consuming Nephele task.
+	 */
+	POINTWISE
 }
