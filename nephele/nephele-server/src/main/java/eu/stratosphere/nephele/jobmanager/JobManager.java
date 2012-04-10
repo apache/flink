@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -335,6 +336,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Stop the executor service
 		if (this.executorService != null) {
 			this.executorService.shutdown();
+			try {
+				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(StringUtils.stringifyException(e));
+				}
+			}
 		}
 
 		// Stop the plugins

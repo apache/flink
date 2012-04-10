@@ -24,6 +24,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public final class CheckpointUtils {
@@ -163,34 +164,51 @@ public final class CheckpointUtils {
 		final Path localChPath = getLocalCheckpointPath();
 
 		try {
-			removeCheckpointMetaData(new Path(localChPath + Path.SEPARATOR + METADATA_PREFIX));
+			if (!removeCheckpointMetaData(new Path(localChPath + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID))) {
 
-			final Path distributedChPath = getDistributedCheckpointPath();
-			if (distributedChPath != null) {
-				removeCheckpointMetaData(new Path(distributedChPath + Path.SEPARATOR + METADATA_PREFIX));
+				final Path distributedChPath = getDistributedCheckpointPath();
+				if (distributedChPath != null) {
+					removeCheckpointMetaData(new Path(distributedChPath + Path.SEPARATOR + METADATA_PREFIX + "_"
+						+ vertexID));
+				}
 			}
+
+			FileBufferManager.deleteFile(vertexID);
+
 		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
-	private static void removeCheckpointMetaData(final Path pathPrefix) throws IOException {
+	private static boolean removeCheckpointMetaData(final Path pathPrefix) throws IOException {
 
-		Path p = pathPrefix.suffix(COMPLETED_CHECKPOINT_SUFFIX);
+		boolean removed = false;
+
+		Path p = pathPrefix.suffix("_part");
 		FileSystem fs = p.getFileSystem();
 		if (fs.exists(p)) {
 			fs.delete(p, false);
-			return;
+			removed = true;
 		}
 
-		p = pathPrefix.suffix("_0");
-		if (fs.exists(p)) {
-			fs.delete(p, false);
+		int suffix = 0;
+		while (true) {
+			p = pathPrefix.suffix("_" + suffix++);
+			if (fs.exists(p)) {
+				fs.delete(p, false);
+				removed = true;
+			} else {
+				break;
+			}
 		}
 
-		p = pathPrefix.suffix("_part");
+		p = pathPrefix.suffix(COMPLETED_CHECKPOINT_SUFFIX);
 		if (fs.exists(p)) {
 			fs.delete(p, false);
+			removed = true;
 		}
+
+		return removed;
 	}
 
 	public static CheckpointMode getCheckpointMode() {
