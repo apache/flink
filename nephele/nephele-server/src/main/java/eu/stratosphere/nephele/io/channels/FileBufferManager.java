@@ -131,6 +131,35 @@ public final class FileBufferManager {
 		this.distributedFileSystem = distFS;
 	}
 
+	public static boolean deleteFile(final AbstractID ownerID) {
+
+		final FileBufferManager fbm = getInstance();
+		final File f = fbm.constructLocalFile(ownerID);
+		if (f.exists()) {
+			System.out.println("Deleting " + f);
+			f.delete();
+			return true;
+		}
+
+		if (fbm.distributedTempPath != null) {
+			final Path p = fbm.constructDistributedPath(ownerID);
+			try {
+				final FileSystem fs = p.getFileSystem();
+				if (fs.exists(p)) {
+					fs.delete(p, false);
+					return true;
+				}
+
+			} catch (IOException ioe) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(StringUtils.stringifyException(ioe));
+				}
+			}
+		}
+
+		return false;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
