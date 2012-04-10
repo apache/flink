@@ -5,6 +5,9 @@ import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Represents a if-then-else clause.
+ */
 public class TernaryExpression extends EvaluationExpression {
 
 	/**

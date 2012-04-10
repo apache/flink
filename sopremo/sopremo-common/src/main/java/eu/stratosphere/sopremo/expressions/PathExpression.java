@@ -10,6 +10,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Represents a chain of {@link EvaluationExpression}s where the result of one expression serves as the input for the
+ * next one.
+ */
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
 public class PathExpression extends ContainerExpression implements Cloneable {
 

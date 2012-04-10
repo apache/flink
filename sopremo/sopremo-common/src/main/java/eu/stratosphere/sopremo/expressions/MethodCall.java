@@ -9,6 +9,9 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Calls the specified function with the provided parameters and returns the result.
+ */
 @OptimizerHints(scope = Scope.ANY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND)
 public class MethodCall extends ContainerExpression {
 
