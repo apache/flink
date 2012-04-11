@@ -10,10 +10,17 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
-import eu.stratosphere.sopremo.type.IPrimitiveNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.MissingNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 /**
  * @author Tommy Neubert
@@ -116,23 +123,42 @@ public class GeneralSchema implements Schema {
 		if (target == null) {
 			return source;
 		}
-		return this.recycleTargetNode(target, source);
+		return this.reuseTargetNode(target, source);
 	}
 
-	private IJsonNode recycleTargetNode(IJsonNode target, IJsonNode source) {
+	private IJsonNode reuseTargetNode(IJsonNode target, IJsonNode source) {
+		target.clear();
 		if (target.isObject()) {
-			((IObjectNode) target).removeAll();
 			((IObjectNode) target).putAll((IObjectNode) source);
 		} else if (target.isArray()) {
-			((IArrayNode) target).clear();
 			((IArrayNode) target).addAll((IArrayNode) source);
 		} else {
 			// target must be a PrimitiveNode
-
-			// TODO find a way to reuse Primitives
-			target = source;
+			if (source.getClass() != target.getClass()) {
+				target = source;
+			} else {
+				target = this.reusePrimitive(source, target, source.getClass());
+			}
 		}
 
+		return target;
+	}
+
+	private IJsonNode reusePrimitive(IJsonNode source, IJsonNode target, Class<? extends IJsonNode> clazz) {
+		if (clazz.equals(BooleanNode.class) || clazz.equals(NullNode.class)) {
+			return source;
+		}
+		if (clazz.equals(IntNode.class)) {
+			((IntNode) target).setValue(((IntNode) source).getIntValue());
+		} else if (clazz.equals(DoubleNode.class)) {
+			((DoubleNode) target).setValue(((DoubleNode) source).getDoubleValue());
+		} else if (clazz.equals(LongNode.class)) {
+			((LongNode) target).setValue(((LongNode) source).getLongValue());
+		} else if (clazz.equals(DecimalNode.class)) {
+			((DecimalNode) target).setValue(((DecimalNode) source).getDecimalValue());
+		} else if (clazz.equals(BigIntegerNode.class)) {
+			((BigIntegerNode) target).setValue(((BigIntegerNode) source).getBigIntegerValue());
+		}
 		return target;
 	}
 

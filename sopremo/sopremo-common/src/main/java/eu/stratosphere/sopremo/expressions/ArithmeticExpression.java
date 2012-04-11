@@ -36,10 +36,21 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	private EvaluationExpression firstOperand, secondOperand;
 
+	/**
+	 * Returns the first operand.
+	 * 
+	 * @return the first operand
+	 */
 	public EvaluationExpression getFirstOperand() {
 		return this.firstOperand;
 	}
 
+	/**
+	 * Sets the first operand to the specified value.
+	 * 
+	 * @param firstOperand
+	 *        the operand to set
+	 */
 	public void setFirstOperand(final EvaluationExpression firstOperand) {
 		if (firstOperand == null)
 			throw new NullPointerException("firstOperand must not be null");
@@ -69,6 +80,11 @@ public class ArithmeticExpression extends EvaluationExpression {
 		return this.secondOperand;
 	}
 
+	/**
+	 * Returns the operator.
+	 * 
+	 * @return the operator
+	 */
 	public ArithmeticExpression.ArithmeticOperator getOperator() {
 		return this.operator;
 	}
