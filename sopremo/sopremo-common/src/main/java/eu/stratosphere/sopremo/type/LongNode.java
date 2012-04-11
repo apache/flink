@@ -29,7 +29,7 @@ public class LongNode extends NumericNode implements INumericNode {
 	 * use LongNode.valueOf(<code>long</code>) instead.
 	 * 
 	 * @param v
-	 *        the value which should be represented by this node
+	 *        the value that should be represented by this node
 	 */
 	public LongNode(final long value) {
 		this.value = new PactLong(value);
@@ -58,7 +58,7 @@ public class LongNode extends NumericNode implements INumericNode {
 	 * Creates a new instance of LongNode. This new instance represents the given value.
 	 * 
 	 * @param v
-	 *        the value which should be represented by the new instance
+	 *        the value that should be represented by the new instance
 	 * @return the newly created instance of LongNode
 	 */
 	public static LongNode valueOf(final long value) {

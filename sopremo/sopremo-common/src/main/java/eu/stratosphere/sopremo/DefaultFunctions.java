@@ -297,7 +297,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	 * Adds the specified node to the array at the given index
 	 * 
 	 * @param array
-	 *        the array which should be extended
+	 *        the array that should be extended
 	 * @param node
 	 *        the node to add
 	 * @param index

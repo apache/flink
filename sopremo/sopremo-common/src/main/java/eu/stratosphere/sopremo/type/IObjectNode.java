@@ -30,7 +30,7 @@ public interface IObjectNode extends IJsonNode, Iterable<Entry<String, IJsonNode
 	 * @param fieldName
 	 *  the String where the value should be binded to
 	 * @param value
-	 * 	the {@link IJsonNode} which should be binded
+	 * 	the {@link IJsonNode} that should be binded
 	 * @return this node
 	 */
 	public abstract IObjectNode put(final String fieldName, final IJsonNode value);
@@ -66,7 +66,7 @@ public interface IObjectNode extends IJsonNode, Iterable<Entry<String, IJsonNode
 	/**
 	 * Creates bindings in this node for all bindings within the given {@link IObjectNode}. Already existing bindings will be overwritten.
 	 * @param jsonNode
-	 * 	the {@link IObjectNode} which contains all bindings which should be added
+	 * 	the {@link IObjectNode} which contains all bindings that should be added
 	 * @return this node
 	 */
 	public abstract IObjectNode putAll(final IObjectNode jsonNode);

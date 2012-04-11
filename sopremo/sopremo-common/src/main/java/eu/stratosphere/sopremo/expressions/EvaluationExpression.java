@@ -15,6 +15,9 @@ import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.util.IdentitySet;
 
+/**
+ * Represents all evaluable expressions.
+ */
 public abstract class EvaluationExpression implements Iterable<EvaluationExpression>, SerializableSopremoType {
 	/**
 	 * 
@@ -158,7 +161,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * @param node
 	 *        the node that should be evaluated or a special node representing containing several nodes
 	 * @param target
-	 *        TODO
+	 *        the target that should be used
 	 * @param context
 	 *        the context in which the node should be evaluated
 	 * @return the node resulting from the evaluation or several nodes wrapped in a special node type

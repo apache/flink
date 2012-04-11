@@ -41,7 +41,7 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * @param index
 	 * 	the index where the node should be added
 	 * @param element
-	 * 	the node which should be added
+	 * 	the node that should be added
 	 * @return this node
 	 */
 	public abstract IArrayNode add(final int index, final IJsonNode element);
@@ -49,7 +49,7 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	/**
 	 * Returns the node which is saved in the array at the specified <code>index</code>.
 	 * @param index
-	 *        the index which should be returned
+	 *        the index that should be returned
 	 * @return element at <code>index</code> or {@link eu.stratosphere.sopremo.type.MissingNode MissingNode}, when
 	 *         <code>index</code> is out of bounds or not present
 	 */
@@ -60,7 +60,7 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * @param index
 	 * 	the index for which the node should be set
 	 * @param node
-	 *  the node which should be set
+	 *  the node that should be set
 	 * @return the node which has been overwriten
 	 */
 	public abstract IJsonNode set(final int index, final IJsonNode node);
@@ -81,7 +81,7 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	/**
 	 * Adds all {@link IJsonNode}s in the given Collection to the end of this array. 
 	 * @param c
-	 * 	a Collection of all nodes which should be added
+	 * 	a Collection of all nodes that should be added
 	 * @return this node
 	 */
 	public abstract IArrayNode addAll(final Collection<? extends IJsonNode> c);
@@ -89,7 +89,7 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	/**
 	 * Adds all {@link IJsonNode}s in the given {@link IArrayNode} to the end of this array. 
 	 * @param node
-	 * 	an IArrayNode with all nodes which should be added
+	 * 	an IArrayNode with all nodes that should be added
 	 * @return this node
 	 */
 	public abstract IArrayNode addAll(final IArrayNode node);

@@ -10,7 +10,6 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * Batch aggregates one stream of {@link IJsonNode} with several {@link AggregationFunction}s.
@@ -29,10 +28,22 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 	private transient int lastInputCounter = Integer.MIN_VALUE;
 
+	/**
+	 * Initializes a BatchAggregationExpression with the given {@link AggregationFunction}s.
+	 * 
+	 * @param functions
+	 *        all functions that should be used
+	 */
 	public BatchAggregationExpression(final AggregationFunction... functions) {
 		this(Arrays.asList(functions));
 	}
 
+	/**
+	 * Initializes a BatchAggregationExpression with the given {@link AggregationFunction}s.
+	 * 
+	 * @param functions
+	 *        a set of all functions that should be used
+	 */
 	public BatchAggregationExpression(final List<AggregationFunction> functions) {
 		this.partials = new ArrayList<Partial>(functions.size());
 		for (final AggregationFunction function : functions)
@@ -40,10 +51,26 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		this.expectedTarget = ArrayNode.class;
 	}
 
+	/**
+	 * Adds a new {@link AggregationFunction}.
+	 * 
+	 * @param function
+	 *        the function that should be added
+	 * @return the function which has been added as a {@link Partial}
+	 */
 	public EvaluationExpression add(final AggregationFunction function) {
 		return this.add(function, EvaluationExpression.VALUE);
 	}
 
+	/**
+	 * Adds a new {@link AggregationFunction} with the given preprocessing.
+	 * 
+	 * @param function
+	 *        the function that should be added
+	 * @param preprocessing
+	 *        the preprocessing that should be used for this function
+	 * @return the function which has been added as a {@link Partial}
+	 */
 	public EvaluationExpression add(final AggregationFunction function, final EvaluationExpression preprocessing) {
 		final Partial partial = new Partial(function, preprocessing, this.partials.size());
 		this.partials.add(partial);
@@ -80,6 +107,16 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		private final int index;
 
+		/**
+		 * Initializes a Partial with the given function, preprocessing and index.
+		 * 
+		 * @param function
+		 *        an {@link AggregationFunction} that should be used by this Partial
+		 * @param preprocessing
+		 *        the preprocessing that should be used by this Partial
+		 * @param index
+		 *        the index of this Partial
+		 */
 		public Partial(final AggregationFunction function, final EvaluationExpression preprocessing, final int index) {
 			super(function, preprocessing);
 			this.index = index;

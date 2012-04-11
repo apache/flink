@@ -19,6 +19,12 @@ public class AndExpression extends BooleanExpression {
 
 	private final EvaluationExpression[] expressions;
 
+	/**
+	 * Initializes an AndExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param expressions
+	 *        the expressions which evaluate to the input for this AndExpression
+	 */
 	public AndExpression(final EvaluationExpression... expressions) {
 		if (expressions.length == 0)
 			throw new IllegalArgumentException();
@@ -47,6 +53,11 @@ public class AndExpression extends BooleanExpression {
 		return BooleanNode.TRUE;
 	}
 
+	/**
+	 * Returns the expressions.
+	 * 
+	 * @return the expressions
+	 */
 	public EvaluationExpression[] getExpressions() {
 		return this.expressions;
 	}

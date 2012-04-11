@@ -69,7 +69,7 @@ public class ObjectSchema implements Schema {
 
 	/**
 	 * @param schema
-	 *        the keys, which should be extracted from the {@link ObjectNode} and saved into the first fields of
+	 *        the keys, that should be extracted from the {@link ObjectNode} and saved into the first fields of
 	 *        {@link PactRecord}
 	 */
 	public void setMappings(String... schema) {

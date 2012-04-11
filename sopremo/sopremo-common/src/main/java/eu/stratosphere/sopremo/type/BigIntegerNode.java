@@ -26,7 +26,7 @@ public class BigIntegerNode extends NumericNode implements INumericNode {
 	 * use BigIntegerNode.valueOf(BigInteger) instead.
 	 * 
 	 * @param v
-	 *        the value which should be represented by this node
+	 *        the value that should be represented by this node
 	 */
 	public BigIntegerNode(final BigInteger v) {
 		this.value = v;
@@ -90,7 +90,7 @@ public class BigIntegerNode extends NumericNode implements INumericNode {
 	 * Creates a new BigIntegerNode which represents the given {@link BigInteger}.
 	 * 
 	 * @param bigInteger
-	 *        the value which should be represented by this node
+	 *        the value that should be represented by this node
 	 * @return the new BigIntegerNode
 	 */
 	public static BigIntegerNode valueOf(final BigInteger bigInteger) {

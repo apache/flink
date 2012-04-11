@@ -34,7 +34,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	 * Initializes an ArrayNode which contains the given {@link IJsonNode}s in proper sequence.
 	 * 
 	 * @param nodes
-	 *        the nodes which should be added to this ArrayNode
+	 *        the nodes that should be added to this ArrayNode
 	 */
 	public ArrayNode(final IJsonNode... nodes) {
 		for (final IJsonNode node : nodes)
@@ -45,7 +45,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	 * Initializes an ArrayNode which cointains all {@link IJsonNode}s from the given Collection in proper sequence.
 	 * 
 	 * @param nodes
-	 *        a Collection of nodes which should be added to this ArrayNode
+	 *        a Collection of nodes that should be added to this ArrayNode
 	 */
 	public ArrayNode(final Collection<? extends IJsonNode> nodes) {
 		for (final IJsonNode node : nodes)
@@ -239,7 +239,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	 * Initializes a new ArrayNode which contains all {@link IJsonNode}s from the provided Iterator.
 	 * 
 	 * @param iterator
-	 *        an Iterator over IJsonNodes which should be added to the new ArrayNode
+	 *        an Iterator over IJsonNodes that should be added to the new ArrayNode
 	 * @return the created ArrayNode
 	 */
 	public static ArrayNode valueOf(final Iterator<IJsonNode> iterator) {

@@ -18,15 +18,33 @@ public class ConstantExpression extends EvaluationExpression {
 	// TODO: adjust to json model
 	private final JsonNode constant;
 
+	/**
+	 * Initializes a ConstantExpression with the given JsonNode.
+	 * 
+	 * @param constant
+	 *        the node that should be represented by this ConstantExpression
+	 */
 	public ConstantExpression(final JsonNode constant) {
 		this.constant = constant;
 		this.expectedTarget = constant.getClass();
 	}
 
+	/**
+	 * Initializes a ConstantExpression. The given constant will be mapped to a JsonNode before initializing this
+	 * expression.
+	 * 
+	 * @param constant
+	 *        this Objects JsonNode representation should be represented by this ConstantExpression
+	 */
 	public ConstantExpression(final Object constant) {
 		this.constant = JsonUtil.OBJECT_MAPPER.valueToTree(constant);
 	}
 
+	/**
+	 * Returns the constant.
+	 * 
+	 * @return the constant
+	 */
 	public IJsonNode getConstant() {
 		return this.constant;
 	}

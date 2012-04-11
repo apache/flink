@@ -44,7 +44,7 @@ public class GeneralSchema implements Schema {
 	 * Initializes a new GeneralSchema with the provided {@link EvaluationExpression}s in proper sequence.
 	 * 
 	 * @param mappings
-	 *        {@link EvaluationExpression}s which should be set as mappings
+	 *        {@link EvaluationExpression}s that should be set as mappings
 	 */
 	public GeneralSchema(EvaluationExpression... mappings) {
 		this.mappings = Arrays.asList(mappings);
@@ -55,7 +55,7 @@ public class GeneralSchema implements Schema {
 	 * same sequence as the Iterable provides them.
 	 * 
 	 * @param mappings
-	 *        an Iterable over all {@link EvaluationExpression}s which should be set as mappings.
+	 *        an Iterable over all {@link EvaluationExpression}s that should be set as mappings.
 	 */
 	public GeneralSchema(Iterable<EvaluationExpression> mappings) {
 		for (EvaluationExpression exp : mappings) {
@@ -67,7 +67,7 @@ public class GeneralSchema implements Schema {
 	 * Sets this schemas mappings to the provided {@link EvaluationExpression}s.
 	 * 
 	 * @param mappings
-	 *        an Iterable over all {@link EvaluationExpression}s which should be set as mappings.
+	 *        an Iterable over all {@link EvaluationExpression}s that should be set as mappings.
 	 */
 	public void setMappings(Iterable<EvaluationExpression> mappings) {
 		if (mappings == null) {

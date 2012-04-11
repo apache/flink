@@ -36,7 +36,7 @@ public class IntNode extends NumericNode implements INumericNode {
 	 * IntNode.valueOf(<code>int</code>) instead.
 	 * 
 	 * @param v
-	 *        the value which should be represented by this node
+	 *        the value that should be represented by this node
 	 */
 	public IntNode(final int v) {
 		this.value = new PactInteger(v);
@@ -46,7 +46,7 @@ public class IntNode extends NumericNode implements INumericNode {
 	 * Creates a new instance of IntNode. This new instance represents the given value.
 	 * 
 	 * @param v
-	 *        the value which should be represented by the new instance
+	 *        the value that should be represented by the new instance
 	 * @return the newly created instance of IntNode
 	 */
 	public static IntNode valueOf(final int v) {

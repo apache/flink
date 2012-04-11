@@ -36,7 +36,7 @@ public class DoubleNode extends NumericNode implements INumericNode {
 	 * use DoubleNode.valueOf(<code>double</code>) instead.
 	 * 
 	 * @param v
-	 *        the value which should be represented by this node
+	 *        the value that should be represented by this node
 	 */
 	public DoubleNode(final double v) {
 		this.value = new PactDouble(v);
@@ -47,7 +47,7 @@ public class DoubleNode extends NumericNode implements INumericNode {
 	 * use DoubleNode.valueOf(<code>double</code>) instead.
 	 * 
 	 * @param v
-	 *        the value which should be represented by this node
+	 *        the value that should be represented by this node
 	 */
 	public DoubleNode(final float v) {
 		this.value = new PactDouble(v);
@@ -62,7 +62,7 @@ public class DoubleNode extends NumericNode implements INumericNode {
 	 * Creates a new instance of DoubleNode. This new instance represents the given value.
 	 * 
 	 * @param v
-	 *        the value which should be represented by the new instance
+	 *        the value that should be represented by the new instance
 	 * @return the newly created instance of DoubleNode
 	 */
 	public static DoubleNode valueOf(final double v) {

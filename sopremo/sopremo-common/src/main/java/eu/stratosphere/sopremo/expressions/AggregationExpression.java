@@ -4,10 +4,9 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
- * Returns an aggregate of the elements of the given {@link IArrayNode}.
+ * Returns an aggregate of the elements of a {@link IArrayNode}.
  * The result is calculated with help of the specified {@link AggregationExpression}.
  */
 public class AggregationExpression extends EvaluationExpression {
@@ -20,10 +19,25 @@ public class AggregationExpression extends EvaluationExpression {
 
 	private final EvaluationExpression preprocessing;
 
+	/**
+	 * Initializes an AggregationExpression with the given {@link AggregationFunction}.
+	 * 
+	 * @param function
+	 *        the function which will should be used for aggregation
+	 */
 	public AggregationExpression(final AggregationFunction function) {
 		this(function, EvaluationExpression.VALUE);
 	}
 
+	/**
+	 * Initializes an AggregationExpression with the given {@link AggregationFunction} and an additional preprocessing.
+	 * 
+	 * @param function
+	 *        the function which will should be used for aggregation
+	 * @param preprocessing
+	 *        an {@link EvaluationExpression} which evaluates each element of the input before they are used for
+	 *        aggregation.
+	 */
 	public AggregationExpression(final AggregationFunction function, final EvaluationExpression preprocessing) {
 		this.function = function.clone();
 		this.preprocessing = preprocessing;
@@ -37,10 +51,20 @@ public class AggregationExpression extends EvaluationExpression {
 		return this.function.getFinalAggregate();
 	}
 
+	/**
+	 * Returns the function.
+	 * 
+	 * @return the function
+	 */
 	public AggregationFunction getFunction() {
 		return this.function;
 	}
 
+	/**
+	 * Returns the preprocessing.
+	 * 
+	 * @return the preprocessing
+	 */
 	public EvaluationExpression getPreprocessing() {
 		return this.preprocessing;
 	}

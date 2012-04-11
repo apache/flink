@@ -5,9 +5,8 @@ import java.util.Iterator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 /**
@@ -22,6 +21,9 @@ public class ArrayMerger extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -6884623565349727369L;
 
+	/**
+	 * Initializes an ArrayMerger.
+	 */
 	public ArrayMerger() {
 		this.expectedTarget = ArrayNode.class;
 	}

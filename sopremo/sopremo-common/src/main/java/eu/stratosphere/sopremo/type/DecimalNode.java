@@ -33,7 +33,7 @@ public class DecimalNode extends NumericNode implements INumericNode {
 	 * use DecimalNode.valueOf(BigDecimal) instead.
 	 * 
 	 * @param v
-	 *        the value which should be represented by this node
+	 *        the value that should be represented by this node
 	 */
 	public DecimalNode(final BigDecimal v) {
 		this.value = v;
@@ -43,7 +43,7 @@ public class DecimalNode extends NumericNode implements INumericNode {
 	 * Creates a new DecimalNode which represents the given {@link BigDecimal}.
 	 * 
 	 * @param v
-	 *        the value which should be represented by this node
+	 *        the value that should be represented by this node
 	 * @return the new DecimalNode
 	 */
 	public static DecimalNode valueOf(final BigDecimal v) {
