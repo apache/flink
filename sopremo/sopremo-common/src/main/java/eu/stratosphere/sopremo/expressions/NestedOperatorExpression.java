@@ -2,6 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.Operator;
 
+/**
+ * This expression represents all {@link Operator}s.
+ */
 public class NestedOperatorExpression extends UnevaluableExpression {
 
 	/**
@@ -11,13 +14,17 @@ public class NestedOperatorExpression extends UnevaluableExpression {
 
 	private final Operator<?> operator;
 
+	/**
+	 * Initializes a NestedOperatorExpression with the given {@link Operator}.
+	 * 
+	 * @param operator
+	 *        the operator that should be represented by this expression
+	 */
 	public NestedOperatorExpression(final Operator<?> operator) {
 		super("Nested operator: " + operator);
 		this.operator = operator;
 	}
 
-	
-	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -25,8 +32,6 @@ public class NestedOperatorExpression extends UnevaluableExpression {
 		result = prime * result + operator.hashCode();
 		return result;
 	}
-
-
 
 	@Override
 	public boolean equals(Object obj) {
@@ -40,12 +45,17 @@ public class NestedOperatorExpression extends UnevaluableExpression {
 		return operator.equals(other.operator);
 	}
 
-@Override
-public void toString(StringBuilder builder) {
-	this.appendTags(builder);
-	builder.append("<").append(this.operator).append(">");
-}
+	@Override
+	public void toString(StringBuilder builder) {
+		this.appendTags(builder);
+		builder.append("<").append(this.operator).append(">");
+	}
 
+	/**
+	 * Returns the operator
+	 * 
+	 * @return the operator
+	 */
 	public Operator<?> getOperator() {
 		return this.operator;
 	}

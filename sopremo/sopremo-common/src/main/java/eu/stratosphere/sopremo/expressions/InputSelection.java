@@ -14,6 +14,12 @@ public class InputSelection extends EvaluationExpression {
 
 	private final int index;
 
+	/**
+	 * Initializes an InputSelection with the given index.
+	 * 
+	 * @param index
+	 *        the index of the element that should be returned
+	 */
 	public InputSelection(final int index) {
 		this.index = index;
 	}
@@ -49,6 +55,11 @@ public class InputSelection extends EvaluationExpression {
 	// return nodes[index];
 	// }
 
+	/**
+	 * Returns the index
+	 * 
+	 * @return the index
+	 */
 	public int getIndex() {
 		return this.index;
 	}

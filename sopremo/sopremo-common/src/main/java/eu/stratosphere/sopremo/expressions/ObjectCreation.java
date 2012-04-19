@@ -12,7 +12,6 @@ import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.util.ConversionIterator;
@@ -27,6 +26,9 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = -5688226000742970692L;
 
+	/**
+	 * An ObjectCreation which transfers the fields of all given {IObjectNode}s into a single node.
+	 */
 	public static final ObjectCreation CONCATENATION = new ObjectCreation() {
 		/**
 		 * 
@@ -50,20 +52,41 @@ public class ObjectCreation extends ContainerExpression {
 
 	private final List<Mapping<?>> mappings;
 
+	/**
+	 * Initializes an ObjectCreation with empty mappings.
+	 */
 	public ObjectCreation() {
 		this(new ArrayList<Mapping<?>>());
 	}
 
+	/**
+	 * Initializes an ObjectCreation with the given {@link Mapping}s.
+	 * 
+	 * @param mappings
+	 *        the mappings that should be used
+	 */
 	public ObjectCreation(final List<Mapping<?>> mappings) {
 		this.mappings = mappings;
 		this.expectedTarget = ObjectNode.class;
 	}
 
+	/**
+	 * Initializes an ObjectCreation with the given {@link FieldAssignment}s.
+	 * 
+	 * @param mappings
+	 *        the assignments that should be used
+	 */
 	public ObjectCreation(final FieldAssignment... mappings) {
 		this.mappings = new ArrayList<Mapping<?>>(Arrays.asList(mappings));
 		this.expectedTarget = ObjectNode.class;
 	}
 
+	/**
+	 * Adds a new {@link Mapping}
+	 * 
+	 * @param mapping
+	 *        the new mapping
+	 */
 	public void addMapping(final Mapping<?> mapping) {
 		this.mappings.add(mapping);
 	}

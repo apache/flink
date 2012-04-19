@@ -23,6 +23,14 @@ public class GroupingExpression extends EvaluationExpression {
 
 	private final EvaluationExpression groupingExpression, resultExpression;
 
+	/**
+	 * Initializes a GroupingExpression with the given expressions.
+	 * 
+	 * @param groupingExpression
+	 *        the expression that should be used to determine the grouping keys
+	 * @param resultExpression
+	 *        the expression that should be used on the elements within a group
+	 */
 	public GroupingExpression(final EvaluationExpression groupingExpression, final EvaluationExpression resultExpression) {
 		this.groupingExpression = groupingExpression;
 		this.resultExpression = resultExpression;

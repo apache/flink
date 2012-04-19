@@ -16,10 +16,24 @@ public class JsonStreamExpression extends UnevaluableExpression {
 
 	private final int inputIndex;
 
+	/**
+	 * Initializes a JsonStreamExpression with the given {@link JsonStream}.
+	 * 
+	 * @param stream
+	 *        the stream that should be used
+	 */
 	public JsonStreamExpression(final JsonStream stream) {
 		this(stream, -1);
 	}
 
+	/**
+	 * Initializes a JsonStreamExpression with the given {@link JsonStream} and index.
+	 * 
+	 * @param stream
+	 *        the stream that should be used
+	 * @param inputIndex
+	 *        the index
+	 */
 	public JsonStreamExpression(final JsonStream stream, final int inputIndex) {
 		super("JsonStream placeholder");
 		this.stream = stream;
@@ -35,6 +49,11 @@ public class JsonStreamExpression extends UnevaluableExpression {
 		return this.inputIndex;
 	}
 
+	/**
+	 * Returns the JsonStream
+	 * 
+	 * @return the stream
+	 */
 	public JsonStream getStream() {
 		return this.stream;
 	}
@@ -51,8 +70,10 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	}
 
 	/**
-	 * @param inputs
-	 * @return
+	 * Creates an {@link InputSelection} based on this expressions stream an index.
+	 * 
+	 * @param operator
+	 * @return the created InputSelection
 	 */
 	public EvaluationExpression toInputSelection(final Operator<?> operator) {
 		InputSelection inputSelection;

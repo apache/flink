@@ -7,7 +7,6 @@ import java.util.List;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * Calls the specified function with the provided parameters and returns the result.
@@ -24,6 +23,14 @@ public class MethodCall extends ContainerExpression {
 
 	private EvaluationExpression[] paramExprs;
 
+	/**
+	 * Initializes a MethodCall with the given function name and expressions which evaluate to the method parameters.
+	 * 
+	 * @param function
+	 *        the name of the function that should be called
+	 * @param params
+	 *        expressions which evaluate to the method parameters
+	 */
 	public MethodCall(final String function, final EvaluationExpression... params) {
 		this.function = function;
 		this.paramExprs = params;

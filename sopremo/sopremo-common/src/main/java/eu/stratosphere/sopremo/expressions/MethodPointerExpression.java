@@ -1,5 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
+/**
+ * This expression represents a pointer to a method.
+ */
 public class MethodPointerExpression extends UnevaluableExpression {
 	/**
 	 * 
@@ -8,6 +11,12 @@ public class MethodPointerExpression extends UnevaluableExpression {
 
 	private final String functionName;
 
+	/**
+	 * Initializes a MethodPointerExpression with the given function name.
+	 * 
+	 * @param functionName
+	 *        a name of function
+	 */
 	public MethodPointerExpression(final String functionName) {
 		super("&" + functionName);
 		this.functionName = functionName;
