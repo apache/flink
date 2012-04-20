@@ -7,9 +7,6 @@ import eu.stratosphere.sopremo.sdaa11.Annotator;
 
 public class InitialClustering extends CompositeOperator<InitialClustering> {
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 9084919057903474256L;
 
 	@Override

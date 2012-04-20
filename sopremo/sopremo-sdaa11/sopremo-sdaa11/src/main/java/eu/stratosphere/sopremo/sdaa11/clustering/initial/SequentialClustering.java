@@ -5,8 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.sdaa11.Annotator;
@@ -47,7 +47,7 @@ public class SequentialClustering extends
 
 	@Override
 	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		return Arrays.asList(new ArrayAccess(Annotator.DUMMY_VALUE_INDEX));
+		return Arrays.asList(new ObjectAccess(Annotator.DUMMY_KEY));
 	}
 
 	public static class Implementation extends SopremoReduce {
@@ -68,7 +68,8 @@ public class SequentialClustering extends
 
 		private void addPoints(final IArrayNode values) {
 			for (final IJsonNode value : values) {
-				final Point point = null; // new Point(value);
+				final Point point = new Point();
+				point.fromJsonNode(Annotator.deannotate(value));
 				this.queue.add(new BaseCluster(point, String.valueOf(this
 						.createNewId())));
 			}

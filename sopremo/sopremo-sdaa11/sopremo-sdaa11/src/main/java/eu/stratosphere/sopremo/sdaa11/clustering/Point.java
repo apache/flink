@@ -142,4 +142,17 @@ public class Point implements Value, Serializable, Cloneable, Comparable<Point> 
 
 		return node;
 	}
+	
+	public void fromJsonNode(IJsonNode node) {
+		if (node == null || !(node instanceof ObjectNode)) {
+			throw new IllegalArgumentException("Illegal point node: "+node);
+		}
+		ObjectNode objectNode = (ObjectNode) node;
+		key = ((TextNode) objectNode.get("id")).getJavaValue();
+		values = new ArrayList<String>();
+		for (IJsonNode valuesNode : (ArrayNode) objectNode.get("values")) {
+			values.add(((TextNode) valuesNode).getJavaValue());
+		}
+		rowsum = ((IntNode) objectNode.get("rowsum")).getJavaValue();
+	}
 }
