@@ -46,26 +46,6 @@ public class JobManagerUtils {
 	}
 
 	/**
-	 * Returns the {@link ExecutionMode} indicated by the given string.
-	 * 
-	 * @param executionMode
-	 *        the string indicating the desired execution mode
-	 * @return the {@link Execution} matching the string or <code>ExecutionMode.LOCAL</code> if the string could not be
-	 *         matched to a mode
-	 */
-	static ExecutionMode getExecutionMode(final String executionMode) {
-
-		if ("cluster".equals(executionMode)) {
-			return ExecutionMode.CLUSTER;
-		}
-		if ("cloud".equals(executionMode)) {
-			return ExecutionMode.CLOUD;
-		}
-
-		return ExecutionMode.LOCAL;
-	}
-
-	/**
 	 * Tries to locate a class with given name and to
 	 * instantiate a {@link AbstractScheduler} object from it.
 	 * 
@@ -163,11 +143,11 @@ public class JobManagerUtils {
 	 * is set to be used for the provided execution mode.
 	 * 
 	 * @param executionMode
-	 *        the Nephele execution mode
+	 *        the name of the Nephele execution mode
 	 * @return the class name of the {@link AbstractScheduler} implementation to be used or <code>null</code> if no
 	 *         implementation is configured for the given execution mode
 	 */
-	static String getSchedulerClassName(final ExecutionMode executionMode) {
+	static String getSchedulerClassName(final String executionMode) {
 
 		final String instanceManagerClassNameKey = "jobmanager.scheduler." + executionMode + ".classname";
 		String schedulerClassName = GlobalConfiguration.getString(instanceManagerClassNameKey, null);
@@ -184,11 +164,11 @@ public class JobManagerUtils {
 	 * set to be used for the provided execution mode.
 	 * 
 	 * @param executionMode
-	 *        the Nephele execution mode
+	 *        the name of the Nephele execution mode
 	 * @return the class name of the {@link InstanceManager} implementation to be used or <code>null</code> if no
 	 *         implementation is configured for the given execution mode
 	 */
-	static String getInstanceManagerClassName(final ExecutionMode executionMode) {
+	static String getInstanceManagerClassName(final String executionMode) {
 
 		final String instanceManagerClassNameKey = "jobmanager.instancemanager." + executionMode + ".classname";
 		return GlobalConfiguration.getString(instanceManagerClassNameKey, null);

@@ -229,8 +229,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	}
 
 	/**
-	 * Creates a new instance of the Nephele task and registers it with its
-	 * environment.
+	 * Creates a new instance of the Nephele task and registers it with its environment.
 	 * 
 	 * @throws Exception
 	 *         any exception that might be thrown by the user code during instantiation and registration of input and
