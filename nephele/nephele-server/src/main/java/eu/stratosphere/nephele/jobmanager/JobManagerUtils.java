@@ -46,6 +46,26 @@ public class JobManagerUtils {
 	}
 
 	/**
+	 * Returns the {@link ExecutionMode} indicated by the given string.
+	 * 
+	 * @param executionMode
+	 *        the string indicating the desired execution mode
+	 * @return the {@link Execution} matching the string or <code>ExecutionMode.LOCAL</code> if the string could not be
+	 *         matched to a mode
+	 */
+	static ExecutionMode getExecutionMode(final String executionMode) {
+
+		if ("cluster".equals(executionMode)) {
+			return ExecutionMode.CLUSTER;
+		}
+		if ("cloud".equals(executionMode)) {
+			return ExecutionMode.CLOUD;
+		}
+
+		return ExecutionMode.LOCAL;
+	}
+
+	/**
 	 * Tries to locate a class with given name and to
 	 * instantiate a {@link AbstractScheduler} object from it.
 	 * 
@@ -58,7 +78,7 @@ public class JobManagerUtils {
 	 * @return the {@link AbstractScheduler} object instantiated from the class with the provided name
 	 */
 	@SuppressWarnings("unchecked")
-	public static AbstractScheduler loadScheduler(final String schedulerClassName, final DeploymentManager deploymentManager,
+	static AbstractScheduler loadScheduler(final String schedulerClassName, final DeploymentManager deploymentManager,
 			final InstanceManager instanceManager) {
 
 		Class<? extends AbstractScheduler> schedulerClass;
@@ -113,7 +133,7 @@ public class JobManagerUtils {
 	 * @return the {@link InstanceManager} object instantiated from the class with the provided name
 	 */
 	@SuppressWarnings("unchecked")
-	public static InstanceManager loadInstanceManager(String instanceManagerClassName) {
+	static InstanceManager loadInstanceManager(final String instanceManagerClassName) {
 
 		Class<? extends InstanceManager> instanceManagerClass;
 		try {
@@ -139,16 +159,15 @@ public class JobManagerUtils {
 	}
 
 	/**
-	 * Tries to read the class name of the {@link AbstractScheduler} implementation from the global configuration which is set
-	 * to be
-	 * used for the provided execution mode.
+	 * Tries to read the class name of the {@link AbstractScheduler} implementation from the global configuration which
+	 * is set to be used for the provided execution mode.
 	 * 
 	 * @param executionMode
-	 *        the name of the Nephele execution mode
+	 *        the Nephele execution mode
 	 * @return the class name of the {@link AbstractScheduler} implementation to be used or <code>null</code> if no
 	 *         implementation is configured for the given execution mode
 	 */
-	public static String getSchedulerClassName(String executionMode) {
+	static String getSchedulerClassName(final ExecutionMode executionMode) {
 
 		final String instanceManagerClassNameKey = "jobmanager.scheduler." + executionMode + ".classname";
 		String schedulerClassName = GlobalConfiguration.getString(instanceManagerClassNameKey, null);
@@ -160,10 +179,18 @@ public class JobManagerUtils {
 		return schedulerClassName;
 	}
 
-	public static String getInstanceManagerClassName(String executionMode) {
+	/**
+	 * Tries to read the class name of the {@link InstanceManager} implementation from the global configuration which is
+	 * set to be used for the provided execution mode.
+	 * 
+	 * @param executionMode
+	 *        the Nephele execution mode
+	 * @return the class name of the {@link InstanceManager} implementation to be used or <code>null</code> if no
+	 *         implementation is configured for the given execution mode
+	 */
+	static String getInstanceManagerClassName(final ExecutionMode executionMode) {
 
 		final String instanceManagerClassNameKey = "jobmanager.instancemanager." + executionMode + ".classname";
 		return GlobalConfiguration.getString(instanceManagerClassNameKey, null);
 	}
-
 }

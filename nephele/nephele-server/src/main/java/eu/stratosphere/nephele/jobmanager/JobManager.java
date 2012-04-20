@@ -144,6 +144,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private Server jobManagerServer = null;
 
+	/**
+	 * The execution mode Nephele currently runs in.
+	 */
+	private final ExecutionMode executionMode;
+
 	private final JobManagerProfiler profiler;
 
 	private final EventCollector eventCollector;
@@ -229,9 +234,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Load the plugins
 		this.jobManagerPlugins = PluginManager.getJobManagerPlugins(this, configDir);
 
+		// Determine the execution mode
+		this.executionMode = JobManagerUtils.getExecutionMode(executionMode);
+
 		// Try to load the instance manager for the given execution mode
 		// Try to load the scheduler for the given execution mode
-		if ("local".equals(executionMode)) {
+		if (this.executionMode == ExecutionMode.LOCAL) {
 			// TODO: Find a better solution for that
 			try {
 				LibraryCacheManager.setLocalMode();
@@ -245,7 +253,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				System.exit(FAILURERETURNCODE);
 			}
 		} else {
-			final String instanceManagerClassName = JobManagerUtils.getInstanceManagerClassName(executionMode);
+			final String instanceManagerClassName = JobManagerUtils.getInstanceManagerClassName(this.executionMode);
 			LOG.info("Trying to load " + instanceManagerClassName + " as instance manager");
 			this.instanceManager = JobManagerUtils.loadInstanceManager(instanceManagerClassName);
 			if (this.instanceManager == null) {
@@ -255,7 +263,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 
 		// Try to load the scheduler for the given execution mode
-		final String schedulerClassName = JobManagerUtils.getSchedulerClassName(executionMode);
+		final String schedulerClassName = JobManagerUtils.getSchedulerClassName(this.executionMode);
 		LOG.info("Trying to load " + schedulerClassName + " as scheduler");
 
 		// Try to get the instance manager class name
