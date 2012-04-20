@@ -7,115 +7,119 @@ import java.util.TreeMap;
 
 import eu.stratosphere.sopremo.sdaa11.util.FastStringComparator;
 
-
-
 public class ClusterQueue {
 	static class ClusterPair implements Comparable<ClusterPair> {
-		private HierarchicalCluster cluster1;
-		private HierarchicalCluster cluster2;
-		private int distance;
-		private int hash;
-		
-		public ClusterPair(HierarchicalCluster cluster1, HierarchicalCluster cluster2) {
+		private final HierarchicalCluster cluster1;
+		private final HierarchicalCluster cluster2;
+		private final int distance;
+		private final int hash;
+
+		public ClusterPair(final HierarchicalCluster cluster1,
+				final HierarchicalCluster cluster2) {
 			this.cluster1 = cluster1;
 			this.cluster2 = cluster2;
-			distance = cluster1.getClustroid().getDistance(cluster2.getClustroid());
-			hash = cluster1.hashCode() ^ cluster2.hashCode() << 1;
+			this.distance = cluster1.getClustroid().getDistance(
+					cluster2.getClustroid());
+			this.hash = cluster1.hashCode() ^ cluster2.hashCode() << 1;
 		}
-		
+
 		public HierarchicalCluster getCluster1() {
-			return cluster1;
+			return this.cluster1;
 		}
-		
+
 		public HierarchicalCluster getCluster2() {
-			return cluster2;
+			return this.cluster2;
 		}
-		
-		public boolean contains(HierarchicalCluster cluster) {
-			return cluster1.equals(cluster) || cluster2.equals(cluster);
+
+		public boolean contains(final HierarchicalCluster cluster) {
+			return this.cluster1.equals(cluster)
+					|| this.cluster2.equals(cluster);
 		}
-		
+
 		int getDistance() {
-			return distance;
+			return this.distance;
 		}
-	
-		public int compareTo(ClusterPair otherPair) {
-			int difference = distance - otherPair.distance;
-			if (difference != 0) return difference;
-			
+
+		@Override
+		public int compareTo(final ClusterPair otherPair) {
+			int difference = this.distance - otherPair.distance;
+			if (difference != 0)
+				return difference;
+
 			// at this point, any criterion ordering the pairs is sufficient
-			difference = FastStringComparator.INSTANCE.compare(cluster1.getId(), otherPair.cluster1.getId());
-			if (difference != 0) return difference;
-			return FastStringComparator.INSTANCE.compare(cluster2.getId(), otherPair.cluster2.getId());
+			difference = FastStringComparator.INSTANCE.compare(
+					this.cluster1.getId(), otherPair.cluster1.getId());
+			if (difference != 0)
+				return difference;
+			return FastStringComparator.INSTANCE.compare(this.cluster2.getId(),
+					otherPair.cluster2.getId());
 		}
-		
+
 		@Override
 		public String toString() {
-			return "ClusterPair<" + cluster1 + " and " + cluster2 + " with distance " + distance + ">";
+			return "ClusterPair<" + this.cluster1 + " and " + this.cluster2
+					+ " with distance " + this.distance + ">";
 		}
-		
+
 		@Override
 		public int hashCode() {
-			return hash;
+			return this.hash;
 		}
 	}
 
-	private Set<HierarchicalCluster> clusters = new HashSet<HierarchicalCluster>();
-	private SortedMap<Integer, Set<ClusterPair>> distancedPairs = new TreeMap<Integer, Set<ClusterPair>>();
-	
-	public void add(HierarchicalCluster cluster) {
-		for (HierarchicalCluster otherCluster : clusters) {
-			ClusterPair pair = new ClusterPair(cluster, otherCluster);
-			add(pair);
+	private final Set<HierarchicalCluster> clusters = new HashSet<HierarchicalCluster>();
+	private final SortedMap<Integer, Set<ClusterPair>> distancedPairs = new TreeMap<Integer, Set<ClusterPair>>();
+
+	public void add(final HierarchicalCluster cluster) {
+		for (final HierarchicalCluster otherCluster : this.clusters) {
+			final ClusterPair pair = new ClusterPair(cluster, otherCluster);
+			this.add(pair);
 		}
-		clusters.add(cluster);
+		this.clusters.add(cluster);
 	}
-	
-	public void removeCluster(HierarchicalCluster cluster) {
-		clusters.remove(cluster);
-		removePairsWith(cluster);
+
+	public void removeCluster(final HierarchicalCluster cluster) {
+		this.clusters.remove(cluster);
+		this.removePairsWith(cluster);
 	}
-	
-	private boolean add(ClusterPair pair) {
-		int distance = pair.getDistance();
-		Set<ClusterPair> set = distancedPairs.get(distance);
+
+	private boolean add(final ClusterPair pair) {
+		final int distance = pair.getDistance();
+		Set<ClusterPair> set = this.distancedPairs.get(distance);
 		if (set == null) {
 			set = new HashSet<ClusterPair>();
-			distancedPairs.put(distance, set);
+			this.distancedPairs.put(distance, set);
 		}
 		return set.add(pair);
 	}
-	
-	private void removePairsWith(HierarchicalCluster cluster) {
-		Set<Integer> keysToRemove = new HashSet<Integer>();
-		for (Integer key : distancedPairs.keySet()) {
-			Set<ClusterPair> originalPairs = distancedPairs.get(key);
-			Set<ClusterPair> pairs = new HashSet<ClusterPair>(originalPairs);
-			for (ClusterPair clusterPair : pairs) {
-				if (clusterPair.contains(cluster)) {
+
+	private void removePairsWith(final HierarchicalCluster cluster) {
+		final Set<Integer> keysToRemove = new HashSet<Integer>();
+		for (final Integer key : this.distancedPairs.keySet()) {
+			final Set<ClusterPair> originalPairs = this.distancedPairs.get(key);
+			final Set<ClusterPair> pairs = new HashSet<ClusterPair>(
+					originalPairs);
+			for (final ClusterPair clusterPair : pairs)
+				if (clusterPair.contains(cluster))
 					originalPairs.remove(clusterPair);
-				}
-			}
-			if (originalPairs.isEmpty()) {
+			if (originalPairs.isEmpty())
 				keysToRemove.add(key);
-			}
 		}
-		
-		for (Integer key : keysToRemove) {
-			distancedPairs.remove(key);
-		}
+
+		for (final Integer key : keysToRemove)
+			this.distancedPairs.remove(key);
 	}
-	
+
 	public ClusterPair getFirstElement() {
-		Integer key = distancedPairs.firstKey();
-		return distancedPairs.get(key).iterator().next();
+		final Integer key = this.distancedPairs.firstKey();
+		return this.distancedPairs.get(key).iterator().next();
 	}
-	
+
 	public int getNumberOfClusters() {
-		return clusters.size();
+		return this.clusters.size();
 	}
-	
+
 	public Set<HierarchicalCluster> getClusters() {
-		return clusters;
+		return this.clusters;
 	}
 }

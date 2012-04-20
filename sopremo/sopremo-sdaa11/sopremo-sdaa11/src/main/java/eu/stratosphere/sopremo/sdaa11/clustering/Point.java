@@ -20,127 +20,126 @@ import eu.stratosphere.sopremo.type.TextNode;
 public class Point implements Value, Serializable, Cloneable, Comparable<Point> {
 
 	private static final long serialVersionUID = 8916618314991854207L;
-	
+
 	private String key;
 	private List<String> values;
 	private int rowsum = 0;
-	
-	public Point() { }
-	
-	public Point(String key, List<String> values) {
+
+	public Point() {
+	}
+
+	public Point(final String key, final List<String> values) {
 		this.key = key;
 		this.values = values;
 	}
-	
+
 	public String getKey() {
-		return key;
+		return this.key;
 	}
 
 	public List<String> getValues() {
-		return new ArrayList<String>(values);
+		return new ArrayList<String>(this.values);
 	}
 
 	@Override
 	public int hashCode() {
-		return key.hashCode();
+		return this.key.hashCode();
 	}
 
 	public int getRowsum() {
-		return rowsum;
+		return this.rowsum;
 	}
 
-	public void addToRowsum(Point point) {
-		rowsum += getSquaredDistance(point);
+	public void addToRowsum(final Point point) {
+		this.rowsum += this.getSquaredDistance(point);
 	}
 
-	public void setRowsum(int rowsum) {
+	public void setRowsum(final int rowsum) {
 		this.rowsum = rowsum;
 	}
 
-	public void setRowsum(Collection<Point> points) {
-		rowsum = 0;
-		for (Point point : points) {
-			addToRowsum(point);
-		}
+	public void setRowsum(final Collection<Point> points) {
+		this.rowsum = 0;
+		for (final Point point : points)
+			this.addToRowsum(point);
 	}
-	
-	public int calculateRowsum(Collection<Point> points) {
+
+	public int calculateRowsum(final Collection<Point> points) {
 		int rowsum = 0;
-		for (Point point : points) {
-			rowsum += getSquaredDistance(point);
-		}
+		for (final Point point : points)
+			rowsum += this.getSquaredDistance(point);
 		return rowsum;
 	}
-	
-	public int getSquaredDistance(Point point) {
-		int distance = getDistance(point);
+
+	public int getSquaredDistance(final Point point) {
+		final int distance = this.getDistance(point);
 		return distance * distance;
 	}
 
-	public int getDistance(Point point) {
-		return SortedJaccardDistance.distance(getValues(), point.getValues(), FastStringComparator.INSTANCE);
+	public int getDistance(final Point point) {
+		return SortedJaccardDistance.distance(this.getValues(),
+				point.getValues(), FastStringComparator.INSTANCE);
 	}
 
-	public void write(DataOutput out) throws IOException {
-		out.writeUTF(key);
-		
-		out.writeInt(values.size());
-		for (String value : values) {
+	@Override
+	public void write(final DataOutput out) throws IOException {
+		out.writeUTF(this.key);
+
+		out.writeInt(this.values.size());
+		for (final String value : this.values)
 			out.writeUTF(value);
-		}
-		
-		out.writeInt(rowsum);
+
+		out.writeInt(this.rowsum);
 	}
 
-	public void read(DataInput in) throws IOException {
-		key = in.readUTF();
-		
-		int valuesSize = in.readInt();
-		if (values == null) {
-			values = new ArrayList<String>(valuesSize);
-		} else {
-			values.clear();
-		}
-		for (int i=0; i < valuesSize; i++) {
-			values.add(in.readUTF());
-		}
-		
-		rowsum = in.readInt();
+	@Override
+	public void read(final DataInput in) throws IOException {
+		this.key = in.readUTF();
+
+		final int valuesSize = in.readInt();
+		if (this.values == null)
+			this.values = new ArrayList<String>(valuesSize);
+		else
+			this.values.clear();
+		for (int i = 0; i < valuesSize; i++)
+			this.values.add(in.readUTF());
+
+		this.rowsum = in.readInt();
 	}
-	
+
 	@Override
 	public Point clone() {
-		Point point = new Point();
-		point.key = key;
-		point.values = new ArrayList<String>(values);
-		point.rowsum = rowsum;
+		final Point point = new Point();
+		point.key = this.key;
+		point.values = new ArrayList<String>(this.values);
+		point.rowsum = this.rowsum;
 		return point;
-	}
-	
-	@Override
-	public String toString() {
-		return key;
 	}
 
 	@Override
-	public int compareTo(Point otherPoint) {
-		int diff = rowsum - otherPoint.getRowsum();
-		if (diff != 0) return diff;
-		return FastStringComparator.INSTANCE.compare(key, otherPoint.key);
+	public String toString() {
+		return this.key;
+	}
+
+	@Override
+	public int compareTo(final Point otherPoint) {
+		final int diff = this.rowsum - otherPoint.getRowsum();
+		if (diff != 0)
+			return diff;
+		return FastStringComparator.INSTANCE.compare(this.key, otherPoint.key);
 	}
 
 	public IJsonNode toJsonNode(ObjectNode node) {
 		if (node == null)
 			node = new ObjectNode();
-		
-		node.put("id", new TextNode(key));
-		ArrayNode valuesNode = new ArrayNode();
-		for (String value : values) {
+
+		node.put("id", new TextNode(this.key));
+		final ArrayNode valuesNode = new ArrayNode();
+		for (final String value : this.values)
 			valuesNode.add(new TextNode(value));
-		}
 		node.put("values", valuesNode);
-		node.put("rowsum", new IntNode(rowsum));
-		
+		node.put("rowsum", new IntNode(this.rowsum));
+
 		return node;
 	}
 }

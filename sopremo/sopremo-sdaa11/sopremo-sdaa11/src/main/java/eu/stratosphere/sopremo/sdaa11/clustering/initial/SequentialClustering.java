@@ -18,85 +18,88 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
-public class SequentialClustering extends ElementaryOperator<SequentialClustering> {
-	
+public class SequentialClustering extends
+		ElementaryOperator<SequentialClustering> {
+
 	private static final long serialVersionUID = 5563265035325926095L;
 
 	/** The maximum radius of a cluster. */
 	private int maxRadius;
-	
+
 	/** The maximum number of points of a cluster. */
 	private int maxSize;
-	
+
 	public int getMaxRadius() {
-		return maxRadius;
+		return this.maxRadius;
 	}
 
-	public void setMaxRadius(int maxRadius) {
+	public void setMaxRadius(final int maxRadius) {
 		this.maxRadius = maxRadius;
 	}
 
 	public int getMaxSize() {
-		return maxSize;
+		return this.maxSize;
 	}
 
-	public void setMaxSize(int maxSize) {
+	public void setMaxSize(final int maxSize) {
 		this.maxSize = maxSize;
 	}
-	
+
 	@Override
 	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
 		return Arrays.asList(new ArrayAccess(Annotator.DUMMY_VALUE_INDEX));
 	}
-	
+
 	public static class Implementation extends SopremoReduce {
-		
+
 		private int maxRadius;
 		private int maxSize;
 
 		private ClusterQueue queue = new ClusterQueue();
-		private List<HierarchicalCluster> clusters = new ArrayList<HierarchicalCluster>();
+		private final List<HierarchicalCluster> clusters = new ArrayList<HierarchicalCluster>();
 		private int idCounter = 0;
-		
+
 		@Override
-		protected void reduce(IArrayNode values, JsonCollector out) {
-			addPoints(values);
-			cluster();
-			emitClusters(out);
+		protected void reduce(final IArrayNode values, final JsonCollector out) {
+			this.addPoints(values);
+			this.cluster();
+			this.emitClusters(out);
 		}
 
-		private void addPoints(IArrayNode values) {
-			for (IJsonNode value : values) {
-				Point point = null; //new Point(value);
-				queue.add(new BaseCluster(point, String.valueOf(createNewId())));
+		private void addPoints(final IArrayNode values) {
+			for (final IJsonNode value : values) {
+				final Point point = null; // new Point(value);
+				this.queue.add(new BaseCluster(point, String.valueOf(this
+						.createNewId())));
 			}
 		}
 
 		private void cluster() {
-			// Hierarchical clustering: Cluster until there is only one cluster left.
-			while (queue.getNumberOfClusters() > 1) {
-				ClusterPair pair = queue.getFirstElement();
-				HierarchicalCluster cluster1 = pair.getCluster1();
-				HierarchicalCluster cluster2 = pair.getCluster2();
-				
-				HierarchicalCluster mergedCluster = new MergedCluster(cluster1, cluster2, createNewId());
-				queue.removeCluster(cluster1);
-				queue.removeCluster(cluster2);
-				
+			// Hierarchical clustering: Cluster until there is only one cluster
+			// left.
+			while (this.queue.getNumberOfClusters() > 1) {
+				final ClusterPair pair = this.queue.getFirstElement();
+				final HierarchicalCluster cluster1 = pair.getCluster1();
+				final HierarchicalCluster cluster2 = pair.getCluster2();
+
+				final HierarchicalCluster mergedCluster = new MergedCluster(
+						cluster1, cluster2, this.createNewId());
+				this.queue.removeCluster(cluster1);
+				this.queue.removeCluster(cluster2);
+
 				// If the new cluster can be a final cluster, we will not
 				// consider its children anymore.
-				boolean makeFinal = canBeFinal(mergedCluster);
+				final boolean makeFinal = this.canBeFinal(mergedCluster);
 				mergedCluster.makeFinal(makeFinal);
-				if (makeFinal) {
-					queue.add(mergedCluster);
-				} else {
-					for (HierarchicalCluster child : mergedCluster.getChildren()) {
-						clusters.add(child);
-					}
-				}
+				if (makeFinal)
+					this.queue.add(mergedCluster);
+				else
+					for (final HierarchicalCluster child : mergedCluster
+							.getChildren())
+						this.clusters.add(child);
 			}
-			clusters.addAll(queue.getClusters());
-			queue = null;
+			this.clusters.addAll(this.queue.getClusters());
+			this.queue = null;
 		}
 
 		/**
@@ -104,39 +107,37 @@ public class SequentialClustering extends ElementaryOperator<SequentialClusterin
 		 * This method is to satisfy the following condition:<br>
 		 * <i>!canBeFinal(c1) | !canBeFinal(c2) => !canBeFinal(c1+c2)</i>
 		 */
-		private boolean canBeFinal(HierarchicalCluster cluster) {
-			return cluster.canBeFinal() && cluster.getRadius() < maxRadius 
-					&& cluster.size() < maxSize;
+		private boolean canBeFinal(final HierarchicalCluster cluster) {
+			return cluster.canBeFinal() && cluster.getRadius() < this.maxRadius
+					&& cluster.size() < this.maxSize;
 		}
 
-		private void emitClusters(JsonCollector out) {
-			for (HierarchicalCluster cluster : clusters) {
-				emit(cluster, out);
-			}
+		private void emitClusters(final JsonCollector out) {
+			for (final HierarchicalCluster cluster : this.clusters)
+				this.emit(cluster, out);
 		}
 
-		private void emit(HierarchicalCluster cluster, JsonCollector out) {
+		private void emit(final HierarchicalCluster cluster,
+				final JsonCollector out) {
 			if (cluster.isFinal()) {
-				ArrayNode pointsNode = new ArrayNode();
-				for (Point point : cluster.getPoints()) {
+				final ArrayNode pointsNode = new ArrayNode();
+				for (final Point point : cluster.getPoints())
 					pointsNode.add(point.toJsonNode(null));
-				}
-				
-				ObjectNode clusterNode = new ObjectNode();
+
+				final ObjectNode clusterNode = new ObjectNode();
 				clusterNode.put("id", new TextNode(cluster.getId()));
-				clusterNode.put("clustroid", cluster.getClustroid().toJsonNode(null));
+				clusterNode.put("clustroid",
+						cluster.getClustroid().toJsonNode(null));
 				clusterNode.put("points", pointsNode);
-				
+
 				out.collect(clusterNode);
-			} else {
-				for (HierarchicalCluster child : cluster.getChildren()) {
-					emit(child, out);
-				}
-			}
+			} else
+				for (final HierarchicalCluster child : cluster.getChildren())
+					this.emit(child, out);
 		}
 
 		private String createNewId() {
-			return String.valueOf(idCounter++);
+			return String.valueOf(this.idCounter++);
 		}
 	}
 

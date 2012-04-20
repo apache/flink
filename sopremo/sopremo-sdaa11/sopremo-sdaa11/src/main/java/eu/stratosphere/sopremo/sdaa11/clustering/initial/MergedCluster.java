@@ -11,67 +11,71 @@ public class MergedCluster extends HierarchicalCluster {
 	private Point clustroid;
 	private Point[] points;
 	private int[] oldRowsums;
-	private int radius, size;
+	private int radius;
+	private final int size;
 	private boolean isFinal;
 
-	public MergedCluster(HierarchicalCluster child1, HierarchicalCluster child2, String id) {
+	public MergedCluster(final HierarchicalCluster child1,
+			final HierarchicalCluster child2, final String id) {
 		super(id);
 		this.child1 = child1;
 		this.child2 = child2;
 		this.size = child1.size() + child2.size();
 
-		if (canBeFinal()) {
-			createPoints();
-			updateRowsums();
-			chooseClustroid();
-			calculateRadius();
-		} else {
-			clustroid = child1.getClustroid();
-		}
+		if (this.canBeFinal()) {
+			this.createPoints();
+			this.updateRowsums();
+			this.chooseClustroid();
+			this.calculateRadius();
+		} else
+			this.clustroid = child1.getClustroid();
 	}
-	
+
 	private void createPoints() {
-		points = new Point[size];
-		System.arraycopy(child1.getPoints(), 0, points, 0, child1.size());
-		System.arraycopy(child2.getPoints(), 0, points, child1.size(), child2.size());
+		this.points = new Point[this.size];
+		System.arraycopy(this.child1.getPoints(), 0, this.points, 0,
+				this.child1.size());
+		System.arraycopy(this.child2.getPoints(), 0, this.points,
+				this.child1.size(), this.child2.size());
 	}
 
 	private void calculateRadius() {
-		radius = (int) Math.sqrt(clustroid.getRowsum() / (size() - 1));
+		this.radius = (int) Math.sqrt(this.clustroid.getRowsum()
+				/ (this.size() - 1));
 	}
 
 	private void updateRowsums() {
-		storeCurrentRowsums();
-		updateRowsums(child1, child2);
-		updateRowsums(child2, child1);
+		this.storeCurrentRowsums();
+		this.updateRowsums(this.child1, this.child2);
+		this.updateRowsums(this.child2, this.child1);
 	}
 
 	private void storeCurrentRowsums() {
-		oldRowsums = new int[size];
-		for (int i = 0; i < size; i++) {
-			oldRowsums[i] = points[i].getRowsum();
-		}
+		this.oldRowsums = new int[this.size];
+		for (int i = 0; i < this.size; i++)
+			this.oldRowsums[i] = this.points[i].getRowsum();
 	}
 
-	private void updateRowsums(HierarchicalCluster updatees,
-			HierarchicalCluster updaters) {
-		for (Point updatee : updatees.getPoints()) {
-			for (Point updater : updaters.getPoints()) {
+	private void updateRowsums(final HierarchicalCluster updatees,
+			final HierarchicalCluster updaters) {
+		for (final Point updatee : updatees.getPoints())
+			for (final Point updater : updaters.getPoints())
 				updatee.addToRowsum(updater);
-			}
-		}
-		
+
 	}
 
 	private void chooseClustroid() {
-		clustroid = findPointWithLowestRowsum(child1.getPoints(), null, -1);
-		clustroid = findPointWithLowestRowsum(child2.getPoints(), clustroid, clustroid.getRowsum());
+		this.clustroid = this.findPointWithLowestRowsum(
+				this.child1.getPoints(), null, -1);
+		this.clustroid = this.findPointWithLowestRowsum(
+				this.child2.getPoints(), this.clustroid,
+				this.clustroid.getRowsum());
 	}
-	
-	private Point findPointWithLowestRowsum(Point[] points,
+
+	private Point findPointWithLowestRowsum(final Point[] points,
 			Point candidatePoint, int candidatePointRowsum) {
-		for (Point point : points) {
-			int rowsum = point.getRowsum();
+		for (final Point point : points) {
+			final int rowsum = point.getRowsum();
 			if (candidatePoint == null || rowsum < candidatePointRowsum) {
 				candidatePointRowsum = rowsum;
 				candidatePoint = point;
@@ -82,63 +86,59 @@ public class MergedCluster extends HierarchicalCluster {
 
 	@Override
 	public int size() {
-		return size;
+		return this.size;
 	}
 
 	@Override
 	public Point getClustroid() {
-		return clustroid;
+		return this.clustroid;
 	}
 
 	@Override
 	public Point[] getPoints() {
-		return points;
+		return this.points;
 	}
 
 	@Override
 	public int getRadius() {
-		return radius;
+		return this.radius;
 	}
 
 	@Override
-	public void makeFinal(boolean makeFinal) {
+	public void makeFinal(final boolean makeFinal) {
 		if (makeFinal) {
-			if (!canBeFinal()) {
+			if (!this.canBeFinal())
 				throw new IllegalStateException("Cluster cannot be made final");
-			}
-			child1 = child2 = null;
+			this.child1 = this.child2 = null;
 		} else {
-			if (canBeFinal()) {
-				rollbackRowsums();
-			}
-			points = null;
+			if (this.canBeFinal())
+				this.rollbackRowsums();
+			this.points = null;
 		}
-		oldRowsums = null;
-		isFinal = makeFinal;
+		this.oldRowsums = null;
+		this.isFinal = makeFinal;
 	}
 
 	private void rollbackRowsums() {
-		for (int i = 0; i < size; i++) {
-			points[i].setRowsum(oldRowsums[i]);
-		}
+		for (int i = 0; i < this.size; i++)
+			this.points[i].setRowsum(this.oldRowsums[i]);
 	}
 
 	@Override
 	public boolean isFinal() {
-		return isFinal;
+		return this.isFinal;
 	}
 
 	@Override
 	public Collection<HierarchicalCluster> getChildren() {
-		if (isFinal()) {
+		if (this.isFinal())
 			throw new IllegalStateException("Cluster has no children!");
-		}
-		return Arrays.asList(child1, child2);
+		return Arrays.asList(this.child1, this.child2);
 	}
 
 	@Override
 	public boolean canBeFinal() {
-		return child1.isFinal() && child2.isFinal();
+		return this.child1.isFinal() && this.child2.isFinal();
 	}
 
 }

@@ -4,16 +4,14 @@ import java.util.Collection;
 
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 
-
-
 public class BaseCluster extends HierarchicalCluster {
-	
-	public BaseCluster(Point point, String id) {
+
+	public BaseCluster(final Point point, final String id) {
 		super(id);
 		this.point = point;
 	}
-	
-	private Point point;
+
+	private final Point point;
 
 	@Override
 	public int size() {
@@ -22,12 +20,12 @@ public class BaseCluster extends HierarchicalCluster {
 
 	@Override
 	public Point getClustroid() {
-		return point;
+		return this.point;
 	}
 
 	@Override
 	public Point[] getPoints() {
-		return new Point[] { point };
+		return new Point[] { this.point };
 	}
 
 	@Override
@@ -36,7 +34,7 @@ public class BaseCluster extends HierarchicalCluster {
 	}
 
 	@Override
-	public void makeFinal(boolean makeFinal) {
+	public void makeFinal(final boolean makeFinal) {
 	}
 
 	@Override
@@ -46,7 +44,8 @@ public class BaseCluster extends HierarchicalCluster {
 
 	@Override
 	public Collection<HierarchicalCluster> getChildren() {
-		throw new UnsupportedOperationException("A BaseCluster never has children");
+		throw new UnsupportedOperationException(
+				"A BaseCluster never has children");
 	}
 
 	@Override

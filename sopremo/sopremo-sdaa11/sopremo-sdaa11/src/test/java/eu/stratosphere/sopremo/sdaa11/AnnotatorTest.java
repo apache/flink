@@ -10,17 +10,17 @@ public class AnnotatorTest {
 
 	@Test
 	public void testAnnotator() {
-		Annotator annotator = new Annotator();
-		SopremoTestPlan plan = new SopremoTestPlan(annotator);
-		TextNode input = new TextNode("hallo");
+		final Annotator annotator = new Annotator();
+		final SopremoTestPlan plan = new SopremoTestPlan(annotator);
+		final TextNode input = new TextNode("hallo");
 		plan.getInput(0).add(input);
-		
-		ArrayNode expectedOutput = new ArrayNode();
+
+		final ArrayNode expectedOutput = new ArrayNode();
 		expectedOutput.add(input);
 		expectedOutput.add(Annotator.DUMMY_VALUE);
 		plan.getExpectedOutput(0).add(expectedOutput);
-		
+
 		plan.run();
 	}
-	
+
 }
