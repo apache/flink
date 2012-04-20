@@ -18,7 +18,6 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
@@ -29,9 +28,6 @@ public class ClusterToTreePreparation extends ElementaryOperator<ClusterToTreePr
 	
 	private static final long serialVersionUID = -5035298968776097883L;
 
-	private static final IntNode DUMMY_NODE = new IntNode(0);
-	public static final String DUMMY_KEY = "dummy";
-	
 	public static class Implementation extends SopremoMap {
 
 		ObjectNode outputNode = new ObjectNode();
@@ -44,7 +40,7 @@ public class ClusterToTreePreparation extends ElementaryOperator<ClusterToTreePr
 			ObjectNode clusterNode = (ObjectNode) value;
 			
 			// TODO: check whether it is better to just modify the incoming node
-			outputNode.put(DUMMY_KEY, DUMMY_NODE);
+			outputNode.put(TreeAssembler.DUMMY_KEY, TreeAssembler.DUMMY_NODE);
 			outputNode.put("id", clusterNode.get("id"));
 			outputNode.put("clustroid", clusterNode.get("clustroid"));
 			

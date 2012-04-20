@@ -8,6 +8,8 @@ import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 public class InitialClusteringTest {
 
@@ -17,21 +19,35 @@ public class InitialClusteringTest {
 		final SopremoTestPlan plan = new SopremoTestPlan(clustering);
 		
 		Point p1 = new Point("p1", Arrays.asList("1", "2", "3"));
-		Point p2 = new Point("p2", Arrays.asList("2", "3"));
-		Point p3 = new Point("p3", Arrays.asList("1", "2", "3"));
-		Point p4 = new Point("p4", Arrays.asList("1", "2", "3"));
+		Point p2 = new Point("p2", Arrays.asList("1", "2", "3", "4"));
+		Point p3 = new Point("p3", Arrays.asList("a", "b", "c"));
+		Point p4 = new Point("p4", Arrays.asList("a", "b", "w"));
 
 		plan.getInput(0)
-			.add(p1.write(null))
-			.add(p2.write(null))
-			.add(p3.write(null))
-			.add(p4.write(null));
+			.add(p1.write(NullNode.getInstance()))
+			.add(p2.write(NullNode.getInstance()))
+			.add(p3.write(NullNode.getInstance()))
+			.add(p4.write(NullNode.getInstance()));
+		
+		// this code works...
+//		plan.getInput(0)
+//			.add(createAnnotatedValue(p1.write((IJsonNode) null)))
+//			.add(createAnnotatedValue(p2.write((IJsonNode) null)))
+//			.add(createAnnotatedValue(p3.write((IJsonNode) null)))
+//			.add(createAnnotatedValue(p4.write((IJsonNode) null)));
 
 		plan.run();
 		
 		for (IJsonNode node : plan.getActualOutput(0)) {
 			System.out.println(node);
 		}
+	}
+	
+	private IJsonNode createAnnotatedValue(IJsonNode annotatee) {
+		final ObjectNode annotatedValue = new ObjectNode();
+		annotatedValue.put(Annotator.OBJECT_KEY, annotatee);
+		annotatedValue.put(Annotator.DUMMY_KEY, Annotator.DUMMY_VALUE);
+		return annotatedValue;
 	}
 
 }

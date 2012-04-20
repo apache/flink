@@ -143,8 +143,8 @@ public class Point implements Value, Serializable, Cloneable, Comparable<Point>,
 			valuesNode.add(new TextNode(value));
 		objectNode.put("values", valuesNode);
 		objectNode.put("rowsum", new IntNode(this.rowsum));
-
-		return node;
+		
+		return objectNode;
 	}
 	
 	public void read(IJsonNode node) {

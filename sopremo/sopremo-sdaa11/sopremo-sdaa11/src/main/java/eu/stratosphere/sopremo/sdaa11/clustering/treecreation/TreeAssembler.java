@@ -14,7 +14,11 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 
+import java.util.Arrays;
+
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -22,6 +26,7 @@ import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.tree.ClusterTree;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -32,11 +37,17 @@ import eu.stratosphere.sopremo.type.TextNode;
 public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 	
 	private static final long serialVersionUID = -1439186245691893155L;
+	
+	public static final IntNode DUMMY_NODE = new IntNode(0);
+	
+	public static final String DUMMY_KEY = "dummy";
+	
+	public static final int DEFAULT_TREE_WIDTH = 10;
 
 	/**
 	 * Specifies the degree of the created tree.
 	 */
-	private int treeWidth;
+	private int treeWidth = DEFAULT_TREE_WIDTH;
 
 	/**
 	 * Returns the treeWidth.
@@ -55,6 +66,14 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 	public void setTreeWidth(int treeWidth) {
 	
 		this.treeWidth = treeWidth;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
+	 */
+	@Override
+	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+		return Arrays.asList(new ObjectAccess(DUMMY_KEY));
 	}
 
 	public static class Implementation extends SopremoReduce {
@@ -79,7 +98,9 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 				tree.add(clustroid, clusterName);
 			}
 			
-			TextNode output = new TextNode(SopremoUtil.objectToString(tree));
+			TextNode serialization = new TextNode(SopremoUtil.objectToString(tree));
+			ObjectNode output = new ObjectNode();
+			output.put("tree", serialization);
 			out.collect(output);		
 		}
 		
