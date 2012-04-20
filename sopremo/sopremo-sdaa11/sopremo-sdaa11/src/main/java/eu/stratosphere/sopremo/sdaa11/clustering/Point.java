@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
 import eu.stratosphere.sopremo.sdaa11.clustering.util.SortedJaccardDistance;
 import eu.stratosphere.sopremo.sdaa11.util.FastStringComparator;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -17,7 +18,7 @@ import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
-public class Point implements Value, Serializable, Cloneable, Comparable<Point> {
+public class Point implements Value, Serializable, Cloneable, Comparable<Point>, JsonSerializable {
 
 	private static final long serialVersionUID = 8916618314991854207L;
 
@@ -129,21 +130,24 @@ public class Point implements Value, Serializable, Cloneable, Comparable<Point> 
 		return FastStringComparator.INSTANCE.compare(this.key, otherPoint.key);
 	}
 
-	public IJsonNode toJsonNode(ObjectNode node) {
-		if (node == null)
-			node = new ObjectNode();
+	public IJsonNode write(IJsonNode node) {
+		ObjectNode objectNode;
+		if (node == null || !(node instanceof ObjectNode))
+			objectNode = new ObjectNode();
+		else
+			objectNode = (ObjectNode) node;
 
-		node.put("id", new TextNode(this.key));
+		objectNode.put("id", new TextNode(this.key));
 		final ArrayNode valuesNode = new ArrayNode();
 		for (final String value : this.values)
 			valuesNode.add(new TextNode(value));
-		node.put("values", valuesNode);
-		node.put("rowsum", new IntNode(this.rowsum));
+		objectNode.put("values", valuesNode);
+		objectNode.put("rowsum", new IntNode(this.rowsum));
 
 		return node;
 	}
 	
-	public void fromJsonNode(IJsonNode node) {
+	public void read(IJsonNode node) {
 		if (node == null || !(node instanceof ObjectNode)) {
 			throw new IllegalArgumentException("Illegal point node: "+node);
 		}

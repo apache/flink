@@ -22,10 +22,10 @@ public class InitialClusteringTest {
 		Point p4 = new Point("p4", Arrays.asList("1", "2", "3"));
 
 		plan.getInput(0)
-			.add(p1.toJsonNode(null))
-			.add(p2.toJsonNode(null))
-			.add(p3.toJsonNode(null))
-			.add(p4.toJsonNode(null));
+			.add(p1.write(null))
+			.add(p2.write(null))
+			.add(p3.write(null))
+			.add(p4.write(null));
 
 		plan.run();
 		

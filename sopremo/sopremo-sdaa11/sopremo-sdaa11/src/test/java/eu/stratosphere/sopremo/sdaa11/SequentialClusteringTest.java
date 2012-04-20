@@ -26,10 +26,10 @@ public class SequentialClusteringTest {
 		Point p4 = new Point("p4", Arrays.asList("1", "2", "3"));
 
 		plan.getInput(0)
-			.add(createAnnotatedValue(p1.toJsonNode(null)))
-			.add(createAnnotatedValue(p2.toJsonNode(null)))
-			.add(createAnnotatedValue(p3.toJsonNode(null)))
-			.add(createAnnotatedValue(p4.toJsonNode(null)));
+			.add(createAnnotatedValue(p1.write(null)))
+			.add(createAnnotatedValue(p2.write(null)))
+			.add(createAnnotatedValue(p3.write(null)))
+			.add(createAnnotatedValue(p4.write(null)));
 
 		plan.run();
 		

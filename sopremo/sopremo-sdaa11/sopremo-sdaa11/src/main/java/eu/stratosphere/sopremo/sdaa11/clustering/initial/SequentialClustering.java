@@ -69,7 +69,7 @@ public class SequentialClustering extends
 		private void addPoints(final IArrayNode values) {
 			for (final IJsonNode value : values) {
 				final Point point = new Point();
-				point.fromJsonNode(Annotator.deannotate(value));
+				point.read(Annotator.deannotate(value));
 				this.queue.add(new BaseCluster(point, String.valueOf(this
 						.createNewId())));
 			}
@@ -123,12 +123,12 @@ public class SequentialClustering extends
 			if (cluster.isFinal()) {
 				final ArrayNode pointsNode = new ArrayNode();
 				for (final Point point : cluster.getPoints())
-					pointsNode.add(point.toJsonNode(null));
+					pointsNode.add(point.write((IJsonNode) null));
 
 				final ObjectNode clusterNode = new ObjectNode();
 				clusterNode.put("id", new TextNode(cluster.getId()));
 				clusterNode.put("clustroid",
-						cluster.getClustroid().toJsonNode(null));
+						cluster.getClustroid().write((IJsonNode) null));
 				clusterNode.put("points", pointsNode);
 
 				out.collect(clusterNode);
