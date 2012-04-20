@@ -23,11 +23,11 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 
 	@Test
 	public void shouldAddNodes() {
-		this.node.add(0, TextNode.valueOf("firstname"));
-		this.node.add(1, TextNode.valueOf("lastname"));
+		this.node.add(TextNode.valueOf("firstname"));
+		this.node.add(TextNode.valueOf("lastname"));
 
-		Assert.assertEquals(TextNode.valueOf("firstname"), this.node.get(0));
-		Assert.assertEquals(TextNode.valueOf("lastname"), this.node.get(1));
+		Assert.assertEquals(TextNode.valueOf("firstname"), this.node.get(this.node.size()-2));
+		Assert.assertEquals(TextNode.valueOf("lastname"), this.node.get(this.node.size()-1));
 	}
 
 	@Test

@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
+import org.junit.Ignore;
+
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.ArrayNodeBaseTest;
@@ -23,6 +25,7 @@ import eu.stratosphere.sopremo.type.IntNode;
  * @author Michael Hopstock
  *
  */
+@Ignore
 public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode>{
 
 	/* (non-Javadoc)
