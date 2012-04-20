@@ -38,28 +38,7 @@ public class TailArraySchema implements Schema {
 	 */
 	private static final long serialVersionUID = 4772055788210326536L;
 
-	private int headSize = 0;
-
 	private int tailSize = 0;
-
-	/**
-	 * Returns the headSize.
-	 * 
-	 * @return the headSize
-	 */
-	public int getHeadSize() {
-		return headSize;
-	}
-
-	/**
-	 * Sets the headSize to the specified value.
-	 * 
-	 * @param headSize
-	 *        the headSize to set
-	 */
-	public void setHeadSize(int headSize) {
-		this.headSize = headSize;
-	}
 
 	/**
 	 * Returns the tailSize.
@@ -79,10 +58,6 @@ public class TailArraySchema implements Schema {
 	public void setTailSize(int tailSize) {
 		this.tailSize = tailSize;
 	}
-	
-	public int getHeadTailSize(){
-		return this.getHeadSize() + this.getTailSize();
-	}
 
 	/*
 	 * (non-Javadoc)
@@ -90,9 +65,9 @@ public class TailArraySchema implements Schema {
 	 */
 	@Override
 	public Class<? extends Value>[] getPactSchema() {
-		Class<? extends Value>[] schema = new Class[getHeadSize() + getTailSize() + 1];
+		Class<? extends Value>[] schema = new Class[getTailSize() + 1];
 
-		for (int i = 0; i <= this.getHeadTailSize(); i++) {
+		for (int i = 0; i <= this.getTailSize(); i++) {
 			schema[i] = JsonNodeWrapper.class;
 		}
 
@@ -106,10 +81,11 @@ public class TailArraySchema implements Schema {
 	 */
 	@Override
 	public int[] indicesOf(EvaluationExpression expression) {
+		// TODO check correctness
 		ArrayAccess arrayExpression = (ArrayAccess) expression;
 
 		if (arrayExpression.isSelectingAll()) {
-			int[] indices = new int[this.getHeadSize() + 1];
+			int[] indices = new int[this.getTailSize() + 1];
 			for (int index = 0; index < indices.length; index++)
 				indices[index] = index;
 			return indices;
@@ -118,8 +94,8 @@ public class TailArraySchema implements Schema {
 			int endIndex = arrayExpression.getEndIndex();
 			if (startIndex < 0 || endIndex < 0)
 				throw new UnsupportedOperationException("Tail indices are not supported yet");
-			if (endIndex >= this.getHeadSize())
-				throw new IllegalArgumentException("Target index is not in head");
+			if (endIndex >= this.getTailSize())
+				throw new IllegalArgumentException("Target index is not in tail");
 
 			int[] indices = new int[endIndex - startIndex];
 			for (int index = 0; index < indices.length; index++)
@@ -127,8 +103,8 @@ public class TailArraySchema implements Schema {
 			return indices;
 		}
 		int index = arrayExpression.getStartIndex();
-		if (index >= this.getHeadSize())
-			throw new IllegalArgumentException("Target index is not in head");
+		if (index >= this.getTailSize())
+			throw new IllegalArgumentException("Target index is not in tail");
 		else if (index < 0)
 			throw new UnsupportedOperationException("Tail indices are not supported yet");
 		return new int[] { index };
@@ -144,57 +120,64 @@ public class TailArraySchema implements Schema {
 		IArrayNode others;
 		if (target == null || target.getNumFields() != 1) {
 
-			// the last element is the field "others"
-			target = new PactRecord(this.getHeadSize() + this.getTailSize() + 1);
+			// the first element is the field "others"
+			target = new PactRecord(this.getTailSize() + 1);
 			others = new ArrayNode();
-			target.setField(this.getHeadSize(), SopremoUtil.wrap(others));
+			target.setField(0, SopremoUtil.wrap(others));
 		} else {
 			// clear the others field if target was already used
-			others = (IArrayNode) SopremoUtil.unwrap(target.getField(this.getHeadSize(), JsonNodeWrapper.class));
+			others = (IArrayNode) SopremoUtil.unwrap(target.getField(0, JsonNodeWrapper.class));
 			others.clear();
 		}
 
 		IJsonNode arrayElement;
+		int arraySize = ((IArrayNode) value).size();
 
-		// fill the first headSize elements of the arraynode into the record
-		for (int i = 0; i < this.getHeadSize(); i++) {
-			arrayElement = ((IArrayNode) value).get(i);
+		// fill the last tailSize elements of the arraynode into the record
+		for (int i = 1; i <= this.getTailSize(); i++) {
+			arrayElement = ((IArrayNode) value).get(arraySize - i);
 			if (!arrayElement.isMissing()) {
-				target.setField(i, SopremoUtil.wrap(arrayElement));
-			} else { // incoming array is smaller than headSize
-				target.setNull(i);
+				target.setField(this.getTailSize()-i +1, SopremoUtil.wrap(arrayElement));
+			} else { // incoming array is smaller than tailSize
+				target.setNull(this.getTailSize()-i +1);
 			}
 		}
 
-		if (this.getHeadTailSize() < ((IArrayNode) value).size()) {
-			// there are still remaining elements in the array we insert them into the others field untill the tail
-			// begins
-			for (int i = this.getHeadSize(); i < ((IArrayNode) value).size() - this.getTailSize(); i++) {
+		if (this.getTailSize() < arraySize) {
+			// fill the remaining elements of the array into the leading others field
+			for (int i = 0; i < ((IArrayNode) value).size() - this.getTailSize(); i++) {
 				others.add(((IArrayNode) value).get(i));
 			}
-			// fill the rest into tail
-			for (int i = ((IArrayNode) value).size() - this.getTailSize(); i < ((IArrayNode) value).size(); i++) {
-				arrayElement = ((IArrayNode) value).get(i);
-				if (!arrayElement.isMissing()) {
-					target.setField(i - others.size() - 1, SopremoUtil.wrap(arrayElement));
-				}
-				/*
-				 * should not happen
-				 * else { /
-				 * }
-				 */
-			}
-
-		} else { // tail would possibly not get filled entirely, so we don't need to fill the others field
-			for (int i = this.getHeadSize(); i < ((IArrayNode) value).size(); i++) {
-				arrayElement = ((IArrayNode) value).get(i);
-				if (!arrayElement.isMissing()) {
-					target.setField(i + 1, SopremoUtil.wrap(arrayElement));
-				} else { // headSize < size(incoming array) < headSize+ tailSize
-					target.setNull(i + 1);
-				}
-			}
 		}
+
+		// if (this.getHeadTailSize() < ((IArrayNode) value).size()) {
+		// // there are still remaining elements in the array we insert them into the others field
+		// for (int i = this.getHeadSize(); i < ((IArrayNode) value).size() - this.getTailSize(); i++) {
+		// others.add(((IArrayNode) value).get(i));
+		// }
+		// // fill the rest into tail
+		// for (int i = ((IArrayNode) value).size() - this.getTailSize(); i < ((IArrayNode) value).size(); i++) {
+		// arrayElement = ((IArrayNode) value).get(i);
+		// if (!arrayElement.isMissing()) {
+		// target.setField(i - others.size() - 1, SopremoUtil.wrap(arrayElement));
+		// }
+		// /*
+		// * should not happen
+		// * else { /
+		// * }
+		// */
+		// }
+		//
+		// } else { // tail would possibly not get filled entirely, so we don't need to fill the others field
+		// for (int i = this.getHeadSize(); i < ((IArrayNode) value).size(); i++) {
+		// arrayElement = ((IArrayNode) value).get(i);
+		// if (!arrayElement.isMissing()) {
+		// target.setField(i + 1, SopremoUtil.wrap(arrayElement));
+		// } else { // headSize < size(incoming array) < headSize+ tailSize
+		// target.setNull(i + 1);
+		// }
+		// }
+		// }
 
 		return target;
 	}
@@ -206,7 +189,7 @@ public class TailArraySchema implements Schema {
 	 */
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		if (this.getHeadSize() + this.getTailSize()+ 1 != record.getNumFields()) {
+		if (this.getTailSize() + 1 != record.getNumFields()) {
 			throw new IllegalStateException("Schema does not match to record!");
 		}
 		if (target == null) {
@@ -215,19 +198,12 @@ public class TailArraySchema implements Schema {
 			((IArrayNode) target).clear();
 		}
 		JsonNodeWrapper recordElement;
-		// insert head of record
-		for (int i = 0; i < this.getHeadSize(); i++) {
-			recordElement = record.getField(i, JsonNodeWrapper.class);
-			if (recordElement != null) {
-				((IArrayNode) target).add(SopremoUtil.unwrap(recordElement));
-			}
-		}
 		// insert all elements from others
-		((IArrayNode) target).addAll((IArrayNode) SopremoUtil.unwrap(record.getField(this.getHeadSize(),
+		((IArrayNode) target).addAll((IArrayNode) SopremoUtil.unwrap(record.getField(0,
 			JsonNodeWrapper.class)));
 
 		// insert tail of record
-		for (int i = this.getHeadSize() + 1; i <= this.getHeadSize() + this.getTailSize(); i++) {
+		for (int i = 1; i <= this.getTailSize(); i++) {
 			recordElement = record.getField(i, JsonNodeWrapper.class);
 			if (recordElement != null) {
 				((IArrayNode) target).add(SopremoUtil.unwrap(recordElement));
