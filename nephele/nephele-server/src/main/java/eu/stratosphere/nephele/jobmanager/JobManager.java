@@ -415,7 +415,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return result;
 		}
 
-		LOG.debug("Submitted job " + job.getName() + " is not null");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Submitted job " + job.getName() + " is not null");
+		}
 
 		// Check if any vertex of the graph has null edges
 		AbstractJobVertex jv = job.findVertexWithNullEdges();
@@ -425,7 +427,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return result;
 		}
 
-		LOG.debug("Submitted job " + job.getName() + " has no null edges");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Submitted job " + job.getName() + " has no null edges");
+		}
 
 		// Next, check if the graph is weakly connected
 		if (!job.isWeaklyConnected()) {
@@ -434,7 +438,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return result;
 		}
 
-		LOG.debug("The graph of job " + job.getName() + " is weakly connected");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("The graph of job " + job.getName() + " is weakly connected");
+		}
 
 		// Check if job graph has cycles
 		if (!job.isAcyclic()) {
@@ -443,7 +449,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return result;
 		}
 
-		LOG.debug("The graph of job " + job.getName() + " is acyclic");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("The graph of job " + job.getName() + " is acyclic");
+		}
 
 		// Check constrains on degree
 		jv = job.areVertexDegreesCorrect();
@@ -453,7 +461,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return result;
 		}
 
-		LOG.debug("All vertices of job " + job.getName() + " have the correct degree");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("All vertices of job " + job.getName() + " have the correct degree");
+		}
 
 		if (!job.isInstanceDependencyChainAcyclic()) {
 			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
@@ -462,7 +472,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return result;
 		}
 
-		LOG.debug("The dependency chain for instance sharing is acyclic");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("The dependency chain for instance sharing is acyclic");
+		}
 
 		// Check if the job will be executed with profiling enabled
 		boolean jobRunsWithProfiling = false;
@@ -484,10 +496,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			final JobGraph inputJob = job;
 			job = plugin.rewriteJobGraph(inputJob);
 			if (job == null) {
-				LOG.warn("Plugin " + plugin + " set job graph to null, reverting changes...");
+				if (LOG.isWarnEnabled()) {
+					LOG.warn("Plugin " + plugin + " set job graph to null, reverting changes...");
+				}
 				job = inputJob;
 			}
-			if (job != inputJob) {
+			if (job != inputJob && LOG.isDebugEnabled()) {
 				LOG.debug("Plugin " + plugin + " rewrote job graph");
 			}
 		}
@@ -556,7 +570,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		eg.registerJobStatusListener(this);
 
 		// Schedule job
-		LOG.info("Scheduling job " + job.getName());
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Scheduling job " + job.getName());
+		}
+
 		try {
 			this.scheduler.schedulJob(eg);
 		} catch (SchedulingException e) {
