@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+<project basedir="." default="execute" name="sopremo-cleansing">
+	<property file="build.properties" />
+
+	<target name="make-jar">
+		<jar manifest="${dir.manifest}/MANIFEST.MF" destfile="${project.name}.jar">
+			<fileset dir="${dir.classes}" />
+			<fileset file="${dir.lib}/*.jar" />
+		</jar>
+	</target>
+
+	<target name="execute" depends="make-jar">
+		<copy file="${project.name}.jar" todir="/tmp/pact-jobs/" />
+		<copy file="${project.name}.jar" todir="/home/arv/workspace/private/stratosphere-dist/target/stratosphere-dist-0.1.1-bin/stratosphere-0.1.1/lib" />
+
+		<exec executable="/home/arv/workspace/private/stratosphere-dist/target/stratosphere-dist-0.1.1-bin/stratosphere-0.1.1/bin/run.sh" dir="/home/arv/workspace/private/stratosphere-dist/target/stratosphere-dist-0.1.1-bin/stratosphere-0.1.1/bin">
+			<arg value="0" />
+			<arg value="11" />
+		</exec>
+	</target>
+
+	<target name="deploy-on-stratosphere" depends="make-jar" description="copy JAR to stratosphere server">
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenemhead2:~/strat/lib" trust="true" />
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem01:~/strat/lib" trust="true" />
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem02:~/strat/lib" trust="true" />
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem03:~/strat/lib" trust="true" />
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem04:~/strat/lib" trust="true" />
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem05:~/strat/lib" trust="true" />
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem06:~/strat/lib" trust="true" />
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem07:~/strat/lib" trust="true" />
+		<scp file="${project.name}.jar" todir="${server.user}:${server.pwd}@tenem08:~/strat/lib" trust="true" />
+	</target>
+
+	<target name="deploy-on-stratosphere2" depends="make-jar" description="copy JAR to stratosphere server">
+		<scp file="${project.name}.jar" todir="localhost:1337@tenemhead2:~/strat/lib" trust="true" />
+	</target>
+</project>

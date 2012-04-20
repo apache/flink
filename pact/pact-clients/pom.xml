@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>pact</artifactId>
+    <groupId>eu.stratosphere</groupId>
+    <version>0.2</version>
+  </parent>
+
+  <artifactId>pact-clients</artifactId>
+  <name>pact-clients</name>
+
+  <packaging>jar</packaging>
+
+  <dependencies>
+    
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-common</artifactId>
+      <version>${version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-compiler</artifactId>
+      <version>${version}</version>
+    </dependency>
+
+    <dependency>
+    	<groupId>commons-cli</groupId>
+    	<artifactId>commons-cli</artifactId>
+    	<version>1.2</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+
+    <dependency>
+    	<groupId>org.eclipse.jetty</groupId>
+    	<artifactId>jetty-server</artifactId>
+    	<version>8.0.0.M1</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+
+    <dependency>
+    	<groupId>org.eclipse.jetty</groupId>
+    	<artifactId>jetty-security</artifactId>
+    	<version>8.0.0.M1</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+
+    <dependency>
+    	<groupId>org.eclipse.jetty</groupId>
+    	<artifactId>jetty-servlet</artifactId>
+    	<version>8.0.0.M1</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+
+    <dependency>
+    	<groupId>commons-fileupload</groupId>
+    	<artifactId>commons-fileupload</artifactId>
+    	<version>1.2.2</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+
+    <dependency>
+    	<groupId>org.apache.commons</groupId>
+    	<artifactId>commons-io</artifactId>
+    	<version>1.3.2</version>
+    	<type>jar</type>
+    	<scope>compile</scope>
+    </dependency>
+    
+    <dependency>
+		<groupId>junit</groupId>
+		<artifactId>junit</artifactId>
+		<version>4.7</version>
+		<type>jar</type>
+	</dependency>
+	
+	<dependency>
+		<groupId>org.mockito</groupId>
+		<artifactId>mockito-all</artifactId>
+		<version>1.8.5</version>
+		<type>jar</type>
+	</dependency>
+	
+	<dependency>
+		<groupId>org.powermock</groupId>
+		<artifactId>powermock-module-junit4</artifactId>
+		<version>1.4.9</version>
+		<type>jar</type>
+	</dependency>
+	
+	<dependency>
+		<groupId>org.powermock</groupId>
+		<artifactId>powermock-api-mockito</artifactId>
+		<version>1.4.9</version>
+		<type>jar</type>
+	</dependency>
+	
+	<dependency>
+		<groupId>org.hamcrest</groupId>
+		<artifactId>hamcrest-all</artifactId>
+		<version>1.1</version>
+		<type>jar</type>
+	</dependency>
+
+	<dependency>
+		<groupId>it.unimi.dsi</groupId>
+		<artifactId>fastutil</artifactId>
+		<version>6.4.1</version>
+	</dependency>
+  </dependencies>
+
+  <reporting>
+    <plugins>
+    </plugins>
+  </reporting>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+       </plugin>
+    </plugins>
+  </build>
+  
+</project>

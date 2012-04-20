@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <artifactId>stratosphere</artifactId>
+        <groupId>eu.stratosphere</groupId>
+        <version>0.2</version>
+    </parent>
+
+    <artifactId>nephele</artifactId>
+
+    <packaging>pom</packaging>
+
+    <name>nephele</name>
+    <url>http://maven.apache.org</url>
+
+    <inceptionYear>2009</inceptionYear>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>nephele</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>warneke</id>
+            <name>Daniel Warneke</name>
+            <email>daniel.warneke@tu-berlin.de</email>
+            <organization>TU-Berlin, CIT</organization>
+            <organizationUrl>http://www.cit.tu-berlin.de</organizationUrl>
+            <roles>
+                <role>Lead Developer</role>
+            </roles>
+        </developer>
+        
+        <developer>
+            <id>battre</id>
+            <name>Dominic Battre</name>
+            <email>dominic.battre@tu-berlin.de</email>
+            <organization>TU-Berlin, CIT</organization>
+            <organizationUrl>http://www.cit.tu-berlin.de</organizationUrl>
+            <roles>
+                <role>Developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <reporting>
+        <plugins>
+        </plugins>
+    </reporting>
+    
+    <build>
+		<plugins>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.1.1</version>
+				<executions>
+					<execution>
+					  <id>source:aggregate</id>
+					  <phase>package</phase>
+					  <goals>
+						<goal>aggregate</goal>
+					  </goals>
+					</execution>
+				</executions>
+				<configuration>
+					<includes>
+						<include>eu/stratosphere/nephele/*</include>
+					</includes>
+				</configuration>
+			</plugin>
+
+		</plugins>
+	</build>
+
+    <dependencyManagement>
+        <dependencies>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+
+    </dependencies>
+
+    <modules>
+      <module>nephele-common</module>
+      <module>nephele-management</module>
+      <module>nephele-profiling</module>
+      <module>nephele-queuescheduler</module>
+      <module>nephele-ec2cloudmanager</module>
+      <module>nephele-clustermanager</module>
+      <module>nephele-hdfs</module>
+      <module>nephele-s3</module>
+      <module>nephele-visualization</module>
+      <module>nephele-server</module>
+      <module>nephele-examples</module>
+    </modules>
+</project>

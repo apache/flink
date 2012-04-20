@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <artifactId>stratosphere</artifactId>
+        <groupId>eu.stratosphere</groupId>
+        <version>0.2</version>
+    </parent>
+
+    <groupId>eu.stratosphere</groupId>
+    <artifactId>sopremo</artifactId>
+
+    <packaging>pom</packaging>
+	
+    <version>0.2</version>
+    <name>sopremo</name>
+
+    <inceptionYear>2011</inceptionYear>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>nephele</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>aheise</id>
+            <name>Arvid Heise</name>
+            <email>arvid.heise@hpi.uni-potsdam.de</email>
+            <organization>Hasso Plattner Institute, University of Potsdam</organization>
+            <organizationUrl>http://hpi.uni-potsdam.de</organizationUrl>
+            <roles>
+                <role>Lead Developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <properties>
+    </properties>
+
+    <dependencyManagement>
+        <!--
+        this section defines the module versions that are used if nothing
+        else is specified.
+        -->
+        <dependencies>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>	
+		<dependency>
+			<groupId>nl.jqno.equalsverifier</groupId>
+			<artifactId>equalsverifier</artifactId>
+			<version>1.0.1</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+    </dependencies>
+
+	<repositories>
+		<repository>
+			<id>equalsverifier-repository</id>
+			<url>http://equalsverifier.googlecode.com/svn/maven/</url>
+		</repository>
+	</repositories>
+    
+    <build>
+		<plugins>
+		
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.1.1</version>
+				<executions>
+					<execution>
+					  <id>source:aggregate</id>
+					  <phase>package</phase>
+					  <goals>
+						<goal>aggregate</goal>
+					  </goals>
+					</execution>
+				</executions>
+				<configuration>
+					<includes>
+						<include>eu/stratosphere/sopremo/*</include>
+					</includes>
+				</configuration>
+			</plugin>
+			
+		</plugins>
+	</build>
+
+    <modules>
+        <module>sopremo-common</module>
+        <module>sopremo-base</module>
+        <module>sopremo-cleansing</module>
+    </modules>
+</project>
