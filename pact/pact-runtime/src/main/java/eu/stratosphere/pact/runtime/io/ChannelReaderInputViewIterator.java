@@ -65,6 +65,14 @@ public class ChannelReaderInputViewIterator<E> implements MutableObjectIterator<
 		this.freeMemTarget = freeMemTarget;
 		this.inView = new ChannelReaderInputView(reader, segments, numBlocks, false);
 	}
+	
+	public ChannelReaderInputViewIterator(ChannelReaderInputView inView, List<MemorySegment> freeMemTarget, TypeAccessors<E> accessors)
+	{
+		this.inView = inView;
+		this.freeMemTarget = freeMemTarget;
+		this.accessors = accessors;
+	}
+			
 
 	/* (non-Javadoc)
 	 * @see java.util.Iterator#next()

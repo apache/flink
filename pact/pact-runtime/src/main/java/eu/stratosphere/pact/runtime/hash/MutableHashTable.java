@@ -33,7 +33,9 @@ import eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView;
 import eu.stratosphere.pact.common.type.LazyDeSerializable;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.HashJoin;
+import eu.stratosphere.pact.runtime.io.ChannelReaderInputView;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
+import eu.stratosphere.pact.runtime.io.HeaderlessChannelReaderInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
@@ -761,13 +763,15 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			segments.add(getNextBuffer());
 			segments.add(getNextBuffer());
 			
-			final ChannelReaderInputViewIterator<BT> reader = new ChannelReaderInputViewIterator<BT>(
-					this.ioManager, p.getBuildSideChannel().getChannelID(), segments, this.availableMemory, 
-					this.buildSideAccessors, p.getBuildSideBlockCount());
+			final BlockChannelReader inReader = this.ioManager.createBlockChannelReader(p.getBuildSideChannel().getChannelID());
+			final ChannelReaderInputView inView = new HeaderlessChannelReaderInputView(inReader, segments,
+						p.getBuildSideBlockCount(), p.getLastSegmentLimit(), false);
+			final ChannelReaderInputViewIterator<BT> inIter = new ChannelReaderInputViewIterator<BT>(inView, 
+					this.availableMemory, this.buildSideAccessors);
 			
 			final TypeAccessors<BT> btAccessor = this.buildSideAccessors;
-			BT rec = btAccessor.createInstance();
-			while (reader.next(rec))
+			final BT rec = btAccessor.createInstance();
+			while (inIter.next(rec))
 			{	
 				final int hashCode = hash(btAccessor.hash(rec), nextRecursionLevel);
 				insertIntoTable(rec, hashCode);

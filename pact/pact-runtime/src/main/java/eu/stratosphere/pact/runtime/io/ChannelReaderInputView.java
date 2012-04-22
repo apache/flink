@@ -36,11 +36,11 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  */
 public class ChannelReaderInputView extends AbstractPagedInputView
 {
-	private final BlockChannelReader reader;		// the block reader that reads memory segments
+	protected final BlockChannelReader reader;		// the block reader that reads memory segments
+	
+	protected int numRequestsRemaining;				// the number of block requests remaining
 	
 	private final int numSegments;					// the number of memory segment the view works with
-	
-	private int numRequestsRemaining;				// the number of block requests remaining
 	
 	private final ArrayList<MemorySegment> freeMem;	// memory gathered once the work is done
 	
@@ -49,19 +49,59 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 	private boolean closed;							// flag indicating whether the reader is closed
 	
 	// --------------------------------------------------------------------------------------------
-	
 
+	/**
+	 * Creates a new channel reader that reads from the given channel until the last block
+	 * (as marked by a {@link ChannelWriterOutputView}) is found.
+	 * 
+	 * @param reader The reader that reads the data from disk back into memory.
+	 * @param memory A list of memory segments that the reader uses for reading the data in. If the
+	 *               list contains more than one segment, the reader will asynchronously pre-fetch
+	 *               blocks ahead.
+	 * @param waitForFirstBlock A flag indicating weather this constructor call should block
+	 *                          until the first block has returned from the asynchronous I/O reader.
+	 * 
+	 * @throws IOException Thrown, if the read requests for the first blocks fail to be
+	 *                     served by the reader.
+	 */
 	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, boolean waitForFirstBlock)
 	throws IOException
 	{
 		this(reader, memory, -1, waitForFirstBlock);
 	}
 	
+	/**
+	 * Creates a new channel reader that reads from the given channel, expecting a specified
+	 * number of blocks in the channel.
+	 * 
+	 * WARNING: The reader will lock if the number of blocks given here is actually lower than
+	 * the actual number of blocks in the channel.
+	 * 
+	 * @param reader The reader that reads the data from disk back into memory.
+	 * @param memory A list of memory segments that the reader uses for reading the data in. If the
+	 *               list contains more than one segment, the reader will asynchronously pre-fetch
+	 *               blocks ahead.
+	 * @param numBlocks The number of blocks this channel will read. If this value is
+	 *                  given, the reader avoids issuing pre-fetch requests for blocks
+	 *                  beyond the channel size.
+	 * @param waitForFirstBlock A flag indicating weather this constructor call should block
+	 *                          until the first block has returned from the asynchronous I/O reader.
+	 * 
+	 * @throws IOException Thrown, if the read requests for the first blocks fail to be
+	 *                     served by the reader.
+	 */
 	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, 
 														int numBlocks, boolean waitForFirstBlock)
 	throws IOException
 	{
-		super(ChannelWriterOutputView.HEADER_LENGTH);
+		this(reader, memory, numBlocks, ChannelWriterOutputView.HEADER_LENGTH, waitForFirstBlock);
+	}
+		
+	ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, 
+				int numBlocks, int headerLen, boolean waitForFirstBlock)
+	throws IOException
+	{
+		super(headerLen);
 		
 		if (reader == null || memory == null)
 			throw new NullPointerException();
@@ -193,7 +233,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 	 * @param seg The segment to use for the read request.
 	 * @throws IOException Thrown, if the reader is in error.
 	 */
-	private void sendReadRequest(MemorySegment seg) throws IOException
+	protected void sendReadRequest(MemorySegment seg) throws IOException
 	{
 		if (this.numRequestsRemaining != 0) {
 			this.reader.readBlock(seg);
