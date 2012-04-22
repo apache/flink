@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -36,13 +37,13 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.generic.Collector;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputView;
+import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
 import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.plugable.PactRecordAccessors;
+import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
@@ -55,7 +56,7 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
  * @author Stephan Ewen
  * @author Erik Nijkamp
  */
-public class UnilateralSortMerger implements SortMerger
+public class UnilateralSortMerger<E> implements Sorter<E>
 {	
 	// ------------------------------------------------------------------------
 	//                              Constants
@@ -67,39 +68,14 @@ public class UnilateralSortMerger implements SortMerger
 	private static final Log LOG = LogFactory.getLog(UnilateralSortMerger.class);
 	
 	/**
-	 * The minimal size of an IO buffer. Currently set to 32 KiBytes
-	 */
-	protected static final int MIN_IO_BUFFER_SIZE = 32 * 1024;
-
-	/**
-	 * The maximal size of an IO buffer. Currently set to 512 KiBytes
-	 */
-	protected static final int MAX_IO_BUFFER_SIZE = 512 * 1024;
-	
-	/**
 	 * The number of buffers to use by the writers.
 	 */
 	protected static final int NUM_WRITE_BUFFERS = 2;
 	
 	/**
-	 * The size of a memory segment used for sorting.
-	 */
-	protected static final int SORT_MEM_SEGMENT_SIZE = 64 * 1024;
-	
-	/**
 	 * The minimum number of segments that are required for the sort to operate.
 	 */
 	protected static final int MIN_NUM_SORT_MEM_SEGMENTS = 32;
-	
-	/**
-	 * The minimal size of a sort buffer, currently 2 MiBytes.
-	 */
-	protected static final int MIN_SORT_MEM = SORT_MEM_SEGMENT_SIZE * MIN_NUM_SORT_MEM_SEGMENTS;
-	
-	/**
-	 * The minimal amount of memory required for writing.
-	 */
-	protected static final int MIN_WRITE_MEM = NUM_WRITE_BUFFERS * MIN_IO_BUFFER_SIZE;
 
 	// ------------------------------------------------------------------------
 	//                               Fields
@@ -124,7 +100,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The segments for the sort buffers.
 	 */
-	protected final List<NormalizedKeySorter<?>> sortBuffers;
+	protected final List<NormalizedKeySorter<E>> sortBuffers;
 
 	/**
 	 * The memory manager through which memory is allocated and released.
@@ -135,21 +111,6 @@ public class UnilateralSortMerger implements SortMerger
 	 * The I/O manager through which file reads and writes are performed.
 	 */
 	protected final IOManager ioManager;
-
-	/**
-	 * The comparator through which an order over the keys is established.
-	 */
-	protected final Comparator<Key>[] keyComparators;
-	
-	/**
-	 * The positions of the keys in the records.
-	 */
-	protected final int[] keyPositions;
-	
-	/**
-	 * The classes of the key types.
-	 */
-	protected final Class<? extends Key>[] keyClasses;
 	
 	/**
 	 * The parent task that owns this sorter.
@@ -161,11 +122,13 @@ public class UnilateralSortMerger implements SortMerger
 	 */
 	protected final Object iteratorLock = new Object();
 	
+	protected final TypeAccessors<E> typeAccessors;
+	
 	/**
-	 * The iterator to be returned by the sort-merger. This variable is zero, while receiving and merging is still in
+	 * The iterator to be returned by the sort-merger. This variable is null, while receiving and merging is still in
 	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
 	 */
-	protected volatile MutableObjectIterator<PactRecord> iterator;
+	protected volatile MutableObjectIterator<E> iterator;
 	
 	/**
 	 * The exception that is set, if the iterator cannot be created.
@@ -194,17 +157,17 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The thread that reads the input channels into buffers and passes them on to the merger.
 	 */
-	private final ThreadBase readThread;
+	private final ThreadBase<E> readThread;
 
 	/**
 	 * The thread that merges the buffer handed from the reading thread.
 	 */
-	private final ThreadBase sortThread;
+	private final ThreadBase<E> sortThread;
 
 	/**
 	 * The thread that handles spilling to secondary storage.
 	 */
-	private final ThreadBase spillThread;
+	private final ThreadBase<E> spillThread;
 
 	// ------------------------------------------------------------------------
 	//                         Constructor & Shutdown
@@ -218,9 +181,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param totalMemory The total amount of memory dedicated to sorting and merging.
-	 * @param keyComparators The comparator used to define the order among the keys.
-	 * @param keyPositions The logical positions of the keys in the records.
-	 * @param keyClasses The types of the keys.
+	 * @param accessors The type accessor class describing order and serialization logic.
 	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
@@ -231,12 +192,11 @@ public class UnilateralSortMerger implements SortMerger
 	 *                                   perform the sort.
 	 */
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
-			long totalMemory, int maxNumFileHandles,
-			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			MutableObjectIterator<PactRecord> input, AbstractInvokable parentTask, float startSpillingFraction)
+			long totalMemory, int maxNumFileHandles, TypeAccessors<E> accessors,
+			MutableObjectIterator<E> input, AbstractInvokable parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
-		this(memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles, keyComparators, keyPositions, keyClasses, 
+		this(memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles, accessors, 
 			input, parentTask, startSpillingFraction);
 	}
 	
@@ -255,9 +215,7 @@ public class UnilateralSortMerger implements SortMerger
 	 *                 amount of memory (<code>totalMemory</code>).
 	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
-	 * @param keyComparators The comparator used to define the order among the keys.
-	 * @param keyPositions The logical positions of the keys in the records.
-	 * @param keyClasses The types of the keys.
+	 * @param accessors The type accessor class describing order and serialization logic.
 	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
@@ -269,12 +227,12 @@ public class UnilateralSortMerger implements SortMerger
 	 */
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			long totalMemory, long maxWriteMem, int numSortBuffers, int maxNumFileHandles,
-			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			MutableObjectIterator<PactRecord> input, AbstractInvokable parentTask, float startSpillingFraction)
+			TypeAccessors<E> accessors,
+			MutableObjectIterator<E> input, AbstractInvokable parentTask, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		// sanity checks
-		if (memoryManager == null | ioManager == null | keyComparators == null | keyPositions == null | keyClasses == null) {
+		if (memoryManager == null | ioManager == null | accessors == null) {
 			throw new NullPointerException();
 		}
 		if (parentTask == null) {
@@ -282,12 +240,6 @@ public class UnilateralSortMerger implements SortMerger
 		}
 		if (maxNumFileHandles < 2) {
 			throw new IllegalArgumentException("Merger cannot work with less than two file handles.");
-		}
-		if (keyComparators.length < 1) {
-			throw new IllegalArgumentException("There must be at least one sort column and hence one comparator.");
-		}
-		if (keyComparators.length != keyPositions.length || keyPositions.length != keyClasses.length) {
-			throw new IllegalArgumentException("The number of comparators, key columns and key types must match.");
 		}
 		
 		if (totalMemory < MIN_SORT_MEM + MIN_WRITE_MEM) {
@@ -297,9 +249,7 @@ public class UnilateralSortMerger implements SortMerger
 		this.maxNumFileHandles = maxNumFileHandles;
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
-		this.keyComparators = keyComparators;
-		this.keyPositions = keyPositions;
-		this.keyClasses = keyClasses;
+		this.typeAccessors = accessors;
 		this.parent = parentTask;
 		
 		this.memoryToReleaseAtShutdown = new ArrayList<List<MemorySegment>>();
@@ -370,20 +320,20 @@ public class UnilateralSortMerger implements SortMerger
 		}
 		
 		// circular queues pass buffers between the threads
-		final CircularQueues circularQueues = new CircularQueues();
+		final CircularQueues<E> circularQueues = new CircularQueues<E>();
 		
-		this.sortBuffers = new ArrayList<NormalizedKeySorter<?>>(numSortBuffers);
+		this.sortBuffers = new ArrayList<NormalizedKeySorter<E>>(numSortBuffers);
 		
 		// allocate the sort buffers and fill empty queue with them
 		for (int i = 0; i < numSortBuffers; i++)
 		{
 			final List<MemorySegment> sortSegments = memoryManager.allocateStrict(parentTask, numSegmentsPerSortBuffer, SORT_MEM_SEGMENT_SIZE);
-			final PactRecordAccessors accessors = new PactRecordAccessors(keyPositions, keyClasses);
-			final NormalizedKeySorter<PactRecord> buffer = new NormalizedKeySorter<PactRecord>(accessors, sortSegments);
+			final TypeAccessors<E> ta = accessors.duplicate();
+			final NormalizedKeySorter<E> buffer = new NormalizedKeySorter<E>(ta, sortSegments);
 			this.sortBuffers.add(buffer);
 
 			// add to empty queue
-			CircularElement element = new CircularElement(i, buffer);
+			CircularElement<E> element = new CircularElement<E>(i, buffer);
 			circularQueues.empty.add(element);
 		}
 
@@ -628,11 +578,12 @@ public class UnilateralSortMerger implements SortMerger
 	 *        The task at which the thread registers itself (for profiling purposes).
 	 * @return The thread that reads data from a Nephele reader and puts it into a queue.
 	 */
-	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler,
-			MutableObjectIterator<PactRecord> reader, CircularQueues queues, AbstractInvokable parentTask,
+	protected ThreadBase<E> getReadingThread(ExceptionHandler<IOException> exceptionHandler,
+			MutableObjectIterator<E> reader, CircularQueues<E> queues, AbstractInvokable parentTask,
 			long startSpillingBytes)
 	{
-		return new ReadingThread(exceptionHandler, reader, queues, parentTask, startSpillingBytes);
+		return new ReadingThread<E>(exceptionHandler, reader, queues, this.typeAccessors.createInstance(),
+			parentTask, startSpillingBytes);
 	}
 
 	/**
@@ -649,10 +600,10 @@ public class UnilateralSortMerger implements SortMerger
 	 *        The task at which the thread registers itself (for profiling purposes).
 	 * @return The sorting thread.
 	 */
-	protected ThreadBase getSortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
+	protected ThreadBase<E> getSortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 			AbstractInvokable parentTask)
 	{
-		return new SortingThread(exceptionHandler, queues, parentTask);
+		return new SortingThread<E>(exceptionHandler, queues, parentTask);
 	}
 
 	/**
@@ -668,7 +619,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @param parentTask The task at which the thread registers itself (for profiling purposes).
 	 * @return The thread that does the spilling and pre-merging.
 	 */
-	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
+	protected ThreadBase<E> getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 			MemoryManager memoryManager, IOManager ioManager, long readMemSize,
 			AbstractInvokable parentTask)
 	{
@@ -684,7 +635,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @see eu.stratosphere.pact.runtime.sort.SortMerger#getIterator()
 	 */
 	@Override
-	public MutableObjectIterator<PactRecord> getIterator() throws InterruptedException
+	public MutableObjectIterator<E> getIterator() throws InterruptedException
 	{
 		synchronized (this.iteratorLock) {
 			// wait while both the iterator and the exception are not set
@@ -708,7 +659,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * 
 	 * @param iterator The result iterator to set.
 	 */
-	protected final void setResultIterator(MutableObjectIterator<PactRecord> iterator)
+	protected final void setResultIterator(MutableObjectIterator<E> iterator)
 	{
 		synchronized (this.iteratorLock) {
 			// set the result iterator only, if no exception has occurred
@@ -748,7 +699,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * @return An iterator over the merged records of the input channels.
 	 * @throws IOException Thrown, if the readers encounter an I/O problem.
 	 */
-	protected final MergeIterator getMergingIterator(final List<Channel.ID> channelIDs,
+	protected final MergeIterator<E> getMergingIterator(final List<Channel.ID> channelIDs,
 		final List<List<MemorySegment>> inputSegments, List<BlockChannelAccess<?, ?>> readerList)
 	throws IOException
 	{
@@ -771,15 +722,13 @@ public class UnilateralSortMerger implements SortMerger
 			inViews.add(inView);
 		}
 		
-		
-		final List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>(channelIDs.size());
+		final List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(channelIDs.size());
 		for (int i = 0; i < inViews.size(); i++) {
 			final ChannelReaderInputView inView = inViews.get(i);
-			inView.waitForFirstBlock();
-			iterators.add(new ChannelReaderIterator(inView));
+			iterators.add(new ChannelReaderInputViewIterator<E>(inView, null, this.typeAccessors));
 		}
 
-		return new MergeIterator(iterators, this.keyComparators, this.keyPositions, this.keyClasses);
+		return new MergeIterator<E>(iterators, this.typeAccessors);
 	}
 
 	/**
@@ -852,7 +801,7 @@ public class UnilateralSortMerger implements SortMerger
 		List<BlockChannelAccess<?, ?>> channelAccesses = new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size());
 
 		// the list with the target iterators
-		final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
+		final MergeIterator<E> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
 
 		// create a new channel writer
 		final Channel.ID mergedChannelID = this.ioManager.createChannel();
@@ -861,9 +810,10 @@ public class UnilateralSortMerger implements SortMerger
 		final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, this.ioBufferSize);
 
 		// read the merged stream and write the data back
-		PactRecord rec = new PactRecord();
+		final TypeAccessors<E> typeAccessors = this.typeAccessors;
+		E rec = typeAccessors.createInstance();
 		while (mergeIterator.next(rec)) {
-			rec.write(output);
+			typeAccessors.serialize(rec, output);
 		}
 		output.close();
 		
@@ -928,27 +878,51 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The element that is passed as marker for the end of data.
 	 */
-	protected static final CircularElement SENTINEL = new CircularElement();
+	private static final CircularElement<Object> EOF_MARKER = new CircularElement<Object>();
 
 	/**
 	 * The element that is passed as marker for signal beginning of spilling.
 	 */
-	protected static final CircularElement SPILLING_MARKER = new CircularElement();
+	private static final CircularElement<Object> SPILLING_MARKER = new CircularElement<Object>();
+	
+	/**
+	 * Gets the element that is passed as marker for the end of data.
+	 * 
+	 * @return The element that is passed as marker for the end of data.
+	 */
+	protected static <T> CircularElement<T> getEndMarker()
+	{
+		@SuppressWarnings("unchecked")
+		CircularElement<T> c = (CircularElement<T>) EOF_MARKER;
+		return c;
+	}
+	
+	/**
+	 * Gets the element that is passed as marker for signal beginning of spilling.
+	 * 
+	 * @return The element that is passed as marker for signal beginning of spilling.
+	 */
+	protected static <T> CircularElement<T> getSpillingMarker()
+	{
+		@SuppressWarnings("unchecked")
+		CircularElement<T> c = (CircularElement<T>) SPILLING_MARKER;
+		return c;
+	}
 	
 	/**
 	 * Class representing buffers that circulate between the reading, sorting and spilling thread.
 	 */
-	protected static final class CircularElement
+	protected static final class CircularElement<E>
 	{
 		final int id;
-		final NormalizedKeySorter<PactRecord> buffer;
+		final NormalizedKeySorter<E> buffer;
 
 		public CircularElement() {
 			this.buffer = null;
 			this.id = -1;
 		}
 
-		public CircularElement(int id, NormalizedKeySorter<PactRecord> buffer) {
+		public CircularElement(int id, NormalizedKeySorter<E> buffer) {
 			this.id = id;
 			this.buffer = buffer;
 		}
@@ -957,18 +931,24 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * Collection of queues that are used for the communication between the threads.
 	 */
-	protected static final class CircularQueues
+	protected static final class CircularQueues<E>
 	{
-		final BlockingQueue<CircularElement> empty;
+		final BlockingQueue<CircularElement<E>> empty;
 
-		final BlockingQueue<CircularElement> sort;
+		final BlockingQueue<CircularElement<E>> sort;
 
-		final BlockingQueue<CircularElement> spill;
+		final BlockingQueue<CircularElement<E>> spill;
 
 		public CircularQueues() {
-			this.empty = new LinkedBlockingQueue<CircularElement>();
-			this.sort = new LinkedBlockingQueue<CircularElement>();
-			this.spill = new LinkedBlockingQueue<CircularElement>();
+			this.empty = new LinkedBlockingQueue<CircularElement<E>>();
+			this.sort = new LinkedBlockingQueue<CircularElement<E>>();
+			this.spill = new LinkedBlockingQueue<CircularElement<E>>();
+		}
+		
+		public CircularQueues(int numElements) {
+			this.empty = new ArrayBlockingQueue<CircularElement<E>>(numElements);
+			this.sort = new ArrayBlockingQueue<CircularElement<E>>(numElements);
+			this.spill = new ArrayBlockingQueue<CircularElement<E>>(numElements);
 		}
 	}
 
@@ -983,12 +963,12 @@ public class UnilateralSortMerger implements SortMerger
 	 * The threads are designed to terminate themselves when the task they are set up to do is completed. Further more,
 	 * they terminate immediately when the <code>shutdown()</code> method is called.
 	 */
-	protected static abstract class ThreadBase extends Thread implements Thread.UncaughtExceptionHandler
+	protected static abstract class ThreadBase<E> extends Thread implements Thread.UncaughtExceptionHandler
 	{
 		/**
 		 * The queue of empty buffer that can be used for reading;
 		 */
-		protected final CircularQueues queues;
+		protected final CircularQueues<E> queues;
 
 		/**
 		 * The exception handler for any problems.
@@ -1013,7 +993,7 @@ public class UnilateralSortMerger implements SortMerger
 		 * @param queues The queues used to pass buffers between the threads.
 		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
 		 */
-		protected ThreadBase(ExceptionHandler<IOException> exceptionHandler, String name, CircularQueues queues,
+		protected ThreadBase(ExceptionHandler<IOException> exceptionHandler, String name, CircularQueues<E> queues,
 				AbstractInvokable parentTask)
 		{
 			// thread setup
@@ -1107,17 +1087,22 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The thread that consumes the input data and puts it into a buffer that will be sorted.
 	 */
-	protected static class ReadingThread extends ThreadBase
+	protected static class ReadingThread<E> extends ThreadBase<E>
 	{
 		/**
 		 * The input channels to read from.
 		 */
-		private final MutableObjectIterator<PactRecord> reader;
+		private final MutableObjectIterator<E> reader;
 		
 		/**
 		 * The fraction of the buffers that must be full before the spilling starts.
 		 */
 		private final long startSpillingBytes;
+		
+		/**
+		 * The object into which the thread reads the data from the input.
+		 */
+		private final E readTarget;
 
 		/**
 		 * Creates a new reading thread.
@@ -1128,13 +1113,15 @@ public class UnilateralSortMerger implements SortMerger
 		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
 		 */
 		public ReadingThread(ExceptionHandler<IOException> exceptionHandler,
-				MutableObjectIterator<PactRecord> reader, CircularQueues queues,
+				MutableObjectIterator<E> reader, CircularQueues<E> queues,
+				E readTarget,
 				AbstractInvokable parentTask, long startSpillingBytes)
 		{
 			super(exceptionHandler, "SortMerger Reading Thread", queues, parentTask);
 
 			// members
 			this.reader = reader;
+			this.readTarget = readTarget;
 			this.startSpillingBytes = startSpillingBytes;
 		}
 
@@ -1144,19 +1131,21 @@ public class UnilateralSortMerger implements SortMerger
 		 */
 		public void go() throws IOException
 		{	
-			final MutableObjectIterator<PactRecord> reader = this.reader;
+			final MutableObjectIterator<E> reader = this.reader;
 			
-			final PactRecord current = new PactRecord();
-			PactRecord leftoverRecord = null;
+			final E current = this.readTarget;
+			E leftoverRecord = null;
 			
-			CircularElement element = null;
+			CircularElement<E> element = null;
 			long bytesUntilSpilling = this.startSpillingBytes;
 			boolean done = false;
 			
 			// check if we should directly spill
 			if (bytesUntilSpilling < 1) {
 				bytesUntilSpilling = 0;
-				this.queues.sort.add(SPILLING_MARKER);
+				
+				// add the spilling marker
+				this.queues.sort.add(UnilateralSortMerger.<E>getSpillingMarker());
 			}
 
 			// now loop until all channels have no more input data
@@ -1178,7 +1167,7 @@ public class UnilateralSortMerger implements SortMerger
 				}
 				
 				// get the new buffer and check it
-				final NormalizedKeySorter<PactRecord> buffer = element.buffer;
+				final NormalizedKeySorter<E> buffer = element.buffer;
 				if (!buffer.isEmpty()) {
 					throw new IOException("New buffer is not empty.");
 				}
@@ -1213,7 +1202,8 @@ public class UnilateralSortMerger implements SortMerger
 						if (bytesUntilSpilling - buffer.getOccupancy() <= 0) {
 							bytesUntilSpilling = 0;
 							
-							// send the sentinel
+							// send the spilling marker
+							final CircularElement<E> SPILLING_MARKER = getSpillingMarker();
 							this.queues.sort.add(SPILLING_MARKER);
 							
 							// we drop out of this loop and continue with the loop that
@@ -1229,7 +1219,8 @@ public class UnilateralSortMerger implements SortMerger
 							bytesUntilSpilling -= buffer.getCapacity();
 							if (bytesUntilSpilling <= 0) {
 								bytesUntilSpilling = 0;
-								// send the sentinel
+								// send the spilling marker
+								final CircularElement<E> SPILLING_MARKER = getSpillingMarker();
 								this.queues.sort.add(SPILLING_MARKER);
 							}
 						}
@@ -1249,7 +1240,8 @@ public class UnilateralSortMerger implements SortMerger
 					bytesUntilSpilling -= buffer.getCapacity();
 					if (bytesUntilSpilling <= 0) {
 						bytesUntilSpilling = 0;
-						// send the sentinel
+						// send the spilling marker
+						final CircularElement<E> SPILLING_MARKER = getSpillingMarker();
 						this.queues.sort.add(SPILLING_MARKER);
 					}
 				}
@@ -1293,7 +1285,9 @@ public class UnilateralSortMerger implements SortMerger
 			}
 
 			// add the sentinel to notify the receivers that the work is done
-			this.queues.sort.add(SENTINEL);
+			// send the EOF marker
+			final CircularElement<E> EOF_MARKER = getEndMarker();
+			this.queues.sort.add(EOF_MARKER);
 			LOG.debug("Reading thread done.");
 		}
 	}
@@ -1301,7 +1295,7 @@ public class UnilateralSortMerger implements SortMerger
 	/**
 	 * The thread that sorts filled buffers.
 	 */
-	protected static class SortingThread extends ThreadBase
+	protected static class SortingThread<E> extends ThreadBase<E>
 	{		
 		private final IndexedSorter sorter;
 
@@ -1312,7 +1306,7 @@ public class UnilateralSortMerger implements SortMerger
 		 * @param queues The queues used to pass buffers between the threads.
 		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
 		 */
-		public SortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
+		public SortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 				AbstractInvokable parentTask) {
 			super(exceptionHandler, "SortMerger sorting thread", queues, parentTask);
 
@@ -1329,7 +1323,7 @@ public class UnilateralSortMerger implements SortMerger
 
 			// loop as long as the thread is marked alive
 			while (isRunning() && alive) {
-				CircularElement element = null;
+				CircularElement<E> element = null;
 				try {
 					element = this.queues.sort.take();
 				}
@@ -1346,7 +1340,7 @@ public class UnilateralSortMerger implements SortMerger
 					}
 				}
 
-				if (element != SENTINEL && element != SPILLING_MARKER) {
+				if (element != EOF_MARKER && element != SPILLING_MARKER) {
 					if (LOG.isDebugEnabled())
 						LOG.debug("Sorting buffer " + element.id + ".");
 					
@@ -1355,7 +1349,7 @@ public class UnilateralSortMerger implements SortMerger
 					if (LOG.isDebugEnabled())
 						LOG.debug("Sorted buffer " + element.id + ".");
 				}
-				else if (element == SENTINEL) {
+				else if (element == EOF_MARKER) {
 					if (LOG.isDebugEnabled())
 						LOG.debug("Sorting thread done.");
 					alive = false;
@@ -1369,7 +1363,7 @@ public class UnilateralSortMerger implements SortMerger
 	 * The thread that handles the spilling of intermediate results and sets up the merging. It also merges the 
 	 * channels until sufficiently few channels remain to perform the final streamed merge. 
 	 */
-	protected class SpillingThread extends ThreadBase
+	protected class SpillingThread extends ThreadBase<E>
 	{
 		protected final MemoryManager memoryManager;	// memory manager for memory allocation and release
 
@@ -1388,7 +1382,7 @@ public class UnilateralSortMerger implements SortMerger
 		 * @param readMemSize The amount of memory to be used for the readers that merge the sorted runs.
 		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
 		 */
-		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
+		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 				MemoryManager memoryManager, IOManager ioManager,
 				long readMemSize, AbstractInvokable parentTask)
 		{
@@ -1407,8 +1401,8 @@ public class UnilateralSortMerger implements SortMerger
 		{
 			// ------------------- In-Memory Cache ------------------------
 			
-			final List<CircularElement> cache = new ArrayList<CircularElement>();
-			CircularElement element = null;
+			final List<CircularElement<E>> cache = new ArrayList<CircularElement<E>>();
+			CircularElement<E> element = null;
 			boolean cacheOnly = false;
 			
 			// fill cache
@@ -1429,7 +1423,7 @@ public class UnilateralSortMerger implements SortMerger
 				if (element == SPILLING_MARKER) {
 					break;
 				}
-				else if (element == SENTINEL) {
+				else if (element == EOF_MARKER) {
 					cacheOnly = true;
 					break;
 				}
@@ -1447,10 +1441,10 @@ public class UnilateralSortMerger implements SortMerger
 				if (LOG.isDebugEnabled())
 					LOG.debug("Initiating in memory merge.");
 				
-				List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>(cache.size());
+				List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(cache.size());
 								
 				// iterate buffers and collect a set of iterators
-				for (CircularElement cached : cache)
+				for (CircularElement<E> cached : cache)
 				{
 					// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
 					iterators.add(cached.buffer.getIterator());
@@ -1463,7 +1457,7 @@ public class UnilateralSortMerger implements SortMerger
 				
 				// set lazy iterator
 				setResultIterator(iterators.size() == 1 ? iterators.get(0) :
-					new MergeIterator(iterators, keyComparators, keyPositions, keyClasses));
+					new MergeIterator<E>(iterators, UnilateralSortMerger.this.typeAccessors));
 				return;
 			}			
 			
@@ -1505,7 +1499,7 @@ public class UnilateralSortMerger implements SortMerger
 					return;
 				}
 				// check if this is the end-of-work buffer
-				if (element == SENTINEL) {
+				if (element == EOF_MARKER) {
 					break;
 				}
 				
@@ -1557,7 +1551,7 @@ public class UnilateralSortMerger implements SortMerger
 				
 				// check if we have spilled some data at all
 				if (channelIDs.isEmpty()) {
-					setResultIterator(EmptyMutableObjectIterator.<PactRecord>get());
+					setResultIterator(EmptyMutableObjectIterator.<E>get());
 				}
 				else {
 					if (LOG.isDebugEnabled())
@@ -1607,54 +1601,20 @@ public class UnilateralSortMerger implements SortMerger
 			}
 		}
 		
-		protected final CircularElement takeNext(BlockingQueue<CircularElement> queue, List<CircularElement> cache)
+		protected final CircularElement<E> takeNext(BlockingQueue<CircularElement<E>> queue, List<CircularElement<E>> cache)
 		throws InterruptedException
 		{
 			return cache.isEmpty() ? queue.take() : cache.remove(0);
 		}
 	}
-
-	/**
-	 * This class represents an iterator over a stream produced by a reader.
-	 */
-	protected static final class ChannelReaderIterator implements MutableObjectIterator<PactRecord>
-	{
-		private final ChannelReaderInputView input; // the reader from which to get the input
-
-		/**
-		 * Creates a new reader iterator.
-		 * 
-		 * @param input The input from which to read the records.
-		 */
-		protected ChannelReaderIterator(ChannelReaderInputView input) {
-			this.input = input;
-		}
-
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.runtime.util.ReadingIterator#next(java.lang.Object)
-		 */
-		@Override
-		public boolean next(PactRecord target) throws IOException
-		{
-			try {
-				target.read(this.input);
-				return true;
-			}
-			catch (EOFException eofex) {
-				return false;
-			}
-		}
-	}
 	
-
-	
-	public static final class InputDataCollector implements Collector
+	public static final class InputDataCollector<E> implements Collector<E>
 	{
-		private final CircularQueues queues;		// the queues used to pass buffers
+		private final CircularQueues<E> queues;		// the queues used to pass buffers
 		
-		private NormalizedKeySorter<PactRecord> currentBuffer;
+		private NormalizedKeySorter<E> currentBuffer;
 		
-		private CircularElement currentElement;
+		private CircularElement<E> currentElement;
 		
 		private long bytesUntilSpilling;			// number of bytes left before we signal to spill
 		
@@ -1663,7 +1623,7 @@ public class UnilateralSortMerger implements SortMerger
 		private volatile boolean running;
 		
 
-		public InputDataCollector(CircularQueues queues, long startSpillingBytes)
+		public InputDataCollector(CircularQueues<E> queues, long startSpillingBytes)
 		{
 			this.queues = queues;
 			this.bytesUntilSpilling = startSpillingBytes;
@@ -1704,7 +1664,7 @@ public class UnilateralSortMerger implements SortMerger
 		 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
 		 */
 		@Override
-		public void collect(PactRecord record)
+		public void collect(E record)
 		{
 			try {
 				if (this.spillingInThisBuffer) {
@@ -1712,7 +1672,7 @@ public class UnilateralSortMerger implements SortMerger
 						if (this.bytesUntilSpilling - this.currentBuffer.getOccupancy() <= 0) {
 							this.bytesUntilSpilling = 0;
 							// send the sentinel
-							this.queues.sort.add(SPILLING_MARKER);
+							this.queues.sort.add(UnilateralSortMerger.<E>getSpillingMarker());
 						}
 						return;
 					}
@@ -1728,7 +1688,7 @@ public class UnilateralSortMerger implements SortMerger
 					if (this.bytesUntilSpilling <= 0) {
 						this.bytesUntilSpilling = 0;
 						// send the sentinel
-						this.queues.sort.add(SPILLING_MARKER);
+						this.queues.sort.add(UnilateralSortMerger.<E>getSpillingMarker());
 					}
 				}
 				
@@ -1800,7 +1760,7 @@ public class UnilateralSortMerger implements SortMerger
 				this.currentBuffer = null;
 				this.currentElement = null;
 				
-				this.queues.sort.add(SENTINEL);
+				this.queues.sort.add(UnilateralSortMerger.<E>getEndMarker());
 			}
 		}
 	}

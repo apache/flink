@@ -24,17 +24,13 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * @author Erik Nijkamp
  * @author Fabian Hueske
  */
-public interface Collector
+public interface Collector extends eu.stratosphere.pact.common.generic.Collector<PactRecord>
 {	
 	/**
 	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
 	 * 
 	 * @param record The record to collect.
 	 */
+	@Override
 	void collect(PactRecord record);
-
-	/**
-	 * Closes the collector.
-	 */
-	void close();
 }

@@ -73,11 +73,44 @@ public interface TypeAccessors<T>
 	
 	public int hash(T object);
 	
-	public void setReferenceForEquality(T toCompare);
+	public void setReference(T toCompare);
 	
 	public boolean equalToReference(T candidate);
 	
-//	public int compare(T first, T second);
+	/**
+	 * This method the element set as reference in this type accessor two the
+	 * element set as reference in the given type accessor. Similar to comparing two
+	 * elements {@code e1} and {@code e2} via a comparator, this method can be used the
+	 * following way.
+	 * 
+	 * <pre>
+	 * E e1 = ...;
+	 * E e2 = ...;
+	 * 
+	 * TypeAccessors<E> acc1 = ...;
+	 * TypeAccessors<E> acc2 = ...;
+	 * 
+	 * acc1.setReference(e1);
+	 * acc2.setReference(e2);
+	 * 
+	 * int comp = acc1.compareToReference(acc2);
+	 * </pre>
+	 * 
+	 * The rational behind this method is that elements are typically compared using certain features that
+	 * are extracted from them, (such deserializing as a subset of fields). When setting the
+	 * reference, this extraction happens. The extraction needs happen only once per element,
+	 * even though an element is typically compared to many other elements when establishing a
+	 * sorted order. The actual comparison performed by this method may be very cheap, as it
+	 * happens on the extracted features.
+	 * 
+	 * @param referencedAccessors The type accessors where the element for comparison has been set
+	 *                            as reference.
+	 * 
+	 * @return A value smaller than zero, if the reference value of {@code referencedAccessors} is smaller
+	 *         than the reference value of this type accessor; a value greater than zero, if it is larger;
+	 *         zero, if both are equal.
+	 */
+	public int compareToReference(TypeAccessors<T> referencedAccessors);
 	
 	public int compare(DataInputViewV2 firstSource, DataInputViewV2 secondSource) throws IOException;
 	

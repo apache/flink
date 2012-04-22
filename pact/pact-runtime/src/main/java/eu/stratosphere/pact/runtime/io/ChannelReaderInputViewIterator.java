@@ -85,7 +85,9 @@ public class ChannelReaderInputViewIterator<E> implements MutableObjectIterator<
 			return true;
 		} catch (EOFException eofex) {
 			final List<MemorySegment> freeMem = this.inView.close();
-			this.freeMemTarget.addAll(freeMem);
+			if (this.freeMemTarget != null) {
+				this.freeMemTarget.addAll(freeMem);
+			}
 			return false;
 		}
 	}

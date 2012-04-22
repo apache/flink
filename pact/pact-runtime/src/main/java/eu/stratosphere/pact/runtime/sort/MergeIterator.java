@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,44 +19,72 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
 
 /**
+ * An iterator that returns a sorted merge of the sequences of elements from a
+ * set of iterators, assuming those sequences are ordered themselves.
+ * The iterators to be merged are kept internally as a heap, making each access
+ * to the next smallest element logarithmic in complexity, with respect to the
+ * number of streams to be merged.
+ * The order among the elements is established using the methods from the
+ * {@link TypeAccessors} class, specifically {@link TypeAccessors#setReference(Object)}
+ * and {@link TypeAccessors#compareToReference(TypeAccessors)}.
+ * 
+ * @see TypeAccessors
+ * @see TypeAccessors#setReference(Object)
+ * @see TypeAccessors#compareToReference(TypeAccessors)
+ * 
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */
-public class MergeIterator implements MutableObjectIterator<PactRecord>
+public class MergeIterator<E> implements MutableObjectIterator<E>
 {
-	private final PartialOrderPriorityQueue<HeadStream> heap;
-
+	private final PartialOrderPriorityQueue<HeadStream<E>> heap;	// heap over the head elements of the stream
 	
-	public MergeIterator(List<MutableObjectIterator<PactRecord>> iterators, Comparator<Key>[] comparators,
-			int[] keyPositions, Class<? extends Key>[] keyClasses)
+	/**
+	 * @param iterators
+	 * @param accessors The accessors used to establish an order among the elements.
+	 *                  The accessors will not be used directly, but a duplicate will be used.
+	 * @throws IOException
+	 */
+	public MergeIterator(List<MutableObjectIterator<E>> iterators,
+			TypeAccessors<E> accessors)
 	throws IOException
 	{
-		this.heap = new PartialOrderPriorityQueue<HeadStream>(new HeadStreamComparator(comparators), iterators.size());
+		this.heap = new PartialOrderPriorityQueue<HeadStream<E>>(new HeadStreamComparator<E>(), iterators.size());
 		
-		for (MutableObjectIterator<PactRecord> iterator : iterators) {
-			heap.add(new HeadStream(iterator, keyPositions, keyClasses));
+		for (MutableObjectIterator<E> iterator : iterators) {
+			this.heap.add(new HeadStream<E>(iterator, accessors.duplicate()));
 		}
 	}
 
+	/**
+	 * Gets the next smallest element, with respect to the definition of order implied by
+	 * the {@link TypeAccessors} provided to this iterator.
+	 * 
+	 * @param target The object into which the result is put. The contents of the target object
+	 *               is only valid after this method, if the method returned true. Otherwise
+	 *               the contents is undefined.
+	 * @return True, if the iterator had another element, false otherwise. 
+	 * 
+	 * @see eu.stratosphere.pact.common.util.MutableObjectIterator#next(java.lang.Object)
+	 */
 	@Override
-	public boolean next(PactRecord target) throws IOException
+	public boolean next(E target) throws IOException
 	{
 		if (this.heap.size() > 0) {
 			// get the smallest element
-			HeadStream top = heap.peek();
-			top.getHead().copyTo(target);
+			final HeadStream<E> top = this.heap.peek();
+			top.accessors.copyTo(top.getHead(), target);
 			
 			// read an element
 			if (!top.nextHead()) {
-				heap.poll();
+				this.heap.poll();
+			} else {
+				this.heap.adjustTop();
 			}
-			heap.adjustTop();
 			return true;
 		}
 		else {
@@ -68,42 +96,33 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 	//                      Internal Classes that wrap the sorted input streams
 	// ============================================================================================
 	
-	private static final class HeadStream
+	private static final class HeadStream<E>
 	{
-		private final MutableObjectIterator<PactRecord> iterator;
+		private final MutableObjectIterator<E> iterator;
 
-		private final Key[] keyHolders;
+		private final TypeAccessors<E> accessors;
 		
-		private final int[] keyPositions;
-		
-		private final PactRecord head = new PactRecord();
+		private final E head;
 
-		public HeadStream(MutableObjectIterator<PactRecord> iterator, int[] keyPositions, Class<? extends Key>[] keyClasses)
+		public HeadStream(MutableObjectIterator<E> iterator, TypeAccessors<E> accessors)
 		throws IOException
 		{
 			this.iterator = iterator;
-			this.keyPositions = keyPositions;
-		
-			// instantiate the array that caches the key objects
-			this.keyHolders = new Key[keyClasses.length];
-			for (int i = 0; i < keyClasses.length; i++) {
-				if (keyClasses[i] == null) {
-					throw new NullPointerException("Key type " + i + " is null.");
-				}
-				this.keyHolders[i] = InstantiationUtil.instantiate(keyClasses[i], Key.class);
-			}
+			this.accessors = accessors;
+			this.head = accessors.createInstance();
 			
 			if (!nextHead())
 				throw new IllegalStateException();
 		}
 
-		public PactRecord getHead() {
+		public E getHead() {
 			return this.head;
 		}
 
-		public boolean nextHead() throws IOException {
-			if (iterator.next(this.head)) {
-				this.head.getFieldsInto(this.keyPositions, this.keyHolders);
+		public boolean nextHead() throws IOException
+		{
+			if (this.iterator.next(this.head)) {
+				this.accessors.setReference(this.head);
 				return true;
 			}
 			else {
@@ -114,27 +133,12 @@ public class MergeIterator implements MutableObjectIterator<PactRecord>
 
 	// --------------------------------------------------------------------------------------------
 	
-	private final class HeadStreamComparator implements Comparator<HeadStream>
-	{
-		/**
-		 * The comparators providing the comparison for the different key fields.
-		 */
-		private final Comparator<Key>[] comparators;
-		
-		public HeadStreamComparator(Comparator<Key>[] comparators) {
-			this.comparators = comparators;
-		}
-
+	private static final class HeadStreamComparator<E> implements Comparator<HeadStream<E>>
+	{		
 		@Override
-		public int compare(HeadStream o1, HeadStream o2)
+		public int compare(HeadStream<E> o1, HeadStream<E> o2)
 		{
-			for (int i = 0; i < this.comparators.length; i++) {
-				int val = this.comparators[i].compare(o1.keyHolders[i], o2.keyHolders[i]);
-				if (val != 0) {
-					return val;
-				}
-			}
-			return 0;
+			return o2.accessors.compareToReference(o1.accessors);
 		}
 	}
 }

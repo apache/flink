@@ -82,9 +82,9 @@ public class SortMergeCoGroupIterator implements CoGroupTaskIterator
 
 	private KeyGroupedIterator iterator2;
 
-	private SortMerger sortMerger1;
+	private Sorter sortMerger1;
 
-	private SortMerger sortMerger2;
+	private Sorter sortMerger2;
 
 	private MatchStatus matchStatus;
 

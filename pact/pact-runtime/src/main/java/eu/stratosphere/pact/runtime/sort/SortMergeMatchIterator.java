@@ -97,9 +97,9 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	private final float spillingThreshold;
 
 	
-	private SortMerger sortMerger1;
+	private Sorter sortMerger1;
 
-	private SortMerger sortMerger2;
+	private Sorter sortMerger2;
 	
 	private KeyGroupedIterator iterator1;
 

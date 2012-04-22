@@ -224,7 +224,7 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#setReferenceForEquality(java.lang.Object)
 	 */
 	@Override
-	public void setReferenceForEquality(PactRecord toCompare)
+	public void setReference(PactRecord toCompare)
 	{
 		for (int i = 0; i < this.keyFields.length; i++) {
 			if (!toCompare.getFieldInto(this.keyFields[i], this.keyHolders[i])) {
@@ -250,6 +250,23 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	}
 	
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compareToReference(eu.stratosphere.pact.runtime.plugable.TypeAccessors)
+	 */
+	@Override
+	public int compareToReference(TypeAccessors<PactRecord> referencedAccessors)
+	{
+		final PactRecordAccessors pra = (PactRecordAccessors) referencedAccessors;
+		
+		for (int i = 0; i < this.keyFields.length; i++)
+		{
+			final int comp = pra.keyHolders[i].compareTo(this.keyHolders[i]);
+			if (comp != 0)
+				return comp;
+		}
+		return 0;
+	}
+	
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#compare(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
 	 */
 	@Override
@@ -271,25 +288,6 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 		}
 		return 0;
 	}
-
-//	/* (non-Javadoc)
-//	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(java.lang.Object, java.lang.Object, java.util.Comparator)
-//	 */
-//	@Override
-//	public int compare(PactRecord first, PactRecord second, Comparator<Key> comparator)
-//	{
-//		if (first.getFieldsInto(this.keyFields, this.keyHolders) &
-//		    second.getFieldsInto(this.keyFields, this.transientKeyHolders))
-//		{
-//			for (int i = 0; i < this.keyHolders.length; i++) {
-//				int c = comparator.compare(this.keyHolders[i], this.transientKeyHolders[i]);
-//				if (c != 0)
-//					return c;
-//			}
-//			return 0;
-//		}
-//		else throw new NullKeyFieldException();
-//	}
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -350,7 +348,8 @@ public final class PactRecordAccessors implements TypeAccessors<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#duplicate()
 	 */
 	@Override
-	public PactRecordAccessors duplicate() {
+	public PactRecordAccessors duplicate()
+	{
 		return new PactRecordAccessors(this.keyFields, this.keyHolders, this.normalizedKeyLengths,
 											this.numLeadingNormalizableKeys, this.normalizableKeyPrefixLen);
 	}

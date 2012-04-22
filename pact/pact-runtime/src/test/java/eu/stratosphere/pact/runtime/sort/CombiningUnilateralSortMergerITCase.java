@@ -102,7 +102,7 @@ public class CombiningUnilateralSortMergerITCase
 		LOG.debug("initializing sortmerger");
 		
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new CombiningUnilateralSortMerger(
+		Sorter merger = new CombiningUnilateralSortMerger(
 			new TestCountCombiner(), memoryManager, ioManager, 64L * 1024 * 1024, 64,
 			new Comparator[] {keyComparator}, new int[] {0}, new Class[]{TestData.Key.class}, reader, parentTask, 0.7f, true);
 
@@ -144,7 +144,7 @@ public class CombiningUnilateralSortMergerITCase
 		// merge iterator
 		LOG.debug("initializing sortmerger");
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new CombiningUnilateralSortMerger(
+		Sorter merger = new CombiningUnilateralSortMerger(
 			new TestCountCombiner2(), memoryManager, ioManager, 64L * 1024 * 1024, 2,
 			new Comparator[] {keyComparator}, new int[] {0}, new Class[]{TestData.Key.class}, reader, parentTask, 0.7f, true);
 

@@ -150,7 +150,7 @@ public class AsynchonousPartialSorterITCase {
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new AsynchronousPartialSorter(
+		Sorter merger = new AsynchronousPartialSorter(
 			memoryManager, ioManager, 32 * 1024 * 1024, new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class}, source, parentTask);
 
 		// check order
@@ -183,7 +183,7 @@ public class AsynchonousPartialSorterITCase {
 	@Test
 	@Ignore
 	public void testExceptionForwarding() throws IOException {
-		SortMerger merger = null;
+		Sorter merger = null;
 		try	{
 			// comparator
 			final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();

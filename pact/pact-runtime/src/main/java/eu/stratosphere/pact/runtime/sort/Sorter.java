@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 
@@ -24,7 +23,7 @@ import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
  * 
  * @author Erik Nijkamp
  */
-public interface SortMerger extends CloseableInputProvider<PactRecord>
+public interface Sorter<E> extends CloseableInputProvider<E>
 {
-	MutableObjectIterator<PactRecord> getIterator() throws InterruptedException;
+	MutableObjectIterator<E> getIterator() throws InterruptedException;
 }

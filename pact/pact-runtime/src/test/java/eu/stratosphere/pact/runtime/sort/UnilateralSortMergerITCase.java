@@ -102,7 +102,7 @@ public class UnilateralSortMergerITCase
 		LOG.debug("Initializing sortmerger...");
 		
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 2,
+		Sorter merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 2,
 			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
 			source, this.parentTask, 0.9f);
 
@@ -150,7 +150,7 @@ public class UnilateralSortMergerITCase
 		LOG.debug("Initializing sortmerger...");
 		
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 1 * 1024 * 1024, 10, 2,
+		Sorter merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 1 * 1024 * 1024, 10, 2,
 			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
 			source, this.parentTask, 0.9f);
 
@@ -198,7 +198,7 @@ public class UnilateralSortMergerITCase
 		LOG.debug("Initializing sortmerger...");
 		
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 16 * 1024 * 1024, 64,
+		Sorter merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 16 * 1024 * 1024, 64,
 			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
 			source, this.parentTask, 0.7f);
 
@@ -249,7 +249,7 @@ public class UnilateralSortMergerITCase
 		LOG.debug("Initializing sortmerger...");
 		
 		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 1024 * 1024 * 64, 16, 
+		Sorter merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 1024 * 1024 * 64, 16, 
 			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
 			source, this.parentTask, 0.7f);
 		
