@@ -50,7 +50,7 @@ public class BlockChannelReader extends BlockChannelAccess<ReadRequest, LinkedBl
 	 * @throws IOException Thrown, if the underlying file channel could not be opened.
 	 */
 	protected BlockChannelReader(Channel.ID channelID, RequestQueue<ReadRequest> requestQueue,
-			LinkedBlockingQueue<MemorySegment> returnSegments)
+			LinkedBlockingQueue<MemorySegment> returnSegments, int numRequestsToBundle)
 	throws IOException
 	{
 		super(channelID, requestQueue, returnSegments, false);

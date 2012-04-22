@@ -50,7 +50,7 @@ public class BlockChannelWriter extends BlockChannelAccess<WriteRequest, LinkedB
 	 * @throws IOException Thrown, if the underlying file channel could not be opened exclusively.
 	 */
 	protected BlockChannelWriter(Channel.ID channelID, RequestQueue<WriteRequest> requestQueue,
-			LinkedBlockingQueue<MemorySegment> returnSegments)
+			LinkedBlockingQueue<MemorySegment> returnSegments, int numRequestsToBundle)
 	throws IOException
 	{
 		super(channelID, requestQueue, returnSegments, true);

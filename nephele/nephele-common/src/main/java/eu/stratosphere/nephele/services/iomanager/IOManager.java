@@ -55,7 +55,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	/**
 	 * The writer thread used for asynchronous block oriented channel writing.
 	 */
-	private final WriterThread writer;
+	private final WriterThread[] writers;
 
 	/**
 	 * The reader threads used for asynchronous block oriented channel reading.
@@ -106,20 +106,23 @@ public final class IOManager implements UncaughtExceptionHandler
 		this.random = new Random();
 		this.nextPath = 0;
 		
-		this.writer = new WriterThread();
-
-		// start the ChannelWriter worker thread
-		this.writer.setName("IOManager writer thread");
-		this.writer.setDaemon(true);
-		this.writer.setUncaughtExceptionHandler(this);
-		this.writer.start();
+		// start a write worker thread for each directory
+		this.writers = new WriterThread[paths.length];
+		for (int i = 0; i < this.writers.length; i++) {
+			final WriterThread t = new WriterThread();
+			this.writers[i] = t;
+			t.setName("IOManager writer thread #" + (i + 1));
+			t.setDaemon(true);
+			t.setUncaughtExceptionHandler(this);
+			t.start();
+		}
 
 		// start a reader worker thread for each directory
 		this.readers = new ReaderThread[paths.length];
 		for (int i = 0; i < this.readers.length; i++) {
 			final ReaderThread t = new ReaderThread();
 			this.readers[i] = t;
-			t.setName("IOManager reader thread #" + i);
+			t.setName("IOManager reader thread #" + (i + 1));
 			t.setDaemon(true);
 			t.setUncaughtExceptionHandler(this);
 			t.start();
@@ -136,30 +139,33 @@ public final class IOManager implements UncaughtExceptionHandler
 		if (!this.isClosed) {
 			this.isClosed = true;
 
-			// close both threads by best effort and log problems
+			// close writing and reading threads with best effort and log problems
 			
-			// --------------------------------- writer shutdown ----------------------------------
-			try {
-				this.writer.shutdown();
-			}
-			catch (Throwable t) {
-				LOG.error("Error while shutting down IO Manager writing thread.", t);
+			// --------------------------------- writer shutdown ----------------------------------			
+			for (int i = 0; i < this.readers.length; i++) {
+				try {
+					this.writers[i].shutdown();
+				}
+				catch (Throwable t) {
+					LOG.error("Error while shutting down IO Manager writer thread.", t);
+				}
 			}
 
 			// --------------------------------- reader shutdown ----------------------------------
-			
 			for (int i = 0; i < this.readers.length; i++) {
 				try {
 					this.readers[i].shutdown();
 				}
 				catch (Throwable t) {
-					LOG.error("Error while shutting down IO Manager reading thread.", t);
+					LOG.error("Error while shutting down IO Manager reader thread.", t);
 				}
 			}
 			
 			// ------------------------ wait until shutdown is complete ---------------------------
 			try {
-				this.writer.join();
+				for (int i = 0; i < this.readers.length; i++) {
+					this.writers[i].join();
+				}
 				for (int i = 0; i < this.readers.length; i++) {
 					this.readers[i].join();
 				}
@@ -181,7 +187,12 @@ public final class IOManager implements UncaughtExceptionHandler
 			readersShutDown &= this.readers[i].getState() == Thread.State.TERMINATED;
 		}
 		
-		return isClosed && (this.writer.getState() == Thread.State.TERMINATED) && readersShutDown;
+		boolean writersShutDown = true;
+		for (int i = 0; i < this.writers.length; i++) {
+			readersShutDown &= this.writers[i].getState() == Thread.State.TERMINATED;
+		}
+		
+		return this.isClosed && writersShutDown && readersShutDown;
 	}
 
 	/* (non-Javadoc)
@@ -190,7 +201,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	@Override
 	public void uncaughtException(Thread t, Throwable e)
 	{
-		LOG.fatal("IO Thread '" + t.getName() + "' terminated due to an exception. Closing IO Manager.", e);
+		LOG.fatal("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
 		shutdown();	
 	}
 
@@ -216,7 +227,8 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * 
 	 * @return An enumerator for channels.
 	 */
-	public Channel.Enumerator createChannelEnumerator() {
+	public Channel.Enumerator createChannelEnumerator()
+	{
 		return new Channel.Enumerator(this.paths, this.random);
 	}
 
@@ -237,11 +249,11 @@ public final class IOManager implements UncaughtExceptionHandler
 	public ChannelWriter createChannelWriter(Channel.ID channelID, Collection<MemorySegment> freeSegments)
 	throws IOException
 	{
-		if (isClosed) {
-			throw new IllegalStateException("IO-Manger is closed.");
+		if (this.isClosed) {
+			throw new IllegalStateException("I/O-Manger is closed.");
 		}
 		
-		return new ChannelWriter(channelID, writer.requestQueue, IOManager.createOutputBuffers(freeSegments), false);
+		return new ChannelWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, IOManager.createOutputBuffers(freeSegments), false);
 	}
 
 	/**
@@ -258,11 +270,11 @@ public final class IOManager implements UncaughtExceptionHandler
 	public ChannelWriter createChannelWriter(Channel.ID channelID, Collection<Buffer.Output> buffers, boolean filled)
 	throws IOException
 	{
-		if (isClosed) {
-			throw new IllegalStateException("IO-Manger is closed.");
+		if (this.isClosed) {
+			throw new IllegalStateException("I/O-Manger is closed.");
 		}
 		
-		return new ChannelWriter(channelID, writer.requestQueue, buffers, filled);
+		return new ChannelWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, buffers, filled);
 	}
 
 	/**
@@ -280,7 +292,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	throws IOException
 	{
 		if (this.isClosed) {
-			throw new IllegalStateException("IO-Manger is closed.");
+			throw new IllegalStateException("I/O-Manger is closed.");
 		}
 		
 		return new ChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, createInputBuffers(freeSegments), deleteFileAfterRead);
@@ -297,14 +309,44 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * @throws IOException Thrown, if the channel for the writer could not be opened.
 	 */
 	public BlockChannelWriter createBlockChannelWriter(Channel.ID channelID,
-										LinkedBlockingQueue<MemorySegment> returnQueue)
+								LinkedBlockingQueue<MemorySegment> returnQueue)
 	throws IOException
 	{
 		if (this.isClosed) {
-			throw new IllegalStateException("IO-Manger is closed.");
+			throw new IllegalStateException("I/O-Manger is closed.");
 		}
 		
-		return new BlockChannelWriter(channelID, this.writer.requestQueue, returnQueue);
+		return new BlockChannelWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, returnQueue, 1);
+	}
+	
+	/**
+	 * Creates a block channel writer that writes to the given channel. The writer writes asynchronously (write-behind),
+	 * accepting write request, carrying them out at some time and returning the written segment to the given queue
+	 * afterwards.
+	 * <p>
+	 * The writer will collect a specified number of write requests and carry them out
+	 * in one, effectively writing one block in the size of multiple memory pages.
+	 * Note that this means that no memory segment will reach the return queue before
+	 * the given number of requests are collected, so the number of buffers used with
+	 * the writer should be greater than the number of requests to combine. Ideally,
+	 * the number of memory segments used is a multiple of the number of requests to
+	 * combine.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @param returnQueue The queue to put the written buffers into.
+	 * @param numRequestsToCombine The number of write requests to combine to one I/O request.
+	 * @return A block channel writer that writes to the given channel.
+	 * @throws IOException Thrown, if the channel for the writer could not be opened.
+	 */
+	public BlockChannelWriter createBlockChannelWriter(Channel.ID channelID,
+								LinkedBlockingQueue<MemorySegment> returnQueue, int numRequestsToCombine)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("I/O-Manger is closed.");
+		}
+		
+		return new BlockChannelWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, returnQueue, numRequestsToCombine);
 	}
 	
 	/**
@@ -319,10 +361,37 @@ public final class IOManager implements UncaughtExceptionHandler
 	throws IOException
 	{
 		if (this.isClosed) {
-			throw new IllegalStateException("IO-Manger is closed.");
+			throw new IllegalStateException("I/O-Manger is closed.");
 		}
 		
-		return new BlockChannelWriter(channelID, this.writer.requestQueue, new LinkedBlockingQueue<MemorySegment>());
+		return new BlockChannelWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, new LinkedBlockingQueue<MemorySegment>(), 1);
+	}
+	
+	/**
+	 * Creates a block channel writer that writes to the given channel. The writer writes asynchronously (write-behind),
+	 * accepting write request, carrying them out at some time and returning the written segment its return queue afterwards.
+	 * <p>
+	 * The writer will collect a specified number of write requests and carry them out
+	 * in one, effectively writing one block in the size of multiple memory pages.
+	 * Note that this means that no memory segment will reach the return queue before
+	 * the given number of requests are collected, so the number of buffers used with
+	 * the writer should be greater than the number of requests to combine. Ideally,
+	 * the number of memory segments used is a multiple of the number of requests to
+	 * combine.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @param numRequestsToCombine The number of write requests to combine to one I/O request.
+	 * @return A block channel writer that writes to the given channel.
+	 * @throws IOException Thrown, if the channel for the writer could not be opened.
+	 */
+	public BlockChannelWriter createBlockChannelWriter(Channel.ID channelID, int numRequestsToCombine)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("I/O-Manger is closed.");
+		}
+		
+		return new BlockChannelWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, new LinkedBlockingQueue<MemorySegment>(), numRequestsToCombine);
 	}
 	
 	/**
@@ -340,10 +409,40 @@ public final class IOManager implements UncaughtExceptionHandler
 	throws IOException
 	{
 		if (this.isClosed) {
-			throw new IllegalStateException("IO-Manger is closed.");
+			throw new IllegalStateException("I/O-Manger is closed.");
 		}
 		
-		return new BlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, returnQueue);
+		return new BlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, returnQueue, 1);
+	}
+	
+	/**
+	 * Creates a block channel reader that reads blocks from the given channel. The reader reads asynchronously,
+	 * such that a read request is accepted, carried out at some (close) point in time, and the full segment
+	 * is pushed to the given queue.
+	 * <p>
+	 * The reader will collect a specified number of read requests and carry them out
+	 * in one, effectively reading one block in the size of multiple memory pages.
+	 * Note that this means that no memory segment will reach the return queue before
+	 * the given number of requests are collected, so the number of buffers used with
+	 * the reader should be greater than the number of requests to combine. Ideally,
+	 * the number of memory segments used is a multiple of the number of requests to
+	 * combine.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @param returnQueue The queue to put the full buffers into.
+	 * @param numRequestsToCombine The number of read requests to combine to one I/O request.
+	 * @return A block channel reader that reads from the given channel.
+	 * @throws IOException Thrown, if the channel for the reader could not be opened.
+	 */
+	public BlockChannelReader createBlockChannelReader(Channel.ID channelID,
+					LinkedBlockingQueue<MemorySegment> returnQueue, int numRequestsToCombine)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("I/O-Manger is closed.");
+		}
+		
+		return new BlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, returnQueue, numRequestsToCombine);
 	}
 	
 	/**
@@ -359,10 +458,39 @@ public final class IOManager implements UncaughtExceptionHandler
 	throws IOException
 	{
 		if (this.isClosed) {
-			throw new IllegalStateException("IO-Manger is closed.");
+			throw new IllegalStateException("I/O-Manger is closed.");
 		}
 		
-		return new BlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, new LinkedBlockingQueue<MemorySegment>());
+		return new BlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, new LinkedBlockingQueue<MemorySegment>(), 1);
+	}
+	
+	/**
+	 * Creates a block channel reader that reads blocks from the given channel. The reader reads asynchronously,
+	 * such that a read request is accepted, carried out at some (close) point in time, and the full segment
+	 * is pushed to the reader's return queue.
+	 * <p>
+	 * The reader will collect a specified number of read requests and carry them out
+	 * in one, effectively reading one block in the size of multiple memory pages.
+	 * Note that this means that no memory segment will reach the return queue before
+	 * the given number of requests are collected, so the number of buffers used with
+	 * the reader should be greater than the number of requests to combine. Ideally,
+	 * the number of memory segments used is a multiple of the number of requests to
+	 * combine.
+	 * 
+	 * @param channelID The descriptor for the channel to write to.
+	 * @param numRequestsToCombine The number of write requests to combine to one I/O request.
+	 * @return A block channel reader that reads from the given channel.
+	 * @throws IOException Thrown, if the channel for the reader could not be opened.
+	 */
+	public BlockChannelReader createBlockChannelReader(Channel.ID channelID, int numRequestsToCombine)
+	throws IOException
+	{
+		if (this.isClosed) {
+			throw new IllegalStateException("I/O-Manger is closed.");
+		}
+		
+		return new BlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, 
+			new LinkedBlockingQueue<MemorySegment>(), numRequestsToCombine);
 	}
 	
 	/**
@@ -385,7 +513,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	throws IOException
 	{
 		if (this.isClosed) {
-			throw new IllegalStateException("IO-Manger is closed.");
+			throw new IllegalStateException("I/O-Manger is closed.");
 		}
 		
 		return new BulkBlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, targetSegments, numBlocks);
@@ -471,10 +599,11 @@ public final class IOManager implements UncaughtExceptionHandler
 	//                             Utilities
 	// ========================================================================
 	
-	private final int getNextPathNum() {
-		int next = this.nextPath;
-		final int newNext = (next + 1) >= this.paths.length ? 0 : (next + 1);
-		this.nextPath = newNext;
+	private final int getNextPathNum()
+	{
+		final int next = this.nextPath;
+		final int newNext = next + 1;
+		this.nextPath = newNext >= this.paths.length ? 0 : newNext;
 		return next;
 	}
 	
@@ -567,6 +696,8 @@ public final class IOManager implements UncaughtExceptionHandler
 				}
 				catch (Throwable t) {
 					ioex = new IOException("The buffer could not be read: " + t.getMessage(), t);
+					IOManager.LOG.error("I/O reading thread encountered an error" + 
+						t.getMessage() == null ? "." : ": ", t);
 				}
 
 				// invoke the processed buffer handler of the request issuing reader object
@@ -658,6 +789,8 @@ public final class IOManager implements UncaughtExceptionHandler
 				}
 				catch (Throwable t) {
 					ioex = new IOException("The buffer could not be written: " + t.getMessage(), t);
+					IOManager.LOG.error("I/O reading thread encountered an error" + 
+						t.getMessage() == null ? "." : ": ", t);
 				}
 
 				// invoke the processed buffer handler of the request issuing writer object
