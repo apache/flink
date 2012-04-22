@@ -27,7 +27,7 @@ public class ObjectCreation extends ContainerExpression {
 	private static final long serialVersionUID = -5688226000742970692L;
 
 	/**
-	 * An ObjectCreation which transfers the fields of all given {IObjectNode}s into a single node.
+	 * An ObjectCreation which copies the fields of all given {IObjectNode}s into a single node.
 	 */
 	public static final ObjectCreation CONCATENATION = new ObjectCreation() {
 		/**
@@ -91,6 +91,14 @@ public class ObjectCreation extends ContainerExpression {
 		this.mappings.add(mapping);
 	}
 
+	/**
+	 * Creates a new {@link FieldAssignment} and adds it to this expressions mappings.
+	 * 
+	 * @param target
+	 *        the fieldname
+	 * @param expression
+	 *        the expression that should be used for the created FieldAssignemt
+	 */
 	public void addMapping(final String target, final EvaluationExpression expression) {
 		this.mappings.add(new FieldAssignment(target, expression));
 	}
@@ -113,14 +121,31 @@ public class ObjectCreation extends ContainerExpression {
 		return target;
 	}
 
+	/**
+	 * Returns the mapping at the specified index
+	 * 
+	 * @param index
+	 *        the index of the mapping that should be returned
+	 * @return the mapping at the specified index
+	 */
 	public Mapping<?> getMapping(final int index) {
 		return this.mappings.get(index);
 	}
 
+	/**
+	 * Returns the mappings
+	 * 
+	 * @return the mappings
+	 */
 	public List<Mapping<?>> getMappings() {
 		return this.mappings;
 	}
 
+	/**
+	 * Returns how many mappings are specified
+	 * 
+	 * @return the mapping count
+	 */
 	public int getMappingSize() {
 		return this.mappings.size();
 	}
@@ -188,6 +213,9 @@ public class ObjectCreation extends ContainerExpression {
 		builder.append("}");
 	}
 
+	/**
+	 * An ObjectCreation which copies the fields of an {@link IObjectNode}.
+	 */
 	public static class CopyFields extends FieldAssignment {
 		/**
 		 * 
@@ -216,7 +244,9 @@ public class ObjectCreation extends ContainerExpression {
 		 * Initializes FieldAssignment.
 		 * 
 		 * @param target
+		 *        the fieldname
 		 * @param expression
+		 *        the expression that evaluates to this fields value
 		 */
 		public FieldAssignment(final String target, final EvaluationExpression expression) {
 			super(target, expression);
@@ -273,6 +303,14 @@ public class ObjectCreation extends ContainerExpression {
 
 		protected EvaluationExpression expression;
 
+		/**
+		 * Initializes Mapping with the given {@link Target} and the given {@link EvaluationExpression}.
+		 * 
+		 * @param target
+		 *        the target of this mapping
+		 * @param expression
+		 *        the expression that evaluates to this mappings value
+		 */
 		public Mapping(final Target target, final EvaluationExpression expression) {
 			this.target = target;
 			this.expression = expression;
@@ -306,10 +344,20 @@ public class ObjectCreation extends ContainerExpression {
 		protected abstract void evaluate(final IObjectNode transformedNode, final IJsonNode node,
 				final EvaluationContext context);
 
+		/**
+		 * Returns the expression
+		 * 
+		 * @return the expression
+		 */
 		public EvaluationExpression getExpression() {
 			return this.expression;
 		}
 
+		/**
+		 * Returns the target
+		 * 
+		 * @return the target
+		 */
 		public Target getTarget() {
 			return this.target;
 		}

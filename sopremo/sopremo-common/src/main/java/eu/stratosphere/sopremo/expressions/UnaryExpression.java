@@ -5,6 +5,9 @@ import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Represents a unary boolean expression.
+ */
 @OptimizerHints(scope = Scope.ANY)
 public class UnaryExpression extends BooleanExpression {
 	/**
@@ -16,10 +19,26 @@ public class UnaryExpression extends BooleanExpression {
 
 	private boolean negate = false;
 
+	/**
+	 * Initializes an UnaryExpression with the given {@link EvaluationExpression}.
+	 * 
+	 * @param booleanExpr
+	 *        the expression which evaluates to the boolean value that should be represented by this
+	 *        {@link UnaryExpression}
+	 */
 	public UnaryExpression(final EvaluationExpression booleanExpr) {
 		this(booleanExpr, false);
 	}
 
+	/**
+	 * Initializes an UnaryExpression with the given {@link EvaluationExpression} and the given negate-flag.
+	 * 
+	 * @param booleanExpr
+	 *        the expression which evaluates to the boolean value that should be represented by this
+	 *        {@link UnaryExpression}
+	 * @param negate
+	 *        indicates either the result of the evaluation should be negated or not
+	 */
 	public UnaryExpression(final EvaluationExpression expr, final boolean negate) {
 		this.expr = expr;
 		this.negate = negate;
@@ -34,6 +53,13 @@ public class UnaryExpression extends BooleanExpression {
 		return this.expr.equals(other.expr) && this.negate == other.negate;
 	}
 
+	/**
+	 * Wraps the given {@link EvaluationExpression} as a {@link BooleanExpression}
+	 * 
+	 * @param expression
+	 *        the expression that should be wrapped
+	 * @return the wrapped expression
+	 */
 	public static BooleanExpression wrap(final EvaluationExpression expression) {
 		if (expression instanceof BooleanExpression)
 			return (BooleanExpression) expression;

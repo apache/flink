@@ -16,6 +16,12 @@ public class UnevaluableExpression extends EvaluationExpression {
 
 	private final String message;
 
+	/**
+	 * Initializes an UnevaluableExpression with the given message.
+	 * 
+	 * @param message
+	 *        the message of this expression
+	 */
 	public UnevaluableExpression(final String message) {
 		this.message = message;
 	}

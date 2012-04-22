@@ -19,6 +19,12 @@ public class OrExpression extends BooleanExpression {
 
 	private final EvaluationExpression[] expressions;
 
+	/**
+	 * Initializes an OrExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param expressions
+	 *        the expressions which evaluate to the input for this OrExpression
+	 */
 	public OrExpression(final EvaluationExpression... expressions) {
 		if (expressions.length == 0)
 			throw new IllegalArgumentException();
@@ -45,6 +51,11 @@ public class OrExpression extends BooleanExpression {
 		return BooleanNode.FALSE;
 	}
 
+	/**
+	 * Returns the expressions.
+	 * 
+	 * @return the expressions
+	 */
 	public EvaluationExpression[] getExpressions() {
 		return this.expressions;
 	}
@@ -64,12 +75,26 @@ public class OrExpression extends BooleanExpression {
 			builder.append(" OR ").append(this.expressions[index]);
 	}
 
+	/**
+	 * Creates an OrExpression with the given {@link BooleanExpression}.
+	 * 
+	 * @param expression
+	 *        the expression that should be used as the condition
+	 * @return the created OrExpression
+	 */
 	public static OrExpression valueOf(final BooleanExpression expression) {
 		if (expression instanceof OrExpression)
 			return (OrExpression) expression;
 		return new OrExpression(expression);
 	}
 
+	/**
+	 * Creates an OrExpression with the given {@link BooleanExpression}s.
+	 * 
+	 * @param childConditions
+	 *        the expressions that should be used as conditions for the created OrExpression
+	 * @return the created OrExpression
+	 */
 	public static OrExpression valueOf(final List<BooleanExpression> childConditions) {
 		if (childConditions.size() == 1)
 			return valueOf(childConditions.get(0));

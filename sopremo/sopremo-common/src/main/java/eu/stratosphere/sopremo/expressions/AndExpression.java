@@ -77,12 +77,26 @@ public class AndExpression extends BooleanExpression {
 			builder.append(" AND ").append("(").append(this.expressions[index]).append(")");
 	}
 
+	/**
+	 * Creates an AndExpression with the given {@link BooleanExpression}.
+	 * 
+	 * @param expression
+	 *        the expression that should be used as the condition
+	 * @return the created AndExpression
+	 */
 	public static AndExpression valueOf(final BooleanExpression expression) {
 		if (expression instanceof AndExpression)
 			return (AndExpression) expression;
 		return new AndExpression(expression);
 	}
 
+	/**
+	 * Creates an AndExpression with the given {@link BooleanExpression}s.
+	 * 
+	 * @param childConditions
+	 *        the expressions that should be used as conditions for the created AndExpression
+	 * @return the created AndExpression
+	 */
 	public static AndExpression valueOf(final List<BooleanExpression> childConditions) {
 		if (childConditions.size() == 1)
 			return valueOf(childConditions.get(0));
