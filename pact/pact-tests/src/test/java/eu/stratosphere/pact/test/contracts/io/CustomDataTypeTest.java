@@ -15,13 +15,10 @@
 
 package eu.stratosphere.pact.test.contracts.io;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.junit.runner.RunWith;
@@ -51,27 +48,21 @@ public class CustomDataTypeTest extends TestBase
 {
 	private static final String CLASS_TO_INSTANTIATE_KEY = "pact.test.instantiation_clazz";
 	private static final String CLASS_TO_INSTANTIATE_NAME = "eu.stratosphere.pact.test.external.TestClass";
-	private static final String EXTERNAL_JAR_RESOURCE = "eu/stratosphere/pact/test/contracts/io/TestJar.jar";
-	
-	private final String jarTempPath;
+	private static final String EXTERNAL_JAR_RESOURCE = "/CustomDataTypeTest/CustomDataTypeTest.jar";
 	
 	public CustomDataTypeTest(Configuration testConfig)
 	{
 		super(testConfig);
-		
-		this.jarTempPath = System.getProperty("java.io.tmpdir") + File.separator + "_" + Integer.toHexString((int) (Math.random() * 1000000000)) + ".jar";
 	}
 	
 	@Override
 	protected void preSubmit()
 	{
-		deleteFileIfPresent(this.jarTempPath);
 	}
 	
 	@Override
 	protected void postSubmit() throws Exception
 	{
-		deleteFileIfPresent(this.jarTempPath);
 	}
 	
 	@Override
@@ -91,32 +82,12 @@ public class CustomDataTypeTest extends TestBase
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		JobGraph jobGraph = jgg.compileJobGraph(op);
 		
-		// copy the jar with the extra class from the resources to the temp folder
-		{
-			final InputStream is = getClass().getClassLoader().getResourceAsStream(EXTERNAL_JAR_RESOURCE);
-			final FileOutputStream fos = new FileOutputStream(this.jarTempPath);
-			final byte[] buffer = new byte[1024];
-			
-			int numRead;
-			while ((numRead = is.read(buffer)) != -1) {
-				fos.write(buffer, 0, numRead);
-			}
-			
-			is.close();
-			fos.close();
-		}
-				
+		URL jarFileURL = getClass().getResource(EXTERNAL_JAR_RESOURCE);
+		
 		// attach the jar for a class that is not on the job-manager's classpath
-		jobGraph.addJar(new Path("file://" + this.jarTempPath));
-		return jobGraph;
-	}
+		jobGraph.addJar(new Path("file://" + jarFileURL.getPath()));
 	
-	private static final void deleteFileIfPresent(String path)
-	{
-		final File f = new File(path);
-		if (f.exists()) {
-			f.delete();
-		}
+		return jobGraph;
 	}
 	
 	public static final class EmptyInputFormat extends GenericInputFormat
