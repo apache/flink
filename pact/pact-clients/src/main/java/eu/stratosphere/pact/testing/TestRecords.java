@@ -388,8 +388,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 			// initialize with null
 			List<Key> currentKeys = new ArrayList<Key>(Arrays.asList(new Key[sortInfo.sortKeys.size()])), nextKeys =
-				new ArrayList<Key>(
-					currentKeys);
+				new ArrayList<Key>(currentKeys);
 			int itemIndex = 0;
 			List<PactRecord> expectedValuesWithCurrentKey = new ArrayList<PactRecord>();
 			List<PactRecord> actualValuesWithCurrentKey = new ArrayList<PactRecord>();
@@ -497,7 +496,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 		if (actualValuesWithCurrentKey.isEmpty())
 			throw new ArrayComparisonFailure("Unexpected value for key " + currentKeys, new AssertionFailedError(
-				Assert.format(" ", expectedValuesWithCurrentKey, actualRecord)), itemIndex
+				Assert.format(" ", toString(expectedValuesWithCurrentKey.iterator(), schema), toString(actualRecord,
+					schema))), itemIndex
 				+ expectedValuesWithCurrentKey.size() - 1);
 
 		fuzzyMatcher.removeMatchingValues(similarityMap, schema, expectedValuesWithCurrentKey,
@@ -505,7 +505,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 		if (!expectedValuesWithCurrentKey.isEmpty() || !actualValuesWithCurrentKey.isEmpty())
 			throw new ArrayComparisonFailure("Unexpected values for key " + currentKeys + ": ",
-				new AssertionFailedError(Assert.format(" ", expectedValuesWithCurrentKey, actualValuesWithCurrentKey)),
+				new AssertionFailedError(Assert.format(" ", toString(expectedValuesWithCurrentKey.iterator(), schema),
+					toString(actualValuesWithCurrentKey.iterator(), schema))),
 				itemIndex - expectedValuesWithCurrentKey.size());
 
 		if (actualRecord != null)
@@ -513,8 +514,12 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	}
 
 	private static Object toString(Iterator<PactRecord> iterator, Class<? extends Value>[] schema) {
+		return toString(iterator, schema, 20);
+	}
+
+	private static Object toString(Iterator<PactRecord> iterator, Class<? extends Value>[] schema, int maxNum) {
 		StringBuilder builder = new StringBuilder();
-		for (int index = 0; index < 20 && iterator.hasNext(); index++) {
+		for (int index = 0; index < maxNum && iterator.hasNext(); index++) {
 			builder.append(toString(iterator.next(), schema));
 			if (iterator.hasNext())
 				builder.append(", ");
@@ -660,9 +665,15 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 				@Override
 				public int compare(PactRecord o1, PactRecord o2) {
 					for (int index = 0; index < info.keyClasses.size(); index++) {
-						int comparison = info.comparators.get(index).compare(
-							o1.getField(info.sortKeys.get(index), info.keyClasses.get(index)),
-							o2.getField(info.sortKeys.get(index), info.keyClasses.get(index)));
+						Key f1 = o1.getField(info.sortKeys.get(index), info.keyClasses.get(index));
+						Key f2 = o2.getField(info.sortKeys.get(index), info.keyClasses.get(index));
+						if (f1 == f2)
+							continue;
+						if (f1 == null)
+							return -1;
+						if (f2 == null)
+							return 1;
+						int comparison = info.comparators.get(index).compare(f1, f2);
 						if (comparison != 0)
 							return comparison;
 					}
