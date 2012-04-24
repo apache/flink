@@ -120,6 +120,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target (problem: result could be any kind of NumericNode)
 		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, null, context),
 			(NumericNode) this.secondOperand.evaluate(node, null, context));
 	}

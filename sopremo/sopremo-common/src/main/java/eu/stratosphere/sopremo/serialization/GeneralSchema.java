@@ -137,28 +137,10 @@ public class GeneralSchema implements Schema {
 			if (source.getClass() != target.getClass()) {
 				target = source;
 			} else {
-				target = this.reusePrimitive(source, target, source.getClass());
+				target = SopremoUtil.reusePrimitive(source, target, source.getClass());
 			}
 		}
 
-		return target;
-	}
-
-	private IJsonNode reusePrimitive(IJsonNode source, IJsonNode target, Class<? extends IJsonNode> clazz) {
-		if (clazz.equals(BooleanNode.class) || clazz.equals(NullNode.class)) {
-			return source;
-		}
-		if (clazz.equals(IntNode.class)) {
-			((IntNode) target).setValue(((IntNode) source).getIntValue());
-		} else if (clazz.equals(DoubleNode.class)) {
-			((DoubleNode) target).setValue(((DoubleNode) source).getDoubleValue());
-		} else if (clazz.equals(LongNode.class)) {
-			((LongNode) target).setValue(((LongNode) source).getLongValue());
-		} else if (clazz.equals(DecimalNode.class)) {
-			((DecimalNode) target).setValue(((DecimalNode) source).getDecimalValue());
-		} else if (clazz.equals(BigIntegerNode.class)) {
-			((BigIntegerNode) target).setValue(((BigIntegerNode) source).getBigIntegerValue());
-		}
 		return target;
 	}
 

@@ -114,6 +114,7 @@ public class TernaryExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target
 		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, null, context), BooleanNode.class) == BooleanNode.TRUE)
 			return this.ifExpression.evaluate(node, target, context);
 		return this.thenExpression.evaluate(node, target, context);

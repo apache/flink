@@ -30,10 +30,17 @@ import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 public class SopremoUtil {
@@ -269,4 +276,21 @@ public class SopremoUtil {
 		return target;
 	}
 
+	public static IJsonNode reusePrimitive(IJsonNode source, IJsonNode target, Class<? extends IJsonNode> clazz) {
+		if (clazz.equals(BooleanNode.class) || clazz.equals(NullNode.class)) {
+			return source;
+		}
+		if (clazz.equals(IntNode.class)) {
+			((IntNode) target).setValue(((IntNode) source).getIntValue());
+		} else if (clazz.equals(DoubleNode.class)) {
+			((DoubleNode) target).setValue(((DoubleNode) source).getDoubleValue());
+		} else if (clazz.equals(LongNode.class)) {
+			((LongNode) target).setValue(((LongNode) source).getLongValue());
+		} else if (clazz.equals(DecimalNode.class)) {
+			((DecimalNode) target).setValue(((DecimalNode) source).getDecimalValue());
+		} else if (clazz.equals(BigIntegerNode.class)) {
+			((BigIntegerNode) target).setValue(((BigIntegerNode) source).getBigIntegerValue());
+		}
+		return target;
+	}
 }

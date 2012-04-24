@@ -45,6 +45,7 @@ public class AggregationExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode nodes, IJsonNode target, final EvaluationContext context) {
+		// TODO reuse target (problem: required target could be any kind of JsonNode)
 		this.function.initialize();
 		for (final IJsonNode node : (IArrayNode) nodes)
 			this.function.aggregate(this.preprocessing.evaluate(node, null, context), context);

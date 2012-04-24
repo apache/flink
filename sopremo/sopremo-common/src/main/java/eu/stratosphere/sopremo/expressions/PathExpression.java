@@ -73,6 +73,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target
 		IJsonNode fragmentNode = node;
 		for (final EvaluationExpression fragment : this.fragments)
 			fragmentNode = fragment.evaluate(fragmentNode, null, context);

@@ -107,7 +107,7 @@ public class ArrayAccess extends EvaluationExpression {
 			return target;
 		}
 
-		// TODO find a way to reuse PrimitiveNode's
+		// TODO Reuse target (problem: result could be any kind of JsonNode)
 		final IJsonNode value = ((IArrayNode) node).get(this.resolveIndex(this.startIndex, size));
 		return value == null ? NullNode.getInstance() : value;
 	}

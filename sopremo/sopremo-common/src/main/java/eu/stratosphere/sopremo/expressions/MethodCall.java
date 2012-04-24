@@ -55,6 +55,7 @@ public class MethodCall extends ContainerExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target (problem: result could be any kind of JsonNode)
 		final IJsonNode[] params = new IJsonNode[this.paramExprs.length];
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs[index].evaluate(node, null, context);
