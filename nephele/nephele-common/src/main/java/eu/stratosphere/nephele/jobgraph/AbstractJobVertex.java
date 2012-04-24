@@ -92,7 +92,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	/**
 	 * Custom configuration passed to the assigned task at runtime.
 	 */
-	private final Configuration configuration = new Configuration();
+	private Configuration configuration = new Configuration();
 
 	/**
 	 * The class of the invokable.
@@ -163,7 +163,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 			final CompressionLevel compressionLevel) throws JobGraphDefinitionException {
 		this.connectTo(vertex, channelType, compressionLevel, -1, -1, DistributionPattern.BIPARTITE);
 	}
-	
+
 	/**
 	 * Connects the job vertex to the specified job vertex.
 	 * 
@@ -177,9 +177,10 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, final DistributionPattern distributionPattern) throws JobGraphDefinitionException {
+			final CompressionLevel compressionLevel, final DistributionPattern distributionPattern)
+			throws JobGraphDefinitionException {
 		this.connectTo(vertex, channelType, compressionLevel, -1, -1, distributionPattern);
-	}	
+	}
 
 	/**
 	 * Connects the job vertex to the specified job vertex.
@@ -200,7 +201,8 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate, DistributionPattern distributionPattern)
+			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate,
+			DistributionPattern distributionPattern)
 			throws JobGraphDefinitionException {
 
 		if (vertex == null) {
@@ -231,8 +233,10 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		}
 
 		// Add new edge
-		this.forwardEdges.set(indexOfOutputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfInputGate, distributionPattern));
-		vertex.connectBacklink(this, channelType, compressionLevel, indexOfOutputGate, indexOfInputGate, distributionPattern);
+		this.forwardEdges.set(indexOfOutputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfInputGate,
+			distributionPattern));
+		vertex.connectBacklink(this, channelType, compressionLevel, indexOfOutputGate, indexOfInputGate,
+			distributionPattern);
 	}
 
 	/**
@@ -284,14 +288,16 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        index of the consuming task's input gate to be used
 	 */
 	private void connectBacklink(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, final int indexOfOutputGate, final int indexOfInputGate, DistributionPattern distributionPattern) {
+			final CompressionLevel compressionLevel, final int indexOfOutputGate, final int indexOfInputGate,
+			DistributionPattern distributionPattern) {
 
 		// Make sure the array is big enough
 		for (int i = this.backwardEdges.size(); i <= indexOfInputGate; i++) {
 			this.backwardEdges.add(null);
 		}
 
-		this.backwardEdges.set(indexOfInputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfOutputGate, distributionPattern));
+		this.backwardEdges.set(indexOfInputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfOutputGate,
+			distributionPattern));
 	}
 
 	/**
@@ -423,7 +429,14 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 			this.vertexToShareInstancesWith = vertexToShareInstancesWith;
 		}
 
-		// Read the configuration
+		// Find the class loader for the job
+		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
+		if (cl == null) {
+			throw new IOException("Cannot find class loader for vertex " + getID());
+		}
+
+		// Re-instantiate the configuration object with the correct class loader and read the configuration
+		this.configuration = new Configuration(cl);
 		this.configuration.read(in);
 
 		// Read number of forward edges
@@ -458,13 +471,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		final boolean isNotNull = in.readBoolean();
 		if (!isNotNull) {
 			return;
-		}
-
-		// Read the name of the class and try to instantiate the class object
-
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-		if (cl == null) {
-			throw new IOException("Cannot find class loader for vertex " + getID());
 		}
 
 		// Read the name of the expected class

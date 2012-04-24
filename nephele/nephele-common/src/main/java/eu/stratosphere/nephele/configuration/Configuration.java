@@ -51,6 +51,28 @@ public class Configuration implements IOReadableWritable {
 	private Map<String, String> confData = new HashMap<String, String>();
 
 	/**
+	 * The class loader to be used for the <code>getClass</code> method.
+	 */
+	private final ClassLoader classLoader;
+
+	/**
+	 * Constructs a new configuration object.
+	 */
+	public Configuration() {
+		this.classLoader = null;
+	}
+
+	/**
+	 * Constructs a new configuration object.
+	 * 
+	 * @param classLoader
+	 *        the class loader to be use for the <code>getClass</code> method
+	 */
+	public Configuration(final ClassLoader classLoader) {
+		this.classLoader = classLoader;
+	}
+
+	/**
 	 * Returns the value associated with the given key as a string.
 	 * 
 	 * @param key
@@ -82,38 +104,13 @@ public class Configuration implements IOReadableWritable {
 	 *        the optional default value returned if no entry exists
 	 * @param ancestor
 	 *        the ancestor of both the default value and the potential value
-	 *        * @return the (default) value associated with the given key
-	 * @throws IllegalStateException
-	 *         if the class identified by the associated value cannot be resolved
-	 * @see #setClass(String, Class)
-	 */
-	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor) {
-
-		return getClass(key, defaultValue, ancestor, null);
-	}
-
-	/**
-	 * Returns the class associated with the given key as a string.
-	 * 
-	 * @param <T>
-	 *        the ancestor of both the default value and the potential value
-	 * @param key
-	 *        the key pointing to the associated value
-	 * @param defaultValue
-	 *        the optional default value returned if no entry exists
-	 * @param ancestor
-	 *        the ancestor of both the default value and the potential value
-	 * @param classLoader
-	 *        the class loader to load the class identified by key or <code>null</code> to use the bootstrap class
-	 *        loader
 	 * @return the (default) value associated with the given key
 	 * @throws IllegalStateException
 	 *         if the class identified by the associated value cannot be resolved
 	 * @see #setClass(String, Class)
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor,
-			final ClassLoader classLoader) {
+	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor) {
 
 		final String className = getString(key, null);
 		if (className == null) {
@@ -121,7 +118,7 @@ public class Configuration implements IOReadableWritable {
 		}
 
 		try {
-			return (Class<T>) Class.forName(className, true, classLoader);
+			return (Class<T>) Class.forName(className, true, this.classLoader);
 		} catch (ClassNotFoundException e) {
 			throw new IllegalStateException(e);
 		}
@@ -140,7 +137,7 @@ public class Configuration implements IOReadableWritable {
 	 * @see #setClass(String, Class)
 	 */
 	public Class<?> getClass(final String key, final Class<?> defaultValue) {
-		return getClass(key, defaultValue, Object.class, null);
+		return getClass(key, defaultValue, Object.class);
 	}
 
 	/**

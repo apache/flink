@@ -535,9 +535,9 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		}
 
 		// The configuration objects
-		this.taskConfiguration = new Configuration();
+		this.taskConfiguration = new Configuration(cl);
 		this.taskConfiguration.read(in);
-		this.jobConfiguration = new Configuration();
+		this.jobConfiguration = new Configuration(cl);
 		this.jobConfiguration.read(in);
 
 		// The current of number subtasks

@@ -77,12 +77,12 @@ public class JobGraph implements IOReadableWritable {
 	/**
 	 * The job configuration attached to this job.
 	 */
-	final Configuration jobConfiguration = new Configuration();
+	private Configuration jobConfiguration = new Configuration();
 
 	/**
 	 * The configuration which should be applied to the task managers involved in processing this job.
 	 */
-	final Configuration taskManagerConfiguration = new Configuration();
+	private final Configuration taskManagerConfiguration = new Configuration();
 
 	/**
 	 * List of JAR files required to run this job.
@@ -549,10 +549,6 @@ public class JobGraph implements IOReadableWritable {
 		// Read the job name
 		this.jobName = StringRecord.readString(in);
 
-		// Read the configuration objects
-		this.jobConfiguration.read(in);
-		this.taskManagerConfiguration.read(in);
-
 		// Read required jar files
 		readRequiredJarFiles(in);
 
@@ -620,6 +616,18 @@ public class JobGraph implements IOReadableWritable {
 			jv.read(in);
 		}
 
+		// Find the class loader for the job
+		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.jobID);
+		if (cl == null) {
+			throw new IOException("Cannot find class loader for job graph " + this.jobID);
+		}
+
+		// Re-instantiate the job configuration object and read the configuration
+		this.jobConfiguration = new Configuration(cl);
+		this.jobConfiguration.read(in);
+
+		// Read the task manager configuration
+		this.taskManagerConfiguration.read(in);
 	}
 
 	/**
@@ -633,10 +641,6 @@ public class JobGraph implements IOReadableWritable {
 
 		// Write out job name
 		StringRecord.writeString(out, this.jobName);
-
-		// Write out configuration objects
-		this.jobConfiguration.write(out);
-		this.taskManagerConfiguration.write(out);
 
 		final AbstractJobVertex[] allVertices = this.getAllJobVertices();
 
@@ -660,6 +664,10 @@ public class JobGraph implements IOReadableWritable {
 			allVertices[i].getID().write(out);
 			allVertices[i].write(out);
 		}
+
+		// Write out configuration objects
+		this.jobConfiguration.write(out);
+		this.taskManagerConfiguration.write(out);
 	}
 
 	/**
