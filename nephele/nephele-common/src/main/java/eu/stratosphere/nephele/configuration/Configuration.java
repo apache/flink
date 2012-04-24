@@ -82,19 +82,46 @@ public class Configuration implements IOReadableWritable {
 	 *        the optional default value returned if no entry exists
 	 * @param ancestor
 	 *        the ancestor of both the default value and the potential value
+	 *        * @return the (default) value associated with the given key
+	 * @throws IllegalStateException
+	 *         if the class identified by the associated value cannot be resolved
+	 * @see #setClass(String, Class)
+	 */
+	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor) {
+
+		return getClass(key, defaultValue, ancestor, null);
+	}
+
+	/**
+	 * Returns the class associated with the given key as a string.
+	 * 
+	 * @param <T>
+	 *        the ancestor of both the default value and the potential value
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the optional default value returned if no entry exists
+	 * @param ancestor
+	 *        the ancestor of both the default value and the potential value
+	 * @param classLoader
+	 *        the class loader to load the class identified by key or <code>null</code> to use the bootstrap class
+	 *        loader
 	 * @return the (default) value associated with the given key
 	 * @throws IllegalStateException
 	 *         if the class identified by the associated value cannot be resolved
 	 * @see #setClass(String, Class)
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor) {
-		String className = getString(key, null);
+	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor,
+			final ClassLoader classLoader) {
+
+		final String className = getString(key, null);
 		if (className == null) {
 			return (Class<T>) defaultValue;
 		}
+
 		try {
-			return (Class<T>) Class.forName(className);
+			return (Class<T>) Class.forName(className, true, classLoader);
 		} catch (ClassNotFoundException e) {
 			throw new IllegalStateException(e);
 		}
@@ -113,7 +140,7 @@ public class Configuration implements IOReadableWritable {
 	 * @see #setClass(String, Class)
 	 */
 	public Class<?> getClass(final String key, final Class<?> defaultValue) {
-		return getClass(key, defaultValue, Object.class);
+		return getClass(key, defaultValue, Object.class, null);
 	}
 
 	/**
@@ -347,23 +374,24 @@ public class Configuration implements IOReadableWritable {
 
 		return retVal;
 	}
-	
+
 	/**
 	 * Adds all entries from the given configuration into this configuration. The keys
 	 * are prepended with the given prefix.
 	 * 
-	 * @param other The configuration whose entries are added to this configuration.
-	 * @param prefix The prefix to prepend.
+	 * @param other
+	 *        The configuration whose entries are added to this configuration.
+	 * @param prefix
+	 *        The prefix to prepend.
 	 */
-	public void addAll(Configuration other, String prefix)
-	{
+	public void addAll(Configuration other, String prefix) {
 		final StringBuilder bld = new StringBuilder();
 		bld.append(prefix);
 		final int pl = bld.length();
-		
+
 		synchronized (this.confData) {
 			synchronized (other.confData) {
-				for (Map.Entry<String, String> entry :other.confData.entrySet()) {
+				for (Map.Entry<String, String> entry : other.confData.entrySet()) {
 					bld.setLength(pl);
 					bld.append(entry.getKey());
 					this.confData.put(bld.toString(), entry.getValue());
