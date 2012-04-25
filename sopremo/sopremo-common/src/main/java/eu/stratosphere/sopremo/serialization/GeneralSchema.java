@@ -137,7 +137,7 @@ public class GeneralSchema implements Schema {
 			if (source.getClass() != target.getClass()) {
 				target = source;
 			} else {
-				target = SopremoUtil.reusePrimitive(source, target, source.getClass());
+				target = SopremoUtil.reusePrimitive(source, target);
 			}
 		}
 

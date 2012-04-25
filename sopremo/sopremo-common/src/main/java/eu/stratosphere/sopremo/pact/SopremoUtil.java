@@ -276,19 +276,21 @@ public class SopremoUtil {
 		return target;
 	}
 
-	public static IJsonNode reusePrimitive(IJsonNode source, IJsonNode target, Class<? extends IJsonNode> clazz) {
-		if (clazz.equals(BooleanNode.class) || clazz.equals(NullNode.class)) {
+	public static IJsonNode reusePrimitive(IJsonNode source, IJsonNode target) {
+		Class<? extends IJsonNode> sourceClass = source.getClass();
+		if ((sourceClass != target.getClass()) || sourceClass.equals(BooleanNode.class) || source.isNull()) {
 			return source;
 		}
-		if (clazz.equals(IntNode.class)) {
+
+		if (sourceClass.equals(IntNode.class)) {
 			((IntNode) target).setValue(((IntNode) source).getIntValue());
-		} else if (clazz.equals(DoubleNode.class)) {
+		} else if (sourceClass.equals(DoubleNode.class)) {
 			((DoubleNode) target).setValue(((DoubleNode) source).getDoubleValue());
-		} else if (clazz.equals(LongNode.class)) {
+		} else if (sourceClass.equals(LongNode.class)) {
 			((LongNode) target).setValue(((LongNode) source).getLongValue());
-		} else if (clazz.equals(DecimalNode.class)) {
+		} else if (sourceClass.equals(DecimalNode.class)) {
 			((DecimalNode) target).setValue(((DecimalNode) source).getDecimalValue());
-		} else if (clazz.equals(BigIntegerNode.class)) {
+		} else if (sourceClass.equals(BigIntegerNode.class)) {
 			((BigIntegerNode) target).setValue(((BigIntegerNode) source).getBigIntegerValue());
 		}
 		return target;
