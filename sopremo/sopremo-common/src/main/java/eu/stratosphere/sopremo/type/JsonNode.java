@@ -17,6 +17,12 @@ public abstract class JsonNode implements IJsonNode {
 	 */
 	private static final long serialVersionUID = 7164528435336585193L;
 
+	/**
+	 * This enumeration contains all possible types of JsonNode.
+	 * 
+	 * @author Michael Hopstock
+	 * @author Tommy Neubert
+	 */
 	public enum Type {
 		IntNode(IntNode.class, true),
 		LongNode(LongNode.class, true),
@@ -41,23 +47,33 @@ public abstract class JsonNode implements IJsonNode {
 			this.numeric = isNumeric;
 		}
 
+		/**
+		 * Returns either the node represented by a specific enumeration element is numeric or not.
+		 */
 		public boolean isNumeric() {
 			return this.numeric;
 		}
 
+		/**
+		 * Returns the class of the node which is represented by a specific enumeration element.
+		 * 
+		 * @return the class of the represented node
+		 */
 		public Class<? extends JsonNode> getClazz() {
 			return this.clazz;
 		}
 
 	};
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#getType()
 	 */
 	@Override
 	public abstract JsonNode.Type getType();
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#canonicalize()
 	 */
 	@Override
@@ -65,7 +81,8 @@ public abstract class JsonNode implements IJsonNode {
 		return this;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#clone()
 	 */
 
@@ -78,21 +95,24 @@ public abstract class JsonNode implements IJsonNode {
 		}
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#read(java.io.DataInput)
 	 */
 
 	@Override
 	public abstract void read(DataInput in) throws IOException;
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#write(java.io.DataOutput)
 	 */
 
 	@Override
 	public abstract void write(DataOutput out) throws IOException;
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#isNull()
 	 */
 	@Override
@@ -100,15 +120,17 @@ public abstract class JsonNode implements IJsonNode {
 		return false;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#isMissing()
 	 */
 	@Override
 	public boolean isMissing() {
 		return false;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#isObject()
 	 */
 	@Override
@@ -116,7 +138,8 @@ public abstract class JsonNode implements IJsonNode {
 		return false;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#isArray()
 	 */
 	@Override
@@ -124,7 +147,8 @@ public abstract class JsonNode implements IJsonNode {
 		return false;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#isTextual()
 	 */
 	@Override
@@ -132,13 +156,15 @@ public abstract class JsonNode implements IJsonNode {
 		return false;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#getJavaValue()
 	 */
 	@Override
 	public abstract Object getJavaValue();
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#compareTo(eu.stratosphere.pact.common.type.Key)
 	 */
 
@@ -149,7 +175,8 @@ public abstract class JsonNode implements IJsonNode {
 		return this.compareToSameType((IJsonNode) other);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#compareToSameType(eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
@@ -162,7 +189,8 @@ public abstract class JsonNode implements IJsonNode {
 		return sb.toString();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#toString(java.lang.StringBuilder)
 	 */
 	@Override

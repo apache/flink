@@ -12,6 +12,7 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -29,7 +30,7 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 	public void shouldCreateObjectAsIntended() {
 		final IJsonNode result = new ObjectCreation(new ObjectCreation.FieldAssignment("name", new ConstantExpression(
 			TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
-			IntNode.valueOf(30)))).evaluate(IntNode.valueOf(0), this.context);
+			IntNode.valueOf(30)))).evaluate(IntNode.valueOf(0), null, this.context);
 
 		Assert.assertEquals(createObjectNode("name", "testperson", "age", 30), result);
 	}
@@ -55,7 +56,7 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 
 		object.addMapping("birthday", new ConstantExpression(TextNode.valueOf("01.01.2000")));
 
-		final IJsonNode result = object.evaluate(IntNode.valueOf(0), this.context);
+		final IJsonNode result = object.evaluate(IntNode.valueOf(0), null, this.context);
 
 		Assert.assertEquals(createObjectNode("name", "testperson", "age", 30, "birthday", "01.01.2000"), result);
 	}
@@ -70,6 +71,34 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 		mapping.evaluate(result, createArrayNode("3", "4"), this.context);
 
 		Assert.assertEquals(createObjectNode("fieldname", "test", "testname", "3"), result);
+	}
+
+	@Test
+	public void shouldReuseTargetIfCorrectType() {
+		ObjectNode target = new ObjectNode();
+
+		final ObjectCreation object = new ObjectCreation(new ObjectCreation.FieldAssignment("name",
+			new ConstantExpression(
+				TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
+			IntNode.valueOf(30))));
+
+		IJsonNode result = object.evaluate(IntNode.valueOf(0), target, this.context);
+
+		Assert.assertSame(target, result);
+	}
+	
+	@Test
+	public void shouldNotReuseTargetWithWrongType() {
+		ArrayNode target = new ArrayNode();
+
+		final ObjectCreation object = new ObjectCreation(new ObjectCreation.FieldAssignment("name",
+			new ConstantExpression(
+				TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
+			IntNode.valueOf(30))));
+
+		IJsonNode result = object.evaluate(IntNode.valueOf(0), target, this.context);
+
+		Assert.assertNotSame(target, result);
 	}
 
 	@Override

@@ -2,6 +2,9 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.Operator;
 
+/**
+ * This expression represents all {@link Operator}s.
+ */
 public class NestedOperatorExpression extends UnevaluableExpression {
 
 	/**
@@ -11,6 +14,12 @@ public class NestedOperatorExpression extends UnevaluableExpression {
 
 	private final Operator<?> operator;
 
+	/**
+	 * Initializes a NestedOperatorExpression with the given {@link Operator}.
+	 * 
+	 * @param operator
+	 *        the operator that should be represented by this expression
+	 */
 	public NestedOperatorExpression(final Operator<?> operator) {
 		super("Nested operator: " + operator);
 		this.operator = operator;
@@ -42,6 +51,11 @@ public class NestedOperatorExpression extends UnevaluableExpression {
 		builder.append("<").append(this.operator).append(">");
 	}
 
+	/**
+	 * Returns the operator
+	 * 
+	 * @return the operator
+	 */
 	public Operator<?> getOperator() {
 		return this.operator;
 	}

@@ -8,6 +8,9 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Determines a set contains an element or not.
+ */
 @OptimizerHints(scope = Scope.ANY, iterating = true)
 public class ElementInSetExpression extends BooleanExpression {
 	/**
@@ -19,17 +22,29 @@ public class ElementInSetExpression extends BooleanExpression {
 
 	private final Quantor quantor;
 
+	/**
+	 * Initializes an ElementInSetExpression.
+	 * 
+	 * @param elementExpr
+	 *        the expression which evaluates to the element that should be found
+	 * @param quantor
+	 *        the {@link Quantor} that should be used
+	 * @param setExpr
+	 *        the expression which evaluates to the set that should be used
+	 */
 	public ElementInSetExpression(final EvaluationExpression elementExpr, final Quantor quantor,
 			final EvaluationExpression setExpr) {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
+		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		return this.quantor.evaluate(this.elementExpr.evaluate(node, context),
-			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, context)));
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// we can ignore 'target' because no new Object is created
+		return this.quantor.evaluate(this.elementExpr.evaluate(node, null, context),
+			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, null, context)));
 	}
 
 	// @Override
@@ -50,14 +65,29 @@ public class ElementInSetExpression extends BooleanExpression {
 	// return super.evaluate(input);
 	// }
 
+	/**
+	 * Returns the element expression.
+	 * 
+	 * @return the element expression
+	 */
 	public EvaluationExpression getElementExpr() {
 		return this.elementExpr;
 	}
 
+	/**
+	 * Returns the quantor.
+	 * 
+	 * @return the quantor
+	 */
 	public Quantor getQuantor() {
 		return this.quantor;
 	}
 
+	/**
+	 * Returns the set expression.
+	 * 
+	 * @return the set expression
+	 */
 	public EvaluationExpression getSetExpr() {
 		return this.setExpr;
 	}
@@ -80,6 +110,9 @@ public class ElementInSetExpression extends BooleanExpression {
 		return Arrays.asList(evaluate).iterator();
 	}
 
+	/**
+	 * All supported quantors.
+	 */
 	public static enum Quantor {
 		EXISTS_IN, EXISTS_NOT_IN {
 			@Override

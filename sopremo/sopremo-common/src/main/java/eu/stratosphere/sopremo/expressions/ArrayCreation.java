@@ -5,7 +5,9 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
@@ -30,6 +32,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	public ArrayCreation(final EvaluationExpression... elements) {
 		this.elements = elements;
+		this.expectedTarget = ArrayNode.class;
 	}
 
 	/**
@@ -40,6 +43,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	public ArrayCreation(final List<EvaluationExpression> elements) {
 		this.elements = elements.toArray(new EvaluationExpression[elements.size()]);
+		this.expectedTarget = ArrayNode.class;
 	}
 
 	public int size() {
@@ -55,11 +59,16 @@ public class ArrayCreation extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		final ArrayNode arrayNode = new ArrayNode();
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
+		int index = 0;
+
 		for (final EvaluationExpression expression : this.elements)
-			arrayNode.add(expression.evaluate(node, context));
-		return arrayNode;
+			((IArrayNode) target).add(expression.evaluate(node, ((IArrayNode) target).get(index++), context));
+
+		return target;
+
 	}
 
 	@Override

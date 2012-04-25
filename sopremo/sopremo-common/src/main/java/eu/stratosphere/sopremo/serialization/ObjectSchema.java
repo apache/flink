@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
@@ -66,6 +67,11 @@ public class ObjectSchema implements Schema {
 			this.mappings.add(mapping);
 	}
 
+	/**
+	 * @param schema
+	 *        the keys, that should be extracted from the {@link ObjectNode} and saved into the first fields of
+	 *        {@link PactRecord}
+	 */
 	public void setMappings(String... schema) {
 		this.setMappings(Arrays.asList(schema));
 	}
@@ -86,7 +92,7 @@ public class ObjectSchema implements Schema {
 	}
 
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
+	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
 		IObjectNode others;
 		if (target == null) {
 			// the last element is the field "others"
@@ -101,6 +107,7 @@ public class ObjectSchema implements Schema {
 			target.setField(target.getNumFields() - 1, wrappedField);
 		}
 
+		// traverse the mapping and fill them into the record
 		IObjectNode object = (IObjectNode) value;
 		for (int i = 0; i < this.mappings.size(); i++) {
 			IJsonNode node = object.get(this.mappings.get(i));
@@ -109,8 +116,9 @@ public class ObjectSchema implements Schema {
 			target.setField(i, wrappedField);
 		}
 
-		for (Entry<String, IJsonNode> entry : object.getEntries())
-			if (!this.mappings.contains(entry.getKey()))
+		// each other entry comes into the last record field
+		for (Entry<String, IJsonNode> entry : object.getEntries()) {
+			if (!this.mappings.contains(entry.getKey())) {
 				others.put(entry.getKey(), entry.getValue());
 
 		return target;

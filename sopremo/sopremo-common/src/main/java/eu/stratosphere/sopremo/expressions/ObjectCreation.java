@@ -9,12 +9,16 @@ import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.util.ConversionIterator;
 
+/**
+ * Creates an object with the given {@link Mapping}s.
+ */
 @OptimizerHints(scope = Scope.ANY)
 public class ObjectCreation extends ContainerExpression {
 	/**
@@ -22,6 +26,9 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = -5688226000742970692L;
 
+	/**
+	 * An ObjectCreation which copies the fields of all given {IObjectNode}s into a single node.
+	 */
 	public static final ObjectCreation CONCATENATION = new ObjectCreation() {
 		/**
 		 * 
@@ -29,36 +36,69 @@ public class ObjectCreation extends ContainerExpression {
 		private static final long serialVersionUID = 5274811723343043990L;
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-			final ObjectNode objectNode = new ObjectNode();
+		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
 			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
 			while (elements.hasNext()) {
 				final IJsonNode jsonNode = elements.next();
 				if (!jsonNode.isNull())
-					objectNode.putAll((IObjectNode) jsonNode);
+					((IObjectNode) target).putAll((IObjectNode) jsonNode);
 			}
-			return objectNode;
+			return target;
 		}
 	};
 
 	private final List<Mapping<?>> mappings;
 
+	/**
+	 * Initializes an ObjectCreation with empty mappings.
+	 */
 	public ObjectCreation() {
 		this(new ArrayList<Mapping<?>>());
 	}
 
+	/**
+	 * Initializes an ObjectCreation with the given {@link Mapping}s.
+	 * 
+	 * @param mappings
+	 *        the mappings that should be used
+	 */
 	public ObjectCreation(final List<Mapping<?>> mappings) {
 		this.mappings = mappings;
+		this.expectedTarget = ObjectNode.class;
 	}
 
+	/**
+	 * Initializes an ObjectCreation with the given {@link FieldAssignment}s.
+	 * 
+	 * @param mappings
+	 *        the assignments that should be used
+	 */
 	public ObjectCreation(final FieldAssignment... mappings) {
 		this.mappings = new ArrayList<Mapping<?>>(Arrays.asList(mappings));
+		this.expectedTarget = ObjectNode.class;
 	}
 
+	/**
+	 * Adds a new {@link Mapping}
+	 * 
+	 * @param mapping
+	 *        the new mapping
+	 */
 	public void addMapping(final Mapping<?> mapping) {
 		this.mappings.add(mapping);
 	}
 
+	/**
+	 * Creates a new {@link FieldAssignment} and adds it to this expressions mappings.
+	 * 
+	 * @param target
+	 *        the fieldname
+	 * @param expression
+	 *        the expression that should be used for the created FieldAssignemt
+	 */
 	public void addMapping(final String target, final EvaluationExpression expression) {
 		this.mappings.add(new FieldAssignment(target, expression));
 	}
@@ -72,21 +112,40 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		final ObjectNode transformedNode = new ObjectNode();
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
 		for (final Mapping<?> mapping : this.mappings)
-			mapping.evaluate(transformedNode, node, context);
-		return transformedNode;
+			mapping.evaluate((IObjectNode) target, node, context);
+		return target;
 	}
 
+	/**
+	 * Returns the mapping at the specified index
+	 * 
+	 * @param index
+	 *        the index of the mapping that should be returned
+	 * @return the mapping at the specified index
+	 */
 	public Mapping<?> getMapping(final int index) {
 		return this.mappings.get(index);
 	}
 
+	/**
+	 * Returns the mappings
+	 * 
+	 * @return the mappings
+	 */
 	public List<Mapping<?>> getMappings() {
 		return this.mappings;
 	}
 
+	/**
+	 * Returns how many mappings are specified
+	 * 
+	 * @return the mapping count
+	 */
 	public int getMappingSize() {
 		return this.mappings.size();
 	}
@@ -154,6 +213,9 @@ public class ObjectCreation extends ContainerExpression {
 		builder.append("}");
 	}
 
+	/**
+	 * An ObjectCreation which copies the fields of an {@link IObjectNode}.
+	 */
 	public static class CopyFields extends FieldAssignment {
 		/**
 		 * 
@@ -166,7 +228,7 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
-			final IJsonNode exprNode = this.getExpression().evaluate(node, context);
+			final IJsonNode exprNode = this.getExpression().evaluate(node, null, context);
 			transformedNode.putAll((IObjectNode) exprNode);
 		}
 
@@ -182,7 +244,9 @@ public class ObjectCreation extends ContainerExpression {
 		 * Initializes FieldAssignment.
 		 * 
 		 * @param target
+		 *        the fieldname
 		 * @param expression
+		 *        the expression that evaluates to this fields value
 		 */
 		public FieldAssignment(final String target, final EvaluationExpression expression) {
 			super(target, expression);
@@ -195,7 +259,7 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
-			final IJsonNode value = this.expression.evaluate(node, context);
+			final IJsonNode value = this.expression.evaluate(node, null, context);
 			// if (!value.isNull())
 			transformedNode.put(this.target, value);
 		}
@@ -239,6 +303,14 @@ public class ObjectCreation extends ContainerExpression {
 
 		protected EvaluationExpression expression;
 
+		/**
+		 * Initializes Mapping with the given {@link Target} and the given {@link EvaluationExpression}.
+		 * 
+		 * @param target
+		 *        the target of this mapping
+		 * @param expression
+		 *        the expression that evaluates to this mappings value
+		 */
 		public Mapping(final Target target, final EvaluationExpression expression) {
 			this.target = target;
 			this.expression = expression;
@@ -272,10 +344,20 @@ public class ObjectCreation extends ContainerExpression {
 		protected abstract void evaluate(final IObjectNode transformedNode, final IJsonNode node,
 				final EvaluationContext context);
 
+		/**
+		 * Returns the expression
+		 * 
+		 * @return the expression
+		 */
 		public EvaluationExpression getExpression() {
 			return this.expression;
 		}
 
+		/**
+		 * Returns the target
+		 * 
+		 * @return the target
+		 */
 		public Target getTarget() {
 			return this.target;
 		}

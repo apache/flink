@@ -77,7 +77,7 @@ public class JsonInputFormat extends FileInputFormat {
 	@Override
 	public boolean nextRecord(final PactRecord record) throws IOException {
 		if (!this.end) {
-			PactRecord result = this.schema.jsonToRecord(this.parser.readValueAsTree(), record);
+			PactRecord result = this.schema.jsonToRecord(this.parser.readValueAsTree(), record, null);
 			if(result != record) 
 				result.copyTo(record);
 			this.checkEnd();

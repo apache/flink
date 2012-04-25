@@ -35,6 +35,6 @@ public class SopremoFunction extends JsonMethod implements Inlineable {
 	 */
 	@Override
 	public IJsonNode call(final IArrayNode params, final EvaluationContext context) {
-		return this.definition.evaluate(params, context);
+		return this.definition.evaluate(params, null, context);
 	}
 }

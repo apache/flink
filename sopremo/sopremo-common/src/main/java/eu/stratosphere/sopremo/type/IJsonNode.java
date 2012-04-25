@@ -27,40 +27,46 @@ import eu.stratosphere.pact.common.type.Value;
  * 
  * @author Michael Hopstock
  * @author Tommy Neubert
- *
  */
-public interface IJsonNode extends Serializable, Value, Key, Cloneable{
+public interface IJsonNode extends Serializable, Value, Key, Cloneable {
+
+	public abstract void clear();
 	
 	/**
 	 * Returns the {@link eu.stratosphere.sopremo.type.JsonNode.Type} of this node.
+	 * 
 	 * @return nodetype
 	 */
 	public abstract JsonNode.Type getType();
 
 	/**
 	 * Transforms this node into his standard representation.
+	 * 
 	 * @return standard representation
 	 */
 	public abstract IJsonNode canonicalize();
 
 	/**
 	 * Duplicates this node.
+	 * 
 	 * @return duplicate or null if Exception occurs
 	 */
 	public abstract IJsonNode clone();
 
 	/**
 	 * Deserializes this node from a DataInput.
+	 * 
 	 * @param {@link DataInput} in
-	 * @exception {@link IOException} 
+	 * @exception {@link IOException}
 	 */
 	@Override
 	public abstract void read(DataInput in) throws IOException;
 
 	/**
 	 * Serializes this node into a DataOutput.
+	 * 
 	 * @param {@link DataOutput} out
-	 * @exception {@link IOException} 
+	 * @exception {@link IOException}
 	 */
 	@Override
 	public abstract void write(DataOutput out) throws IOException;
@@ -69,7 +75,7 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 	 * Returns either this node is a representation for a null-value or not.
 	 */
 	public abstract boolean isNull();
-	
+
 	/**
 	 * Returns either this node is a representation for a missing value or not.
 	 */
@@ -90,12 +96,18 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 	 */
 	public abstract boolean isTextual();
 
+	/**
+	 * Returns the internal representation of this nodes value.
+	 * 
+	 * @return this nodes value
+	 */
 	public abstract Object getJavaValue();
 
 	/**
 	 * Compares this node with another.
+	 * 
 	 * @param other
-	 * 	the node this node should be compared with
+	 *        the node this node should be compared with
 	 * @return result of the comparison
 	 */
 	@Override
@@ -103,16 +115,18 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 
 	/**
 	 * Compares this node with another {@link eu.stratosphere.sopremo.type.IJsonNode}.
+	 * 
 	 * @param other
-	 * 	the node this node should be compared with
+	 *        the node this node should be compared with
 	 * @return result of the comparison
 	 */
 	public abstract int compareToSameType(IJsonNode other);
 
 	/**
 	 * Appends this nodes string representation to a given {@link StringBuilder}.
+	 * 
 	 * @param sb
-	 * 	the StringBuilder
+	 *        the StringBuilder
 	 * @return a StringBuilder where this nodes string representation is appended
 	 */
 	public abstract StringBuilder toString(StringBuilder sb);

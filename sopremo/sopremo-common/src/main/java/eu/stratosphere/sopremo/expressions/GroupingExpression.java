@@ -7,10 +7,14 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Returns a grouped representation of the elements of the given {@link IArrayNode}.
+ */
 public class GroupingExpression extends EvaluationExpression {
 	/**
 	 * 
@@ -19,38 +23,50 @@ public class GroupingExpression extends EvaluationExpression {
 
 	private final EvaluationExpression groupingExpression, resultExpression;
 
+	/**
+	 * Initializes a GroupingExpression with the given expressions.
+	 * 
+	 * @param groupingExpression
+	 *        the expression that should be used to determine the grouping keys
+	 * @param resultExpression
+	 *        the expression that should be used on the elements within a group
+	 */
 	public GroupingExpression(final EvaluationExpression groupingExpression, final EvaluationExpression resultExpression) {
 		this.groupingExpression = groupingExpression;
 		this.resultExpression = resultExpression;
+		this.expectedTarget = ArrayNode.class;
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
 		if (((IArrayNode) node).size() == 0)
-			return new ArrayNode();
+			return target;
 
 		final List<ArrayNode> nodes = this.sortNodesWithKey(node, context);
 
-		final ArrayNode resultNode = new ArrayNode();
+		// final ArrayNode resultNode = new ArrayNode();
 
 		int groupStart = 0;
 		IJsonNode groupKey = nodes.get(0).get(0);
 		for (int index = 1; index < nodes.size(); index++)
 			if (!nodes.get(index).get(0).equals(groupKey)) {
-				resultNode.add(this.evaluateGroup(nodes.subList(groupStart, index), context));
+				((IArrayNode) target).add(this.evaluateGroup(nodes.subList(groupStart, index), context));
 				groupKey = nodes.get(index).get(0);
 				groupStart = index;
 			}
 
-		resultNode.add(this.evaluateGroup(nodes.subList(groupStart, nodes.size()), context));
+		((IArrayNode) target).add(this.evaluateGroup(nodes.subList(groupStart, nodes.size()), context));
 
-		return resultNode;
+		return target;
 	}
 
 	protected List<ArrayNode> sortNodesWithKey(final IJsonNode node, final EvaluationContext context) {
 		final List<ArrayNode> nodes = new ArrayList<ArrayNode>();
 		for (final IJsonNode jsonNode : (IArrayNode) node)
-			nodes.add(JsonUtil.asArray(this.groupingExpression.evaluate(jsonNode, context), jsonNode));
+			nodes.add(JsonUtil.asArray(this.groupingExpression.evaluate(jsonNode, null, context), jsonNode));
 		Collections.sort(nodes, new Comparator<ArrayNode>() {
 			@Override
 			public int compare(final ArrayNode o1, final ArrayNode o2) {
@@ -64,7 +80,7 @@ public class GroupingExpression extends EvaluationExpression {
 		final ArrayNode values = new ArrayNode();
 		for (final IArrayNode compactArrayNode : group)
 			values.add(compactArrayNode.get(1));
-		return this.resultExpression.evaluate(values, context);
+		return this.resultExpression.evaluate(values, null, context);
 	}
 
 	@Override

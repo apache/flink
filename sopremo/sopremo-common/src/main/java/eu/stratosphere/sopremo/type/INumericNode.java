@@ -18,25 +18,49 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 /**
- * @author strato
- *
+ * @author Michael Hopstock
+ * @author Tommy Neubert
  */
 public interface INumericNode extends IPrimitiveNode{
 
+	/**
+	 * Returns this nodes value as an <code>int</code>.
+	 */
 	public abstract int getIntValue();
 
+	/**
+	 * Returns this nodes value as a <code>long</code>.
+	 */
 	public abstract long getLongValue();
 
+	/**
+	 * Returns this nodes value as a {@link BigInteger}.
+	 */
 	public abstract BigInteger getBigIntegerValue();
 
+	/**
+	 * Returns this nodes value as a {@link BigDecimal}.
+	 */
 	public abstract BigDecimal getDecimalValue();
 
+	/**
+	 * Returns this nodes value as a <code>double</code>.
+	 */
 	public abstract double getDoubleValue();
 
+	/**
+	 * Returns the String representation of this nodes value.
+	 */
 	public abstract String getValueAsText();
 
+	/**
+	 * Returns either this node represents a floating point number or not.
+	 */
 	public abstract boolean isFloatingPointNumber();
 
+	/**
+	 * Returns either this node represents an integral number or not.
+	 */
 	public abstract boolean isIntegralNumber();
 
 }

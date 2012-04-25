@@ -9,6 +9,10 @@ import java.util.List;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Represents a chain of {@link EvaluationExpression}s where the result of one expression serves as the input for the
+ * next one.
+ */
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
 public class PathExpression extends ContainerExpression implements Cloneable {
 
@@ -19,10 +23,22 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 
 	private LinkedList<EvaluationExpression> fragments;
 
+	/**
+	 * Initializes a PathExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param fragments
+	 *        an Array of the expressions that should be used
+	 */
 	public PathExpression(final EvaluationExpression... fragments) {
 		this(Arrays.asList(fragments));
 	}
 
+	/**
+	 * Initializes a PathExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param fragments
+	 *        a List of the expressions that should be used
+	 */
 	public PathExpression(final List<? extends EvaluationExpression> fragments) {
 		this(normalize(fragments));
 	}
@@ -31,6 +47,12 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		this.fragments = fragments;
 	}
 
+	/**
+	 * Adds a new {@link EvaluationExpression} to the end of the path
+	 * 
+	 * @param fragment
+	 *        the expression that should be added
+	 */
 	public void add(final EvaluationExpression fragment) {
 		this.fragments.add(fragment);
 	}
@@ -49,21 +71,39 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target
 		IJsonNode fragmentNode = node;
 		for (final EvaluationExpression fragment : this.fragments)
-			fragmentNode = fragment.evaluate(fragmentNode, context);
+			fragmentNode = fragment.evaluate(fragmentNode, null, context);
 		return fragmentNode;
 	}
 
+	/**
+	 * Returns the lenght of the path
+	 * 
+	 * @return the lenght
+	 */
 	public int getDepth() {
 		return this.fragments.size();
 	}
 
+	/**
+	 * Returns the {@link EvaluationExpression} at the specified index
+	 * 
+	 * @param index
+	 *        the index of the expression that should be returned
+	 * @return the expression at the specified index
+	 */
 	public EvaluationExpression getFragment(final int index) {
 		return this.fragments.get(index);
 	}
 
+	/**
+	 * Returns all expressions
+	 * 
+	 * @return the expressions
+	 */
 	public List<EvaluationExpression> getFragments() {
 		return this.fragments;
 	}
@@ -76,6 +116,13 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		return result;
 	}
 
+	/**
+	 * Returns either the given {@link PathExpression} is a prefix of this expression or not
+	 * 
+	 * @param prefix
+	 *        the expression that should be checked
+	 * @return the given expression is a prefix or not
+	 */
 	public boolean isPrefix(final PathExpression prefix) {
 		if (this.fragments.size() < prefix.getDepth())
 			return false;
@@ -133,6 +180,13 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		}
 	}
 
+	/**
+	 * Creates a new {@link PathExpression} with the given expression
+	 * 
+	 * @param expression
+	 *        the expression that should be used for the new {@link PathExpression}
+	 * @return the new {@link PathExpression}
+	 */
 	public static PathExpression ensurePathExpression(final EvaluationExpression expression) {
 		if (expression instanceof PathExpression)
 			return (PathExpression) expression;
@@ -151,6 +205,13 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		return linkedList;
 	}
 
+	/**
+	 * Wraps the given {@link EvaluationExpression}s in a single {@link PathExpression}
+	 * 
+	 * @param expressions
+	 *        a List of the expressions that should be wrapped
+	 * @return the {@link PathExpression}
+	 */
 	public static EvaluationExpression wrapIfNecessary(final List<EvaluationExpression> expressions) {
 		final LinkedList<EvaluationExpression> normalized = normalize(expressions);
 		switch (normalized.size()) {
@@ -165,6 +226,13 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		}
 	}
 
+	/**
+	 * Wraps the given {@link EvaluationExpression}s in a single {@link PathExpression}
+	 * 
+	 * @param expressions
+	 *        an Array of the expressions that should be wrapped
+	 * @return the {@link PathExpression}
+	 */
 	public static EvaluationExpression wrapIfNecessary(final EvaluationExpression... expressions) {
 		return wrapIfNecessary(Arrays.asList(expressions));
 	}
@@ -174,7 +242,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		IJsonNode fragmentNode = node;
 		final List<EvaluationExpression> fragments = this.getFragments();
 		for (int index = 0; index < fragments.size() - 1; index++)
-			fragmentNode = fragments.get(index).evaluate(fragmentNode, context);
+			fragmentNode = fragments.get(index).evaluate(fragmentNode, null, context);
 		fragments.get(fragments.size() - 1).set(node, value, context);
 		return node;
 	}
@@ -210,12 +278,20 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	// }
 
 	/**
-	 * 
+	 * Removes the last expression in this path.
 	 */
 	public void removeLast() {
 		this.fragments.removeLast();
 	}
 
+	/**
+	 * Adds the given {@link EvaluationExpression} at the specified index into the path.
+	 * 
+	 * @param index
+	 *        the index where the expression should be added
+	 * @param fragment
+	 *        the expression that should be added
+	 */
 	public void add(final int index, final EvaluationExpression fragment) {
 		if (!canIgnore(fragment))
 			this.fragments.add(index, fragment);
@@ -225,6 +301,15 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		return fragment == EvaluationExpression.VALUE;
 	}
 
+	/**
+	 * Creates a {@link PathExpression} which represents a sub path from this expressions path.
+	 * 
+	 * @param start
+	 *        the startindex of the sub path (including)
+	 * @param end
+	 *        the endindex of teh sub path (excluding)
+	 * @return the created {@link PathExpression}
+	 */
 	public PathExpression subPath(int start, int end) {
 		if (start < 0)
 			start = this.fragments.size() + 1 + start;

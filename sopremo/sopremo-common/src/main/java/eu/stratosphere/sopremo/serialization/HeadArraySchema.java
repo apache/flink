@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.serialization;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
@@ -28,7 +29,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class ArraySchema implements Schema {
+public class HeadArraySchema implements Schema {
 
 	// [ head, ArrayNode(others) ]
 
@@ -103,7 +104,7 @@ public class ArraySchema implements Schema {
 	 * eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
+	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
 		IArrayNode others;
 		if (target == null) {
 
@@ -117,12 +118,13 @@ public class ArraySchema implements Schema {
 			others.clear();
 		}
 
+		// fill the first headSize elements of the arraynode into the record
 		IJsonNode arrayElement;
 		for (int i = 0; i < this.headSize; i++) {
 			arrayElement = ((IArrayNode) value).get(i);
 			if (!arrayElement.isMissing())
 				target.setField(i, SopremoUtil.wrap(arrayElement));
-			else
+			else // incoming array is smaller than headSize
 				target.setNull(i);
 		}
 
@@ -145,12 +147,17 @@ public class ArraySchema implements Schema {
 			throw new IllegalStateException("Schema does not match to record!");
 		if (target == null)
 			target = new ArrayNode();
-		else
+		} else // array was used
 			((IArrayNode) target).clear();
-		for (int i = 0; i < this.getHeadSize(); i++)
-			if (record.getField(i, JsonNodeWrapper.class) != null)
+		
+		// insert head of record
+		for (int i = 0; i < this.getHeadSize(); i++) {
+			if (record.getField(i, JsonNodeWrapper.class) != null) {
 				((IArrayNode) target).add(SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
+			}
+		}
 
+		// insert all elements from others
 		((IArrayNode) target).addAll((IArrayNode) SopremoUtil.unwrap(record.getField(this.getHeadSize(),
 			JsonNodeWrapper.class)));
 

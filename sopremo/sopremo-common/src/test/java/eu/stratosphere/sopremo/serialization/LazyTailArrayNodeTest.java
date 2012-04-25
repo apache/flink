@@ -14,21 +14,32 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import org.junit.Ignore;
+
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.ArrayNodeBaseTest;
+import eu.stratosphere.sopremo.type.IntNode;
 
 /**
- * @author Arvid Heise
+ * @author Michael Hopstock
+ *
  */
-public interface SchemaFactory {
+@Ignore
+public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode>{
 
-	/**
-	 * This method takes keyExpressions in form of EvaluationExpressions and tries to give back a matching
-	 * {@link Schema}
-	 * 
-	 * @param keyExpressions
-	 *        the Expressions, from which a Schema shall be created
-	 * @return {@link Schema}, corresponding to the <code>keyExpressions</code>
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.ArrayNodeBaseTest#initArrayNode()
 	 */
-	Schema create(Iterable<EvaluationExpression> keyExpressions);
+	@Override
+	public void initArrayNode() {
+		TailArraySchema schema = new TailArraySchema();
+		schema.setTailSize(5);
+		PactRecord record = schema.jsonToRecord(
+			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
+
+		this.node = new LazyTailArrayNode(record, schema);
+		
+	}
 
 }

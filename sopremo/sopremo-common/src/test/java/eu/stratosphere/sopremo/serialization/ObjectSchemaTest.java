@@ -31,7 +31,7 @@ public class ObjectSchemaTest {
 		object.put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
 
-		PactRecord result = this.schema.jsonToRecord(object, null);
+		PactRecord result = this.schema.jsonToRecord(object, null, null);
 		PactRecord expected = new PactRecord();
 		expected.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
 		expected.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
@@ -92,7 +92,7 @@ public class ObjectSchemaTest {
 		ObjectNode object = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
 
-		PactRecord result = this.schema.jsonToRecord(object, null);
+		PactRecord result = this.schema.jsonToRecord(object, null, null);
 
 		PactRecord expected = new PactRecord();
 		expected.setField(0, new JsonNodeWrapper(object));
@@ -128,7 +128,7 @@ public class ObjectSchemaTest {
 		object.put("firstname", TextNode.valueOf("testfn"))
 			.put("lastnameasdf", TextNode.valueOf("testln123"));
 		
-		PactRecord record = this.schema.jsonToRecord(object, null);
+		PactRecord record = this.schema.jsonToRecord(object, null, null);
 		
 		IJsonNode object2 = this.schema.recordToJson(record, null);
 		

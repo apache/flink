@@ -9,8 +9,13 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-public class DoubleNode extends NumericNode implements INumericNode{
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class DoubleNode extends NumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -19,14 +24,31 @@ public class DoubleNode extends NumericNode implements INumericNode{
 
 	private transient PactDouble value;
 
+	/**
+	 * Initializes a DoubleNode which represents 0.0
+	 */
 	public DoubleNode() {
 		this.value = new PactDouble();
 	}
 
+	/**
+	 * Initializes a DoubleNode which represents the given <code>double</code>. To create new DoubleNodes please
+	 * use DoubleNode.valueOf(<code>double</code>) instead.
+	 * 
+	 * @param v
+	 *        the value that should be represented by this node
+	 */
 	public DoubleNode(final double v) {
 		this.value = new PactDouble(v);
 	}
 
+	/**
+	 * Initializes a DoubleNode which represents the given <code>float</code>. To create new DoubleNodes please
+	 * use DoubleNode.valueOf(<code>double</code>) instead.
+	 * 
+	 * @param v
+	 *        the value that should be represented by this node
+	 */
 	public DoubleNode(final float v) {
 		this.value = new PactDouble(v);
 	}
@@ -36,8 +58,19 @@ public class DoubleNode extends NumericNode implements INumericNode{
 		return this.value.getValue();
 	}
 
+	/**
+	 * Creates a new instance of DoubleNode. This new instance represents the given value.
+	 * 
+	 * @param v
+	 *        the value that should be represented by the new instance
+	 * @return the newly created instance of DoubleNode
+	 */
 	public static DoubleNode valueOf(final double v) {
 		return new DoubleNode(v);
+	}
+
+	public void setValue(double value) {
+		this.value.setValue(value);
 	}
 
 	@Override
@@ -138,5 +171,11 @@ public class DoubleNode extends NumericNode implements INumericNode{
 	@Override
 	public int compareToSameType(final IJsonNode other) {
 		return Double.compare(this.value.getValue(), ((DoubleNode) other).value.getValue());
+	}
+
+	@Override
+	public void clear() {
+		if (SopremoUtil.DEBUG)
+			this.value.setValue(0);
 	}
 }

@@ -11,6 +11,9 @@ import java.util.Map.Entry;
 
 import eu.stratosphere.util.reflect.ReflectUtil;
 
+/**
+ * This class allows the conversion between java classes and JsonNodes.
+ */
 public class JavaToJsonMapper {
 	public static final JavaToJsonMapper INSTANCE = new JavaToJsonMapper();
 

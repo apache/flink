@@ -9,7 +9,12 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
 public class IntNode extends NumericNode implements INumericNode {
 
 	/**
@@ -19,14 +24,31 @@ public class IntNode extends NumericNode implements INumericNode {
 
 	private transient PactInteger value;
 
+	/**
+	 * Initializes an IntNode which represents 0
+	 */
 	public IntNode() {
 		this.value = new PactInteger();
 	}
 
+	/**
+	 * Initializes an IntNode which represents the given <code>int</code>. To create new IntNodes please use
+	 * IntNode.valueOf(<code>int</code>) instead.
+	 * 
+	 * @param v
+	 *        the value that should be represented by this node
+	 */
 	public IntNode(final int v) {
 		this.value = new PactInteger(v);
 	}
 
+	/**
+	 * Creates a new instance of IntNode. This new instance represents the given value.
+	 * 
+	 * @param v
+	 *        the value that should be represented by the new instance
+	 * @return the newly created instance of IntNode
+	 */
 	public static IntNode valueOf(final int v) {
 		return new IntNode(v);
 	}
@@ -142,5 +164,11 @@ public class IntNode extends NumericNode implements INumericNode {
 	@Override
 	public int compareToSameType(final IJsonNode other) {
 		return this.value.getValue() - ((IntNode) other).value.getValue();
+	}
+
+	@Override
+	public void clear() {
+		if (SopremoUtil.DEBUG)
+			this.value.setValue(0);
 	}
 }

@@ -83,7 +83,7 @@ public class CsvInputFormat extends TextInputFormat {
 				else
 					for (int i = 0; i < reader.getColumnCount(); i++)
 						node.put(String.format("key%d", i + 1), TextNode.valueOf(reader.get(i)));
-				this.targetSchema.jsonToRecord(node, target);
+				this.targetSchema.jsonToRecord(node, target, null);
 				return true;
 			}
 

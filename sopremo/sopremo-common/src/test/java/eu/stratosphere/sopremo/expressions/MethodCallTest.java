@@ -34,7 +34,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 	@Test
 	public void shouldCallFunction() {
 		final IJsonNode result = new MethodCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
-			createArrayNode(1, 2), this.context);
+			createArrayNode(1, 2), null, this.context);
 		Assert.assertEquals(new DoubleNode(3), result);
 	}
 

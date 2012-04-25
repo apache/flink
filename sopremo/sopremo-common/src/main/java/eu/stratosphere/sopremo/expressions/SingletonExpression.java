@@ -1,5 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
+/**
+ * This expression represents a Singleton.
+ */
 public abstract class SingletonExpression extends EvaluationExpression {
 
 	/**
