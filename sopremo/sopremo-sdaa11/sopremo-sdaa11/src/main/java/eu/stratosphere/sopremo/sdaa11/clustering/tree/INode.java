@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.sdaa11.clustering.tree;
 import java.io.Serializable;
 import java.util.Collection;
 
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 

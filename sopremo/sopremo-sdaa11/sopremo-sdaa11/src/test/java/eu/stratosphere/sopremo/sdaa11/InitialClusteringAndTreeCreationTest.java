@@ -23,8 +23,6 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
-import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.ClusterToTreePreparation;
-import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeAssembler;
 import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -40,7 +38,8 @@ public class InitialClusteringAndTreeCreationTest {
 	@Test
 	public void testModerateDistribution() {
 		
-		SopremoTestPlan plan = new SopremoTestPlan(new TestOperator());
+		TestOperator testOperator = new TestOperator();
+		SopremoTestPlan plan = new SopremoTestPlan(testOperator);
 		
 		plan.getInput(0)
 			.add(createPoint("1", "2", "3", "4", "5"))
@@ -90,8 +89,11 @@ public class InitialClusteringAndTreeCreationTest {
 
 			final Operator<?> input = module.getInput(0);
 			final InitialClustering preparation = new InitialClustering().withInputs(input);
+			preparation.setMaxRadius(500);
+			preparation.setMaxSize(100);
 			final TreeCreator treeCreator = new TreeCreator()
 					.withInputs(preparation);
+			treeCreator.setTreeWidth(5);
 
 			module.getOutput(0).setInput(0, treeCreator);
 		

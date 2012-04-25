@@ -25,6 +25,31 @@ import eu.stratosphere.sopremo.SopremoModule;
 public class TreeCreator extends CompositeOperator<TreeCreator> {
 
 	private static final long serialVersionUID = 1450138351751038162L;
+	
+	/**
+	 * Specifies the degree of the created tree.
+	 */
+	private int treeWidth = TreeAssembler.DEFAULT_TREE_WIDTH;
+
+	/**
+	 * Returns the treeWidth.
+	 * 
+	 * @return the treeWidth
+	 */
+	public int getTreeWidth() {
+		return treeWidth;
+	}
+
+	/**
+	 * Sets the treeWidth to the specified value.
+	 *
+	 * @param treeWidth the treeWidth to set
+	 */
+	public void setTreeWidth(int treeWidth) {
+	
+		this.treeWidth = treeWidth;
+	}
+
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
@@ -37,6 +62,7 @@ public class TreeCreator extends CompositeOperator<TreeCreator> {
 		final ClusterToTreePreparation preparation = new ClusterToTreePreparation().withInputs(input);
 		final TreeAssembler assembler = new TreeAssembler()
 				.withInputs(preparation);
+		assembler.setTreeWidth(treeWidth);
 
 		module.getOutput(0).setInput(0, assembler);
 

@@ -9,12 +9,14 @@ import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
-import eu.stratosphere.sopremo.type.ObjectNode;
 
 public class InitialClusteringTest {
 
 	@Test
 	public void testSequentialClustering() {
+		
+		// Attention: This is just a see-no-fail-test
+		
 		final InitialClustering clustering = new InitialClustering();
 		final SopremoTestPlan plan = new SopremoTestPlan(clustering);
 		
@@ -29,25 +31,11 @@ public class InitialClusteringTest {
 			.add(p3.write(NullNode.getInstance()))
 			.add(p4.write(NullNode.getInstance()));
 		
-		// this code works...
-//		plan.getInput(0)
-//			.add(createAnnotatedValue(p1.write((IJsonNode) null)))
-//			.add(createAnnotatedValue(p2.write((IJsonNode) null)))
-//			.add(createAnnotatedValue(p3.write((IJsonNode) null)))
-//			.add(createAnnotatedValue(p4.write((IJsonNode) null)));
-
 		plan.run();
 		
 		for (IJsonNode node : plan.getActualOutput(0)) {
 			System.out.println(node);
 		}
-	}
-	
-	private IJsonNode createAnnotatedValue(IJsonNode annotatee) {
-		final ObjectNode annotatedValue = new ObjectNode();
-		annotatedValue.put(Annotator.OBJECT_KEY, annotatee);
-		annotatedValue.put(Annotator.DUMMY_KEY, Annotator.DUMMY_VALUE);
-		return annotatedValue;
 	}
 
 }

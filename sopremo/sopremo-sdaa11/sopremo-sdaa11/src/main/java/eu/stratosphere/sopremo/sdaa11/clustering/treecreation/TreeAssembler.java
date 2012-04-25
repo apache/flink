@@ -17,12 +17,10 @@ package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 import java.util.Arrays;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.tree.ClusterTree;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -99,10 +97,7 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 				tree.add(clustroid, clusterName);
 			}
 			
-			TextNode serialization = new TextNode(SopremoUtil.objectToString(tree));
-			ObjectNode output = new ObjectNode();
-			output.put("tree", tree.write(null));
-			out.collect(output);		
+			out.collect(tree.write(null));		
 		}
 		
 	}

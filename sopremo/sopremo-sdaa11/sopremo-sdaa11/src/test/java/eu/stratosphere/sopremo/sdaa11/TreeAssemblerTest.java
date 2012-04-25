@@ -22,9 +22,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeAssembler;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
-import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -41,24 +39,18 @@ public class TreeAssemblerTest {
 		
 		final SopremoTestPlan plan = new SopremoTestPlan(assembler);
 		
-		IJsonNode p1 = new Point("p1", Arrays.asList("1", "2", "3")).write((IJsonNode) null);
-		IJsonNode p2 = new Point("p2", Arrays.asList("2", "3")).write((IJsonNode) null);
-		IJsonNode p3 = new Point("p3", Arrays.asList("1", "2", "3")).write((IJsonNode) null);
-		IJsonNode p4 = new Point("p4", Arrays.asList("1", "2", "3")).write((IJsonNode) null);
+		IJsonNode point1 = new Point("p1", Arrays.asList("1", "2", "3")).write((IJsonNode) null);
+		IJsonNode point2 = new Point("p3", Arrays.asList("1", "2", "3")).write((IJsonNode) null);
 		
-		ArrayNode points1 = new ArrayNode(p1, p2);
-		ArrayNode points2 = new ArrayNode(p3, p4);
-		
-		IntNode dummy = new IntNode(0);
 		final ObjectNode cluster1 = new ObjectNode();
 		cluster1.put(TreeAssembler.DUMMY_KEY, TreeAssembler.DUMMY_NODE);
 		cluster1.put("id", new TextNode("c1"));
-		cluster1.put("clustroid", p1);
+		cluster1.put("clustroid", point1);
 		
 		final ObjectNode cluster2 = new ObjectNode();
 		cluster2.put(TreeAssembler.DUMMY_KEY, TreeAssembler.DUMMY_NODE);
 		cluster2.put("id", new TextNode("c2"));
-		cluster2.put("clustroid", p3);
+		cluster2.put("clustroid", point2);
 
 		plan.getInput(0)
 			.add(cluster1)
