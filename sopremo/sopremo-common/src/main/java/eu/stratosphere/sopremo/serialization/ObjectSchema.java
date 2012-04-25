@@ -117,8 +117,8 @@ public class ObjectSchema implements Schema {
 		}
 
 		// each other entry comes into the last record field
-		for (Entry<String, IJsonNode> entry : object.getEntries()) {
-			if (!this.mappings.contains(entry.getKey())) {
+		for (Entry<String, IJsonNode> entry : object.getEntries()) 
+			if (!this.mappings.contains(entry.getKey())) 
 				others.put(entry.getKey(), entry.getValue());
 
 		return target;

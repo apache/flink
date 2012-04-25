@@ -45,7 +45,7 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * @param index
 	 *        the index where the node should be added
 	 * @param element
-	 * 	the node that should be added
+	 *        the node that should be added
 	 * @return this node
 	 */
 	public abstract IArrayNode add(final int index, final IJsonNode element);
@@ -67,7 +67,7 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * @param index
 	 *        the index for which the node should be set
 	 * @param node
-	 *  the node that should be set
+	 *        the node that should be set
 	 * @return the node which has been overwriten
 	 */
 	public abstract IJsonNode set(final int index, final IJsonNode node);
@@ -85,13 +85,14 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	/**
 	 * Clears this array from all saved nodes.
 	 */
+	@Override
 	public abstract void clear();
 
 	/**
 	 * Adds all {@link IJsonNode}s in the given Collection to the end of this array.
 	 * 
 	 * @param c
-	 * 	a Collection of all nodes that should be added
+	 *        a Collection of all nodes that should be added
 	 * @return this node
 	 */
 	public abstract IArrayNode addAll(final Collection<? extends IJsonNode> c);
@@ -100,7 +101,7 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * Adds all {@link IJsonNode}s in the given {@link IArrayNode} to the end of this array.
 	 * 
 	 * @param node
-	 * 	an IArrayNode with all nodes that should be added
+	 *        an IArrayNode with all nodes that should be added
 	 * @return this node
 	 */
 	public abstract IArrayNode addAll(final IArrayNode node);
@@ -112,6 +113,18 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 */
 	public abstract IJsonNode[] toArray();
 
-	IArrayNode addAll(IJsonNode[] nodes);
+	/**
+	 * Adds all {@link IJsonNode}s to the end of this array.
+	 * 
+	 * @param node
+	 *        an IArrayNode with all nodes that should be added
+	 * @return this node
+	 */
+	public abstract IArrayNode addAll(IJsonNode[] nodes);
+
+	/**
+	 * @return true if size() == 0
+	 */
+	public abstract boolean isEmpty();
 
 }

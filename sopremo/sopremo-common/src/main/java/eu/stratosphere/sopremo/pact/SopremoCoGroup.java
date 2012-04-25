@@ -30,7 +30,7 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	@Override
 	public void coGroup(final Iterator<PactRecord> records1, final Iterator<PactRecord> records2, final Collector out) {
 		this.context.increaseInputCounter();
-		this.collector.setCollector(out);
+		this.collector.configure(out, this.context);
 		this.cachedIterator1.setIterator(records1);
 		this.cachedIterator2.setIterator(records2);
 		Iterator<IJsonNode> values1 = this.cachedIterator1;

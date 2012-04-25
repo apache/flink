@@ -147,7 +147,7 @@ public class HeadArraySchema implements Schema {
 			throw new IllegalStateException("Schema does not match to record!");
 		if (target == null)
 			target = new ArrayNode();
-		} else // array was used
+		else // array was used
 			((IArrayNode) target).clear();
 		
 		// insert head of record

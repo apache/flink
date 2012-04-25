@@ -2,11 +2,14 @@ package eu.stratosphere.sopremo.pact;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class JsonCollector {
 	private Collector collector;
+	
+	private EvaluationContext context;
 
 	private final Schema schema;
 
@@ -22,13 +25,14 @@ public class JsonCollector {
 	 * @param collector
 	 *        the collector to set
 	 */
-	public void setCollector(final Collector collector) {
+	public void configure(final Collector collector, EvaluationContext context) {
 		this.collector = collector;
-	}
+		this.context = context;
+	}	
 
 	public void collect(final IJsonNode value) {
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format(" to %s", value));
-		this.collector.collect(this.record = this.schema.jsonToRecord(value, null, this.record));
+		this.collector.collect(this.record = this.schema.jsonToRecord(value, this.record, this.context));
 	}
 }

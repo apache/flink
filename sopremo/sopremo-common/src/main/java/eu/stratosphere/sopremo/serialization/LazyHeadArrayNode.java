@@ -247,7 +247,7 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 				if (buffer == null) {
 					buffer = MissingNode.getInstance();
 				}
-				if (oldNode.isMissing()) {
+				if (oldNode.isMissing()) 
 					this.record.setNull(i);
 				else
 					this.record.setField(i, oldNode);

@@ -150,6 +150,15 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 		return count + others.size();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IArrayNode#isEmpty()
+	 */
+	@Override
+	public boolean isEmpty() {
+		return this.schema.getTailSize() == 0 ? getOtherField().isEmpty() : this.record.isNull(0);
+	}
+	
 	@Override
 	public IArrayNode add(IJsonNode node) {
 		// TODO implement new ArraySchema with tail

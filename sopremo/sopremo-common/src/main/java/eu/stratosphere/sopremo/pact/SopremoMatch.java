@@ -44,7 +44,7 @@ public abstract class SopremoMatch extends MatchStub {
 	@Override
 	public void match(final PactRecord record1, final PactRecord record2, final Collector out) throws Exception {
 		this.context.increaseInputCounter();
-		this.collector.setCollector(out);
+		this.collector.configure(out, this.context);
 		final IJsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);
 		final IJsonNode input2 = this.inputSchema2.recordToJson(record2, this.cachedInput2);
 		if (SopremoUtil.LOG.isTraceEnabled())

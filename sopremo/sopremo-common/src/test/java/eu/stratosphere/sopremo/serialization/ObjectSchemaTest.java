@@ -63,8 +63,8 @@ public class ObjectSchemaTest {
 		ObjectNode object = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
 
-		PactRecord target = this.schema.jsonToRecord(object, null);
-		PactRecord result = this.schema.jsonToRecord(object, target);
+		PactRecord target = this.schema.jsonToRecord(object, null, null);
+		PactRecord result = this.schema.jsonToRecord(object, target, null);
 
 		Assert.assertSame(target, result);
 	}

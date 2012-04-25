@@ -8,6 +8,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.util.IdentitySet;
 
