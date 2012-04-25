@@ -27,7 +27,7 @@ public class CollectionUtil {
 	 *        the iterables to merge
 	 * @return a duplicate-free {@link Iterable}
 	 */
-	public static <T> Iterable<T> mergeUnique(final Iterable<Iterable<? extends T>> iterables) {
+	public static <T> Iterable<T> mergeUnique(final Iterable<? extends Iterable<? extends T>> iterables) {
 		return new WrappingIterable<T, T>(new ConcatenatingIterable<T>(iterables)) {
 			/*
 			 * (non-Javadoc)

@@ -102,6 +102,7 @@ public class Source extends ElementaryOperator<Source> {
 			}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 		final FileDataSource contract = new FileDataSource(this.inputFormat, inputPath, name);
+		
 		if (this.inputFormat == JsonInputFormat.class)
 			contract.setDegreeOfParallelism(1);
 

@@ -17,7 +17,6 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.sopremo.serialization.DirectSchema;
-import eu.stratosphere.sopremo.serialization.Schema;
 
 @Ignore
 public class CsvInputFormatTest {

@@ -18,7 +18,6 @@ import nl.jqno.equalsverifier.Warning;
 
 import org.junit.Before;
 import org.junit.Ignore;
-import org.junit.Test;
 
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
@@ -94,7 +93,6 @@ public abstract class SopremoTest<T> {
 	 * <li>Finality of the class under test and of the equals method itself, when applicable.
 	 * </ul>
 	 */
-	@Test
 	public void shouldComplyEqualsContract() {
 		if (this.first == null)
 			Assert.fail("Cannot create default instance; "

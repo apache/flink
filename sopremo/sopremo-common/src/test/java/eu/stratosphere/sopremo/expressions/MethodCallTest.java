@@ -14,7 +14,6 @@ import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 

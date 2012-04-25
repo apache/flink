@@ -14,9 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.type;
 
-import java.util.Map;
-
-import org.junit.Test;
 
 /**
  * @author Michael Hopstock

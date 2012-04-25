@@ -21,19 +21,18 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import junit.framework.AssertionFailedError;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.testing.SchemaUtils;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
@@ -41,16 +40,18 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.serialization.DirectSchema;
+import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
@@ -143,15 +144,6 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		testPlan.run();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.SopremoTest#shouldComplyEqualsContract()
-	 */
-	@Ignore
-	@Override
-	public void shouldComplyEqualsContract() {
-//		super.shouldComplyEqualsContract();
-	}
-	
 	@Override
 	protected void initVerifier(final EqualsVerifier<SopremoTestPlan> equalVerifier) {
 		super.initVerifier(equalVerifier);
@@ -228,6 +220,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		}
 	}
 
+	//
 	// /**
 	// * Creates an output file in the temporary folder for arbitrary key/value pairs coming from the given input
 	// * contract.
@@ -267,85 +260,122 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	// return read;
 	// }
 	//
-	// /**
-	// * Converts a (String,Integer)-KeyValuePair into multiple KeyValuePairs. The
-	// * key string is tokenized by spaces. For each token a new
-	// * (String,Integer)-KeyValuePair is emitted where the Token is the key and
-	// * an Integer(1) is the value.
-	// */
-	// public static class TokenizeLine extends MapStub<PactString, PactInteger, PactString, PactInteger> {
-	// private static Pattern WORD_PATTERN = Pattern.compile("\\w+");
-	//
-	// @Override
-	// public void map(PactString key, PactInteger value, Collector<PactString, PactInteger> out) {
-	// Matcher matcher = WORD_PATTERN.matcher(key.getValue());
-	// while (matcher.find())
-	// out.collect(new PactString(matcher.group().toLowerCase()), new PactInteger(1));
-	// }
-	// }
-	//
-	// /**
-	// * Counts the number of values for a given key. Hence, the number of
-	// * occurences of a given token (word) is computed and emitted. The key is
-	// * not modified, hence a SameKey OutputContract is attached to this class.
-	// */
-	// @SameKey
-	// @Combinable
-	// public static class CountWords extends ReduceStub<PactString, PactInteger, PactString, PactInteger> {
-	// @Override
-	// public void reduce(PactString key, Iterator<PactInteger> values, Collector<PactString, PactInteger> out) {
-	// int sum = 0;
-	// while (values.hasNext())
-	// sum += values.next().getValue();
-	// out.collect(key, new PactInteger(sum));
-	// }
-	//
-	// @Override
-	// public void combine(PactString key, Iterator<PactInteger> values, Collector<PactString, PactInteger> out) {
-	// this.reduce(key, values, out);
-	// }
-	// }
-	//
-	// /**
-	// * Tests if a {@link SopremoTestPlan} with two stubs can be executed.
-	// */
-	// @Test
-	// public void complexTestPassesWithExpectedValues() {
-	// final MapContract<PactString, PactInteger, PactString, PactInteger> tokenize = new MapContract<PactString,
-	// PactInteger, PactString, PactInteger>(
-	// TokenizeLine.class,
-	// "Map");
-	// final ReduceContract<PactString, PactInteger, PactString, PactInteger> summing = new ReduceContract<PactString,
-	// PactInteger, PactString, PactInteger>(
-	// CountWords.class,
-	// "Map");
-	// summing.setInput(tokenize);
-	//
-	// TestPlan testPlan = new TestPlan(summing);
-	// String[] lines = {
-	// "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-	// "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-	// "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-	// "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-	// };
-	// for (String line : lines)
-	// testPlan.getInput().add(new PactString(line), new PactInteger(1));
-	//
-	// String[] singleWords = { "voluptate", "veniam", "velit", "ullamco", "tempor", "sunt", "sit", "sint", "sed",
-	// "reprehenderit", "quis", "qui", "proident", "pariatur", "officia", "occaecat", "nulla", "nostrud", "non",
-	// "nisi", "mollit", "minim", "magna", "lorem", "laborum", "laboris", "labore", "irure", "ipsum",
-	// "incididunt", "id", "fugiat", "exercitation", "excepteur", "ex", "eu", "et", "est", "esse", "enim", "elit",
-	// "eiusmod", "ea", "duis", "do", "deserunt", "cupidatat", "culpa", "consequat", "consectetur", "commodo",
-	// "cillum", "aute", "anim", "amet", "aliquip", "aliqua", "adipisicing", "ad" };
-	// for (String singleWord : singleWords)
-	// testPlan.getExpectedOutput().add(new PactString(singleWord), new PactInteger(1));
-	// testPlan.getExpectedOutput().add(new PactString("ut"), new PactInteger(3)).
-	// add(new PactString("in"), new PactInteger(3)).
-	// add(new PactString("dolore"), new PactInteger(2)).
-	// add(new PactString("dolor"), new PactInteger(2));
-	// testPlan.run();
-	// }
-	//
+
+	/**
+	 * Converts a (String,Integer)-KeyValuePair into multiple KeyValuePairs. The
+	 * key string is tokenized by spaces. For each token a new
+	 * (String,Integer)-KeyValuePair is emitted where the Token is the key and
+	 * an Integer(1) is the value.<br>
+	 * Expected input: { line: "word1 word2 word1" }<br>
+	 * Output: [{ word: "word1"}, { word: "word2"}, { word: "word1"}] 
+	 */
+	public static class TokenizeLine extends ElementaryOperator<TokenizeLine> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 8227589262294543806L;
+
+		public static class Implementation extends SopremoMap {
+			private static Pattern WORD_PATTERN = Pattern.compile("\\w+");
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.IJsonNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void map(IJsonNode value, JsonCollector out) {
+				Matcher matcher = WORD_PATTERN.matcher(((TextNode) ((IObjectNode) value).get("line")).getJavaValue());
+				while (matcher.find())
+					out.collect(JsonUtil.createObjectNode("word", TextNode.valueOf(matcher.group())));
+			}
+		}
+	}
+
+	/**
+	 * Counts the number of values for a given key. Hence, the number of
+	 * occurences of a given token (word) is computed and emitted. The key is
+	 * not modified, hence a SameKey OutputContract is attached to this class.<br>
+	 * Expected input: [{ word: "word1"}, { word: "word1"}] <br>
+	 * Output: [{ word: "word1", count: 2}] 
+	 */
+	public static class CountWords extends ElementaryOperator<CountWords> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1472064163594245033L;
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
+		 */
+		@Override
+		public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+			return Arrays.asList(new ObjectAccess("word"));
+		}
+
+		@Combinable
+		public static class Implementation extends SopremoReduce {
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere.sopremo.type.IArrayNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
+			@Override
+			protected void reduce(IArrayNode values, JsonCollector out) {
+				Iterator<IJsonNode> valueIterator = values.iterator();
+				IObjectNode firstEntry = (IObjectNode) valueIterator.next();
+				String word = ((TextNode) firstEntry.get("word")).getTextValue();
+				int sum = getCount(firstEntry);
+				while (valueIterator.hasNext())
+					sum += getCount((IObjectNode) valueIterator.next());
+				out.collect(JsonUtil.createObjectNode("word", TextNode.valueOf(word), "count", sum));
+			}
+
+			protected int getCount(IObjectNode entry) {
+				IJsonNode countNode = entry.get("count");
+				if(countNode.isMissing())
+					return 1;
+				return ((IntNode) countNode).getIntValue();
+			}
+		}
+	}
+
+	/**
+	 * Tests if a {@link SopremoTestPlan} with two stubs can be executed.
+	 */
+	@Test
+	public void wordCountPasses() {
+		final TokenizeLine tokenize = new TokenizeLine();
+		final CountWords countWords = new CountWords().withInputs(tokenize);
+
+		SopremoTestPlan testPlan = new SopremoTestPlan(countWords);
+		String[] lines =
+			{
+				"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+				"Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+				"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+				"Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+			};
+		for (String line : lines)
+			testPlan.getInput(0).add(JsonUtil.createObjectNode("line", TextNode.valueOf(line.toLowerCase())));
+
+		String[] singleWords = { "voluptate", "veniam", "velit", "ullamco", "tempor", "sunt", "sit", "sint", "sed",
+			"reprehenderit", "quis", "qui", "proident", "pariatur", "officia", "occaecat", "nulla", "nostrud", "non",
+			"nisi", "mollit", "minim", "magna", "lorem", "laborum", "laboris", "labore", "irure", "ipsum",
+			"incididunt", "id", "fugiat", "exercitation", "excepteur", "ex", "eu", "et", "est", "esse", "enim", "elit",
+			"eiusmod", "ea", "duis", "do", "deserunt", "cupidatat", "culpa", "consequat", "consectetur", "commodo",
+			"cillum", "aute", "anim", "amet", "aliquip", "aliqua", "adipisicing", "ad" };
+		for (String singleWord : singleWords)
+			testPlan.getExpectedOutput(0).add(JsonUtil.createObjectNode("word", singleWord, "count", 1));
+		testPlan.getExpectedOutput(0).
+			add(JsonUtil.createObjectNode("word", "ut", "count", 3)).
+			add(JsonUtil.createObjectNode("word", "in", "count", 3)).
+			add(JsonUtil.createObjectNode("word", "dolore", "count", 2)).
+			add(JsonUtil.createObjectNode("word", "dolor", "count", 2));
+		testPlan.run();
+	}
+
 	// /**
 	// * Tests if a {@link SopremoTestPlan} fails if the actual values do not match the expected values.
 	// */

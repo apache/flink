@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.type;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -220,6 +219,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		return array;
 	}
 
+	@Override
 	public IJsonNode[] toArray() {
 		return this.children.toArray(new IJsonNode[this.children.size()]);
 	}

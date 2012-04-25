@@ -46,6 +46,7 @@ public class BeanProperty<Type> extends DynamicProperty<Type> {
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.util.reflect.DynamicProperty#get(java.lang.Object)
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public Type get(final Object instance) {
 		try {
@@ -61,7 +62,7 @@ public class BeanProperty<Type> extends DynamicProperty<Type> {
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.util.reflect.DynamicProperty#getType()
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public Class<Type> getType() {
 		return (Class) this.propertyDescriptor.getPropertyType();

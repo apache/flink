@@ -129,6 +129,7 @@ public class DynamicClass<DeclaringClass> {
 		return this.properties.values();
 	}
 
+	@SuppressWarnings("rawtypes")
 	private void initProperties() {
 		try {
 			this.properties = new HashMap<String, DynamicProperty<?>>();

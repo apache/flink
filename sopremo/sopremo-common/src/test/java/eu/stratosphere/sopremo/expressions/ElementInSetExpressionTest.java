@@ -7,8 +7,8 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.type.BooleanNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 
 public class ElementInSetExpressionTest extends EvaluableExpressionTest<ElementInSetExpression> {
 

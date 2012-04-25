@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.type;
 import java.math.BigDecimal;
 
 import junit.framework.Assert;
-import eu.stratosphere.sopremo.type.DecimalNode;
 
 public class DecimalNodeTest extends JsonNodeTest<DecimalNode> {
 

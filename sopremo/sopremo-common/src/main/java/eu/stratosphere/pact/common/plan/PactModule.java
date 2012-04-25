@@ -24,8 +24,6 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.io.SequentialInputFormat;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
-import eu.stratosphere.sopremo.pact.JsonInputFormat;
-import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;

@@ -15,8 +15,8 @@
 package eu.stratosphere.sopremo.type;
 
 import java.util.Iterator;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * @author Michael Hopstock
@@ -82,6 +82,7 @@ public interface IObjectNode extends IJsonNode, Iterable<Entry<String, IJsonNode
 	 * 
 	 * @return iterator over all bindings
 	 */
+	@Override
 	public abstract Iterator<Entry<String, IJsonNode>> iterator();
 	
 	/**

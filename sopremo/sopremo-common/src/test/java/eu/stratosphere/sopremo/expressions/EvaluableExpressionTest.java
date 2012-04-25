@@ -15,6 +15,16 @@ import eu.stratosphere.sopremo.SopremoTest;
 public abstract class EvaluableExpressionTest<T extends EvaluationExpression> extends SopremoTest<T> {
 	protected EvaluationContext context;
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoTest#shouldComplyEqualsContract()
+	 */
+	@Override
+	@Test
+	public void shouldComplyEqualsContract() {
+		super.shouldComplyEqualsContract();
+	}
+
 	@Before
 	public void initContext() {
 		this.context = new EvaluationContext();

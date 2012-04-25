@@ -31,6 +31,16 @@ public class IntNode extends NumericNode implements INumericNode {
 		return new IntNode(v);
 	}
 
+	/**
+	 * Sets the value to the specified value.
+	 * 
+	 * @param value
+	 *        the value to set
+	 */
+	public void setValue(int value) {
+		this.value.setValue(value);
+	}
+
 	@Override
 	public StringBuilder toString(final StringBuilder sb) {
 		return sb.append(this.value);

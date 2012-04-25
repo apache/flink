@@ -27,61 +27,60 @@ import org.junit.Test;
 
 /**
  * @author Michael Hopstock
- *
  */
 @Ignore
-public abstract class ObjectNodeBaseTest<T extends IObjectNode>{
-	
+public abstract class ObjectNodeBaseTest<T extends IObjectNode> {
+
 	protected T node;
-	
+
 	@Before
 	public abstract void initObjectNode();
-	
+
 	@Test
-	public void shouldSetAndGetValue(){
-		node.put("key", IntNode.valueOf(42));
-		Assert.assertEquals(IntNode.valueOf(42), node.get("key"));
+	public void shouldSetAndGetValue() {
+		this.node.put("key", IntNode.valueOf(42));
+		Assert.assertEquals(IntNode.valueOf(42), this.node.get("key"));
 	}
-	
+
 	@Test
-	public void shouldHaveCorrectSize(){
-		node.removeAll();
-		Assert.assertEquals(0, node.size());
-		node.put("key1", IntNode.valueOf(23)).put("key2", IntNode.valueOf(42));
-		Assert.assertEquals(2, node.size());
+	public void shouldHaveCorrectSize() {
+		this.node.removeAll();
+		Assert.assertEquals(0, this.node.size());
+		this.node.put("key1", IntNode.valueOf(23)).put("key2", IntNode.valueOf(42));
+		Assert.assertEquals(2, this.node.size());
 	}
-	
+
 	@Test
-	public void shouldReturnMissingNodeIfFieldNotSet(){
+	public void shouldReturnMissingNodeIfFieldNotSet() {
 		Assert.assertSame(MissingNode.getInstance(), this.node.get("thisFieldShouldNotBeAssigned"));
 	}
-	
+
 	@Test
-	public void shouldRemoveNode(){
-		this.node.put("testkey", NullNode.getInstance() );
+	public void shouldRemoveNode() {
+		this.node.put("testkey", NullNode.getInstance());
 		Assert.assertSame(NullNode.getInstance(), this.node.remove("testkey"));
 		Assert.assertSame(MissingNode.getInstance(), this.node.get("testkey"));
 	}
-	
+
 	@Test
-	public void shouldCreateIterator(){
+	public void shouldCreateIterator() {
 		this.node.removeAll();
 		Map<String, IJsonNode> expected = new HashMap<String, IJsonNode>();
-		
-		for(int i=0; i<5; i++){
-			String key = "key"+i;
+
+		for (int i = 0; i < 5; i++) {
+			String key = "key" + i;
 			IJsonNode value = IntNode.valueOf(i);
-			
+
 			expected.put(key, value);
 			this.node.put(key, value);
 		}
-		
+
 		Set<Entry<String, IJsonNode>> it = this.node.getEntries();
 		Assert.assertEquals(expected.entrySet(), it);
 	}
-	
+
 	@Test
-	public void shouldPutAll(){
+	public void shouldPutAll() {
 		Assert.assertEquals(this.node, this.node.putAll(this.node));
 	}
 

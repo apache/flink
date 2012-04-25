@@ -53,11 +53,11 @@ public class ArraySchema implements Schema {
 	 */
 	@Override
 	public Class<? extends Value>[] getPactSchema() {
-		Class<? extends Value>[] schema = new Class[getHeadSize() + 1];
+		@SuppressWarnings("unchecked")
+		Class<? extends Value>[] schema = new Class[this.getHeadSize() + 1];
 
-		for (int i = 0; i <= getHeadSize(); i++) {
+		for (int i = 0; i <= this.getHeadSize(); i++)
 			schema[i] = JsonNodeWrapper.class;
-		}
 
 		return schema;
 	}
@@ -72,25 +72,25 @@ public class ArraySchema implements Schema {
 		ArrayAccess arrayExpression = (ArrayAccess) expression;
 
 		if (arrayExpression.isSelectingAll()) {
-			int[] indices = new int[headSize + 1];
+			int[] indices = new int[this.headSize + 1];
 			for (int index = 0; index < indices.length; index++)
 				indices[index] = index;
 			return indices;
 		} else if (arrayExpression.isSelectingRange()) {
 			int startIndex = arrayExpression.getStartIndex();
 			int endIndex = arrayExpression.getEndIndex();
-			if(startIndex < 0 || endIndex < 0)
+			if (startIndex < 0 || endIndex < 0)
 				throw new UnsupportedOperationException("Tail indices are not supported yet");
-			if (endIndex >= headSize)
+			if (endIndex >= this.headSize)
 				throw new IllegalArgumentException("Target index is not in head");
-			
+
 			int[] indices = new int[endIndex - startIndex];
 			for (int index = 0; index < indices.length; index++)
 				indices[index] = startIndex + index;
 			return indices;
 		}
 		int index = arrayExpression.getStartIndex();
-		if (index >= headSize)
+		if (index >= this.headSize)
 			throw new IllegalArgumentException("Target index is not in head");
 		else if (index < 0)
 			throw new UnsupportedOperationException("Tail indices are not supported yet");
@@ -110,7 +110,7 @@ public class ArraySchema implements Schema {
 			// the last element is the field "others"
 			target = new PactRecord(this.headSize + 1);
 			others = new ArrayNode();
-			target.setField(headSize, SopremoUtil.wrap(others));
+			target.setField(this.headSize, SopremoUtil.wrap(others));
 		} else {
 			// clear the others field if target was already used
 			others = (IArrayNode) SopremoUtil.unwrap(target.getField(this.headSize, JsonNodeWrapper.class));
@@ -120,19 +120,16 @@ public class ArraySchema implements Schema {
 		IJsonNode arrayElement;
 		for (int i = 0; i < this.headSize; i++) {
 			arrayElement = ((IArrayNode) value).get(i);
-			if (!arrayElement.isMissing()) {
+			if (!arrayElement.isMissing())
 				target.setField(i, SopremoUtil.wrap(arrayElement));
-			} else {
+			else
 				target.setNull(i);
-			}
 		}
 
 		// if there are still remaining elements in the array we insert them into the others field
-		if (this.getHeadSize() < ((IArrayNode) value).size()) {
-			for (int i = this.headSize; i < ((IArrayNode) value).size(); i++) {
+		if (this.getHeadSize() < ((IArrayNode) value).size())
+			for (int i = this.headSize; i < ((IArrayNode) value).size(); i++)
 				others.add(((IArrayNode) value).get(i));
-			}
-		}
 
 		return target;
 	}
@@ -144,19 +141,15 @@ public class ArraySchema implements Schema {
 	 */
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		if (this.getHeadSize() + 1 != record.getNumFields()) {
+		if (this.getHeadSize() + 1 != record.getNumFields())
 			throw new IllegalStateException("Schema does not match to record!");
-		}
-		if (target == null) {
+		if (target == null)
 			target = new ArrayNode();
-		} else {
+		else
 			((IArrayNode) target).clear();
-		}
-		for (int i = 0; i < this.getHeadSize(); i++) {
-			if (record.getField(i, JsonNodeWrapper.class) != null) {
+		for (int i = 0; i < this.getHeadSize(); i++)
+			if (record.getField(i, JsonNodeWrapper.class) != null)
 				((IArrayNode) target).add(SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
-			}
-		}
 
 		((IArrayNode) target).addAll((IArrayNode) SopremoUtil.unwrap(record.getField(this.getHeadSize(),
 			JsonNodeWrapper.class)));
