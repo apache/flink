@@ -51,6 +51,28 @@ public class Configuration implements IOReadableWritable {
 	private Map<String, String> confData = new HashMap<String, String>();
 
 	/**
+	 * The class loader to be used for the <code>getClass</code> method.
+	 */
+	private final ClassLoader classLoader;
+
+	/**
+	 * Constructs a new configuration object.
+	 */
+	public Configuration() {
+		this.classLoader = null;
+	}
+
+	/**
+	 * Constructs a new configuration object.
+	 * 
+	 * @param classLoader
+	 *        the class loader to be use for the <code>getClass</code> method
+	 */
+	public Configuration(final ClassLoader classLoader) {
+		this.classLoader = classLoader;
+	}
+
+	/**
 	 * Returns the value associated with the given key as a string.
 	 * 
 	 * @param key
@@ -89,12 +111,14 @@ public class Configuration implements IOReadableWritable {
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> Class<T> getClass(final String key, final Class<? extends T> defaultValue, final Class<T> ancestor) {
-		String className = getString(key, null);
+
+		final String className = getString(key, null);
 		if (className == null) {
 			return (Class<T>) defaultValue;
 		}
+
 		try {
-			return (Class<T>) Class.forName(className);
+			return (Class<T>) Class.forName(className, true, this.classLoader);
 		} catch (ClassNotFoundException e) {
 			throw new IllegalStateException(e);
 		}
@@ -347,23 +371,24 @@ public class Configuration implements IOReadableWritable {
 
 		return retVal;
 	}
-	
+
 	/**
 	 * Adds all entries from the given configuration into this configuration. The keys
 	 * are prepended with the given prefix.
 	 * 
-	 * @param other The configuration whose entries are added to this configuration.
-	 * @param prefix The prefix to prepend.
+	 * @param other
+	 *        The configuration whose entries are added to this configuration.
+	 * @param prefix
+	 *        The prefix to prepend.
 	 */
-	public void addAll(Configuration other, String prefix)
-	{
+	public void addAll(Configuration other, String prefix) {
 		final StringBuilder bld = new StringBuilder();
 		bld.append(prefix);
 		final int pl = bld.length();
-		
+
 		synchronized (this.confData) {
 			synchronized (other.confData) {
-				for (Map.Entry<String, String> entry :other.confData.entrySet()) {
+				for (Map.Entry<String, String> entry : other.confData.entrySet()) {
 					bld.setLength(pl);
 					bld.append(entry.getKey());
 					this.confData.put(bld.toString(), entry.getValue());

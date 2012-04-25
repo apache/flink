@@ -46,6 +46,7 @@ import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.library.FileLineReader;
@@ -850,11 +851,11 @@ public class ExecutionGraphTest {
 			o1.setVertexToShareInstancesWith(o2);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
-			i2.connectTo(t2, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+			i1.connectTo(t1, ChannelType.FILE, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+			i2.connectTo(t2, ChannelType.FILE, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 			t1.connectTo(t3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 			t2.connectTo(t3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-			t3.connectTo(t4, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			t3.connectTo(t4, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 			t4.connectTo(o1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 			t4.connectTo(o2, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
 
@@ -954,9 +955,9 @@ public class ExecutionGraphTest {
 			output.setNumberOfSubtasks(degreeOfParallelism);
 
 			// connect vertices
-			input.connectTo(cross, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0);
-			input.connectTo(cross, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, 1, 1);
-			cross.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0);
+			input.connectTo(cross, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0, DistributionPattern.POINTWISE);
+			input.connectTo(cross, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, 1, 1, DistributionPattern.BIPARTITE);
+			cross.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0, DistributionPattern.POINTWISE);
 
 			LibraryCacheManager.register(jobID, new String[0]);
 
@@ -1086,9 +1087,9 @@ public class ExecutionGraphTest {
 			output1.setNumberOfSubtasks(degreeOfParallelism);
 
 			// connect vertices
-			input1.connectTo(forward1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			forward1.connectTo(forward2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			forward2.connectTo(forward3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+			input1.connectTo(forward1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+			forward1.connectTo(forward2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+			forward2.connectTo(forward3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 			forward3.connectTo(output1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// setup instance sharing

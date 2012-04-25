@@ -13,37 +13,40 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.example.speedtest;
+
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
 
 /**
- * Represents a point-wise distribution pattern, i.e. given two distinct equally-sized sets of vertices A and B, each
- * vertex of set A
- * is wired to exactly one vertex of set B. If one of the sets is larger than the other vertices from the smaller set
- * may receive more than
- * wire.
+ * This class implements the consumer task of the speed test. The consumer task simply drops all received records.
  * 
  * @author warneke
  */
-public class PointwiseDistributionPattern implements DistributionPattern {
+public class SpeedTestConsumer extends AbstractOutputTask {
+
+	/**
+	 * The record reader used to read the incoming records.
+	 */
+	private MutableRecordReader<SpeedTestRecord> input;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean createWire(final int nodeLowerStage, final int nodeUpperStage, final int sizeSetLowerStage,
-			final int sizeSetUpperStage) {
+	public void registerInputOutput() {
 
-		if (sizeSetLowerStage < sizeSetUpperStage) {
-			if (nodeLowerStage == (nodeUpperStage % sizeSetLowerStage)) {
-				return true;
-			}
-		} else {
-			if ((nodeLowerStage % sizeSetUpperStage) == nodeUpperStage) {
-				return true;
-			}
-		}
-
-		return false;
+		this.input = new MutableRecordReader<SpeedTestRecord>(this);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void invoke() throws Exception {
+
+		final SpeedTestRecord record = new SpeedTestRecord();
+		while (this.input.next(record)) {
+		}
+	}
 }

@@ -33,7 +33,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
@@ -230,8 +229,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	}
 
 	/**
-	 * Creates a new instance of the Nephele task and registers it with its
-	 * environment.
+	 * Creates a new instance of the Nephele task and registers it with its environment.
 	 * 
 	 * @throws Exception
 	 *         any exception that might be thrown by the user code during instantiation and registration of input and
@@ -390,11 +388,11 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 */
 	@Override
 	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer, final DistributionPattern distributionPattern) {
+			final RecordDeserializer<? extends Record> deserializer) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		final RuntimeInputGate<? extends Record> rig = (RuntimeInputGate<? extends Record>) new RuntimeInputGate(
-			getJobID(), gateID, deserializer, getNumberOfInputGates(), distributionPattern);
+			getJobID(), gateID, deserializer, getNumberOfInputGates());
 
 		return rig;
 	}
@@ -537,9 +535,9 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		}
 
 		// The configuration objects
-		this.taskConfiguration = new Configuration();
+		this.taskConfiguration = new Configuration(cl);
 		this.taskConfiguration.read(in);
-		this.jobConfiguration = new Configuration();
+		this.jobConfiguration = new Configuration(cl);
 		this.jobConfiguration.read(in);
 
 		// The current of number subtasks

@@ -13,41 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager;
+package eu.stratosphere.nephele.example.speedtest;
 
-import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.io.UnionRecordReader;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.template.AbstractGenericInputTask;
 
 /**
- * A simple implementation of a task using a {@link UnionRecordReader}.
+ * This class implements the producer task which produces test records for the speed test.
  * 
  * @author warneke
  */
-public class UnionTask extends AbstractTask {
+public final class SpeedTestProducer extends AbstractGenericInputTask {
 
 	/**
-	 * The union record reader to be used during the tests.
+	 * The record writer to emit the produced records.
 	 */
-	private UnionRecordReader<StringRecord> unionReader;
+	private RecordWriter<SpeedTestRecord> writer;
 
-	private RecordWriter<StringRecord> writer;
-	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void registerInputOutput() {
 
-		@SuppressWarnings("unchecked")
-		final RecordReader<StringRecord>[] recordReaders = (RecordReader<StringRecord>[]) new RecordReader<?>[2];
-		recordReaders[0] = new RecordReader<StringRecord>(this, StringRecord.class);
-		recordReaders[1] = new RecordReader<StringRecord>(this, StringRecord.class);
-		this.unionReader = new UnionRecordReader<StringRecord>(recordReaders);
-		
-		this.writer = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.writer = new RecordWriter<SpeedTestRecord>(this, SpeedTestRecord.class);
 	}
 
 	/**
@@ -56,8 +45,17 @@ public class UnionTask extends AbstractTask {
 	@Override
 	public void invoke() throws Exception {
 
-		while (this.unionReader.hasNext()) {
-			this.writer.emit(this.unionReader.next());
+		// Determine the amount of data to send per subtask
+		final int dataVolumePerSubtaskInMB = getTaskConfiguration().getInteger(SpeedTest.DATA_VOLUME_CONFIG_KEY, 1)
+			* 1024 / getCurrentNumberOfSubtasks();
+
+		final long numberOfRecordsToEmit = dataVolumePerSubtaskInMB * 1024 * 1024 / SpeedTestRecord.RECORD_SIZE;
+
+		final SpeedTestRecord record = new SpeedTestRecord();
+
+		for (long i = 0; i < numberOfRecordsToEmit; ++i) {
+			this.writer.emit(record);
 		}
 	}
+
 }

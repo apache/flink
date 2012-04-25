@@ -33,7 +33,7 @@ public class EventReceiver extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
-		this.input = new RecordReader<StringRecord>(this, StringRecord.class, null);
+		this.input = new RecordReader<StringRecord>(this, StringRecord.class);
 		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
 		this.input.subscribeToEvent(new MyEventListener(), StringTaskEvent.class);
 	}

@@ -25,10 +25,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
-import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.OutputFormat;
@@ -220,22 +217,8 @@ public class DataSinkTask extends AbstractOutputTask
 	 */
 	private void initInputReader()
 	{
-		// determine distribution pattern for reader from input ship strategy
-		DistributionPattern dp = null;
-		switch (this.config.getInputShipStrategy(0)) {
-		case FORWARD:
-			// forward requires Pointwise DP
-			dp = new PointwiseDistributionPattern();
-			break;
-		case PARTITION_RANGE:
-			dp = new BipartiteDistributionPattern();
-			break;
-		default:
-			throw new RuntimeException("No valid input ship strategy provided for DataSinkTask.");
-		}
-
 		// create reader
-		this.reader = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, dp));
+		this.reader = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
 	}
 	
 	// ------------------------------------------------------------------------

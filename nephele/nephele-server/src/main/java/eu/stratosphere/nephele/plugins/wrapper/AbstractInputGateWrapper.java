@@ -19,7 +19,6 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
@@ -237,15 +236,6 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	public void close() throws IOException, InterruptedException {
 
 		this.wrappedInputGate.close();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public DistributionPattern getDistributionPattern() {
-
-		return this.wrappedInputGate.getDistributionPattern();
 	}
 
 	/**

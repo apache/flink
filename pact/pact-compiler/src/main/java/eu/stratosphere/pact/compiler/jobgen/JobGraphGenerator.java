@@ -24,6 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
@@ -940,9 +941,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		//if(sourceDOP == 1 && targetDOP == 1) {
 		if(targetDOP == 1) {
 			if(sourceDOP == 1) {
-				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 			} else {
-				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 			}
 			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD, inputNumber);
@@ -962,7 +963,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		}
 		sampleConfig.setStubClass(sourceStub);
 		//Connect with input
-		outputVertex.connectTo(sampleVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		outputVertex.connectTo(sampleVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 		sampleConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
 		
@@ -994,7 +995,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		//Connect with input
 		histogramConfig.addInputShipStrategy(ShipStrategy.FORWARD, ++this.numberOfHistogramInputs);
 		sampleConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-		sampleVertex.connectTo(this.histogramVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		sampleVertex.connectTo(this.histogramVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 		
 		
 		//Add range distributor vertex
@@ -1023,26 +1024,26 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
 
 		//Connect data to tempVertex (partitioner)
-		outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 		tempConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
 		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 		
 		//Connect tempVertex (data) to partitionVertex
-		tempVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		tempVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 		// tempVertex is always connected as second input to the partitioner (2-input node).
 		// the second input is the data input
 		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD, 2);
 		tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 			
 		//Connect histogram with partitioner
-		this.histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		this.histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
 		// histogramVertex is always connected as first input to the partitioner (2-input node).
 		// the first input is the statistic input
 		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST, 1);
 		histogramConfig.addOutputShipStrategy(ShipStrategy.BROADCAST);
 
 		//Connect to receiving vertex
-		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
 		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE, inputNumber);
 		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
 	}
@@ -1069,9 +1070,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		//if(sourceDOP == 1 && targetDOP == 1) {
 		if(targetDOP == 1) {
 			if(sourceDOP == 1) {
-				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 			} else {
-				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 			}
 			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD, inputNumber);
@@ -1098,14 +1099,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		partitionConfig.setStubParameters(partitionStubConfig);
 		
 		//Connect partitioner with sending vertex
-		outputVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+		outputVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 		// we don't use the statistic input, because the partitioning strategy is given
 		// hence partitionVertex in now a single input node, hence we connect to input 1
 		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
 		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 		
 		//Connect to receiving vertex
-		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
 		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE, inputNumber);
 		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
 	}
@@ -1124,6 +1125,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	throws JobGraphDefinitionException, CompilerException
 	{
 		ChannelType channelType = null;
+		DistributionPattern distributionPattern = null;
 
 		switch (connection.getShipStrategy()) {
 		case FORWARD:
@@ -1137,11 +1139,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			int targetNumInstances = (int) Math.ceil((double) targetDOP / (double) targetInnerDOP);
 			
 			channelType = sourceNumInstances == targetNumInstances ? ChannelType.INMEMORY : ChannelType.NETWORK;
+			distributionPattern = DistributionPattern.POINTWISE;
 			break;
 		case PARTITION_HASH:
 		case BROADCAST:
 		case SFR:
 			channelType = ChannelType.NETWORK;
+			distributionPattern = DistributionPattern.BIPARTITE;
 			break;
 		default:
 			throw new IllegalArgumentException("Unsupported ship-strategy: " + connection.getShipStrategy().name());
@@ -1178,7 +1182,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 		switch (connection.getTempMode()) {
 		case NONE:
-			outputVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION);
+			outputVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
 			// set strategies in task configs
 			if ( (keyPositions == null | keyTypes == null) || (keyPositions.length == 0 | keyTypes.length == 0)) {
 				outputConfig.addOutputShipStrategy(connection.getShipStrategy());
@@ -1199,8 +1203,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
-			outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-			tempVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION);
+			outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+			tempVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
 
 			tempVertex.setVertexToShareInstancesWith(outputVertex);
 			
@@ -1226,8 +1230,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
-			outputVertex.connectTo(tempVertex, channelType, CompressionLevel.NO_COMPRESSION);
-			tempVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+			outputVertex.connectTo(tempVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
+			tempVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
 
 			tempVertex.setVertexToShareInstancesWith(inputVertex);
 			

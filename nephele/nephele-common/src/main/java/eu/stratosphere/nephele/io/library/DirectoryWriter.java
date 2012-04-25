@@ -62,7 +62,7 @@ public class DirectoryWriter extends AbstractFileOutputTask {
 
 	@Override
 	public void registerInputOutput() {
-		input = new RecordReader<FileRecord>(this, FileRecord.class, null);
+		input = new RecordReader<FileRecord>(this, FileRecord.class);
 
 	}
 

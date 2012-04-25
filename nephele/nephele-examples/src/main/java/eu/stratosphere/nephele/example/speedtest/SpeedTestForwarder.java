@@ -13,43 +13,49 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.example.compression;
+package eu.stratosphere.nephele.example.speedtest;
 
-import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.FileRecord;
 
-public class CompressionTestTask extends AbstractTask {
+/**
+ * This class implements a forwarder task for the speed test. The forwarder task immediately outputs every record it
+ * reads.
+ * 
+ * @author warneke
+ */
+public final class SpeedTestForwarder extends AbstractTask {
 
-	private RecordReader<FileRecord> input = null;
+	/**
+	 * The record reader used to read incoming records.
+	 */
+	private MutableRecordReader<SpeedTestRecord> input;
 
-	private RecordWriter<FileRecord> output = null;
+	/**
+	 * The record writer used to forward incoming records.
+	 */
+	private RecordWriter<SpeedTestRecord> output;
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerInputOutput() {
+
+		this.input = new MutableRecordReader<SpeedTestRecord>(this);
+		this.output = new RecordWriter<SpeedTestRecord>(this, SpeedTestRecord.class);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void invoke() throws Exception {
 
-		while (this.input.hasNext()) {
-
-			// Simply forward the records
-			FileRecord f;
-			try {
-				f = this.input.next();
-				System.err.println("now processing file: " + f.getFileName());
-				this.output.emit(f);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
+		final SpeedTestRecord record = new SpeedTestRecord();
+		while (this.input.next(record)) {
+			this.output.emit(record);
 		}
-
 	}
-
-	@Override
-	public void registerInputOutput() {
-		this.input = new RecordReader<FileRecord>(this, FileRecord.class);
-		this.output = new RecordWriter<FileRecord>(this, FileRecord.class);
-	}
-
 }

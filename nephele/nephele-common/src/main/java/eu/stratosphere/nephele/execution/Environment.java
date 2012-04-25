@@ -19,7 +19,6 @@ import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -169,8 +168,7 @@ public interface Environment {
 	 * @param distributionPattern
 	 * @return the created input gate
 	 */
-	InputGate<? extends Record> createInputGate(GateID gateID, RecordDeserializer<? extends Record> deserializer,
-			DistributionPattern distributionPattern);
+	InputGate<? extends Record> createInputGate(GateID gateID, RecordDeserializer<? extends Record> deserializer);
 
 	/**
 	 * Registers an output gate with this environment.

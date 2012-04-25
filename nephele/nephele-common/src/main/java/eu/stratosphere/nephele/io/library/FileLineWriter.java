@@ -19,7 +19,6 @@ import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -71,7 +70,7 @@ public class FileLineWriter extends AbstractFileOutputTask {
 	 */
 	@Override
 	public void registerInputOutput() {
-		this.input = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
+		this.input = new RecordReader<StringRecord>(this, StringRecord.class);
 	}
 
 	/**

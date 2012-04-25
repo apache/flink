@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -226,7 +225,7 @@ final class CheckpointEnvironment implements Environment {
 	 */
 	@Override
 	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer, final DistributionPattern distributionPattern) {
+			final RecordDeserializer<? extends Record> deserializer) {
 
 		throw new IllegalStateException("Checkpoint replay task called createInputGate");
 	}

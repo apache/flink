@@ -131,7 +131,7 @@ public class NepheleMiniClusterITCase extends TestCase {
 
 		@Override
 		public void registerInputOutput() {
-			input = new RecordReader<StringRecord>(this, StringRecord.class, null);
+			input = new RecordReader<StringRecord>(this, StringRecord.class);
 		}
 
 		@Override
@@ -160,7 +160,7 @@ public class NepheleMiniClusterITCase extends TestCase {
 
 		@Override
 		public void registerInputOutput() {
-			this.input = new RecordReader<StringRecord>(this, StringRecord.class, null);
+			this.input = new RecordReader<StringRecord>(this, StringRecord.class);
 			this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
 		}
 

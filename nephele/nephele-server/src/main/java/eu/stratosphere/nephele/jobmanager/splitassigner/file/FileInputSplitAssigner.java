@@ -59,10 +59,10 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 		final ExecutionVertex vertex = groupVertex.getGroupMember(0);
 		final AbstractInvokable invokable = vertex.getEnvironment().getInvokable();
 
-//		if (!(invokable instanceof AbstractFileInputTask)) {
-//			LOG.error(groupVertex.getName() + " is not an input vertex, ignoring vertex...");
-//			return;
-//		}
+		// if (!(invokable instanceof AbstractFileInputTask)) {
+		// LOG.error(groupVertex.getName() + " is not an input vertex, ignoring vertex...");
+		// return;
+		// }
 
 		@SuppressWarnings("unchecked")
 		final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;
