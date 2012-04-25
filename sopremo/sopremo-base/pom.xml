@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>sopremo</artifactId>
 		<groupId>eu.stratosphere</groupId>
-        <version>0.1.1</version>
+        <version>0.2</version>
 	</parent>
 
 	<artifactId>sopremo-base</artifactId>

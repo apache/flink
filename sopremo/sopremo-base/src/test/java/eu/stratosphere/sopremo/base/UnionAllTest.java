@@ -6,10 +6,6 @@ import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class UnionAllTest extends SopremoTest<UnionAll> {
-	@Override
-	public void shouldComplyEqualsContract() {
-	}
-
 	@Test
 	public void shouldPerformThreeWayBagUnion() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);

@@ -9,7 +9,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.BooleanNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 @Name(verb = "select")
 public class Selection extends ElementaryOperator<Selection> {
@@ -64,14 +64,13 @@ public class Selection extends ElementaryOperator<Selection> {
 		return builder.toString();
 	}
 
-	public static class Implementation extends
-			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+	public static class Implementation extends SopremoMap {
 		private BooleanExpression condition;
 
 		@Override
-		protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
+		protected void map(final IJsonNode value, final JsonCollector out) {
 			if (this.condition.evaluate(value, this.getContext()) == BooleanNode.TRUE)
-				out.collect(key, value);
+				out.collect(value);
 		}
 
 	}

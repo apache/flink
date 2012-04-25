@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.base;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -11,6 +12,7 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Property;
+import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
@@ -21,7 +23,8 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 @Name(verb = "group")
@@ -31,12 +34,29 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 	 */
 	private static final long serialVersionUID = 1452280003631381562L;
 
-	private final static EvaluationExpression GROUP_ALL = new ConstantExpression(NullNode.getInstance());
+	private final static List<? extends EvaluationExpression> GROUP_ALL = Arrays.asList(new ConstantExpression(
+		NullNode.getInstance()));
 
 	private EvaluationExpression resultProjection = EvaluationExpression.VALUE;
 
 	public Grouping() {
-		this.setDefaultKeyProjection(GROUP_ALL);
+		this.setDefaultKeyExpressions(GROUP_ALL);
+	}
+
+	@Override
+	public SopremoModule asElementaryOperators() {
+		final int numInputs = this.getInputOperators().size();
+		final SopremoModule module = new SopremoModule(this.getName(), numInputs, 1);
+
+		final List<Operator<?>> inputs = new ArrayList<Operator<?>>();
+		for (int index = 0; index < numInputs; index++)
+			inputs.add(new Projection().
+				withTransformation(this.getValueProjection(index)).
+				withInputs(module.getInput(index)));
+
+		module.getOutput(0).setInput(0, this.createElementaryOperations(inputs));
+
+		return module;
 	}
 
 	@Override
@@ -102,12 +122,12 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 
 	@Property(preferred = true, input = true)
 	@Name(preposition = "by")
-	public void setGroupingKey(int inputIndex, EvaluationExpression keyProjection) {
-		super.setKeyProjection(inputIndex, keyProjection);
+	public void setGroupingKey(int inputIndex, EvaluationExpression groupingKey) {
+		super.setKeyExpressions(inputIndex, Arrays.asList(groupingKey));
 	}
 
 	public EvaluationExpression getGroupingKey(int index) {
-		return super.getKeyProjection(index);
+		return super.getKeyExpressions(index).get(0);
 	}
 
 	public Grouping withGroupingKey(int inputIndex, EvaluationExpression groupingKey) {
@@ -116,7 +136,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 	}
 
 	public Grouping withGroupingKey(EvaluationExpression groupingKey) {
-		setDefaultKeyProjection(groupingKey);
+		setDefaultKeyExpressions(Arrays.asList(groupingKey));
 		return this;
 	}
 
@@ -135,15 +155,16 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 			super("U<values>", new ArrayNode());
 		}
 
-		//TODO refactor code
+		// TODO refactor code
 		@Override
-		protected JsonNode aggregate(final JsonNode mergedArray, final JsonNode array, final EvaluationContext context) {
-			ArrayNode arrayNode = ((ArrayNode)array);
+		protected IJsonNode aggregate(final IJsonNode mergedArray, final IJsonNode array,
+				final EvaluationContext context) {
+			ArrayNode arrayNode = ((ArrayNode) array);
 			for (int index = 0; index < arrayNode.size(); index++) {
-				if (((ArrayNode)mergedArray).size() <= index)
+				if (((ArrayNode) mergedArray).size() <= index)
 					((ArrayNode) mergedArray).add(new ArrayNode());
 				if (!arrayNode.get(index).isNull())
-					((ArrayNode)(((ArrayNode) mergedArray).get(index))).add(arrayNode.get(index));
+					((ArrayNode) (((ArrayNode) mergedArray).get(index))).add(arrayNode.get(index));
 			}
 			return mergedArray;
 		}
@@ -173,13 +194,12 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 			this.projection = projection;
 		}
 
-		public static class Implementation extends
-				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+		public static class Implementation extends SopremoCoGroup {
 			private EvaluationExpression projection;
 
 			@Override
-			protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
-				out.collect(key, this.projection.evaluate(JsonUtil.asArray(values1, values2), this.getContext()));
+			protected void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out) {
+				out.collect(this.projection.evaluate(JsonUtil.asArray(values1, values2), this.getContext()));
 			}
 		}
 	}
@@ -197,13 +217,12 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 			this.projection = projection;
 		}
 
-		public static class Implementation extends
-				SopremoReduce<JsonNode, JsonNode, JsonNode, JsonNode> {
+		public static class Implementation extends SopremoReduce {
 			private EvaluationExpression projection;
 
 			@Override
-			protected void reduce(final JsonNode key1, final ArrayNode values, final JsonCollector out) {
-				out.collect(key1, this.projection.evaluate(values, this.getContext()));
+			protected void reduce(final IArrayNode values, final JsonCollector out) {
+				out.collect(this.projection.evaluate(values, this.getContext()));
 			}
 		}
 	}

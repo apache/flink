@@ -1,23 +1,17 @@
 package eu.stratosphere.sopremo.base;
-import static eu.stratosphere.sopremo.JsonUtil.createPath;
 
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class UnionTest extends SopremoTest<Union> {
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoTest#shouldComplyEqualsContract()
+	 */
 	@Override
-	protected Union createDefaultInstance(final int index) {
-		final Union union = new Union();
-		union.setInputs(new Source(EvaluationExpression.NULL));
-		union.setIdentityKey(0, createPath(String.valueOf(index)));
-		return union;
+	public void shouldComplyEqualsContract() {
 	}
 
 	@Test
@@ -51,23 +45,20 @@ public class UnionTest extends SopremoTest<Union> {
 
 		final Union union = new Union();
 		union.setInputs(sopremoPlan.getInputOperators(0, 2));
-		union.setIdentityKey(0, createPath("name"));
-		union.setIdentityKey(1, new MethodCall("concat", createPath("first name"), new ConstantExpression(" "),
-			createPath("last name")));
 		sopremoPlan.getOutputOperator(0).setInputs(union);
 		sopremoPlan.getInput(0).
 			addObject("name", "Jon Doe", "password", "asdf1234", "id", 1).
 			addObject("name", "Jane Doe", "password", "qwertyui", "id", 2).
 			addObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3);
 		sopremoPlan.getInput(1).
-			addObject("first name", "Jon", "last name", "Doe", "password", "asdf1234", "id", 1).
-			addObject("first name", "Jane", "last name", "Doe", "password", "qwertyui", "id", 2).
-			addObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4);
+			addObject("name", "Jon Doe", "password", "asdf1234", "id", 1).
+			addObject("name", "Jane Doe", "password", "qwertyui", "id", 2).
+			addObject("name", "Peter Parker", "password", "q1w2e3r4", "id", 4);
 		sopremoPlan.getExpectedOutput(0).
 			addObject("name", "Jon Doe", "password", "asdf1234", "id", 1).
 			addObject("name", "Jane Doe", "password", "qwertyui", "id", 2).
 			addObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3).
-			addObject("first name", "Peter", "last name", "Parker", "password", "q1w2e3r4", "id", 4);
+			addObject("name", "Peter Parker", "password", "q1w2e3r4", "id", 4);
 
 		sopremoPlan.run();
 	}
@@ -93,7 +84,7 @@ public class UnionTest extends SopremoTest<Union> {
 			addValue(2).
 			addValue(3).
 			addValue(4);
-		
+
 		sopremoPlan.run();
 	}
 

@@ -10,7 +10,7 @@ import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -26,7 +26,7 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 	 */
 	private static final long serialVersionUID = -2967507260239105002L;
 
-	private EvaluationExpression objectPath = EvaluationExpression.VALUE, keyProjection = new ArrayAccess(1),
+	private EvaluationExpression objectPath = EvaluationExpression.VALUE,
 			valueProjection = new ArrayAccess(0);
 
 	public EvaluationExpression getObjectPath() {
@@ -57,37 +57,22 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 		this.valueProjection = valueProjection;
 	}
 
-	/**
-	 * (element, index/fieldName, array/object, node) -&gt; key
-	 * 
-	 * @param keyProjection
-	 * @return
-	 */
-	public ObjectSplit withKeyProjection(EvaluationExpression keyProjection) {
-		this.keyProjection = keyProjection;
-		return this;
-	}
-
-	public EvaluationExpression getKeyProjection() {
-		return this.keyProjection;
-	}
-
 	public ObjectSplit setObjectProjection(EvaluationExpression objectPath) {
 		this.objectPath = objectPath;
 		return this;
 	}
-	
+
 	public ObjectSplit withObjectProjection(EvaluationExpression objectProjection) {
 		setObjectProjection(objectProjection);
 		return this;
 	}
 
-	public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
-		private EvaluationExpression objectPath, valueProjection, keyProjection;
+	public static class Implementation extends SopremoMap {
+		private EvaluationExpression objectPath, valueProjection;
 
 		@Override
-		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
-			final JsonNode object = this.objectPath.evaluate(value, this.getContext());
+		protected void map(IJsonNode value, JsonCollector out) {
+			final IJsonNode object = this.objectPath.evaluate(value, this.getContext());
 			if (!object.isObject())
 				throw new EvaluationException("Cannot split non-object");
 
@@ -97,8 +82,8 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 				String field = fieldNames.next();
 				final TextNode fieldNode = TextNode.valueOf(field);
 				out.collect(
-					this.keyProjection.evaluate(JsonUtil.asArray(((ObjectNode) value).get(field), fieldNode, object, value), context),
-					this.valueProjection.evaluate(JsonUtil.asArray(((ObjectNode) value).get(field), fieldNode, object, value), context));
+					this.valueProjection.evaluate(JsonUtil.asArray(((ObjectNode) value).get(field), fieldNode, object,
+						value), context));
 			}
 		}
 	}

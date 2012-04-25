@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo.base;
 
-import java.util.List;
-
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
@@ -10,9 +8,16 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 
+/**
+ * Calculates the set-based difference of two or more input streams.<br>
+ * Specifically, given a value <i>v</i> of the first input, the output contains <i>v</i> iff no other input contains an
+ * equal value to <i>v</i>.<br>
+ * If the first input contains multiple identical entries, only one representation is emitted.
+ * 
+ * @author Arvid Heise
+ */
 @Name(verb = "difference")
 public class Difference extends SetOperation<Difference> {
 
@@ -21,21 +26,14 @@ public class Difference extends SetOperation<Difference> {
 	 */
 	private static final long serialVersionUID = 2805583327454416554L;
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.base.SetOperation#createBinaryOperations(eu.stratosphere.sopremo.JsonStream,
+	 * eu.stratosphere.sopremo.JsonStream)
+	 */
 	@Override
-	protected Operator<?> createElementaryOperations(final List<Operator<?>> inputs) {
-		if (inputs.size() <= 1)
-			return inputs.get(0);
-
-		Operator<?> leftInput = inputs.get(0);
-		for (int index = 1; index < inputs.size(); index++)
-			leftInput = new TwoInputDifference().withInputs(leftInput, inputs.get(index));
-
-		return leftInput;
-	}
-
-	@Override
-	protected EvaluationExpression getDefaultValueProjection(JsonStream source) {
-		return source == getInput(0) ? EvaluationExpression.VALUE : EvaluationExpression.NULL;
+	protected Operator<?> createBinaryOperations(JsonStream leftInput, JsonStream rightInput) {
+		return new TwoInputDifference().withInputs(leftInput, rightInput);
 	}
 
 	@InputCardinality(min = 2, max = 2)
@@ -45,22 +43,21 @@ public class Difference extends SetOperation<Difference> {
 		 */
 		private static final long serialVersionUID = 2331712414222089266L;
 
-		// @Override
-		// public PactModule asPactModule(EvaluationContext context) {
-		// CoGroupContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode>
-		// difference =
-		// new CoGroupContract<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode>(
-		// Implementation.class);
-		// return PactModule.valueOf(toString(), difference);
-		// }
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
+		 */
+		@Override
+		public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+			return ALL_KEYS;
+		}
 
-		public static class Implementation extends
-				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+		public static class Implementation extends SopremoCoGroup {
 			@Override
-			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
+			protected void coGroup(final IArrayNode values1, final IArrayNode values2,
 					final JsonCollector out) {
 				if (!values1.isEmpty() && values2.isEmpty())
-					out.collect(key, values1.get(0));
+					out.collect(values1.get(0));
 			}
 		}
 	}
