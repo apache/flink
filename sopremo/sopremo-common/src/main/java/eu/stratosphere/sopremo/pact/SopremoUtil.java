@@ -26,7 +26,6 @@ import org.apache.log4j.Level;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
@@ -37,13 +36,6 @@ public class SopremoUtil {
 	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
 
 	public static final String CONTEXT = "context";
-
-	private static final ThreadLocal<PactString> SerializationString = new ThreadLocal<PactString>() {
-		@Override
-		protected PactString initialValue() {
-			return new PactString();
-		};
-	};
 
 	static void configureStub(final Stub stub, final Configuration parameters) {
 		for (final Field stubField : stub.getClass().getDeclaredFields())
@@ -74,14 +66,12 @@ public class SopremoUtil {
 			final int readInt = in.readInt();
 			if (readInt == Type.CustomNode.ordinal()) {
 				final String className = in.readUTF();
-				try {
-					value = (IJsonNode) Class.forName(className).newInstance();
-				} catch (final ClassNotFoundException e) {
-					e.printStackTrace();
-				}
+				value = (IJsonNode) Class.forName(className).newInstance();
 			} else
 				value = Type.values()[readInt].getClazz().newInstance();
 			value.read(in);
+		} catch (final ClassNotFoundException e) {
+			e.printStackTrace();
 		} catch (final InstantiationException e) {
 			e.printStackTrace();
 		} catch (final IllegalAccessException e) {
@@ -170,7 +160,7 @@ public class SopremoUtil {
 		try {
 			out.writeInt(iJsonNode.getType().ordinal());
 
-			if (iJsonNode.getType()== Type.CustomNode)
+			if (iJsonNode.getType() == Type.CustomNode)
 				out.writeUTF(iJsonNode.getClass().getName());
 			iJsonNode.write(out);
 		} catch (final IOException e) {
